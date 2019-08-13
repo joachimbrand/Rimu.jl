@@ -22,4 +22,4 @@ withenv(
         dirname = "Rimu.jl",
     )
 end
-@info "Documentation updated on https://joachimbrand.bitbucket.io/Rimu.jl/dev/"
+@info "Documentation updated on https://joachimbrand.bitbucket.io/Rimu.jl/dev/ "
