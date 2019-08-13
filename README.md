@@ -1,4 +1,4 @@
 # Rimu
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://joachimbrand.github.io/Rimu.jl/stable)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://joachimbrand.github.io/Rimu.jl/dev)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](hhttps://joachimbrand.bitbucket.io/Rimu.jl/dev/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://joachimbrand.bitbucket.io/Rimu.jl/dev/)
