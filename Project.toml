@@ -3,9 +3,6 @@ uuid = "c53c40cc-bd84-11e9-2cf4-a9fde2b9386e"
 authors = ["Joachim Brand <j.brand@massey.ac.nz>"]
 version = "0.1.0"
 
-[deps]
-DictVectors = "b5d25f08-9409-11e9-1d54-c14992eeb431"
-
 [compat]
 julia = "1"
 

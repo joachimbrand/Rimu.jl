@@ -4,7 +4,6 @@ Random Integrator for Many-Body Quantum Systems
 """
 module Rimu
 
-using DictVectors
 
 export greet
 
