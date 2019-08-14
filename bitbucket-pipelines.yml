@@ -6,7 +6,8 @@ pipelines:
         name: tests
         script:
             - export JULIA_PROJECT=@.
-            - julia -e 'using Pkg; Pkg.add("git@bitbucket.org:joachimbrand/dictvectors.jl.git"); Pkg.instantiate(); Pkg.build()'
+            - julia -e 'using Pkg; Pkg.add(PackageSpec("git@bitbucket.org:joachimbrand/dictvectors.jl.git"))'
+            - julia -e 'Pkg.instantiate(); Pkg.build()'
             - julia test/runtests.jl
     - step:
         name: documentation
