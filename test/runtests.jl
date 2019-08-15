@@ -7,6 +7,7 @@ using LinearAlgebra
     @test 3==3
 end
 
+using Rimu.FastBufs
 @testset "FastBufs.jl" begin
     fb = FastBuf{Float64}(2000) # instantiate a FastBuf
     [push!(fb,rand()) for i=1:1000] # fill it with numbers
