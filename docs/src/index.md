@@ -4,5 +4,5 @@
 ```
 
 ```@autodocs
-Modules = [Rimu]
+Modules = [Rimu,FastBufs]
 ```

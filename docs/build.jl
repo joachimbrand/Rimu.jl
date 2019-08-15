@@ -6,7 +6,7 @@ makedocs(;
     pages=[
         "Home" => "index.md",
     ],
-    repo="https://bitbucket.org/joachimbrand/Rimu.jl/blob/{commit}{path}#L{line}",
+    repo="https://bitbucket.org/joachimbrand/Rimu.jl/{commit}{path}#L{line}",
     sitename="Rimu.jl",
     authors="Joachim Brand <j.brand@massey.ac.nz>",
 )
