@@ -1,15 +1,8 @@
-# Julia module to contain all type and method definitions
-# pertaining to walkers
-
-module Walkers
-
-export WalkerType, wcreate, wisdead, wloc, wnum, wabs, wsign, wsubtract!,
-  wadd!, wclone!, wdie!, wkill!, wnumpsips, wnumpsipssquare
-
-export RealWalker
-export W3, W4, W5
-
-export deadwalker
+```
+    BitStringAddresses
+Module with types and methods pertaining to bitstring addresses.
+```
+module BitStringAddresses
 
 export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd
 export occupationnumberrepresentation, bitaddr, maxBSLength
@@ -79,7 +72,7 @@ Base.hash(a::BSAdd64, h::UInt) = hash(a.add, h)
 """
     BSAdd128 <: BitStringAddressType
 
-Address type that encodes a bistring address in a UInt64.
+Address type that encodes a bistring address in a UInt128.
 """
 struct BSAdd128 <: BitStringAddressType
   add::UInt128
@@ -128,106 +121,6 @@ function deadwalker(w::T) where T<:WalkerType
 end
 # this should work for all walker types if zero(address) is defined
 
-
-"""
-    RealWalker <: WalkerType
-
-Abstract type of walker that needs to implement at least the methods
-- `wloc(w) <:BitStringAddressType`
-- `wnum(w) <:Real`
-- `wcreate(l,n,typeof(w)) <: walker` create a walker of this type
-"""
-abstract type RealWalker <: WalkerType end
-
-# some generic functions that should work for all walkers belonging to this
-# abstract type
-#
-
-# simplified constructors: make walker of same type with add l and num n
-wcreate(w::RealWalker,l::BitStringAddressType,n::Real) = wcreate(l,n,typeof(w))
-wcreate(w::RealWalker,n::Integer) = wcreate(w,wloc(w),n)
-
-# check whether a walker is dead;
-wisdead(w::RealWalker) = iszero(wnum(w))
-
-wabs(w::RealWalker) = abs(wnum(w)) # extract number without sign
-wsign(w::RealWalker) = sign(wnum(w)) # extract sign of walker
-# note that the result is zero for a dead walker (num == zero)
-
-function Base.isless(w1::T,w2::T) where T<:RealWalker # comparison for walkers, needed for sorting
-    wloc(w1) < wloc(w2) ? true : wloc(w1) > wloc(w2) ? false :
-        wnum(w1) < wnum(w2) ? true : false
-end
-
-function wclone!(walkers::AbstractArray{T,1},ind) where T<:RealWalker# add a psip same sign
-    walkers[ind] = wcreate(walkers[ind],
-                      wnum(walkers[ind]) + wsign(walkers[ind]))
-end
-
-function wdie!(walkers::AbstractArray{T,1},ind) where T<:RealWalker # remove a psip conserving the sign
-    walkers[ind] = wcreate(walkers[ind],
-                      wnum(walkers[ind]) - wsign(walkers[ind]))
-end
-
-"""
-    W3 <: RealWalker <: WalkerType
-
-My own type for walker with separate address and psip number.
-The address is now of type `BSAdd64 <: BitStringAddressType`
-in order to allow the programming of generic access to bitstring-type
-addresses.
-"""
-struct W3 <: RealWalker  # my own type for walkers with 2 64 bit integers
-  loc::BSAdd64 # location in linear space
-  num::Int64 # sign and number of walkers
-end
-
-wcreate(l::BSAdd64,n::Integer,::Type{W3}) = W3(l,n)
-# For convenience, also add a method where you can give the location as an
-# integer
-#wcreate(l::Integer,n::Integer,::Type{W3}) = W3(BSAdd64(l),n)
-
-wloc(w::W3) = w.loc # method for extracting location
-wnum(w::W3) = w.num # method for extracting number (with sign)
-
-"""
-    W4 <: RealWalker <: WalkerType
-
-My own type for walker with separate address and psip number.
-The address is now of type `BSAdd128 <: BitStringAddressType`
-in order to allow the programming of generic access to bitstring-type
-addresses.
-"""
-struct W4 <: RealWalker  # my own type for walkers with 2 64 bit integers
-  loc::BSAdd128 # location in linear space
-  num::Int64 # sign and number of walkers
-end
-
-wcreate(l::BSAdd128,n::Integer,::Type{W4}) = W4(l,n)
-# For convenience, also add a method where you can give the location as an
-# integer
-#wcreate(l::Integer,n::Integer,::Type{W3}) = W3(BSAdd64(l),n)
-
-wloc(w::W4) = w.loc # method for extracting location
-wnum(w::W4) = w.num # method for extracting number (with sign)
-
-"""
-    W5 <: RealWalker <: WalkerType
-
-My own type for walker with separate address and psip number.
-The address is now of type `BStringAdd <: BitStringAddressType`
-in order to allow the programming of generic access to bitstring-type
-addresses of arbitrary length.
-"""
-struct W5 <: RealWalker
-  loc::BStringAdd
-  num::Int64
-end
-
-wcreate(l::BStringAdd,n::Integer,::Type{W5}) = W5(l,n)
-
-wloc(w::W5) = w.loc # method for extracting location
-wnum(w::W5) = w.num # method for extracting number (with sign)
 
 #################################
 #

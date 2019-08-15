@@ -10,8 +10,8 @@ include("FastBufs.jl")
 using .FastBufs
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
-include("Walkers.jl")
-@reexport using .Walkers
+include("BitStringAddresses.jl")
+@reexport using .BitStringAddresses
 include("ConsistentRNG.jl")
 # using .ConsistentRNG
 include("Hamiltonians.jl")

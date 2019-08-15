@@ -14,9 +14,9 @@ Modules = [Rimu]
 Modules = [Hamiltonians]
 ```
 
-### Walkers
+### BitStringAddresses
 ```@autodocs
-Modules = [Walkers]
+Modules = [BitStringAddresses]
 ```
 
 ### DictVectors
