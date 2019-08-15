@@ -9,6 +9,16 @@
 Modules = [Rimu]
 ```
 
+### Hamiltonians
+```@autodocs
+Modules = [Hamiltonians]
+```
+
+### Walkers
+```@autodocs
+Modules = [Walkers]
+```
+
 ### DictVectors
 ```@autodocs
 Modules = [DictVectors]

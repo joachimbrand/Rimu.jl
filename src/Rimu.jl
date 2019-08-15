@@ -7,9 +7,20 @@ module Rimu
 using Reexport
 
 include("FastBufs.jl")
-@reexport using .FastBufs
+using .FastBufs
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
+include("Walkers.jl")
+@reexport using Walkers
+include("Hamiltonians.jl")
+@reexport using Hamiltonians
+
+export fciqmc!, FCIQMCParams,StochasticStyle, IsStochastic, IsDeterministic
+export IsSemistochastic
+
+
+include("fciqmc.jl")
+
 
 
 export greet
