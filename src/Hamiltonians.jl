@@ -11,11 +11,11 @@ neighbour interactions, real space, one dimension
 module Hamiltonians
 
 using Parameters
-using DictVectors
+using ..DictVectors
 
 
-using Walkers
-using ConsistentRNG
+using ..Walkers
+using ..ConsistentRNG
 
 export LinearOperator, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
