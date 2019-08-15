@@ -23,7 +23,6 @@ haskey, empty!, isempty`) and, in addition:
 - `similar(dv [,Type])`
 - `iterate()`: should return `Pair{K,V}`
 """
-# abstract type AbstractDVec{K,T} <: AbstractDict{K,T} end
 abstract type AbstractDVec{K,T} end
 
 """

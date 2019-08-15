@@ -3,6 +3,18 @@
 ```@index
 ```
 
+## API
+### Rimu
 ```@autodocs
-Modules = [Rimu,FastBufs,DictVectors]
+Modules = [Rimu]
+```
+
+### DictVectors
+```@autodocs
+Modules = [DictVectors]
+```
+
+### FastBufs
+```@autodocs
+Modules = [FastBufs]
 ```
