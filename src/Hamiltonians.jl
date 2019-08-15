@@ -14,7 +14,7 @@ using Parameters
 using ..DictVectors
 
 
-using ..Walkers
+using ..BitStringAddresses
 using ..ConsistentRNG
 
 export LinearOperator, Hops, generateRandHop

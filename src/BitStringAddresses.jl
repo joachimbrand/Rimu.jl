@@ -84,43 +84,6 @@ Base.isless(a1::BSAdd128,a2::BSAdd128) = isless(a1.add, a2.add)
 Base.zero(add::BSAdd128) = BSAdd128(0)
 Base.hash(a::BSAdd128, h::UInt) = hash(a.add, h)
 
-"""
-    WalkerType
-
-An abstract type for walkers.
-"""
-abstract type WalkerType end # my own abstract type for walkers
-
-
-# some methods that should work for all types of walkers
-function Base.isless(w1::WalkerType,w2::WalkerType) # comparison for walkers
-  #this implementation is fairly generic and should work for all walkers
-    wloc(w1) < wloc(w2) ? true : wloc(w1) > wloc(w2) ? false :
-        wnum(w1) < wnum(w2) ? true : false
-end
-
-function wnumpsips(walkers::AbstractArray{T,1}) where T<:WalkerType
-  # return sum(convert(Vector{Int},map(wabs,walkers)))
-  wn = 0
-  for w in walkers
-    wn += wabs(w)
-  end
-  return wn # devectorised loop for speedup
-end
-
-function wnumpsipssquare(walkers::AbstractArray{T,1}) where T<:WalkerType
-  wn2 = 0
-  for w in walkers
-    wn2 += wnum(w)^2
-  end
-  return wn2
-end
-
-function deadwalker(w::T) where T<:WalkerType
-  wcreate(zero(wloc(w)),0,T)
-end
-# this should work for all walker types if zero(address) is defined
-
 
 #################################
 #
@@ -228,4 +191,4 @@ function occupationnumberrepresentation(bsadd::BStringAdd, mm::Int)
   return onr
 end #function occupationnumberrepresentation(bsadd::BStringAdd...)
 
-end # module Walkers
+end # module BitStringAddresses
