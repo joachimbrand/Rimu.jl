@@ -8,6 +8,9 @@ using Reexport
 
 include("FastBufs.jl")
 @reexport using .FastBufs
+include("DictVectors/DictVectors.jl")
+@reexport using .DictVectors
+
 
 export greet
 
