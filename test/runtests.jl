@@ -66,3 +66,8 @@ end
     dvc = copy(dv)
     @test dvc == dv
 end
+
+@testset "ConsistentRNG.jl" begin
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @test cRand(Int) == 6792904027504972346
+end

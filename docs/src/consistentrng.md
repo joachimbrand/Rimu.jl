@@ -11,5 +11,5 @@ For the random number generator we are currently using
 ## Module `ConsistentRNG.jl`
 
 ```@autodocs
-Modules = [ConsistentRNG]
+Modules = [Rimu.ConsistentRNG]
 ```

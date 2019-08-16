@@ -1,6 +1,6 @@
 # Rimu.jl
 
-Random Integrators for many-body quantum systems
+**Random Integrators for many-body quantum systems**
 
 TODO: Paragraph what this is about
 

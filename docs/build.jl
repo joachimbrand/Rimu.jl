@@ -3,7 +3,7 @@ using Rimu.ConsistentRNG, Rimu.BitStringAddresses
 using Rimu.FastBufs
 
 makedocs(;
-    modules=[Rimu],
+    modules=[Rimu,Rimu.ConsistentRNG],
     format=Documenter.HTML(prettyurls = false),
     pages=[
         "Home" => "index.md",

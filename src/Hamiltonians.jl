@@ -20,7 +20,7 @@ export LinearOperator, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
 
 export BosonicHamiltonian, numParticles, numModes, bit_String_Length
-export generateInitialWalker
+export nearUniform
 export BoseHubbardReal1D, ExtendedBHReal1D
 
 # First we have some generic types and methods for any linear operator
