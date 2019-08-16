@@ -273,14 +273,13 @@ StochasticStyle(::Type{<:MySSVec}) = IsSemistochastic()
 Spawning and diagonal step of FCIQMC for single column of `h`. In essence it
 computes
 
-`w .+= (1 .+ dτ*(shift - h[:,add])).*num`.
+`w .+= (1 .+ dτ.*(shift .- h[:,add])).*num`.
 
 Depending on `StochasticStyle(w)`, a stochastic or deterministic algorithm will
 be chosen.
 
 - `T == IsDeterministic()` deteministic algorithm
-- `T == IsStochastic()` stochastic version where the changes added to `w` are
-purely integer, according to the FCIQMC algorithm.
+- `T == IsStochastic()` stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm.
 - `T == IsSemistochastic()` semistochastic version: TODO
 """
 fciqmc_col!(w, args...) = fciqmc_col!(StochasticStyle(w), w, args...)

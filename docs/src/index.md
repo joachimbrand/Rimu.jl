@@ -2,5 +2,16 @@
 
 Random Integrators for many-body quantum systems
 
-```@index
-```
+TODO: Paragraph what this is about
+
+# Installation
+
+TODO: How to install
+
+# Usage
+
+TODO: Usage
+
+# Examples
+
+TODO: Examples
