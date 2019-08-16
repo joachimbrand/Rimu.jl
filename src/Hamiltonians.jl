@@ -6,7 +6,6 @@ Models implemented so far are:
 * `BoseHubbardReal1D` Bose-Hubbard chain, real space
 * `ExtendedBHReal1D` extended Bose-Hubbard model with on-site and nearest
 neighbour interactions, real space, one dimension
-
 """
 module Hamiltonians
 
@@ -54,8 +53,8 @@ Base.eltype(::LinearOperator{T}) where {T} = T
 """
     Hops(ham, add)
 
-Iterator over new address and matrix element for
-reachable off-diagonal matrix elements of Hamiltonian ham from address add.
+Iterator over new address and matrix element for reachable
+off-diagonal matrix elements of linear operator `ham` from address add.
 Represents an abstract vector containing the possibly non-zero off-diagonal
 matrix elements of the column of ham indexed by add.
 
@@ -175,12 +174,12 @@ Number of bits needed to represent an address for the linear operator `ham`.
 bit_String_Length(bh::BosonicHamiltonian) = numModes(bh) + numParticles(bh) - 1
 
 """
-    hasIntDimension(hamiltonian)
+    hasIntDimension(ham)
 
-Return `true` if dimension of the linear space can be computed as integer
-and `false` if not.
+Return `true` if dimension of the linear operator `ham` can be computed as an
+integer and `false` if not.
 
-If `true`, `dimensionLO(h)` will be successful and return and Int. The method
+If `true`, `dimensionLO(h)` will be successful and return an `Int`. The method
 `fDimensionLO(h)` should be useful in other cases.
 """
 function hasIntDimension(h::BosonicHamiltonian)
@@ -231,25 +230,16 @@ logbinomialapprox(n,k) =
   (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2*pi*k)
 
 """
-    generateInitialWalker(hamiltonian, num, WT)
-
-Function to generate an initial walker of type `WT` with `num`psips and a
-near-uniform distribution of particles across modes.
+    nearUniform(ham)
+Create bitstring address with near uniform distribution of particles
+across modes for the Hamiltonian `ham`.
 """
-function generateInitialWalker(ham::BosonicHamiltonian, num::Integer, WT)
-  n = numParticles(ham)
-  m = numModes(ham)
-  if (m+n-1) >= maxBSLength(ham.AT)
-      error("The currently selected walker type cannot represent your system! Please change the WType and AddType in the input file.")
-  end
-  # accesses global constants
-  fillingfactor, extras = divrem(n, m)
-  startonr = fill(fillingfactor,m)
-  startonr[1:extras] += ones(Int, extras)
-  startingposition = bitaddr(startonr, ham.AT)
-  return wcreate(startingposition,num,WT)
-end # generateInitialWalker
-
+function nearUniform(h::BosonicHamiltonian)
+    fillingfactor, extras = divrem(h.n, h.m)
+    startonr = fill(fillingfactor,h.m)
+    startonr[1:extras] += ones(Int, extras)
+    return bitaddr(startonr, h.AT)
+end
 
 ##########################################
 #
@@ -260,7 +250,7 @@ end # generateInitialWalker
 ###
 
 """
-    hamiltonian = BoseHubbardReal1D([n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
+    ham = BoseHubbardReal1D([n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
 
 Implements a one-dimensional Bose Hubbard chain in real space.
 
@@ -304,7 +294,7 @@ function (h::BoseHubbardReal1D{E})(v::AbstractDVec{K,V}) where {E, K, V}
 end
 
 """
-    diagME(hamiltonian, add)
+    diagME(ham, add)
 
 Compute the diagonal matrix element of the linear operator `hamiltonian` at
 address `add`.
@@ -376,7 +366,7 @@ BoseHubbardExtOrNot = Union{ExtendedBHReal1D, BoseHubbardReal1D}
 # type alias for convenience
 
 """
-    numOfHops(hamiltonian, add)
+    numOfHops(ham, add)
 
 Compute the number of number of reachable configurations from address `add`.
 """
@@ -385,7 +375,7 @@ function numOfHops(ham::BoseHubbardExtOrNot, add)
 end
 
 """
-    newadd, me = hop(hamiltonian, add, chosen)
+    newadd, me = hop(ham, add, chosen)
 
 Compute matrix element of `hamiltonian` and new address of a single hop from
 address `add` with integer index `chosen`.

@@ -353,15 +353,3 @@ function fciqmc_col!(::IsStochastic, w, h::LinearOperator, add, num::Number,
     return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
-
-"""
-    nearUniform(ham)
-Create bitstring address with near uniform distribution of particles
-across modes for the Hamiltonian `ham`.
-"""
-function nearUniform(h::BosonicHamiltonian)
-    fillingfactor, extras = divrem(h.n, h.m)
-    startonr = fill(fillingfactor,h.m)
-    startonr[1:extras] += ones(Int, extras)
-    return bitaddr(startonr, h.AT)
-end
