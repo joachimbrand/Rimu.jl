@@ -67,7 +67,27 @@ end
     @test dvc == dv
 end
 
+using Rimu.ConsistentRNG
 @testset "ConsistentRNG.jl" begin
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @test cRand(Int) == 6792904027504972346
+end
+
+@testset "Hamiltonians.jl" begin
+    ham = BoseHubbardReal1D(
+        n = 9,
+        m = 9,
+        u = 6.0,
+        t = 1.0,
+        AT = BSAdd64)
+    @test ham(:dim) == 24310
+
+    aIni = Rimu.Hamiltonians.nearUniform(ham)
+    @test aIni == BSAdd64(0x15555)
+
+    hp = Hops(ham,aIni)
+    @test length(hp) == 18
+    @test hp[18][1] == BSAdd64(0x000000000000d555)
+    @test hp[18][2] ≈ -1.4142135623730951
+    @test diagME(ham,aIni) == 0
 end
