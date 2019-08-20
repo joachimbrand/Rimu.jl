@@ -14,11 +14,21 @@ Abstract type for defining the strategy for updating the `shift`.
 """
 abstract type ShiftUpdateStrategy end
 
+"""
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3) <: ShiftUpdateStrategy
+Strategy for updating the shift: After `targetwalkers` is reached, update the
+shift according to the log formula with damping parameter `ζ`.
+"""
 @with_kw struct LogUpdateAfterTargetWalkers <: ShiftUpdateStrategy
     targetwalkers::Int
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
 end
 
+"""
+    LogUpdate(ζ = 0.3) <: ShiftUpdateStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ`.
+"""
 @with_kw struct LogUpdate <: ShiftUpdateStrategy
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
 end
