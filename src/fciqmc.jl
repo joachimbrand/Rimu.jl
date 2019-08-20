@@ -2,27 +2,62 @@
 @with_kw mutable struct FCIQMCParams
     step::Int = 0 # number of current/starting timestep
     laststep::Int = 50 # number of final timestep
-    targetwalkers::Int = 1_000 # when to switch to variable shift mode
-    variableShiftMode::Bool = false # whether to adjust shift
+    # targetwalkers::Int = 1_000 # when to switch to variable shift mode
+    shiftMode::Bool = false # whether to adjust shift
     shift::Float64 = 0.0 # starting/current value of shift
     dτ::Float64 = 0.01 # time step
+    # ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+end
+
+"""
+Abstract type for defining the strategy for updating the `shift`.
+"""
+abstract type ShiftUpdateStrategy end
+
+@with_kw struct LogUpdateAfterTargetWalkers <: ShiftUpdateStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+end
+
+@with_kw struct LogUpdate <: ShiftUpdateStrategy
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
 end
 
 """
-    fciqmc!(svec, h::LinearOperator, pa::FCIQMCParams [, svec2])
+    update_shift(s <: ShiftUpdateStrategy, shift, shiftMode, tnorm, pnorm, dτ, step)
+Update the shift according to strategy `s`.
+"""
+@inline function update_shift(s::LogUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step)
+    # return new shift and new shiftMode
+    return shift - s.ζ/dτ * log(tnorm/pnorm), true
+end
+
+@inline function update_shift(s::LogUpdateAfterTargetWalkers,
+                        shift, shiftMode, tnorm, args...)
+    if shiftMode || tnorm > s.targetwalkers
+        return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
+    end
+    return shift, false
+end
+
+"""
+    fciqmc!(svec, h::LinearOperator, pa::FCIQMCParams,
+            strategy::ShiftUpdateStrategy[, svec2])
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `h`.
 `svec` can be a single starting vector of type `:<AbstractDVec` or a tuple
 of such vectors. In the latter case, independent replicas are constructed.
 Returns a `DataFrame` with statistics about the run, or a tuple of `DataFrame`s
 for a replica run. This function mutates `svec` and the parameter struct `pa.`
-Optionally a pre-allocated `svec2` can be passed as arguments.
+Optionally, a pre-allocated `svec2` can be passed as arguments.
 """
 function fciqmc!(svec::D, h::LinearOperator, pa::FCIQMCParams,
+                 strategy::ShiftUpdateStrategy,
                  svec2::D = similar(svec)) where D<:AbstractDVec
     # unpack the parameters:
-    @unpack step, laststep, targetwalkers, variableShiftMode, shift, dτ, ζ = pa
+    @unpack step, laststep, shiftMode, shift, dτ = pa
 
     maxlength = capacity(svec)
     maxlength ≤ capacity(svec2) || error("`svec2` needs to have at least `capacity(svec)`")
@@ -34,7 +69,7 @@ function fciqmc!(svec::D, h::LinearOperator, pa::FCIQMCParams,
                         norm=Float64[], spawns=Int[], deaths=[], clones=Int[],
                         antiparticles=Int[], annihilations=Int[])
     # first row of df to show starting point
-    push!(df, (step, shift, variableShiftMode, length(svec), pnorm, 0, 0, 0, 0, 0))
+    push!(df, (step, shift, shiftMode, length(svec), pnorm, 0, 0, 0, 0, 0))
 
     while step < laststep
         step += 1
@@ -42,21 +77,24 @@ function fciqmc!(svec::D, h::LinearOperator, pa::FCIQMCParams,
         ss, ds, cs, aps, ans = fciqmc_step!(vNew, h, vOld, shift, dτ)
         tnorm = norm(vNew, 1) # total number of psips
         # update shift and mode if necessary
-        if variableShiftMode
-            # shift -= 0.5/dτ * (tnorm/targetwalkers-1)
-            shift -= ζ/dτ * log(tnorm/pnorm)
-            # adjusts the shift
-        elseif tnorm > targetwalkers
-            # shift = -105.0
-            variableShiftMode = true
-            # turn variableShiftMode on if norm > targetwalkers
-        # elseif tnorm > 0.7*targetwalkers
-        #     shift = -80.0
-        end
+        shift, shiftMode = update_shift(strategy,
+                                shift, shiftMode,
+                                tnorm, pnorm, dτ, step)
+        # if shiftMode
+        #     # shift -= 0.5/dτ * (tnorm/targetwalkers-1)
+        #     shift -= ζ/dτ * log(tnorm/pnorm)
+        #     # adjusts the shift
+        # elseif tnorm > targetwalkers
+        #     # shift = -105.0
+        #     shiftMode = true
+        #     # turn shiftMode on if norm > targetwalkers
+        # # elseif tnorm > 0.7*targetwalkers
+        # #     shift = -80.0
+        # end
         pnorm = tnorm # remember norm of this step for next step (previous norm)
         len = length(vNew)
         # record results
-        push!(df, (step, shift, variableShiftMode, len, tnorm,
+        push!(df, (step, shift, shiftMode, len, tnorm,
                         ss, ds, cs, aps, ans))
         # prepare for next step:
         dvec = vOld # keep reference to old vector
@@ -75,18 +113,19 @@ function fciqmc!(svec::D, h::LinearOperator, pa::FCIQMCParams,
     end
     # pack up and parameters for continuation runs
     # note that this modifes the struct pa
-    @pack! pa = step, variableShiftMode, shift, dτ, ζ
+    @pack! pa = step, shiftMode, shift, dτ
     return df
     # note that `svec` and `pa` are modified but not returned explicitly
 end # fciqmc
 
 # replica version
 function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
+                 strategy::ShiftUpdateStrategy,
                  vsNew::T = similar.(svecs)) where {N, K, V,
                                                 T<:NTuple{N,AbstractDVec{K,V}}}
                  # N is number of replica, V is eltype(svecs[1])
     # unpack the parameters:
-    @unpack step, laststep, targetwalkers, variableShiftMode, shift, dτ, ζ = pa
+    @unpack step, laststep, shiftMode, shift, dτ = pa
 
     maxlength = minimum(capacity.(svecs))
     reduce(&, capacity.(vsNew) .≥ maxlength) || error("replica containers `vsNew` have insufficient capacity")
@@ -94,7 +133,7 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
     zero!.(vsNew) # reset the vectors without allocating new memory
 
     shifts = [shift for i = 1:N] # Vector because it needs to be mutable
-    vShiftModes = [variableShiftMode for i = 1:N] # separate for each replica
+    vShiftModes = [shiftMode for i = 1:N] # separate for each replica
     pnorms = zeros(N) # initialise as vector
     pnorms .= norm.(vsOld,1) # 1-norm i.e. number of psips as Tuple (of previous step)
 
@@ -128,11 +167,15 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
                 vNew = vsNew[i]
                 mstats[i] .= fciqmc_step!(vNew, h, vOld, shifts[i], dτ)
                 norms[i] = norm(vNew,1) # total number of psips
-                if vShiftModes[i]
-                    shifts[i] -= ζ/dτ * log(norms[i]/pnorms[i])
-                elseif norms[i] > targetwalkers
-                    vShiftModes[i] = true
-                end
+                shifts[i], vShiftModes[i] = update_shift(strategy,
+                                        shifts[i], vShiftModes[i],
+                                        norms[i], pnorms[i], dτ, step)
+
+                # if vShiftModes[i]
+                #     shifts[i] -= ζ/dτ * log(norms[i]/pnorms[i])
+                # elseif norms[i] > targetwalkers
+                #     vShiftModes[i] = true
+                # end
             end
         end #loop over replicas
         lengths = length.(vsNew)
@@ -168,9 +211,9 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
     end
     # pack up and parameters for continuation runs
     # note that this modifes the struct pa
-    variableShiftMode = reduce(&,vShiftModes) # only true if all are in vShiftMode
+    shiftMode = reduce(&,vShiftModes) # only true if all are in vShiftMode
     shift = reduce(+,shifts)/N # return average value of shift
-    @pack! pa = step, variableShiftMode, shift, dτ, ζ
+    @pack! pa = step, shiftMode, shift, dτ, ζ
 
     return mixed_df, dfs # return dataframes with stats
     # note that `svecs` and `pa` are modified but not returned explicitly

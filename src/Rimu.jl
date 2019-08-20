@@ -4,7 +4,7 @@ Random Integrator for Many-Body Quantum Systems
 """
 module Rimu
 
-using Reexport, Parameters
+using Reexport, Parameters, LinearAlgebra, DataFrames
 
 include("FastBufs.jl")
 using .FastBufs
@@ -13,12 +13,13 @@ include("DictVectors/DictVectors.jl")
 include("BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("ConsistentRNG.jl")
-# using .ConsistentRNG
+using .ConsistentRNG
 include("Hamiltonians.jl")
 @reexport using .Hamiltonians
 
-export fciqmc!, FCIQMCParams,StochasticStyle, IsStochastic, IsDeterministic
-export IsSemistochastic
+export fciqmc!, FCIQMCParams
+export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
+export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
 
 
 include("fciqmc.jl")

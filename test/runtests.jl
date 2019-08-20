@@ -91,3 +91,22 @@ end
     @test hp[18][2] ≈ -1.4142135623730951
     @test diagME(ham,aIni) == 0
 end
+
+@testset "fciqmc.jl" begin
+    ham = BoseHubbardReal1D(
+        n = 9,
+        m = 9,
+        u = 6.0,
+        t = 1.0,
+        AT = BSAdd64)
+    aIni = nearUniform(ham)
+    pa = FCIQMCParams(laststep = 100)
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, ham, pa, s)
+    @test sum(rdfs[:,:spawns]) == 1751
+end
