@@ -1,47 +1,111 @@
-
+"""
+    FCIQMCParams(step::Int = 0 # number of current/starting timestep
+                 laststep::Int = 50 # number of final timestep
+                 shiftMode::Bool = false # whether to adjust shift
+                 shift::Float64 = 0.0 # starting/current value of shift
+                 dτ::Float64 = 0.01 # current value of time step
+    )
+Parameters for `fciqmc!()`.
+"""
 @with_kw mutable struct FCIQMCParams
     step::Int = 0 # number of current/starting timestep
     laststep::Int = 50 # number of final timestep
-    # targetwalkers::Int = 1_000 # when to switch to variable shift mode
     shiftMode::Bool = false # whether to adjust shift
     shift::Float64 = 0.0 # starting/current value of shift
     dτ::Float64 = 0.01 # time step
-    # ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
 end
 
 """
-Abstract type for defining the strategy for updating the `shift`.
+Abstract type for defining the strategy for updating the time step.
 """
-abstract type ShiftUpdateStrategy end
+abstract type TimeStepStrategy end
+
+"Keep `dτ` constant."
+struct ConstantTimeStep <: TimeStepStrategy end
 
 """
-    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3) <: ShiftUpdateStrategy
+    update_dτ(s<:TimeStepStrategy, dτ, args...) -> new dτ
+Update the time step according to the strategy `s`.
+"""
+update_dτ(::ConstantTimeStep, dτ, args...) = dτ
+
+"""
+Abstract type for defining the strategy for updating the `shift` with
+[`update_shift()`](@ref). Implemented strategies:
+
+   * [`DonTUpdate`](@ref)
+   * [`LogUpdate`](@ref)
+   * [`DelayedLogUpdate`](@ref)
+   * [`LogUpdateAfterTargetWalkers`](@ref)
+   * [`DelayedLogUpdateAfterTargetWalkers`](@ref)
+"""
+abstract type ShiftStrategy end
+
+"""
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ`.
 """
-@with_kw struct LogUpdateAfterTargetWalkers <: ShiftUpdateStrategy
+@with_kw struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
 end
 
 """
-    LogUpdate(ζ = 0.3) <: ShiftUpdateStrategy
+    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3) <: ShiftStrategy
+Strategy for updating the shift: After `targetwalkers` is reached, update the
+shift according to the log formula with damping parameter `ζ` and delay of
+`a` steps.
+"""
+@with_kw struct DelayedLogUpdateAfterTargetWalkers <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    a::Int = 10 # delay for updating shift
+end
+
+"""
+    LogUpdate(ζ = 0.3) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ`.
 """
-@with_kw struct LogUpdate <: ShiftUpdateStrategy
+@with_kw struct LogUpdate <: ShiftStrategy
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
 end
 
 """
-    update_shift(s <: ShiftUpdateStrategy, shift, shiftMode, tnorm, pnorm, dτ, step)
+    DelayedLogUpdate(ζ = 0.3, a = 10) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ` and delay of `a` steps.
+"""
+@with_kw struct DelayedLogUpdate <: ShiftStrategy
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    a::Int = 10 # delay for updating shift
+end
+
+"`DonTUpdate() <: ShiftStrategy` Don't update the `shift`."
+struct DonTUpdate <: ShiftStrategy end
+
+"""
+    update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df)
 Update the shift according to strategy `s`.
 """
 @inline function update_shift(s::LogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step)
+                        tnorm, pnorm, dτ, step, df)
     # return new shift and new shiftMode
     return shift - s.ζ/dτ * log(tnorm/pnorm), true
+end
+
+function update_shift(s::DelayedLogUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df)
+    # return new shift and new shiftMode
+    if shift % a == 0 && size(df,1) > a
+        prevnorm = df[end-a+1,:norm]
+        return shift - s.ζ/(dτ*a) * log(tnorm/prevnorm), true
+    else
+        return shift, true
+    end
 end
 
 @inline function update_shift(s::LogUpdateAfterTargetWalkers,
@@ -52,19 +116,32 @@ end
     return shift, false
 end
 
+@inline function update_shift(s::DelayedLogUpdateAfterTargetWalkers,
+                        shift, shiftMode, tnorm, args...)
+    if shiftMode || tnorm > s.targetwalkers
+        return update_shift(DelayedLogUpdate(s.ζ,s.a), shift, true, tnorm, args...)
+    end
+    return shift, false
+end
+
+@inline update_shift(::DonTUpdate, shift, args...) = (shift, false)
+
 """
-    fciqmc!(svec, h::LinearOperator, pa::FCIQMCParams,
-            strategy::ShiftUpdateStrategy[, svec2])
+    fciqmc!(svec, h, pa::FCIQMCParams,
+            s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy, svec2])
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `h`.
 `svec` can be a single starting vector of type `:<AbstractDVec` or a tuple
 of such vectors. In the latter case, independent replicas are constructed.
 Returns a `DataFrame` with statistics about the run, or a tuple of `DataFrame`s
-for a replica run. This function mutates `svec` and the parameter struct `pa.`
+for a replica run. This function mutates `svec` and the parameter struct `pa`.
+Strategies can be given for updating the shift (see [`ShiftStrategy`](@ref))
+and (optionally) the time step `dτ` (see [`TimeStepStrategy`](@ref)).
 Optionally, a pre-allocated `svec2` can be passed as arguments.
 """
-function fciqmc!(svec::D, h::LinearOperator, pa::FCIQMCParams,
-                 strategy::ShiftUpdateStrategy,
+function fciqmc!(svec::D, h, pa::FCIQMCParams,
+                 s_strat::ShiftStrategy,
+                 τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  svec2::D = similar(svec)) where D<:AbstractDVec
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -87,20 +164,11 @@ function fciqmc!(svec::D, h::LinearOperator, pa::FCIQMCParams,
         ss, ds, cs, aps, ans = fciqmc_step!(vNew, h, vOld, shift, dτ)
         tnorm = norm(vNew, 1) # total number of psips
         # update shift and mode if necessary
-        shift, shiftMode = update_shift(strategy,
+        shift, shiftMode = update_shift(s_strat,
                                 shift, shiftMode,
-                                tnorm, pnorm, dτ, step)
-        # if shiftMode
-        #     # shift -= 0.5/dτ * (tnorm/targetwalkers-1)
-        #     shift -= ζ/dτ * log(tnorm/pnorm)
-        #     # adjusts the shift
-        # elseif tnorm > targetwalkers
-        #     # shift = -105.0
-        #     shiftMode = true
-        #     # turn shiftMode on if norm > targetwalkers
-        # # elseif tnorm > 0.7*targetwalkers
-        # #     shift = -80.0
-        # end
+                                tnorm, pnorm, dτ, step, df)
+        dτ = update_dτ(τ_strat, dτ) # will need to pass more information later
+        # when we add different stratgies
         pnorm = tnorm # remember norm of this step for next step (previous norm)
         len = length(vNew)
         # record results
@@ -130,7 +198,8 @@ end # fciqmc
 
 # replica version
 function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
-                 strategy::ShiftUpdateStrategy,
+                 s_strat::ShiftStrategy,
+                 τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  vsNew::T = similar.(svecs)) where {N, K, V,
                                                 T<:NTuple{N,AbstractDVec{K,V}}}
                  # N is number of replica, V is eltype(svecs[1])
@@ -177,18 +246,15 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
                 vNew = vsNew[i]
                 mstats[i] .= fciqmc_step!(vNew, h, vOld, shifts[i], dτ)
                 norms[i] = norm(vNew,1) # total number of psips
-                shifts[i], vShiftModes[i] = update_shift(strategy,
+                shifts[i], vShiftModes[i] = update_shift(s_strat,
                                         shifts[i], vShiftModes[i],
-                                        norms[i], pnorms[i], dτ, step)
-
-                # if vShiftModes[i]
-                #     shifts[i] -= ζ/dτ * log(norms[i]/pnorms[i])
-                # elseif norms[i] > targetwalkers
-                #     vShiftModes[i] = true
-                # end
+                                        norms[i], pnorms[i], dτ, step, dfs[i])
             end
         end #loop over replicas
         lengths = length.(vsNew)
+        # update time step
+        dτ = update_dτ(τ_strat, dτ) # will need to pass more information
+        # later when we add different stratgies
         # record results
         for i = 1:N
             push!(dfs[i], (step, shifts[i], vShiftModes[i], lengths[i],
@@ -230,7 +296,7 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
 end # fciqmc
 
 
-function fciqmc_step!(w, h::LinearOperator, v, shift, dτ)
+function fciqmc_step!(w, h, v, shift, dτ)
     w === v && error("`w` and `v` must not be the same object")
     spawns = deaths = clones = antiparticles = annihilations = zero(eltype(v))
     for (add, num) in v
@@ -337,6 +403,7 @@ be chosen.
 """
 fciqmc_col!(w, args...) = fciqmc_col!(StochasticStyle(w), w, args...)
 
+# generic method for unknown trait: throw error
 fciqmc_col!(T::Type, args...) = throw(TypeError(:fciqmc_col!,
     "first argument: trait not recognised",StochasticStyle,T))
 

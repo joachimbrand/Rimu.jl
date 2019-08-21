@@ -19,6 +19,8 @@ include("Hamiltonians.jl")
 
 export fciqmc!, FCIQMCParams
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
+export DonTUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
+export TimeStepStrategy, ConstantTimeStep
 export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
 
 
