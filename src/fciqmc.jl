@@ -52,7 +52,7 @@ shift according to the log formula with damping parameter `ζ`.
 end
 
 """
-    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3) <: ShiftStrategy
+    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, a = 10) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and delay of
 `a` steps.
