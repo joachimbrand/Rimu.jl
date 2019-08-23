@@ -23,7 +23,7 @@ export DonTUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
 export TimeStepStrategy, ConstantTimeStep
 export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
 
-
+include("strategies_and_params.jl")
 include("fciqmc.jl")
 
 
