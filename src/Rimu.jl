@@ -16,6 +16,8 @@ include("ConsistentRNG.jl")
 using .ConsistentRNG
 include("Hamiltonians.jl")
 @reexport using .Hamiltonians
+include("Blocking.jl")
+@reexport using .Blocking
 
 export fciqmc!, FCIQMCParams
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers

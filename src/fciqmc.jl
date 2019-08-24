@@ -1,42 +1,72 @@
 
 """
-    fciqmc!(svec, h, pa::FCIQMCParams,
-            s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy, svec2])
+    fciqmc!(svec, pa::FCIQMCParams, [df,]
+             ham, s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy, dvec])
+    -> df
 
-Perform the FCIQMC algorithm for determining the lowest eigenvalue of `h`.
+Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
 `svec` can be a single starting vector of type `:<AbstractDVec` or a tuple
 of such vectors. In the latter case, independent replicas are constructed.
-Returns a `DataFrame` with statistics about the run, or a tuple of `DataFrame`s
-for a replica run. This function mutates `svec` and the parameter struct `pa`.
+Returns a `DataFrame` `df` with statistics about the run, or a tuple of `DataFrame`s
+for a replica run.
 Strategies can be given for updating the shift (see [`ShiftStrategy`](@ref))
 and (optionally) the time step `dτ` (see [`TimeStepStrategy`](@ref)).
-Optionally, a pre-allocated `svec2` can be passed as arguments.
+A pre-allocated `dvec` can be passed as argument.
+This function mutates `svec`, the parameter struct `pa` as well as
+`df`, and `dvec`.
 """
-function fciqmc!(svec::D, h, pa::FCIQMCParams,
+function fciqmc!(svec::D, pa::FCIQMCParams,
+                 ham,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 svec2::D = similar(svec)) where D<:AbstractDVec
+                 dvec::D = similar(svec)) where D<:AbstractDVec
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
     # prepare df for recording data
-    df = DataFrame(steps=Int[], shift=Float64[], shiftMode=Bool[], len=Int[],
+    df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[], shiftMode=Bool[],
+                        len=Int[],
                         norm=Float64[], spawns=Int[], deaths=[], clones=Int[],
                         antiparticles=Int[], annihilations=Int[])
-    # first row of df to show starting point
-    push!(df, (step, shift, shiftMode, length(svec), norm(svec, 1), 0, 0, 0, 0, 0))
+    # Note the row structure defined here (currently 11 columns)
+    # When changing the structure of `df`, it has to be changed in all places
+    # where data is pushed into `df`.
+    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                            :spawns, :deaths, :clones, :antiparticles,
+                            :annihilations
+                         ] "Column names in `df` not as expected."
+    # Push first row of df to show starting point
+    push!(df, (step, dτ, shift, shiftMode, length(svec), norm(svec, 1),
+                0, 0, 0, 0, 0))
 
+    return fciqmc!(svec, pa, df, ham, s_strat, τ_strat, dvec)
+end
+
+# for continuation runs we can also pass a DataFrame
+function fciqmc!(svec::D, pa::FCIQMCParams, df::DataFrame,
+                 ham,
+                 s_strat::ShiftStrategy,
+                 τ_strat::TimeStepStrategy = ConstantTimeStep(),
+                 dvec::D = similar(svec)) where D<:AbstractDVec
+    # unpack the parameters:
+    @unpack step, laststep, shiftMode, shift, dτ = pa
+
+    # check `df` for consistency
+    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                            :spawns, :deaths, :clones, :antiparticles,
+                            :annihilations
+                         ] "Column names in `df` not as expected."
 
     pnorm = tnorm = norm(svec, 1) # norm of "previous" vector
     maxlength = capacity(svec)
-    maxlength ≤ capacity(svec2) || error("`svec2` needs to have at least `capacity(svec)`")
+    maxlength ≤ capacity(dvec) || error("`dvec` needs to have at least `capacity(svec)`")
     vOld = svec # the starting vector
-    vNew = zero!(svec2) # clear second vector
+    vNew = zero!(dvec) # clear second vector
 
     while step < laststep
         step += 1
         # perform one complete stochastic vector matrix multiplication
-        ss, ds, cs, aps, ans = fciqmc_step!(vNew, h, vOld, shift, dτ)
+        ss, ds, cs, aps, ans = fciqmc_step!(vNew, ham, vOld, shift, dτ)
         tnorm = norm(vNew, 1) # total number of psips
         # update shift and mode if necessary
         shift, shiftMode = update_shift(s_strat,
@@ -47,7 +77,7 @@ function fciqmc!(svec::D, h, pa::FCIQMCParams,
         pnorm = tnorm # remember norm of this step for next step (previous norm)
         len = length(vNew)
         # record results
-        push!(df, (step, shift, shiftMode, len, tnorm,
+        push!(df, (step, dτ, shift, shiftMode, len, tnorm,
                         ss, ds, cs, aps, ans))
         # prepare for next step:
         dvec = vOld # keep reference to old vector
@@ -72,7 +102,7 @@ function fciqmc!(svec::D, h, pa::FCIQMCParams,
 end # fciqmc
 
 # replica version
-function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
+function fciqmc!(svecs::T, ham::LinearOperator, pa::FCIQMCParams,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  vsNew::T = similar.(svecs)) where {N, K, V,
@@ -104,11 +134,11 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
 
     # prepare `DataFrame` for variational ground state estimator
     # we are assuming that N ≥ 2, otherwise this will fail
-    PType = promote_type(V,eltype(h)) # type of scalar product
+    PType = promote_type(V,eltype(ham)) # type of scalar product
     RType = promote_type(PType,Float64) # for division
     mixed_df= DataFrame(steps =Int[], xdoty =V[], xHy =PType[], aveH =RType[])
     dp = vsOld[1]⋅vsOld[2] # <v_1 | v_2>
-    expval =  vsOld[1]⋅h(vsOld[2]) # <v_1 | h | v_2>
+    expval =  vsOld[1]⋅ham(vsOld[2]) # <v_1 | ham | v_2>
     push!(mixed_df,(step, dp, expval, expval/dp))
 
     norms = zeros(N)
@@ -119,7 +149,7 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
             # perform one complete stochastic vector matrix multiplication
             @async begin
                 vNew = vsNew[i]
-                mstats[i] .= fciqmc_step!(vNew, h, vOld, shifts[i], dτ)
+                mstats[i] .= fciqmc_step!(vNew, ham, vOld, shifts[i], dτ)
                 norms[i] = norm(vNew,1) # total number of psips
                 shifts[i], vShiftModes[i] = update_shift(s_strat,
                                         shifts[i], vShiftModes[i],
@@ -136,7 +166,7 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
                   norms[i], mstats[i]...))
         end
         v1Dv2 = vsNew[1]⋅vsNew[2] # <v_1 | v_2> overlap
-        v2Dhv2 =  vsNew[1]⋅h(vsNew[2]) # <v_1 | h | v_2>
+        v2Dhv2 =  vsNew[1]⋅ham(vsNew[2]) # <v_1 | ham | v_2>
         push!(mixed_df,(step, v1Dv2, v2Dhv2, v2Dhv2/v1Dv2))
 
         # prepare for next step:
@@ -171,11 +201,11 @@ function fciqmc!(svecs::T, h::LinearOperator, pa::FCIQMCParams,
 end # fciqmc
 
 
-function fciqmc_step!(w, h, v, shift, dτ)
+function fciqmc_step!(w, ham, v, shift, dτ)
     w === v && error("`w` and `v` must not be the same object")
     spawns = deaths = clones = antiparticles = annihilations = zero(eltype(v))
     for (add, num) in v
-        res = fciqmc_col!(w, h, add, num, shift, dτ)
+        res = fciqmc_col!(w, ham, add, num, shift, dτ)
         if !ismissing(res)
             spawns += res[1]
             deaths += res[2]
@@ -189,7 +219,7 @@ function fciqmc_step!(w, h, v, shift, dτ)
 end # fciqmc_step!
 
 # to do: implement parallel version
-# function fciqmc_step!(w::D, h::LinearOperator, v::D, shift, dτ) where D<:DArray
+# function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
 #   check that v and w are compatible
 #   for each worker
 #      call fciqmc_step!()  on respective local parts
@@ -261,13 +291,13 @@ end
 # ```
 
 """
-    fciqmc_col!(w, h, add, num, shift, dτ)
+    fciqmc_col!(w, ham, add, num, shift, dτ)
     fciqmc_col!(T:Type, args...)
     -> spawns, deaths, clones, antiparticles, annihilations
-Spawning and diagonal step of FCIQMC for single column of `h`. In essence it
+Spawning and diagonal step of FCIQMC for single column of `ham`. In essence it
 computes
 
-`w .+= (1 .+ dτ.*(shift .- h[:,add])).*num`.
+`w .+= (1 .+ dτ.*(shift .- ham[:,add])).*num`.
 
 Depending on `StochasticStyle(w)`, a stochastic or deterministic algorithm will
 be chosen.
@@ -282,31 +312,31 @@ fciqmc_col!(w, args...) = fciqmc_col!(StochasticStyle(w), w, args...)
 fciqmc_col!(T::Type, args...) = throw(TypeError(:fciqmc_col!,
     "first argument: trait not recognised",StochasticStyle,T))
 
-function fciqmc_col!(::IsDeterministic, w, h::AbstractMatrix, add, num, shift, dτ)
-    w .+= (1 .+ dτ.*(shift .- view(h,:,add))).*num
+function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
+    w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
     return missing
 end
 
-function fciqmc_col!(::IsDeterministic, w, h::LinearOperator, add, num, shift, dτ)
+function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
     # off-diagonal: spawning psips
-    for (nadd, elem) in Hops(h, add)
+    for (nadd, elem) in Hops(ham, add)
         w[nadd] += -dτ * elem * num
     end
     # diagonal death or clone
-    w[add] += (1 + dτ*(shift - diagME(h,add)))*num
+    w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
     return missing
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
-# function inner_step!(w, h::LinearOperator, add, num::Number,
+# function inner_step!(w, ham::LinearOperator, add, num::Number,
 #                         shift, dτ)
-function fciqmc_col!(::IsStochastic, w, h::LinearOperator, add, num::Number,
+function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Number,
                         shift, dτ)
     # version for single population of integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
-    hops = Hops(h,add)
+    hops = Hops(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -326,7 +356,7 @@ function fciqmc_col!(::IsStochastic, w, h::LinearOperator, add, num::Number,
         end
     end
     # diagonal death / clone
-    dME = diagME(h,add)
+    dME = diagME(ham,add)
     pd = dτ * (dME - shift)
     newdiagpop = (1-pd)*num
     ndiag = trunc(newdiagpop)
