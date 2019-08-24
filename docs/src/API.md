@@ -22,6 +22,12 @@ Modules = [BitStringAddresses]
 ```@autodocs
 Modules = [DictVectors]
 ```
+
+### Blocking
+```@autodocs
+Modules = [Blocking]
+```
+
 ## Unexported Submodules
 ### FastBufs
 ```@autodocs

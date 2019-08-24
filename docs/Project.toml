@@ -1,2 +1,5 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
+Literate = "98b081ad-f1c9-55d3-8b20-4c87d4299306"
+PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
