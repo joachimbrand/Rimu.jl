@@ -10,7 +10,7 @@
 # To get started, load `Rimu` and a few plotting scripts
 using Rimu, DataFrames
 include("plotting.jl")
-#jl pygui(true)
+##jl pygui(true)
 
 # Now let's define a model problem: Here, the Bose Hubbard model on a 1D chain
 # defined in real space
