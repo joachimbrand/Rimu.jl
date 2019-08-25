@@ -55,9 +55,9 @@ julia> using Revise
 (hopefully, and most of the time, without restarting the Julia REPL).
 
 Rimu offers a number of tools for representing Hamiltonians (see
-[`Hamiltonians`](@ref)) and state vectors / wave functions
-(see [`DictVectors`](@ref))
-as well as algorithms to find the ground state, e.g. [`fciqmc!()`](@fciqmc!).
+`Hamiltonians`) and state vectors / wave functions
+(see `DictVectors`)
+as well as algorithms to find the ground state, e.g. `fciqmc!()`.
 
 
 # Examples
