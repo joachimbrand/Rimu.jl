@@ -1,11 +1,10 @@
 """
 This module defines Hamiltonian types and standard methods.
-Model Hamiltonians should be subtyped to `LinearOperator`.
+Model Hamiltonians should be subtyped to [`LinearOperator`](@ref).
 Models implemented so far are:
 
-* `BoseHubbardReal1D` Bose-Hubbard chain, real space
-* `ExtendedBHReal1D` extended Bose-Hubbard model with on-site and nearest
-neighbour interactions, real space, one dimension
+* [`BoseHubbardReal1D`](@ref) Bose-Hubbard chain, real space
+* [`ExtendedBHReal1D`](@ref) extended Bose-Hubbard model with on-site and nearest neighbour interactions, real space, one dimension
 """
 module Hamiltonians
 
@@ -33,18 +32,18 @@ Indexing is done with addresses from a linear space that may be large
 (and will not need to be completely generated).
 
 Provides:
-* `Hops`: iterator over reachable off-diagonal matrix elements
-* `generateRandHop`: function to generate random off-diagonal matrix element
+* [`Hops`](@ref): iterator over reachable off-diagonal matrix elements
+* [`generateRandHop`](@ref): function to generate random off-diagonal matrix element
 * `hamiltonian[address1, address2]`: indexing with `getindex()` - mostly for testing
 purposes
 
 Methods to be implemented:
-* `numOfHops(lo::LinearOperator, address)`
-* `hop(lo::LinearOperator, address, chosen::Integer)`
-* `diagME(lo::LinearOperator, address)`
-* `hasIntDimension(lo::LinearOperator)`
-* `dimensionLO(lo::LinearOperator)`, if applicable
-* `fDimensionLO(lo::LinearOperator)`
+* [`numOfHops(lo::LinearOperator, address)`](@ref)
+* [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref)
+* [`diagME(lo::LinearOperator, address)`](@ref)
+* [`hasIntDimension(lo::LinearOperator)`](@ref)
+* [`dimensionLO(lo::LinearOperator)`](@ref), if applicable
+* [`fDimensionLO(lo::LinearOperator)`](@ref)
 """
 abstract type LinearOperator{T} end
 

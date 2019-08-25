@@ -1,6 +1,6 @@
 
 """
-    fciqmc!(svec, pa::FCIQMCParams, [df,]
+    fciqmc!(svec, pa::FciqmcRunStrategy, [df,]
              ham, s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy, dvec])
     -> df
 
@@ -15,7 +15,7 @@ A pre-allocated `dvec` can be passed as argument.
 This function mutates `svec`, the parameter struct `pa` as well as
 `df`, and `dvec`.
 """
-function fciqmc!(svec::D, pa::FCIQMCParams,
+function fciqmc!(svec::D, pa::FciqmcRunStrategy,
                  ham,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
@@ -43,7 +43,7 @@ function fciqmc!(svec::D, pa::FCIQMCParams,
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(svec::D, pa::FCIQMCParams, df::DataFrame,
+function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
                  ham,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
@@ -102,7 +102,7 @@ function fciqmc!(svec::D, pa::FCIQMCParams, df::DataFrame,
 end # fciqmc
 
 # replica version
-function fciqmc!(svecs::T, ham::LinearOperator, pa::FCIQMCParams,
+function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  vsNew::T = similar.(svecs)) where {N, K, V,

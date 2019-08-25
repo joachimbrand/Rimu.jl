@@ -1,23 +1,29 @@
 # define parameters and strategies for fciqmc as well as methods that use them
 #
-# FCIQMCParams
+# FciqmcRunStrategy, RunTillLastStep
 #
 # TimeStepStrategy, update_dτ()
 #
 # ShiftStrategy, update_shift()
 
+"""
+Abstract type representing the strategy for running and terminating
+['fciqmc!()'](@ref). Implemented strategies:
 
+   * [`RunTillLastStep`](@ref)
+"""
+abstract type FciqmcRunStrategy end
 
 """
-    FCIQMCParams(step::Int = 0 # number of current/starting timestep
+    RunTillLastStep(step::Int = 0 # number of current/starting timestep
                  laststep::Int = 50 # number of final timestep
                  shiftMode::Bool = false # whether to adjust shift
                  shift::Float64 = 0.0 # starting/current value of shift
                  dτ::Float64 = 0.01 # current value of time step
-    )
-Parameters for `fciqmc!()`.
+    ) <: FciqmcRunStrategy
+Parameters for running `fciqmc!()` for a fixed number of time steps.
 """
-@with_kw mutable struct FCIQMCParams
+@with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
     step::Int = 0 # number of current/starting timestep
     laststep::Int = 50 # number of final timestep
     shiftMode::Bool = false # whether to adjust shift
@@ -26,7 +32,11 @@ Parameters for `fciqmc!()`.
 end
 
 """
-Abstract type for defining the strategy for updating the time step.
+Abstract type for defining the strategy for updating the time step with
+[`update_dτ()`](@ref). Implemented
+strategies:
+
+   * [`ConstantTimeStep`](@ref)
 """
 abstract type TimeStepStrategy end
 
