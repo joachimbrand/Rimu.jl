@@ -53,7 +53,7 @@ dτ = 0.005
 svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
 StochasticStyle(svec2)
 
-pa = FCIQMCParams(laststep = steps,  dτ = dτ)
+pa = RunTillLastStep(laststep = steps,  dτ = dτ)
 τ_strat = ConstantTimeStep()
 s_strat = LogUpdateAfterTargetWalkers(targetwalkers = walkernumber)
 v2 = copy(svec2)
@@ -65,7 +65,7 @@ plotQMCStats(rdf)
 svec = DVec(Dict(aIni => 2), ham(:dim))
 StochasticStyle(svec)
 
-pas = FCIQMCParams(laststep = steps, dτ = dτ)
+pas = RunTillLastStep(laststep = steps, dτ = dτ)
 vs = copy(svec)
 @time rdfs = fciqmc!(vs, pas, ham, s_strat, τ_strat)
 

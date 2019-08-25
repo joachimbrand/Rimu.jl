@@ -100,7 +100,7 @@ end
         t = 1.0,
         AT = BSAdd64)
     aIni = nearUniform(ham)
-    pa = FCIQMCParams(laststep = 100)
+    pa = RunTillLastStep(laststep = 100)
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
 
     svec = DVec(Dict(aIni => 2), ham(:dim))
