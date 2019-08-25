@@ -1,6 +1,6 @@
 # Rimu.jl
 
-**Random Integrators for many-body quantum systems**
+*Random Integrators for many-body quantum systems*
 
 The grand aim is to develop a toolbox for many-body quantum systems that can be
 represented by a Hamiltonian in second quantisation language. Currently there
@@ -55,9 +55,9 @@ julia> using Revise
 (hopefully, and most of the time, without restarting the Julia REPL).
 
 Rimu offers a number of tools for representing Hamiltonians (see
-`Hamiltonians`) and state vectors / wave functions
-(see `DictVectors`)
-as well as algorithms to find the ground state, e.g. `fciqmc!()`.
+[`Hamiltonians`](@ref)) and state vectors / wave functions
+(see [`DictVectors`](@ref))
+as well as algorithms to find the ground state, e.g. [`fciqmc!`](@ref).
 
 
 # Examples
