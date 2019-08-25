@@ -1,13 +1,14 @@
-```
+"""
 Module that provides data structures that behave similar to sparse vectors,
 but are indexed by arbitrary types (could be non-integers) similarly to
 dictionaries. The idea is to do linear algebra with data structures that are
 neither subtyped to `AbstractVector` nor to `AbstractDict`.
 In particular we provide concrete data structures that are
 suitable for use with `KrylovKit.jl`.
-    * [DVec](@ref)
-    * [FastDVec](@ref)
-```
+
+ * [`DVec`](@ref)
+ * [`FastDVec`](@ref)
+"""
 module DictVectors
 
 using Random, LinearAlgebra
