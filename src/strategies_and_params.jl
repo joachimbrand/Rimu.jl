@@ -54,7 +54,7 @@ update_dτ(::ConstantTimeStep, dτ, args...) = dτ
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:
 
-   * [`DonTUpdate`](@ref)
+   * [`DontUpdate`](@ref)
    * [`LogUpdate`](@ref)
    * [`DelayedLogUpdate`](@ref)
    * [`LogUpdateAfterTargetWalkers`](@ref)
@@ -103,8 +103,8 @@ parameter `ζ` and delay of `a` steps.
     a::Int = 10 # delay for updating shift
 end
 
-"`DonTUpdate() <: ShiftStrategy` Don't update the `shift`."
-struct DonTUpdate <: ShiftStrategy end
+"`DontUpdate() <: ShiftStrategy` Don't update the `shift`."
+struct DontUpdate <: ShiftStrategy end
 
 """
     update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df)
@@ -145,4 +145,4 @@ end
     return shift, false
 end
 
-@inline update_shift(::DonTUpdate, shift, args...) = (shift, false)
+@inline update_shift(::DontUpdate, shift, args...) = (shift, false)

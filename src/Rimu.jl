@@ -19,9 +19,9 @@ include("Hamiltonians.jl")
 include("Blocking.jl")
 @reexport using .Blocking
 
-export fciqmc!, FCIQMCParams
+export fciqmc!, FciqmcRunStrategy, RunTillLastStep
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
-export DonTUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
+export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
 export TimeStepStrategy, ConstantTimeStep
 export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
 
