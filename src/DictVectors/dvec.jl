@@ -3,21 +3,21 @@
     DVec(d::Dict [, capacity])
     DVec(v::Vector{T} [, capacity])
 Construct a wrapped dictionary with minimum capacity `capacity` to
-represent a vector-like object with `eltype()` `T` (values of the `Dict`; must
-be a `Number`) and indexing with an arbitrary `keytype()` `K`.
-Constructing from
+represent a vector-like object with `eltype(dv) == T`,
+which corresponds to the values of the `Dict`. Indexing is done with an
+arbitrary (in general non-integer) `keytype(dv) == K`.
 When constructed from a `Vector`,
-the keys will be integers ∈ `[0, length(v)]`. See `AbstractDVec`.
-`capacity()` is defined but not a strict upper limit as `Dict` objects can
-expand.
+the keys will be integers ∈ `[0, length(v)]`. See [`AbstractDVec`](@ref). The
+method [`capacity()`](@ref) is defined but not a strict upper limit as `Dict`
+objects can expand.
 """
 struct DVec{A,T} <: AbstractDVec{A,T}
     d::Dict{A,T}
 
-    function DVec(d::Dict{A,T}) where {A,T}
-        T <: Number || throw(TypeError(:DVec,"construction from `Dict` for the value type",Number,T))
-        return new{A,T}(d)
-    end
+    # function DVec(d::Dict{A,T}) where {A,T}
+    #     T <: Number || throw(TypeError(:DVec,"construction from `Dict` for the value type",Number,T))
+    #     return new{A,T}(d)
+    # end
 end
 # default constructor from `Dict` just wraps the dict, no copying or allocation:
 # dv = DVec(Dict(k => v, ...))
