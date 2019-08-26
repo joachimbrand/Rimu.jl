@@ -1,4 +1,4 @@
-# Random Numbers
+## Random Numbers
 
 Generating good quality random numbers is crucial for any Monte Carlo code. In addition to generating pseudo random numbers with good statistics and in minimal CPU time, we also have the requirement that computations should be reproducible and the random number sequences independent on each worker when the code runs in parallel mode.
 
@@ -8,7 +8,7 @@ For the random number generator we are currently using
 'Xoroshiro128Plus' from 'RandomNumbers.jl'. For benchmarks and statistical test results see the
 [Documentation of `RandomNumbers.jl`](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1).
 
-## Module `ConsistentRNG.jl`
+### Module `ConsistentRNG.jl`
 
 ```@autodocs
 Modules = [Rimu.ConsistentRNG]

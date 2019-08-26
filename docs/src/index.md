@@ -1,4 +1,4 @@
-# Rimu.jl
+# Rimu.jl Package Guide
 
 *Random Integrators for many-body quantum systems*
 
@@ -9,9 +9,15 @@ are tools to find the ground state with FCIQMC or with a Lanczos algorithm
 time-dependent Schrödinger equation and Master equations for open system
 time evolution.
 
-# Installation
+```@contents
+Pages = ["index.md","hamiltonians.md","consistentrng.md","documentation.md",
+            "testing.md","API.md"]
+Depth = 4
+```
 
-## Install `Rimu` for running jobs only
+## Installation
+
+### Install `Rimu` for running jobs only
 
 `Rimu` can be installed with the package manager directly from the bitbucket
 repository. Either hit the `]` key at the Julia REPL to get into `Pkg` mode and
@@ -25,7 +31,7 @@ Alternatively, use
 julia> using Pkg; Pkg.add("https://joachimbrand@bitbucket.org/joachimbrand/rimu.jl#master")
 ```
 
-## Install `Rimu` for development
+### Install `Rimu` for development
 
 In order to be able to edit the source code, push changes, change and make new git branches,
 etc.,
@@ -38,7 +44,7 @@ pkg> develop ~/mygitpackagefolder/Rimu
 where the file path has to be adjusted to the location of the cloned git
 repository.
 
-# Usage
+## Usage
 
 The package is now installed and can be imported with
 ```julia-repl
@@ -58,8 +64,3 @@ Rimu offers a number of tools for representing Hamiltonians (see
 [`Hamiltonians`](@ref)) and state vectors / wave functions
 (see [`DictVectors`](@ref))
 as well as algorithms to find the ground state, e.g. [`fciqmc!`](@ref).
-
-
-# Examples
-
-Use the side panel to navigate to an example script.

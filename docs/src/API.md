@@ -1,17 +1,13 @@
 # API
 
-```@index
-```
-
 ## Rimu
 ```@autodocs
 Modules = [Rimu]
 ```
 ## Reexported Submodules
 ### Hamiltonians
-```@autodocs
-Modules = [Hamiltonians]
-```
+
+Link to [Module `Hamiltionians.jl`](@ref)
 
 ### BitStringAddresses
 ```@autodocs
@@ -35,6 +31,11 @@ Modules = [FastBufs]
 ```
 
 ### ConsistentRNG
-```@autodocs
-Modules = [ConsistentRNG]
+
+Link to [Module `ConsistentRNG.jl`](@ref)
+
+
+# Index
+
+```@index
 ```

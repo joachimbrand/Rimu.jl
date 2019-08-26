@@ -8,7 +8,7 @@
 
 """
 Abstract type representing the strategy for running and terminating
-['fciqmc!()'](@ref). Implemented strategies:
+[`fciqmc!()`](@ref). Implemented strategies:
 
    * [`RunTillLastStep`](@ref)
 """
@@ -21,7 +21,7 @@ abstract type FciqmcRunStrategy end
                  shift::Float64 = 0.0 # starting/current value of shift
                  dτ::Float64 = 0.01 # current value of time step
     ) <: FciqmcRunStrategy
-Parameters for running `fciqmc!()` for a fixed number of time steps.
+Parameters for running [`fciqmc!()`](@ref) for a fixed number of time steps.
 """
 @with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
     step::Int = 0 # number of current/starting timestep

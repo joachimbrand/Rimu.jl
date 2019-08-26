@@ -142,23 +142,23 @@ end # getindex(ham)
 # Specialising to bosonic model Hamiltonians
 #
 """
-Represents Hamiltonian with Fock space of fixed number of scalar bosons.
-At least these fields should be present:
+Abstract type for representing Hamiltonians in a Fock space of fixed number of
+scalar bosons. At least the following fields should be present:
 * `n  # number of particles`
 * `m  # number of modes`
 * `AT # address type`
 
 Methods to be implemented:
-* `numOfHops(lo::LinearOperator, address)`
-* `hop(lo::LinearOperator, address, chosen::Integer)`
-* `diagME(lo::LinearOperator, address)`
+* [`numOfHops(lo::LinearOperator, address)`](@ref) - number of off-diagonal matrix elements
+* [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref) - access an off-diagonal m.e. by index `chosen`
+* [`diagME(lo::LinearOperator, address)`](@ref) - diagonal matrix element
 
 Provides:
-* `hasIntDimension(lo::LinearOperator)`
-* `dimensionLO(lo::LinearOperator)`, might fail
-* `fDimensionLO(lo::LinearOperator)`
-* `bit_String_Length`
-* `generateInitialWalker`, default version
+* [`hasIntDimension(lo::LinearOperator)`](@ref)
+* [`dimensionLO(lo::LinearOperator)`](@ref), might fail if linear space too large
+* [`fDimensionLO(lo::LinearOperator)`](@ref)
+* [`bit_String_Length`](@ref)
+* [`nearUniform`](@ref), default version
 """
 abstract type BosonicHamiltonian{T} <: LinearOperator{T} end
 
@@ -253,9 +253,6 @@ end
 
 Implements a one-dimensional Bose Hubbard chain in real space.
 
-Usage: Include the above line in the `input.jl` file.
-The paramters are optional and should be replaced by the desired values.
-
 # Arguments
 - `n::Int`: the number of bosons
 - `m::Int`: the number of lattice sites
@@ -311,9 +308,6 @@ end
 
 Implements the extended Bose Hubbard model on a one-dimensional chain
 in real space.
-
-Usage: Include the above line in the `input.jl` file.
-The keyword arguments are optional and should be set to the desired values.
 
 # Arguments
 - `n::Int`: number of bosons

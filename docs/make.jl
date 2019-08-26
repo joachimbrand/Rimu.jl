@@ -11,7 +11,6 @@ withenv(
     "TRAVIS_BRANCH" => get(ENV, "BITBUCKET_BRANCH", nothing),
     "TRAVIS_TAG" => get(ENV, "BITBUCKET_TAG", nothing),
     "TRAVIS_PULL_REQUEST" => ("BITBUCKET_PR_ID" in keys(ENV)) ? "true" : "false",
-    # "__REPO_ROOT_URL__" => "https://bitbucket.org/joachimbrand/rimu.jl/src/master/",
 ) do
     deploydocs(
         # repo here needs to point to the BitBucket Pages repository

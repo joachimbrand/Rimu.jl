@@ -1,4 +1,4 @@
-# Code testing
+## Code testing
 
 The script `runtest.jl` in the `test/` folder contains tests of the code. To run the test simply run the script from the Julia REPL or run
 ```
