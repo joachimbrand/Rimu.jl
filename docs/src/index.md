@@ -9,6 +9,7 @@ are tools to find the ground state with FCIQMC or with a Lanczos algorithm
 time-dependent Schrödinger equation and Master equations for open system
 time evolution.
 
+## Contents
 ```@contents
 Pages = ["index.md","hamiltonians.md","consistentrng.md","documentation.md",
             "testing.md","API.md"]

@@ -63,6 +63,7 @@ end
 ## for a copy that preserves the capacity.
 
 Base.keytype(::Type{FastDVec{K,T}}) where T where K = K
+Base.valtype(::Type{FastDVec{K,T}}) where T where K = T
 Base.eltype(::Type{FastDVec{K,T}}) where T where K = T
 # for instances of AbstractDVec eltype is already defined
 # for the type we need to do it here because it has to be specific

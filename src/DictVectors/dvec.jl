@@ -69,6 +69,7 @@ Base.similar(dv::DVec, ::Type{T}) where {T} = empty(dv, T)
 Base.similar(dv::DVec) = empty(dv)
 
 Base.keytype(::Type{DVec{K,T}}) where T where K = K
+Base.valtype(::Type{DVec{K,T}}) where T where K = T
 Base.eltype(::Type{DVec{K,T}}) where T where K = T
 # for instances of AbstractDVec, eltype is already defined
 # for the type we need to do it here because it has to be specific
@@ -98,7 +99,7 @@ Base.iterate(dv::DVec, state) = iterate(dv.d, state)
 
 # most functions are simply delegated to the wrapped dictionary
 @delegate DVec.d [ getindex, get, get!, haskey, getkey, pop!,
-                              isempty, length ]
+                              isempty, length, values, keys ]
 # used to do this with iterate, but this leads to type-unstable code
 
 # Some functions are delegated, but then need to return the main dictionary

@@ -1,9 +1,9 @@
 """
-    DictVectors.AbstractDVec{K,T}
-Abstract type for sparse vectors with `valtype()` `T` based on dictionary-like
+    DictVectors.AbstractDVec{K,V}
+Abstract type for sparse vectors with `valtype()` `V` based on dictionary-like
 structures.
 They behave like vectors except that indexing is performed with an arbitrary
-`keytype()` `K` (no order required). `getindex()` returns `zero(T)` for any
+`keytype()` `K` (no order required). `getindex()` returns `zero(V)` for any
 unknown key and
 zeroed elements should be deleted with `delete!()`. Thus, iteration typically
 returns only non-zero entries. In variance to `AbstractVector`, `length()` will
@@ -23,7 +23,7 @@ haskey, empty!, isempty`) and, in addition:
 - `similar(dv [,Type])`
 - `iterate()`: should return `Pair{K,V}`
 """
-abstract type AbstractDVec{K,T} end
+abstract type AbstractDVec{K,V} end
 
 """
     DictVectors.capacity(dv::AbstractDVec)
@@ -38,12 +38,18 @@ can be stored savely (default)
 capacity
 # doc string here only; needs to be defined for each concrete type.
 
-Base.eltype(::AbstractDVec{K,T}) where T where K = T
+# Note: The following method definitions for the supertype
+# also extend (by a fallback method) to instances of the type.
+# However, for concrete subtypes, the methods have to be defined again as the
+# supertype methods do not apply (because the supertype and subtype are distinct
+# types).
+Base.valtype(::AbstractDVec{K,V}) where V where K = V
+Base.eltype(::AbstractDVec{K,V}) where V where K = V
 # conficts with definition and expected behaviour of AbstractDict
 # but is needed for KrylovKit
-Base.keytype(::AbstractDVec{K,T}) where T where K = K
+Base.keytype(::AbstractDVec{K,V}) where V where K = K
 
-Base.isreal(v::AbstractDVec) = eltype(v) <: Real
+Base.isreal(v::AbstractDVec) = valtype(v) <: Real
 Base.ndims(::AbstractDVec) = 1
 
 """
@@ -57,30 +63,30 @@ zero!(v::AbstractDVec) = empty!(v)
     norm_sqr(x::AbstractDVec)
 Fast calculation of the square of the 2-norm of `x`.
 """
-function norm_sqr(x::AbstractDVec{A,T}) where A where T<:Number
+function norm_sqr(x::AbstractDVec{K,V}) where K where V<:Number
     return mapreduce(p->abs2(p[2]), +, x)
 end
 
 """
-    norm(x::AbstractDVec{A,T})
+    norm(x::AbstractDVec{K,V})
 Computes the 2-norm of the DVec x.
 """
 LinearAlgebra.norm(x::AbstractDVec) = sqrt(norm_sqr(x))
 
 # # fastest
 # """
-#     norm2(x::DVec{A,T})
+#     norm2(x::DVec{K,V})
 # Computes the 2-norm of the DVec x.
 # """
-# function norm2(x::DVec{A,T}) where A where T<:Number
+# function norm2(x::DVec{K,V}) where K where V<:Number
 #     return sqrt(mapreduce(p->abs2(p[2]), +, x))
 # end
 #
-# function norm2alt3(x::DVec{A,T}) where A where T<:Real
+# function norm2alt3(x::DVec{K,V}) where K where V<:Real
 #     return sqrt(mapreduce(p->p[2].^2, +, x))
 # end
 
-function norm1(x::AbstractDVec{A,T}) where A where T<:Number
+function norm1(x::AbstractDVec{K,V}) where K where V<:Number
     return mapreduce(p->abs(p[2]), +, x)|>Float64
 end
 
@@ -109,36 +115,36 @@ function LinearAlgebra.norm(x::AbstractDVec, p::Real)
     end
 end
 
-function Base.copyto!(w::AbstractDVec, v::AbstractDVec)
-    if length(v) > capacity(w)
-        error("Insufficient capacity to `copyto!()` `AbstractDVec`.")
-    end
+@inline function Base.copy!(w::AbstractDVec, v)
+    @boundscheck length(v) ≤ capacity(w) || throw(BoundsError()) # prevent overflow
     empty!(w) # since the values are not ordered, just forget about old ones
+    @inbounds return copyto!(w, v)
+end # copy!
+
+@inline function Base.copyto!(w::AbstractDVec, v)
+    @boundscheck length(v) ≤ capacity(w) || throw(BoundsError()) # prevent overflow
     for (key, val) in v
         w[key] = val
     end
     return w
-end # copyto!
+end
 
 function Base.copy(v::AbstractDVec)
-    w = empty(v) # new adv of same type
-    for (key, val) in v
-        w[key] = val
-    end
-    return w
+    w = empty(v) # new adv of same type and same length
+    @inbounds return copyto!(w, v)
 end # copy
 
 
 """
     fill!(da::AbstractDVec, x)
-Empties `da` if `x==zero(eltype(da))` and throws an error otherwise.
+Empties `da` if `x==zero(valtype(da))` and throws an error otherwise.
 """
 function Base.fill!(da::AbstractDVec{K,V}, x::V) where V where K
     x == zero(V) || error("Trying to fill! $(typeof(da)) object with $x instead of $(zero(V))")
     return empty!(da) # remove all elements but keep capacity
 end
 
-# multiply with scalar and copyto!
+# multiply with scalar and copy!
 function LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α::Number)
     if length(v) > capacity(w)
         error("Not enough capacity to copy to `AbstractDVec` with `mul!()`.")
@@ -188,8 +194,8 @@ function LinearAlgebra.axpby!(α::Number, x::AbstractDVec, β::Number, y::Abstra
     return y
 end
 
-function LinearAlgebra.dot(x::AbstractDVec{A,T}, y::AbstractDVec{A,T}) where {A,T}
-    result = zero(T) # identical value types
+function LinearAlgebra.dot(x::AbstractDVec{K,V}, y::AbstractDVec{K,V}) where {K,V}
+    result = zero(V) # identical value types
     if length(x) < length(y) # try to save time by looking for the smaller vec
         for (key, val) in x
             result += conj(val)*y[key]
@@ -202,7 +208,7 @@ function LinearAlgebra.dot(x::AbstractDVec{A,T}, y::AbstractDVec{A,T}) where {A,
     return result # same type as valtype(x) - could be complex!
 end
 
-function LinearAlgebra.dot(x::AbstractDVec{A,T1}, y::AbstractDVec{A,T2}) where {A,T1, T2}
+function LinearAlgebra.dot(x::AbstractDVec{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
     # for mixed value types
     result = zero(promote_type(T1,T2))
     if length(x) < length(y) # try to save time by looking for the smaller vec
@@ -219,6 +225,11 @@ end
 
 ## some methods below that we could inherit from AbstracDict with subtyping
 
+"""
+    isequal(l::AbstractDVec, r::AbstractDVec)
+Returns `true` if all non-zero entries have the same value. Equality of
+flags is not tested.
+"""
 function isequal(l::AbstractDVec, r::AbstractDVec)
     l === r && return true
     if length(l) != length(r) return false end
@@ -231,3 +242,46 @@ function isequal(l::AbstractDVec, r::AbstractDVec)
 end
 
 ==(l::AbstractDVec, r::AbstractDVec) = isequal(l,r)
+
+# Iterators for `keys()` and `values()`, general fallback code for AbstractDVec
+# Not sure this code is needed. It will be slower than defining methods
+# for concrete types that can take account of the specific structure.
+struct ADVKeysIterator{DV}
+    dv::DV
+end
+Base.keys(dv::AbstractDVec) = ADVKeysIterator(dv)
+function Base.iterate(ki::ADVKeysIterator)
+    it = iterate(ki.dv)
+    it == nothing && return nothing
+    pair, state = it
+    return (pair[1],state)
+end
+function Base.iterate(ki::ADVKeysIterator, oldstate)
+    it = iterate(ki.dv, oldstate)
+    it == nothing && return nothing
+    pair, state = it
+    return (pair[1],state)
+end
+Base.length(ki::ADVKeysIterator) = length(ki.dv)
+Base.eltype(::Type{ADVKeysIterator{DV}}) where DV = keytype(DV)
+Base.IteratorSize(::Type{ADVKeysIterator}) = HasLength()
+
+struct ADVValuesIterator{DV}
+    dv::DV
+end
+Base.values(dv::AbstractDVec) = ADVValuesIterator(dv)
+function Base.iterate(ki::ADVValuesIterator)
+    it = iterate(ki.dv)
+    it == nothing && return nothing
+    pair, state = it
+    return (pair[2],state)
+end
+function Base.iterate(ki::ADVValuesIterator, oldstate)
+    it = iterate(ki.dv, oldstate)
+    it == nothing && return nothing
+    pair, state = it
+    return (pair[2],state)
+end
+Base.length(ki::ADVValuesIterator) = length(ki.dv)
+Base.eltype(::Type{ADVValuesIterator{DV}}) where DV = valtype(DV)
+Base.IteratorSize(::Type{ADVValuesIterator}) = HasLength()
