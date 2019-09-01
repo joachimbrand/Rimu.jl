@@ -37,7 +37,7 @@ function Base.isless(a1::BStringAdd,a2::BStringAdd)
   return false
 end
 
-Base.zero(BStringAdd) = BStringAdd(BitArray([false]))
+Base.zero(::Type{BStringAdd}) = BStringAdd(BitArray([false]))
 Base.zero(adr::BStringAdd) = BStringAdd(BitArray([false]))
 Base.iszero(adr::BStringAdd) = iszero(adr.add)
 
@@ -65,7 +65,7 @@ struct BSAdd64 <: BitStringAddressType
 end
 
 Base.isless(a1::BSAdd64,a2::BSAdd64) = isless(a1.add, a2.add)
-# Base.zero(BSAdd64) = BSAdd64(0) # This does not work
+Base.zero(::Type{BSAdd64}) = BSAdd64(0)
 Base.zero(add::BSAdd64) = BSAdd64(0)
 Base.hash(a::BSAdd64, h::UInt) = hash(a.add, h)
 
@@ -80,7 +80,7 @@ end
 
 Base.isless(a1::BSAdd128,a2::BSAdd128) = isless(a1.add, a2.add)
 #Base.typemax(BSAdd128) = BSAdd128(typemax(UInt64))
-# Base.zero(BSAdd128) = BSAdd128(0) # This does not work
+Base.zero(::Type{BSAdd128}) = BSAdd128(0)
 Base.zero(add::BSAdd128) = BSAdd128(0)
 Base.hash(a::BSAdd128, h::UInt) = hash(a.add, h)
 
