@@ -123,7 +123,7 @@ end # copy!
 
 @inline function Base.copyto!(w::AbstractDVec, v)
     @boundscheck length(v) ≤ capacity(w) || throw(BoundsError()) # prevent overflow
-    for (key, val) in v
+    for (key, val) in kvpairs(v)
         w[key] = val
     end
     return w
@@ -145,12 +145,10 @@ function Base.fill!(da::AbstractDVec{K,V}, x::V) where V where K
 end
 
 # multiply with scalar and copy!
-function LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α::Number)
-    if length(v) > capacity(w)
-        error("Not enough capacity to copy to `AbstractDVec` with `mul!()`.")
-    end
+@inline function LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α::Number)
+    @boundscheck length(v) ≤ capacity(w) || throw(BoundsError()) # prevent overflow
     empty!(w) # since the values are not ordered, just forget about old ones
-    for (key, val) in v
+    for (key, val) in kvpairs(v)
         w[key] = val*α
     end
     return w
@@ -161,7 +159,7 @@ end # mul!
 Inplace add `x+y` and store result in `x`.
 """
 @inline function add!(x::AbstractDVec{K,V1},y::AbstractDVec{K,V2}) where {K,V1,V2}
-    for (k,v) in y
+    for (k,v) in kvpairs(y)
         x[k] += v
     end
     return x
@@ -169,7 +167,7 @@ end
 
 # BLAS-like function: y += α*x
 @inline function LinearAlgebra.axpy!(α::Number,x::AbstractDVec,y::AbstractDVec)
-    for (k,v) in x
+    for (k,v) in kvpairs(x)
         y[k] += α*v
     end
     return y
@@ -178,7 +176,7 @@ end
 # generic multiply with scalar inplace - this is slow (360 times slower than
 # the fast version for FastDVec)
 function LinearAlgebra.rmul!(w::AbstractDVec, α::Number)
-    for (k,v) in w
+    for (k,v) in kvpairs(w)
         w[k] = v*α
     end
     return w
@@ -194,25 +192,25 @@ function LinearAlgebra.axpby!(α::Number, x::AbstractDVec, β::Number, y::Abstra
     return y
 end
 
-function LinearAlgebra.dot(x::AbstractDVec{K,V}, y::AbstractDVec{K,V}) where {K,V}
-    result = zero(V) # identical value types
-    if length(x) < length(y) # try to save time by looking for the smaller vec
-        for (key, val) in x
-            result += conj(val)*y[key]
-        end
-    else
-        for (key, val) in y
-            result += conj(x[key])*val
-        end
-    end
-    return result # same type as valtype(x) - could be complex!
-end
+# function LinearAlgebra.dot(x::AbstractDVec{K,V}, y::AbstractDVec{K,V}) where {K,V}
+#     result = zero(V) # identical value types
+#     if length(x) < length(y) # try to save time by looking for the smaller vec
+#         for (key, val) in kvpairs(x)
+#             result += conj(val)*y[key]
+#         end
+#     else
+#         for (key, val) in y
+#             result += conj(x[key])*val
+#         end
+#     end
+#     return result # same type as valtype(x) - could be complex!
+# end
 
 function LinearAlgebra.dot(x::AbstractDVec{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
     # for mixed value types
     result = zero(promote_type(T1,T2))
     if length(x) < length(y) # try to save time by looking for the smaller vec
-        for (key, val) in x
+        for (key, val) in kvpairs(x)
             result += conj(val)*y[key]
         end
     else
@@ -233,7 +231,7 @@ flags is not tested unless both `l` and `r` support flags.
 function isequal(l::AbstractDVec, r::AbstractDVec)
     l === r && return true
     if length(l) != length(r) return false end
-    for (lk,lv) in l
+    for (lk,lv) in kvpairs(l)
         if !isequal(r[lk],lv)
             return false
         end
@@ -285,3 +283,11 @@ end
 Base.length(ki::ADVValuesIterator) = length(ki.dv)
 Base.eltype(::Type{ADVValuesIterator{DV}}) where DV = valtype(DV)
 Base.IteratorSize(::Type{ADVValuesIterator}) = HasLength()
+
+"""
+    kvpairs(collection)
+Return an iterator over `key => value` pairs ignoring any flags. If no flags
+are present, eg. for generic `AbstractDVec`, this falls back to
+[`Base.pairs`](@ref).  
+"""
+kvpairs(v) = pairs(v)

@@ -232,6 +232,39 @@ end
     @inbounds return pair[2][2], state
 end
 
+"""
+    KVPairsIterator
+Iterator type returned by [`kvpairs()`](@ref).
+"""
+struct KVPairsIterator{K,V,F}
+    dv::DFVec{K,V,F}
+end
+Base.length(ki::KVPairsIterator) = length(ki.dv)
+Base.eltype(::Type{KVPairsIterator{K,V,F}}) where {K,V,F} = Pair{K,V}
+Base.IteratorSize(::Type{KVPairsIterator}) = HasLength()
+
+"""
+    kvpairs(dv::DFVec)
+An iterator that yields `key => value` pairs stored in the [`DFVec`](@ref) `dv`
+ignoring any `flags`. In contrast, [`pairs()`](@ref) will return pairs
+`key => (value, flag)`.
+"""
+function kvpairs(dv::DFVec)
+    return KVPairsIterator(dv)
+end
+@inline function Base.iterate(kvi::KVPairsIterator)
+    ps = iterate(kvi.dv.d)
+    ps == nothing && return nothing
+    pair, state = ps
+    @inbounds return Pair(pair[1], pair[2][1]), state
+end
+@inline function Base.iterate(kvi::KVPairsIterator, oldstate)
+    ps = iterate(kvi.dv.d, oldstate)
+    ps == nothing && return nothing
+    pair, state = ps
+    @inbounds return Pair(pair[1], pair[2][1]), state
+end
+
 # Note that standard iteration over a `DFVec` will return `key => val` pairs
 # as required for the `AbstractDVec` interface without the `flag` information.
 # Use `tuples()` or `tuplepairs()` in order to access the full information.

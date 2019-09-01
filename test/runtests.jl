@@ -129,7 +129,7 @@ end
     @test df4 ≢ df5
     @test df == df2
     @test df ≠ df4
-    @test df5 == dv # only checking keys and values - Type and flags are ignored
+    @test df5 == dv # checking keys, values, but not flags
 
     dd = Dict("a"=>1,"b"=>2,"c"=>3)
     ddv = DVec(dd)
