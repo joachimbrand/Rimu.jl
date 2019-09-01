@@ -110,3 +110,52 @@ end
     @time rdfs = fciqmc!(vs, pa, ham, s)
     @test sum(rdfs[:,:spawns]) == 1751
 end
+
+@testset "dfvec.jl" begin
+    df = DFVec(Dict(3=>(3.5,true)))
+
+    df2 = DFVec(Dict(3=>(3.5,true)), 200)
+    @test capacity(df2) == 341
+    df3 = DFVec{Int,Float64,Int}(30)
+    @test capacity(df3) == 42
+    df4 = DFVec([1,2,3,4])
+
+    dv = DVec([1,2,3,4])
+
+    df5 = DFVec(dv)
+    @test eltype(dv) == Int
+    length(dv)
+    @test df4 == df5
+    @test df4 ≢ df5
+    @test df == df2
+    @test df ≠ df4
+    @test df5 == dv # only checking keys and values - Type and flags are ignored
+
+    dd = Dict("a"=>1,"b"=>2,"c"=>3)
+    ddv = DVec(dd)
+    values(ddv)
+    fddv = FastDVec(dd)
+    @test collect(values(fddv)) == collect(values(ddv))
+    ddf = DFVec(ddv)
+    @test collect(values(ddf)) == collect(values(ddv))
+    dt = Dict("a"=>(1,false),"b"=>(2,true),"c"=>(3,true))
+    dtv = DVec(dt)
+    collect(values(dtv))
+    collect(keys(dtv))
+    eltype(dtv)
+    valtype(dtv)
+    dtf = DFVec(dt)
+    @test collect(flags(dtf)) == [true, true, false]
+    @test DFVec(dtv) == dtf
+    ndfv = DFVec(dtf,500,UInt8)
+    dt = Dict(i => (sqrt(i),UInt16(i)) for i in 1:1000)
+    dtv = DFVec(dt)
+    dv = DVec(dtv)
+    @test dtv == dv
+    @test dv ≠ DVec(dt)
+    dvt = DVec(dt)
+    fdvt = DFVec(dvt)
+    @test fdvt == dtv
+    dtv[218] = (14.7648230602334, 0x00ff) # change flag
+    @test fdvt ≠ dtv
+end

@@ -228,7 +228,7 @@ end
 """
     isequal(l::AbstractDVec, r::AbstractDVec)
 Returns `true` if all non-zero entries have the same value. Equality of
-flags is not tested.
+flags is not tested unless both `l` and `r` support flags.
 """
 function isequal(l::AbstractDVec, r::AbstractDVec)
     l === r && return true

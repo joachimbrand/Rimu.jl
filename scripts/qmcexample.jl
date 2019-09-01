@@ -69,7 +69,8 @@ pas = RunTillLastStep(laststep = steps, dτ = dτ)
 vs = copy(svec)
 @time rdfs = fciqmc!(vs, pas, ham, s_strat, τ_strat)
 
-plotQMCStats(rdfs, newfig = false)
+ps = plotQMCStats(rdfs, newfig = false)
+show(ps)
 
 # plot energies
 # deterministic
@@ -97,13 +98,15 @@ gausskernel = [exp(-i^2/(2*w^2)) for i = -3w:3w]
 gausskernel ./= sum(abs.(gausskernel))
 shift = rdfs[:,:shift]
 smooth_shift = conv(shift, gausskernel)[3w+1:end-3w]
-plot(rdfs.steps, smooth_shift, ".-g")
+pe = plot(rdfs.steps, smooth_shift, ".-g")
+show(pe)
 
 # plot energy difference from exact for determinstic
 Ediff = abs.(Ẽ .- exactEnergy)
 figure(); title("log-lin plot of Ediff")
 semilogy(rdf[2:end,:steps],Ediff,"xg")
-
+show()
 # plot blocking analysis for manual checking
 plotBlockingAnalysisDF(dfshift)
 title("Blocking analysis for `shift`")
+show()

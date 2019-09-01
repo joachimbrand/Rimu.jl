@@ -66,7 +66,7 @@ function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
     while step < laststep
         step += 1
         # perform one complete stochastic vector matrix multiplication
-        ss, ds, cs, aps, ans = fciqmc_step!(vNew, ham, vOld, shift, dτ)
+        step_stats = fciqmc_step!(vNew, ham, vOld, shift, dτ)
         tnorm = norm(vNew, 1) # total number of psips
         # update shift and mode if necessary
         shift, shiftMode = update_shift(s_strat,
@@ -78,7 +78,7 @@ function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
         len = length(vNew)
         # record results
         push!(df, (step, dτ, shift, shiftMode, len, tnorm,
-                        ss, ds, cs, aps, ans))
+                        step_stats...))
         # prepare for next step:
         dvec = vOld # keep reference to old vector
         vOld = vNew # new will be old
@@ -202,7 +202,7 @@ end # fciqmc
 
 
 function fciqmc_step!(w, ham, v, shift, dτ)
-    w === v && error("`w` and `v` must not be the same object")
+    @assert w ≢ v "`w` and `v` must not be the same object"
     spawns = deaths = clones = antiparticles = annihilations = zero(eltype(v))
     for (add, num) in v
         res = fciqmc_col!(w, ham, add, num, shift, dτ)

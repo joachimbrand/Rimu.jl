@@ -92,7 +92,17 @@ end
 
 
 # getindex returns the default value without adding it to dict
+function Base.getindex(dv::DVec{K,V}, add) where {K, V<:Number}
+    get(dv.d, add, zero(V))
+end
+function Base.getindex(dv::DVec{K,Tuple{V,F}}, add) where {K, V<:Number, F}
+    get(dv.d, add, tuple(zero(V),zero(F)))
+end
+
 Base.getindex(dv::DVec, add) = get(dv.d, add, zero(eltype(dv)))
+
+# iterator over pairs
+Base.pairs(dv::DVec) = dv.d # just return the contained dictionary
 
 Base.iterate(dv::DVec) = iterate(dv.d)
 Base.iterate(dv::DVec, state) = iterate(dv.d, state)
@@ -123,15 +133,12 @@ function LinearAlgebra.rmul!(w::DVec, α::Number)
 end # rmul!
 
 function Base.show(io::IO, da::DVec{K,V}) where V where K
-    print(io, "DVec{$K,$V}([")
-    init = true
-    for (key,val) in da
-        if init
-            init = false
-        else
-            print(io, ", ")
+    print(io, "DVec{$K,$V} with $(length(da)) entries and capacity $(capacity(da)):")
+    for (i,p) in enumerate(da)
+        print(io, "\n  ", p)
+        if i>15
+            print(io, "\n  ⋮   => ⋮")
+            break
         end
-        print(io, Pair(key,val))
     end
-    print(io, "])")
 end
