@@ -123,16 +123,6 @@ function Base.haskey(da::FastDVec, key)
     return false # key not found
 end
 
-# function Base.getindex(da::FastDVec{K,V}, key::K) where K where V
-#     hind = hashindex(key, da.hashrange)
-#     for (add, vind) in da.hashtable[hind]
-#         if add == key # compare key with entry in hashtable
-#             return da.vals[vind] # entry found, return value
-#         end
-#     end # unsuccessful if we get here
-#     throw(KeyError(key)) # key not found
-# end
-## No: getindex needs to return zero as default!
 Base.getindex(da::FastDVec{K,V}, key::K) where {K,V} = get(da, key, zero(V))
 
 @inline function Base.get(da::FastDVec{K,V}, key::K, default::V) where K where V
@@ -194,75 +184,45 @@ end
 # end
 
 # Iterators
-# iterator over pairs
-"""
-    FDVPairs{K,V}
-Iterator type for pairs from a [`FastDVec`](@ref).
-"""
-struct FDVPairs{K,V}
-    dv::FastDVec{K,V}
+@inline function Base.iterate(pit::ADVPairsIterator, state...)
+    return _pair_iterate(pit.dv, state...)
 end
-Base.length(ki::FDVPairs) = length(ki.dv)
-Base.eltype(::Type{FDVPairs{K,V}}) where {K,V} = Pair{K,V}
-Base.IteratorSize(::Type{FDVPairs}) = HasLength()
 
-Base.pairs(dv::FastDVec) = FDVPairs(dv)
-
-
-# function Base.iterate(pit::FDVPairs) # initial
-#     hind = 1
-#     pos = 1
-#     list = pit.dv.hashtable[1]
-#     @inbounds while length(list) == 0
-#         hind += 1
-#         if hind > pit.dv.hashrange
-#             return nothing
-#         end
-#         list = pit.dv.hashtable[hind]
-#     end
-#     key, vind = list[pos]
-#     val = pit.dv.vals[vind]
-#     state = (hind,pos + 1)
-#     return (Pair(key,val), state)
-# end
-
-@inline function Base.iterate(pit::FDVPairs, state = (1,1))
+# non-exportet internal functions called by the iterators
+@inline function _pair_iterate(dv::FastDVec, state = (1,1))
     hind, pos = state
-    @boundscheck hind ≤ pit.dv.hashrange || throw(BoundsError())
-    list = pit.dv.hashtable[hind]
+    @boundscheck hind ≤ dv.hashrange || throw(BoundsError())
+    list = dv.hashtable[hind]
     @inbounds while pos > length(list)
         hind += 1
         pos = 1
-        if hind > pit.dv.hashrange
+        if hind > dv.hashrange
             return nothing
         end
-        list = pit.dv.hashtable[hind]
+        list = dv.hashtable[hind]
     end
     @inbounds key, vind = list[pos]
-    @inbounds val = pit.dv.vals[vind]
+    @inbounds val = dv.vals[vind]
     state = (hind,pos + 1)
     return (Pair(key,val), state)
 end
 
-# iterate over values
-@inline function Base.iterate(pit::ADVValuesIterator{T}, state = (1,1)) where T <: FastDVec
-    hind, pos = state
-    @boundscheck hind ≤ pit.dv.hashrange || throw(BoundsError())
-    list = pit.dv.hashtable[hind]
-    @inbounds while pos > length(list)
-        hind += 1
-        pos = 1
-        if hind > pit.dv.hashrange
-            return nothing
-        end
-        list = pit.dv.hashtable[hind]
-    end
-    @inbounds key, vind = list[pos]
-    @inbounds val = pit.dv.vals[vind]
-    state = (hind, pos + 1)
-    return (val, state)
+# iteration over the FastDVec returns values
+@inline function Base.iterate(fdv::FastDVec, state...)
+    it = _pair_iterate(fdv,state...)
+    it == nothing && return nothing
+    pair, state = it
+    return pair[2], state # value
 end
 
+
+# iteration over the keys requires  ADVKeysIterator - 3 to 4 times faster than fallback
+@inline function Base.iterate(ki::ADVKeysIterator{DV}, state...) where DV<:FastDVec
+    it = _pair_iterate(ki.dv,state...)
+    it == nothing && return nothing
+    pair, state = it
+    return pair[1], state # key
+end
 
 function Base.show(io::IO, da::FastDVec{K,V}) where V where K
     print(io, "FastDVec{$K,$V}([")

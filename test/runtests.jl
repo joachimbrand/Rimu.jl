@@ -54,6 +54,8 @@ end
     delete!(myda3,"q")
     @test myda2==myda3
     fdv = FastDVec([rand() for i=1:1000], 2000)
+    ki = keys(fdv)
+    @test sort(collect(ki))==collect(1:1000)
     cdv = FastDVec(fdv)
     @test cdv == fdv
     fdv[1600] = 10.0

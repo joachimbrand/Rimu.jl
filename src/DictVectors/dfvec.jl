@@ -205,26 +205,19 @@ tuples(dv::DFVec) = values(dv.d) # just the values of the dict
     FlagsIterator
 Iterator type returned by [`flags()`](@ref).
 """
-struct FlagsIterator{K,V,F}
-    dv::DFVec{K,V,F}
+struct FlagsIterator{DV}
+    dv::DV
 end
 Base.length(ki::FlagsIterator) = length(ki.dv)
-Base.eltype(::Type{FlagsIterator{K,V,F}}) where {K,V,F} = F
+Base.eltype(::Type{FlagsIterator{DV}}) where DV = flagtype(DV)
 Base.IteratorSize(::Type{FlagsIterator}) = HasLength()
 
 """
     flags(dv::DFVec)
 An iterator that yields flags stored in the [`DFVec`](@ref) `dv`.
 """
-function flags(dv::DFVec)
-    return FlagsIterator(dv)
-end
-# @inline function Base.iterate(fi::FlagsIterator)
-#     ps = iterate(fi.dv.d)
-#     ps == nothing && return nothing
-#     pair, state = ps
-#     @inbounds return pair[2][2], state
-# end
+flags(dv::DFVec) = FlagsIterator(dv)
+
 @inline function Base.iterate(fi::FlagsIterator, oldstate...)
     ps = iterate(fi.dv.d, oldstate...)
     ps == nothing && return nothing
@@ -252,12 +245,6 @@ ignoring any `flags`. In contrast, [`pairs()`](@ref) will return pairs
 function kvpairs(dv::DFVec)
     return KVPairsIterator(dv)
 end
-# @inline function Base.iterate(kvi::KVPairsIterator)
-#     ps = iterate(kvi.dv.d)
-#     ps == nothing && return nothing
-#     pair, state = ps
-#     @inbounds return Pair(pair[1], pair[2][1]), state
-# end
 @inline function Base.iterate(kvi::KVPairsIterator, oldstate...)
     ps = iterate(kvi.dv.d, oldstate...)
     ps == nothing && return nothing
@@ -282,8 +269,8 @@ end
 # end
 Base.IteratorSize(::Type{DFVec}) = HasLength()
 
-@inline function Base.iterate(ki::ADVValuesIterator{T}, oldstate...) where T<:DFVec
-    it = iterate(pairs(ki.dv), oldstate...)
+@inline function Base.iterate(dv::DFVec, oldstate...)
+    it = iterate(pairs(dv), oldstate...)
     it == nothing && return nothing
     pair, state = it
     @inbounds return (pair[2][1],state)

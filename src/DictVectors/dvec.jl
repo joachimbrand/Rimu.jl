@@ -104,13 +104,12 @@ Base.getindex(dv::DVec, add) = get(dv.d, add, zero(eltype(dv)))
 # iterator over pairs
 Base.pairs(dv::DVec) = dv.d # just return the contained dictionary
 
-# Base.iterate(dv::DVec) = iterate(dv.d)
-# Base.iterate(dv::DVec, state) = iterate(dv.d, state)
-
 # most functions are simply delegated to the wrapped dictionary
 @delegate DVec.d [ getindex, get, get!, haskey, getkey, pop!,
                               isempty, length, values, keys ]
-# used to do this with iterate, but this leads to type-unstable code
+
+# standard iteration is over values of the dict
+Base.iterate(dv::DVec, state...) = iterate(values(dv.d), state...)
 
 # Some functions are delegated, but then need to return the main dictionary
 # NOTE: push! is not included below, because the fallback version just

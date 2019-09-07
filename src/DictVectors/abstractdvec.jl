@@ -242,21 +242,13 @@ end
 
 ==(l::AbstractDVec, r::AbstractDVec) = isequal(l,r)
 
-# Iterators for `keys()` and `values()`, general fallback code for AbstractDVec
-# Not sure this code is needed. It will be slower than defining methods
-# for concrete types that can take account of the specific structure.
+# Iterators for `keys()` and `pairs()`
 struct ADVKeysIterator{DV}
     dv::DV
 end
 Base.keys(dv::AbstractDVec) = ADVKeysIterator(dv)
-function Base.iterate(ki::ADVKeysIterator)
-    it = iterate(ki.dv)
-    it == nothing && return nothing
-    pair, state = it
-    return (pair[1],state)
-end
-function Base.iterate(ki::ADVKeysIterator, oldstate)
-    it = iterate(ki.dv, oldstate)
+function Base.iterate(ki::ADVKeysIterator, oldstate...)
+    it = iterate(pairs(ki.dv), oldstate...)
     it == nothing && return nothing
     pair, state = it
     return (pair[1],state)
@@ -265,25 +257,19 @@ Base.length(ki::ADVKeysIterator) = length(ki.dv)
 Base.eltype(::Type{ADVKeysIterator{DV}}) where DV = keytype(DV)
 Base.IteratorSize(::Type{ADVKeysIterator}) = HasLength()
 
-struct ADVValuesIterator{DV}
+# iterator over pairs
+"""
+    ADVPairsIterator
+Iterator type for pairs from a [`AbstractDVec`](@ref).
+"""
+struct ADVPairsIterator{DV}
     dv::DV
 end
-Base.values(dv::AbstractDVec) = ADVValuesIterator(dv)
-Base.length(ki::ADVValuesIterator) = length(ki.dv)
-Base.eltype(::Type{ADVValuesIterator{DV}}) where DV = valtype(DV)
-Base.IteratorSize(::Type{ADVValuesIterator}) = HasLength()
+Base.length(ki::ADVPairsIterator) = length(ki.dv)
+Base.eltype(::Type{ADVPairsIterator{DV}}) where DV = Pair{keytype(DV),valtype(DV)}
+Base.IteratorSize(::Type{ADVPairsIterator}) = HasLength()
 
-# fallback method for value iteration - from pairs
-# This will not always work or not be the fastest way
-@inline function Base.iterate(ki::ADVValuesIterator, oldstate...)
-    it = iterate(pairs(ki.dv), oldstate...)
-    it == nothing && return nothing
-    pair, state = it
-    @inbounds return (pair[2],state)
-end
-
-Base.iterate(dv::AbstractDVec) = iterate(values(dv))
-Base.iterate(dv::AbstractDVec, state) = iterate(values(dv), state)
+Base.pairs(dv::AbstractDVec) = ADVPairsIterator(dv)
 
 """
     kvpairs(collection)
@@ -292,3 +278,26 @@ are present, eg. for generic `AbstractDVec`, this falls back to
 [`Base.pairs`](@ref).
 """
 kvpairs(v) = pairs(v)
+
+# iteration over values is default
+Base.values(dv::AbstractDVec) = dv
+
+# struct ADVValuesIterator{DV}
+#     dv::DV
+# end
+# Base.values(dv::AbstractDVec) = ADVValuesIterator(dv)
+# Base.length(ki::ADVValuesIterator) = length(ki.dv)
+# Base.eltype(::Type{ADVValuesIterator{DV}}) where DV = valtype(DV)
+# Base.IteratorSize(::Type{ADVValuesIterator}) = HasLength()
+#
+# # fallback method for value iteration - from pairs
+# # This will not always work or not be the fastest way
+# @inline function Base.iterate(ki::ADVValuesIterator, oldstate...)
+#     it = iterate(pairs(ki.dv), oldstate...)
+#     it == nothing && return nothing
+#     pair, state = it
+#     @inbounds return (pair[2],state)
+# end
+#
+# Base.iterate(dv::AbstractDVec) = iterate(values(dv))
+# Base.iterate(dv::AbstractDVec, state) = iterate(values(dv), state)
