@@ -280,7 +280,10 @@ end
 function (h::BoseHubbardReal1D{E})(v::AbstractDVec{K,V}) where {E, K, V}
     T = promote_type(E,V) # allow for type promotion
     w = empty(v, T) # allocate new vector; non-mutating version
-    for (key,val) in v
+    return h(w,v)
+end
+function (h::BoseHubbardReal1D)(w, v) # mutating version
+    for (key,val) in pairs(v)
         w[key] += diagME(h, key)*val
         for (add,elem) in Hops(h, key)
             w[add] += elem*val
@@ -338,7 +341,10 @@ end
 function (h::ExtendedBHReal1D{E})(v::AbstractDVec{K,V}) where {E, K, V}
     T = promote_type(E,V) # allow for type promotion
     w = empty(v, T) # allocate new vector; non-mutating version
-    for (key,val) in v
+    return h(w,v)
+end
+function (h::ExtendedBHReal1D)(w, v) # mutating version
+    for (key,val) in pairs(v)
         w[key] += diagME(h, key)*val
         for (add,elem) in Hops(h, key)
             w[add] += elem*val

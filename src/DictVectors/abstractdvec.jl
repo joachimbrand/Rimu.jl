@@ -215,7 +215,7 @@ function LinearAlgebra.dot(x::AbstractDVec{K,T1}, y::AbstractDVec{K,T2}) where {
             result += conj(val)*y[key]
         end
     else
-        for (key, val) in y
+        for (key, val) in kvpairs(y)
             result += conj(x[key])*val
         end
     end
