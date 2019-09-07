@@ -35,7 +35,7 @@ end
 
     @test length(myda2) == 4
 
-    for (key, val) in myda2
+    for (key, val) in pairs(myda2)
         println("key ",key," val ",val)
     end
     show(myda2)

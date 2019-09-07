@@ -204,7 +204,7 @@ end # fciqmc
 function fciqmc_step!(w, ham, v, shift, dτ)
     @assert w ≢ v "`w` and `v` must not be the same object"
     spawns = deaths = clones = antiparticles = annihilations = zero(eltype(v))
-    for (add, num) in v
+    for (add, num) in pairs(v)
         res = fciqmc_col!(w, ham, add, num, shift, dτ)
         if !ismissing(res)
             spawns += res[1]
@@ -346,7 +346,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Number,
         # now converted to correct type and compute sign
         nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
         # - because Hamiltonian appears with - sign in iteration equation
-        if sign(w[naddress]) ≠ sign(nspawns) # record annihilations
+        if sign(w[naddress]) * sign(nspawns) < 0 # record annihilations
             annihilations += min(abs(w[naddress]),abs(nspawns))
         end
         if !iszero(nspawns)

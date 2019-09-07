@@ -21,7 +21,8 @@ Implement what would be needed for the `AbstractDict` interface
 haskey, empty!, isempty`) and, in addition:
 - `capacity(dv)`: holding capacity
 - `similar(dv [,Type])`
-- `iterate()`: should return `Pair{K,V}`
+- `iterate()`: should return values of type `V`
+- `pair()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` the provide `values()` iterator as well!
 """
 abstract type AbstractDVec{K,V} end
 
@@ -64,7 +65,7 @@ zero!(v::AbstractDVec) = empty!(v)
 Fast calculation of the square of the 2-norm of `x`.
 """
 function norm_sqr(x::AbstractDVec{K,V}) where K where V<:Number
-    return mapreduce(p->abs2(p[2]), +, x)
+    return mapreduce(p->abs2(p), +, x)
 end
 
 """
@@ -87,14 +88,14 @@ LinearAlgebra.norm(x::AbstractDVec) = sqrt(norm_sqr(x))
 # end
 
 function norm1(x::AbstractDVec{K,V}) where K where V<:Number
-    return mapreduce(p->abs(p[2]), +, x)|>Float64
+    return mapreduce(p->abs(p), +, x)|>Float64
 end
 
 """
     normInf(x::AbstractDVec)
 Infinity norm: largest absolute value of entries.
 """
-normInf(x::AbstractDVec) = mapreduce(p->abs(p[2]), max, x)|>Float64
+normInf(x::AbstractDVec) = mapreduce(p->abs(p), max, x)|>Float64
 
 """
     norm(x::AbstractDVec, p)
@@ -268,26 +269,26 @@ struct ADVValuesIterator{DV}
     dv::DV
 end
 Base.values(dv::AbstractDVec) = ADVValuesIterator(dv)
-function Base.iterate(ki::ADVValuesIterator)
-    it = iterate(ki.dv)
-    it == nothing && return nothing
-    pair, state = it
-    return (pair[2],state)
-end
-function Base.iterate(ki::ADVValuesIterator, oldstate)
-    it = iterate(ki.dv, oldstate)
-    it == nothing && return nothing
-    pair, state = it
-    return (pair[2],state)
-end
 Base.length(ki::ADVValuesIterator) = length(ki.dv)
 Base.eltype(::Type{ADVValuesIterator{DV}}) where DV = valtype(DV)
 Base.IteratorSize(::Type{ADVValuesIterator}) = HasLength()
+
+# fallback method for value iteration - from pairs
+# This will not always work or not be the fastest way
+@inline function Base.iterate(ki::ADVValuesIterator, oldstate...)
+    it = iterate(pairs(ki.dv), oldstate...)
+    it == nothing && return nothing
+    pair, state = it
+    @inbounds return (pair[2],state)
+end
+
+Base.iterate(dv::AbstractDVec) = iterate(values(dv))
+Base.iterate(dv::AbstractDVec, state) = iterate(values(dv), state)
 
 """
     kvpairs(collection)
 Return an iterator over `key => value` pairs ignoring any flags. If no flags
 are present, eg. for generic `AbstractDVec`, this falls back to
-[`Base.pairs`](@ref).  
+[`Base.pairs`](@ref).
 """
 kvpairs(v) = pairs(v)

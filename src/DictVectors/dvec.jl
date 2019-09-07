@@ -104,8 +104,8 @@ Base.getindex(dv::DVec, add) = get(dv.d, add, zero(eltype(dv)))
 # iterator over pairs
 Base.pairs(dv::DVec) = dv.d # just return the contained dictionary
 
-Base.iterate(dv::DVec) = iterate(dv.d)
-Base.iterate(dv::DVec, state) = iterate(dv.d, state)
+# Base.iterate(dv::DVec) = iterate(dv.d)
+# Base.iterate(dv::DVec, state) = iterate(dv.d, state)
 
 # most functions are simply delegated to the wrapped dictionary
 @delegate DVec.d [ getindex, get, get!, haskey, getkey, pop!,
@@ -134,7 +134,7 @@ end # rmul!
 
 function Base.show(io::IO, da::DVec{K,V}) where V where K
     print(io, "DVec{$K,$V} with $(length(da)) entries and capacity $(capacity(da)):")
-    for (i,p) in enumerate(da)
+    for (i,p) in enumerate(pairs(da))
         print(io, "\n  ", p)
         if i>15
             print(io, "\n  ⋮   => ⋮")

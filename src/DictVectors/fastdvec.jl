@@ -50,7 +50,7 @@ end
 function FastDVec(d::AbstractDVec{K,V}, # inherit capacity by default
                   capacity = capacity(d)) where K where V
     fdv = FastDVec{K,V}(capacity)
-    for (k,v) in d
+    for (k,v) in pairs(d)
         fdv[k] = v
     end
     return fdv
@@ -98,7 +98,7 @@ Base.zero(fdv::FastDVec) = similar(fdv)
 function Base.empty!(da::FastDVec)
     empty!(da.vals)
     empty!(da.emptyslots)
-    for i = 1: length(da.hashtable)
+    @inbounds for i = 1: length(da.hashtable)
         empty!(da.hashtable[i])
     end
     return da
@@ -135,7 +135,7 @@ end
 ## No: getindex needs to return zero as default!
 Base.getindex(da::FastDVec{K,V}, key::K) where {K,V} = get(da, key, zero(V))
 
-function Base.get(da::FastDVec{K,V}, key::K, default) where K where V
+@inline function Base.get(da::FastDVec{K,V}, key::K, default::V) where K where V
     hind = hashindex(key, da.hashrange)
     @inbounds for (add, vind) in da.hashtable[hind]
         if add == key # compare key with entry in hashtable
@@ -146,7 +146,7 @@ function Base.get(da::FastDVec{K,V}, key::K, default) where K where V
 end
 
 
-function Base.setindex!(da::FastDVec{K,V}, v::V, key::K) where K where V
+@inline function Base.setindex!(da::FastDVec{K,V}, v::V, key::K) where K where V
     if v == zero(V)
         delete!(da, key)
     else
@@ -171,72 +171,109 @@ end # setindex!
 
 function Base.delete!(da::FastDVec{K,V}, key::K) where K where V
     hind = hashindex(key, da.hashrange) # index into hashtable
-    for (ind, (add, vind)) in enumerate(da.hashtable[hind]) # look through existing entries
+    @inbounds for (ind, (add, vind)) in enumerate(da.hashtable[hind]) # look through existing entries
         if add == key # compare key with entry in hashtable
             push!(da.emptyslots, vind) # remember empty slot
             deleteat!(da.hashtable[hind], ind)
             return  da # success, we are done
         end
     end # key does not yet exist
+    return da
     # error("No entry with key $key in $da.")
 end
 
 
-# Iteration over all vals.
-# Note: this includes empty slots!
-@inline function val_iterate(da::FastDVec, i = 1)
-    if i == length(da.vals) + 1
-        nothing
-    else
-        return (da.vals[i], i+1)
-    end
-end
+# # Iteration over all vals.
+# # Note: this includes empty slots!
+# @inline function val_iterate(da::FastDVec, i = 1)
+#     if i == length(da.vals) + 1
+#         nothing
+#     else
+#         return (da.vals[i], i+1)
+#     end
+# end
 
-function Base.iterate(da::FastDVec) # initial
-    hind = 1
-    pos = 1
-    list = da.hashtable[1]
-    @inbounds while length(list) == 0
-        hind += 1
-        if hind > da.hashrange
-            return nothing
-        end
-        list = da.hashtable[hind]
-    end
-    key, vind = list[pos]
-    val = da.vals[vind]
-    state = (hind,pos + 1)
-    return (Pair(key,val), state)
+# Iterators
+# iterator over pairs
+"""
+    FDVPairs{K,V}
+Iterator type for pairs from a [`FastDVec`](@ref).
+"""
+struct FDVPairs{K,V}
+    dv::FastDVec{K,V}
 end
+Base.length(ki::FDVPairs) = length(ki.dv)
+Base.eltype(::Type{FDVPairs{K,V}}) where {K,V} = Pair{K,V}
+Base.IteratorSize(::Type{FDVPairs}) = HasLength()
 
-function Base.iterate(da::FastDVec, state)
+Base.pairs(dv::FastDVec) = FDVPairs(dv)
+
+
+# function Base.iterate(pit::FDVPairs) # initial
+#     hind = 1
+#     pos = 1
+#     list = pit.dv.hashtable[1]
+#     @inbounds while length(list) == 0
+#         hind += 1
+#         if hind > pit.dv.hashrange
+#             return nothing
+#         end
+#         list = pit.dv.hashtable[hind]
+#     end
+#     key, vind = list[pos]
+#     val = pit.dv.vals[vind]
+#     state = (hind,pos + 1)
+#     return (Pair(key,val), state)
+# end
+
+@inline function Base.iterate(pit::FDVPairs, state = (1,1))
     hind, pos = state
-    list = da.hashtable[hind]
+    @boundscheck hind ≤ pit.dv.hashrange || throw(BoundsError())
+    list = pit.dv.hashtable[hind]
     @inbounds while pos > length(list)
         hind += 1
         pos = 1
-        if hind > da.hashrange
+        if hind > pit.dv.hashrange
             return nothing
         end
-        list = da.hashtable[hind]
+        list = pit.dv.hashtable[hind]
     end
-    key, vind = list[pos]
-    val = da.vals[vind]
+    @inbounds key, vind = list[pos]
+    @inbounds val = pit.dv.vals[vind]
     state = (hind,pos + 1)
     return (Pair(key,val), state)
+end
+
+# iterate over values
+@inline function Base.iterate(pit::ADVValuesIterator{T}, state = (1,1)) where T <: FastDVec
+    hind, pos = state
+    @boundscheck hind ≤ pit.dv.hashrange || throw(BoundsError())
+    list = pit.dv.hashtable[hind]
+    @inbounds while pos > length(list)
+        hind += 1
+        pos = 1
+        if hind > pit.dv.hashrange
+            return nothing
+        end
+        list = pit.dv.hashtable[hind]
+    end
+    @inbounds key, vind = list[pos]
+    @inbounds val = pit.dv.vals[vind]
+    state = (hind, pos + 1)
+    return (val, state)
 end
 
 
 function Base.show(io::IO, da::FastDVec{K,V}) where V where K
     print(io, "FastDVec{$K,$V}([")
     init = true
-    for (key,val) in da
+    for p in pairs(da)
         if init
             init = false
         else
             print(io, ", ")
         end
-        print(io, Pair(key,val))
+        print(io, p)
     end
     print(io, "])\n")
 end

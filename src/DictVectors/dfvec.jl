@@ -57,7 +57,7 @@ end
                       ) where {K, V <: Number}
     @boundscheck length(d) ≤ capacity || throw(BoundsError()) # prevent overflow
     dv = DFVec{K,V,F}(capacity)
-    for (key, val) in d
+    for (key, val) in pairs(d)
         dv[key] = (val, zero(F))
     end
     return dv
@@ -219,14 +219,14 @@ An iterator that yields flags stored in the [`DFVec`](@ref) `dv`.
 function flags(dv::DFVec)
     return FlagsIterator(dv)
 end
-@inline function Base.iterate(fi::FlagsIterator)
-    ps = iterate(fi.dv.d)
-    ps == nothing && return nothing
-    pair, state = ps
-    @inbounds return pair[2][2], state
-end
-@inline function Base.iterate(fi::FlagsIterator, oldstate)
-    ps = iterate(fi.dv.d, oldstate)
+# @inline function Base.iterate(fi::FlagsIterator)
+#     ps = iterate(fi.dv.d)
+#     ps == nothing && return nothing
+#     pair, state = ps
+#     @inbounds return pair[2][2], state
+# end
+@inline function Base.iterate(fi::FlagsIterator, oldstate...)
+    ps = iterate(fi.dv.d, oldstate...)
     ps == nothing && return nothing
     pair, state = ps
     @inbounds return pair[2][2], state
@@ -252,14 +252,14 @@ ignoring any `flags`. In contrast, [`pairs()`](@ref) will return pairs
 function kvpairs(dv::DFVec)
     return KVPairsIterator(dv)
 end
-@inline function Base.iterate(kvi::KVPairsIterator)
-    ps = iterate(kvi.dv.d)
-    ps == nothing && return nothing
-    pair, state = ps
-    @inbounds return Pair(pair[1], pair[2][1]), state
-end
-@inline function Base.iterate(kvi::KVPairsIterator, oldstate)
-    ps = iterate(kvi.dv.d, oldstate)
+# @inline function Base.iterate(kvi::KVPairsIterator)
+#     ps = iterate(kvi.dv.d)
+#     ps == nothing && return nothing
+#     pair, state = ps
+#     @inbounds return Pair(pair[1], pair[2][1]), state
+# end
+@inline function Base.iterate(kvi::KVPairsIterator, oldstate...)
+    ps = iterate(kvi.dv.d, oldstate...)
     ps == nothing && return nothing
     pair, state = ps
     @inbounds return Pair(pair[1], pair[2][1]), state
@@ -268,19 +268,26 @@ end
 # Note that standard iteration over a `DFVec` will return `key => val` pairs
 # as required for the `AbstractDVec` interface without the `flag` information.
 # Use `tuples()` or `tuplepairs()` in order to access the full information.
-@inline function Base.iterate(dv::DFVec)
-    ps = iterate(dv.d)
-    ps == nothing && return nothing
-    pair, state = ps
-    @inbounds return Pair(pair[1], pair[2][1]), state
-end
-@inline function Base.iterate(dv::DFVec, oldstate)
-    ps =  iterate(dv.d, oldstate)
-    ps == nothing && return nothing
-    pair, state = ps
-    @inbounds return Pair(pair[1], pair[2][1]), state
-end
+# @inline function Base.iterate(dv::DFVec)
+#     ps = iterate(dv.d)
+#     ps == nothing && return nothing
+#     pair, state = ps
+#     @inbounds return Pair(pair[1], pair[2][1]), state
+# end
+# @inline function Base.iterate(dv::DFVec, oldstate)
+#     ps =  iterate(dv.d, oldstate)
+#     ps == nothing && return nothing
+#     pair, state = ps
+#     @inbounds return Pair(pair[1], pair[2][1]), state
+# end
 Base.IteratorSize(::Type{DFVec}) = HasLength()
+
+@inline function Base.iterate(ki::ADVValuesIterator{T}, oldstate...) where T<:DFVec
+    it = iterate(pairs(ki.dv), oldstate...)
+    it == nothing && return nothing
+    pair, state = it
+    @inbounds return (pair[2][1],state)
+end
 
 
 # most functions are simply delegated to the wrapped dictionary
