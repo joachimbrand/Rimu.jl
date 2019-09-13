@@ -253,6 +253,10 @@ end
 
 Implements a one-dimensional Bose Hubbard chain in real space.
 
+```math
+\\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1)
+```
+
 # Arguments
 - `n::Int`: the number of bosons
 - `m::Int`: the number of lattice sites
@@ -311,6 +315,10 @@ end
 
 Implements the extended Bose Hubbard model on a one-dimensional chain
 in real space.
+
+```math
+\\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1) + v \\sum_{\\langle i,j\\rangle} n_i n_j
+```
 
 # Arguments
 - `n::Int`: number of bosons
