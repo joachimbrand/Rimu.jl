@@ -103,14 +103,23 @@ end
         AT = BSAdd64)
     aIni = nearUniform(ham)
     pa = RunTillLastStep(laststep = 100)
-    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
 
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     svec = DVec(Dict(aIni => 2), ham(:dim))
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s)
     @test sum(rdfs[:,:spawns]) == 1751
+
+    pa = RunTillLastStep(laststep = 100)
+    s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s)
+    @test sum(rdfs[:,:spawns]) == 8305
 end
 
 @testset "dfvec.jl" begin

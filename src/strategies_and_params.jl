@@ -66,6 +66,7 @@ abstract type ShiftStrategy end
     LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ`.
+See [`LogUpdate`](@ref).
 """
 @with_kw struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
@@ -76,7 +77,7 @@ end
     DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, a = 10) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and delay of
-`a` steps.
+`a` steps. See [`DelayedLogUpdate`](@ref).
 """
 @with_kw struct DelayedLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
@@ -88,6 +89,10 @@ end
     LogUpdate(ζ = 0.3) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ`.
+
+```math
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)
+```
 """
 @with_kw struct LogUpdate <: ShiftStrategy
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
@@ -97,6 +102,10 @@ end
     DelayedLogUpdate(ζ = 0.3, a = 10) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and delay of `a` steps.
+
+```math
+S^{n+a} = S^n -\\frac{ζ}{a dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+a}}{\\|Ψ\\|_1^n}\\right)
+```
 """
 @with_kw struct DelayedLogUpdate <: ShiftStrategy
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
@@ -108,7 +117,7 @@ struct DontUpdate <: ShiftStrategy end
 
 """
     update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df)
-Update the shift according to strategy `s`.
+Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
 """
 @inline function update_shift(s::LogUpdate,
                         shift, shiftMode,
@@ -117,13 +126,13 @@ Update the shift according to strategy `s`.
     return shift - s.ζ/dτ * log(tnorm/pnorm), true
 end
 
-function update_shift(s::DelayedLogUpdate,
+@inline function update_shift(s::DelayedLogUpdate,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df)
     # return new shift and new shiftMode
-    if shift % a == 0 && size(df,1) > a
-        prevnorm = df[end-a+1,:norm]
-        return shift - s.ζ/(dτ*a) * log(tnorm/prevnorm), true
+    if shift % s.a == 0 && size(df,1) > s.a
+        prevnorm = df[end-s.a+1,:norm]
+        return shift - s.ζ/(dτ * s.a) * log(tnorm/prevnorm), true
     else
         return shift, true
     end
