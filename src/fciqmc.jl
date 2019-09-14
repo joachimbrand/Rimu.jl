@@ -1,7 +1,8 @@
+import Base.Threads: @spawn, nthreads
 
 """
-    fciqmc!(svec, pa::FciqmcRunStrategy, [df,]
-             ham, s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy, dvec])
+    fciqmc!(svec, pa::FciqmcRunStrategy, [df, dvec,]
+             ham, s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy])
     -> df
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
@@ -15,14 +16,15 @@ A pre-allocated `dvec` can be passed as argument.
 This function mutates `svec`, the parameter struct `pa` as well as
 `df`, and `dvec`.
 """
-function fciqmc!(svec::D, pa::FciqmcRunStrategy,
+function fciqmc!(svec::D, pa::FciqmcRunStrategy, dvecs,
                  ham,
                  s_strat::ShiftStrategy,
-                 τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 dvec::D = similar(svec)) where D<:AbstractDVec
+                 τ_strat::TimeStepStrategy = ConstantTimeStep()
+                 ) where D<:AbstractDVec
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
+    println("Running $(Threads.nthreads()) threads. ", length(dvecs))
     # prepare df for recording data
     df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[], shiftMode=Bool[],
                         len=Int[],
@@ -39,15 +41,25 @@ function fciqmc!(svec::D, pa::FciqmcRunStrategy,
     push!(df, (step, dτ, shift, shiftMode, length(svec), norm(svec, 1),
                 0, 0, 0, 0, 0))
 
-    return fciqmc!(svec, pa, df, ham, s_strat, τ_strat, dvec)
+    return fciqmc!(svec, pa, df, dvecs, ham, s_strat, τ_strat)
 end
+
+function fciqmc!(svec::D, pa::FciqmcRunStrategy,
+                 ham,
+                 s_strat::ShiftStrategy,
+                 τ_strat::TimeStepStrategy = ConstantTimeStep()
+                 ) where D<:AbstractDVec
+    return fciqmc!(svec, pa, [similar(svec) for i in 1:Threads.nthreads()], ham,
+                    s_strat, τ_strat)
+end
+
 
 # for continuation runs we can also pass a DataFrame
 function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
-                 ham,
+                 dvec::D, ham,
                  s_strat::ShiftStrategy,
-                 τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 dvec::D = similar(svec)) where D<:AbstractDVec
+                 τ_strat::TimeStepStrategy = ConstantTimeStep()
+                 ) where D<:AbstractDVec
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -83,6 +95,67 @@ function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
         dvec = vOld # keep reference to old vector
         vOld = vNew # new will be old
         vNew = empty!(dvec) # clean out the old vector and assign to vNew reference
+        len > 0.8*maxlength && if len > maxlength
+            @error "`maxlength` exceeded" len maxlength
+            break
+        else
+            @warn "`maxlength` nearly reached" len maxlength
+        end
+    end
+    # make sure that `svec` contains the current population:
+    if !(vOld === svec)
+        copyto!(svec, vOld)
+    end
+    # pack up and parameters for continuation runs
+    # note that this modifes the struct pa
+    @pack! pa = step, shiftMode, shift, dτ
+    return df
+    # note that `svec` and `pa` are modified but not returned explicitly
+end # fciqmc
+
+# threads version
+function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
+                 dvecs::Vector{D}, ham,
+                 s_strat::ShiftStrategy,
+                 τ_strat::TimeStepStrategy = ConstantTimeStep()
+                 ) where D<:AbstractDVec
+    # unpack the parameters:
+    @unpack step, laststep, shiftMode, shift, dτ = pa
+
+    # check `df` for consistency
+    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                            :spawns, :deaths, :clones, :antiparticles,
+                            :annihilations
+                         ] "Column names in `df` not as expected."
+
+    pnorm = tnorm = norm(svec, 1) # norm of "previous" vector
+    maxlength = capacity(svec)
+    maxlength ≤ maximum(capacity,dvecs) || error("`dvecs` need to have at least `capacity(svec)`")
+    vOld = svec # the starting vector
+
+    while step < laststep
+        step += 1
+        zero!.(dvecs) # clear second vector
+        # perform one complete stochastic vector matrix multiplication
+        step_stats = fciqmc_step!(dvecs, ham, vOld, shift, dτ)
+        vNew = dvecs[1]
+
+        tnorm = norm(vNew, 1) # total number of psips
+        # update shift and mode if necessary
+        shift, shiftMode = update_shift(s_strat,
+                                shift, shiftMode,
+                                tnorm, pnorm, dτ, step, df)
+        dτ = update_dτ(τ_strat, dτ) # will need to pass more information later
+        # when we add different stratgies
+        pnorm = tnorm # remember norm of this step for next step (previous norm)
+        len = length(vNew)
+        # record results
+        push!(df, (step, dτ, shift, shiftMode, len, tnorm,
+                        step_stats...))
+        # prepare for next step:
+        dummy = vOld # keep reference to old vector
+        vOld = vNew # new will be old
+        dvecs[1] = dummy # assign to vNew reference
         len > 0.8*maxlength && if len > maxlength
             @error "`maxlength` exceeded" len maxlength
             break
@@ -217,6 +290,35 @@ function fciqmc_step!(w, ham, v, shift, dτ)
     return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # fciqmc_step!
+
+function fciqmc_step!(ws::Array{T,1}, ham, v::T, shift, dτ) where T
+    # Threaded version
+    nt = Threads.nthreads()
+    @assert length(ws) ≥ nt "expecting one buffer per thread"
+    spawns = deaths = clones = antiparticles = annihilations = zeros(eltype(v), nt)
+    @sync for (add, num) in pairs(v)
+        # distribute work to do over threads using dynamic scheduling
+        Threads.@spawn begin
+            tid = Threads.threadid()
+            res = fciqmc_col!(ws[tid], ham, add, num, shift, dτ)
+            if !ismissing(res)
+                spawns[tid] += res[1]
+                deaths[tid] += res[2]
+                clones[tid] += res[3]
+                antiparticles[tid] += res[4]
+                annihilations[tid] += res[5]
+            end
+        end
+    end # @sync
+    # Now all threads have returned and we are back to serial code execution
+    # combine all results into w[1]
+    for i in 2:nt
+        add!(ws[1],ws[i])
+    end
+    return map(sum, (spawns, deaths, clones, antiparticles, annihilations))
+    # note that ws is not returned
+end # fciqmc_step!
+
 
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray

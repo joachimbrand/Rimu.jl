@@ -3,6 +3,7 @@
 Random Integrator for Many-Body Quantum Systems
 """
 module Rimu
+@assert VERSION ≥ v"1.3-" "Threaded version of `Rimu` requires Julia v1.3"
 
 using Reexport, Parameters, LinearAlgebra, DataFrames
 

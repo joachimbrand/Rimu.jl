@@ -87,9 +87,10 @@ dfshift = blocking(rdfs[start_blocking:end,:shift])
 qmcEnergy = dfshift[1,:mean]
 qmcEnergyError = dfshift[mtest(dfshift),:std_err]
 block_steps = rdfs[start_blocking:end,:steps]
-fill_between(block_steps,qmcEnergy-qmcEnergyError,
-    qmcEnergy+qmcEnergyError,facecolor="m",alpha=0.3)
-plot(block_steps,ones(length(block_steps))*qmcEnergy,"--m")
+println("After blocking")
+# fill_between(block_steps,qmcEnergy-qmcEnergyError,
+#     qmcEnergy+qmcEnergyError,facecolor="m",alpha=0.3)
+# plot(block_steps,ones(length(block_steps))*qmcEnergy,"--m")
 
 using DSP
 ## define kernel for smoothing
@@ -97,16 +98,20 @@ w = 3
 gausskernel = [exp(-i^2/(2*w^2)) for i = -3w:3w]
 gausskernel ./= sum(abs.(gausskernel))
 shift = rdfs[:,:shift]
+println("before smoothing")
+
 smooth_shift = conv(shift, gausskernel)[3w+1:end-3w]
-pe = plot(rdfs.steps, smooth_shift, ".-g")
-show(pe)
+println("After smoothing")
+
+# pe = plot(rdfs.steps, smooth_shift, ".-g")
+# show(pe)
 
 # plot energy difference from exact for determinstic
 Ediff = abs.(Ẽ .- exactEnergy)
-figure(); title("log-lin plot of Ediff")
-semilogy(rdf[2:end,:steps],Ediff,"xg")
-show()
+# figure(); title("log-lin plot of Ediff")
+# semilogy(rdf[2:end,:steps],Ediff,"xg")
+# show()
 # plot blocking analysis for manual checking
-plotBlockingAnalysisDF(dfshift)
-title("Blocking analysis for `shift`")
-show()
+# plotBlockingAnalysisDF(dfshift)
+# title("Blocking analysis for `shift`")
+# show()
