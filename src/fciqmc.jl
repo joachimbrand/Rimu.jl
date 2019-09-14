@@ -200,21 +200,28 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
     # note that `svecs` and `pa` are modified but not returned explicitly
 end # fciqmc
 
+"""
+    fciqmc_step!(w, Ĥ, v, shift, dτ) -> stats
+Perform a single vector-matrix multiplication:
+```math
+w = [1 - dτ(Ĥ - S)]⋅v ,
+```
+where `Ĥ == ham` and `S == shift`. Whether the operation is performed in
+stochastic, semistochastic, or determistic way is controlled by the trait
+`StochasticStyle(w)`. See [`StochasticStyle`](@ref).
 
-function fciqmc_step!(w, ham, v, shift, dτ)
+Returns the tuple
+`stats = (spawns, deaths, clones, antiparticles, annihilations)`, or a tuple of
+zeros when running in deterministic way.
+"""
+function fciqmc_step!(w, Ĥ, v, shift, dτ) # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
-    spawns = deaths = clones = antiparticles = annihilations = zero(eltype(v))
+    stats = zeros(valtype(v), 5) # pre-allocate arry for stats
     for (add, num) in pairs(v)
-        res = fciqmc_col!(w, ham, add, num, shift, dτ)
-        if !ismissing(res)
-            spawns += res[1]
-            deaths += res[2]
-            clones += res[3]
-            antiparticles += res[4]
-            annihilations += res[5]
-        end
+        res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
+        ismissing(res) || (stats .+= res) # just add all stats together
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return Tuple(stats)
     # note that w is not returned
 end # fciqmc_step!
 
