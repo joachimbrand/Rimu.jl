@@ -1,19 +1,21 @@
 image: julia:latest
 
 pipelines:
-  default:
-    - step:
-        name: tests
-        script:
-            - export JULIA_PROJECT=@.
-            - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
-            - julia test/runtests.jl
-    - step:
-        name: documentation
-        script:
-            - apt-get update && apt-get install -y git
-            - export JULIA_PROJECT=@.
-            - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
-            - julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
-            - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-            - julia --project=docs/ docs/make.jl
+  # default:
+  branches:
+      master:
+        - step:
+            name: tests
+            script:
+                - export JULIA_PROJECT=@.
+                - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
+                - julia test/runtests.jl
+        - step:
+            name: documentation
+            script:
+                - apt-get update && apt-get install -y git
+                - export JULIA_PROJECT=@.
+                - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
+                - julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
+                - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+                - julia --project=docs/ docs/make.jl
