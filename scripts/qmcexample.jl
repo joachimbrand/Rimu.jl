@@ -40,6 +40,7 @@ cIni = DVec(Dict(aIni=>1.0),ham(:dim))
 capacity(cIni)
 length(cIni)
 using KrylovKit
+println("Finding ground state deterministically with KrylovKit (Lanczos)")
 @time allresults = eigsolve(ham, cIni, 1, :SR; issymmetric = true)
 exactEnergy = allresults[1][1]
 
@@ -57,6 +58,7 @@ pa = RunTillLastStep(laststep = steps,  dτ = dτ)
 τ_strat = ConstantTimeStep()
 s_strat = LogUpdateAfterTargetWalkers(targetwalkers = walkernumber)
 v2 = copy(svec2)
+println("Finding ground state with deterministic version of fciqmc!()")
 @time rdf = fciqmc!(v2, pa, ham, s_strat, τ_strat)
 
 plotQMCStats(rdf)
@@ -67,6 +69,7 @@ StochasticStyle(svec)
 
 pas = RunTillLastStep(laststep = steps, dτ = dτ)
 vs = copy(svec)
+println("Finding ground state with stochastic version of fciqmc!()")
 @time rdfs = fciqmc!(vs, pas, ham, s_strat, τ_strat)
 
 ps = plotQMCStats(rdfs, newfig = false)
