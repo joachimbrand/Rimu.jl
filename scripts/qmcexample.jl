@@ -95,16 +95,17 @@ fill_between(block_steps,qmcEnergy-qmcEnergyError,
     qmcEnergy+qmcEnergyError,facecolor="m",alpha=0.3)
 plot(block_steps,ones(length(block_steps))*qmcEnergy,"--m")
 
-using DSP
-## define kernel for smoothing
-w = 3
-gausskernel = [exp(-i^2/(2*w^2)) for i = -3w:3w]
-gausskernel ./= sum(abs.(gausskernel))
-shift = rdfs[:,:shift]
-println("before smoothing")
-
-smooth_shift = conv(shift, gausskernel)[3w+1:end-3w]
-println("After smoothing")
+## currently this part seems to cause hangs in Julia v1.3-
+# using DSP
+# ## define kernel for smoothing
+# w = 3
+# gausskernel = [exp(-i^2/(2*w^2)) for i = -3w:3w]
+# gausskernel ./= sum(abs.(gausskernel))
+# shift = rdfs[:,:shift]
+# println("before smoothing")
+#
+# smooth_shift = conv(shift, gausskernel)[3w+1:end-3w]
+# println("After smoothing")
 
 # pe = plot(rdfs.steps, smooth_shift, ".-g")
 # show(pe)
@@ -114,7 +115,7 @@ Ediff = abs.(Ẽ .- exactEnergy)
 figure(); title("log-lin plot of Ediff")
 semilogy(rdf[2:end,:steps],Ediff,"xg")
 show()
-plot blocking analysis for manual checking
+# plot blocking analysis for manual checking
 plotBlockingAnalysisDF(dfshift)
 title("Blocking analysis for `shift`")
 show()
