@@ -22,7 +22,7 @@ haskey, empty!, isempty`) and, in addition:
 - `capacity(dv)`: holding capacity
 - `similar(dv [,Type])`
 - `iterate()`: should return values of type `V`
-- `pair()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` the provide `values()` iterator as well!
+- `pairs()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` the provide `values()` iterator as well!
 """
 abstract type AbstractDVec{K,V} end
 
@@ -49,6 +49,13 @@ Base.eltype(::AbstractDVec{K,V}) where V where K = V
 # conficts with definition and expected behaviour of AbstractDict
 # but is needed for KrylovKit
 Base.keytype(::AbstractDVec{K,V}) where V where K = K
+
+"""
+    pairtype(dv)
+Returns the type of stored data, as returned by the `pairs()` iterator.
+"""
+pairtype(dv) = pairtype(typeof(dv))
+pairtype(::AbstractDVec{K,V}) where {K,V} = Pair{K,V} # need this for each concrete type
 
 Base.isreal(v::AbstractDVec) = valtype(v) <: Real
 Base.ndims(::AbstractDVec) = 1

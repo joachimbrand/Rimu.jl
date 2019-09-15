@@ -73,6 +73,7 @@ Base.valtype(::Type{DVec{K,T}}) where T where K = T
 Base.eltype(::Type{DVec{K,T}}) where T where K = T
 # for instances of AbstractDVec, eltype is already defined
 # for the type we need to do it here because it has to be specific
+pairtype(::Type{DVec{K,T}}) where {K,T} = Pair{K,T}
 
 capacity(dv::DVec) = (2*length(dv.d.keys))÷3
 # 2/3 of the allocated storage size

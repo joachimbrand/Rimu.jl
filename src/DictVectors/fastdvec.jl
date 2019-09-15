@@ -67,7 +67,7 @@ Base.valtype(::Type{FastDVec{K,T}}) where T where K = T
 Base.eltype(::Type{FastDVec{K,T}}) where T where K = T
 # for instances of AbstractDVec eltype is already defined
 # for the type we need to do it here because it has to be specific
-
+pairtype(::Type{FastDVec{K,T}}) where {K,T} = Pair{K,T}
 
 capacity(da::FastDVec) = da.capacity # not exported but useful here
 function capacity(dv::FastDVec, s::Symbol)

@@ -216,14 +216,34 @@ zeros when running in deterministic way.
 """
 function fciqmc_step!(w, Ĥ, v, shift, dτ) # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
-    stats = zeros(valtype(v), 5) # pre-allocate arry for stats
+    stats = zeros(valtype(v), 5) # pre-allocate array for stats
     for (add, num) in pairs(v)
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         ismissing(res) || (stats .+= res) # just add all stats together
     end
     return Tuple(stats)
     # note that w is not returned
+    # stats == (spawns, deaths, clones, antiparticles, annihilations)
 end # fciqmc_step!
+
+# function fciqmc_step!(w::T, Ĥ, dv::MPIData{T}, shift, dτ) where T
+#     v = localpart(dv)
+#     @assert w ≢ v "`w` and `v` must not be the same object"
+#     empty!(w)
+#     stats = zeros(valtype(v), 5) # pre-allocate array for stats
+#     for (add, num) in pairs(v)
+#         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
+#         ismissing(res) || (stats .+= res) # just add all stats together
+#     end
+#     sort_into_targets!(dv, w)
+#     MPI.Barrier(dv.comm)
+#     MPI.Reduce_in_place!(stats, length(stats), +, dv.root, dv.comm)
+#     return dv, stats
+#     # note that this returns the structure with the correctly distributed end
+#     # result `dv` and `stats` as an array. On `dv.root` this will be the
+#     # cumulative stats
+# end # fciqmc_step!
+
 
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
