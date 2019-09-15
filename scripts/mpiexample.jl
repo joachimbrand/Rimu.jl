@@ -41,8 +41,8 @@ aIrank = targetrank(aIni, np)
 # aIrank ≠ id && empty!(svec) # empty on all except correct rank
 
 w = similar(svec) # this one is a buffer for working
-# dv = mpi_one_sided(svec) # wrap state vector with mpi strategy
-dv = mpi_default(svec) # wrap state vector with mpi strategy
+dv = mpi_one_sided(svec) # wrap state vector with mpi strategy
+# dv = mpi_default(svec) # wrap state vector with mpi strategy
 Rimu.ConsistentRNG.seedCRNG!(17+id) # for now seed the RNG with the rank of the process
 
 for n in 1:30

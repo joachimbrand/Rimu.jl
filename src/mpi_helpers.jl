@@ -83,18 +83,11 @@ function mpi_one_sided(data, comm = MPI.COMM_WORLD, root = 0)
     id = MPI.Comm_rank(comm)
     P = pairtype(data)
 
-    # compute the required capacity for the communication buffer as the
-    # largest length of data of all ranks
-    len = length(data)
-    alllengths = MPI.Gather([len],1, root, comm) # get len from all ranks
-    cap = [0] # allocate buffer for the capacity
-    if id == root
-        cap[1] = maximum(alllengths) # compute the maximum on root
-    end
-    MPI.Bcast!(cap,1,root,comm) # broadcast the result to all ranks
-    # the computed result for the capacity should now be in cap[1]
-
-    s = MPIOSWin(np, id, comm, P, Int32(cap[1]))
+    # compute the required capacity for the communication buffer as a
+    # fraction of the capacity of `data`
+    cap = capacity(data) ÷ np + 1
+    id == root && println("on rank $id, capacity = ",cap)
+    s = MPIOSWin(np, id, comm, P, Int32(cap))
     return MPIData(data, comm, root, s)
 end
 
