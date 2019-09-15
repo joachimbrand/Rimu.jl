@@ -241,7 +241,7 @@ Base.IteratorSize(::Type{KVPairsIterator}) = HasLength()
 """
     kvpairs(dv::DFVec)
 An iterator that yields `key => value` pairs stored in the [`DFVec`](@ref) `dv`
-ignoring any `flags`. In contrast, [`pairs()`](@ref) will return pairs
+ignoring any `flags`. In contrast, `Base.pairs()` will return pairs
 `key => (value, flag)`.
 """
 function kvpairs(dv::DFVec)

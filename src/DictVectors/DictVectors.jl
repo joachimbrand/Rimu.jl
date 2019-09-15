@@ -8,6 +8,7 @@ abstract type and interface [`AbstractDVec`](@ref) is provided, with the
 following concrete subtypes:
 
  * [`DVec`](@ref)
+ * [`DFVec`](@ref)
  * [`FastDVec`](@ref)
 """
 module DictVectors
