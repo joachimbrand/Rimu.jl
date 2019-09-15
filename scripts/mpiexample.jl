@@ -41,16 +41,33 @@ aIrank = targetrank(aIni, np)
 # aIrank ≠ id && empty!(svec) # empty on all except correct rank
 
 w = similar(svec) # this one is a buffer for working
-dv = mpi_one_sided(svec) # wrap state vector with mpi strategy
-# dv = mpi_default(svec) # wrap state vector with mpi strategy
+# dv = mpi_one_sided(svec) # wrap state vector with mpi strategy
+dv = mpi_default(svec) # wrap state vector with mpi strategy
 Rimu.ConsistentRNG.seedCRNG!(17+id) # for now seed the RNG with the rank of the process
+cstats = zeros(Int,5)
+
+id == dv.root && println("Initial state:")
+
+len = length(localpart(dv))
+lenarray = MPI.Gather(len, dv.root, comm)
+id == dv.root && println("Number of configurations on ranks: ", lenarray, ", sum = ", sum(lenarray))
+nwalkers = sum(abs.(values(dv.data)))
+nw_array = MPI.Gather(nwalkers, dv.root, comm)
+id == dv.root && println("Number of walkers on ranks: ", nw_array, ", sum = ", sum(nw_array))
 
 for n in 1:30
     v, stats = Rimu.fciqmc_step!(w, Ĥ, dv, 0.0, 0.01)
     id == dv.root && println("Step $n, stats = ",stats)
+    cstats .+= stats
+    id == dv.root && println("Step $n, cstats = ",cstats)
+
     len = length(localpart(dv))
-    lenarray = MPI.Gather([len], dv.root, comm)
-    id == dv.root && println("Number of configurations on ranks: ", lenarray)
+    lenarray = MPI.Gather(len, dv.root, comm)
+    id == dv.root && println("Number of configurations on ranks: ", lenarray, ", sum = ", sum(lenarray))
+    nwalkers = sum(abs.(values(dv.data)))
+    nw_array = MPI.Gather(nwalkers, dv.root, comm)
+    id == dv.root && println("Number of walkers on ranks: ", nw_array, ", sum = ", sum(nw_array))
+
 end
 
 MPI.Finalize()
