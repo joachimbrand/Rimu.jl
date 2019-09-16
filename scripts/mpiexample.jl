@@ -3,7 +3,7 @@ import MPI
 using Rimu
 
 include("../src/mpi_helpers.jl")
-function Rimu.fciqmc_step!(w::D, Ĥ, dv::MPIData{D,S}, shift, dτ) where {D,S}
+function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
     empty!(w)
@@ -15,7 +15,7 @@ function Rimu.fciqmc_step!(w::D, Ĥ, dv::MPIData{D,S}, shift, dτ) where {D,S}
     sort_into_targets!(dv, w)
     MPI.Barrier(dv.comm)
     MPI.Reduce_in_place!(stats, length(stats), +, dv.root, dv.comm)
-    return dv, stats
+    return dv, w, stats
     # note that this returns the structure with the correctly distributed end
     # result `dv` and `stats` as an array. On `dv.root` this will be the
     # cumulative stats
@@ -56,7 +56,7 @@ nw_array = MPI.Gather(nwalkers, dv.root, comm)
 id == dv.root && println("Number of walkers on ranks: ", nw_array, ", sum = ", sum(nw_array))
 
 for n in 1:30
-    v, stats = Rimu.fciqmc_step!(w, Ĥ, dv, 0.0, 0.01)
+    dv, w, stats = Rimu.fciqmc_step!(Ĥ, dv, 0.0, 0.01, w)
     id == dv.root && println("Step $n, stats = ",stats)
     cstats .+= stats
     id == dv.root && println("Step $n, cstats = ",cstats)

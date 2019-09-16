@@ -59,6 +59,7 @@ mutable struct MPIOSWin{T}  <: DistributeStrategy
         return obj
     end
 end
+Base.eltype(::MPIOSWin{T}) where T = T
 
 """
     mpi_default(data, comm = MPI.COMM_WORLD, root = 0)
@@ -106,13 +107,27 @@ function fence(s::MPIOSWin, assert = 0)
     MPI.Win_fence(assert, s.l_win) # joint fences
 end
 """
-    put(array, len, targetrank, s::MPIOSWin)
-Simplified communication of `len` elements from array `array` to
-rank `targetrank`.
+    put(buf::Vector{T}, [len,] targetrank, s::MPIOSWin{T})
+    put(obj::T, targetrank, s::MPIOSWin{T})
+Deposit a single `obj` or vector `buf` into the MPI window `s` on
+rank `targetrank`. If `len` is given, only the first `len` elements are
+transmitted.
 """
-function put(array, len, targetrank, s::MPIOSWin)
-    MPI.Put(array, len, targetrank, 0, s.b_win)
-    MPI.Put([len], 1, targetrank, 0, s.l_win)
+@inline function put(buf::Vector{T}, len::Integer, targetrank::Integer,
+                    s::MPIOSWin{T}) where T
+    @boundscheck len ≤ length(buf) && len ≤ s.capacity
+    MPI.Put(buf, len, targetrank, 0, s.b_win)
+    MPI.Put(Ref(len), 1, targetrank, 0, s.l_win)
+end
+@inline function put(buf::Vector{T}, targetrank::Integer, s::MPIOSWin{T}) where T
+    len = length(buf)
+    put(buf, len, targetrank, s)
+end
+@inline function put(obj::T, targetrank::Integer, s::MPIOSWin{T}) where T
+    len = 1
+    @boundscheck len ≤ s.capacity # length is 1
+    MPI.Put(Ref(obj), len, targetrank, 0, s.b_win)
+    MPI.Put(Ref(len), 1, targetrank, 0, s.l_win)
 end
 
 
@@ -184,7 +199,7 @@ function sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s:
         rbuf = Vector{P}(undef,count) # allocate buffer of correct size
         MPI.Recv!(rbuf, r, 0, s.comm)
         for (key, val) in rbuf # sort into target dict right away
-            target[key] = val
+            target[key] += val
         end
     end
     # send all buffer entries moving to higher ranks

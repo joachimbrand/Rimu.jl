@@ -1,18 +1,18 @@
 
 """
-    fciqmc!(svec, pa::FciqmcRunStrategy, [df,]
-             ham, s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy, dvec])
+    fciqmc!(v, pa::FciqmcRunStrategy, [df,]
+             ham, s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy, w])
     -> df
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
-`svec` can be a single starting vector of type `:<AbstractDVec` or a tuple
+`v` can be a single starting vector of type `:<AbstractDVec` or a tuple
 of such vectors. In the latter case, independent replicas are constructed.
 Returns a `DataFrame` `df` with statistics about the run, or a tuple of `DataFrame`s
 for a replica run.
 Strategies can be given for updating the shift (see [`ShiftStrategy`](@ref))
 and (optionally) the time step `dτ` (see [`TimeStepStrategy`](@ref)).
-A pre-allocated `dvec` can be passed as argument.
-This function mutates `svec`, the parameter struct `pa` as well as
+A pre-allocated data structure `w` for working memory can be passed as argument.
+This function mutates `v`, the parameter struct `pa` as well as
 `df`, and `dvec`.
 """
 function fciqmc!(svec::D, pa::FciqmcRunStrategy,
@@ -43,11 +43,11 @@ function fciqmc!(svec::D, pa::FciqmcRunStrategy,
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
+function fciqmc!(v::D, pa::RunTillLastStep, df::DataFrame,
                  ham,
                  s_strat::ShiftStrategy,
-                 τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 dvec::D = similar(svec)) where D<:AbstractDVec
+                 τ_strat::TimeStepStrategy,
+                 w::D) where D<:AbstractDVec
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -57,17 +57,17 @@ function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
                             :annihilations
                          ] "Column names in `df` not as expected."
 
-    pnorm = tnorm = norm(svec, 1) # norm of "previous" vector
-    maxlength = capacity(svec)
-    maxlength ≤ capacity(dvec) || error("`dvec` needs to have at least `capacity(svec)`")
-    vOld = svec # the starting vector
-    vNew = zero!(dvec) # clear second vector
+    svec = v # keep around a reference to the starting data container
+    pnorm = tnorm = norm(v, 1) # norm of "previous" vector
+    maxlength = capacity(v)
+    @assert maxlength ≤ capacity(w) "`w` needs to have at least `capacity(v)`"
 
     while step < laststep
         step += 1
+        # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
-        step_stats = fciqmc_step!(vNew, ham, vOld, shift, dτ)
-        tnorm = norm(vNew, 1) # total number of psips
+        v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w)
+        tnorm = norm(v, 1) # total number of psips
         # update shift and mode if necessary
         shift, shiftMode = update_shift(s_strat,
                                 shift, shiftMode,
@@ -75,14 +75,14 @@ function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
         dτ = update_dτ(τ_strat, dτ) # will need to pass more information later
         # when we add different stratgies
         pnorm = tnorm # remember norm of this step for next step (previous norm)
-        len = length(vNew)
+        len = length(v)
         # record results
         push!(df, (step, dτ, shift, shiftMode, len, tnorm,
                         step_stats...))
         # prepare for next step:
-        dvec = vOld # keep reference to old vector
-        vOld = vNew # new will be old
-        vNew = empty!(dvec) # clean out the old vector and assign to vNew reference
+        # dvec = vOld # keep reference to old vector
+        # vOld = vNew # new will be old
+        # vNew = empty!(dvec) # clean out the old vector and assign to vNew reference
         len > 0.8*maxlength && if len > maxlength
             @error "`maxlength` exceeded" len maxlength
             break
@@ -91,10 +91,10 @@ function fciqmc!(svec::D, pa::RunTillLastStep, df::DataFrame,
         end
     end
     # make sure that `svec` contains the current population:
-    if !(vOld === svec)
-        copyto!(svec, vOld)
+    if !(v === svec)
+        copyto!(svec, v)
     end
-    # pack up and parameters for continuation runs
+    # pack up parameters for continuation runs
     # note that this modifes the struct pa
     @pack! pa = step, shiftMode, shift, dτ
     return df
@@ -201,29 +201,33 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
 end # fciqmc
 
 """
-    fciqmc_step!(w, Ĥ, v, shift, dτ) -> stats
-Perform a single vector-matrix multiplication:
+    fciqmc_step!(Ĥ, v, shift, dτ, w) -> ṽ, w̃, stats
+Perform a single matrix(/operator)-vector multiplication:
 ```math
-w = [1 - dτ(Ĥ - S)]⋅v ,
+\\tilde{v} = [1 - dτ(\\hat{H} - S)]⋅v ,
 ```
 where `Ĥ == ham` and `S == shift`. Whether the operation is performed in
 stochastic, semistochastic, or determistic way is controlled by the trait
-`StochasticStyle(w)`. See [`StochasticStyle`](@ref).
+`StochasticStyle(w)`. See [`StochasticStyle`](@ref). `w` is a local data
+structure with the same size and type as `v` and used for working. Both `v` and
+`w` are modified.
 
-Returns the tuple
-`stats = (spawns, deaths, clones, antiparticles, annihilations)`, or a tuple of
-zeros when running in deterministic way.
+Returns the result `ṽ`, a (possibly changed) reference to working memory `w̃`,
+ and the array
+`stats = [spawns, deaths, clones, antiparticles, annihilations]`. Stats will
+contain zeros when running in deterministic mode.
 """
-function fciqmc_step!(w, Ĥ, v, shift, dτ) # serial version
+function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
+    # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
     stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    zero!(w) # clear working memory
     for (add, num) in pairs(v)
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         ismissing(res) || (stats .+= res) # just add all stats together
     end
-    return Tuple(stats)
-    # note that w is not returned
-    # stats == (spawns, deaths, clones, antiparticles, annihilations)
+    return w, v, stats
+    # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
 # function fciqmc_step!(w::T, Ĥ, dv::MPIData{T}, shift, dτ) where T
