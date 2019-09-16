@@ -149,7 +149,8 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
             # perform one complete stochastic vector matrix multiplication
             @async begin
                 vNew = vsNew[i]
-                mstats[i] .= fciqmc_step!(vNew, ham, vOld, shifts[i], dτ)
+                a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, vNew)
+                mstats[i] .= stats
                 norms[i] = norm(vNew,1) # total number of psips
                 shifts[i], vShiftModes[i] = update_shift(s_strat,
                                         shifts[i], vShiftModes[i],
@@ -194,7 +195,7 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
     # note that this modifes the struct pa
     shiftMode = reduce(&,vShiftModes) # only true if all are in vShiftMode
     shift = reduce(+,shifts)/N # return average value of shift
-    @pack! pa = step, shiftMode, shift, dτ, ζ
+    @pack! pa = step, shiftMode, shift, dτ
 
     return mixed_df, dfs # return dataframes with stats
     # note that `svecs` and `pa` are modified but not returned explicitly
