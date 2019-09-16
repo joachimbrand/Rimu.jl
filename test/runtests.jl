@@ -127,7 +127,7 @@ end
     tup1 = (copy(svec),copy(svec))
     pb = RunTillLastStep(laststep = 100)
     @time rr = fciqmc!(tup1, ham, pb, s)
-    @test sum(rr[1][:,:xHy]) ≈ -10456.3739106080508
+    @test sum(rr[1][:,:xHy]) ≈ -500829.3788397682
 end
 
 @testset "dfvec.jl" begin
