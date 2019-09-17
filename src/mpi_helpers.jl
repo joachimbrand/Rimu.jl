@@ -1,4 +1,4 @@
-import MPI
+import MPI, LinearAlgebra
 
 abstract type DistributeStrategy end
 
@@ -60,6 +60,28 @@ mutable struct MPIOSWin{T}  <: DistributeStrategy
     end
 end
 Base.eltype(::MPIOSWin{T}) where T = T
+"""
+    length(md::MPIData)
+Compute the length of the distributed data on every MPI rank with
+`MPI.Allreduce`.
+"""
+Base.length(md::MPIData) = MPI.Allreduce(length(md.data), +, md.comm)
+"""
+    norm(md::MPIData, p=2)
+Compute the norm of the distributed data on every MPI rank with `MPI.Allreduce`.
+"""
+function LinearAlgebra.norm(md::MPIData, p::Real=2)
+    if p === 2
+        return sqrt(MPI.Allreduce(Rimu.DictVectors.norm_sqr(md.data), +, md.comm))
+    elseif p === 1
+        return MPI.Allreduce(Rimu.DictVectors.norm1(md.data), +, md.comm)
+    elseif p === Inf
+        return MPI.Allreduce(Rimu.DictVectors.normInf(md.data), max, md.comm)
+    else
+        @error "$p-norm of MPIData is not implemented."
+    end
+end
+
 
 """
     mpi_default(data, comm = MPI.COMM_WORLD, root = 0)

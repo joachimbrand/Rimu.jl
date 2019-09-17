@@ -72,7 +72,7 @@ zero!(v::AbstractDVec) = empty!(v)
 Fast calculation of the square of the 2-norm of `x`.
 """
 function norm_sqr(x::AbstractDVec{K,V}) where K where V<:Number
-    return mapreduce(p->abs2(p), +, x)
+    return isempty(x) ? 0.0 : mapreduce(p->abs2(p), +, x)
 end
 
 """
@@ -95,14 +95,14 @@ LinearAlgebra.norm(x::AbstractDVec) = sqrt(norm_sqr(x))
 # end
 
 function norm1(x::AbstractDVec{K,V}) where K where V<:Number
-    return mapreduce(p->abs(p), +, x)|>Float64
+    return isempty(x) ? 0.0 : mapreduce(p->abs(p), +, x)|>Float64
 end
 
 """
     normInf(x::AbstractDVec)
 Infinity norm: largest absolute value of entries.
 """
-normInf(x::AbstractDVec) = mapreduce(p->abs(p), max, x)|>Float64
+normInf(x::AbstractDVec) = isempty(x) ? 0.0 : mapreduce(p->abs(p), max, x)|>Float64
 
 """
     norm(x::AbstractDVec, p)
@@ -110,9 +110,7 @@ Computes the p-norm of the DVec x. Implemented for `p ∈ {1, 2, Inf}`.
 Returns zero if `x` is empty.
 """
 function LinearAlgebra.norm(x::AbstractDVec, p::Real)
-    if length(x) == 0
-        return 0.0 # return type is Float64
-    elseif p === 2
+    if p === 2
         return norm(x)
     elseif p === 1
         return norm1(x)
