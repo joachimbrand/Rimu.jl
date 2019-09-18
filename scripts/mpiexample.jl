@@ -3,23 +3,36 @@ import MPI
 using Rimu
 using LinearAlgebra
 
-include("../src/mpi_helpers.jl")
-function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
-    v = localpart(dv)
-    @assert w ≢ v "`w` and `v` must not be the same object"
-    empty!(w)
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
-    for (add, num) in pairs(v)
-        res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        ismissing(res) || (stats .+= res) # just add all stats together
+# include("../src/mpi_helpers.jl")
+# function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
+#     v = localpart(dv)
+#     @assert w ≢ v "`w` and `v` must not be the same object"
+#     empty!(w)
+#     stats = zeros(valtype(v), 5) # pre-allocate array for stats
+#     for (add, num) in pairs(v)
+#         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
+#         ismissing(res) || (stats .+= res) # just add all stats together
+#     end
+#     sort_into_targets!(dv, w)
+#     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
+#     return dv, w, stats
+#     # returns the structure with the correctly distributed end
+#     # result `dv` and cumulative `stats` as an array on all ranks
+#     # stats == (spawns, deaths, clones, antiparticles, annihilations)
+# end # fciqmc_step!
+
+function mytypecheck(a::T) where T <: Union{Int,Nothing}
+    if T == Nothing
+        return nothing
+    else
+        return a^2
     end
-    sort_into_targets!(dv, w)
-    MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
-    return dv, w, stats
-    # returns the structure with the correctly distributed end
-    # result `dv` and cumulative `stats` as an array on all ranks
-    # stats == (spawns, deaths, clones, antiparticles, annihilations)
-end # fciqmc_step!
+end
+
+function mytypecheck2(a::T) where T <: Union{Real,Nothing}
+    T == Nothing ? nothing : a^2
+end
+
 
 function main()
 MPI.Init()

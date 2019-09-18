@@ -43,17 +43,17 @@ function fciqmc!(svec::D, pa::FciqmcRunStrategy,
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(v::D, pa::RunTillLastStep, df::DataFrame,
+function fciqmc!(v::D, pa::RunTillLastStep, df::DF,
                  ham,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy,
-                 w::D) where D<:AbstractDVec
+                 w::D) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
     # check `df` for consistency
-    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
-                            :spawns, :deaths, :clones, :antiparticles,
+    DF ≠ Nothing && @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len,
+                            :norm, :spawns, :deaths, :clones, :antiparticles,
                             :annihilations
                          ] "Column names in `df` not as expected."
 
@@ -77,7 +77,7 @@ function fciqmc!(v::D, pa::RunTillLastStep, df::DataFrame,
         pnorm = tnorm # remember norm of this step for next step (previous norm)
         len = length(v)
         # record results
-        push!(df, (step, dτ, shift, shiftMode, len, tnorm,
+        DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
                         step_stats...))
         # prepare for next step:
         # dvec = vOld # keep reference to old vector
@@ -97,7 +97,7 @@ function fciqmc!(v::D, pa::RunTillLastStep, df::DataFrame,
     # pack up parameters for continuation runs
     # note that this modifes the struct pa
     @pack! pa = step, shiftMode, shift, dτ
-    return df
+    return  df
     # note that `svec` and `pa` are modified but not returned explicitly
 end # fciqmc
 
@@ -231,24 +231,22 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
-# function fciqmc_step!(w::T, Ĥ, dv::MPIData{T}, shift, dτ) where T
-#     v = localpart(dv)
-#     @assert w ≢ v "`w` and `v` must not be the same object"
-#     empty!(w)
-#     stats = zeros(valtype(v), 5) # pre-allocate array for stats
-#     for (add, num) in pairs(v)
-#         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-#         ismissing(res) || (stats .+= res) # just add all stats together
-#     end
-#     sort_into_targets!(dv, w)
-#     MPI.Barrier(dv.comm)
-#     MPI.Reduce_in_place!(stats, length(stats), +, dv.root, dv.comm)
-#     return dv, stats
-#     # note that this returns the structure with the correctly distributed end
-#     # result `dv` and `stats` as an array. On `dv.root` this will be the
-#     # cumulative stats
-# end # fciqmc_step!
-
+function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
+    v = localpart(dv)
+    @assert w ≢ v "`w` and `v` must not be the same object"
+    empty!(w)
+    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    for (add, num) in pairs(v)
+        res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
+        ismissing(res) || (stats .+= res) # just add all stats together
+    end
+    sort_into_targets!(dv, w)
+    MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
+    return dv, w, stats
+    # returns the structure with the correctly distributed end
+    # result `dv` and cumulative `stats` as an array on all ranks
+    # stats == (spawns, deaths, clones, antiparticles, annihilations)
+end # fciqmc_step!
 
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray

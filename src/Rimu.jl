@@ -5,6 +5,7 @@ Random Integrator for Many-Body Quantum Systems
 module Rimu
 
 using Reexport, Parameters, LinearAlgebra, DataFrames
+import MPI
 
 include("FastBufs.jl")
 using .FastBufs
@@ -24,8 +25,12 @@ export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
 export TimeStepStrategy, ConstantTimeStep
 export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
+export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
+export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
+export localpart
 
 include("strategies_and_params.jl")
+include("mpi_helpers.jl")
 include("fciqmc.jl")
 
 
