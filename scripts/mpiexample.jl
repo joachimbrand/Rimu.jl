@@ -2,6 +2,7 @@
 import MPI
 using Rimu
 using LinearAlgebra
+using BenchmarkTools
 
 # include("../src/mpi_helpers.jl")
 # function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
@@ -32,7 +33,18 @@ end
 function mytypecheck2(a::T) where T <: Union{Real,Nothing}
     T == Nothing ? nothing : a^2
 end
+function mytypecheck4(a::T) where T
+    T == Nothing && begin
+        println("nothing detected")
+        return nothing
+    end
+    return a^2
+end
 
+function fciqmc_for_bm(vs, ham, w, steps, s)
+    pa = RunTillLastStep(step = 0, laststep = steps)
+    return fciqmc!(vs, pa, ham, s, ConstantTimeStep(), w)
+end
 
 function main()
 MPI.Init()
@@ -86,6 +98,47 @@ for n in 1:30
     nInf = norm(dv,Inf)
     id == dv.root && println("1-norm = $n1, 2-norm = $n2, Inf-norm = $nInf")
 end
+
+vs = DVec(Dict(aIni => 2), Ĥ(:dim)÷np) # our buffer for the state vector
+s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+MPI.Barrier(comm)
+
+# run fciqmc on a process independently without MPI communication
+dvs = copy(vs) # just a copy
+pa = RunTillLastStep(laststep = 1)
+et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+id==0 && println("serial fciqmc compiled in $et seconds")
+dvs = copy(vs) # just a copy
+pa = RunTillLastStep(laststep = 100)
+et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+id==0 && println("serial fciqmc finished in $et seconds")
+id==0 && println(df)
+MPI.Barrier(comm)
+
+# now run with parallel communications
+id==0 && println("starting parallel fciqmc")
+dvs = mpi_one_sided(copy(vs)) # mpi wrapping
+pa = RunTillLastStep(laststep = 1)
+et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+dvs.isroot && println("parallel fciqmc compiled in $et seconds")
+dvs = mpi_one_sided(copy(vs)) # mpi wrapping
+pa = RunTillLastStep(laststep = 100)
+et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+dvs.isroot && println("parallel fciqmc finished in $et seconds")
+dvs.isroot && println(df)
+MPI.Barrier(comm)
+
+# now run with parallel communications
+id==0 && println("starting parallel fciqmc")
+dvs = mpi_default(copy(vs)) # mpi wrapping
+pa = RunTillLastStep(laststep = 1)
+et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+dvs.isroot && println("mpi_default fciqmc compiled in $et seconds")
+dvs = mpi_default(copy(vs)) # mpi wrapping
+pa = RunTillLastStep(laststep = 100)
+et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+dvs.isroot && println("mpi_default fciqmc finished in $et seconds")
+dvs.isroot && println(df)
 
 MPI.Finalize()
 end # main()

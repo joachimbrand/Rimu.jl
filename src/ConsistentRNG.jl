@@ -12,7 +12,7 @@ module ConsistentRNG
 
 using RandomNumbers
 import Random
-using Distributed # only for info message
+# using Distributed # only for info message
 
 export cRand, CRNG, seedCRNG!
 

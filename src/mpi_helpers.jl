@@ -9,15 +9,16 @@ data structure and communication should happen with MPI.
 struct MPIData{D,S}
     data::D # local data, e.g. a DVec
     comm::MPI.Comm
-    root::Int32
+    root::Int32 # rank of root process
+    isroot::Bool # true if running on root process
     s::S # type (struct) with further details needed for communication
 
     function MPIData(data::D, comm, root, s::S) where {D, S<:DistributeStrategy}
-        return new{D,S}(data, comm, root, s)
+        return new{D,S}(data, comm, root, s.id==root, s)
     end
 end
 
-
+localpart(dv) = dv # default for local data
 localpart(md::MPIData) = md.data
 
 """
@@ -246,7 +247,7 @@ function sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s:
         end
     end
 
-    s.id == 0 && println("receiving done")
+    # s.id == 0 && println("receiving done")
     MPI.Barrier(s.comm)
     return target
 end # sort_into_targets! MPIDefault

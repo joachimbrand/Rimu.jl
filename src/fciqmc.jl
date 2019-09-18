@@ -15,35 +15,46 @@ A pre-allocated data structure `w` for working memory can be passed as argument.
 This function mutates `v`, the parameter struct `pa` as well as
 `df`, and `dvec`.
 """
-function fciqmc!(svec::D, pa::FciqmcRunStrategy,
+function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
                  ham,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 dvec::D = similar(svec)) where D<:AbstractDVec
+                 dvec::D = similar(localpart(svec))) where {DD, D<:AbstractDVec}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
+    len = length(svec) # MPIsync
+    nor = norm(svec, 1) # MPIsync
+    if (DD <: MPIData) && !(svec.isroot)
+        df = nothing # only get here if running MPI and not on root process
+        # println("rank: $(svec.s.id)")
+    else # non-MPI run or on root
+        # println("$(svec.s.id): false")
 
-    # prepare df for recording data
-    df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[], shiftMode=Bool[],
-                        len=Int[],
-                        norm=Float64[], spawns=Int[], deaths=[], clones=Int[],
-                        antiparticles=Int[], annihilations=Int[])
-    # Note the row structure defined here (currently 11 columns)
-    # When changing the structure of `df`, it has to be changed in all places
-    # where data is pushed into `df`.
-    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
-                            :spawns, :deaths, :clones, :antiparticles,
-                            :annihilations
-                         ] "Column names in `df` not as expected."
-    # Push first row of df to show starting point
-    push!(df, (step, dτ, shift, shiftMode, length(svec), norm(svec, 1),
-                0, 0, 0, 0, 0))
-
+        # prepare df for recording data
+        df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[], shiftMode=Bool[],
+                            len=Int[],
+                            norm=Float64[], spawns=Int[], deaths=[], clones=Int[],
+                            antiparticles=Int[], annihilations=Int[])
+        # Note the row structure defined here (currently 11 columns)
+        # When changing the structure of `df`, it has to be changed in all places
+        # where data is pushed into `df`.
+        @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                                :spawns, :deaths, :clones, :antiparticles,
+                                :annihilations
+                             ] "Column names in `df` not as expected."
+        # Push first row of df to show starting point
+        push!(df, (step, dτ, shift, shiftMode, len, nor,
+                    0, 0, 0, 0, 0))
+        # println("DataFrame is set up")
+    end
+    # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier")
+    # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
+    # println("after barrier")
     return fciqmc!(svec, pa, df, ham, s_strat, τ_strat, dvec)
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(v::D, pa::RunTillLastStep, df::DF,
+function fciqmc!(v, pa::RunTillLastStep, df::DF,
                  ham,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy,
@@ -59,7 +70,7 @@ function fciqmc!(v::D, pa::RunTillLastStep, df::DF,
 
     svec = v # keep around a reference to the starting data container
     pnorm = tnorm = norm(v, 1) # norm of "previous" vector
-    maxlength = capacity(v)
+    maxlength = capacity(localpart(v))
     @assert maxlength ≤ capacity(w) "`w` needs to have at least `capacity(v)`"
 
     while step < laststep
@@ -232,6 +243,7 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
 end # fciqmc_step!
 
 function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
+    # MPI version
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
     empty!(w)
