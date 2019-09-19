@@ -14,7 +14,7 @@ pipelines:
         - step:
             name: documentation
             script:
-                - apt-get update && apt-get install -y git
+                - apt-get update && apt-get install -y git openmpi-bin
                 - export JULIA_PROJECT=@.
                 - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
                 - julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
