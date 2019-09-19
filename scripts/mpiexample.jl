@@ -1,6 +1,6 @@
 # script for testing MPI functionality
-import MPI
 using Rimu
+import MPI
 using LinearAlgebra
 using BenchmarkTools
 
@@ -41,7 +41,8 @@ function mytypecheck4(a::T) where T
     return a^2
 end
 
-function fciqmc_for_bm(vs, ham, w, steps, s)
+function fciqmc_for_bm(vs, ham, w, steps, s, comm)
+    MPI.Barrier(comm)
     pa = RunTillLastStep(step = 0, laststep = steps)
     return fciqmc!(vs, pa, ham, s, ConstantTimeStep(), w)
 end
@@ -99,37 +100,95 @@ for n in 1:30
     id == dv.root && println("1-norm = $n1, 2-norm = $n2, Inf-norm = $nInf")
 end
 
+@time free(dv) # MPI sync
+
 vs = DVec(Dict(aIni => 2), Ĥ(:dim)÷np) # our buffer for the state vector
-s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+s = LogUpdateAfterTargetWalkers(targetwalkers = 1000)
+MPI.Barrier(comm)
+println("$(id): arrived at barrier; main")
 MPI.Barrier(comm)
 
 # run fciqmc on a process independently without MPI communication
-dvs = copy(vs) # just a copy
+dvs = similar(vs, Ĥ(:dim)) # increase space
 pa = RunTillLastStep(laststep = 1)
 et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
 id==0 && println("serial fciqmc compiled in $et seconds")
+println("$(id): arrived at barrier; main")
+MPI.Barrier(comm)
+
 dvs = copy(vs) # just a copy
 pa = RunTillLastStep(laststep = 100)
 et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
 id==0 && println("serial fciqmc finished in $et seconds")
+println("$(id): arrived at barrier; main")
+MPI.Barrier(comm)
+
 id==0 && println(df)
+
+w = similar(vs)
+steps = 100
+ets = zeros(Float64,5)
+for i in 1:length(ets)
+    ets[i] = @elapsed fciqmc_for_bm(dvs, Ĥ, w, steps, s, comm)
+end
+id==0 && println("serial fciqmc benchmarks in seconds: ", ets)
+
+println("$(id): arrived at barrier; main")
 MPI.Barrier(comm)
 
 # now run with parallel communications
-id==0 && println("starting parallel fciqmc")
+id==0 && println("starting mpi_one_sided fciqmc")
 dvs = mpi_one_sided(copy(vs)) # mpi wrapping
 pa = RunTillLastStep(laststep = 1)
 et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
 dvs.isroot && println("parallel fciqmc compiled in $et seconds")
+@time free(dvs) # MPI sync
+
 dvs = mpi_one_sided(copy(vs)) # mpi wrapping
 pa = RunTillLastStep(laststep = 100)
 et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
 dvs.isroot && println("parallel fciqmc finished in $et seconds")
-dvs.isroot && println(df)
+# dvs.isroot && println(df)
+MPI.Barrier(comm)
+dvs.isroot && println("starting benchmarks")
+pa = RunTillLastStep(step = 0, laststep = 20)
+ts = 1 # @elapsed
+fciqmc!(dvs, pa, Ĥ, s, ConstantTimeStep(), w)
+dvs.isroot && println("r ", ts)
+println("$(id): arrived at barrier; main")
 MPI.Barrier(comm)
 
+ts1 = 2 # @elapsed
+df = fciqmc_for_bm(dvs, Ĥ, w, 100, s, comm)
+dvs.isroot && println("r1 ", ts1)
+println("$(id): arrived at barrier; main")
+MPI.Barrier(comm)
+
+ts2 = 3 # @elapsed
+df = fciqmc_for_bm(dvs, Ĥ, w, 100, s, comm)
+dvs.isroot && println("r2 ", ts2)
+println("$(id): arrived at barrier; main")
+MPI.Barrier(comm)
+
+dvs.isroot && println(df)
+dvs.isroot && println("starting benchmarks")
+println("$(id): arrived at barrier; main")
+MPI.Barrier(comm)
+
+# w = similar(vs)
+steps = 100
+ets = zeros(Float64,5)
+for i in 1:length(ets)
+    dvs.isroot && println("step $i")
+    ets[i] = @elapsed fciqmc_for_bm(dvs, Ĥ, w, 100, s, comm)
+end
+id==0 && println("mpi one sided fciqmc benchmarks in seconds: ", ets)
+
+@time free(dvs) # MPI sync
+
+
 # now run with parallel communications
-id==0 && println("starting parallel fciqmc")
+id==0 && println("starting mpi_default fciqmc")
 dvs = mpi_default(copy(vs)) # mpi wrapping
 pa = RunTillLastStep(laststep = 1)
 et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
@@ -139,6 +198,17 @@ pa = RunTillLastStep(laststep = 100)
 et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
 dvs.isroot && println("mpi_default fciqmc finished in $et seconds")
 dvs.isroot && println(df)
+
+ets = zeros(Float64,5)
+for i in 1:length(ets)
+    ets[i] = @elapsed fciqmc_for_bm(dvs, Ĥ, w, steps, s, comm)
+end
+id==0 && println("mpi_default fciqmc benchmarks in seconds: ", ets)
+
+
+
+MPI.Barrier(comm)
+
 
 MPI.Finalize()
 end # main()

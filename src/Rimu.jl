@@ -27,7 +27,7 @@ export TimeStepStrategy, ConstantTimeStep
 export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
 export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
 export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
-export localpart
+export localpart, free
 
 include("strategies_and_params.jl")
 include("mpi_helpers.jl")

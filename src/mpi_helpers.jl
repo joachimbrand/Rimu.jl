@@ -1,5 +1,21 @@
 # import MPI, LinearAlgebra
 
+const mpi_registry = Dict{Int,Any}()
+# The registry keeps references to distributed structures that must not be
+# garbage collected at random
+
+"""
+    next_mpiID()
+Produce a new ID number for MPI distributed objects. Uses an internal counter.
+"""
+next_mpiID
+
+let mpiID::Int = 0
+    global next_mpiID
+    next_mpiID() = (mpiID +=1; mpiID)
+end
+
+
 abstract type DistributeStrategy end
 
 """
@@ -37,14 +53,17 @@ end
 Communication buffer for use with MPI one-sided communication (remote memory
 access). Up to `capacity` elements of type `T` can be exchanged between MPI
 ranks via [`put`](@ref). It is important that `isbitstype(T) == true`.
+Objects of type `MPIOSWin` have to be freed manually with a (blocking) call
+to [`free()`](@ref).
 """
 mutable struct MPIOSWin{T}  <: DistributeStrategy
-    np::Int32
-    id::Int32
-    comm::MPI.Comm
-    b_win::MPI.Win
-    l_win::MPI.Win
-    capacity::Int32
+    mpiid::Int # unique ID for MPI-distributed objects
+    np::Int32 # number of MPI processes
+    id::Int32 # number of this rank
+    comm::MPI.Comm # MPI communicator
+    b_win::MPI.Win # window for data buffer
+    l_win::MPI.Win # window for length of buffered data
+    capacity::Int32 # capacity of buffer
     buf::Vector{T} # local array for MPI window b_win
     n_elem::Vector{Int32} # local array for MPI window l_win
 
@@ -54,8 +73,13 @@ mutable struct MPIOSWin{T}  <: DistributeStrategy
         n_elem = zeros(Int32,1)
         b_win = MPI.Win_create(buf, comm) # separate windows for buffer and length
         l_win = MPI.Win_create(n_elem, comm)
-        obj = new{T}(nprocs, myrank, comm, b_win, l_win, capacity, buf, n_elem)
+        mpiid = next_mpiID()
+        obj = new{T}(mpiid, nprocs, myrank, comm, b_win, l_win, capacity, buf, n_elem)
         MPI.refcount_inc() # required according to MPI.jl docs
+        mpi_registry[mpiid] = Ref(obj) # register the object to avoid
+        # arbitrary garbage collection
+        ccall(:jl_, Cvoid, (Any,), "installing finalizer on MPIOSWin")
+        # @async println("Installing finaliser for MPIOSWin on rank ", obj.id)
         finalizer(myclose, obj) # install finalizer
         return obj
     end
@@ -116,7 +140,7 @@ function mpi_one_sided(data, comm = MPI.COMM_WORLD, root = 0)
 end
 
 function myclose(obj::MPIOSWin)
-    # ccall(:jl_, Cvoid, (Any,), "running finalizer on MPIOSWin")
+    ccall(:jl_, Cvoid, (Any,), "running finalizer on MPIOSWin")
     # @async println("Finalising MPIOSWin on rank ", obj.id)
     MPI.free(obj.b_win)
     MPI.free(obj.l_win)
@@ -124,6 +148,23 @@ function myclose(obj::MPIOSWin)
     return nothing
 end
 
+"""
+    free(obj::MPIOSWin)
+De-reference the object, call finalizer and the garbage collector immediately.
+This is a syncronizing MPI call. Make sure that the object is not used later.
+"""
+function free(obj::MPIOSWin)
+    global mpi_registry
+    MPI.Barrier(obj.comm)
+    delete!(mpi_registry, obj.mpiid)
+    finalize(obj)
+    GC.gc()
+end
+function free(d::MPIData{D,S}) where {D, S<:MPIOSWin}
+    free(d.s)
+    finalize(d)
+    GC.gc()
+end
 
 function fence(s::MPIOSWin, assert = 0)
     MPI.Win_fence(assert, s.b_win)
