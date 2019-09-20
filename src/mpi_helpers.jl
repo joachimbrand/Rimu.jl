@@ -47,6 +47,17 @@ struct MPIDefault <: DistributeStrategy
     comm::MPI.Comm
 end
 
+"""
+    MPINoWalkerExchange(nprocs, my_rank, comm)
+Strategy for for not exchanging walkers between ranks. Consequently there
+will be no cross-rank annihilations.
+"""
+struct MPINoWalkerExchange <: DistributeStrategy
+    np::Int32
+    id::Int32
+    comm::MPI.Comm
+end
+
 
 """
     MPIOSWin(nprocs, myrank, comm, ::Type{T}, capacity)
@@ -119,6 +130,18 @@ function mpi_default(data, comm = MPI.COMM_WORLD, root = 0)
     s = MPIDefault(np, id, comm)
     return MPIData(data, comm, root, s)
 end
+"""
+    mpi_no_exchange(data, comm = MPI.COMM_WORLD, root = 0)
+Declare `data` as mpi-distributed and set communication strategy to
+`MPINoWalkerExchange`.
+"""
+function mpi_no_exchange(data, comm = MPI.COMM_WORLD, root = 0)
+    MPI.Initialized() || error("MPI needs to be initialised first.")
+    np = MPI.Comm_size(comm)
+    id = MPI.Comm_rank(comm)
+    s = MPINoWalkerExchange(np, id, comm)
+    return MPIData(data, comm, root, s)
+end
 
 """
     mpi_one_sided(data, comm = MPI.COMM_WORLD, root = 0)
@@ -162,6 +185,10 @@ function free(obj::MPIOSWin)
 end
 function free(d::MPIData{D,S}) where {D, S<:MPIOSWin}
     free(d.s)
+    finalize(d)
+    GC.gc()
+end
+function free(d::MPIData) # default
     finalize(d)
     GC.gc()
 end
@@ -229,6 +256,12 @@ function sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
     P = pairtype(source) # compute pairtype
     # println("pairtype = ",P)
     sort_into_targets!(ltarget, source, P, strategy)
+end
+
+function sort_into_targets!(target, source, ::Type{P}, s::MPINoWalkerExchange) where P
+    # specific for `MPINoWalkerExchange`: copy without communicating with
+    # other ranks.
+    return copyto!(target, source)
 end
 
 function sort_into_targets!(target, source, ::Type{P}, s::DistributeStrategy) where P
