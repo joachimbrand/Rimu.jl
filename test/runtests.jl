@@ -179,9 +179,7 @@ end
     @test fdvt ≠ dtv
 end
 
-@testset "MPI" begin
-    rr = run(`mpirun -np 2 julia test/mpiexample.jl`)
-    @test rr.exitcode == 0
-end
-
-pwd()
+# @testset "MPI" begin
+#     rr = run(`mpirun -np 2 julia test/mpiexample.jl`)
+#     @test rr.exitcode == 0
+# end
