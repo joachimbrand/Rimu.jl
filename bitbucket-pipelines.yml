@@ -10,6 +10,7 @@ pipelines:
                 - apt-get update && apt-get install -y openmpi-bin
                 - export JULIA_PROJECT=@.
                 - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
+                - julia --project=test/ -e 'using Pkg;Pkg.develop(PackageSpec(path=pwd()));  Pkg.instantiate()'
                 - julia test/runtests.jl
                 # - groupadd -r mygrp && useradd -r -g mygrp myuser
                 # - mpirun -np 4 --allow-run-as-root julia test/mpiexample.jl
