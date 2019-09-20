@@ -12,7 +12,7 @@ pipelines:
                 - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
                 - julia test/runtests.jl
                 # - groupadd -r mygrp && useradd -r -g mygrp myuser
-                - mpirun -np 4 --allow-run-as-root julia test/mpiexample.jl
+                # - mpirun -np 4 --allow-run-as-root julia test/mpiexample.jl
         - step:
             name: documentation
             script:
