@@ -178,3 +178,10 @@ end
     dtv[218] = (14.7648230602334, 0x00ff) # change flag
     @test fdvt ≠ dtv
 end
+
+@testset "MPI" begin
+    rr = run(`mpirun -np 2 julia test/mpiexample.jl`)
+    @test rr.exitcode == 0
+end
+
+pwd()
