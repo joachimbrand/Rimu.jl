@@ -31,9 +31,9 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
         # println("$(svec.s.id): false")
 
         # prepare df for recording data
-        df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[], shiftMode=Bool[],
-                            len=Int[],
-                            norm=Float64[], spawns=Int[], deaths=[], clones=Int[],
+        df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
+                            shiftMode=Bool[],len=Int[], norm=Float64[], 
+                            spawns=Int[], deaths=Int[], clones=Int[],
                             antiparticles=Int[], annihilations=Int[])
         # Note the row structure defined here (currently 11 columns)
         # When changing the structure of `df`, it has to be changed in all places
