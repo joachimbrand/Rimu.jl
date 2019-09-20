@@ -2,7 +2,6 @@
 using Rimu
 import MPI
 using LinearAlgebra
-using BenchmarkTools
 
 # include("../src/mpi_helpers.jl")
 # function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
