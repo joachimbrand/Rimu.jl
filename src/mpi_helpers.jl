@@ -89,8 +89,7 @@ mutable struct MPIOSWin{T}  <: DistributeStrategy
         MPI.refcount_inc() # required according to MPI.jl docs
         mpi_registry[mpiid] = Ref(obj) # register the object to avoid
         # arbitrary garbage collection
-        ccall(:jl_, Cvoid, (Any,), "installing finalizer on MPIOSWin")
-        # @async println("Installing finaliser for MPIOSWin on rank ", obj.id)
+        # ccall(:jl_, Cvoid, (Any,), "installing finalizer on MPIOSWin")
         finalizer(myclose, obj) # install finalizer
         return obj
     end
@@ -157,14 +156,13 @@ function mpi_one_sided(data, comm = MPI.COMM_WORLD, root = 0)
     # compute the required capacity for the communication buffer as a
     # fraction of the capacity of `data`
     cap = capacity(data) ÷ np + 1
-    id == root && println("on rank $id, capacity = ",cap)
+    # id == root && println("on rank $id, capacity = ",cap)
     s = MPIOSWin(np, id, comm, P, Int32(cap))
     return MPIData(data, comm, root, s)
 end
 
 function myclose(obj::MPIOSWin)
-    ccall(:jl_, Cvoid, (Any,), "running finalizer on MPIOSWin")
-    # @async println("Finalising MPIOSWin on rank ", obj.id)
+    # ccall(:jl_, Cvoid, (Any,), "running finalizer on MPIOSWin")
     MPI.free(obj.b_win)
     MPI.free(obj.l_win)
     MPI.refcount_dec()
@@ -349,3 +347,13 @@ function sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s:
     fence(s)
     return target
 end # MPIOSWin
+
+function Base.show(io::IO, s::MPIOSWin{T}) where T
+    println(io, "MPIOSWin{$T}")
+    println(io, "  mpiid: ",s.mpiid)
+    println(io, "  np: ",s.np)
+    println(io, "  id: ",s.id)
+    println(io, "  comm: ",s.comm)
+    println(io, "  MPI.Win and buf::Vector{$T} with capacity ",s.capacity)
+    println(io, "  MPI.Win for number of elements in buffer")
+end

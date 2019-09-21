@@ -32,7 +32,7 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
 
         # prepare df for recording data
         df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
-                            shiftMode=Bool[],len=Int[], norm=Float64[], 
+                            shiftMode=Bool[],len=Int[], norm=Float64[],
                             spawns=Int[], deaths=Int[], clones=Int[],
                             antiparticles=Int[], annihilations=Int[])
         # Note the row structure defined here (currently 11 columns)
@@ -47,11 +47,11 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
                     0, 0, 0, 0, 0))
         # println("DataFrame is set up")
     end
-    (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
+    # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     # println("after barrier")
     rdf =  fciqmc!(svec, pa, df, ham, s_strat, τ_strat, dvec)
-    (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
+    # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
     (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     return rdf
 end
