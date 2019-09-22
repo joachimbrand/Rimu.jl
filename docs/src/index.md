@@ -75,8 +75,7 @@ is done with scripts. The folder `scripts/` contains a collections of scripts
 that are either examples for use of the Rimu package or useful scripts for
 data analysis. In particular:
 
-- `scripts/ros-BHM_M50_U6-W10k.jl` is an example script that runs fciqmc on the 1D Bose-Hubbard model with MPI enabled. A data frame with results is written to the
-file `fciqmcdata.feather`.
+- `scripts/ros-BHM_M50_U6-W10k.jl` is an example script that runs fciqmc on the 1D Bose-Hubbard model with MPI enabled. A data frame with results is written to the file `fciqmcdata.feather`.
 - `scripts/read_file_and_plot.jl` reads the feather file (from the working directory) and displays basic plots and blocking analysis of the shift.
 - `plotting.jl` is a collection of (currently very primitive) plotting function. On purpose these are not part of the Rimu package in order to avoid a dependency on a plotting package.
 
@@ -104,7 +103,7 @@ for data communication are implemented and most easily accessed
 with the functions:
 
 - [`mpi_default`](@ref)
-- [`mpi_one_sided`](ref)
-- [`mpi_no_exchange`](ref)
+- [`mpi_one_sided`](@ref)
+- [`mpi_no_exchange`](@ref)
 
 See examples in the [Scripts](@ref) folder.

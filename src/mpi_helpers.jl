@@ -121,6 +121,8 @@ end
 """
     mpi_default(data, comm = MPI.COMM_WORLD, root = 0)
 Declare `data` as mpi-distributed and set communication strategy to default.
+Sets up the [`MPIData`](@ref) structure with
+[`MPIDefault`](@ref) strategy.
 """
 function mpi_default(data, comm = MPI.COMM_WORLD, root = 0)
     MPI.Initialized() || error("MPI needs to be initialised first.")
@@ -132,7 +134,8 @@ end
 """
     mpi_no_exchange(data, comm = MPI.COMM_WORLD, root = 0)
 Declare `data` as mpi-distributed and set communication strategy to
-`MPINoWalkerExchange`.
+`MPINoWalkerExchange`. Sets up the [`MPIData`](@ref) structure with
+[`MPINoWalkerExchange`](@ref) strategy.
 """
 function mpi_no_exchange(data, comm = MPI.COMM_WORLD, root = 0)
     MPI.Initialized() || error("MPI needs to be initialised first.")
@@ -146,6 +149,8 @@ end
     mpi_one_sided(data, comm = MPI.COMM_WORLD, root = 0)
 Declare `data` as mpi-distributed and set communication strategy to one-sided
 with remote memory access (RMA).
+Sets up the [`MPIData`](@ref) structure with
+[`MPIOSWin`](@ref) strategy.
 """
 function mpi_one_sided(data, comm = MPI.COMM_WORLD, root = 0)
     MPI.Initialized() || error("MPI needs to be initialised first.")
