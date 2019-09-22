@@ -77,6 +77,8 @@ Address type that encodes a bistring address in a UInt128.
 struct BSAdd128 <: BitStringAddressType
   add::UInt128
 end
+BSAdd128(bsa::BSAdd128) = bsa # convert to same type
+BSAdd128(bsa::BSAdd64) = BSAdd128(bsa.add)
 
 Base.isless(a1::BSAdd128,a2::BSAdd128) = isless(a1.add, a2.add)
 #Base.typemax(BSAdd128) = BSAdd128(typemax(UInt64))

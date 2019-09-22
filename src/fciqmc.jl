@@ -351,10 +351,10 @@ be chosen.
 - `T == IsStochastic()` stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm.
 - `T == IsSemistochastic()` semistochastic version: TODO
 """
-fciqmc_col!(w, args...) = fciqmc_col!(StochasticStyle(w), w, args...)
+fciqmc_col!(w::Union{AbstractArray,AbstractDVec}, args...) = fciqmc_col!(StochasticStyle(w), w, args...)
 
 # generic method for unknown trait: throw error
-fciqmc_col!(T::Type, args...) = throw(TypeError(:fciqmc_col!,
+fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
     "first argument: trait not recognised",StochasticStyle,T))
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
@@ -376,7 +376,7 @@ end
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
 # function inner_step!(w, ham::LinearOperator, add, num::Number,
 #                         shift, dτ)
-function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Number,
+function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
                         shift, dτ)
     # version for single population of integer psips
     # off-diagonal: spawning psips
@@ -412,6 +412,59 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Number,
         annihilations += min(abs(w[add]),abs(ndiags))
     end
     w[add] += ndiags # should carry to correct sign
+    if  pd < 0 # record event statistics
+        clones += abs(ndiags - num)
+    elseif pd < 1
+        deaths += abs(ndiags - num)
+    else
+        antiparticles += abs(ndiags)
+    end
+    return (spawns, deaths, clones, antiparticles, annihilations)
+    # note that w is not returned
+end # inner_step!
+function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
+                        tup::Tuple{Real,Real},
+                        shift, dτ)
+    # trying out Ali's suggestion with occupation ratio of neighbours
+    # off-diagonal: spawning psips
+    num = tup[1] # number of psips on configuration
+    occ_ratio= tup[2] # ratio of occupied vs total number of neighbours
+    spawns = deaths = clones = antiparticles = annihilations = zero(num)
+    hops = Hops(ham,add)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        wnapsips, wnaflag = w[naddress]
+        if sign(wnapsips) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(wnapsips),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] = (wnapsips+nspawns, wnaflag)
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(nspawns)
+        end
+    end
+    # diagonal death / clone
+    dME = diagME(ham,add)
+    # modify shift locally according to occupation ratio of neighbouring configs
+    mshift = occ_ratio > 0 ? shift*occ_ratio : shift
+    pd = dτ * (dME - mshift) # modified
+    newdiagpop = (1-pd)*num
+    ndiag = trunc(newdiagpop)
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    # only treat non-integer part stochastically
+    ndiags = convert(typeof(num),ndiag) # now appropriate type
+    wapsips, waflag = w[add]
+    if sign(wapsips) ≠ sign(ndiags) # record annihilations
+        annihilations += min(abs(wapsips),abs(ndiags))
+    end
+    w[add] = (wapsips + ndiags, waflag) # should carry to correct sign
     if  pd < 0 # record event statistics
         clones += abs(ndiags - num)
     elseif pd < 1

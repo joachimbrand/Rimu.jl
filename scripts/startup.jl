@@ -1,6 +1,3 @@
-# using Distributed
-# addprocs(4)
-
-@everywhere using Revise
-@everywhere using BenchmarkTools
-@everywhere using Rimu
+using Revise
+using BenchmarkTools
+using Rimu

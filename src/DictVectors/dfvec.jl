@@ -117,8 +117,9 @@ function capacity(dv::DFVec, s::Symbol)
     end
 end
 
-# getindex returns the default value without adding it to dict
-Base.getindex(dv::DFVec, key) = get(dv, key, zero(eltype(dv)))
+# getindex returns the default tuple without adding it to dict
+# Base.getindex(dv::DFVec, key) = get(dv, key, zero(valtype(dv)))
+Base.getindex(dv::DFVec, key) = gettuple(dv, key)
 
 """
     get(dv::DFVec, key, deftup::Tuple)
@@ -131,16 +132,16 @@ Base.get(dv::DFVec, key, deftup::Tuple) = get(dv.d, key, deftup)
 Return value only if `key` exists and otherwise `defnum`
 """
 function Base.get(dv::DFVec{K,V,F}, key, defnum::Number) where {K,V,F}
-    return get(dv.d, key, (zero(F),defnum))[1] # only return number
+    return get(dv.d, key, (defnum, zero(F)))[1] # only return number
 end
 
 """
     gettuple(dv::DFVec, key)
-Retrieve the tuple `(t,f)` stored at the given `key`. If the key is not
+Retrieve the tuple `(v,f)` stored at the given `key`. If the key is not
 found, return a tuple of zeros.
 """
 function gettuple(dv::DFVec{K,V,F}, key) where {K,V,F}
-    return get(dv, key, tuple(zero(F),zero(V)))
+    return get(dv, key, tuple(zero(V),zero(F)))
 end
 
 # Iterators
