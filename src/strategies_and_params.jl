@@ -130,7 +130,7 @@ end
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df)
     # return new shift and new shiftMode
-    if shift % s.a == 0 && size(df,1) > s.a
+    if step % s.a == 0 && size(df,1) > s.a
         prevnorm = df[end-s.a+1,:norm]
         return shift - s.ζ/(dτ * s.a) * log(tnorm/prevnorm), true
     else

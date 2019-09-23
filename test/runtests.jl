@@ -121,13 +121,15 @@ end
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s)
-    @test sum(rdfs[:,:spawns]) == 8305
+    @test sum(rdfs[:,:spawns]) == 2646
 
     # replica fciqmc
     tup1 = (copy(svec),copy(svec))
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     pb = RunTillLastStep(laststep = 100)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(tup1, ham, pb, s)
-    @test sum(rr[1][:,:xHy]) ≈ -500829.3788397682
+    @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
 end
 
 @testset "dfvec.jl" begin

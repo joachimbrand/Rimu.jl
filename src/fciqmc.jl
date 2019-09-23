@@ -24,12 +24,12 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
-    if (DD <: MPIData) && !(svec.isroot)
-        df = nothing # only get here if running MPI and not on root process
-        # println("rank: $(svec.s.id)")
-    else # non-MPI run or on root
-        # println("$(svec.s.id): false")
-
+    # if (DD <: MPIData) && !(svec.isroot)
+    #     df = nothing # only get here if running MPI and not on root process
+    #     # println("rank: $(svec.s.id)")
+    # else # non-MPI run or on root
+    #     # println("$(svec.s.id): false")
+    #
         # prepare df for recording data
         df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
                             shiftMode=Bool[],len=Int[], norm=Float64[],
@@ -46,13 +46,13 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
         push!(df, (step, dτ, shift, shiftMode, len, nor,
                     0, 0, 0, 0, 0))
         # println("DataFrame is set up")
-    end
-    # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
-    (DD <: MPIData) && MPI.Barrier(svec.s.comm)
-    # println("after barrier")
+    # end
+    # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
+    # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
+    # # println("after barrier")
     rdf =  fciqmc!(svec, pa, df, ham, s_strat, τ_strat, dvec)
-    # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
-    (DD <: MPIData) && MPI.Barrier(svec.s.comm)
+    # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
+    # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     return rdf
 end
 
@@ -97,11 +97,12 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         # dvec = vOld # keep reference to old vector
         # vOld = vNew # new will be old
         # vNew = empty!(dvec) # clean out the old vector and assign to vNew reference
-        len > 0.8*maxlength && if len > maxlength
-            @error "`maxlength` exceeded" len maxlength
+        len_local = length(localpart(v))
+        len_local > 0.8*maxlength && if len_local > maxlength
+            @error "`maxlength` exceeded" len_local maxlength
             break
         else
-            @warn "`maxlength` nearly reached" len maxlength
+            @warn "`maxlength` nearly reached" len_local maxlength
         end
     end
     # make sure that `svec` contains the current population:
