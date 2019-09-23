@@ -81,7 +81,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
         v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w)
-        tnorm = norm(v, 1) # total number of psips
+        tnorm = norm(v, 1) # MPI sycncronising: total number of psips
         # update shift and mode if necessary
         shift, shiftMode = update_shift(s_strat,
                                 shift, shiftMode,
@@ -89,14 +89,11 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         dτ = update_dτ(τ_strat, dτ) # will need to pass more information later
         # when we add different stratgies
         pnorm = tnorm # remember norm of this step for next step (previous norm)
-        len = length(v)
+        len = length(v) # MPI sycncronising: total number of configs
         # record results
         DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
                         step_stats...))
-        # prepare for next step:
-        # dvec = vOld # keep reference to old vector
-        # vOld = vNew # new will be old
-        # vNew = empty!(dvec) # clean out the old vector and assign to vNew reference
+        # housekeeping: avoid overflow of dvecs 
         len_local = length(localpart(v))
         len_local > 0.8*maxlength && if len_local > maxlength
             @error "`maxlength` exceeded" len_local maxlength
