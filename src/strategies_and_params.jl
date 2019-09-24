@@ -138,43 +138,10 @@ function HistoryLogUpdate(df::DataFrame; d = 100, k = 1, ζ= 0.3)
     return HistoryLogUpdate(ζ, d, k, n_w)
 end
 
-# """
-#     HistoryLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, d = 20, k = 5, n_w)
-# Strategy for updating the shift according to [`HistoryLogUpdate`](@ref) after
-# `targetwalkers` has been reached.
-# """
-# @with_kw mutable struct HistoryLogUpdateAfterTargetWalkers{T} <: ShiftStrategy
-#     targetwalkers::Int # only start updating after this has been reached
-#     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
-#     d::Int = 20 # delay for time window
-#     k::Int = 5 # number of samples to take from history
-#     n_w::T # for remembering last time step's sum of walker numbers
-# end
-
 """
     update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df)
 Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
 """
-# @inline function update_shift(s::HistoryLogUpdateAfterTargetWalkers,
-#                         shift, shiftMode,
-#                         tnorm, pnorm, dτ, step, df)
-#     if shiftMode || tnorm > s.targetwalkers
-#         prev_n_w = s.n_w # previous sum of walker numbers
-#         # compute sum of walker numbers from history
-#         this_n_w = tnorm
-#         nhistory = size(df,1) # length of available history
-#         for i in 1:(s.k-1)
-#             i*s.d > nhistory && break
-#             this_n_w += df[end - i*s.d,:norm]
-#         end
-#         s.n_w = this_n_w # store the result for next time
-#         # this_n_w = sum([df[end - i*s.d] for i in 0:(s.k-1)])
-#         # return new shift and new shiftMode
-#         return shift - s.ζ/dτ * log(this_n_w/prev_n_w), true
-#     end
-#     return shift, false
-# end
-
 @inline function update_shift(s::HistoryLogUpdate,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df)
@@ -182,15 +149,6 @@ Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
     # compute sum of walker numbers from history
     s.n_w = sum([df[end-i*s.d, :norm] for i in 0:(s.k-1)])
     # note that this will fail with a BoundsError if the history is not long enough
-
-    # this_n_w = tnorm
-    # nhistory = size(df,1)
-    # for i in 1:(s.k-1)
-    #     i*s.d > nhistory && break
-    #     this_n_w += df[end - i*s.d,:norm]
-    # end
-    # s.n_w = this_n_w # store the result for next time
-    # this_n_w = sum([df[end - i*s.d] for i in 0:(s.k-1)])
     # return new shift and new shiftMode
     return shift - s.ζ/dτ * log(s.n_w/prev_n_w), true
 end
