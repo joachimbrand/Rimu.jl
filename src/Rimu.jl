@@ -24,6 +24,7 @@ export fciqmc!, FciqmcRunStrategy, RunTillLastStep
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
 export HistoryLogUpdate
+export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
 export TimeStepStrategy, ConstantTimeStep
 export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
 export DistributeStrategy, MPIData, MPIDefault, MPIOSWin

@@ -18,39 +18,33 @@ This function mutates `v`, the parameter struct `pa` as well as
 function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
                  ham,
                  s_strat::ShiftStrategy,
+                 r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  dvec::D = similar(localpart(svec))) where {DD, D<:AbstractDVec}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
-    # if (DD <: MPIData) && !(svec.isroot)
-    #     df = nothing # only get here if running MPI and not on root process
-    #     # println("rank: $(svec.s.id)")
-    # else # non-MPI run or on root
-    #     # println("$(svec.s.id): false")
-    #
-        # prepare df for recording data
-        df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
-                            shiftMode=Bool[],len=Int[], norm=Float64[],
-                            spawns=Int[], deaths=Int[], clones=Int[],
-                            antiparticles=Int[], annihilations=Int[])
-        # Note the row structure defined here (currently 11 columns)
-        # When changing the structure of `df`, it has to be changed in all places
-        # where data is pushed into `df`.
-        @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
-                                :spawns, :deaths, :clones, :antiparticles,
-                                :annihilations
-                             ] "Column names in `df` not as expected."
-        # Push first row of df to show starting point
-        push!(df, (step, dτ, shift, shiftMode, len, nor,
-                    0, 0, 0, 0, 0))
-        # println("DataFrame is set up")
-    # end
+    # prepare df for recording data
+    df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
+                        shiftMode=Bool[],len=Int[], norm=Float64[],
+                        spawns=Int[], deaths=Int[], clones=Int[],
+                        antiparticles=Int[], annihilations=Int[])
+    # Note the row structure defined here (currently 11 columns)
+    # When changing the structure of `df`, it has to be changed in all places
+    # where data is pushed into `df`.
+    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                            :spawns, :deaths, :clones, :antiparticles,
+                            :annihilations
+                         ] "Column names in `df` not as expected."
+    # Push first row of df to show starting point
+    push!(df, (step, dτ, shift, shiftMode, len, nor,
+                0, 0, 0, 0, 0))
+    # println("DataFrame is set up")
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     # # println("after barrier")
-    rdf =  fciqmc!(svec, pa, df, ham, s_strat, τ_strat, dvec)
+    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, dvec)
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     return rdf
@@ -60,13 +54,14 @@ end
 function fciqmc!(v, pa::RunTillLastStep, df::DF,
                  ham,
                  s_strat::ShiftStrategy,
+                 r_strat::ReportingStrategy,
                  τ_strat::TimeStepStrategy,
                  w::D) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
     # check `df` for consistency
-    DF ≠ Nothing && @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len,
+    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len,
                             :norm, :spawns, :deaths, :clones, :antiparticles,
                             :annihilations
                          ] "Column names in `df` not as expected."
@@ -90,10 +85,12 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         # when we add different stratgies
         pnorm = tnorm # remember norm of this step for next step (previous norm)
         len = length(v) # MPI sycncronising: total number of configs
-        # record results
-        DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
-                        step_stats...))
-        # housekeeping: avoid overflow of dvecs 
+        # record results according to ReportingStrategy r_strat
+        report!(df, (step, dτ, shift, shiftMode, len, tnorm,
+                        step_stats...), r_strat)
+        # DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
+        #                 step_stats...))
+        # housekeeping: avoid overflow of dvecs
         len_local = length(localpart(v))
         len_local > 0.8*maxlength && if len_local > maxlength
             @error "`maxlength` exceeded" len_local maxlength

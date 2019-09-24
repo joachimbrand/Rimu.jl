@@ -110,7 +110,7 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
     @test sum(rdfs[:,:spawns]) == 1751
 
     # fciqmc with delayed shift update
@@ -181,6 +181,10 @@ end
     @test fdvt ≠ dtv
 end
 
+# Note: This last test is set up to work on Pipelines, within a Docker
+# container. It will likely fail if run locally due to the option
+# --allow-run-as-root. For local testing, remove this option and the
+# test should succeed.
 @testset "MPI" begin
     rr = run(`mpirun -np 2 --allow-run-as-root julia test/mpiexample.jl`)
     @test rr.exitcode == 0

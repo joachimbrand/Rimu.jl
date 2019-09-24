@@ -43,7 +43,7 @@ end
 function fciqmc_for_bm(vs, ham, w, steps, s, comm)
     MPI.Barrier(comm)
     pa = RunTillLastStep(step = 0, laststep = steps)
-    return fciqmc!(vs, pa, ham, s, ConstantTimeStep(), w)
+    return fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), w)
 end
 
 function main()
@@ -152,7 +152,7 @@ MPI.Barrier(comm)
 dvs.isroot && println("starting benchmarks")
 pa = RunTillLastStep(step = 0, laststep = 20)
 ts = 1 # @elapsed
-fciqmc!(dvs, pa, Ĥ, s, ConstantTimeStep(), w)
+fciqmc!(dvs, pa, Ĥ, s, EveryTimeStep(), ConstantTimeStep(), w)
 dvs.isroot && println("r ", ts)
 println("$(id): arrived at barrier; main")
 MPI.Barrier(comm)

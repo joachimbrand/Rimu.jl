@@ -32,7 +32,58 @@ Parameters for running [`fciqmc!()`](@ref) for a fixed number of time steps.
 end
 
 """
-Abstract type for defining the strategy for updating the time step with
+Abstract type for strategies for reporting data in a DataFrame with
+[`report!()`](@ref). Implemented strategies:
+   * [`EveryTimeStep`](@ref)
+   * [`EveryKthStep`](@ref)
+   * [`ReportDFAndInfo`](@ref)
+"""
+abstract type ReportingStrategy end
+
+"Report every time step."
+struct EveryTimeStep <: ReportingStrategy end
+
+"""
+    EveryKthStep(;k = 10)
+Report every `k`th step.
+"""
+@with_kw struct EveryKthStep <: ReportingStrategy
+    k::Int = 10
+end
+
+"""
+    ReportDFAndInfo(; k=10, i=100, io=stdout)
+Report every `k`th step in DataFrame and write info message to `io` every `i`th
+step.
+"""
+@with_kw struct ReportDFAndInfo <: ReportingStrategy
+    k::Int = 10 # how often to write to DataFrame
+    i::Int = 100 # how often to write info message
+    io::IO = stout # IO stream for info messages
+end
+
+"""
+    report!(df::DataFrame, t::Tuple, s<:ReportingStrategy)
+Record results in `df` and write informational messages according to strategy
+`s`. See [`ReportingStrategy`](@ref).
+"""
+report!(df::DataFrame,t::Tuple,s::EveryTimeStep) = push!(df,t)
+
+function report!(df::DataFrame,t::Tuple,s::EveryKthStep)
+    step = t[1]
+    step % s.k == 0 && push!(df,t) # only push to df if step is multiple of s.k
+    return df
+end
+
+function report!(df::DataFrame,t::Tuple,s::ReportDFAndInfo)
+    step = t[1]
+    step % s.k == 0 && push!(df,t) # only push to df if step is multiple of s.k
+    step % s.i == 0 && println(io, "Step ", step)
+    return df
+end
+
+"""
+Abstract type for strategies for updating the time step with
 [`update_dτ()`](@ref). Implemented
 strategies:
 
