@@ -23,7 +23,7 @@ showplots && plotQMCStats(df)
 showplots && plotQMCEnergy(df)
 
 # analyse energy data
-start_blocking = 50_000 # put a meaningful value in
+start_blocking = 20_000 # put a meaningful value in
 println(io, "Starting blocking analysis at time step ", start_blocking)
 ba_shift  = blocking(df[start_blocking:end,:shift])
 qmcEnergy = ba_shift[1,:mean]
