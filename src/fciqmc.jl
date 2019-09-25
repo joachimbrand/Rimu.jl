@@ -1,7 +1,8 @@
 
 """
     fciqmc!(v, pa::FciqmcRunStrategy, [df,]
-             ham, s_strat::ShiftStrategy[, τ_strat::TimeStepStrategy, w])
+             ham, s_strat::ShiftStrategy,
+             [r_strat::ReportingStrategy, τ_strat::TimeStepStrategy, w])
     -> df
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
@@ -10,17 +11,18 @@ of such vectors. In the latter case, independent replicas are constructed.
 Returns a `DataFrame` `df` with statistics about the run, or a tuple of `DataFrame`s
 for a replica run.
 Strategies can be given for updating the shift (see [`ShiftStrategy`](@ref))
-and (optionally) the time step `dτ` (see [`TimeStepStrategy`](@ref)).
+and (optionally), for reporting (see [`ReportingStrategy`](@ref)),
+and for updating the time step `dτ` (see [`TimeStepStrategy`](@ref)).
 A pre-allocated data structure `w` for working memory can be passed as argument.
 This function mutates `v`, the parameter struct `pa` as well as
-`df`, and `dvec`.
+`df`, and `w`.
 """
 function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 dvec::D = similar(localpart(svec))) where {DD, D<:AbstractDVec}
+                 w::D = similar(localpart(svec))) where {DD, D<:AbstractDVec}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
@@ -44,7 +46,7 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     # # println("after barrier")
-    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, dvec)
+    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w)
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     return rdf
@@ -78,12 +80,14 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w)
         tnorm = norm(v, 1) # MPI sycncronising: total number of psips
         # update shift and mode if necessary
-        shift, shiftMode = update_shift(s_strat,
-                                shift, shiftMode,
-                                tnorm, pnorm, dτ, step, df)
+        shift, shiftMode, pnorm = update_shift(s_strat,
+                                    shift, shiftMode,
+                                    tnorm, pnorm, dτ, step, df)
+        # the updated "previous" norm pnorm is returned from `update_shift()`
+        # in order to allow delaying the update, e.g. with `DelayedLogUpdate`
+        # pnorm = tnorm # remember norm of this step for next step (previous norm)
         dτ = update_dτ(τ_strat, dτ) # will need to pass more information later
         # when we add different stratgies
-        pnorm = tnorm # remember norm of this step for next step (previous norm)
         len = length(v) # MPI sycncronising: total number of configs
         # record results according to ReportingStrategy r_strat
         report!(df, (step, dτ, shift, shiftMode, len, tnorm,
@@ -161,9 +165,10 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                 a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, vNew)
                 mstats[i] .= stats
                 norms[i] = norm(vNew,1) # total number of psips
-                shifts[i], vShiftModes[i] = update_shift(s_strat,
-                                        shifts[i], vShiftModes[i],
-                                        norms[i], pnorms[i], dτ, step, dfs[i])
+                shifts[i], vShiftModes[i], pnorms[i] = update_shift(
+                    s_strat, shifts[i], vShiftModes[i],
+                    norms[i], pnorms[i], dτ, step, dfs[i]
+                )
             end
         end #loop over replicas
         lengths = length.(vsNew)
@@ -180,7 +185,7 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
         push!(mixed_df,(step, v1Dv2, v2Dhv2, v2Dhv2/v1Dv2))
 
         # prepare for next step:
-        pnorms .= norms # remember norm of this step for next step (previous norm)
+        # pnorms .= norms # remember norm of this step for next step (previous norm)
         dummy = vsOld # keep reference to old vector
         vsOld = vsNew # new will be old
         vsNew = dummy # new new is former old

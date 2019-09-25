@@ -42,9 +42,10 @@ function main()
 
     # set parameters, only single time step for compilation
     params = RunTillLastStep(dτ = 0.0001, laststep = 1)
-    s_strat = DelayedLogUpdateAfterTargetWalkers(targetwalkers = targetwalkers, a=10)
+    s_strat = LogUpdateAfterTargetWalkers(targetwalkers = targetwalkers)
+    r_strat = ReportDFAndInfo(k=1,i=100, writeinfo = dvs.isroot)
     t_strat = ConstantTimeStep()
-    et = @elapsed df = fciqmc!(dvs, params, Ĥ, s_strat, t_strat, w)
+    et = @elapsed df = fciqmc!(dvs, params, Ĥ, s_strat, r_strat, t_strat, w)
     dvs.isroot && println("parallel fciqmc compiled in $et seconds")
 
     params.laststep = timesteps # set actual number of time steps to run
@@ -52,12 +53,12 @@ function main()
     dvs.isroot && println("Finding ground state for:")
     dvs.isroot && println(Ĥ)
     dvs.isroot && println("Strategies for run:")
-    dvs.isroot && println(params, s_strat, t_strat)
+    dvs.isroot && println(params, s_strat, r_strat, t_strat)
     dvs.isroot && println("DistributeStrategy: ", dvs.s)
 
     # run main calculation
     dvs.isroot && println("Starting main calculation with $timesteps steps. Hang on ...")
-    et = @elapsed df = fciqmc!(dvs, params, df, Ĥ, s_strat, t_strat, w)
+    et = @elapsed df = fciqmc!(dvs, params, df, Ĥ, s_strat, r_strat, t_strat, w)
     actualtimesteps = size(df,1)-1
 
     dvs.isroot && print("$actualtimesteps fciqmc steps finished in $et seconds, or about ")

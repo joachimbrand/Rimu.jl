@@ -52,14 +52,16 @@ Report every `k`th step.
 end
 
 """
-    ReportDFAndInfo(; k=10, i=100, io=stdout)
+    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true)
 Report every `k`th step in DataFrame and write info message to `io` every `i`th
-step.
+step (unless `writeinfo == false`). The flag `writeinfo` is useful for
+controlling info messages in MPI codes.
 """
 @with_kw struct ReportDFAndInfo <: ReportingStrategy
     k::Int = 10 # how often to write to DataFrame
     i::Int = 100 # how often to write info message
-    io::IO = stout # IO stream for info messages
+    io::IO = stdout # IO stream for info messages
+    writeinfo::Bool = true # write info only if true - useful for MPI codes
 end
 
 """
@@ -78,7 +80,7 @@ end
 function report!(df::DataFrame,t::Tuple,s::ReportDFAndInfo)
     step = t[1]
     step % s.k == 0 && push!(df,t) # only push to df if step is multiple of s.k
-    step % s.i == 0 && println(io, "Step ", step)
+    s.writeinfo && step % s.i == 0 && println(s.io, "Step ", step)
     return df
 end
 
@@ -173,7 +175,7 @@ Strategy for updating the shift according to log formula but with walker
 numbers accumulated from `k` samples of the history with delay `d`. A
 recent history has to be passed with the data frame `df` for initialisation.
 ```math
-N_w^{n} = \\sum_{i=0}^{k-1} \\|Ψ\\|_1^{n-i}
+N_w^{n} = \\sum_{i=0}^{k-1} \\|Ψ\\|_1^{n-i} \\\\
 S^{n+a} = S^n -\\frac{ζ}{a dτ}\\ln\\left(\\frac{N_w^{n+1}}{N_w^n}\\right)
 ```
 """
@@ -201,14 +203,14 @@ Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
     s.n_w = sum([df[end-i*s.d, :norm] for i in 0:(s.k-1)])
     # note that this will fail with a BoundsError if the history is not long enough
     # return new shift and new shiftMode
-    return shift - s.ζ/dτ * log(s.n_w/prev_n_w), true
+    return shift - s.ζ/dτ * log(s.n_w/prev_n_w), true, tnorm
 end
 
 @inline function update_shift(s::LogUpdate,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df)
     # return new shift and new shiftMode
-    return shift - s.ζ/dτ * log(tnorm/pnorm), true
+    return shift - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
 
 @inline function update_shift(s::DelayedLogUpdate,
@@ -217,9 +219,10 @@ end
     # return new shift and new shiftMode
     if step % s.a == 0 && size(df,1) > s.a
         prevnorm = df[end-s.a+1,:norm]
-        return shift - s.ζ/(dτ * s.a) * log(tnorm/prevnorm), true
+        return shift - s.ζ/(dτ * s.a) * log(tnorm/prevnorm), true, tnorm
+        # return shift - s.ζ/(dτ * s.a) * log(tnorm/pnorm), true, tnorm
     else
-        return shift, true
+        return shift, true, pnorm # important: return the old norm - not updated
     end
 end
 
@@ -228,15 +231,15 @@ end
     if shiftMode || tnorm > s.targetwalkers
         return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
     end
-    return shift, false
+    return shift, false, tnorm
 end
 
 @inline function update_shift(s::DelayedLogUpdateAfterTargetWalkers,
-                        shift, shiftMode, tnorm, args...)
+                        shift, shiftMode, tnorm, pnorm, args...)
     if shiftMode || tnorm > s.targetwalkers
-        return update_shift(DelayedLogUpdate(s.ζ,s.a), shift, true, tnorm, args...)
+        return update_shift(DelayedLogUpdate(s.ζ,s.a), shift, true, tnorm, pnorm, args...)
     end
-    return shift, false
+    return shift, false, pnorm
 end
 
-@inline update_shift(::DontUpdate, shift, args...) = (shift, false)
+@inline update_shift(::DontUpdate, shift, tnorm, args...) = (shift, false, tnorm)
