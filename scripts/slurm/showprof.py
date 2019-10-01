@@ -18,6 +18,11 @@ parser.add_argument('--save', action='store_true',
 		    help='Save figure in PNG file')
 args = parser.parse_args()
 
+import matplotlib as mpl
+if args.save:
+    # required for batch jobs
+    mpl.use('Agg')
+
 if not args.csv:
     print('ERROR: must provide csv file')
     sys.exit(1)
