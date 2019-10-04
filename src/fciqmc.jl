@@ -289,6 +289,10 @@ abstract type StochasticStyle end
 
 struct IsStochastic <: StochasticStyle end
 
+struct IsStochasticNonlinear <: StochasticStyle
+    c::Float64 # parameter of nonlinear correction applied to local shift
+end
+
 struct IsDeterministic <: StochasticStyle end
 
 struct IsSemistochastic <: StochasticStyle end
@@ -422,6 +426,56 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
     return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
+
+function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num::Real,
+                        shift, dτ)
+    # version for single population of integer psips
+    # Nonlinearity in diagonal death step according to Ali's suggestion
+    # off-diagonal: spawning psips
+    spawns = deaths = clones = antiparticles = annihilations = zero(num)
+    hops = Hops(ham,add)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(w[naddress]) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(w[naddress]),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(nspawns)
+        end
+    end
+    # diagonal death / clone
+    dME = diagME(ham,add)
+    shifteff = shift*(1 - exp(-num/nl.c))
+    pd = dτ * (dME - shifteff)
+    newdiagpop = (1-pd)*num
+    ndiag = trunc(newdiagpop)
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    # only treat non-integer part stochastically
+    ndiags = convert(typeof(num),ndiag) # now integer type
+    if sign(w[add]) ≠ sign(ndiags) # record annihilations
+        annihilations += min(abs(w[add]),abs(ndiags))
+    end
+    w[add] += ndiags # should carry to correct sign
+    if  pd < 0 # record event statistics
+        clones += abs(ndiags - num)
+    elseif pd < 1
+        deaths += abs(ndiags - num)
+    else
+        antiparticles += abs(ndiags)
+    end
+    return (spawns, deaths, clones, antiparticles, annihilations)
+    # note that w is not returned
+end # inner_step!
+
 function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
                         tup::Tuple{Real,Real},
                         shift, dτ)

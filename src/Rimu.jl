@@ -27,6 +27,7 @@ export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
 export TimeStepStrategy, ConstantTimeStep
 export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
+export IsStochasticNonlinear
 export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
 export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
 export localpart, free, mpi_no_exchange
