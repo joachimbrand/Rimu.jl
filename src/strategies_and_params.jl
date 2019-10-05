@@ -80,7 +80,10 @@ end
 function report!(df::DataFrame,t::Tuple,s::ReportDFAndInfo)
     step = t[1]
     step % s.k == 0 && push!(df,t) # only push to df if step is multiple of s.k
-    s.writeinfo && step % s.i == 0 && println(s.io, "Step ", step)
+    if s.writeinfo && step % s.i == 0
+        println(s.io, "Step ", step)
+        flush(s.io)
+    end
     return df
 end
 

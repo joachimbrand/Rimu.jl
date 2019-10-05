@@ -341,19 +341,20 @@ end
 
 """
     fciqmc_col!(w, ham, add, num, shift, dτ)
-    fciqmc_col!(T:Type, args...)
+    fciqmc_col!(::Type{T}, args...)
     -> spawns, deaths, clones, antiparticles, annihilations
 Spawning and diagonal step of FCIQMC for single column of `ham`. In essence it
 computes
 
 `w .+= (1 .+ dτ.*(shift .- ham[:,add])).*num`.
 
-Depending on `StochasticStyle(w)`, a stochastic or deterministic algorithm will
+Depending on `T == [StochasticStyle(w)](@ref)`, a stochastic or deterministic algorithm will
 be chosen.
 
-- `T == IsDeterministic()` deteministic algorithm
-- `T == IsStochastic()` stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm.
-- `T == IsSemistochastic()` semistochastic version: TODO
+- `T::[IsDeterministic()](@ref)` deteministic algorithm
+- `T::[IsStochastic()](@ref)` stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm
+- `T::[IsStochasticNonlinear(c)](@ref)` stochastic algorithm with nonlinear diagonal
+- `T::[IsSemistochastic()](@ref)` semistochastic version: TODO
 """
 fciqmc_col!(w::Union{AbstractArray,AbstractDVec}, args...) = fciqmc_col!(StochasticStyle(w), w, args...)
 
