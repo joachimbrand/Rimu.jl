@@ -348,13 +348,13 @@ computes
 
 `w .+= (1 .+ dτ.*(shift .- ham[:,add])).*num`.
 
-Depending on `T == [StochasticStyle(w)](@ref)`, a stochastic or deterministic algorithm will
-be chosen.
+Depending on `T == `[`StochasticStyle(w)`](@ref), a stochastic or deterministic algorithm will
+be chosen. The possible values for `T` are:
 
-- `T::[IsDeterministic()](@ref)` deteministic algorithm
-- `T::[IsStochastic()](@ref)` stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm
-- `T::[IsStochasticNonlinear(c)](@ref)` stochastic algorithm with nonlinear diagonal
-- `T::[IsSemistochastic()](@ref)` semistochastic version: TODO
+- [`IsDeterministic()`](@ref) deteministic algorithm
+- [`IsStochastic()`](@ref) stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm
+- [`IsStochasticNonlinear(c)`](@ref) stochastic algorithm with nonlinear diagonal
+- [`IsSemistochastic()`](@ref) semistochastic version: TODO
 """
 fciqmc_col!(w::Union{AbstractArray,AbstractDVec}, args...) = fciqmc_col!(StochasticStyle(w), w, args...)
 
