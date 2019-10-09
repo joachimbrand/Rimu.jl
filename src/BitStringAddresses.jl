@@ -114,8 +114,14 @@ end
 function BSAdd{I,B}(address::Int) where {I,B}
   if I==1 # This is efficient because the compiler can check the condition
     return BSAdd{I,B}((UInt64(address),))
+  elseif I==2
+    return BSAdd{I,B}((UInt64(0), UInt64(address),))
+  elseif I==3
+    return BSAdd{I,B}((UInt64(0), UInt64(0), UInt64(address),))
+  elseif I==4
+    return BSAdd{I,B}((UInt64(0), UInt64(0), UInt64(0), UInt64(address),))
   end
-
+  # now deal with general case of arbitrary value of I
   z = zeros(UInt64, I)
   z[end] = UInt64(address)
   return BSAdd{I,B}(Tuple(z))
