@@ -4,7 +4,7 @@ Module with types and methods pertaining to bitstring addresses.
 ```
 module BitStringAddresses
 
-export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd
+export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
 export occupationnumberrepresentation, bitaddr, maxBSLength
 
 import Base: isless, zero, iszero, show, ==, hash
@@ -86,6 +86,52 @@ Base.zero(::Type{BSAdd128}) = BSAdd128(0)
 Base.zero(add::BSAdd128) = BSAdd128(0)
 Base.hash(a::BSAdd128, h::UInt) = hash(a.add, h)
 
+"""
+    BSAdd{I,B} <: BitStringAddressType
+    BSAdd(address, B)
+
+Address type that encodes a bistring address with `B` bits. The bits are
+stored as `NTuple` of `I` integers (`UInt64`) with `B ≤ I*64`. The `address`
+can be an integer, e.g. `BigInt`.
+"""
+struct BSAdd{I,B} <: BitStringAddressType
+  add::NTuple{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as NTuple
+end
+
+@inline function BSAdd(address::Integer, nbits::Integer)
+  @boundscheck nbits < 1 && throw(BoundsError())
+  a = copy(address)
+  I = (nbits-1) ÷ 64 + 1 # number of UInt64s needed
+  adds = zeros(UInt64,I)
+  for i in I:-1:1
+     adds[i] = UInt64(a & 0xffffffffffffffff)
+     # extract rightmost 64 bits and store in adds
+     a >>>= 64 # shift bits to right by 64 bits
+  end
+  return BSAdd{I,nbits}(Tuple(adds))
+end
+
+function BSAdd{I,B}(address::Int) where {I,B}
+  if I==1 # This is efficient because the compiler can check the condition
+    return BSAdd{I,B}((UInt64(address),))
+  end
+
+  z = zeros(UInt64, I)
+  z[end] = UInt64(address)
+  return BSAdd{I,B}(Tuple(z))
+end
+# BSAdd{I,B}(address::Int) where {I==1,B} = BSAdd{I,B}((UInt64(address),))
+
+BSAdd(address::BSAdd128, nbits=128) = BSAdd(address.add, nbits)
+BSAdd(address::BSAdd64, nbits=64) = BSAdd{1,nbits}((address.add,))
+
+Base.zero(::BSAdd{I,B}) where {I,B} = BSAdd{I,B}(Tuple(zeros(UInt64,I)))
+
+# comparison check number of bits and then compares the tuples
+Base.isless(a::BSAdd{I,B}, b::BSAdd{I1,B}) where {I,I1,B} = isless(a.add, b.add)
+function Base.isless(a::BSAdd{I1,B1}, b::BSAdd{I2,B2}) where {I1,B1,I2,B2}
+  return isless(B1,B2)
+end
 
 #################################
 #
