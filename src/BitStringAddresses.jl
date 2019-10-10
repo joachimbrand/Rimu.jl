@@ -127,6 +127,48 @@ function Base.isless(a::BSAdd{I1,B1}, b::BSAdd{I2,B2}) where {I1,B1,I2,B2}
   return isless(B1,B2)
 end
 
+import Base: >>>, <<
+"""
+    >>>(b::BSAdd,n::Integer)
+Bitshift `b` to the right by `n` bits and fill from the left with zeros.
+"""
+function >>>(b::BSAdd{I,B},n::Integer) where {I,B}
+  if I == 1
+    return BSAdd{I,B}((b.add[1]>>>n,))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = 2^r-1 # 0b0...01...1 with `r` 1s
+  a = zeros(UInt64,I)
+  I-d > 0 && (a[d+1] = b.add[1]>>>r) # no carryover for leftmost chunk
+  for i = 2:(I-d) # shift chunks and `or` carryover
+    a[d+i] = (b.add[i]>>>r) | ((b.add[i-1] & mask) << (64-r) )
+  end
+  return BSAdd{I,B}(Tuple(a))
+  ## does the same thing in one line, but is slower:
+  # return BSAdd{I,B}((NTuple{d,UInt64}(0 for i in 1:d)...,b.add[1]>>r,
+  #   NTuple{I-d-1,UInt64}((b.add[i]>>>r)|((b.add[i-1]&mask)<<(64-r))
+  #     for i in 2:(I-d))...,
+  #   )
+  # )
+end
+"""
+    <<(b::BSAdd,n::Integer)
+Bitshift `b` to the left by `n` bits and fill from the right with zeros.
+"""
+function <<(b::BSAdd{I,B},n::Integer) where {I,B}
+  if I == 1
+    return BSAdd{I,B}((b.add[1]<<n,))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
+  a = zeros(UInt64,I)
+  for i in 1:(I-d-1) # shift chunks and `or` carryover
+    a[i] = (b.add[i+d]<<r) | ((b.add[i+d+1] & mask) >>> (64-r))
+  end
+  I-d > 0 && (a[I-d] = b.add[I]<<r) # no carryover for rightmost chunk
+  return BSAdd{I,B}(Tuple(a))
+end
+
 #################################
 #
 # some functions for operating on addresses
