@@ -98,6 +98,8 @@ struct BSAdd{I,B} <: BitStringAddressType
   add::NTuple{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as NTuple
 end
 
+# general default constructor - works with BigInt - but is quite slow
+# avoid using in hot loops!
 @inline function BSAdd(address::Integer, nbits::Integer)
   @boundscheck nbits < 1 && throw(BoundsError())
   a = copy(address)
@@ -111,27 +113,13 @@ end
   return BSAdd{I,nbits}(Tuple(adds))
 end
 
-function BSAdd{I,B}(address::Int) where {I,B}
-  if I==1 # This is efficient because the compiler can check the condition
-    return BSAdd{I,B}((UInt64(address),))
-  elseif I==2
-    return BSAdd{I,B}((UInt64(0), UInt64(address),))
-  elseif I==3
-    return BSAdd{I,B}((UInt64(0), UInt64(0), UInt64(address),))
-  elseif I==4
-    return BSAdd{I,B}((UInt64(0), UInt64(0), UInt64(0), UInt64(address),))
-  end
-  # now deal with general case of arbitrary value of I
-  z = zeros(UInt64, I)
-  z[end] = UInt64(address)
-  return BSAdd{I,B}(Tuple(z))
-end
-# BSAdd{I,B}(address::Int) where {I==1,B} = BSAdd{I,B}((UInt64(address),))
+# This is really fast because the compiler does all the work:
+BSAdd{I,B}(address::Int) where {I,B} = BSAdd{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
 
 BSAdd(address::BSAdd128, nbits=128) = BSAdd(address.add, nbits)
 BSAdd(address::BSAdd64, nbits=64) = BSAdd{1,nbits}((address.add,))
 
-Base.zero(::BSAdd{I,B}) where {I,B} = BSAdd{I,B}(Tuple(zeros(UInt64,I)))
+Base.zero(::BSAdd{I,B}) where {I,B} = BSAdd{I,B}(0)
 
 # comparison check number of bits and then compares the tuples
 Base.isless(a::BSAdd{I,B}, b::BSAdd{I1,B}) where {I,I1,B} = isless(a.add, b.add)
