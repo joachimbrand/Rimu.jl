@@ -41,8 +41,13 @@ Base.zero(::Type{BStringAdd}) = BStringAdd(BitArray([false]))
 Base.zero(adr::BStringAdd) = BStringAdd(BitArray([false]))
 Base.iszero(adr::BStringAdd) = iszero(adr.add)
 
-import Base: ==
-==(a::BStringAdd,b::BStringAdd) = a.add == b.add
+import Base: ==, <<, >>>, ⊻, &, |
+==(a::BStringAdd, b::BStringAdd) = a.add == b.add
+<<(a::BStringAdd, n) = BStringAdd(a.add << n)
+>>>(a::BStringAdd, n) = BStringAdd(a.add >>> n)
+⊻(a::BStringAdd, b::BStringAdd) = BStringAdd(a.add .⊻ b.add)
+(&)(a::BStringAdd, b::BStringAdd) = BStringAdd(a.add .& b.add)
+(|)(a::BStringAdd, b::BStringAdd) = BStringAdd(a.add .| b.add)
 
 Base.hash(a::BStringAdd, h::UInt) = hash(a.add, h)
 
