@@ -579,6 +579,7 @@ hopnextneighbour
 
 function hopnextneighbour(address::T, chosen::Int,
   mmodes::Int, nparticles::Int) where T<:Integer
+  # T<:Union{Integer,BStringAdd}
   # compute the address of a hopping event defined by chosen
   # Take care of the type of address
   site = (chosen + 1) >>> 1 # integer divide by 2 to find the orbital to hop from

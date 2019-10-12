@@ -5,8 +5,10 @@ Module with types and methods pertaining to bitstring addresses.
 module BitStringAddresses
 
 export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
+export BSA
 export occupationnumberrepresentation, bitaddr, maxBSLength
 
+using StaticArrays
 import Base: isless, zero, iszero, show, ==, hash
 
 """
@@ -45,6 +47,7 @@ import Base: ==, <<, >>>, ⊻, &, |
 ==(a::BStringAdd, b::BStringAdd) = a.add == b.add
 <<(a::BStringAdd, n) = BStringAdd(a.add << n)
 >>>(a::BStringAdd, n) = BStringAdd(a.add >>> n)
+>>(a::BStringAdd, n) = a >>> n
 ⊻(a::BStringAdd, b::BStringAdd) = BStringAdd(a.add .⊻ b.add)
 (&)(a::BStringAdd, b::BStringAdd) = BStringAdd(a.add .& b.add)
 (|)(a::BStringAdd, b::BStringAdd) = BStringAdd(a.add .| b.add)
@@ -58,6 +61,63 @@ function Base.show(io::IO, a::BStringAdd)
     end
     print(io, "\"")
 end
+
+function Base.leading_ones(a::BStringAdd)
+  t = 0
+  for chunk in a.add.chunks
+    s = trailing_ones(chunk)
+    t += s
+    s < 64 && break
+  end
+  return min(t, a.add.len)
+end
+
+function Base.leading_zeros(a::BStringAdd)
+  t = 0
+  for chunk in a.add.chunks
+    s = trailing_zeros(chunk)
+    t += s
+    s < 64 && break
+  end
+  return min(t, a.add.len)
+end
+
+function Base.trailing_zeros(a::BStringAdd)
+  t = 0
+  for (i, chunk) in enumerate(reverse(a.add.chunks))
+    if i == 1 && (r = a.add.len%64) > 0
+      t = leading_zeros(a.add.chunks[end]<<(64-r))
+      t < r && return t
+      t = min(t, r)
+    else
+      s = leading_zeros(chunk)
+      t += s
+      s < 64 && break
+    end
+  end
+  return min(t, a.add.len)
+end
+
+function Base.trailing_ones(a::BStringAdd)
+  t = 0
+  for (i, chunk) in enumerate(reverse(a.add.chunks))
+    if i == 1 && (r = a.add.len%64) > 0
+      t = leading_ones(a.add.chunks[end]<<(64-r))
+      t < r && return t
+      t = min(t, r)
+    else
+      s = leading_ones(chunk)
+      t += s
+      s < 64 && break
+    end
+  end
+  return min(t, a.add.len)
+end
+
+Base.iseven(a::BStringAdd) = ~a.add[end]
+Base.reverse(a::BStringAdd) = BStringAdd(reverse(a.add))
+
+# Base.leading_ones(a::BStringAdd) = trailing_ones(reverse(a))
 
 
 """
@@ -142,7 +202,7 @@ function >>>(b::BSAdd{I,B},n::Integer) where {I,B}
     return BSAdd{I,B}((b.add[1]>>>n,))
   end
   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = 2^r-1 # 0b0...01...1 with `r` 1s
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
   a = zeros(UInt64,I)
   I-d > 0 && (a[d+1] = b.add[1]>>>r) # no carryover for leftmost chunk
   for i = 2:(I-d) # shift chunks and `or` carryover
@@ -165,13 +225,109 @@ function <<(b::BSAdd{I,B},n::Integer) where {I,B}
     return BSAdd{I,B}((b.add[1]<<n,))
   end
   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
+  mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
   a = zeros(UInt64,I)
   for i in 1:(I-d-1) # shift chunks and `or` carryover
     a[i] = (b.add[i+d]<<r) | ((b.add[i+d+1] & mask) >>> (64-r))
   end
   I-d > 0 && (a[I-d] = b.add[I]<<r) # no carryover for rightmost chunk
   return BSAdd{I,B}(Tuple(a))
+end
+
+"""
+    BSA{I,B} <: BitStringAddressType
+    BSA(address, B)
+
+Address type that encodes a bistring address with `B` bits. The bits are
+stored as `SVector` of `I` integers (`UInt64`) with `B ≤ I*64`. The `address`
+can be an integer, e.g. `BigInt`.
+"""
+struct BSA{I,B} <: BitStringAddressType
+  add::SVector{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as NTuple
+end
+
+# general default constructor - works with BigInt - but is quite slow
+# avoid using in hot loops!
+@inline function BSA(address::Integer, nbits::Integer)
+  @boundscheck nbits < 1 && throw(BoundsError())
+  a = copy(address)
+  I = (nbits-1) ÷ 64 + 1 # number of UInt64s needed
+  adds = zeros(MVector{I,UInt64})
+  for i in I:-1:1
+     adds[i] = UInt64(a & 0xffffffffffffffff)
+     # extract rightmost 64 bits and store in adds
+     a >>>= 64 # shift bits to right by 64 bits
+  end
+  return BSA{I,nbits}(SVector(adds))
+end
+# This is really fast because the compiler does all the work:
+BSA{I,B}(address::Int) where {I,B} = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
+
+BSA(address::BSAdd128, nbits=128) = BSA(address.add, nbits)
+BSA(address::BSAdd64, nbits=64) = BSA{1,nbits}((address.add,))
+
+Base.zero(::BSA{I,B}) where {I,B} = BSA{I,B}(0)
+
+# comparison check number of bits and then compares the tuples
+Base.isless(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = isless(a.add, b.add)
+function Base.isless(a::BSA{I1,B1}, b::BSA{I2,B2}) where {I1,B1,I2,B2}
+  return isless(B1,B2)
+end
+import Base: <<, >>>, >>, ⊻, &, |
+⊻(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .⊻ b.add)
+(&)(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .& b.add)
+(|)(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .| b.add)
+
+"""
+    >>>(b::BSA,n::Integer)
+Bitshift `b` to the right by `n` bits and fill from the left with zeros.
+"""
+function >>>(b::BSA{I,B},n::Integer) where {I,B}
+  if I == 1
+    return BSA{I,B}((b.add[1]>>>n,))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+  a = zeros(MVector{I,UInt64})
+  I-d > 0 && (a[d+1] = b.add[1]>>>r) # no carryover for leftmost chunk
+  for i = 2:(I-d) # shift chunks and `or` carryover
+    a[d+i] = (b.add[i]>>>r) | ((b.add[i-1] & mask) << (64-r) )
+  end
+  return BSA{I,B}(SVector(a))
+end
+(>>)(b::BSA,n::Integer) = b >>> n
+"""
+    <<(b::BSA,n::Integer)
+Bitshift `b` to the left by `n` bits and fill from the right with zeros.
+"""
+function <<(b::BSA{I,B},n::Integer) where {I,B}
+  if I == 1
+    return BSA{I,B}((b.add[1]<<n,))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
+  a = zeros(MVector{I,UInt64})
+  for i in 1:(I-d-1) # shift chunks and `or` carryover
+    a[i] = (b.add[i+d]<<r) | ((b.add[i+d+1] & mask) >>> (64-r))
+  end
+  I-d > 0 && (a[I-d] = b.add[I]<<r) # no carryover for rightmost chunk
+  return BSA{I,B}(SVector(a))
+end
+# This is faster than << for BitArray. About half the time and allocations.
+
+# iterate through bits from right to left
+@inline function Base.iterate(a::BSA{I,B}, i = 1) where {I,B}
+  d,r = divrem(i-1, 64)
+  i == B+1 ? nothing : ((a.add[I-d]&UInt64(1)<<r)>>r, i+1)
+end
+
+# show prints bits from left to right, i.e. in reverse order
+function Base.show(io::IO, a::BSA)
+    print(io, "BSA\"")
+    for elem ∈ a
+      print(io, elem)
+    end
+    print(io, "\"")
 end
 
 #################################
