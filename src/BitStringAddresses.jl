@@ -248,7 +248,16 @@ can be an integer, e.g. `BigInt`.
 """
 struct BSA{I,B} <: BitStringAddressType
   add::SVector{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as NTuple
+  # end
+  # inner contructor: only allow passing `B` to enforce consistency
+  function BSA{B}(chunks::SVector{I,UInt64}) where {B,I}
+    I == (B - 1) ÷ 64 + 1 || error("in construction of `BSA{$I,$B}`: (B - 1) ÷ 64 + 1 evaluates to $((B - 1) ÷ 64 + 1) but should be I == $I")
+    return new{I,B}(chunks)
+  end
 end
+BSA{I,B}(chunks::SVector{I,UInt64}) where {B,I} = BSA{B}(chunks)
+BSA{I,B}(chunks) where {B,I} = BSA{B}(SVector(chunks))
+BSA{B}(chunks) where B = BSA{B}(SVector(chunks))
 
 # general default constructor - works with BigInt - but is quite slow
 # avoid using in hot loops!
@@ -266,6 +275,20 @@ end
   @boundscheck check_consistency(bsa)
   return bsa
 end
+@inline function BSA{B}(a::Integer) where B
+  @boundscheck B < 1 && throw(BoundsError())
+  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
+  adds = zeros(MVector{I,UInt64})
+  for i in I:-1:1
+     adds[i] = UInt64(a & 0xffffffffffffffff)
+     # extract rightmost 64 bits and store in adds
+     a >>>= 64 # shift bits to right by 64 bits
+  end
+  bsa = BSA{B}(SVector(adds))
+  @boundscheck check_consistency(bsa)
+  return bsa
+end
+
 # This is really fast because the compiler does all the work:
 # BSA{I,B}(address::Int) where {I,B} = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
 
@@ -274,6 +297,13 @@ end
   @boundscheck check_consistency(bsa)
   return bsa
 end
+@inline function BSA{B}(address::Int) where B
+  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
+  bsa = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
+  @boundscheck check_consistency(bsa)
+  return bsa
+end
+
 # create a BSA with all ones
 function BSA{I,B}() where {I,B}
   (B-1) ÷ 64 + 1 == I || error("Inconsistent I = $I with B = $B")
@@ -394,7 +424,7 @@ function check_consistency(a::BSA{I,B}) where {I,B}
   (d,lp) = divrem((B-1), 64) .+ 1 # bit position of leftmost bit in first chunk
   mask = ~UInt64(0)>>(64-lp)
   iszero(a.add[1] & ~mask) || error("ghost bits detected in $a")
-  d == I || error("inconsistency in $a: $(d+1) words needed but $I present")
+  d == I || error("inconsistency in $a: $d words needed but $I present")
   length(a.add) == I || error("inconsistent length $(length(a.add)) with I = $I in $a")
   nothing
 end
@@ -433,6 +463,13 @@ bitstring.
 """
 struct BoseBS{N,M,I,B} <: BitStringAddressType
   bs::BSA{I,B}
+
+  # inner constructor does type checking at compile time
+  function BoseBS{N,M,I,B}(bs::BSA{I,B}) where {N,M,I,B}
+    I == (B-1) ÷ 64 + 1 || error("Inconsistency in `BoseBS{$N,$M,$I,$B}` detected.")
+    M + N == B + 1 || error("Inconsistency in `BoseBS{$N,$M,$I,$B}` detected.")
+    return new{N,M,I,B}(bs)
+  end
 end
 
 # type unstable and slow - it is faster to use the native constructor -:
@@ -494,6 +531,103 @@ function Base.show(io::IO, b::BoseBS{N,M,I,B}) where {N,M,I,B}
   print(io, "⟩")
 end
 
+#################################
+"""
+    BitString{B}(address) <: BitStringAddressType
+
+Address type that encodes a bistring address with `B` bits. The bits are
+stored efficiently as `SVector` of chunks of type `UInt64`. Instances have
+the type `BitString{I,B}`, where `I` is the number of chunks. The bit
+representation of `address` is used to initialize `BitString`. For large bit numbers,
+`BigInt` is convenient.
+
+- `BitString{B}()` creates a `BitString` with all ones.
+- `zero(BitString{B})`  creates a `BitString` with all zeros.
+"""
+struct BitString{I,B} <: BitStringAddressType
+  chunks::SVector{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as SVector
+
+  # inner contructor: only allow passing `B` to enforce consistency
+  function BitString{B}(chunks::SVector{I,UInt64}) where {B,I}
+    I == (B - 1) ÷ 64 + 1 || error("in construction of `BitString{$I,$B}`: (B - 1) ÷ 64 + 1 evaluates to $((B - 1) ÷ 64 + 1) but should be I == $I")
+    return new{I,B}(chunks)
+  end
+end
+# BitString{I,B}(chunks::SVector{I,UInt64}) where {B,I} = BitString{B}(chunks)
+
+BitString{B}(chunks) where B = BitString{B}(SVector(chunks))
+
+@inline function BitString{B}(a::Integer) where B
+  @boundscheck B < 1 && throw(BoundsError())
+  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
+  adds = zeros(MVector{I,UInt64})
+  for i in I:-1:1
+     adds[i] = UInt64(a & 0xffffffffffffffff)
+     # extract rightmost 64 bits and store in adds
+     a >>>= 64 # shift bits to right by 64 bits
+  end
+  bsa = BitString{B}(SVector(adds))
+  @boundscheck check_consistency(bsa)
+  return bsa
+end
+
+@inline function BitString{B}(address::A) where {B, A<:Union{Int,Int64,UInt,UInt64}}
+  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
+  bsa = BitString{B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
+  @boundscheck check_consistency(bsa)
+  return bsa
+end
+
+# create a BitString with all ones
+function BitString{B}() where B
+  (I, r) = divrem((B-1), 64) .+ 1
+  first = ~UInt64(0) >>> (64 - r)
+  BitString{B}((first, NTuple{I-1,UInt64}(~UInt64(0) for i in 1:(I-1))...,))
+end
+
+Base.zero(::BitString{I,B}) where {I,B} = BitString{B}(0)
+
+function check_consistency(a::BitString{I,B}) where {I,B}
+  (d,lp) = divrem((B-1), 64) .+ 1 # bit position of leftmost bit in first chunk
+  mask = ~UInt64(0)>>(64-lp)
+  iszero(a.chunks[1] & ~mask) || error("ghost bits detected in $a")
+  d == I || error("inconsistency in $a: $d words needed but $I present")
+  length(a.chunks) == I || error("inconsistent length $(length(a.chunks)) with I = $I in $a")
+  nothing
+end
+
+# """
+#     remove_ghost_bits(bsa)
+# Remove set bits outside data field if any are present.
+# """
+function remove_ghost_bits(a::BitString{I,B}) where {I,B}
+  lp = (B-1) % 64 +1 # bit position of leftmost bit in first chunk
+  mask = ~UInt64(0)>>(64-lp)
+  madd = MVector(a.chunks)
+  madd[1] &= mask
+  return BitString{B}(SVector(madd))
+end
+
+nchunks(::Type{BitString{I,B}}) where {I,B} = I
+nchunks(b::BitString) = nchunks(typeof(b))
+nbits(::Type{BitString{I,B}}) where {I,B} = B
+nbits(b::BitString) = nbits(typeof(b))
+
+# comparison check number of bits and then compares the tuples
+Base.isless(a::T, b::T) where T<:BitString = isless(a.chunks, b.chunks)
+function Base.isless(a::BitString{I1,B1}, b::BitString{I2,B2}) where {I1,B1,I2,B2}
+  return isless(B1,B2)
+end
+
+# bit operations
+import Base: <<, >>>, >>, ⊻, &, |
+⊻(a::BitString{I,B}, b::BitString{I,B}) where {I,B} = BitString{B}(a.chunks .⊻ b.chunks)
+(&)(a::BitString{I,B}, b::BitString{I,B}) where {I,B} = BitString{B}(a.chunks .& b.chunks)
+(|)(a::BitString{I,B}, b::BitString{I,B}) where {I,B} = BitString{B}(a.chunks .| b.chunks)
+
+unsafe_count_ones(a::BitString) = mapreduce(count_ones, +, a.chunks)
+Base.count_ones(a::BitString) = unsafe_count_ones(remove_ghost_bits(a))
+Base.count_zeros(a::BitString{I,B}) where {I,B} = B - count_ones(a)
 
 #################################
 #

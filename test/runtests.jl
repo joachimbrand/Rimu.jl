@@ -18,6 +18,21 @@ check_consistency(bsb)
 check_consistency(BoseBS(bsb))
 bserr = BoseBS{26,16,1,40}(bsb) # wrong particle number N
 @test_throws ErrorException check_consistency(bserr)
+# BitString
+bs = BitString{40}(0xf342564fff)
+bs1 = BitString{40}(0xf342564ffd)
+bs2 = BitString{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
+bs3 = BitString{44}(0xf342564fff)
+@test bs > bs1
+@test !(bs == bs1)
+@test !(bs < bs1)
+@test bs2 > bs1
+@test bs3 > bs
+@test bs & bs1 == bs1
+@test bs | bs1 == bs
+@test bs ⊻ bs1 == BitString{40}(2)
+@test count_ones(bs2) == 105
+@test count_zeros(bs2) == 39
 end
 
 using Rimu.FastBufs
