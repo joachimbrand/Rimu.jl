@@ -7,6 +7,19 @@ using LinearAlgebra
     @test 3==3
 end
 
+using Rimu.BitStringAddresses
+import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
+@testset "BitStringAddresses.jl" begin
+@test_throws ErrorException bsa = BSA(0xf342564fff,30)
+bsa = BSA(0xf342564fff,40)
+check_consistency(bsa)
+bsb = remove_ghost_bits(bsa)
+check_consistency(bsb)
+check_consistency(BoseBS(bsb))
+bserr = BoseBS{26,16,1,40}(bsb) # wrong particle number N
+@test_throws ErrorException check_consistency(bserr)
+end
+
 using Rimu.FastBufs
 @testset "FastBufs.jl" begin
     fb = FastBuf{Float64}(2000) # instantiate a FastBuf
@@ -187,5 +200,6 @@ end
 # test should succeed.
 @testset "MPI" begin
     rr = run(`mpirun -np 2 --allow-run-as-root julia test/mpiexample.jl`)
+    # rr = run(`mpirun -np 2 julia test/mpiexample.jl`)
     @test rr.exitcode == 0
 end

@@ -5,7 +5,7 @@ Module with types and methods pertaining to bitstring addresses.
 module BitStringAddresses
 
 export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
-export BSA
+export BSA, BoseBS
 export occupationnumberrepresentation, bitaddr, maxBSLength
 
 using StaticArrays
@@ -242,6 +242,9 @@ end
 Address type that encodes a bistring address with `B` bits. The bits are
 stored as `SVector` of `I` integers (`UInt64`) with `B ≤ I*64`. The `address`
 can be an integer, e.g. `BigInt`.
+
+- `BSA{I,B}()` creates a BSA with all ones.
+- `BSA{I,B}(add::Int)` creates BSA quickly and efficiently, where all non-zero bits are represented in `add`.
 """
 struct BSA{I,B} <: BitStringAddressType
   add::SVector{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as NTuple
@@ -259,10 +262,25 @@ end
      # extract rightmost 64 bits and store in adds
      a >>>= 64 # shift bits to right by 64 bits
   end
-  return BSA{I,nbits}(SVector(adds))
+  bsa = BSA{I,nbits}(SVector(adds))
+  @boundscheck check_consistency(bsa)
+  return bsa
 end
 # This is really fast because the compiler does all the work:
-BSA{I,B}(address::Int) where {I,B} = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
+# BSA{I,B}(address::Int) where {I,B} = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
+
+@inline function BSA{I,B}(address::Int) where {I,B}
+  bsa = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
+  @boundscheck check_consistency(bsa)
+  return bsa
+end
+# create a BSA with all ones
+function BSA{I,B}() where {I,B}
+  (B-1) ÷ 64 + 1 == I || error("Inconsistent I = $I with B = $B")
+  r = (B-1) % 64 + 1
+  first = ~UInt64(0) >>> (64 - r)
+  BSA{I,B}((first, NTuple{I-1,UInt64}(~UInt64(0) for i in 1:(I-1))...,))
+end
 
 BSA(address::BSAdd128, nbits=128) = BSA(address.add, nbits)
 BSA(address::BSAdd64, nbits=64) = BSA{1,nbits}((address.add,))
@@ -280,7 +298,7 @@ import Base: <<, >>>, >>, ⊻, &, |
 (|)(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .| b.add)
 
 unsafe_count_ones(a::BSA) = mapreduce(count_ones, +, a.add)
-Base.count_ones(a::BSA) = unsafe_count_ones(make_consistent(a))
+Base.count_ones(a::BSA) = unsafe_count_ones(remove_ghost_bits(a))
 # takes about the same time:
 # function co2(a::BSA)
 #   s = 0
@@ -309,12 +327,16 @@ function >>>(b::BSA{I,B},n::Integer) where {I,B}
   end
   return BSA{I,B}(SVector(a))
 end
+
 (>>)(b::BSA,n::Integer) = b >>> n
+
 """
     <<(b::BSA,n::Integer)
 Bitshift `b` to the left by `n` bits and fill from the right with zeros.
 """
-function <<(b::BSA{I,B},n::Integer) where {I,B}
+<<(b::BSA{I,B},n::Integer) where {I,B} = remove_ghost_bits(unsafe_shift_left(b,n))
+
+function unsafe_shift_left(b::BSA{I,B},n::Integer) where {I,B}
   if I == 1
     return BSA{I,B}((b.add[1]<<n,))
   end
@@ -356,12 +378,25 @@ function lead_bit(a::BSA{I,B}) where {I,B}
   return (a.add[1]&mask) >> lp # return type is UInt64
 end
 
-function make_consistent(a::BSA{I,B}) where {I,B}
+"""
+    remove_ghost_bits(bsa)
+Remove set bits outside data field if any are present.
+"""
+function remove_ghost_bits(a::BSA{I,B}) where {I,B}
   lp = (B-1) % 64 +1 # bit position of leftmost bit in first chunk
   mask = ~UInt64(0)>>(64-lp)
   madd = MVector(a.add)
   madd[1] &= mask
   return BSA{I,B}(SVector(madd))
+end
+
+function check_consistency(a::BSA{I,B}) where {I,B}
+  (d,lp) = divrem((B-1), 64) .+ 1 # bit position of leftmost bit in first chunk
+  mask = ~UInt64(0)>>(64-lp)
+  iszero(a.add[1] & ~mask) || error("ghost bits detected in $a")
+  d == I || error("inconsistency in $a: $(d+1) words needed but $I present")
+  length(a.add) == I || error("inconsistent length $(length(a.add)) with I = $I in $a")
+  nothing
 end
 
 
@@ -400,11 +435,45 @@ struct BoseBS{N,M,I,B} <: BitStringAddressType
   bs::BSA{I,B}
 end
 
+# type unstable and slow - it is faster to use the native constructor -:
 function BoseBS(bs::BSA{I,B}) where {I,B}
   n = count_ones(bs) # number of particles
   m = B - n + 1 # number of orbitals
   I == (B-1) ÷ 64 + 1 || @error "Inconsistency in `BSA{$I,$B}` detected."
   return BoseBS{n,m,I,B}(bs)
+end
+
+# slow due to type instability
+function BoseBS(onr::AbstractVector{T}) where T<:Integer
+  m = length(onr)
+  n = Int(sum(onr))
+  b = n + m - 1
+  i = (b-1) ÷ 64 +1
+  bs = BSA{i,b}(0) # empty bitstring
+  for on in reverse(onr)
+    bs <<= on+1
+    bs |= BSA{i,b}()>>(b-on)
+  end
+  return BoseBS{n,m,i,b}(bs)
+end
+
+# typestable and quite fast (with SVector faster than with Vector)
+function BoseBS{N,M,I,B}(onr::AbstractVector{T}) where {N,M,I,B,T<:Integer}
+  M ≥ length(onr) || error("M inconsistency")
+  N == Int(sum(onr)) || error("N inconsistency")
+  B == N + M - 1 ||  error("B inconsistency")
+  I == (B-1) ÷ 64 +1 ||  error("I inconsistency")
+  bs = BSA{I,B}(0) # empty bitstring
+  for on in reverse(onr)
+    bs <<= on+1
+    bs |= BSA{I,B}()>>(B-on)
+  end
+  return BoseBS{N,M,I,B}(bs)
+end
+
+function check_consistency(b::BoseBS{N,M,I,B}) where {N,M,I,B}
+  N+M-1 == B || error("Inconsistency in $b: N+M-1 = $(N+M-1), B = $B")
+  check_consistency(b.bs)
 end
 
 function Base.show(io::IO, b::BoseBS{N,M,I,B}) where {N,M,I,B}
@@ -422,7 +491,7 @@ function Base.show(io::IO, b::BoseBS{N,M,I,B}) where {N,M,I,B}
   #   i ≥ M && break
   #   print(io, ",")
   # end
-  println(io, "⟩")
+  print(io, "⟩")
 end
 
 
