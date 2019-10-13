@@ -43,7 +43,7 @@ Base.zero(::Type{BStringAdd}) = BStringAdd(BitArray([false]))
 Base.zero(adr::BStringAdd) = BStringAdd(BitArray([false]))
 Base.iszero(adr::BStringAdd) = iszero(adr.add)
 
-import Base: ==, <<, >>>, ⊻, &, |
+import Base: ==, <<, >>>, >>, ⊻, &, |
 ==(a::BStringAdd, b::BStringAdd) = a.add == b.add
 <<(a::BStringAdd, n) = BStringAdd(a.add << n)
 >>>(a::BStringAdd, n) = BStringAdd(a.add >>> n)
@@ -234,6 +234,7 @@ function <<(b::BSAdd{I,B},n::Integer) where {I,B}
   return BSAdd{I,B}(Tuple(a))
 end
 
+#######################################
 """
     BSA{I,B} <: BitStringAddressType
     BSA(address, B)
@@ -278,6 +279,19 @@ import Base: <<, >>>, >>, ⊻, &, |
 (&)(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .& b.add)
 (|)(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .| b.add)
 
+unsafe_count_ones(a::BSA) = mapreduce(count_ones, +, a.add)
+Base.count_ones(a::BSA) = unsafe_count_ones(make_consistent(a))
+# takes about the same time:
+# function co2(a::BSA)
+#   s = 0
+#   for n in a.add
+#     s += count_ones(n)
+#   end
+#   return s
+# end
+
+Base.count_zeros(a::BSA{I,B}) where {I,B} = B - count_ones(a)
+
 """
     >>>(b::BSA,n::Integer)
 Bitshift `b` to the right by `n` bits and fill from the left with zeros.
@@ -313,22 +327,104 @@ function <<(b::BSA{I,B},n::Integer) where {I,B}
   I-d > 0 && (a[I-d] = b.add[I]<<r) # no carryover for rightmost chunk
   return BSA{I,B}(SVector(a))
 end
-# This is faster than << for BitArray. About half the time and allocations.
+# This is faster than << for BitArray (yeah!).
+# About half the time and allocations.
 
-# iterate through bits from right to left
+function Base.trailing_ones(a::BSA{I,B}) where {I,B}
+  t = 0
+  for chunk in reverse(a.add)
+    s = trailing_ones(chunk)
+    t += s
+    s < 64 && break
+  end
+  return min(t, B)
+end
+
+function Base.trailing_zeros(a::BSA{I,B}) where {I,B}
+  t = 0
+  for chunk in reverse(a.add)
+    s = trailing_zeros(chunk)
+    t += s
+    s < 64 && break
+  end
+  return min(t, B)
+end
+
+function lead_bit(a::BSA{I,B}) where {I,B}
+  lp = (B-1) % 64 # bit position of leftmost bit in first chunk (count from 0)
+  mask = UInt64(1)<< lp # shift a "1" to the right place
+  return (a.add[1]&mask) >> lp # return type is UInt64
+end
+
+function make_consistent(a::BSA{I,B}) where {I,B}
+  lp = (B-1) % 64 +1 # bit position of leftmost bit in first chunk
+  mask = ~UInt64(0)>>(64-lp)
+  madd = MVector(a.add)
+  madd[1] &= mask
+  return BSA{I,B}(SVector(madd))
+end
+
+
+# # iterate through bits from right to left
+# @inline function Base.iterate(a::BSA{I,B}, i = 1) where {I,B}
+#   d,r = divrem(i-1, 64)
+#   i == B+1 ? nothing : ((a.add[I-d]&UInt64(1)<<r)>>r, i+1)
+# end
+# iterate through bits from left to right
 @inline function Base.iterate(a::BSA{I,B}, i = 1) where {I,B}
-  d,r = divrem(i-1, 64)
-  i == B+1 ? nothing : ((a.add[I-d]&UInt64(1)<<r)>>r, i+1)
+  i == B+1 ? nothing : (UInt(lead_bit(a<<(i-1))), i+1)
 end
 
 # show prints bits from left to right, i.e. in reverse order
-function Base.show(io::IO, a::BSA)
-    print(io, "BSA\"")
+function Base.show(io::IO, a::BSA{I,B}) where {I,B}
+    print(io, "BSA{$B}\"")
     for elem ∈ a
       print(io, elem)
     end
     print(io, "\"")
 end
+
+"""
+    BoseBS{N,M,I,B} <: BitStringAddressType
+    BoseBS(bs::BSA)
+
+Address type that represents `N` spinless bosons in `M` orbitals by wrapping
+a `BSA{I,B}` bitstring. In the bitstring `N` ones represent `N` particles and
+`M-1` zeros separate `M` orbitals. Hence the total number of bits is
+`B == N+M-1` (and `I` is the number of `UInt64` words used internally to store
+the bitstring.). Orbitals are stored in reverse
+order, i.e. the first orbital in a `BoseBS` is stored rightmost in the `BSA`
+bitstring.
+"""
+struct BoseBS{N,M,I,B} <: BitStringAddressType
+  bs::BSA{I,B}
+end
+
+function BoseBS(bs::BSA{I,B}) where {I,B}
+  n = count_ones(bs) # number of particles
+  m = B - n + 1 # number of orbitals
+  I == (B-1) ÷ 64 + 1 || @error "Inconsistency in `BSA{$I,$B}` detected."
+  return BoseBS{n,m,I,B}(bs)
+end
+
+function Base.show(io::IO, b::BoseBS{N,M,I,B}) where {N,M,I,B}
+  print(io, "BoseBS{$N,$M}|")
+  onr = occupationnumberrepresentation(b.bs,M)
+  for (i,bn) in enumerate(onr)
+    isodd(i) ? print(io, bn) : print(io, "\x1b[4m",bn,"\x1b[0m")
+    # using ANSI escape sequence for underline,
+    # see http://jafrog.com/2013/11/23/colors-in-terminal.html
+    i ≥ M && break
+  end
+  ## or separate occupation numbers with commas
+  # for (i,bn) in enumerate(onr)
+  #   print(io, bn)
+  #   i ≥ M && break
+  #   print(io, ",")
+  # end
+  println(io, "⟩")
+end
+
 
 #################################
 #
@@ -384,7 +480,7 @@ maxBSLength(T::Type{BStringAdd}) = Inf
 Compute and return the occupation number representation as an array of `Int`
 corresponding to the given address.
 """
-function occupationnumberrepresentation(address::Integer,mm::Integer)
+function occupationnumberrepresentation(address::A,mm::Integer) where A<:Union{Integer, BSA}
   # compute and return the occupation number representation corresponding to
   # the given address
   # note: it is much faster to pass mm as argument than to access it as global
@@ -392,7 +488,7 @@ function occupationnumberrepresentation(address::Integer,mm::Integer)
   # onr = zeros(UInt16,mm) # this limits us to 2^16-1 orbitals
   onr = zeros(Int, mm)
   orbitalnumber = 0
-  while address > 0
+  while !iszero(address)
     orbitalnumber += 1
     bosonnumber = trailing_ones(address)
     # surpsingly it is faster to not check whether this is nonzero and do the
