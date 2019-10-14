@@ -555,7 +555,8 @@ struct BitString{I,B} <: BitStringAddressType
 end
 # BitString{I,B}(chunks::SVector{I,UInt64}) where {B,I} = BitString{B}(chunks)
 
-BitString{B}(chunks) where B = BitString{B}(SVector(chunks))
+# least specific: try to convert `chunks` to SVector; useful for tuples
+BitString{B}(chunks) where B = check_consistency(BitString{B}(SVector(chunks)))
 
 @inline function BitString{B}(a::Integer) where B
   @boundscheck B < 1 && throw(BoundsError())
@@ -593,7 +594,7 @@ function check_consistency(a::BitString{I,B}) where {I,B}
   iszero(a.chunks[1] & ~mask) || error("ghost bits detected in $a")
   d == I || error("inconsistency in $a: $d words needed but $I present")
   length(a.chunks) == I || error("inconsistent length $(length(a.chunks)) with I = $I in $a")
-  nothing
+  a # nothing
 end
 
 # """
