@@ -34,12 +34,16 @@ bs3 = BitAdd{44}(0xf342564fff)
 @test count_zeros(bs2) == 39
 w = BitAdd{65}((UInt(31),UInt(15)))
 @test_throws ErrorException check_consistency(w)
-@test_throws ErrorException bitadd((UInt(31),UInt(15)),65)
-wl = bitadd((UInt(31),UInt(15)),85)
-@test bs2 == bitadd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
+@test_throws ErrorException BitAdd((UInt(31),UInt(15)),65)
+wl = BitAdd((UInt(31),UInt(15)),85)
+@test bs2 == BitAdd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
 fa = BitAdd{133}()
-
-
+@test trailing_zeros(bs<<3) == 3
+@test trailing_ones(fa) == 133
+@test trailing_ones(fa>>100) == 33
+@test trailing_zeros(fa<<100) == 100
+@test leading_zeros(fa>>130) == 130
+@test leading_ones(fa<<130) == 3
 end
 
 using Rimu.FastBufs

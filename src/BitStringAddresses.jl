@@ -533,13 +533,19 @@ end
 
 #################################
 """
-    BitAdd{B}(address) <: BitStringAddressType
+    BitAdd{I,B} <: BitStringAddressType
+    BitAdd(address::Integer, B)
+    BitAdd(collection::T, B) where T<:Union{Tuple,SVector}
+    BitAdd{B}(address)
 
 Address type that encodes a bistring address with `B` bits. The bits are
-stored efficiently as `SVector` of chunks of type `UInt64`. Instances have
-the type `BitAdd{I,B}`, where `I` is the number of chunks. The bit
-representation of `address` is used to initialize `BitAdd`. For large bit numbers,
-`BigInt` is convenient.
+stored efficiently as `SVector` of `I` chunks of type `UInt64`.
+The two-argument constructor is preferred due to safety (consistency checks).
+In hot loops there maybe gain from the (unsafe) parametric constructor.
+If an integer `address` is passed, its bit representation  is used to
+initialize `BitAdd`. For large bit numbers, `BigInt` is convenient.
+`BitAdd[i]` will return bit `i` (as `Bool`), counting
+from right to left.
 
 - `BitAdd{B}()` creates a `BitAdd` with all ones.
 - `zero(BitAdd{B})`  creates a `BitAdd` with all zeros.
@@ -567,18 +573,18 @@ end
 BitAdd{B}(chunks) where B = BitAdd{B}(SVector(chunks))
 # BitAdd{B}(chunks) where B = check_consistency(BitAdd{B}(SVector(chunks)))
 
-"""
-    bitadd(address, numbits)
-Safely construct a `BitAdd` with `numbits` bits.
-If `address` is integer, its bit representation (right aligned) will be used.
-`Tuple` and `SVector` can be passed as well. Ghost bits will be checked for
-and produce an error if found.
-
-This function is safe but slow and should be avoided in hot loops, where type
-constructors can yield better performance.
-"""
-bitadd(chunks, numbits) = check_consistency(BitAdd{numbits}(SVector(UInt64.(chunks))))
-bitadd(chunks::Integer, numbits) = BitAdd{numbits}(chunks)
+# """
+#     bitadd(address, numbits)
+# Safely construct a `BitAdd` with `numbits` bits.
+# If `address` is integer, its bit representation (right aligned) will be used.
+# `Tuple` and `SVector` can be passed as well. Ghost bits will be checked for
+# and produce an error if found.
+#
+# This function is safe but slow and should be avoided in hot loops, where type
+# constructors can yield better performance.
+# """
+BitAdd(chunks, numbits) = check_consistency(BitAdd{numbits}(SVector(UInt64.(chunks))))
+BitAdd(chunks::Integer, numbits) = BitAdd{numbits}(chunks)
 
 @inline function BitAdd{B}(a::Integer) where B
   @boundscheck B < 1 && throw(BoundsError())
@@ -659,7 +665,7 @@ Bitshift `b` to the right by `n` bits and fill from the left with zeros.
 function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
   # we assume there are no ghost bits
   if I == 1
-    return BitAdd{I,B}((b.chunks[1]>>>n,))
+    return BitAdd{B}((b.chunks[1]>>>n,))
   end
   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
@@ -668,7 +674,7 @@ function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
   for i = 2:(I-d) # shift chunks and `or` carryover
     a[d+i] = (b.chunks[i]>>>r) | ((b.chunks[i-1] & mask) << (64-r) )
   end
-  return BitAdd{I,B}(SVector(a))
+  return BitAdd{B}(SVector(a))
 end
 
 (>>)(b::BitAdd,n::Integer) = b >>> n
@@ -681,7 +687,7 @@ Bitshift `b` to the left by `n` bits and fill from the right with zeros.
 
 function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
   if I == 1
-    return BitAdd{I,B}((b.chunks[1]<<n,))
+    return BitAdd{B}((b.chunks[1]<<n,))
   end
   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
   mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
@@ -690,7 +696,7 @@ function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
     a[i] = (b.chunks[i+d]<<r) | ((b.chunks[i+d+1] & mask) >>> (64-r))
   end
   I-d > 0 && (a[I-d] = b.chunks[I]<<r) # no carryover for rightmost chunk
-  return BitAdd{I,B}(SVector(a))
+  return BitAdd{B}(SVector(a))
 end
 # This is faster than << for BitArray (yeah!).
 # About half the time and allocations.
@@ -714,27 +720,58 @@ function Base.trailing_zeros(a::BitAdd{I,B}) where {I,B}
   end
   return min(t, B)
 end
-"""
-    lead_bit(a)
-Value of leftmost bit in bit address `a`.
-"""
-function lead_bit(a::BitAdd{I,B}) where {I,B}
-  lp = (B-1) % 64 # bit position of leftmost bit in first chunk (count from 0)
-  mask = UInt64(1)<< lp # shift a "1" to the right place
-  return (a.chunks[1]&mask) >> lp |>Bool # return type is Bool
-end
-"""
-    tail_bit(a)
-Value of rightmost bit in bit address `a`.
-"""
-tail_bit(a::BitAdd) = a.chunks[end] & UInt64(1) # return type is UInt64
 
+function Base.leading_zeros(a::BitAdd{I,B}) where {I,B}
+  r = (B-1)%64 + 1 # number of bits in first chunk
+  t = leading_zeros(a.chunks[1]<<(64-r))
+  t < r && return t # we are done
+  t = r # ignore more than r zeros
+  for i in 2:I
+    s = leading_zeros(a.chunks[i])
+    t += s
+    s < 64 && break
+  end
+  return t
+end
+
+function Base.leading_ones(a::BitAdd{I,B}) where {I,B}
+  r = (B-1)%64 + 1 # number of bits in first chunk
+  t = leading_ones(a.chunks[1]<<(64-r))
+  t < r && return t # we are done
+  for i in 2:I
+    s = leading_ones(a.chunks[i])
+    t += s
+    s < 64 && break
+  end
+  return t
+end
+
+# """
+#     lead_bit(a)
+# Value of leftmost bit in bit address `a`.
+# """
+# function lead_bit(a::BitAdd{I,B}) where {I,B}
+#   lp = (B-1) % 64 # bit position of leftmost bit in first chunk (count from 0)
+#   mask = UInt64(1)<< lp # shift a "1" to the right place
+#   return (a.chunks[1]&mask) >> lp |>Bool # return type is Bool
+# end
+# """
+#     tail_bit(a)
+# Value of rightmost bit in bit address `a`.
+# """
+# tail_bit(a::BitAdd) = a.chunks[end] & UInt64(1) # return type is UInt64
+
+# getindex access to individual bits in BitAdd, counting from right to left.
 @inline function Base.getindex(a::BitAdd{I,B}, i::Integer) where {I,B}
   @boundscheck 0 < i ≤ B || throw(BoundsError(a,i))
   (ci, li) = divrem(i-1, 64) # chunk index and local index, from 0
   mask = UInt64(1)<< li # shift a "1" to the right place
   return (a.chunks[ci+1] & mask) >> li |> Bool # return type is Bool
 end
+Base.lastindex(a::BitAdd{I,B}) where {I,B} = B
+Base.iterate(a::BitAdd{I,B}, i=1) where {I,B} = i == B+1 ? nothing : (a[i], i+1)
+Base.eltype(a::BitAdd) = Bool
+
 #################################
 #
 # some functions for operating on addresses
