@@ -16,13 +16,12 @@ check_consistency(bsa)
 bsb = remove_ghost_bits(bsa)
 check_consistency(bsb)
 check_consistency(BoseBS(bsb))
-bserr = BoseBS{26,16,1,40}(bsb) # wrong particle number N
-@test_throws ErrorException check_consistency(bserr)
-# BitString
-bs = BitString{40}(0xf342564fff)
-bs1 = BitString{40}(0xf342564ffd)
-bs2 = BitString{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
-bs3 = BitString{44}(0xf342564fff)
+@test_throws ErrorException bserr = BoseBS{26,16,1,40}(bsb) # wrong particle number N
+# BitAdd
+bs = BitAdd{40}(0xf342564fff)
+bs1 = BitAdd{40}(0xf342564ffd)
+bs2 = BitAdd{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
+bs3 = BitAdd{44}(0xf342564fff)
 @test bs > bs1
 @test !(bs == bs1)
 @test !(bs < bs1)
@@ -30,9 +29,17 @@ bs3 = BitString{44}(0xf342564fff)
 @test bs3 > bs
 @test bs & bs1 == bs1
 @test bs | bs1 == bs
-@test bs ⊻ bs1 == BitString{40}(2)
+@test bs ⊻ bs1 == BitAdd{40}(2)
 @test count_ones(bs2) == 105
 @test count_zeros(bs2) == 39
+w = BitAdd{65}((UInt(31),UInt(15)))
+@test_throws ErrorException check_consistency(w)
+@test_throws ErrorException bitadd((UInt(31),UInt(15)),65)
+wl = bitadd((UInt(31),UInt(15)),85)
+@test bs2 == bitadd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
+fa = BitAdd{133}()
+
+
 end
 
 using Rimu.FastBufs

@@ -5,7 +5,7 @@ Module with types and methods pertaining to bitstring addresses.
 module BitStringAddresses
 
 export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
-export BSA, BoseBS
+export BSA, BoseBS, BitAdd
 export occupationnumberrepresentation, bitaddr, maxBSLength
 
 using StaticArrays
@@ -533,32 +533,54 @@ end
 
 #################################
 """
-    BitString{B}(address) <: BitStringAddressType
+    BitAdd{B}(address) <: BitStringAddressType
 
 Address type that encodes a bistring address with `B` bits. The bits are
 stored efficiently as `SVector` of chunks of type `UInt64`. Instances have
-the type `BitString{I,B}`, where `I` is the number of chunks. The bit
-representation of `address` is used to initialize `BitString`. For large bit numbers,
+the type `BitAdd{I,B}`, where `I` is the number of chunks. The bit
+representation of `address` is used to initialize `BitAdd`. For large bit numbers,
 `BigInt` is convenient.
 
-- `BitString{B}()` creates a `BitString` with all ones.
-- `zero(BitString{B})`  creates a `BitString` with all zeros.
+- `BitAdd{B}()` creates a `BitAdd` with all ones.
+- `zero(BitAdd{B})`  creates a `BitAdd` with all zeros.
+
+Note that no checking for ghost bits occurs when constructing `BitAdd` from
+`SVector` or `Tuple`. See [`bitadd()`](@ref), [`check_consistency()`](@ref), and
+[`remove_ghost_bits()`](@ref) methods!
 """
-struct BitString{I,B} <: BitStringAddressType
+struct BitAdd{I,B} <: BitStringAddressType
   chunks::SVector{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as SVector
 
-  # inner contructor: only allow passing `B` to enforce consistency
-  function BitString{B}(chunks::SVector{I,UInt64}) where {B,I}
-    I == (B - 1) ÷ 64 + 1 || error("in construction of `BitString{$I,$B}`: (B - 1) ÷ 64 + 1 evaluates to $((B - 1) ÷ 64 + 1) but should be I == $I")
+  # inner contructor: only allow passing `B` to enforce consistency of `B` and `I`
+  function BitAdd{B}(chunks::SVector{I,UInt64}) where {B,I}
+    I == (B - 1) ÷ 64 + 1 || error("in construction of `BitAdd{$I,$B}`: (B - 1) ÷ 64 + 1 evaluates to $((B - 1) ÷ 64 + 1) but should be I == $I")
     return new{I,B}(chunks)
   end
 end
-# BitString{I,B}(chunks::SVector{I,UInt64}) where {B,I} = BitString{B}(chunks)
+# Note: The default constructor does not check for ghost bits.
+# Use `check_consistency()` if unsure!
+# BitAdd{I,B}(chunks::SVector{I,UInt64}) where {B,I} = BitAdd{B}(chunks)
 
 # least specific: try to convert `chunks` to SVector; useful for tuples
-BitString{B}(chunks) where B = check_consistency(BitString{B}(SVector(chunks)))
+# Note: This constructor does not check for ghost bits.
+# Use `check_consistency()` if unsure!
+BitAdd{B}(chunks) where B = BitAdd{B}(SVector(chunks))
+# BitAdd{B}(chunks) where B = check_consistency(BitAdd{B}(SVector(chunks)))
 
-@inline function BitString{B}(a::Integer) where B
+"""
+    bitadd(address, numbits)
+Safely construct a `BitAdd` with `numbits` bits.
+If `address` is integer, its bit representation (right aligned) will be used.
+`Tuple` and `SVector` can be passed as well. Ghost bits will be checked for
+and produce an error if found.
+
+This function is safe but slow and should be avoided in hot loops, where type
+constructors can yield better performance.
+"""
+bitadd(chunks, numbits) = check_consistency(BitAdd{numbits}(SVector(UInt64.(chunks))))
+bitadd(chunks::Integer, numbits) = BitAdd{numbits}(chunks)
+
+@inline function BitAdd{B}(a::Integer) where B
   @boundscheck B < 1 && throw(BoundsError())
   I = (B-1) ÷ 64 + 1 # number of UInt64s needed
   adds = zeros(MVector{I,UInt64})
@@ -567,28 +589,28 @@ BitString{B}(chunks) where B = check_consistency(BitString{B}(SVector(chunks)))
      # extract rightmost 64 bits and store in adds
      a >>>= 64 # shift bits to right by 64 bits
   end
-  bsa = BitString{B}(SVector(adds))
+  bsa = BitAdd{B}(SVector(adds))
   @boundscheck check_consistency(bsa)
   return bsa
 end
 
-@inline function BitString{B}(address::A) where {B, A<:Union{Int,Int64,UInt,UInt64}}
+@inline function BitAdd{B}(address::A) where {B, A<:Union{Int,Int64,UInt,UInt64}}
   I = (B-1) ÷ 64 + 1 # number of UInt64s needed
-  bsa = BitString{B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
+  bsa = BitAdd{B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
   @boundscheck check_consistency(bsa)
   return bsa
 end
 
-# create a BitString with all ones
-function BitString{B}() where B
+# create a BitAdd with all ones
+function BitAdd{B}() where B
   (I, r) = divrem((B-1), 64) .+ 1
   first = ~UInt64(0) >>> (64 - r)
-  BitString{B}((first, NTuple{I-1,UInt64}(~UInt64(0) for i in 1:(I-1))...,))
+  BitAdd{B}((first, NTuple{I-1,UInt64}(~UInt64(0) for i in 1:(I-1))...,))
 end
 
-Base.zero(::BitString{I,B}) where {I,B} = BitString{B}(0)
+Base.zero(::BitAdd{I,B}) where {I,B} = BitAdd{B}(0)
 
-function check_consistency(a::BitString{I,B}) where {I,B}
+function check_consistency(a::BitAdd{I,B}) where {I,B}
   (d,lp) = divrem((B-1), 64) .+ 1 # bit position of leftmost bit in first chunk
   mask = ~UInt64(0)>>(64-lp)
   iszero(a.chunks[1] & ~mask) || error("ghost bits detected in $a")
@@ -601,35 +623,118 @@ end
 #     remove_ghost_bits(bsa)
 # Remove set bits outside data field if any are present.
 # """
-function remove_ghost_bits(a::BitString{I,B}) where {I,B}
+function remove_ghost_bits(a::BitAdd{I,B}) where {I,B}
   lp = (B-1) % 64 +1 # bit position of leftmost bit in first chunk
   mask = ~UInt64(0)>>(64-lp)
   madd = MVector(a.chunks)
   madd[1] &= mask
-  return BitString{B}(SVector(madd))
+  return BitAdd{B}(SVector(madd))
 end
 
-nchunks(::Type{BitString{I,B}}) where {I,B} = I
-nchunks(b::BitString) = nchunks(typeof(b))
-nbits(::Type{BitString{I,B}}) where {I,B} = B
-nbits(b::BitString) = nbits(typeof(b))
+nchunks(::Type{BitAdd{I,B}}) where {I,B} = I
+nchunks(b::BitAdd) = nchunks(typeof(b))
+nbits(::Type{BitAdd{I,B}}) where {I,B} = B
+nbits(b::BitAdd) = nbits(typeof(b))
 
 # comparison check number of bits and then compares the tuples
-Base.isless(a::T, b::T) where T<:BitString = isless(a.chunks, b.chunks)
-function Base.isless(a::BitString{I1,B1}, b::BitString{I2,B2}) where {I1,B1,I2,B2}
+Base.isless(a::T, b::T) where T<:BitAdd = isless(a.chunks, b.chunks)
+function Base.isless(a::BitAdd{I1,B1}, b::BitAdd{I2,B2}) where {I1,B1,I2,B2}
   return isless(B1,B2)
 end
 
 # bit operations
 import Base: <<, >>>, >>, ⊻, &, |
-⊻(a::BitString{I,B}, b::BitString{I,B}) where {I,B} = BitString{B}(a.chunks .⊻ b.chunks)
-(&)(a::BitString{I,B}, b::BitString{I,B}) where {I,B} = BitString{B}(a.chunks .& b.chunks)
-(|)(a::BitString{I,B}, b::BitString{I,B}) where {I,B} = BitString{B}(a.chunks .| b.chunks)
+⊻(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .⊻ b.chunks)
+(&)(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .& b.chunks)
+(|)(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .| b.chunks)
 
-unsafe_count_ones(a::BitString) = mapreduce(count_ones, +, a.chunks)
-Base.count_ones(a::BitString) = unsafe_count_ones(remove_ghost_bits(a))
-Base.count_zeros(a::BitString{I,B}) where {I,B} = B - count_ones(a)
+unsafe_count_ones(a::BitAdd) = mapreduce(count_ones, +, a.chunks)
+Base.count_ones(a::BitAdd) = unsafe_count_ones(remove_ghost_bits(a))
+Base.count_zeros(a::BitAdd{I,B}) where {I,B} = B - count_ones(a)
 
+"""
+    >>>(b::BitAdd,n::Integer)
+Bitshift `b` to the right by `n` bits and fill from the left with zeros.
+"""
+function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
+  # we assume there are no ghost bits
+  if I == 1
+    return BitAdd{I,B}((b.chunks[1]>>>n,))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+  a = zeros(MVector{I,UInt64})
+  I-d > 0 && (a[d+1] = b.chunks[1]>>>r) # no carryover for leftmost chunk
+  for i = 2:(I-d) # shift chunks and `or` carryover
+    a[d+i] = (b.chunks[i]>>>r) | ((b.chunks[i-1] & mask) << (64-r) )
+  end
+  return BitAdd{I,B}(SVector(a))
+end
+
+(>>)(b::BitAdd,n::Integer) = b >>> n
+
+"""
+    <<(b::BitAdd,n::Integer)
+Bitshift `b` to the left by `n` bits and fill from the right with zeros.
+"""
+<<(b::BitAdd{I,B},n::Integer) where {I,B} = remove_ghost_bits(unsafe_shift_left(b,n))
+
+function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
+  if I == 1
+    return BitAdd{I,B}((b.chunks[1]<<n,))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
+  a = zeros(MVector{I,UInt64})
+  for i in 1:(I-d-1) # shift chunks and `or` carryover
+    a[i] = (b.chunks[i+d]<<r) | ((b.chunks[i+d+1] & mask) >>> (64-r))
+  end
+  I-d > 0 && (a[I-d] = b.chunks[I]<<r) # no carryover for rightmost chunk
+  return BitAdd{I,B}(SVector(a))
+end
+# This is faster than << for BitArray (yeah!).
+# About half the time and allocations.
+
+function Base.trailing_ones(a::BitAdd{I,B}) where {I,B}
+  t = 0
+  for chunk in reverse(a.chunks)
+    s = trailing_ones(chunk)
+    t += s
+    s < 64 && break
+  end
+  return t # min(t, B) # assume no ghost bits
+end
+
+function Base.trailing_zeros(a::BitAdd{I,B}) where {I,B}
+  t = 0
+  for chunk in reverse(a.chunks)
+    s = trailing_zeros(chunk)
+    t += s
+    s < 64 && break
+  end
+  return min(t, B)
+end
+"""
+    lead_bit(a)
+Value of leftmost bit in bit address `a`.
+"""
+function lead_bit(a::BitAdd{I,B}) where {I,B}
+  lp = (B-1) % 64 # bit position of leftmost bit in first chunk (count from 0)
+  mask = UInt64(1)<< lp # shift a "1" to the right place
+  return (a.chunks[1]&mask) >> lp |>Bool # return type is Bool
+end
+"""
+    tail_bit(a)
+Value of rightmost bit in bit address `a`.
+"""
+tail_bit(a::BitAdd) = a.chunks[end] & UInt64(1) # return type is UInt64
+
+@inline function Base.getindex(a::BitAdd{I,B}, i::Integer) where {I,B}
+  @boundscheck 0 < i ≤ B || throw(BoundsError(a,i))
+  (ci, li) = divrem(i-1, 64) # chunk index and local index, from 0
+  mask = UInt64(1)<< li # shift a "1" to the right place
+  return (a.chunks[ci+1] & mask) >> li |> Bool # return type is Bool
+end
 #################################
 #
 # some functions for operating on addresses
