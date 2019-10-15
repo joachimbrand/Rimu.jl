@@ -80,7 +80,7 @@ Accepted keyword arguments:
 
 - `lb_interval = 1_000`: Balance load every `lb_interval` steps.
 """
-with_kw struct MPINoExchangeLoadBalance <: DistributeStrategy
+@with_kw struct MPINoExchangeLoadBalance <: DistributeStrategy
     np::Int32
     id::Int32
     comm::MPI.Comm
