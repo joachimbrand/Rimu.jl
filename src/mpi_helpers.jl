@@ -15,12 +15,23 @@ let mpiID::Int = 0
     next_mpiID() = (mpiID +=1; mpiID)
 end
 
+"""
+    DistributeStrategy
+Abstract type for parallelisation strategies. The strategy should be set up by
+wrapping the data structure with an [`MPIData`](@ref) wrapper. The following
+convenience methods are available to achieve this:
 
+- [`mpi_default()`](@ref)
+- [`mpi_no_exchange()`](@ref)
+- [`mpi_one_sided()`](@ref)
+- [`mpi_load_balance()`](@ref)
+"""
 abstract type DistributeStrategy end
 
 """
 Simple wrapper used for signaling that this data is part of a distributed
 data structure and communication should happen with MPI.
+See [`DistributeStrategy`](@ref).
 """
 struct MPIData{D,S}
     data::D # local data, e.g. a DVec
@@ -38,8 +49,9 @@ localpart(dv) = dv # default for local data
 localpart(md::MPIData) = md.data
 
 """
-    MPIDefault(nprocs, my_rank, comm)
+    MPIDefault(nprocs, my_rank, comm) <: DistributeStrategy
 Strategy for point-to-point MPI communication.
+Set up with [`mpi_default()`](@ref). See [`DistributeStrategy`](@ref).
 """
 struct MPIDefault <: DistributeStrategy
     np::Int32
@@ -48,9 +60,10 @@ struct MPIDefault <: DistributeStrategy
 end
 
 """
-    MPINoWalkerExchange(nprocs, my_rank, comm)
+    MPINoWalkerExchange(nprocs, my_rank, comm; kw_args) <: DistributeStrategy
 Strategy for for not exchanging walkers between ranks. Consequently there
 will be no cross-rank annihilations.
+Set up with [`mpi_no_exchange()`](@ref). See [`DistributeStrategy`](@ref).
 """
 struct MPINoWalkerExchange <: DistributeStrategy
     np::Int32
@@ -58,14 +71,31 @@ struct MPINoWalkerExchange <: DistributeStrategy
     comm::MPI.Comm
 end
 
+"""
+    MPINoExchangeLoadBalance(nprocs, my_rank, comm; kw_args) <: DistributeStrategy
+Strategy for for not exchanging walkers between ranks. Consequently there
+will be no cross-rank annihilations.
+Set up with [`mpi_load_balance()`](@ref). See [`DistributeStrategy`](@ref).
+Accepted keyword arguments:
+
+- `lb_interval = 1_000`: Balance load every `lb_interval` steps.
+"""
+with_kw struct MPINoExchangeLoadBalance <: DistributeStrategy
+    np::Int32
+    id::Int32
+    comm::MPI.Comm
+    lb_interval::Int = 1_000
+end
+
 
 """
-    MPIOSWin(nprocs, myrank, comm, ::Type{T}, capacity)
+    MPIOSWin(nprocs, myrank, comm, ::Type{T}, capacity) <: DistributeStrategy
 Communication buffer for use with MPI one-sided communication (remote memory
 access). Up to `capacity` elements of type `T` can be exchanged between MPI
 ranks via [`put`](@ref). It is important that `isbitstype(T) == true`.
 Objects of type `MPIOSWin` have to be freed manually with a (blocking) call
 to [`free()`](@ref).
+Set up with [`mpi_one_sided()`](@ref). See [`DistributeStrategy`](@ref).
 """
 mutable struct MPIOSWin{T}  <: DistributeStrategy
     mpiid::Int # unique ID for MPI-distributed objects
