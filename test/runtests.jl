@@ -187,5 +187,6 @@ end
 # test should succeed.
 @testset "MPI" begin
     rr = run(`mpirun -np 2 --allow-run-as-root julia test/mpiexample.jl`)
+    # rr = run(`mpirun -np 2 julia test/mpiexample.jl`)
     @test rr.exitcode == 0
 end
