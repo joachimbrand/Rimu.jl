@@ -110,7 +110,7 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    @time rdfs, lfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
     @test sum(rdfs[:,:spawns]) == 1751
 
     # fciqmc with delayed shift update
@@ -120,7 +120,7 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s)
+    @time rdfs, lfs = fciqmc!(vs, pa, ham, s)
     @test sum(rdfs[:,:spawns]) == 2646
 
     # replica fciqmc

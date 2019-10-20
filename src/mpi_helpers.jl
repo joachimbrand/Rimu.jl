@@ -45,8 +45,14 @@ struct MPIData{D,S}
     end
 end
 
+"Return the local part of a distributed data structure. Identity for non-distributed data."
 localpart(dv) = dv # default for local data
 localpart(md::MPIData) = md.data
+
+"Compute the id of a parallel process from data structure. Returns 0 if serial."
+get_id(v::MPIData) = Int32(v.s.id)
+get_id(v) = Int32(0)
+
 
 """
     MPIDefault(nprocs, my_rank, comm) <: DistributeStrategy

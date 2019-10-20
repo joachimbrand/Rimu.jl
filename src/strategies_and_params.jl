@@ -88,6 +88,49 @@ function report!(df::DataFrame,t::Tuple,s::ReportDFAndInfo)
 end
 
 """
+Abstract type for strategies for load balancing distributed computation with
+[`load_balance!()`](@ref). Implemented strategies:
+   * [`NoLB`](@ref)
+   * [`ReportLoad`](@ref)
+"""
+abstract type LoadBalanceStrategy end
+
+"Ignore load balancing. See [`LoadBalanceStrategy`](@ref)."
+struct NoLB <: LoadBalanceStrategy end
+
+"""
+Report the load of each worker but do not perform active load balancing.
+See [`LoadBalanceStrategy`](@ref)."""
+struct ReportLoad <: LoadBalanceStrategy end
+
+"""
+    load_balance_initial(v, step, llen, lnorm, s::LoadBalanceStrategy)
+    -> ldf
+Initiate load balancing for data structure `v`. Returns `DataFrame` or `missing`
+if the load balancing strategy `s` does not record data.
+See [`LoadBalanceStrategy`](@ref).
+"""
+load_balance_initial(v, step, llen, lnorm, s::NoLB) = missing
+
+"""
+    load_balance!(ldf, step, llen, lnorm, s::LoadBalanceStrategy)
+Perform load balancing and reporting through `ldf` according to stratgy `s`.
+Initialise with [`load_balance_initial()`](@ref).
+See [`LoadBalanceStrategy`](@ref).
+"""
+load_balance!(ldf, v, step, llen, lnorm, s::NoLB) = missing
+
+function load_balance_inital(v, step, llen, lnorm, s::ReportLoad)
+    ldf = DataFrame(steps = Int[], id = Int[], llen=Int[], lnorm = Float64[])
+    return ldf
+end
+
+function load_balance!(ldf::DataFrame, v, step, llen, lnorm, s::ReportLoad)
+    push!(ldf, (step, get_id(v), llen, lnorm))
+    return ldf
+end
+
+"""
 Abstract type for strategies for updating the time step with
 [`update_dτ()`](@ref). Implemented
 strategies:

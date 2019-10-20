@@ -43,7 +43,7 @@ end
 function fciqmc_for_bm(vs, ham, w, steps, s, comm)
     MPI.Barrier(comm)
     pa = RunTillLastStep(step = 0, laststep = steps)
-    return fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), w)
+    return fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), NoLB(), w)
 end
 
 function main()
@@ -110,14 +110,14 @@ MPI.Barrier(comm)
 # run fciqmc on a process independently without MPI communication
 dvs = similar(vs, Ĥ(:dim)) # increase space
 pa = RunTillLastStep(laststep = 1)
-et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+et = @elapsed df, ldf = fciqmc!(dvs, pa, Ĥ, s)
 id==0 && println("serial fciqmc compiled in $et seconds")
 println("$(id): arrived at barrier; main")
 MPI.Barrier(comm)
 
 dvs = copy(vs) # just a copy
 pa = RunTillLastStep(laststep = 100)
-et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+et = @elapsed df, ldf = fciqmc!(dvs, pa, Ĥ, s)
 id==0 && println("serial fciqmc finished in $et seconds")
 println("$(id): arrived at barrier; main")
 MPI.Barrier(comm)
@@ -139,20 +139,20 @@ MPI.Barrier(comm)
 id==0 && println("starting mpi_one_sided fciqmc")
 dvs = mpi_one_sided(copy(vs)) # mpi wrapping
 pa = RunTillLastStep(laststep = 1)
-et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+et = @elapsed df, ldf = fciqmc!(dvs, pa, Ĥ, s)
 dvs.isroot && println("parallel fciqmc compiled in $et seconds")
 @time free(dvs) # MPI sync
 
 dvs = mpi_one_sided(copy(vs)) # mpi wrapping
 pa = RunTillLastStep(laststep = 100)
-et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+et = @elapsed df, ldf = fciqmc!(dvs, pa, Ĥ, s)
 dvs.isroot && println("parallel fciqmc finished in $et seconds")
 # dvs.isroot && println(df)
 MPI.Barrier(comm)
 dvs.isroot && println("starting benchmarks")
 pa = RunTillLastStep(step = 0, laststep = 20)
 ts = 1 # @elapsed
-fciqmc!(dvs, pa, Ĥ, s, EveryTimeStep(), ConstantTimeStep(), w)
+fciqmc!(dvs, pa, Ĥ, s, EveryTimeStep(), ConstantTimeStep(), NoLB(), w)
 dvs.isroot && println("r ", ts)
 println("$(id): arrived at barrier; main")
 MPI.Barrier(comm)
@@ -190,11 +190,11 @@ id==0 && println("mpi one sided fciqmc benchmarks in seconds: ", ets)
 id==0 && println("starting mpi_default fciqmc")
 dvs = mpi_default(copy(vs)) # mpi wrapping
 pa = RunTillLastStep(laststep = 1)
-et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+et = @elapsed fciqmc!(dvs, pa, Ĥ, s)
 dvs.isroot && println("mpi_default fciqmc compiled in $et seconds")
 dvs = mpi_default(copy(vs)) # mpi wrapping
 pa = RunTillLastStep(laststep = 100)
-et = @elapsed df = fciqmc!(dvs, pa, Ĥ, s)
+et = @elapsed  fciqmc!(dvs, pa, Ĥ, s)
 dvs.isroot && println("mpi_default fciqmc finished in $et seconds")
 dvs.isroot && println(df)
 

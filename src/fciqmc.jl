@@ -1,9 +1,10 @@
 
 """
-    fciqmc!(v, pa::FciqmcRunStrategy, [df,]
+    fciqmc!(v, pa::FciqmcRunStrategy, [df, ldf,]
              ham, s_strat::ShiftStrategy,
-             [r_strat::ReportingStrategy, τ_strat::TimeStepStrategy, w])
-    -> df
+             [r_strat::ReportingStrategy, τ_strat::TimeStepStrategy,
+             lb_strat::LoadBalanceStrategy, w])
+    -> df, ldf
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
 `v` can be a single starting vector of type `:<AbstractDVec` or a tuple
@@ -12,16 +13,19 @@ Returns a `DataFrame` `df` with statistics about the run, or a tuple of `DataFra
 for a replica run.
 Strategies can be given for updating the shift (see [`ShiftStrategy`](@ref))
 and (optionally), for reporting (see [`ReportingStrategy`](@ref)),
-and for updating the time step `dτ` (see [`TimeStepStrategy`](@ref)).
+for updating the time step `dτ` (see [`TimeStepStrategy`](@ref)), and for
+load balancing a parallel computation (see [`LoadBalanceStrategy`](@ref)) with
+load information recorded in `ldf`.
 A pre-allocated data structure `w` for working memory can be passed as argument.
 This function mutates `v`, the parameter struct `pa` as well as
-`df`, and `w`.
+`df`, `ldf`, and `w`.
 """
 function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
+                 lb_strat::LoadBalanceStrategy = NoLB(),
                  w::D = similar(localpart(svec))) where {DD, D<:AbstractDVec}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -43,22 +47,25 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
     push!(df, (step, dτ, shift, shiftMode, len, nor,
                 0, 0, 0, 0, 0))
     # println("DataFrame is set up")
+    ldf = load_balance_initial(svec, step, len, nor, lb_strat)
+
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     # # println("after barrier")
-    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w)
+    rdf, ldf =  fciqmc!(svec, pa, df, ldf, ham, s_strat, r_strat, τ_strat, lb_strat, w)
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
-    return rdf
+    return rdf, ldf
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(v, pa::RunTillLastStep, df::DF,
+function fciqmc!(v, pa::RunTillLastStep, df::DataFrame, ldf,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy,
                  τ_strat::TimeStepStrategy,
-                 w::D) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
+                 lb_strat::LoadBalanceStrategy,
+                 w::D) where D<:AbstractDVec
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -94,6 +101,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
                         step_stats...), r_strat)
         # DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
         #                 step_stats...))
+        load_balance!(ldf, v, step, len, tnorm, lb_strat)
         # housekeeping: avoid overflow of dvecs
         len_local = length(localpart(v))
         len_local > 0.8*maxlength && if len_local > maxlength
@@ -110,7 +118,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
     # pack up parameters for continuation runs
     # note that this modifes the struct pa
     @pack! pa = step, shiftMode, shift, dτ
-    return  df
+    return  df, ldf
     # note that `svec` and `pa` are modified but not returned explicitly
 end # fciqmc
 
