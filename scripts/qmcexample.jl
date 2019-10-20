@@ -60,7 +60,7 @@ s_strat = LogUpdateAfterTargetWalkers(targetwalkers = walkernumber)
 r_strat = EveryTimeStep()
 v2 = copy(svec2)
 println("Finding ground state with deterministic version of fciqmc!()")
-@time rdf = fciqmc!(v2, pa, ham, s_strat, r_strat, τ_strat)
+@time rdf, ldf = fciqmc!(v2, pa, ham, s_strat, r_strat, τ_strat)
 
 plotQMCStats(rdf)
 
@@ -71,7 +71,7 @@ StochasticStyle(svec)
 pas = RunTillLastStep(laststep = steps, dτ = dτ)
 vs = copy(svec)
 println("Finding ground state with stochastic version of fciqmc!()")
-@time rdfs = fciqmc!(vs, pas, ham, s_strat, r_strat, τ_strat)
+@time rdfs, ldf = fciqmc!(vs, pas, ham, s_strat, r_strat, τ_strat)
 
 ps = plotQMCStats(rdfs, newfig = false)
 show(ps)
