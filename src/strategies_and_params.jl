@@ -120,7 +120,7 @@ See [`LoadBalanceStrategy`](@ref).
 """
 load_balance!(ldf, v, step, llen, lnorm, s::NoLB) = missing
 
-function load_balance_inital(v, step, llen, lnorm, s::ReportLoad)
+function load_balance_initial(v, step, llen, lnorm, s::ReportLoad)
     ldf = DataFrame(steps = Int[], id = Int[], llen=Int[], lnorm = Float64[])
     return ldf
 end
