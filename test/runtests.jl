@@ -95,41 +95,41 @@ end
 end
 
 @testset "fciqmc.jl" begin
-ham = BoseHubbardReal1D(
-    n = 9,
-    m = 9,
-    u = 6.0,
-    t = 1.0,
-    AT = BSAdd64)
-aIni = nearUniform(ham)
-pa = RunTillLastStep(laststep = 100)
+    ham = BoseHubbardReal1D(
+        n = 9,
+        m = 9,
+        u = 6.0,
+        t = 1.0,
+        AT = BSAdd64)
+    aIni = nearUniform(ham)
+    pa = RunTillLastStep(laststep = 100)
 
-# standard fciqmc
-s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-svec = DVec(Dict(aIni => 2), ham(:dim))
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rdfs, lfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), ReportLoad())
-@test sum(rdfs[:,:spawns]) == 1751
+    # standard fciqmc
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs, lfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), ReportLoad())
+    @test sum(rdfs[:,:spawns]) == 1751
 
-# fciqmc with delayed shift update
-pa = RunTillLastStep(laststep = 100)
-s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
-svec = DVec(Dict(aIni => 2), ham(:dim))
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rdfs, lfs = fciqmc!(vs, pa, ham, s)
-@test sum(rdfs[:,:spawns]) == 2646
+    # fciqmc with delayed shift update
+    pa = RunTillLastStep(laststep = 100)
+    s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs, lfs = fciqmc!(vs, pa, ham, s)
+    @test sum(rdfs[:,:spawns]) == 2646
 
-# replica fciqmc
-tup1 = (copy(svec),copy(svec))
-s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-pb = RunTillLastStep(laststep = 100)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rr = fciqmc!(tup1, ham, pb, s)
-@test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
+    # replica fciqmc
+    tup1 = (copy(svec),copy(svec))
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+    pb = RunTillLastStep(laststep = 100)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rr = fciqmc!(tup1, ham, pb, s)
+    @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
 end
 
 @testset "dfvec.jl" begin
