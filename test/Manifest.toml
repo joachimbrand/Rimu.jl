@@ -39,9 +39,10 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[MPI]]
 deps = ["Distributed", "Libdl", "Random", "Requires", "Serialization", "Sockets"]
-git-tree-sha1 = "958dff41198353e1aa1092efa911c07cbd894193"
+git-tree-sha1 = "1493102ae15bdbb2f98a5c27fb659528865ec1ba"
+pinned = true
 uuid = "da04e1cc-30fd-572f-bb4f-1f8673147195"
-version = "0.10.1"
+version = "0.10.0"
 
 [[Markdown]]
 deps = ["Base64"]
