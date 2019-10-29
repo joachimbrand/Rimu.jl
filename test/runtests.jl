@@ -185,10 +185,10 @@ end
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
 @testset "MPI" begin
-    if read(`whoami`,String) == "root\n" # relevant for Pipelines
-        rr = run(`mpirun -np 2 --allow-run-as-root julia mpiexample.jl`)
-    else
-        rr = run(`mpirun -np 2 julia mpiexample.jl`)
-    end
+    # if read(`whoami`,String) == "root\n" # relevant for Pipelines
+    #     rr = run(`mpirun -np 2 --allow-run-as-root julia mpiexample.jl`)
+    # else
+    rr = run(`mpirun -np 2 julia mpiexample.jl`)
+    # end
     @test rr.exitcode == 0
 end
