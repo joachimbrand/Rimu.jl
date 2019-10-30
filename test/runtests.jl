@@ -188,7 +188,8 @@ end
     # if read(`whoami`,String) == "root\n" # relevant for Pipelines
     #     rr = run(`mpirun -np 2 --allow-run-as-root julia mpiexample.jl`)
     # else
-    rr = run(`mpirun -np 2 julia mpiexample.jl`)
+    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
+    rr = run(`$mpiexec -np 2 julia mpiexample.jl`)
     # end
     @test rr.exitcode == 0
 end
