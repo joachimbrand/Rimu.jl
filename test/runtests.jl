@@ -185,10 +185,9 @@ end
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
 @testset "MPI" begin
-    if read(`whoami`,String) == "root\n" # relevant for Pipelines
-        rr = run(`mpirun -np 2 --allow-run-as-root julia mpiexample.jl`)
-    else
-        rr = run(`mpirun -np 2 julia mpiexample.jl`)
-    end
+    # read name of mpi executable from environment variable if defined
+    # necessary for allow-run-as root workaround for Pipelines
+    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
+    rr = run(`$mpiexec -np 2 julia mpiexample.jl`)
     @test rr.exitcode == 0
 end
