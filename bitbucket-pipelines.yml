@@ -1,29 +1,35 @@
 image: julia:latest
 
 pipelines:
-  # default:
-  branches:
-      master:
-        - step:
-            name: tests
-            script:
-                - apt-get update && apt-get install -y openmpi-bin
-                - export JULIA_PROJECT=@.
-                - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
-                - julia -e 'using Pkg; Pkg.test("Rimu")'
-                # - julia --project=test/ -e 'using Pkg; Pkg.instantiate()'
-                # - julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));  Pkg.instantiate()'
-                # - julia --project=test/ test/runtests.jl
-                # - julia test/runtests.jl
-                # - groupadd -r mygrp && useradd -r -g mygrp myuser
-                # - mpirun -np 4 --allow-run-as-root julia test/mpiexample.jl
-        - step:
-            name: documentation
-            script:
-                - apt-get update && apt-get install -y git openmpi-bin
-                - export JULIA_PROJECT=@.
-                - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
-                # - julia test/runtests.jl
-                - julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
-                - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-                - julia --project=docs/ docs/make.jl
+  default:
+    - step:
+        name: tests
+        script:
+            - apt-get update && apt-get install -y openmpi-bin
+            - export JULIA_PROJECT=@.
+            - export JULIA_MPIEXEC=/tmp/mpiexecwrapper
+            - echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
+            - chmod +x $JULIA_MPIEXEC
+            - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
+            - julia -e 'using Pkg; Pkg.test("Rimu")'
+            # - julia --project=test/ -e 'using Pkg; Pkg.instantiate()'
+            # - julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));  Pkg.instantiate()'
+            # - julia --project=test/ test/runtests.jl
+            # - julia test/runtests.jl
+            # - groupadd -r mygrp && useradd -r -g mygrp myuser
+            # - mpirun -np 4 --allow-run-as-root julia test/mpiexample.jl
+    - step:
+        name: documentation
+        script:
+            - apt-get update && apt-get install -y git openmpi-bin
+            - export JULIA_PROJECT=@.
+            - export JULIA_MPIEXEC=/tmp/mpiexecwrapper
+            - echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
+            - chmod +x $JULIA_MPIEXEC
+            - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
+            # - julia test/runtests.jl
+            - julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
+            - julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+            - julia --project=docs/ docs/make.jl
+  # branches:
+  #     master:
