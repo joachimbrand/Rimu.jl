@@ -4,12 +4,13 @@ Module with types and methods pertaining to bitstring addresses.
 ```
 module BitStringAddresses
 
+using StaticArrays
+
+import Base: isless, zero, iszero, show, ==, hash
+
 export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
 export BSA, BoseBS, BitAdd
 export occupationnumberrepresentation, bitaddr, maxBSLength
-
-using StaticArrays
-import Base: isless, zero, iszero, show, ==, hash
 
 """
     BitStringAddressType
