@@ -106,6 +106,26 @@ Update the time step according to the strategy `s`.
 update_dτ(::ConstantTimeStep, dτ, args...) = dτ
 # here we implement the trivial strategy: don't change dτ
 
+"Slow down/Speed up `dτ` to control the psips overshoot."
+@with_kw mutable struct OvershootControl <: TimeStepStrategy
+    targetwalkers::Int
+    dτinit::Float64
+    speedup::Bool
+end
+
+@inline function update_dτ(s::OvershootControl, dτ, tnorm, args...)
+    if tnorm >= s.targetwalkers
+        s.speedup = true
+    end
+    if s.speedup && dτ < s.dτinit
+        dτ += 0.1*(1-dτ/s.dτinit)*dτ
+    else
+        dτ = (1-tnorm/(s.targetwalkers*1.1))*s.dτinit
+    end
+    return dτ
+end
+# here we implement the trivial strategy: don't change dτ
+
 """
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:

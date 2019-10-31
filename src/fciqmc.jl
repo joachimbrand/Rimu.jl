@@ -114,6 +114,68 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
     # note that `svec` and `pa` are modified but not returned explicitly
 end # fciqmc
 
+# OvershootControl version
+function fciqmc!(v, pa::RunTillLastStep, df::DF,
+                 ham,
+                 s_strat::ShiftStrategy,
+                 r_strat::ReportingStrategy,
+                 τ_strat::OvershootControl,
+                 w::D) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
+    # unpack the parameters:
+    @unpack step, laststep, shiftMode, shift, dτ = pa
+
+    # check `df` for consistency
+    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len,
+                            :norm, :spawns, :deaths, :clones, :antiparticles,
+                            :annihilations
+                         ] "Column names in `df` not as expected."
+
+    svec = v # keep around a reference to the starting data container
+    pnorm = tnorm = norm(v, 1) # norm of "previous" vector
+    maxlength = capacity(localpart(v))
+    @assert maxlength ≤ capacity(w) "`w` needs to have at least `capacity(v)`"
+
+    while step < laststep
+        step += 1
+        # println("Step: ",step)
+        # perform one complete stochastic vector matrix multiplication
+        v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w)
+        tnorm = norm(v, 1) # MPI sycncronising: total number of psips
+        # update shift and mode if necessary
+        shift, shiftMode, pnorm = update_shift(s_strat,
+                                    shift, shiftMode,
+                                    tnorm, pnorm, dτ, step, df)
+        # the updated "previous" norm pnorm is returned from `update_shift()`
+        # in order to allow delaying the update, e.g. with `DelayedLogUpdate`
+        # pnorm = tnorm # remember norm of this step for next step (previous norm)
+        dτ = update_dτ(τ_strat, dτ, tnorm) # will need to pass more information later
+        # when we add different stratgies
+        len = length(v) # MPI sycncronising: total number of configs
+        # record results according to ReportingStrategy r_strat
+        report!(df, (step, dτ, shift, shiftMode, len, tnorm,
+                        step_stats...), r_strat)
+        # DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
+        #                 step_stats...))
+        # housekeeping: avoid overflow of dvecs
+        len_local = length(localpart(v))
+        len_local > 0.8*maxlength && if len_local > maxlength
+            @error "`maxlength` exceeded" len_local maxlength
+            break
+        else
+            @warn "`maxlength` nearly reached" len_local maxlength
+        end
+    end
+    # make sure that `svec` contains the current population:
+    if !(v === svec)
+        copyto!(svec, v)
+    end
+    # pack up parameters for continuation runs
+    # note that this modifes the struct pa
+    @pack! pa = step, shiftMode, shift, dτ
+    return  df
+    # note that `svec` and `pa` are modified but not returned explicitly
+end # fciqmc
+
 # replica version
 function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                  s_strat::ShiftStrategy,
