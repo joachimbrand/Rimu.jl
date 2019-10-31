@@ -221,11 +221,12 @@ end
 end
 
 # Note: This last test is set up to work on Pipelines, within a Docker
-# container. It will likely fail if run locally due to the option
-# --allow-run-as-root. For local testing, remove this option and the
-# test should succeed.
+# container, where everything runs as root. It should also work locally,
+# where typically mpi is not (to be) run as root.
 @testset "MPI" begin
-    rr = run(`mpirun -np 2 --allow-run-as-root julia test/mpiexample.jl`)
-    # rr = run(`mpirun -np 2 julia test/mpiexample.jl`)
+    # read name of mpi executable from environment variable if defined
+    # necessary for allow-run-as root workaround for Pipelines
+    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
+    rr = run(`$mpiexec -np 2 julia mpiexample.jl`)
     @test rr.exitcode == 0
 end
