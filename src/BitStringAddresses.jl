@@ -9,7 +9,7 @@ using StaticArrays
 import Base: isless, zero, iszero, show, ==, hash
 
 export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
-export BSA, BoseBS, BitAdd
+export BSA, BoseBS, BitAdd, BoseBA, onr
 export occupationnumberrepresentation, bitaddr, maxBSLength
 
 """
@@ -536,7 +536,7 @@ end
 """
     BitAdd{I,B} <: BitStringAddressType
     BitAdd(address::Integer, B)
-    BitAdd(collection::T, B) where T<:Union{Tuple,SVector}
+    BitAdd(chunks::T, B) where T<:Union{Tuple,SVector}
     BitAdd{B}(address)
 
 Address type that encodes a bistring address with `B` bits. The bits are
@@ -568,7 +568,7 @@ end
 # Use `check_consistency()` if unsure!
 # BitAdd{I,B}(chunks::SVector{I,UInt64}) where {B,I} = BitAdd{B}(chunks)
 
-# least specific: try to convert `chunks` to SVector; useful for tuples
+# Least specific: try to convert `chunks` to SVector; useful for tuples
 # Note: This constructor does not check for ghost bits.
 # Use `check_consistency()` if unsure!
 BitAdd{B}(chunks) where B = BitAdd{B}(SVector(chunks))
@@ -769,9 +769,129 @@ end
   mask = UInt64(1)<< li # shift a "1" to the right place
   return (a.chunks[ci+1] & mask) >> li |> Bool # return type is Bool
 end
+# make BitAdd a full blown iterator (over bits)
 Base.lastindex(a::BitAdd{I,B}) where {I,B} = B
+Base.length(a::BitAdd{I,B}) where {I,B} = B
 Base.iterate(a::BitAdd{I,B}, i=1) where {I,B} = i == B+1 ? nothing : (a[i], i+1)
 Base.eltype(a::BitAdd) = Bool
+
+# useful for visualising the bits
+# slow (μs) - do not use in hot loops
+function Base.bitstring(ba::BitAdd{I,B}) where {I,B}
+  return reverse(mapreduce(i->sprint(show,Int(i)),*,ba))
+end
+
+function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
+  if B < 20
+    print(io, "BitAdd{$B}|",bitstring(ba), "⟨")
+  else
+    bs = bitstring(ba)
+    print(io, "BitAdd{$B}|",bs[1:5]," … ",bs[end-5:end], "⟨")
+  end
+  nothing
+end
+
+"""
+    BoseBA{N,M} <: BitStringAddressType
+    BoseBA(bs::BitAdd)
+
+Address type that represents `N` spinless bosons in `M` orbitals by wrapping
+a `BitAdd{I,B}` bitstring. In the bitstring `N` ones represent `N` particles and
+`M-1` zeros separate `M` orbitals. Hence the total number of bits is
+`B == N+M-1` (and `I` is the number of `UInt64` words used internally to store
+the bitstring.). Orbitals are stored in reverse
+order, i.e. the first orbital in a `BoseBA` is stored rightmost in the `BitAdd`
+bitstring.
+"""
+struct BoseBA{N,M,I,B} <: BitStringAddressType
+  bs::BitAdd{I,B}
+
+  # inner constructor does type checking at compile time
+  function BoseBA{N,M,I,B}(bs::BitAdd{I,B}) where {N,M,I,B}
+    I == (B-1) ÷ 64 + 1 || error("Inconsistency in `BoseBA{$N,$M,$I,$B}` detected.")
+    M + N == B + 1 || error("Inconsistency in `BoseBA{$N,$M,$I,$B}` detected.")
+    return new{N,M,I,B}(bs)
+  end
+end
+
+# type unstable and slow - it is faster to use the native constructor -:
+function BoseBA(bs::BitAdd{I,B}) where {I,B}
+  n = count_ones(bs) # number of particles
+  m = B - n + 1 # number of orbitals
+  I == (B-1) ÷ 64 + 1 || @error "Inconsistency in `BitAdd{$I,$B}` detected."
+  return BoseBA{n,m,I,B}(bs)
+end
+
+# slow due to type instability
+function BoseBA(onr::AbstractVector{T}) where T<:Integer
+  m = length(onr)
+  n = Int(sum(onr))
+  b = n + m - 1
+  i = (b-1) ÷ 64 +1
+  # bs = BitAdd{b}(0) # empty bitstring
+  # for on in reverse(onr)
+  #   bs <<= on+1
+  #   bs |= BitAdd{b}()>>(b-on)
+  # end
+  # return BoseBA{n,m,i,b}(bs)
+  return BoseBA{n,m,i,b}(onr)
+end
+
+# typestable and quite fast (with SVector faster than with Vector)
+function BoseBA{N,M,I,B}(onr::AbstractVector{T}) where {N,M,I,B,T<:Integer}
+  M ≥ length(onr) || error("M inconsistency")
+  N == Int(sum(onr)) || error("N inconsistency")
+  B == N + M - 1 ||  error("B inconsistency")
+  I == (B-1) ÷ 64 +1 ||  error("I inconsistency")
+  bs = BitAdd{B}(0) # empty bitstring
+  for on in reverse(onr)
+    bs <<= on+1
+    bs |= BitAdd{B}()>>(B-on)
+  end
+  return BoseBA{N,M,I,B}(bs)
+end
+
+function check_consistency(b::BoseBA{N,M,I,B}) where {N,M,I,B}
+  N+M-1 == B || error("Inconsistency in $b: N+M-1 = $(N+M-1), B = $B")
+  check_consistency(b.bs)
+end
+
+"""
+    onr(bba::BoseBA)
+Compute and return the occupation number representation of the bit string
+address `bba` as an `SVector{M,Int}`, where `M` is the number of orbitals.
+"""
+function onr(bba::BoseBA{N,M,I,B}) where {N,M,I,B} # fast
+  r = zeros(MVector{M,Int})
+  address = bba.bs
+  for orbitalnumber in 1:M
+    bosonnumber = trailing_ones(address)
+    r[orbitalnumber] = bosonnumber
+    address >>>= bosonnumber + 1
+    iszero(address) && break
+  end
+  return SVector(r)
+end
+
+function Base.show(io::IO, b::BoseBA{N,M,I,B}) where {N,M,I,B}
+  print(io, "BoseBA{$N,$M}|")
+  r = onr(b)
+  for (i,bn) in enumerate(r)
+    isodd(i) ? print(io, bn) : print(io, "\x1b[4m",bn,"\x1b[0m")
+    # using ANSI escape sequence for underline,
+    # see http://jafrog.com/2013/11/23/colors-in-terminal.html
+    i ≥ M && break
+  end
+  ## or separate occupation numbers with commas
+  # for (i,bn) in enumerate(onr)
+  #   print(io, bn)
+  #   i ≥ M && break
+  #   print(io, ",")
+  # end
+  print(io, "⟩")
+end
+
+Base.bitstring(b::BoseBA) = bitstring(b.bs)
 
 #################################
 #
