@@ -12,6 +12,8 @@ export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
 export BSA, BoseBS, BitAdd, BoseBA, onr
 export occupationnumberrepresentation, bitaddr, maxBSLength
 
+include("DictVectors/delegate.jl")
+
 """
     BitStringAddressType
 
@@ -639,9 +641,9 @@ function remove_ghost_bits(a::BitAdd{I,B}) where {I,B}
 end
 
 nchunks(::Type{BitAdd{I,B}}) where {I,B} = I
-nchunks(b::BitAdd) = nchunks(typeof(b))
+nchunks(b) = nchunks(typeof(b))
 nbits(::Type{BitAdd{I,B}}) where {I,B} = B
-nbits(b::BitAdd) = nbits(typeof(b))
+nbits(b) = nbits(typeof(b))
 
 # comparison check number of bits and then compares the tuples
 Base.isless(a::T, b::T) where T<:BitAdd = isless(a.chunks, b.chunks)
@@ -892,6 +894,18 @@ function Base.show(io::IO, b::BoseBA{N,M,I,B}) where {N,M,I,B}
 end
 
 Base.bitstring(b::BoseBA) = bitstring(b.bs)
+
+nchunks(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = I
+nbits(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = B
+nparticles(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = N
+nmodes(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = M
+
+nparticles(b) = nparticles(typeof(b))
+nmodes(b) = nmodes(typeof(b))
+
+# comparison delegates to BitAdd
+Base.isless(a::BoseBA, b::BoseBA) = isless(a.bs, b.bs)
+
 
 #################################
 #

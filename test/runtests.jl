@@ -49,6 +49,7 @@ fa = BitAdd{133}()
 @test onr(BoseBA(bs)) == [12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4]
 os = BoseBA([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
 @test os == BoseBA(bs)
+@test hash(os) == hash(BoseBA(bs))
 @test os.bs == bs
 end
 
