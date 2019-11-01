@@ -589,9 +589,23 @@ BitAdd{B}(chunks) where B = BitAdd{B}(SVector(chunks))
 BitAdd(chunks, numbits) = check_consistency(BitAdd{numbits}(SVector(UInt64.(chunks))))
 BitAdd(chunks::Integer, numbits) = BitAdd{numbits}(chunks)
 
-@inline function BitAdd{B}(a::Integer) where B
+# @inline function BitAdd{B}(a::Integer) where B
+#   @boundscheck B < 1 && throw(BoundsError())
+#   I = (B-1) ÷ 64 + 1 # number of UInt64s needed
+#   adds = zeros(MVector{I,UInt64})
+#   for i in I:-1:1
+#      adds[i] = UInt64(a & 0xffffffffffffffff)
+#      # extract rightmost 64 bits and store in adds
+#      a >>>= 64 # shift bits to right by 64 bits
+#   end
+#   bsa = BitAdd{B}(SVector(adds))
+#   @boundscheck check_consistency(bsa)
+#   return bsa
+# end
+
+@inline function BitAdd{I,B}(a::Integer) where {I,B}
   @boundscheck B < 1 && throw(BoundsError())
-  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
+  @boundscheck I == (B-1) ÷ 64 + 1 || throw(BoundsError())
   adds = zeros(MVector{I,UInt64})
   for i in I:-1:1
      adds[i] = UInt64(a & 0xffffffffffffffff)
@@ -602,6 +616,13 @@ BitAdd(chunks::Integer, numbits) = BitAdd{numbits}(chunks)
   @boundscheck check_consistency(bsa)
   return bsa
 end
+
+@inline function BitAdd{B}(a::Integer) where B
+  @boundscheck B < 1 && throw(BoundsError())
+  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
+  return @inbounds BitAdd{I,B}(a)
+end
+
 
 @inline function BitAdd{B}(address::A) where {B, A<:Union{Int,Int64,UInt,UInt64}}
   I = (B-1) ÷ 64 + 1 # number of UInt64s needed
@@ -617,7 +638,8 @@ function BitAdd{B}() where B
   BitAdd{B}((first, NTuple{I-1,UInt64}(~UInt64(0) for i in 1:(I-1))...,))
 end
 
-Base.zero(::BitAdd{I,B}) where {I,B} = BitAdd{B}(0)
+Base.zero(::Type{BitAdd{I,B}}) where {I,B} = BitAdd{B}(0)
+Base.zero(b::BitAdd) = zero(typeof(b))
 
 function check_consistency(a::BitAdd{I,B}) where {I,B}
   (d,lp) = divrem((B-1), 64) .+ 1 # bit position of leftmost bit in first chunk
@@ -749,6 +771,8 @@ function Base.leading_ones(a::BitAdd{I,B}) where {I,B}
   return t
 end
 
+Base.iseven(a::BitAdd) = iseven(a.chunks[end])
+Base.isodd(a::BitAdd) = isodd(a.chunks[end])
 # """
 #     lead_bit(a)
 # Value of leftmost bit in bit address `a`.
@@ -853,6 +877,20 @@ function BoseBA{N,M,I,B}(onr::AbstractVector{T}) where {N,M,I,B,T<:Integer}
   return BoseBA{N,M,I,B}(bs)
 end
 
+# create a BoseBA address with near uniform dist
+# slow due to type instability
+"""
+    BoseBA(n::Integer, m::Integer)
+Create `BoseBA` address with near uniform distribution of `n` particles
+across `m` modes.
+"""
+function BoseBA(n::Integer, m::Integer)
+  fillingfactor, extras = divrem(n, m)
+  startonr = fill(fillingfactor,m)
+  startonr[1:extras] += ones(Int, extras)
+  return BoseBA(startonr)
+end
+
 function check_consistency(b::BoseBA{N,M,I,B}) where {N,M,I,B}
   N+M-1 == B || error("Inconsistency in $b: N+M-1 = $(N+M-1), B = $B")
   check_consistency(b.bs)
@@ -929,6 +967,9 @@ function bitaddr(onr, ::Type{T}) where T<: Integer
   end
   return address
 end
+
+bitaddr(onr, ::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = BoseBA{N,M,I,B}(onr)
+bitaddr(onr, ::Type{BoseBA})  = BoseBA(onr)
 
 function bitaddr(onr, ::Type{BitArray{1}})
   address = BitArray(undef,0)

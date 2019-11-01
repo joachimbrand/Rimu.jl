@@ -404,11 +404,11 @@ end
 Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction
 (without the *U* prefactor.)
 """
-function bosehubbardinteraction(address::Integer)
+function bosehubbardinteraction(address::T) where T<:Union{Integer,BitAdd}
   # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
   # currently this ammounts to counting occupation numbers of orbitals
   matrixelementint = 0
-  while address > 0
+  while !iszero(address)
     address >>>= trailing_zeros(address) # proceed to next occupied orbital
     bosonnumber = trailing_ones(address) # count how many bosons inside
     # surpsingly it is faster to not check whether this is nonzero and do the
@@ -419,6 +419,7 @@ function bosehubbardinteraction(address::Integer)
   return matrixelementint
 end #bosehubbardinteraction
 
+bosehubbardinteraction(b::BoseBA) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
 
@@ -451,7 +452,7 @@ end # bosehubbardinteraction(bsadd::BStringAdd)
 Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
 sum_j n_j n_{j+1} with periodic boundary conditions.
 """
-function ebhm(address::Integer, mModes)
+function ebhm(address::T, mModes) where T<:Union{Integer,BitAdd}
   # compute the diagonal matrix element of the Extended Bose Hubbard Hamiltonian
   # currently this ammounts to counting occupation numbers of orbitals
   #println("adress= ", bin(address))
@@ -486,6 +487,8 @@ function ebhm(address::Integer, mModes)
   return ebhmmatrixelementint , bhmmatrixelementint
 end #ebhm
 
+ebhm(b::BoseBA, m) = ebhm(b.bs, m)
+ebhm(b::BoseBA{N,M,I,B})  where {N,M,I,B} = ebhm(b, M)
 ebhm(adcont::BSAdd64, m) = ebhm(adcont.add, m)
 ebhm(adcont::BSAdd128, m) = ebhm(adcont.add, m)
 
@@ -527,10 +530,10 @@ function ebhm(bsadd::BStringAdd, mModes)
   return ebhmmatrixelementint, bhmmatrixelementint
 end # ebhm(bsadd::BStringAdd, ...)
 
-function numberoccupiedsites(address::Integer)
+function numberoccupiedsites(address::T) where T<:Union{Integer,BitAdd}
   # returns the number of occupied sites starting from bitstring address
   orbitalnumber = 0
-  while address > 0
+  while !iszero(address)
     orbitalnumber += 1
     address >>>= trailing_zeros(address)
     address >>>= trailing_ones(address)
@@ -538,6 +541,7 @@ function numberoccupiedsites(address::Integer)
   return orbitalnumber
 end # numberoccupiedsites
 
+numberoccupiedsites(b::BoseBA) = numberoccupiedsites(b.bs)
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
 
 numberoccupiedsites(a::BSAdd128) = numberoccupiedsites(a.add)
@@ -578,7 +582,7 @@ orbitals.
 hopnextneighbour
 
 function hopnextneighbour(address::T, chosen::Int,
-  mmodes::Int, nparticles::Int) where T<:Integer
+  mmodes::Int, nparticles::Int) where T<:Union{Integer,BitAdd}
   # T<:Union{Integer,BStringAdd}
   # compute the address of a hopping event defined by chosen
   # Take care of the type of address
@@ -655,6 +659,13 @@ function hopnextneighbour(address::T, chosen::Int,
   end
   return naddress, tones # return new address and product of occupation numbers
 end
+
+function hopnextneighbour(address::BoseBA{N,M,I,B}, chosen::Int,
+                          args...) where {N,M,I,B}
+  nbs, tones = hopnextneighbour(address.bs, chosen, M, N)
+  return BoseBA{N,M,I,B}(nbs), tones
+end
+
 
 function hopnextneighbour(address::BSAdd64, chosen, mmodes, nparticles)
   naddress, tones = hopnextneighbour(address.add, chosen, mmodes, nparticles)

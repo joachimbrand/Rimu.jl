@@ -138,6 +138,14 @@ end
     @test hp[18][1] == BSAdd64(0x000000000000d555)
     @test hp[18][2] ≈ -1.4142135623730951
     @test diagME(ham,aIni) == 0
+    os = BoseBA([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
+    @test Rimu.Hamiltonians.bosehubbardinteraction(os) == 148
+    @test Rimu.Hamiltonians.ebhm(os) == (53, 148)
+    @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
+    hnnn = Rimu.Hamiltonians.hopnextneighbour(0xf342564fff,3,16,25)
+    bs = BitAdd{40}(0xf342564fff)
+    hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3,16,25)
+    @test BitAdd{40}(hnnn[1]) == hnnbs[1]
 end
 
 @testset "fciqmc.jl" begin
@@ -176,6 +184,26 @@ end
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(tup1, ham, pb, s)
     @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
+end
+
+@testset "fciqmc with BoseBA" begin
+aIni = BoseBA(9,9)
+ham = BoseHubbardReal1D(
+    n = 9,
+    m = 9,
+    u = 6.0,
+    t = 1.0,
+    AT = typeof(aIni))
+pa = RunTillLastStep(laststep = 100)
+
+# standard fciqmc
+s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+svec = DVec(Dict(aIni => 2), ham(:dim))
+StochasticStyle(svec)
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+@test sum(rdfs[:,:spawns]) == 1815
 end
 
 @testset "dfvec.jl" begin
