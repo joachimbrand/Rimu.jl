@@ -767,7 +767,7 @@ end
   @boundscheck 0 < i ≤ B || throw(BoundsError(a,i))
   (ci, li) = divrem(i-1, 64) # chunk index and local index, from 0
   mask = UInt64(1)<< li # shift a "1" to the right place
-  return (a.chunks[ci+1] & mask) >> li |> Bool # return type is Bool
+  return (a.chunks[I-ci] & mask) >> li |> Bool # return type is Bool
 end
 # make BitAdd a full blown iterator (over bits)
 Base.lastindex(a::BitAdd{I,B}) where {I,B} = B
@@ -778,15 +778,15 @@ Base.eltype(a::BitAdd) = Bool
 # useful for visualising the bits
 # slow (μs) - do not use in hot loops
 function Base.bitstring(ba::BitAdd{I,B}) where {I,B}
-  return reverse(mapreduce(i->sprint(show,Int(i)),*,ba))
+  return reverse(mapreduce(i->repr(Int(i)),*,ba))
 end
 
 function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
-  if B < 20
+  if B < 30
     print(io, "BitAdd{$B}|",bitstring(ba), "⟨")
   else
     bs = bitstring(ba)
-    print(io, "BitAdd{$B}|",bs[1:5]," … ",bs[end-5:end], "⟨")
+    print(io, "BitAdd{$B}|",bs[1:10]," … ",bs[end-10:end], "⟨")
   end
   nothing
 end
