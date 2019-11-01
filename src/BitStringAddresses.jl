@@ -12,7 +12,6 @@ export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
 export BSA, BoseBS, BitAdd, BoseBA, onr
 export occupationnumberrepresentation, bitaddr, maxBSLength
 
-include("DictVectors/delegate.jl")
 
 """
     BitStringAddressType
@@ -640,6 +639,7 @@ end
 
 Base.zero(::Type{BitAdd{I,B}}) where {I,B} = BitAdd{B}(0)
 Base.zero(b::BitAdd) = zero(typeof(b))
+Base.hash(b::BitAdd,  h::UInt) = hash(b.chunks, h)
 
 function check_consistency(a::BitAdd{I,B}) where {I,B}
   (d,lp) = divrem((B-1), 64) .+ 1 # bit position of leftmost bit in first chunk
@@ -943,6 +943,8 @@ nmodes(b) = nmodes(typeof(b))
 
 # comparison delegates to BitAdd
 Base.isless(a::BoseBA, b::BoseBA) = isless(a.bs, b.bs)
+# hashing delegates to BitAdd
+Base.hash(bba::BoseBA,  h::UInt) = hash(bba.bs, h)
 
 
 #################################

@@ -5,6 +5,7 @@ pipelines:
     - step:
         name: tests
         script:
+            - julia -e 'versioninfo()'
             - apt-get update && apt-get install -y openmpi-bin
             - export JULIA_PROJECT=@.
             - export JULIA_MPIEXEC=/tmp/mpiexecwrapper

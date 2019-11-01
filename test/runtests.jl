@@ -203,7 +203,7 @@ StochasticStyle(svec)
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-@test sum(rdfs[:,:spawns]) == 1815
+@test sum(rdfs[:,:spawns]) == 1894
 end
 
 @testset "dfvec.jl" begin
