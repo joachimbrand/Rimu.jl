@@ -44,6 +44,12 @@ fa = BitAdd{133}()
 @test trailing_zeros(fa<<100) == 100
 @test leading_zeros(fa>>130) == 130
 @test leading_ones(fa<<130) == 3
+@test bitstring(bs2) == "000011110011010000100101011001001111111111011111000000001101111111011111110111111101111111011111110111111101111111011111110111111101111111011111"
+@test repr(BoseBA(bs2)) == "BoseBA{105,40}|5\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m2\e[0m0\e[4m0\e[0m0\e[4m0\e[0m0\e[4m0\e[0m0\e[4m5\e[0m10\e[4m0\e[0m1\e[4m0\e[0m2\e[4m1\e[0m1\e[4m0\e[0m1\e[4m0\e[0m0\e[4m0\e[0m1\e[4m2\e[0m0\e[4m4\e[0m0\e[4m0\e[0m0\e[4m0\e[0m⟩"
+@test onr(BoseBA(bs)) == [12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4]
+os = BoseBA([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
+@test os == BoseBA(bs)
+@test os.bs == bs
 end
 
 using Rimu.FastBufs
