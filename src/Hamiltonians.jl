@@ -8,7 +8,7 @@ Models implemented so far are:
 """
 module Hamiltonians
 
-using Parameters
+using Parameters, StaticArrays
 using ..DictVectors
 
 
@@ -423,9 +423,61 @@ end #bosehubbardinteraction
 # function bosehubbardinteraction(a::BitAdd)
 #   return mapreduce(bosehubbardinteraction,+,a.chunks)
 # end
+function bitshiftright!(v::MVector{I,UInt64}, n::Integer) where I
+  if I==1
+    @inbounds v[1] >>>= n
+    return v
+  elseif n ≥ I*64
+    return fill!(v, zero(UInt64))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+  for i in I : -1 : d+2 #1 : I-d-1
+    @inbounds v[i] = (v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r))
+  end
+  @inbounds v[d+1] = v[1] >>> r # no carryover for leftmost chunk
+  for i in 1 : d
+    @inbounds v[i] = zero(UInt64)
+  end
+  return v
+end
+
+function Base.trailing_ones(a::MVector)
+  t = 0
+  for chunk in reverse(a)
+    s = trailing_ones(chunk)
+    t += s
+    s < 64 && break
+  end
+  return t # min(t, B) # assume no ghost bits
+end
+
+function Base.trailing_zeros(a::MVector)
+  t = 0
+  for chunk in reverse(a)
+    s = trailing_zeros(chunk)
+    t += s
+    s < 64 && break
+  end
+  return t
+end
+
+function bosehubbardinteraction(address::BoseBA{N,M,I,B}) where {N,M,I,B}
+  # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
+  # currently this ammounts to counting occupation numbers of orbitals
+  matrixelementint = 0
+  mvec = MVector(address.bs.chunks)
+  while !iszero(mvec)
+    bitshiftright!(mvec, trailing_zeros(mvec))# proceed to next occupied orbital
+    bosonnumber = trailing_ones(mvec) # count how many bosons inside
+    bitshiftright!(mvec, bosonnumber) # remove the countedorbital
+    matrixelementint += bosonnumber * (bosonnumber-1)
+  end
+  return matrixelementint
+end #bosehubbardinteraction
 
 
-bosehubbardinteraction(b::BoseBA) = bosehubbardinteraction(b.bs)
+# bosehubbardinteraction(b::BoseBA) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
 
