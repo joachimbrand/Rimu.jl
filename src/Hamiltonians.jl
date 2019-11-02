@@ -404,7 +404,8 @@ end
 Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction
 (without the *U* prefactor.)
 """
-function bosehubbardinteraction(address::T) where T<:Union{Integer,BitAdd}
+function bosehubbardinteraction(address::T) where T<:Integer
+  #T<:Union{Integer,BitAdd}
   # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
   # currently this ammounts to counting occupation numbers of orbitals
   matrixelementint = 0
@@ -418,6 +419,11 @@ function bosehubbardinteraction(address::T) where T<:Union{Integer,BitAdd}
   end
   return matrixelementint
 end #bosehubbardinteraction
+
+function bosehubbardinteraction(a::BitAdd)
+  return mapreduce(bosehubbardinteraction,+,a.chunks)
+end
+
 
 bosehubbardinteraction(b::BoseBA) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
@@ -530,7 +536,8 @@ function ebhm(bsadd::BStringAdd, mModes)
   return ebhmmatrixelementint, bhmmatrixelementint
 end # ebhm(bsadd::BStringAdd, ...)
 
-function numberoccupiedsites(address::T) where T<:Union{Integer,BitAdd}
+function numberoccupiedsites(address::T) where T<:Integer
+  # T<:Union{Integer,BitAdd}
   # returns the number of occupied sites starting from bitstring address
   orbitalnumber = 0
   while !iszero(address)
@@ -540,6 +547,10 @@ function numberoccupiedsites(address::T) where T<:Union{Integer,BitAdd}
   end # while address
   return orbitalnumber
 end # numberoccupiedsites
+
+function numberoccupiedsites(address::BitAdd)
+  return mapreduce(numberoccupiedsites,+,address.chunks)
+end
 
 numberoccupiedsites(b::BoseBA) = numberoccupiedsites(b.bs)
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)

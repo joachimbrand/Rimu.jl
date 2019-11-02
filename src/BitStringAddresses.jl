@@ -662,8 +662,10 @@ function remove_ghost_bits(a::BitAdd{I,B}) where {I,B}
   return BitAdd{B}(SVector(madd))
 end
 
+nchunks(T::Type) = @error "not implemented: nchunks($T)"
 nchunks(::Type{BitAdd{I,B}}) where {I,B} = I
 nchunks(b) = nchunks(typeof(b))
+nbits(T::Type) = @error "not implemented: nbits($T)"
 nbits(::Type{BitAdd{I,B}}) where {I,B} = B
 nbits(b) = nbits(typeof(b))
 
@@ -938,7 +940,9 @@ nbits(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = B
 nparticles(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = N
 nmodes(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = M
 
+nparticles(T::Type) = @error "not implemented: nparticles($T)"
 nparticles(b) = nparticles(typeof(b))
+nmodes(T::Type) = @error "not implemented: nmodes($T)"
 nmodes(b) = nmodes(typeof(b))
 
 # comparison delegates to BitAdd

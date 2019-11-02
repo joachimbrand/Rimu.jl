@@ -56,9 +56,10 @@ end
 function fciqmc!(v, pa::RunTillLastStep, df::DF,
                  ham,
                  s_strat::ShiftStrategy,
-                 r_strat::ReportingStrategy,
-                 τ_strat::TimeStepStrategy,
-                 w::D) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
+                 r_strat::ReportingStrategy = EveryTimeStep(),
+                 τ_strat::TimeStepStrategy = ConstantTimeStep(),
+                 w::D = similar(localpart(v))
+                 ) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 

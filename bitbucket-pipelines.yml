@@ -5,12 +5,12 @@ pipelines:
     - step:
         name: tests
         script:
-            - julia -e 'using InteractiveUtils; versioninfo(verbose=true)'
             - apt-get update && apt-get install -y openmpi-bin
             - export JULIA_PROJECT=@.
             - export JULIA_MPIEXEC=/tmp/mpiexecwrapper
             - echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
             - chmod +x $JULIA_MPIEXEC
+            - julia -e 'using InteractiveUtils; versioninfo(verbose=true)'
             - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
             - julia -e 'using Pkg; Pkg.test("Rimu")'
             # - julia --project=test/ -e 'using Pkg; Pkg.instantiate()'
