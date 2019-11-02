@@ -2,6 +2,7 @@ using Rimu
 using Test
 using LinearAlgebra
 using Rimu.ConsistentRNG
+using BenchmarkTools
 
 @testset "fciqmc.jl" begin
 ham = BoseHubbardReal1D(

@@ -604,7 +604,18 @@ end # numberoccupiedsites
 #   return mapreduce(numberoccupiedsites,+,address.chunks)
 # end
 
-numberoccupiedsites(b::BoseBA) = numberoccupiedsites(b.bs)
+# numberoccupiedsites(b::BoseBA) = numberoccupiedsites(b.bs)
+function numberoccupiedsites(address::BoseBA)
+  orbitalnumber = 0
+  mvec = MVector(address.bs.chunks)
+  while !iszero(mvec)
+    orbitalnumber += 1
+    bitshiftright!(mvec, trailing_zeros(mvec))# proceed to next occupied orbital
+    bitshiftright!(mvec, trailing_ones(mvec))
+  end # while address
+  return orbitalnumber
+end # numberoccupiedsites
+
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
 
 numberoccupiedsites(a::BSAdd128) = numberoccupiedsites(a.add)
