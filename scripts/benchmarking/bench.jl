@@ -163,7 +163,7 @@ end
 
 using Rimu.Hamiltonians
 
-c1 = BSAdd64(0xf342564ffdd03e)
+c1 = BSAdd64(0xf342564ffd)
 c2 = BSAdd128(0xf342564ffdf00dfdfdfdfd037a3de)
 bs1 = BitAdd{40}(0xf342564ffd)
 bs2 = BitAdd{128}(0xf342564ffdf00dfdfdfdfd037a3de)
@@ -173,6 +173,8 @@ bb2 = BoseBA(bs2)
 bb3 = BoseBA(bs3)
 b1 = BoseBA(15,9)
 b2 = BoseBA(200,200)
+bs4 = b2.bs
+
 
 ham = BoseHubbardReal1D(
     n = 15,
@@ -199,6 +201,24 @@ a2 = nearUniform(ham)
 @benchmark Hamiltonians.numberoccupiedsites(c2)
 @benchmark Hamiltonians.bosehubbardinteraction(c2)
 @benchmark Hamiltonians.hopnextneighbour(c2,4,55,74)
+
+# BitAdd
+@benchmark Hamiltonians.numberoccupiedsites(bs1)
+@benchmark Hamiltonians.bosehubbardinteraction(bs1)
+@benchmark Hamiltonians.hopnextneighbour(bs1,4,17,24)
+
+@benchmark Hamiltonians.numberoccupiedsites(bs2)
+@benchmark Hamiltonians.bosehubbardinteraction(bs2)
+@benchmark Hamiltonians.hopnextneighbour(bs2,4,55,74)
+
+@benchmark Hamiltonians.numberoccupiedsites(bs3)
+@benchmark Hamiltonians.bosehubbardinteraction(bs3)
+@benchmark Hamiltonians.hopnextneighbour(bs3,4,40,105)
+
+@benchmark Hamiltonians.numberoccupiedsites(bs4)
+@benchmark Hamiltonians.bosehubbardinteraction(bs4)
+@benchmark Hamiltonians.hopnextneighbour(bs4,4,200,200)
+
 # BoseBA
 @benchmark Hamiltonians.numberoccupiedsites(bb1)
 @benchmark Hamiltonians.bosehubbardinteraction(bb1)
@@ -209,7 +229,7 @@ a2 = nearUniform(ham)
 @benchmark Hamiltonians.hopnextneighbour(bb2,4,55,74)
 @benchmark Hamiltonians.numberoccupiedsites(bb3)
 @benchmark Hamiltonians.bosehubbardinteraction(bb3)
-  # still has 1 memory allocation. I wonder why
+@benchmark Hamiltonians.hopnextneighbour(bb3,4,40,105)
 
 @benchmark Hamiltonians.numberoccupiedsites(b1)
 @benchmark Hamiltonians.bosehubbardinteraction(b1)
