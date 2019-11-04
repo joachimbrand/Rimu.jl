@@ -702,6 +702,9 @@ function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
   # we assume there are no ghost bits
   if I == 1
     return BitAdd{B}((b.chunks[1]>>>n,))
+  elseif I == 2
+    # println("say Hi!")
+    return  BitAdd{B}(lbshr(b.chunks, n))
   end
   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
@@ -715,6 +718,17 @@ end
 
 (>>)(b::BitAdd,n::Integer) = b >>> n
 
+lbshr(c::SVector,n::Integer) = _lbshr(Size(c), c, n)
+
+function lbshr(c::SVector{2,UInt64}, n::Integer)
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+  a = d>0 ? zero(UInt64) : c[1] >>> r
+  b = d>1 ? zero(UInt64) : (d>0 ? c[1] >>>r : (c[2]>>>r | ((c[1] & mask)<< (64-r))))
+  return SVector(a,b)
+end
+
+
 """
     <<(b::BitAdd,n::Integer)
 Bitshift `b` to the left by `n` bits and fill from the right with zeros.
@@ -724,6 +738,8 @@ Bitshift `b` to the left by `n` bits and fill from the right with zeros.
 function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
   if I == 1
     return BitAdd{B}((b.chunks[1]<<n,))
+  elseif I == 2
+    return BitAdd{B}(bshl(b.chunks,n))
   end
   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
   mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
@@ -736,6 +752,20 @@ function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
 end
 # This is faster than << for BitArray (yeah!).
 # About half the time and allocations.
+
+function bshl(c::SVector{2, UInt64}, n::Integer)
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  if d > 1
+    return SVector(zero(UInt64), zero(UInt64))
+  elseif d > 0
+    return SVector(c[2]<<r,zero(UInt64))
+  else
+    mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
+    l = (c[1] << r) | ((c[2] & mask) >>> (64 -r))
+    return SVector(l, c[2] << r)
+  end
+end
+
 
 function Base.trailing_ones(a::BitAdd{I,B}) where {I,B}
   t = 0

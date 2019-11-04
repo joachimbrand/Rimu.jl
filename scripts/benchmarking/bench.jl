@@ -172,8 +172,14 @@ bb1 = BoseBA(bs1)
 bb2 = BoseBA(bs2)
 bb3 = BoseBA(bs3)
 b1 = BoseBA(15,9)
-b2 = BoseBA(200,200)
-bs4 = b2.bs
+b7 = BoseBA(200,200)
+bs7 = b7.bs
+b4 = BoseBA(128,80) # needs 4 chunks
+bs4 = b4.bs
+b5 = BoseBA(128,135) # needs 5 chunks
+bs5 = b5.bs
+b6 = BoseBA(128,250) # needs 6 chunks
+bs6 = b6.bs
 
 
 ham = BoseHubbardReal1D(
@@ -207,8 +213,8 @@ a2 = nearUniform(ham)
 @benchmark Hamiltonians.bosehubbardinteraction(bs1)
 @benchmark Hamiltonians.hopnextneighbour(bs1,4,17,24)
 
-@benchmark Hamiltonians.numberoccupiedsites(bs2)
-@benchmark Hamiltonians.bosehubbardinteraction(bs2)
+@benchmark Hamiltonians.numberoccupiedsites($bs2)
+@benchmark Hamiltonians.bosehubbardinteraction($bs2)
 @benchmark Hamiltonians.hopnextneighbour(bs2,4,55,74)
 
 @benchmark Hamiltonians.numberoccupiedsites(bs3)
@@ -217,15 +223,20 @@ a2 = nearUniform(ham)
 
 @benchmark Hamiltonians.numberoccupiedsites(bs4)
 @benchmark Hamiltonians.bosehubbardinteraction(bs4)
-@benchmark Hamiltonians.hopnextneighbour(bs4,4,200,200)
+@benchmark Hamiltonians.hopnextneighbour(bs4,4,80,128)
+
+@benchmark $bs1 >>> 32
+@benchmark $bs2 >>> 32
+@benchmark $bs3 >>> 32
+@benchmark $bs4 >>> 32
 
 # BoseBA
-@benchmark Hamiltonians.numberoccupiedsites(bb1)
-@benchmark Hamiltonians.bosehubbardinteraction(bb1)
+@benchmark Hamiltonians.numberoccupiedsites($bb1)
+@benchmark Hamiltonians.bosehubbardinteraction($bb1)
 @benchmark Hamiltonians.hopnextneighbour(bb1,4,17,24)
 
-@benchmark Hamiltonians.numberoccupiedsites(bb2)
-@benchmark Hamiltonians.bosehubbardinteraction(bb2)
+@benchmark Hamiltonians.numberoccupiedsites($bb2)
+@benchmark Hamiltonians.bosehubbardinteraction($bb2)
 @benchmark Hamiltonians.hopnextneighbour(bb2,4,55,74)
 @benchmark Hamiltonians.numberoccupiedsites(bb3)
 @benchmark Hamiltonians.bosehubbardinteraction(bb3)
@@ -235,9 +246,14 @@ a2 = nearUniform(ham)
 @benchmark Hamiltonians.bosehubbardinteraction(b1)
 @benchmark Hamiltonians.hopnextneighbour(b1,3,9,15)
 @benchmark Hamiltonians.hopnextneighbour(b1,4,9,15)
-@benchmark Hamiltonians.numberoccupiedsites(b2)
-@benchmark Hamiltonians.bosehubbardinteraction(b2)
-@benchmark Hamiltonians.hopnextneighbour(b2,4,200,200)
+@benchmark Hamiltonians.numberoccupiedsites(b7)
+@benchmark Hamiltonians.bosehubbardinteraction(b7)
+@benchmark Hamiltonians.hopnextneighbour(b7,4,200,200)
+
+@benchmark Hamiltonians.numberoccupiedsites($b4)
+@benchmark Hamiltonians.bosehubbardinteraction($b2)
+@benchmark Hamiltonians.hopnextneighbour($b2,4,80,128)
+
 
 # BStringAdd
 @benchmark Hamiltonians.numberoccupiedsites(a1)
@@ -247,5 +263,34 @@ a2 = nearUniform(ham)
 @benchmark Hamiltonians.bosehubbardinteraction(a2)
 @benchmark Hamiltonians.hopnextneighbour(a2,4,200,200)
 
-nls = Hamiltonians.numberlinkedsites(bb2)
-for i in 1:nls
+# BoseBA with two chunks
+aIni = bb2
+ham = BoseHubbardReal1D(
+    n = 74,
+    m = 55,
+    u = 6.0,
+    t = 1.0,
+    AT = typeof(aIni))
+
+sv = DVec(Dict(aIni => 20.0), 200)
+v2 = similar(sv,150_000)
+# hsv = ham(sv)
+@benchmark ham(v2, sv)
+hsv = ham(sv)
+@benchmark ham(v2, hsv)
+
+# BSAdd128
+aIni = c2
+ham = BoseHubbardReal1D(
+    n = 74,
+    m = 55,
+    u = 6.0,
+    t = 1.0,
+    AT = typeof(aIni))
+
+sv = DVec(Dict(aIni => 20.0), 200)
+v2 = similar(sv,150_000)
+# hsv = ham(sv)
+@benchmark ham(v2, sv)
+hsv = ham(sv)
+@benchmark ham(v2, hsv)

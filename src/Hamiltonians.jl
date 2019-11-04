@@ -442,6 +442,30 @@ function bitshiftright!(v::MVector{I,UInt64}, n::Integer) where I
   return v
 end
 
+# function bitshiftright(v::SVector{I,UInt64}, n::Integer) where I
+#   if I==1
+#     @inbounds return v[1] >>> n
+#   elseif n ≥ I*64
+#     return zero(SVector{I,UInt64})
+#   end
+#   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+#   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+#   p1 = (zero(UInt64) for i in 1:d)
+#   @inbounds p2 = v[1] >>> r # no carryover for leftmost chunk
+#   p3 = ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)
+#   return SVector(p1...,p2,p3...)
+# end
+@inline function bitshiftright(v::SVector{I,UInt64}, n::Integer) where I
+  if I==1
+    @inbounds return v[1] >>> n
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+  return ((zero(UInt64) for i in 1:d)..., (v[1] >>> r),
+    ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)...)
+end
+
+
 function Base.trailing_ones(a::MVector)
   t = 0
   for chunk in reverse(a)
@@ -462,22 +486,22 @@ function Base.trailing_zeros(a::MVector)
   return t
 end
 
-function bosehubbardinteraction(address::BoseBA{N,M,I,B}) where {N,M,I,B}
-  # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
-  # currently this ammounts to counting occupation numbers of orbitals
-  matrixelementint = 0
-  mvec = MVector(address.bs.chunks)
-  while !iszero(mvec)
-    bitshiftright!(mvec, trailing_zeros(mvec))# proceed to next occupied orbital
-    bosonnumber = trailing_ones(mvec) # count how many bosons inside
-    bitshiftright!(mvec, bosonnumber) # remove the countedorbital
-    matrixelementint += bosonnumber * (bosonnumber-1)
-  end
-  return matrixelementint
-end #bosehubbardinteraction
+# function bosehubbardinteraction(address::BoseBA{N,M,I,B}) where {N,M,I,B}
+#   # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
+#   # currently this ammounts to counting occupation numbers of orbitals
+#   matrixelementint = 0
+#   mvec = MVector(address.bs.chunks)
+#   while !iszero(mvec)
+#     bitshiftright!(mvec, trailing_zeros(mvec))# proceed to next occupied orbital
+#     bosonnumber = trailing_ones(mvec) # count how many bosons inside
+#     bitshiftright!(mvec, bosonnumber) # remove the countedorbital
+#     matrixelementint += bosonnumber * (bosonnumber-1)
+#   end
+#   return matrixelementint
+# end #bosehubbardinteraction
 
 
-# bosehubbardinteraction(b::BoseBA) = bosehubbardinteraction(b.bs)
+bosehubbardinteraction(b::BoseBA) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
 
@@ -604,17 +628,17 @@ end # numberoccupiedsites
 #   return mapreduce(numberoccupiedsites,+,address.chunks)
 # end
 
-# numberoccupiedsites(b::BoseBA) = numberoccupiedsites(b.bs)
-function numberoccupiedsites(address::BoseBA)
-  orbitalnumber = 0
-  mvec = MVector(address.bs.chunks)
-  while !iszero(mvec)
-    orbitalnumber += 1
-    bitshiftright!(mvec, trailing_zeros(mvec))# proceed to next occupied orbital
-    bitshiftright!(mvec, trailing_ones(mvec))
-  end # while address
-  return orbitalnumber
-end # numberoccupiedsites
+numberoccupiedsites(b::BoseBA) = numberoccupiedsites(b.bs)
+# function numberoccupiedsites(address::BoseBA)
+#   orbitalnumber = 0
+#   mvec = MVector(address.bs.chunks)
+#   while !iszero(mvec)
+#     orbitalnumber += 1
+#     bitshiftright!(mvec, trailing_zeros(mvec))# proceed to next occupied orbital
+#     bitshiftright!(mvec, trailing_ones(mvec))
+#   end # while address
+#   return orbitalnumber
+# end # numberoccupiedsites
 
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
 
