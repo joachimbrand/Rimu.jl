@@ -765,6 +765,22 @@ function bshl(c::SVector{2, UInt64}, n::Integer)
     return SVector(l, c[2] << r)
   end
 end
+function bshl(c::SVector{3, UInt64}, n::Integer)
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  if d > 2
+    return SVector(zero(UInt64), zero(UInt64), zero(UInt64))
+  elseif d > 1
+    return SVector(c[3]<<r, zero(UInt64), zero(UInt64))
+  elseif d > 0
+    l = (c[2] << r) | ((c[3] & mask) >>> (64 -r))
+    return SVector(l, c[3] << r,  zero(UInt64))
+  else
+    mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
+    l = (c[1] << r) | ((c[2] & mask) >>> (64 -r))
+    l2 = (c[2] << r) | ((c[3] & mask) >>> (64 -r))
+    return SVector(l, l2, c[3] << r)
+  end
+end
 
 
 function Base.trailing_ones(a::BitAdd{I,B}) where {I,B}
