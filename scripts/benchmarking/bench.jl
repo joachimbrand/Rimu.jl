@@ -217,12 +217,12 @@ a2 = nearUniform(ham)
 @benchmark Hamiltonians.bosehubbardinteraction($bs2)
 @benchmark Hamiltonians.hopnextneighbour($bs2,4,55,74)
 
-@benchmark Hamiltonians.numberoccupiedsites(bs3)
-@benchmark Hamiltonians.bosehubbardinteraction(bs3)
+@benchmark Hamiltonians.numberoccupiedsites($bs3)
+@benchmark Hamiltonians.bosehubbardinteraction($bs3)
 @benchmark Hamiltonians.hopnextneighbour(bs3,4,40,105)
 
-@benchmark Hamiltonians.numberoccupiedsites(bs4)
-@benchmark Hamiltonians.bosehubbardinteraction(bs4)
+@benchmark Hamiltonians.numberoccupiedsites($bs4)
+@benchmark Hamiltonians.bosehubbardinteraction($bs4)
 @benchmark Hamiltonians.hopnextneighbour(bs4,4,80,128)
 
 @benchmark $bs1 >>> 32
@@ -238,8 +238,8 @@ a2 = nearUniform(ham)
 @benchmark Hamiltonians.numberoccupiedsites($bb2)
 @benchmark Hamiltonians.bosehubbardinteraction($bb2)
 @benchmark Hamiltonians.hopnextneighbour(bb2,4,55,74)
-@benchmark Hamiltonians.numberoccupiedsites(bb3)
-@benchmark Hamiltonians.bosehubbardinteraction(bb3)
+@benchmark Hamiltonians.numberoccupiedsites($bb3)
+@benchmark Hamiltonians.bosehubbardinteraction($bb3)
 @benchmark Hamiltonians.hopnextneighbour(bb3,4,40,105)
 
 @benchmark Hamiltonians.numberoccupiedsites(b1)

@@ -702,11 +702,13 @@ function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
   # we assume there are no ghost bits
   if I == 1
     return BitAdd{B}((b.chunks[1]>>>n,))
-  elseif I == 2
+  elseif I == 2 || I ==3
     # println("say Hi!")
     return  BitAdd{B}(lbshr(b.chunks, n))
   end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  r = n & 63 # same as above but saves a lot of time!!
+  d = n >>> 6
   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
   a = zeros(MVector{I,UInt64})
   I-d > 0 && (a[d+1] = b.chunks[1]>>>r) # no carryover for leftmost chunk
@@ -718,18 +720,51 @@ end
 
 (>>)(b::BitAdd,n::Integer) = b >>> n
 
-@inline lbshr(c::SVector,n::Integer) = _lbshr(Size(c), c, n)
+# @inline lbshr(c::SVector,n::Integer) = _lbshr(Size(c), c, n)
 
 @inline function lbshr(c::SVector{2,UInt64}, n::Integer)
   # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
   r = n & 63 # same as above but saves a lot of time!!
-  d = r >>> 6
+  d = n >>> 6
   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
   a = d>0 ? zero(UInt64) : c[1] >>> r
   b = d>1 ? zero(UInt64) : (d>0 ? c[1] >>>r : (c[2]>>>r | ((c[1] & mask)<< (64-r))))
   return SVector(a,b)
 end
 
+# @inline function lbshr(c::SVector{3,UInt64}, k::Integer)
+#   # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+#   r = k & 63 # same as above but saves a lot of time!!
+#   d = k >>> 6
+#   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+#   s1 = d>0 ? zero(UInt64) : c[1] >>> r
+#   s2 = d>1 ? zero(UInt64) : (d>0 ? c[1] >>>r : (c[2]>>>r | ((c[1] & mask)<< (64-r))))
+#   s3 = d>2 ? zero(UInt64) : (d>1 ? c[1] >>>r : d >0 ? (c[2]>>>r | ((c[1] & mask)<< (64-r))) :
+#         (c[3]>>>r | ((c[2] & mask)<< (64-r))))
+#   return SVector(s1,s2,s3)
+# end
+
+@inline function lbshr(c::SVector{3,UInt64}, k::Integer)
+  # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  r = k & 63 # same as above but saves a lot of time!!
+  d = k >>> 6
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+  if d > 2
+    return zero(SVector{3,UInt64})
+  elseif d > 1
+    return SVector(zero(UInt64), zero(UInt64), c[1] >>> r)
+  elseif d > 0
+    return SVector(zero(UInt64), c[1] >>> r, (c[2]>>>r | ((c[1] & mask)<< (64-r))))
+  end
+  return SVector(c[1] >>>r, (c[2]>>>r | ((c[1] & mask)<< (64-r))), (c[3]>>>r | ((c[2] & mask)<< (64-r))))
+end
+
+# @generated function lbshr(c::SVector{N,UInt64}, k::Integer) where N
+#   rex = :(r = k & 63)
+#   dex = :(d = k >>> 6)
+#   mex = :(m = ~0 >>> (64-$rex))
+#   leftex =  :()
+# end
 
 """
     <<(b::BitAdd,n::Integer)
