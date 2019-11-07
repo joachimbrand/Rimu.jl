@@ -206,7 +206,7 @@ a2 = nearUniform(ham)
 # BSAdd128
 @benchmark Hamiltonians.numberoccupiedsites(c2)
 @benchmark Hamiltonians.bosehubbardinteraction(c2)
-@benchmark Hamiltonians.hopnextneighbour(c2,4,55,74)
+@benchmark Hamiltonians.hopnextneighbour($c2,4,55,74)
 
 # BitAdd
 @benchmark Hamiltonians.numberoccupiedsites(bs1)
@@ -215,7 +215,7 @@ a2 = nearUniform(ham)
 
 @benchmark Hamiltonians.numberoccupiedsites($bs2)
 @benchmark Hamiltonians.bosehubbardinteraction($bs2)
-@benchmark Hamiltonians.hopnextneighbour(bs2,4,55,74)
+@benchmark Hamiltonians.hopnextneighbour($bs2,4,55,74)
 
 @benchmark Hamiltonians.numberoccupiedsites(bs3)
 @benchmark Hamiltonians.bosehubbardinteraction(bs3)

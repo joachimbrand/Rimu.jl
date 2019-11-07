@@ -718,10 +718,12 @@ end
 
 (>>)(b::BitAdd,n::Integer) = b >>> n
 
-lbshr(c::SVector,n::Integer) = _lbshr(Size(c), c, n)
+@inline lbshr(c::SVector,n::Integer) = _lbshr(Size(c), c, n)
 
-function lbshr(c::SVector{2,UInt64}, n::Integer)
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+@inline function lbshr(c::SVector{2,UInt64}, n::Integer)
+  # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  r = n & 63 # same as above but saves a lot of time!!
+  d = r >>> 6
   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
   a = d>0 ? zero(UInt64) : c[1] >>> r
   b = d>1 ? zero(UInt64) : (d>0 ? c[1] >>>r : (c[2]>>>r | ((c[1] & mask)<< (64-r))))
