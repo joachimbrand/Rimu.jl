@@ -945,14 +945,26 @@ function Base.bitstring(ba::BitAdd{I,B}) where {I,B}
 end
 
 function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
-  if B < 30
-    print(io, "BitAdd{$B}|",bitstring(ba), "⟨")
+  if I == 1
+    print(io, "BitAdd{$B}(0b",bitstring(ba), ")")
+  # elseif I == 2
+  #   num = UInt128((UInt128(ba.chunks[1])<<64) | UInt128(ba.chunks[2]))
+  #   print(io, "BitAdd{$B}(",num,")")
   else
-    bs = bitstring(ba)
-    print(io, "BitAdd{$B}|",bs[1:10]," … ",bs[end-10:end], "⟨")
+    print(io, "BitAdd{$B}(",Tuple(ba.chunks),")")
   end
   nothing
 end
+
+# function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
+#   if B < 30
+#     print(io, "BitAdd{$B}|",bitstring(ba), "⟨")
+#   else
+#     bs = bitstring(ba)
+#     print(io, "BitAdd{$B}|",bs[1:10]," … ",bs[end-10:end], "⟨")
+#   end
+#   nothing
+# end
 
 """
     BoseBA{N,M} <: BitStringAddressType
