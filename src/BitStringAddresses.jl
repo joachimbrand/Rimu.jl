@@ -1262,9 +1262,9 @@ end
 
 
 
-# comparison delegates to BitAdd
+# comparison delegates to bs
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
-# hashing delegates to BitAdd
+# hashing delegates to bs
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.bitstring(b::BoseFS) = bitstring(b.bs)
 nchunks(::Type{BoseFS{N,M,A}}) where {N,M,A} = nchunks(A)
@@ -1277,6 +1277,7 @@ function check_consistency(b::BoseFS{N,M,A}) where {N,M,A}
   check_consistency(b.bs)
 end
 
+# performant and allocation free (if benchmarked on its own):
 function onr(bba::BoseFS{N,M,A}) where {N,M,A}
   r = zeros(MVector{M,Int})
   address = bba.bs
@@ -1288,6 +1289,19 @@ function onr(bba::BoseFS{N,M,A}) where {N,M,A}
   end
   return SVector(r)
 end
+
+# # works but is not faster
+# @generated function onr2(bba::BoseFS{N,M,A}) where {N,M,A}
+#   quote
+#     address = bba.bs
+#     t = @ntuple $M k->(
+#       bosonnumber = trailing_ones(address);
+#       address >>>= bosonnumber + 1;
+#       bosonnumber
+#     )
+#     return SVector(t)
+#   end
+# end
 
 # function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
 #   print(io, "BoseFS{$N,$M}|")

@@ -98,7 +98,7 @@ pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
 pa.laststep = 1_000
 @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
-@test sum(rdfs[:,:spawns]) == 769149
+@test sum(rdfs[:,:spawns]) == 518517
 
 bIni = BoseBA(200,200)
 svb = DVec(Dict(bIni => 20.0), 8*tw)
@@ -153,7 +153,7 @@ pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
 pa.laststep = 1_000
 @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
-@test sum(rdfs[:,:spawns]) == 534068
+@test sum(rdfs[:,:spawns]) == 685156
 
 sv = DVec(Dict(aIni => 20.0), 8*tw)
 hsv = ham(sv)
@@ -180,6 +180,13 @@ b5 = BoseBA(128,135) # needs 5 chunks
 bs5 = b5.bs
 b6 = BoseBA(128,250) # needs 6 chunks
 bs6 = b6.bs
+bfs1 = BoseFS(bs1)
+bfs2 = BoseFS(bs2)
+bfs3 = BoseFS(bs3)
+bfs4 = BoseFS(bs4)
+bfs5 = BoseFS(bs5)
+bfs6 = BoseFS(bs6)
+bfs7 = BoseFS(bs7)
 
 
 ham = BoseHubbardReal1D(
@@ -199,7 +206,7 @@ ham = BoseHubbardReal1D(
 a2 = nearUniform(ham)
 
 # BSAdd64
-@benchmark Hamiltonians.numberoccupiedsites(c1)
+@benchmark Hamiltonians.numberoccupiedsites($c1)
 @benchmark Hamiltonians.bosehubbardinteraction(c1)
 @benchmark Hamiltonians.hopnextneighbour(c1,4,17,24)
 
@@ -253,6 +260,21 @@ a2 = nearUniform(ham)
 @benchmark Hamiltonians.numberoccupiedsites($b4)
 @benchmark Hamiltonians.bosehubbardinteraction($b2)
 @benchmark Hamiltonians.hopnextneighbour($b2,4,80,128)
+
+# BoseFS
+@benchmark Hamiltonians.numberoccupiedsites($bfs1)
+@benchmark Hamiltonians.bosehubbardinteraction($bfs1)
+@benchmark Hamiltonians.hopnextneighbour($bfs1,4,17,24)
+
+@benchmark Hamiltonians.numberoccupiedsites($bfs2)
+@benchmark Hamiltonians.bosehubbardinteraction($bfs2)
+@benchmark Hamiltonians.hopnextneighbour(bfs2,4,55,74)
+@benchmark Hamiltonians.numberoccupiedsites($bfs3)
+@benchmark Hamiltonians.bosehubbardinteraction($bfs3)
+@benchmark Hamiltonians.hopnextneighbour($bfs3,4,40,105)
+@benchmark Hamiltonians.numberoccupiedsites($bfs6)
+@benchmark Hamiltonians.bosehubbardinteraction($bfs6)
+@benchmark Hamiltonians.hopnextneighbour($bfs6,4,40,105)
 
 
 # BStringAdd
@@ -319,6 +341,23 @@ ham = BoseHubbardReal1D(
     t = 1.0,
     AT = BStringAdd)
 aIni = nearUniform(ham)
+sv = DVec(Dict(aIni => 20.0), 400)
+v2 = similar(sv,150_000)
+# hsv = ham(sv)
+@benchmark ham(v2, sv)
+hsv = ham(sv)
+@benchmark ham(v2, hsv)
+
+# BoseFS with seven chunks
+n = m = 200
+aIni = BoseFS(n,m)
+ham = BoseHubbardReal1D(
+    n = n,
+    m = m,
+    u = 6.0,
+    t = 1.0,
+    AT = typeof(aIni))
+
 sv = DVec(Dict(aIni => 20.0), 400)
 v2 = similar(sv,150_000)
 # hsv = ham(sv)

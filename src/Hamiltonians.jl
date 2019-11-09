@@ -500,7 +500,7 @@ end
 #   return matrixelementint
 # end #bosehubbardinteraction
 
-
+bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(b::BoseBA) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
@@ -569,6 +569,8 @@ function ebhm(address::T, mModes) where T<:Union{Integer,BitAdd}
   return ebhmmatrixelementint , bhmmatrixelementint
 end #ebhm
 
+ebhm(b::BoseFS, m) = ebhm(b.bs, m)
+ebhm(b::BoseFS{N,M,A})  where {N,M,A} = ebhm(b, M)
 ebhm(b::BoseBA, m) = ebhm(b.bs, m)
 ebhm(b::BoseBA{N,M,I,B})  where {N,M,I,B} = ebhm(b, M)
 ebhm(adcont::BSAdd64, m) = ebhm(adcont.add, m)
@@ -628,6 +630,7 @@ end # numberoccupiedsites
 #   return mapreduce(numberoccupiedsites,+,address.chunks)
 # end
 
+numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
 numberoccupiedsites(b::BoseBA) = numberoccupiedsites(b.bs)
 # function numberoccupiedsites(address::BoseBA)
 #   orbitalnumber = 0
@@ -756,6 +759,12 @@ function hopnextneighbour(address::T, chosen::Int,
     end
   end
   return naddress, tones # return new address and product of occupation numbers
+end
+
+function hopnextneighbour(address::BoseFS{N,M,A}, chosen::Int,
+                          args...) where {N,M,A}
+  nbs, tones = hopnextneighbour(address.bs, chosen, M, N)
+  return BoseFS{N,M,A}(nbs), tones
 end
 
 function hopnextneighbour(address::BoseBA{N,M,I,B}, chosen::Int,
