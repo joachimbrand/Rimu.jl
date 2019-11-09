@@ -10,47 +10,47 @@ end
 using Rimu.BitStringAddresses
 import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
 @testset "BitStringAddresses.jl" begin
-@test_throws ErrorException bsa = BSA(0xf342564fff,30)
-bsa = BSA(0xf342564fff,40)
-check_consistency(bsa)
-bsb = remove_ghost_bits(bsa)
-check_consistency(bsb)
-check_consistency(BoseBS(bsb))
-@test_throws ErrorException bserr = BoseBS{26,16,1,40}(bsb) # wrong particle number N
-# BitAdd
-bs = BitAdd{40}(0xf342564fff)
-bs1 = BitAdd{40}(0xf342564ffd)
-bs2 = BitAdd{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
-bs3 = BitAdd{44}(0xf342564fff)
-@test bs > bs1
-@test !(bs == bs1)
-@test !(bs < bs1)
-@test bs2 > bs1
-@test bs3 > bs
-@test bs & bs1 == bs1
-@test bs | bs1 == bs
-@test bs ⊻ bs1 == BitAdd{40}(2)
-@test count_ones(bs2) == 105
-@test count_zeros(bs2) == 39
-w = BitAdd{65}((UInt(31),UInt(15)))
-@test_throws ErrorException check_consistency(w)
-@test_throws ErrorException BitAdd((UInt(31),UInt(15)),65)
-wl = BitAdd((UInt(31),UInt(15)),85)
-@test bs2 == BitAdd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
-fa = BitAdd{133}()
-@test trailing_zeros(bs<<3) == 3
-@test trailing_ones(fa) == 133
-@test trailing_ones(fa>>100) == 33
-@test trailing_zeros(fa<<100) == 100
-@test leading_zeros(fa>>130) == 130
-@test leading_ones(fa<<130) == 3
-@test bitstring(bs2) == "000011110011010000100101011001001111111111011111000000001101111111011111110111111101111111011111110111111101111111011111110111111101111111011111"
-@test repr(BoseBA(bs2)) == "BoseBA{105,40}|5\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m2\e[0m0\e[4m0\e[0m0\e[4m0\e[0m0\e[4m0\e[0m0\e[4m5\e[0m10\e[4m0\e[0m1\e[4m0\e[0m2\e[4m1\e[0m1\e[4m0\e[0m1\e[4m0\e[0m0\e[4m0\e[0m1\e[4m2\e[0m0\e[4m4\e[0m0\e[4m0\e[0m0\e[4m0\e[0m⟩"
-@test onr(BoseBA(bs)) == [12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4]
-os = BoseBA([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
-@test os == BoseBA(bs)
-@test hash(os) == hash(BoseBA(bs))
-@test os.bs == bs
+    @test_throws ErrorException bsa = BSA(0xf342564fff,30)
+    bsa = BSA(0xf342564fff,40)
+    check_consistency(bsa)
+    bsb = remove_ghost_bits(bsa)
+    check_consistency(bsb)
+    check_consistency(BoseBS(bsb))
+    @test_throws ErrorException bserr = BoseBS{26,16,1,40}(bsb) # wrong particle number N
+    # BitAdd
+    bs = BitAdd{40}(0xf342564fff)
+    bs1 = BitAdd{40}(0xf342564ffd)
+    bs2 = BitAdd{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
+    bs3 = BitAdd{44}(0xf342564fff)
+    @test bs > bs1
+    @test !(bs == bs1)
+    @test !(bs < bs1)
+    @test bs2 > bs1
+    @test bs3 > bs
+    @test bs & bs1 == bs1
+    @test bs | bs1 == bs
+    @test bs ⊻ bs1 == BitAdd{40}(2)
+    @test count_ones(bs2) == 105
+    @test count_zeros(bs2) == 39
+    w = BitAdd{65}((UInt(31),UInt(15)))
+    @test_throws ErrorException check_consistency(w)
+    @test_throws ErrorException BitAdd((UInt(31),UInt(15)),65)
+    wl = BitAdd((UInt(31),UInt(15)),85)
+    @test bs2 == BitAdd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
+    fa = BitAdd{133}()
+    @test trailing_zeros(bs<<3) == 3
+    @test trailing_ones(fa) == 133
+    @test trailing_ones(fa>>100) == 33
+    @test trailing_zeros(fa<<100) == 100
+    @test leading_zeros(fa>>130) == 130
+    @test leading_ones(fa<<130) == 3
+    @test bitstring(bs2) == "000011110011010000100101011001001111111111011111000000001101111111011111110111111101111111011111110111111101111111011111110111111101111111011111"
+    @test repr(BoseBA(bs2)) == "BoseBA{105,40}|5\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m2\e[0m0\e[4m0\e[0m0\e[4m0\e[0m0\e[4m0\e[0m0\e[4m5\e[0m10\e[4m0\e[0m1\e[4m0\e[0m2\e[4m1\e[0m1\e[4m0\e[0m1\e[4m0\e[0m0\e[4m0\e[0m1\e[4m2\e[0m0\e[4m4\e[0m0\e[4m0\e[0m0\e[4m0\e[0m⟩"
+    @test onr(BoseBA(bs)) == [12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4]
+    os = BoseBA([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
+    @test os == BoseBA(bs)
+    @test hash(os) == hash(BoseBA(bs))
+    @test os.bs == bs
 end
 
 using Rimu.FastBufs
@@ -203,7 +203,7 @@ StochasticStyle(svec)
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-@test sum(rdfs[:,:spawns]) == 1894
+@test sum(rdfs[:,:spawns]) == 1855
 
 # fciqmc with delayed shift update
 pa = RunTillLastStep(laststep = 100)
@@ -213,7 +213,7 @@ StochasticStyle(svec)
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 @time rdfs = fciqmc!(vs, pa, ham, s)
-@test sum(rdfs[:,:spawns]) == 3682
+@test sum(rdfs[:,:spawns]) == 3609
 
 # replica fciqmc
 tup1 = (copy(svec),copy(svec))
@@ -221,7 +221,7 @@ s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
 pb = RunTillLastStep(laststep = 100)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 @time rr = fciqmc!(tup1, ham, pb, s)
-@test sum(rr[1][:,:xHy]) ≈ -17526.83227211231
+@test sum(rr[1][:,:xHy]) ≈ -16311.263935435443
 end
 
 @testset "dfvec.jl" begin
