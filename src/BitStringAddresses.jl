@@ -1118,54 +1118,132 @@ function BoseFS(n::Integer, m::Integer, ::Type{T}) where T
   fillingfactor, extras = divrem(n, m)
   startonr = fill(fillingfactor,m)
   startonr[1:extras] += ones(Int, extras)
-  return BoseFS(startonr, T)
+  return BoseFS{T}(startonr)
 end
 
 function BoseFS(n::Integer, m::Integer)
-  bits = n+m-1
-  if bits ≤ 64
-    return BoseFS(n, m, BSAdd64)
-  elseif bits ≤ 128
-    return BoseFS(n, m, BSAdd128)
-  else
-    return BoseFS(n, m, BitAdd)
-  end
+  fillingfactor, extras = divrem(n, m)
+  startonr = fill(fillingfactor,m)
+  startonr[1:extras] += ones(Int, extras)
+  return BoseFS(startonr)
 end
+
+# function BoseFS(n::Integer, m::Integer)
+#   bits = n+m-1
+#   if bits ≤ 64
+#     return BoseFS(n, m, BSAdd64)
+#   elseif bits ≤ 128
+#     return BoseFS(n, m, BSAdd128)
+#   else
+#     return BoseFS(n, m, BitAdd)
+#   end
+# end
 # slow due to type instability
-function BoseFS(onr::AbstractVector{T}, ::Type{BitAdd}) where {T<:Integer}
+# function BoseFS(onr::AbstractVector{T}, ::Type{BitAdd}) where {T<:Integer}
+#   m = length(onr)
+#   n = Int(sum(onr))
+#   b = n + m - 1
+#   bs = BitAdd{b}(0) # empty bitstring
+#   for on in reverse(onr)
+#     bs <<= on+1
+#     bs |= BitAdd{b}()>>(b-on)
+#   end
+#   return BoseFS(bs)
+#   # i = (b-1) ÷ 64 +1
+#   # return BoseFS{n,m,i,b}(onr)
+# end
+# function BoseFS(onr::AbstractVector{T}, ::Type{BSAdd128}) where {T<:Integer}
+#   m = length(onr)
+#   n = Int(sum(onr))
+#   b = n + m - 1
+#   b > 128 && throw(BoundsError(BSAdd128(0),b))
+#   bs = zero(UInt128) # empty bitstring
+#   for on in reverse(onr)
+#     bs <<= on+1
+#     bs |= ~zero(UInt128)>>(128-on)
+#   end
+#   return BoseFS{n,m,BSAdd128}(BSAdd128(bs))
+# end
+# function BoseFS(onr::AbstractVector{T}, ::Type{BSAdd64}) where {T<:Integer}
+#   m = length(onr)
+#   n = Int(sum(onr))
+#   b = n + m - 1
+#   b > 64 && throw(BoundsError(BSAdd64(0),b))
+#   bs = zero(UInt64) # empty bitstring
+#   for on in reverse(onr)
+#     bs <<= on+1
+#     bs |= ~zero(UInt64)>>(64-on)
+#   end
+#   return BoseFS{n,m,BSAdd64}(BSAdd64(bs))
+# end
+
+# BoseFS{A}(onr::AbstractVector) where A = BoseFS(onr,A)
+
+"""
+    BoseFS(onr::T) where T<:Union{AbstractVector,Tuple}
+    BoseFS{BST}(onr::T)
+Create `BoseFS` address from an occupation number representation, specifying
+the occupation number of each orbital.
+If a type `BST` is given it will define the underlying
+bit string type. Otherwise, the bit string type is chosen to fit the `onr`.
+"""
+function BoseFS(onr::T) where T<:Union{AbstractVector,Tuple}
   m = length(onr)
   n = Int(sum(onr))
   b = n + m - 1
-  bs = BitAdd{b}(0) # empty bitstring
-  for on in reverse(onr)
-    bs <<= on+1
-    bs |= BitAdd{b}()>>(b-on)
+  if b ≤ 64
+    A = BSAdd64
+  elseif b ≤ 128
+    A = BSAdd128
+  else
+    A = BitAdd
   end
-  return BoseFS(bs)
-  # i = (b-1) ÷ 64 +1
-  # return BoseFS{n,m,i,b}(onr)
+  BoseFS{A}(onr,Val(n),Val(m),Val(b))
 end
-function BoseFS(onr::AbstractVector{T}, ::Type{BSAdd128}) where {T<:Integer}
+
+function BoseFS{A}(onr::T) where {A, T<:Union{AbstractVector,Tuple}}
   m = length(onr)
   n = Int(sum(onr))
   b = n + m - 1
-  bs = zero(UInt128) # empty bitstring
-  for on in reverse(onr)
-    bs <<= on+1
-    bs |= ~zero(UInt128)>>(128-on)
+  BoseFS{A}(onr,Val(n),Val(m),Val(b))
+end
+
+# This constructor is performant!!
+@inline function BoseFS{BSAdd64}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
+  @boundscheck begin
+    B > 64 && throw(BoundsError(BSAdd64(0),B))
+    N + M - 1 == B || @error "Inconsistency in constructor BoseBS"
   end
-  return BoseFS{n,m,BSAdd128}(BSAdd128(bs))
-end
-function BoseFS(onr::AbstractVector{T}, ::Type{BSAdd64}) where {T<:Integer}
-  m = length(onr)
-  n = Int(sum(onr))
-  b = n + m - 1
   bs = zero(UInt64) # empty bitstring
   for on in reverse(onr)
     bs <<= on+1
     bs |= ~zero(UInt64)>>(64-on)
   end
-  return BoseFS{n,m,BSAdd64}(BSAdd64(bs))
+  return BoseFS{N,M,BSAdd64}(BSAdd64(bs))
+end
+
+@inline function BoseFS{BSAdd128}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
+  @boundscheck begin
+    B > 128 && throw(BoundsError(BSAdd128(0),B))
+    N + M - 1 == B || @error "Inconsistency in constructor BoseBS"
+  end
+  bs = zero(UInt128) # empty bitstring
+  for on in reverse(onr)
+    bs <<= on+1
+    bs |= ~zero(UInt128)>>(128-on)
+  end
+  return BoseFS{N,M,BSAdd128}(BSAdd128(bs))
+end
+
+@inline function BoseFS{BitAdd}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
+  @boundscheck  N + M - 1 == B || @error "Inconsistency in constructor BoseBS"
+  bs = BitAdd{B}(0) # empty bitstring
+  for on in reverse(onr)
+    bs <<= on+1
+    bs |= BitAdd{B}()>>(B-on)
+  end
+  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
+  return BoseFS{N,M,BitAdd{I,B}}(bs)
 end
 
 # # typestable and quite fast (with SVector faster than with Vector)
@@ -1211,16 +1289,35 @@ function onr(bba::BoseFS{N,M,A}) where {N,M,A}
   return SVector(r)
 end
 
+# function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
+#   print(io, "BoseFS{$N,$M}|")
+#   r = onr(b)
+#   for (i,bn) in enumerate(r)
+#     isodd(i) ? print(io, bn) : print(io, "\x1b[4m",bn,"\x1b[0m")
+#     # using ANSI escape sequence for underline,
+#     # see http://jafrog.com/2013/11/23/colors-in-terminal.html
+#     i ≥ M && break
+#   end
+#   print(io, "⟩")
+# end
 function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
-  print(io, "BoseFS{$N,$M}|")
-  r = onr(b)
-  for (i,bn) in enumerate(r)
-    isodd(i) ? print(io, bn) : print(io, "\x1b[4m",bn,"\x1b[0m")
-    # using ANSI escape sequence for underline,
-    # see http://jafrog.com/2013/11/23/colors-in-terminal.html
-    i ≥ M && break
+  print(io, "BoseFS")
+  if A <: BSAdd64
+    print(io, "{BSAdd64}")
+  elseif A <: BSAdd128
+    print(io, "{BSAdd128}")
+  elseif A <: BitAdd
+    print(io, "{BitAdd}")
+  else
+    print(io, "{$A}")
   end
-  print(io, "⟩")
+  print(io, "((")
+  for (i, on) in enumerate(onr(b))
+    print(io, on)
+    i ≥ M && break
+    print(io, ",")
+  end
+  print(io, "))")
 end
 
 
