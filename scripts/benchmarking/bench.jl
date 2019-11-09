@@ -294,3 +294,34 @@ v2 = similar(sv,150_000)
 @benchmark ham(v2, sv)
 hsv = ham(sv)
 @benchmark ham(v2, hsv)
+
+# BoseBA with seven chunks
+aIni = b7
+ham = BoseHubbardReal1D(
+    n = 200,
+    m = 200,
+    u = 6.0,
+    t = 1.0,
+    AT = typeof(aIni))
+
+sv = DVec(Dict(aIni => 20.0), 400)
+v2 = similar(sv,150_000)
+# hsv = ham(sv)
+@benchmark ham(v2, sv)
+hsv = ham(sv)
+@benchmark ham(v2, hsv)
+
+# BStringAdd with seven chunks
+ham = BoseHubbardReal1D(
+    n = 200,
+    m = 200,
+    u = 6.0,
+    t = 1.0,
+    AT = BStringAdd)
+aIni = nearUniform(ham)
+sv = DVec(Dict(aIni => 20.0), 400)
+v2 = similar(sv,150_000)
+# hsv = ham(sv)
+@benchmark ham(v2, sv)
+hsv = ham(sv)
+@benchmark ham(v2, hsv)

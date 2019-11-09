@@ -5,6 +5,7 @@ Module with types and methods pertaining to bitstring addresses.
 module BitStringAddresses
 
 using StaticArrays
+using Base.Cartesian
 
 import Base: isless, zero, iszero, show, ==, hash
 
@@ -648,7 +649,7 @@ end
 
 Base.zero(::Type{BitAdd{I,B}}) where {I,B} = BitAdd{B}(0)
 Base.zero(b::BitAdd) = zero(typeof(b))
-Base.hash(b::BitAdd,  h::UInt) = hash(b.chunks, h)
+Base.hash(b::BitAdd,  h::UInt) = hash(b.chunks.data, h)
 
 function check_consistency(a::BitAdd{I,B}) where {I,B}
   (d,lp) = divrem((B-1), 64) .+ 1 # bit position of leftmost bit in first chunk
@@ -698,40 +699,77 @@ Base.count_zeros(a::BitAdd{I,B}) where {I,B} = B - count_ones(a)
     >>>(b::BitAdd,n::Integer)
 Bitshift `b` to the right by `n` bits and fill from the left with zeros.
 """
-function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
-  # we assume there are no ghost bits
-  if I == 1
-    return BitAdd{B}((b.chunks[1]>>>n,))
-  elseif I == 2 || I ==3
-    # println("say Hi!")
-    return  BitAdd{B}(lbshr(b.chunks, n))
-  end
-  # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  r = n & 63 # same as above but saves a lot of time!!
-  d = n >>> 6
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  a = zeros(MVector{I,UInt64})
-  I-d > 0 && (a[d+1] = b.chunks[1]>>>r) # no carryover for leftmost chunk
-  for i = 2:(I-d) # shift chunks and `or` carryover
-    a[d+i] = (b.chunks[i]>>>r) | ((b.chunks[i-1] & mask) << (64-r) )
-  end
-  return BitAdd{B}(SVector(a))
+@inline function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
+  return BitAdd{B}(lbshr(b.chunks,n)) # devolve to shifting SVector
 end
+
+# function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
+#   # we assume there are no ghost bits
+#   if I == 1
+#     return BitAdd{B}((b.chunks[1]>>>n,))
+#   elseif I == 2 || I ==3
+#     # println("say Hi!")
+#     return  BitAdd{B}(lbshr(b.chunks, n))
+#   end
+#   # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+#   r = n & 63 # same as above but saves a lot of time!!
+#   d = n >>> 6
+#   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+#   a = zeros(MVector{I,UInt64})
+#   I-d > 0 && (a[d+1] = b.chunks[1]>>>r) # no carryover for leftmost chunk
+#   for i = 2:(I-d) # shift chunks and `or` carryover
+#     a[d+i] = (b.chunks[i]>>>r) | ((b.chunks[i-1] & mask) << (64-r) )
+#   end
+#   return BitAdd{B}(SVector(a))
+# end
 
 (>>)(b::BitAdd,n::Integer) = b >>> n
 
-# @inline lbshr(c::SVector,n::Integer) = _lbshr(Size(c), c, n)
-
-@inline function lbshr(c::SVector{2,UInt64}, n::Integer)
-  # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  r = n & 63 # same as above but saves a lot of time!!
-  d = n >>> 6
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  a = d>0 ? zero(UInt64) : c[1] >>> r
-  b = d>1 ? zero(UInt64) : (d>0 ? c[1] >>>r : (c[2]>>>r | ((c[1] & mask)<< (64-r))))
-  return SVector(a,b)
+"""
+    lbshr(c,k)
+Apply logical bit shift to the right by `k` bits to `c`.
+"""
+@generated function lbshr(c::SVector{N,I}, k) where {N,I}
+  # this generated function produces code at compile time that is specific
+  # to the dimension `N` of `c` and thus avoids stack allocations completely.
+  # println("gen N = $N, k = $k, I = $I")
+  nplus1 = N + 1
+  # println("gen nplus1 = $nplus1")
+  quote
+    $(Expr(:meta, :inline))
+    r = k & 63 # same as above but saves a lot of time!!
+    d = k >>> 6
+    ri = 64-r
+    mask = ~0 >>> ri # 2^r-1 # 0b0...01...1 with `r` 1s
+    # println("quote N = $N, d = $d")
+    # @nif generates a sequence of if ... ifelse ... else statments with `N`
+    # branches
+    @nif $nplus1 l->(d < l) l->(
+          # println("d = $d; l = ",l);
+          # return  zero(SVector{l-1,UInt64})
+          SVector((@ntuple l-1 k->zero($I))... ,c[1] >>>r,
+            # (@ntuple $N-l q -> q)...
+            (@ntuple $N-l q -> (c[q+1]>>>r | ((c[q] & mask)<<ri)))...
+          )
+        ) l->(
+          # println("d = $d; All OK, N = $N, l = ",l);
+          return zero(SVector{$N,$I})
+    )
+  end
 end
 
+## specific version for 2 chunks
+# @inline function lbshr(c::SVector{2,UInt64}, n::Integer)
+#   # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+#   r = n & 63 # same as above but saves a lot of time!!
+#   d = n >>> 6
+#   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+#   a = d>0 ? zero(UInt64) : c[1] >>> r
+#   b = d>1 ? zero(UInt64) : (d>0 ? c[1] >>>r : (c[2]>>>r | ((c[1] & mask)<< (64-r))))
+#   return SVector(a,b)
+# end
+
+## specific version for 3 chunks; slightly slower than the below version
 # @inline function lbshr(c::SVector{3,UInt64}, k::Integer)
 #   # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
 #   r = k & 63 # same as above but saves a lot of time!!
@@ -744,26 +782,20 @@ end
 #   return SVector(s1,s2,s3)
 # end
 
-@inline function lbshr(c::SVector{3,UInt64}, k::Integer)
-  # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  r = k & 63 # same as above but saves a lot of time!!
-  d = k >>> 6
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  if d > 2
-    return zero(SVector{3,UInt64})
-  elseif d > 1
-    return SVector(zero(UInt64), zero(UInt64), c[1] >>> r)
-  elseif d > 0
-    return SVector(zero(UInt64), c[1] >>> r, (c[2]>>>r | ((c[1] & mask)<< (64-r))))
-  end
-  return SVector(c[1] >>>r, (c[2]>>>r | ((c[1] & mask)<< (64-r))), (c[3]>>>r | ((c[2] & mask)<< (64-r))))
-end
-
-# @generated function lbshr(c::SVector{N,UInt64}, k::Integer) where N
-#   rex = :(r = k & 63)
-#   dex = :(d = k >>> 6)
-#   mex = :(m = ~0 >>> (64-$rex))
-#   leftex =  :()
+## specific version for 3 chunks
+# @inline function lbshr(c::SVector{3,UInt64}, k::Integer)
+#   # d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+#   r = k & 63 # same as above but saves a lot of time!!
+#   d = k >>> 6
+#   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+#   if d > 2
+#     return zero(SVector{3,UInt64})
+#   elseif d > 1
+#     return SVector(zero(UInt64), zero(UInt64), c[1] >>> r)
+#   elseif d > 0
+#     return SVector(zero(UInt64), c[1] >>> r, (c[2]>>>r | ((c[1] & mask)<< (64-r))))
+#   end
+#   return SVector(c[1] >>>r, (c[2]>>>r | ((c[1] & mask)<< (64-r))), (c[3]>>>r | ((c[2] & mask)<< (64-r))))
 # end
 
 """
@@ -772,6 +804,8 @@ Bitshift `b` to the left by `n` bits and fill from the right with zeros.
 """
 <<(b::BitAdd{I,B},n::Integer) where {I,B} = remove_ghost_bits(unsafe_shift_left(b,n))
 
+## this is still memory allocating for `I>3`.
+# TODO: rewrite this as generated function
 function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
   if I == 1
     return BitAdd{B}((b.chunks[1]<<n,))
