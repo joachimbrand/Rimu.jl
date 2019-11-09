@@ -9,9 +9,11 @@ using Base.Cartesian
 
 import Base: isless, zero, iszero, show, ==, hash
 
-export BitStringAddressType, BSAdd64, BSAdd128, BStringAdd, BSAdd
-export BSA, BoseBS, BitAdd, BoseBA, onr
-export occupationnumberrepresentation, bitaddr, maxBSLength
+export BitStringAddressType, BSAdd64, BSAdd128
+export BitAdd, BoseBA, onr, BoseFS
+# export nbits, nchunks, nparticles, nmodes # consider
+export BStringAdd, BSAdd, BSA, BoseBS # deprecate
+export occupationnumberrepresentation, bitaddr, maxBSLength # deprecate
 
 
 """
@@ -141,6 +143,10 @@ Base.trailing_zeros(a::BSAdd64) = trailing_zeros(a.add)
 import Base: <<, >>>, >>, ⊻, &, |
 (>>>)(a::BSAdd64, n::Integer) = BSAdd64(a.add >>> n)
 
+nchunks(::Type{BSAdd64}) = 1
+nbits(::Type{BSAdd64}) = 64
+Base.bitstring(a::BSAdd64) = bitstring(a.add)
+
 """
     BSAdd128 <: BitStringAddressType
 
@@ -162,6 +168,9 @@ Base.trailing_zeros(a::BSAdd128) = trailing_zeros(a.add)
 import Base: <<, >>>, >>, ⊻, &, |
 (>>>)(a::BSAdd128, n::Integer) = BSAdd128(a.add >>> n)
 
+nchunks(::Type{BSAdd128}) = 1
+nbits(::Type{BSAdd128}) = 128
+Base.bitstring(a::BSAdd128) = bitstring(a.add)
 
 """
     BSAdd{I,B} <: BitStringAddressType
@@ -1181,12 +1190,12 @@ Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.bitstring(b::BoseFS) = bitstring(b.bs)
 nchunks(::Type{BoseFS{N,M,A}}) where {N,M,A} = nchunks(A)
-nbits(::Type{BoseFS{N,M,A}}) where {N,M,A} = nbits(A)
+nbits(::Type{BoseFS{N,M,A}}) where {N,M,A} = N+M-1 # generally true for bosons
 nparticles(::Type{BoseFS{N,M,A}}) where {N,M,A} = N
 nmodes(::Type{BoseFS{N,M,A}}) where {N,M,A} = M
 
 function check_consistency(b::BoseFS{N,M,A}) where {N,M,A}
-  N+M-1 ≤ nbits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), nbits(A) = $(nbits(A))")
+  nbits(b) ≤ nbits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), nbits(A) = $(nbits(A))")
   check_consistency(b.bs)
 end
 
