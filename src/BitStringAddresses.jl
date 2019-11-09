@@ -1072,58 +1072,58 @@ Base.hash(bba::BoseBA,  h::UInt) = hash(bba.bs, h)
 
 #################################
 """
-    BosonFS{N,M,A} <: BitStringAddressType
-    BosonFS(bs::A, N = nparticles(A), M = nmodes(A))
+    BoseFS{N,M,A} <: BitStringAddressType
+    BoseFS(bs::A, N = nparticles(A), M = nmodes(A))
 
 Address type that represents a Fock state of `N` spinless bosons in `M` orbitals
 by wrapping a bitstring of type `A`. Orbitals are stored in reverse
 order, i.e. the first orbital in a `BoseBA` is stored rightmost in the
 bitstring `bs`.
 """
-struct BosonFS{N,M,A} <: BitStringAddressType
+struct BoseFS{N,M,A} <: BitStringAddressType
   bs::A
 end
 
-BosonFS{N,M}(bs::A) where {N,M,A} = BosonFS{N,M,A}(bs) # slow - not sure why
+BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs) # slow - not sure why
 
-function BosonFS(bs::A, n=nparticles(bs), m=nmodes(bs)) where A <: BitStringAddressType
-  bfs = BosonFS{n,m,A}(bs)
+function BoseFS(bs::A, n=nparticles(bs), m=nmodes(bs)) where A <: BitStringAddressType
+  bfs = BoseFS{n,m,A}(bs)
   check_consistency(bfs)
   return bfs
 end
 
-function BosonFS(bs::BitAdd{I,B}) where {B,I}
+function BoseFS(bs::BitAdd{I,B}) where {B,I}
   n = count_ones(bs)
   m = B - n + 1
-  return BosonFS{n,m,BitAdd{I,B}}(bs)
+  return BoseFS{n,m,BitAdd{I,B}}(bs)
 end
 # create a BoseBA address with near uniform dist
 # slow due to type instability
 """
-    BosonFS(n::Integer, m::Integer[, BST::Type])
-Create `BosonFS` address with near uniform distribution of `n` particles
+    BoseFS(n::Integer, m::Integer[, BST::Type])
+Create `BoseFS` address with near uniform distribution of `n` particles
 across `m` modes. If a type `BST` is given it will define the underlying
 bit string type. Otherwise, the bit string type is chosen automatically.
 """
-function BosonFS(n::Integer, m::Integer, ::Type{T}) where T
+function BoseFS(n::Integer, m::Integer, ::Type{T}) where T
   fillingfactor, extras = divrem(n, m)
   startonr = fill(fillingfactor,m)
   startonr[1:extras] += ones(Int, extras)
-  return BosonFS(startonr, T)
+  return BoseFS(startonr, T)
 end
 
-function BosonFS(n::Integer, m::Integer)
+function BoseFS(n::Integer, m::Integer)
   bits = n+m-1
   if bits ≤ 64
-    return BosonFS(n, m, BSAdd64)
+    return BoseFS(n, m, BSAdd64)
   elseif bits ≤ 128
-    return BosonFS(n, m, BSAdd128)
+    return BoseFS(n, m, BSAdd128)
   else
-    return BosonFS(n, m, BitAdd)
+    return BoseFS(n, m, BitAdd)
   end
 end
 # slow due to type instability
-function BosonFS(onr::AbstractVector{T}, ::Type{BitAdd}) where {T<:Integer}
+function BoseFS(onr::AbstractVector{T}, ::Type{BitAdd}) where {T<:Integer}
   m = length(onr)
   n = Int(sum(onr))
   b = n + m - 1
@@ -1132,11 +1132,11 @@ function BosonFS(onr::AbstractVector{T}, ::Type{BitAdd}) where {T<:Integer}
     bs <<= on+1
     bs |= BitAdd{b}()>>(b-on)
   end
-  return BosonFS(bs)
+  return BoseFS(bs)
   # i = (b-1) ÷ 64 +1
-  # return BosonFS{n,m,i,b}(onr)
+  # return BoseFS{n,m,i,b}(onr)
 end
-function BosonFS(onr::AbstractVector{T}, ::Type{BSAdd128}) where {T<:Integer}
+function BoseFS(onr::AbstractVector{T}, ::Type{BSAdd128}) where {T<:Integer}
   m = length(onr)
   n = Int(sum(onr))
   b = n + m - 1
@@ -1145,9 +1145,9 @@ function BosonFS(onr::AbstractVector{T}, ::Type{BSAdd128}) where {T<:Integer}
     bs <<= on+1
     bs |= ~zero(UInt128)>>(128-on)
   end
-  return BosonFS{n,m,BSAdd128}(BSAdd128(bs))
+  return BoseFS{n,m,BSAdd128}(BSAdd128(bs))
 end
-function BosonFS(onr::AbstractVector{T}, ::Type{BSAdd64}) where {T<:Integer}
+function BoseFS(onr::AbstractVector{T}, ::Type{BSAdd64}) where {T<:Integer}
   m = length(onr)
   n = Int(sum(onr))
   b = n + m - 1
@@ -1156,11 +1156,11 @@ function BosonFS(onr::AbstractVector{T}, ::Type{BSAdd64}) where {T<:Integer}
     bs <<= on+1
     bs |= ~zero(UInt64)>>(64-on)
   end
-  return BosonFS{n,m,BSAdd64}(BSAdd64(bs))
+  return BoseFS{n,m,BSAdd64}(BSAdd64(bs))
 end
 
 # # typestable and quite fast (with SVector faster than with Vector)
-# function BosonFS{N,M,I,B}(onr::AbstractVector{T}) where {N,M,I,B,T<:Integer}
+# function BoseFS{N,M,I,B}(onr::AbstractVector{T}) where {N,M,I,B,T<:Integer}
 #   M ≥ length(onr) || error("M inconsistency")
 #   N == Int(sum(onr)) || error("N inconsistency")
 #   B == N + M - 1 ||  error("B inconsistency")
@@ -1170,27 +1170,27 @@ end
 #     bs <<= on+1
 #     bs |= BitAdd{B}()>>(B-on)
 #   end
-#   return BosonFS{N,M,BitAdd{I,B}}(bs)
+#   return BoseFS{N,M,BitAdd{I,B}}(bs)
 # end
 
 
 
 # comparison delegates to BitAdd
-Base.isless(a::BosonFS, b::BosonFS) = isless(a.bs, b.bs)
+Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 # hashing delegates to BitAdd
-Base.hash(bba::BosonFS,  h::UInt) = hash(bba.bs, h)
-Base.bitstring(b::BosonFS) = bitstring(b.bs)
-nchunks(::Type{BosonFS{N,M,A}}) where {N,M,A} = nchunks(A)
-nbits(::Type{BosonFS{N,M,A}}) where {N,M,A} = nbits(A)
-nparticles(::Type{BosonFS{N,M,A}}) where {N,M,A} = N
-nmodes(::Type{BosonFS{N,M,A}}) where {N,M,A} = M
+Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
+Base.bitstring(b::BoseFS) = bitstring(b.bs)
+nchunks(::Type{BoseFS{N,M,A}}) where {N,M,A} = nchunks(A)
+nbits(::Type{BoseFS{N,M,A}}) where {N,M,A} = nbits(A)
+nparticles(::Type{BoseFS{N,M,A}}) where {N,M,A} = N
+nmodes(::Type{BoseFS{N,M,A}}) where {N,M,A} = M
 
-function check_consistency(b::BosonFS{N,M,A}) where {N,M,A}
+function check_consistency(b::BoseFS{N,M,A}) where {N,M,A}
   N+M-1 ≤ nbits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), nbits(A) = $(nbits(A))")
   check_consistency(b.bs)
 end
 
-function onr(bba::BosonFS{N,M,A}) where {N,M,A}
+function onr(bba::BoseFS{N,M,A}) where {N,M,A}
   r = zeros(MVector{M,Int})
   address = bba.bs
   for orbitalnumber in 1:M
@@ -1202,8 +1202,8 @@ function onr(bba::BosonFS{N,M,A}) where {N,M,A}
   return SVector(r)
 end
 
-function Base.show(io::IO, b::BosonFS{N,M,A}) where {N,M,A}
-  print(io, "BosonFS{$N,$M}|")
+function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
+  print(io, "BoseFS{$N,$M}|")
   r = onr(b)
   for (i,bn) in enumerate(r)
     isodd(i) ? print(io, bn) : print(io, "\x1b[4m",bn,"\x1b[0m")
