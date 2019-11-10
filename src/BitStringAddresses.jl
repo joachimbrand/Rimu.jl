@@ -10,9 +10,10 @@ using Base.Cartesian
 import Base: isless, zero, iszero, show, ==, hash
 
 export BitStringAddressType, BSAdd64, BSAdd128
-export BitAdd, BoseBA, onr, BoseFS
+export BitAdd, BoseFS
+export onr, nearUniform
 # export nbits, nchunks, nparticles, nmodes # consider
-export BStringAdd, BSAdd, BSA, BoseBS # deprecate
+export BStringAdd, BSAdd, BSA, BoseBS, BoseBA # deprecate
 export occupationnumberrepresentation, bitaddr, maxBSLength # deprecate
 
 
@@ -1118,27 +1119,27 @@ function BoseFS(bs::BitAdd{I,B}) where {B,I}
   m = B - n + 1
   return BoseFS{n,m,BitAdd{I,B}}(bs)
 end
-# create a BoseBA address with near uniform dist
-# slow due to type instability
-"""
-    BoseFS(n::Integer, m::Integer[, BST::Type])
-Create `BoseFS` address with near uniform distribution of `n` particles
-across `m` modes. If a type `BST` is given it will define the underlying
-bit string type. Otherwise, the bit string type is chosen automatically.
-"""
-function BoseFS(n::Integer, m::Integer, ::Type{T}) where T
-  fillingfactor, extras = divrem(n, m)
-  startonr = fill(fillingfactor,m)
-  startonr[1:extras] += ones(Int, extras)
-  return BoseFS{T}(startonr)
-end
-
-function BoseFS(n::Integer, m::Integer)
-  fillingfactor, extras = divrem(n, m)
-  startonr = fill(fillingfactor,m)
-  startonr[1:extras] += ones(Int, extras)
-  return BoseFS(startonr)
-end
+# # create a BoseBA address with near uniform dist
+# # slow due to type instability
+# """
+#     BoseFS(n::Integer, m::Integer[, BST::Type])
+# Create `BoseFS` address with near uniform distribution of `n` particles
+# across `m` modes. If a type `BST` is given it will define the underlying
+# bit string type. Otherwise, the bit string type is chosen automatically.
+# """
+# function BoseFS(n::Integer, m::Integer, ::Type{T}) where T
+#   fillingfactor, extras = divrem(n, m)
+#   startonr = fill(fillingfactor,m)
+#   startonr[1:extras] += ones(Int, extras)
+#   return BoseFS{T}(startonr)
+# end
+#
+# function BoseFS(n::Integer, m::Integer)
+#   fillingfactor, extras = divrem(n, m)
+#   startonr = fill(fillingfactor,m)
+#   startonr[1:extras] += ones(Int, extras)
+#   return BoseFS(startonr)
+# end
 
 # function BoseFS(n::Integer, m::Integer)
 #   bits = n+m-1
@@ -1315,6 +1316,42 @@ end
 #   end
 # end
 
+"""
+    nearUniform(Val(N),Val(M)) -> onr::SVector{M,Int}
+Create occupation number representation distributing `N` particles in `M` modes
+in a close-to-uniform fashion with each orbital filled with at least
+`N ÷ M` particles and at most with `N ÷ M + 1` particles.
+"""
+function nearUniform(::Val{N}, ::Val{M}) where {N, M}
+  fillingfactor, extras = divrem(N, M)
+  # startonr = fill(fillingfactor,M)
+  startonr = fillingfactor * @MVector ones(Int,M)
+  startonr[1:extras] += ones(Int, extras)
+  return SVector{M}(startonr)
+end
+
+"""
+    nearUniform(BoseFS{N,M})
+    nearUniform(BoseFS{N,M,A}) -> bfs::BoseFS{N,M,A}
+Create bosonic Fock state with near uniform occupation number of `M` modes with
+a total of `N` particles. Specifying the bit address type `A` is optional.
+
+# Examples
+```jldoctest
+julia> nearUniform(BoseFS{7,5,BitAdd})
+BoseFS{BitAdd}((2,2,1,1,1))
+
+julia> nearUniform(BoseFS{7,5})
+BoseFS{BSAdd64}((2,2,1,1,1))
+```
+"""
+function nearUniform(::Type{BoseFS{N,M,A}}) where {N,M,A}
+  return BoseFS{A}(nearUniform(Val(N),Val(M)),Val(N),Val(M),Val(N+M-1))
+end
+function nearUniform(::Type{BoseFS{N,M}}) where {N,M}
+  return BoseFS(nearUniform(Val(N),Val(M)))
+end
+
 # function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
 #   print(io, "BoseFS{$N,$M}|")
 #   r = onr(b)
@@ -1346,7 +1383,6 @@ function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
   print(io, "))")
 end
 
-
 #################################
 #
 # some functions for operating on addresses
@@ -1369,6 +1405,9 @@ function bitaddr(onr, ::Type{T}) where T<: Integer
   end
   return address
 end
+
+bitaddr(onr, ::Type{BoseFS})  = BoseFS(onr)
+bitaddr(onr, ::Type{BoseFS{N,M,A}}) where {N,M,A}  = BoseFS{A}(onr)
 
 bitaddr(onr, ::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = BoseBA{N,M,I,B}(onr)
 bitaddr(onr, ::Type{BoseBA})  = BoseBA(onr)

@@ -225,7 +225,7 @@ seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 end
 
 @testset "fciqmc with BoseFS" begin
-aIni = BoseFS(9,9)
+aIni = nearUniform(BoseFS{9,9})
 ham = BoseHubbardReal1D(
     n = 9,
     m = 9,
@@ -264,7 +264,7 @@ seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 # large bit string
 n = 200
 m = 200
-aIni = BoseFS(n,m)
+aIni = nearUniform(BoseFS{n,m})
 ham = BoseHubbardReal1D(
     n = n,
     m = m,

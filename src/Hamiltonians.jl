@@ -19,7 +19,6 @@ export LinearOperator, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
 
 export BosonicHamiltonian, numParticles, numModes, bit_String_Length
-export nearUniform
 export BoseHubbardReal1D, ExtendedBHReal1D
 
 # First we have some generic types and methods for any linear operator
@@ -233,7 +232,7 @@ logbinomialapprox(n,k) =
 Create bitstring address with near uniform distribution of particles
 across modes for the Hamiltonian `ham`.
 """
-function nearUniform(h::BosonicHamiltonian)
+function BitStringAddresses.nearUniform(h::BosonicHamiltonian)
     fillingfactor, extras = divrem(h.n, h.m)
     startonr = fill(fillingfactor,h.m)
     startonr[1:extras] += ones(Int, extras)
