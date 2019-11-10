@@ -12,9 +12,9 @@ import Base: isless, zero, iszero, show, ==, hash
 export BitStringAddressType, BSAdd64, BSAdd128
 export BitAdd, BoseFS
 export onr, nearUniform
-export numBits, numChunks, numParticles, numModes # consider
-export BStringAdd, BoseBA # deprecate
-export occupationnumberrepresentation, bitaddr, maxBSLength # deprecate
+export numBits, numChunks, numParticles, numModes
+export BStringAdd # deprecate
+export bitaddr, maxBSLength # deprecate
 
 
 """
@@ -590,141 +590,6 @@ function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
   nothing
 end
 
-# function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
-#   if B < 30
-#     print(io, "BitAdd{$B}|",bitstring(ba), "⟨")
-#   else
-#     bs = bitstring(ba)
-#     print(io, "BitAdd{$B}|",bs[1:10]," … ",bs[end-10:end], "⟨")
-#   end
-#   nothing
-# end
-
-"""
-    BoseBA{N,M} <: BitStringAddressType
-    BoseBA(bs::BitAdd)
-
-Address type that represents `N` spinless bosons in `M` orbitals by wrapping
-a `BitAdd{I,B}` bitstring. In the bitstring `N` ones represent `N` particles and
-`M-1` zeros separate `M` orbitals. Hence the total number of bits is
-`B == N+M-1` (and `I` is the number of `UInt64` words used internally to store
-the bitstring.). Orbitals are stored in reverse
-order, i.e. the first orbital in a `BoseBA` is stored rightmost in the `BitAdd`
-bitstring.
-"""
-struct BoseBA{N,M,I,B} <: BitStringAddressType
-  bs::BitAdd{I,B}
-
-  # inner constructor does type checking at compile time
-  function BoseBA{N,M,I,B}(bs::BitAdd{I,B}) where {N,M,I,B}
-    I == (B-1) ÷ 64 + 1 || error("Inconsistency in `BoseBA{$N,$M,$I,$B}` detected.")
-    M + N == B + 1 || error("Inconsistency in `BoseBA{$N,$M,$I,$B}` detected.")
-    return new{N,M,I,B}(bs)
-  end
-end
-
-# type unstable and slow - it is faster to use the native constructor -:
-function BoseBA(bs::BitAdd{I,B}) where {I,B}
-  n = count_ones(bs) # number of particles
-  m = B - n + 1 # number of orbitals
-  I == (B-1) ÷ 64 + 1 || @error "Inconsistency in `BitAdd{$I,$B}` detected."
-  return BoseBA{n,m,I,B}(bs)
-end
-
-# slow due to type instability
-function BoseBA(onr::AbstractVector{T}) where T<:Integer
-  m = length(onr)
-  n = Int(sum(onr))
-  b = n + m - 1
-  i = (b-1) ÷ 64 +1
-  return BoseBA{n,m,i,b}(onr)
-end
-
-# typestable and quite fast (with SVector faster than with Vector)
-function BoseBA{N,M,I,B}(onr::AbstractVector{T}) where {N,M,I,B,T<:Integer}
-  M ≥ length(onr) || error("M inconsistency")
-  N == Int(sum(onr)) || error("N inconsistency")
-  B == N + M - 1 ||  error("B inconsistency")
-  I == (B-1) ÷ 64 +1 ||  error("I inconsistency")
-  bs = BitAdd{B}(0) # empty bitstring
-  for on in reverse(onr)
-    bs <<= on+1
-    bs |= BitAdd{B}()>>(B-on)
-  end
-  return BoseBA{N,M,I,B}(bs)
-end
-
-# create a BoseBA address with near uniform dist
-# slow due to type instability
-"""
-    BoseBA(n::Integer, m::Integer)
-Create `BoseBA` address with near uniform distribution of `n` particles
-across `m` modes.
-"""
-function BoseBA(n::Integer, m::Integer)
-  fillingfactor, extras = divrem(n, m)
-  startonr = fill(fillingfactor,m)
-  startonr[1:extras] += ones(Int, extras)
-  return BoseBA(startonr)
-end
-
-function check_consistency(b::BoseBA{N,M,I,B}) where {N,M,I,B}
-  N+M-1 == B || error("Inconsistency in $b: N+M-1 = $(N+M-1), B = $B")
-  check_consistency(b.bs)
-end
-
-"""
-    onr(bs)
-Compute and return the occupation number representation of the bit string
-address `bs` as an `SVector{M,Int}`, where `M` is the number of orbitals.
-"""
-function onr(bba::BoseBA{N,M,I,B}) where {N,M,I,B} # fast
-  r = zeros(MVector{M,Int})
-  address = bba.bs
-  for orbitalnumber in 1:M
-    bosonnumber = trailing_ones(address)
-    r[orbitalnumber] = bosonnumber
-    address >>>= bosonnumber + 1
-    iszero(address) && break
-  end
-  return SVector(r)
-end
-
-function Base.show(io::IO, b::BoseBA{N,M,I,B}) where {N,M,I,B}
-  print(io, "BoseBA{$N,$M}|")
-  r = onr(b)
-  for (i,bn) in enumerate(r)
-    isodd(i) ? print(io, bn) : print(io, "\x1b[4m",bn,"\x1b[0m")
-    # using ANSI escape sequence for underline,
-    # see http://jafrog.com/2013/11/23/colors-in-terminal.html
-    i ≥ M && break
-  end
-  ## or separate occupation numbers with commas
-  # for (i,bn) in enumerate(onr)
-  #   print(io, bn)
-  #   i ≥ M && break
-  #   print(io, ",")
-  # end
-  print(io, "⟩")
-end
-
-Base.bitstring(b::BoseBA) = bitstring(b.bs)
-
-numChunks(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = I
-numBits(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = B
-numParticles(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = N
-numModes(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = M
-
-numParticles(T::Type) = @error "not implemented: numParticles($T)"
-numParticles(b) = numParticles(typeof(b))
-numModes(T::Type) = @error "not implemented: numModes($T)"
-numModes(b) = numModes(typeof(b))
-
-# comparison delegates to BitAdd
-Base.isless(a::BoseBA, b::BoseBA) = isless(a.bs, b.bs)
-# hashing delegates to BitAdd
-Base.hash(bba::BoseBA,  h::UInt) = hash(bba.bs, h)
-
 #################################
 """
     BoseFS{N,M,A} <: BitStringAddressType
@@ -752,78 +617,6 @@ function BoseFS(bs::BitAdd{I,B}) where {B,I}
   m = B - n + 1
   return BoseFS{n,m,BitAdd{I,B}}(bs)
 end
-# # create a BoseBA address with near uniform dist
-# # slow due to type instability
-# """
-#     BoseFS(n::Integer, m::Integer[, BST::Type])
-# Create `BoseFS` address with near uniform distribution of `n` particles
-# across `m` modes. If a type `BST` is given it will define the underlying
-# bit string type. Otherwise, the bit string type is chosen automatically.
-# """
-# function BoseFS(n::Integer, m::Integer, ::Type{T}) where T
-#   fillingfactor, extras = divrem(n, m)
-#   startonr = fill(fillingfactor,m)
-#   startonr[1:extras] += ones(Int, extras)
-#   return BoseFS{T}(startonr)
-# end
-#
-# function BoseFS(n::Integer, m::Integer)
-#   fillingfactor, extras = divrem(n, m)
-#   startonr = fill(fillingfactor,m)
-#   startonr[1:extras] += ones(Int, extras)
-#   return BoseFS(startonr)
-# end
-
-# function BoseFS(n::Integer, m::Integer)
-#   bits = n+m-1
-#   if bits ≤ 64
-#     return BoseFS(n, m, BSAdd64)
-#   elseif bits ≤ 128
-#     return BoseFS(n, m, BSAdd128)
-#   else
-#     return BoseFS(n, m, BitAdd)
-#   end
-# end
-# slow due to type instability
-# function BoseFS(onr::AbstractVector{T}, ::Type{BitAdd}) where {T<:Integer}
-#   m = length(onr)
-#   n = Int(sum(onr))
-#   b = n + m - 1
-#   bs = BitAdd{b}(0) # empty bitstring
-#   for on in reverse(onr)
-#     bs <<= on+1
-#     bs |= BitAdd{b}()>>(b-on)
-#   end
-#   return BoseFS(bs)
-#   # i = (b-1) ÷ 64 +1
-#   # return BoseFS{n,m,i,b}(onr)
-# end
-# function BoseFS(onr::AbstractVector{T}, ::Type{BSAdd128}) where {T<:Integer}
-#   m = length(onr)
-#   n = Int(sum(onr))
-#   b = n + m - 1
-#   b > 128 && throw(BoundsError(BSAdd128(0),b))
-#   bs = zero(UInt128) # empty bitstring
-#   for on in reverse(onr)
-#     bs <<= on+1
-#     bs |= ~zero(UInt128)>>(128-on)
-#   end
-#   return BoseFS{n,m,BSAdd128}(BSAdd128(bs))
-# end
-# function BoseFS(onr::AbstractVector{T}, ::Type{BSAdd64}) where {T<:Integer}
-#   m = length(onr)
-#   n = Int(sum(onr))
-#   b = n + m - 1
-#   b > 64 && throw(BoundsError(BSAdd64(0),b))
-#   bs = zero(UInt64) # empty bitstring
-#   for on in reverse(onr)
-#     bs <<= on+1
-#     bs |= ~zero(UInt64)>>(64-on)
-#   end
-#   return BoseFS{n,m,BSAdd64}(BSAdd64(bs))
-# end
-
-# BoseFS{A}(onr::AbstractVector) where A = BoseFS(onr,A)
 
 """
     BoseFS(onr::T) where T<:Union{AbstractVector,Tuple}
@@ -892,22 +685,6 @@ end
   return BoseFS{N,M,BitAdd{I,B}}(bs)
 end
 
-# # typestable and quite fast (with SVector faster than with Vector)
-# function BoseFS{N,M,I,B}(onr::AbstractVector{T}) where {N,M,I,B,T<:Integer}
-#   M ≥ length(onr) || error("M inconsistency")
-#   N == Int(sum(onr)) || error("N inconsistency")
-#   B == N + M - 1 ||  error("B inconsistency")
-#   I == (B-1) ÷ 64 +1 ||  error("I inconsistency")
-#   bs = BitAdd{B}(0) # empty bitstring
-#   for on in reverse(onr)
-#     bs <<= on+1
-#     bs |= BitAdd{B}()>>(B-on)
-#   end
-#   return BoseFS{N,M,BitAdd{I,B}}(bs)
-# end
-
-
-
 # comparison delegates to bs
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 # hashing delegates to bs
@@ -924,6 +701,11 @@ function check_consistency(b::BoseFS{N,M,A}) where {N,M,A}
 end
 
 # performant and allocation free (if benchmarked on its own):
+"""
+    onr(bs)
+Compute and return the occupation number representation of the bit string
+address `bs` as an `SVector{M,Int}`, where `M` is the number of orbitals.
+"""
 function onr(bba::BoseFS{N,M,A}) where {N,M,A}
   r = zeros(MVector{M,Int})
   address = bba.bs
@@ -1074,12 +856,12 @@ maxBSLength(T::Type{BSAdd128}) = 128
 maxBSLength(T::Type{BStringAdd}) = Inf
 
 """
-    occupationnumberrepresentation(address, m)
+    onr(address, m)
 
 Compute and return the occupation number representation as an array of `Int`
 corresponding to the given address.
 """
-function occupationnumberrepresentation(address::A,mm::Integer) where A<:Union{Integer}
+function onr(address::A,mm::Integer) where A<:Union{Integer}
   # compute and return the occupation number representation corresponding to
   # the given address
   # note: it is much faster to pass mm as argument than to access it as global
@@ -1100,17 +882,17 @@ function occupationnumberrepresentation(address::A,mm::Integer) where A<:Union{I
   return onr
 end #
 
-occupationnumberrepresentation(address::BSAdd64,mm::Integer) =
-    occupationnumberrepresentation(address.add,mm)
+onr(address::BSAdd64,mm::Integer) =
+    onr(address.add,mm)
 
-occupationnumberrepresentation(address::BSAdd128,mm::Integer) =
-    occupationnumberrepresentation(address.add,mm)
+onr(address::BSAdd128,mm::Integer) =
+    onr(address.add,mm)
 
 # # the most general way of calling this method
-# occupationnumberrepresentation(address,p::BosonicHamiltonianParameters) =
-#     occupationnumberrepresentation(address,p.M)
+# onr(address,p::BosonicHamiltonianParameters) =
+#     onr(address,p.M)
 
-function occupationnumberrepresentation(bsadd::BStringAdd, mm::Int)
+function onr(bsadd::BStringAdd, mm::Int)
   #CHANGE FROM BITSTRING representation TO occupation NUMBER representation
   #careful: add[1] is last bit
   onr = zeros(Int,mm)
@@ -1129,6 +911,6 @@ function occupationnumberrepresentation(bsadd::BStringAdd, mm::Int)
   onr[mm] = norb
 
   return onr
-end #function occupationnumberrepresentation(bsadd::BStringAdd...)
+end #function onr(bsadd::BStringAdd...)
 
 end # module BitStringAddresses
