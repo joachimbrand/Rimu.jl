@@ -38,11 +38,11 @@ import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
     @test leading_zeros(fa>>130) == 130
     @test leading_ones(fa<<130) == 3
     @test bitstring(bs2) == "000011110011010000100101011001001111111111011111000000001101111111011111110111111101111111011111110111111101111111011111110111111101111111011111"
-    @test repr(BoseBA(bs2)) == "BoseBA{105,40}|5\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m7\e[0m7\e[4m2\e[0m0\e[4m0\e[0m0\e[4m0\e[0m0\e[4m0\e[0m0\e[4m5\e[0m10\e[4m0\e[0m1\e[4m0\e[0m2\e[4m1\e[0m1\e[4m0\e[0m1\e[4m0\e[0m0\e[4m0\e[0m1\e[4m2\e[0m0\e[4m4\e[0m0\e[4m0\e[0m0\e[4m0\e[0m⟩"
-    @test onr(BoseBA(bs)) == [12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4]
-    os = BoseBA([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
-    @test os == BoseBA(bs)
-    @test hash(os) == hash(BoseBA(bs))
+    @test repr(BoseFS(bs2)) == "BoseFS{BitAdd}((5,7,7,7,7,7,7,7,7,7,7,2,0,0,0,0,0,0,0,5,10,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4,0,0,0,0))"
+    @test onr(BoseFS(bs)) == [12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4]
+    os = BoseFS{BitAdd}([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
+    @test os == BoseFS(bs)
+    @test hash(os) == hash(BoseFS(bs))
     @test os.bs == bs
 end
 
@@ -131,7 +131,7 @@ end
     @test hp[18][1] == BSAdd64(0x000000000000d555)
     @test hp[18][2] ≈ -1.4142135623730951
     @test diagME(ham,aIni) == 0
-    os = BoseBA([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
+    os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
     @test Rimu.Hamiltonians.bosehubbardinteraction(os) == 148
     @test Rimu.Hamiltonians.ebhm(os) == (53, 148)
     @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
@@ -180,78 +180,77 @@ end
 end
 
 @testset "fciqmc with BoseFS" begin
-# Define the initial Fock state with n particles and m modes
-n = m = 9
-aIni = nearUniform(BoseFS{n,m})
-ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-# ham = BoseHubbardReal1D(
-#     n = 9,
-#     m = 9,
-#     u = 6.0,
-#     t = 1.0,
-#     AT = typeof(aIni))
-# ham, aIni = setupBoseHubbardReal1D(
-#     n = 9,
-#     m = 9,
-#     u = 6.0,
-#     t = 1.0
-# )
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    # ham = BoseHubbardReal1D(
+    #     n = 9,
+    #     m = 9,
+    #     u = 6.0,
+    #     t = 1.0,
+    #     AT = typeof(aIni))
+    # ham, aIni = setupBoseHubbardReal1D(
+    #     n = 9,
+    #     m = 9,
+    #     u = 6.0,
+    #     t = 1.0
+    # )
 
-pa = RunTillLastStep(laststep = 100)
+    pa = RunTillLastStep(laststep = 100)
 
-# standard fciqmc
-s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-svec = DVec(Dict(aIni => 2), ham(:dim))
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-@test sum(rdfs[:,:spawns]) == 1751
+    # standard fciqmc
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    @test sum(rdfs[:,:spawns]) == 1751
 
-# fciqmc with delayed shift update
-pa = RunTillLastStep(laststep = 100)
-s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
-svec = DVec(Dict(aIni => 2), ham(:dim))
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rdfs = fciqmc!(vs, pa, ham, s)
-@test sum(rdfs[:,:spawns]) == 2646
+    # fciqmc with delayed shift update
+    pa = RunTillLastStep(laststep = 100)
+    s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s)
+    @test sum(rdfs[:,:spawns]) == 2646
 
-# replica fciqmc
-tup1 = (copy(svec),copy(svec))
-s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-pb = RunTillLastStep(laststep = 100)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rr = fciqmc!(tup1, ham, pb, s)
-@test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
+    # replica fciqmc
+    tup1 = (copy(svec),copy(svec))
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+    pb = RunTillLastStep(laststep = 100)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rr = fciqmc!(tup1, ham, pb, s)
+    @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
 
-# large bit string
-n = 200
-m = 200
-aIni = nearUniform(BoseFS{n,m})
-ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-# ham = BoseHubbardReal1D(
-#     n = n,
-#     m = m,
-#     u = 6.0,
-#     t = 1.0,
-#     AT = typeof(aIni))
-iShift = diagME(ham, aIni)
+    # large bit string
+    n = 200
+    m = 200
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    # ham = BoseHubbardReal1D(
+    #     n = n,
+    #     m = m,
+    #     u = 6.0,
+    #     t = 1.0,
+    #     AT = typeof(aIni))
+    iShift = diagME(ham, aIni)
 
-# standard fciqmc
-tw = 1_000
-s = LogUpdateAfterTargetWalkers(targetwalkers = tw)
-svec = DVec(Dict(aIni => 20), 8*tw)
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-pa.laststep = 100
-@time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
-@test sum(rdfs[:,:spawns]) == 122128
-
+    # standard fciqmc
+    tw = 1_000
+    s = LogUpdateAfterTargetWalkers(targetwalkers = tw)
+    svec = DVec(Dict(aIni => 20), 8*tw)
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    pa.laststep = 100
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
+    @test sum(rdfs[:,:spawns]) == 122128
 end
 
 @testset "dfvec.jl" begin

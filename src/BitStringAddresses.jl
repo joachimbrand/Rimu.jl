@@ -22,7 +22,7 @@ export bitaddr, maxBSLength # deprecate
 
 Abstract type for configuration addresses with the nature of a bitstring.
 A number of methods need to be implemented, in particular
-Base.isless(a,b)
+`Base.isless(a,b)`, `numBits()`, `numChunks()`.
 """
 abstract type BitStringAddressType end
 
@@ -39,6 +39,27 @@ Number of bit chunks representing `a`.
 """
 numBits(T::Type) = @error "not implemented: numBits($T)"
 numBits(b) = numBits(typeof(b))
+
+"""
+    BosonicFockStateAddress <: BitStringAddressType
+Supertype representing a bosonic Fock state. Implement [`numModes()`](@ref)
+and [`numParticles()`](@ref).
+"""
+abstract type BosonicFockStateAddress <: BitStringAddressType end
+
+"""
+    numParticles(a)
+Number of particles represented by `a`.
+"""
+numParticles(T::Type) = @error "not implemented: numParticles($T)"
+numParticles(b) = numParticles(typeof(b))
+
+"""
+    numModes(a)
+Number of modes represented by `a`.
+"""
+numModes(T::Type) = @error "not implemented: numModes($T)"
+numModes(b) = numModes(typeof(b))
 
 #################################################
 """
@@ -592,15 +613,15 @@ end
 
 #################################
 """
-    BoseFS{N,M,A} <: BitStringAddressType
+    BoseFS{N,M,A} <: BosonicFockStateAddress <: BitStringAddressType
     BoseFS(bs::A, N = numParticles(A), M = numModes(A))
 
 Address type that represents a Fock state of `N` spinless bosons in `M` orbitals
 by wrapping a bitstring of type `A`. Orbitals are stored in reverse
-order, i.e. the first orbital in a `BoseBA` is stored rightmost in the
+order, i.e. the first orbital in a `BoseFS` is stored rightmost in the
 bitstring `bs`.
 """
-struct BoseFS{N,M,A} <: BitStringAddressType
+struct BoseFS{N,M,A} <: BosonicFockStateAddress
   bs::A
 end
 
@@ -826,9 +847,6 @@ end
 
 bitaddr(onr, ::Type{BoseFS})  = BoseFS(onr)
 bitaddr(onr, ::Type{BoseFS{N,M,A}}) where {N,M,A}  = BoseFS{A}(onr)
-
-bitaddr(onr, ::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = BoseBA{N,M,I,B}(onr)
-bitaddr(onr, ::Type{BoseBA})  = BoseBA(onr)
 
 function bitaddr(onr, ::Type{BitArray{1}})
   address = BitArray(undef,0)

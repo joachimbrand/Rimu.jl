@@ -544,22 +544,7 @@ function Base.trailing_zeros(a::MVector)
   return t
 end
 
-# function bosehubbardinteraction(address::BoseBA{N,M,I,B}) where {N,M,I,B}
-#   # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
-#   # currently this ammounts to counting occupation numbers of orbitals
-#   matrixelementint = 0
-#   mvec = MVector(address.bs.chunks)
-#   while !iszero(mvec)
-#     bitshiftright!(mvec, trailing_zeros(mvec))# proceed to next occupied orbital
-#     bosonnumber = trailing_ones(mvec) # count how many bosons inside
-#     bitshiftright!(mvec, bosonnumber) # remove the countedorbital
-#     matrixelementint += bosonnumber * (bosonnumber-1)
-#   end
-#   return matrixelementint
-# end #bosehubbardinteraction
-
 bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
-bosehubbardinteraction(b::BoseBA) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
 
@@ -629,8 +614,6 @@ end #ebhm
 
 ebhm(b::BoseFS, m) = ebhm(b.bs, m)
 ebhm(b::BoseFS{N,M,A})  where {N,M,A} = ebhm(b, M)
-ebhm(b::BoseBA, m) = ebhm(b.bs, m)
-ebhm(b::BoseBA{N,M,I,B})  where {N,M,I,B} = ebhm(b, M)
 ebhm(adcont::BSAdd64, m) = ebhm(adcont.add, m)
 ebhm(adcont::BSAdd128, m) = ebhm(adcont.add, m)
 
@@ -689,17 +672,6 @@ end # numberoccupiedsites
 # end
 
 numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
-numberoccupiedsites(b::BoseBA) = numberoccupiedsites(b.bs)
-# function numberoccupiedsites(address::BoseBA)
-#   orbitalnumber = 0
-#   mvec = MVector(address.bs.chunks)
-#   while !iszero(mvec)
-#     orbitalnumber += 1
-#     bitshiftright!(mvec, trailing_zeros(mvec))# proceed to next occupied orbital
-#     bitshiftright!(mvec, trailing_ones(mvec))
-#   end # while address
-#   return orbitalnumber
-# end # numberoccupiedsites
 
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
 
@@ -824,13 +796,6 @@ function hopnextneighbour(address::BoseFS{N,M,A}, chosen::Int,
   nbs, tones = hopnextneighbour(address.bs, chosen, M, N)
   return BoseFS{N,M,A}(nbs), tones
 end
-
-function hopnextneighbour(address::BoseBA{N,M,I,B}, chosen::Int,
-                          args...) where {N,M,I,B}
-  nbs, tones = hopnextneighbour(address.bs, chosen, M, N)
-  return BoseBA{N,M,I,B}(nbs), tones
-end
-
 
 function hopnextneighbour(address::BSAdd64, chosen, mmodes, nparticles)
   naddress, tones = hopnextneighbour(address.add, chosen, mmodes, nparticles)
