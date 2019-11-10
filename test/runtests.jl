@@ -10,13 +10,6 @@ end
 using Rimu.BitStringAddresses
 import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
 @testset "BitStringAddresses.jl" begin
-    @test_throws ErrorException bsa = BSA(0xf342564fff,30)
-    bsa = BSA(0xf342564fff,40)
-    check_consistency(bsa)
-    bsb = remove_ghost_bits(bsa)
-    check_consistency(bsb)
-    check_consistency(BoseBS(bsb))
-    @test_throws ErrorException bserr = BoseBS{26,16,1,40}(bsb) # wrong particle number N
     # BitAdd
     bs = BitAdd{40}(0xf342564fff)
     bs1 = BitAdd{40}(0xf342564ffd)

@@ -13,7 +13,7 @@ export BitStringAddressType, BSAdd64, BSAdd128
 export BitAdd, BoseFS
 export onr, nearUniform
 export numBits, numChunks, numParticles, numModes # consider
-export BStringAdd, BSAdd, BSA, BoseBS, BoseBA # deprecate
+export BStringAdd, BoseBA # deprecate
 export occupationnumberrepresentation, bitaddr, maxBSLength # deprecate
 
 
@@ -40,6 +40,7 @@ Number of bit chunks representing `a`.
 numBits(T::Type) = @error "not implemented: numBits($T)"
 numBits(b) = numBits(typeof(b))
 
+#################################################
 """
     BStringAdd <: BitStringAddressType
 
@@ -140,6 +141,7 @@ Base.reverse(a::BStringAdd) = BStringAdd(reverse(a.add))
 # Base.leading_ones(a::BStringAdd) = trailing_ones(reverse(a))
 
 
+#################################################
 """
     BSAdd64 <: BitStringAddressType
 
@@ -162,6 +164,7 @@ numChunks(::Type{BSAdd64}) = 1
 numBits(::Type{BSAdd64}) = 64
 Base.bitstring(a::BSAdd64) = bitstring(a.add)
 
+#################################################
 """
     BSAdd128 <: BitStringAddressType
 
@@ -187,387 +190,7 @@ numChunks(::Type{BSAdd128}) = 1
 numBits(::Type{BSAdd128}) = 128
 Base.bitstring(a::BSAdd128) = bitstring(a.add)
 
-"""
-    BSAdd{I,B} <: BitStringAddressType
-    BSAdd(address, B)
-
-Address type that encodes a bistring address with `B` bits. The bits are
-stored as `NTuple` of `I` integers (`UInt64`) with `B ≤ I*64`. The `address`
-can be an integer, e.g. `BigInt`.
-"""
-struct BSAdd{I,B} <: BitStringAddressType
-  add::NTuple{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as NTuple
-end
-
-# general default constructor - works with BigInt - but is quite slow
-# avoid using in hot loops!
-@inline function BSAdd(address::Integer, nbits::Integer)
-  @boundscheck nbits < 1 && throw(BoundsError())
-  a = copy(address)
-  I = (nbits-1) ÷ 64 + 1 # number of UInt64s needed
-  adds = zeros(UInt64,I)
-  for i in I:-1:1
-     adds[i] = UInt64(a & 0xffffffffffffffff)
-     # extract rightmost 64 bits and store in adds
-     a >>>= 64 # shift bits to right by 64 bits
-  end
-  return BSAdd{I,nbits}(Tuple(adds))
-end
-
-# This is really fast because the compiler does all the work:
-BSAdd{I,B}(address::Int) where {I,B} = BSAdd{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
-
-BSAdd(address::BSAdd128, nbits=128) = BSAdd(address.add, nbits)
-BSAdd(address::BSAdd64, nbits=64) = BSAdd{1,nbits}((address.add,))
-
-Base.zero(::BSAdd{I,B}) where {I,B} = BSAdd{I,B}(0)
-
-# comparison check number of bits and then compares the tuples
-Base.isless(a::BSAdd{I,B}, b::BSAdd{I1,B}) where {I,I1,B} = isless(a.add, b.add)
-function Base.isless(a::BSAdd{I1,B1}, b::BSAdd{I2,B2}) where {I1,B1,I2,B2}
-  return isless(B1,B2)
-end
-
-import Base: >>>, <<
-"""
-    >>>(b::BSAdd,n::Integer)
-Bitshift `b` to the right by `n` bits and fill from the left with zeros.
-"""
-function >>>(b::BSAdd{I,B},n::Integer) where {I,B}
-  if I == 1
-    return BSAdd{I,B}((b.add[1]>>>n,))
-  end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  a = zeros(UInt64,I)
-  I-d > 0 && (a[d+1] = b.add[1]>>>r) # no carryover for leftmost chunk
-  for i = 2:(I-d) # shift chunks and `or` carryover
-    a[d+i] = (b.add[i]>>>r) | ((b.add[i-1] & mask) << (64-r) )
-  end
-  return BSAdd{I,B}(Tuple(a))
-  ## does the same thing in one line, but is slower:
-  # return BSAdd{I,B}((NTuple{d,UInt64}(0 for i in 1:d)...,b.add[1]>>r,
-  #   NTuple{I-d-1,UInt64}((b.add[i]>>>r)|((b.add[i-1]&mask)<<(64-r))
-  #     for i in 2:(I-d))...,
-  #   )
-  # )
-end
-"""
-    <<(b::BSAdd,n::Integer)
-Bitshift `b` to the left by `n` bits and fill from the right with zeros.
-"""
-function <<(b::BSAdd{I,B},n::Integer) where {I,B}
-  if I == 1
-    return BSAdd{I,B}((b.add[1]<<n,))
-  end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
-  a = zeros(UInt64,I)
-  for i in 1:(I-d-1) # shift chunks and `or` carryover
-    a[i] = (b.add[i+d]<<r) | ((b.add[i+d+1] & mask) >>> (64-r))
-  end
-  I-d > 0 && (a[I-d] = b.add[I]<<r) # no carryover for rightmost chunk
-  return BSAdd{I,B}(Tuple(a))
-end
-
-#######################################
-"""
-    BSA{I,B} <: BitStringAddressType
-    BSA(address, B)
-
-Address type that encodes a bistring address with `B` bits. The bits are
-stored as `SVector` of `I` integers (`UInt64`) with `B ≤ I*64`. The `address`
-can be an integer, e.g. `BigInt`.
-
-- `BSA{I,B}()` creates a BSA with all ones.
-- `BSA{I,B}(add::Int)` creates BSA quickly and efficiently, where all non-zero bits are represented in `add`.
-"""
-struct BSA{I,B} <: BitStringAddressType
-  add::SVector{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as NTuple
-  # end
-  # inner contructor: only allow passing `B` to enforce consistency
-  function BSA{B}(chunks::SVector{I,UInt64}) where {B,I}
-    I == (B - 1) ÷ 64 + 1 || error("in construction of `BSA{$I,$B}`: (B - 1) ÷ 64 + 1 evaluates to $((B - 1) ÷ 64 + 1) but should be I == $I")
-    return new{I,B}(chunks)
-  end
-end
-BSA{I,B}(chunks::SVector{I,UInt64}) where {B,I} = BSA{B}(chunks)
-BSA{I,B}(chunks) where {B,I} = BSA{B}(SVector(chunks))
-BSA{B}(chunks) where B = BSA{B}(SVector(chunks))
-
-# general default constructor - works with BigInt - but is quite slow
-# avoid using in hot loops!
-@inline function BSA(address::Integer, nbits::Integer)
-  @boundscheck nbits < 1 && throw(BoundsError())
-  a = copy(address)
-  I = (nbits-1) ÷ 64 + 1 # number of UInt64s needed
-  adds = zeros(MVector{I,UInt64})
-  for i in I:-1:1
-     adds[i] = UInt64(a & 0xffffffffffffffff)
-     # extract rightmost 64 bits and store in adds
-     a >>>= 64 # shift bits to right by 64 bits
-  end
-  bsa = BSA{I,nbits}(SVector(adds))
-  @boundscheck check_consistency(bsa)
-  return bsa
-end
-@inline function BSA{B}(a::Integer) where B
-  @boundscheck B < 1 && throw(BoundsError())
-  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
-  adds = zeros(MVector{I,UInt64})
-  for i in I:-1:1
-     adds[i] = UInt64(a & 0xffffffffffffffff)
-     # extract rightmost 64 bits and store in adds
-     a >>>= 64 # shift bits to right by 64 bits
-  end
-  bsa = BSA{B}(SVector(adds))
-  @boundscheck check_consistency(bsa)
-  return bsa
-end
-
-# This is really fast because the compiler does all the work:
-# BSA{I,B}(address::Int) where {I,B} = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
-
-@inline function BSA{I,B}(address::Int) where {I,B}
-  bsa = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
-  @boundscheck check_consistency(bsa)
-  return bsa
-end
-@inline function BSA{B}(address::Int) where B
-  I = (B-1) ÷ 64 + 1 # number of UInt64s needed
-  bsa = BSA{I,B}((NTuple{I-1,UInt64}(0 for i in 1:(I-1))..., UInt64(address),))
-  @boundscheck check_consistency(bsa)
-  return bsa
-end
-
-# create a BSA with all ones
-function BSA{I,B}() where {I,B}
-  (B-1) ÷ 64 + 1 == I || error("Inconsistent I = $I with B = $B")
-  r = (B-1) % 64 + 1
-  first = ~UInt64(0) >>> (64 - r)
-  BSA{I,B}((first, NTuple{I-1,UInt64}(~UInt64(0) for i in 1:(I-1))...,))
-end
-
-BSA(address::BSAdd128, nbits=128) = BSA(address.add, nbits)
-BSA(address::BSAdd64, nbits=64) = BSA{1,nbits}((address.add,))
-
-Base.zero(::BSA{I,B}) where {I,B} = BSA{I,B}(0)
-
-# comparison check number of bits and then compares the tuples
-Base.isless(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = isless(a.add, b.add)
-function Base.isless(a::BSA{I1,B1}, b::BSA{I2,B2}) where {I1,B1,I2,B2}
-  return isless(B1,B2)
-end
-import Base: <<, >>>, >>, ⊻, &, |
-⊻(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .⊻ b.add)
-(&)(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .& b.add)
-(|)(a::BSA{I,B}, b::BSA{I,B}) where {I,B} = BSA{I,B}(a.add .| b.add)
-
-unsafe_count_ones(a::BSA) = mapreduce(count_ones, +, a.add)
-Base.count_ones(a::BSA) = unsafe_count_ones(remove_ghost_bits(a))
-# takes about the same time:
-# function co2(a::BSA)
-#   s = 0
-#   for n in a.add
-#     s += count_ones(n)
-#   end
-#   return s
-# end
-
-Base.count_zeros(a::BSA{I,B}) where {I,B} = B - count_ones(a)
-
-"""
-    >>>(b::BSA,n::Integer)
-Bitshift `b` to the right by `n` bits and fill from the left with zeros.
-"""
-function >>>(b::BSA{I,B},n::Integer) where {I,B}
-  if I == 1
-    return BSA{I,B}((b.add[1]>>>n,))
-  end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  a = zeros(MVector{I,UInt64})
-  I-d > 0 && (a[d+1] = b.add[1]>>>r) # no carryover for leftmost chunk
-  for i = 2:(I-d) # shift chunks and `or` carryover
-    a[d+i] = (b.add[i]>>>r) | ((b.add[i-1] & mask) << (64-r) )
-  end
-  return BSA{I,B}(SVector(a))
-end
-
-(>>)(b::BSA,n::Integer) = b >>> n
-
-"""
-    <<(b::BSA,n::Integer)
-Bitshift `b` to the left by `n` bits and fill from the right with zeros.
-"""
-<<(b::BSA{I,B},n::Integer) where {I,B} = remove_ghost_bits(unsafe_shift_left(b,n))
-
-function unsafe_shift_left(b::BSA{I,B},n::Integer) where {I,B}
-  if I == 1
-    return BSA{I,B}((b.add[1]<<n,))
-  end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
-  a = zeros(MVector{I,UInt64})
-  for i in 1:(I-d-1) # shift chunks and `or` carryover
-    a[i] = (b.add[i+d]<<r) | ((b.add[i+d+1] & mask) >>> (64-r))
-  end
-  I-d > 0 && (a[I-d] = b.add[I]<<r) # no carryover for rightmost chunk
-  return BSA{I,B}(SVector(a))
-end
-# This is faster than << for BitArray (yeah!).
-# About half the time and allocations.
-
-function Base.trailing_ones(a::BSA{I,B}) where {I,B}
-  t = 0
-  for chunk in reverse(a.add)
-    s = trailing_ones(chunk)
-    t += s
-    s < 64 && break
-  end
-  return min(t, B)
-end
-
-function Base.trailing_zeros(a::BSA{I,B}) where {I,B}
-  t = 0
-  for chunk in reverse(a.add)
-    s = trailing_zeros(chunk)
-    t += s
-    s < 64 && break
-  end
-  return min(t, B)
-end
-
-function lead_bit(a::BSA{I,B}) where {I,B}
-  lp = (B-1) % 64 # bit position of leftmost bit in first chunk (count from 0)
-  mask = UInt64(1)<< lp # shift a "1" to the right place
-  return (a.add[1]&mask) >> lp # return type is UInt64
-end
-
-"""
-    remove_ghost_bits(bsa)
-Remove set bits outside data field if any are present.
-"""
-function remove_ghost_bits(a::BSA{I,B}) where {I,B}
-  lp = (B-1) % 64 +1 # bit position of leftmost bit in first chunk
-  mask = ~UInt64(0)>>(64-lp)
-  madd = MVector(a.add)
-  madd[1] &= mask
-  return BSA{I,B}(SVector(madd))
-end
-
-function check_consistency(a::BSA{I,B}) where {I,B}
-  (d,lp) = divrem((B-1), 64) .+ 1 # bit position of leftmost bit in first chunk
-  mask = ~UInt64(0)>>(64-lp)
-  iszero(a.add[1] & ~mask) || error("ghost bits detected in $a")
-  d == I || error("inconsistency in $a: $d words needed but $I present")
-  length(a.add) == I || error("inconsistent length $(length(a.add)) with I = $I in $a")
-  nothing
-end
-
-
-# # iterate through bits from right to left
-# @inline function Base.iterate(a::BSA{I,B}, i = 1) where {I,B}
-#   d,r = divrem(i-1, 64)
-#   i == B+1 ? nothing : ((a.add[I-d]&UInt64(1)<<r)>>r, i+1)
-# end
-# iterate through bits from left to right
-@inline function Base.iterate(a::BSA{I,B}, i = 1) where {I,B}
-  i == B+1 ? nothing : (UInt(lead_bit(a<<(i-1))), i+1)
-end
-
-# show prints bits from left to right, i.e. in reverse order
-function Base.show(io::IO, a::BSA{I,B}) where {I,B}
-    print(io, "BSA{$B}\"")
-    for elem ∈ a
-      print(io, elem)
-    end
-    print(io, "\"")
-end
-
-"""
-    BoseBS{N,M,I,B} <: BitStringAddressType
-    BoseBS(bs::BSA)
-
-Address type that represents `N` spinless bosons in `M` orbitals by wrapping
-a `BSA{I,B}` bitstring. In the bitstring `N` ones represent `N` particles and
-`M-1` zeros separate `M` orbitals. Hence the total number of bits is
-`B == N+M-1` (and `I` is the number of `UInt64` words used internally to store
-the bitstring.). Orbitals are stored in reverse
-order, i.e. the first orbital in a `BoseBS` is stored rightmost in the `BSA`
-bitstring.
-"""
-struct BoseBS{N,M,I,B} <: BitStringAddressType
-  bs::BSA{I,B}
-
-  # inner constructor does type checking at compile time
-  function BoseBS{N,M,I,B}(bs::BSA{I,B}) where {N,M,I,B}
-    I == (B-1) ÷ 64 + 1 || error("Inconsistency in `BoseBS{$N,$M,$I,$B}` detected.")
-    M + N == B + 1 || error("Inconsistency in `BoseBS{$N,$M,$I,$B}` detected.")
-    return new{N,M,I,B}(bs)
-  end
-end
-
-# type unstable and slow - it is faster to use the native constructor -:
-function BoseBS(bs::BSA{I,B}) where {I,B}
-  n = count_ones(bs) # number of particles
-  m = B - n + 1 # number of orbitals
-  I == (B-1) ÷ 64 + 1 || @error "Inconsistency in `BSA{$I,$B}` detected."
-  return BoseBS{n,m,I,B}(bs)
-end
-
-# slow due to type instability
-function BoseBS(onr::AbstractVector{T}) where T<:Integer
-  m = length(onr)
-  n = Int(sum(onr))
-  b = n + m - 1
-  i = (b-1) ÷ 64 +1
-  bs = BSA{i,b}(0) # empty bitstring
-  for on in reverse(onr)
-    bs <<= on+1
-    bs |= BSA{i,b}()>>(b-on)
-  end
-  return BoseBS{n,m,i,b}(bs)
-end
-
-# typestable and quite fast (with SVector faster than with Vector)
-function BoseBS{N,M,I,B}(onr::AbstractVector{T}) where {N,M,I,B,T<:Integer}
-  M ≥ length(onr) || error("M inconsistency")
-  N == Int(sum(onr)) || error("N inconsistency")
-  B == N + M - 1 ||  error("B inconsistency")
-  I == (B-1) ÷ 64 +1 ||  error("I inconsistency")
-  bs = BSA{I,B}(0) # empty bitstring
-  for on in reverse(onr)
-    bs <<= on+1
-    bs |= BSA{I,B}()>>(B-on)
-  end
-  return BoseBS{N,M,I,B}(bs)
-end
-
-function check_consistency(b::BoseBS{N,M,I,B}) where {N,M,I,B}
-  N+M-1 == B || error("Inconsistency in $b: N+M-1 = $(N+M-1), B = $B")
-  check_consistency(b.bs)
-end
-
-function Base.show(io::IO, b::BoseBS{N,M,I,B}) where {N,M,I,B}
-  print(io, "BoseBS{$N,$M}|")
-  onr = occupationnumberrepresentation(b.bs,M)
-  for (i,bn) in enumerate(onr)
-    isodd(i) ? print(io, bn) : print(io, "\x1b[4m",bn,"\x1b[0m")
-    # using ANSI escape sequence for underline,
-    # see http://jafrog.com/2013/11/23/colors-in-terminal.html
-    i ≥ M && break
-  end
-  ## or separate occupation numbers with commas
-  # for (i,bn) in enumerate(onr)
-  #   print(io, bn)
-  #   i ≥ M && break
-  #   print(io, ",")
-  # end
-  print(io, "⟩")
-end
-
-#################################
+#################################################
 """
     BitAdd{I,B} <: BitStringAddressType
     BitAdd(address::Integer, B)
@@ -684,10 +307,10 @@ function check_consistency(a::BitAdd{I,B}) where {I,B}
   a # nothing
 end
 
-# """
-#     remove_ghost_bits(bsa)
-# Remove set bits outside data field if any are present.
-# """
+"""
+    remove_ghost_bits(bs)
+Remove set bits outside data field if any are present.
+"""
 function remove_ghost_bits(a::BitAdd{I,B}) where {I,B}
   lp = (B-1) % 64 +1 # bit position of leftmost bit in first chunk
   mask = ~UInt64(0)>>(64-lp)
@@ -1235,7 +858,7 @@ end
 @inline function BoseFS{BSAdd64}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
   @boundscheck begin
     B > 64 && throw(BoundsError(BSAdd64(0),B))
-    N + M - 1 == B || @error "Inconsistency in constructor BoseBS"
+    N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   end
   bs = zero(UInt64) # empty bitstring
   for on in reverse(onr)
@@ -1248,7 +871,7 @@ end
 @inline function BoseFS{BSAdd128}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
   @boundscheck begin
     B > 128 && throw(BoundsError(BSAdd128(0),B))
-    N + M - 1 == B || @error "Inconsistency in constructor BoseBS"
+    N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   end
   bs = zero(UInt128) # empty bitstring
   for on in reverse(onr)
@@ -1259,7 +882,7 @@ end
 end
 
 @inline function BoseFS{BitAdd}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
-  @boundscheck  N + M - 1 == B || @error "Inconsistency in constructor BoseBS"
+  @boundscheck  N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   bs = BitAdd{B}(0) # empty bitstring
   for on in reverse(onr)
     bs <<= on+1
@@ -1456,7 +1079,7 @@ maxBSLength(T::Type{BStringAdd}) = Inf
 Compute and return the occupation number representation as an array of `Int`
 corresponding to the given address.
 """
-function occupationnumberrepresentation(address::A,mm::Integer) where A<:Union{Integer, BSA}
+function occupationnumberrepresentation(address::A,mm::Integer) where A<:Union{Integer}
   # compute and return the occupation number representation corresponding to
   # the given address
   # note: it is much faster to pass mm as argument than to access it as global
