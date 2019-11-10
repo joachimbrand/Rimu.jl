@@ -225,13 +225,23 @@ seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 end
 
 @testset "fciqmc with BoseFS" begin
-aIni = nearUniform(BoseFS{9,9})
-ham = BoseHubbardReal1D(
-    n = 9,
-    m = 9,
-    u = 6.0,
-    t = 1.0,
-    AT = typeof(aIni))
+# Define the initial Fock state with n particles and m modes
+n = m = 9
+aIni = nearUniform(BoseFS{n,m})
+ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+# ham = BoseHubbardReal1D(
+#     n = 9,
+#     m = 9,
+#     u = 6.0,
+#     t = 1.0,
+#     AT = typeof(aIni))
+# ham, aIni = setupBoseHubbardReal1D(
+#     n = 9,
+#     m = 9,
+#     u = 6.0,
+#     t = 1.0
+# )
+
 pa = RunTillLastStep(laststep = 100)
 
 # standard fciqmc
@@ -265,12 +275,13 @@ seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 n = 200
 m = 200
 aIni = nearUniform(BoseFS{n,m})
-ham = BoseHubbardReal1D(
-    n = n,
-    m = m,
-    u = 6.0,
-    t = 1.0,
-    AT = typeof(aIni))
+ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+# ham = BoseHubbardReal1D(
+#     n = n,
+#     m = m,
+#     u = 6.0,
+#     t = 1.0,
+#     AT = typeof(aIni))
 iShift = diagME(ham, aIni)
 
 # standard fciqmc

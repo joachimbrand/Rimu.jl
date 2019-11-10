@@ -12,7 +12,7 @@ import Base: isless, zero, iszero, show, ==, hash
 export BitStringAddressType, BSAdd64, BSAdd128
 export BitAdd, BoseFS
 export onr, nearUniform
-# export nbits, nchunks, nparticles, nmodes # consider
+export numBits, numChunks, numParticles, numModes # consider
 export BStringAdd, BSAdd, BSA, BoseBS, BoseBA # deprecate
 export occupationnumberrepresentation, bitaddr, maxBSLength # deprecate
 
@@ -25,6 +25,20 @@ A number of methods need to be implemented, in particular
 Base.isless(a,b)
 """
 abstract type BitStringAddressType end
+
+"""
+    numChunks(a)
+Number of 64-bit chunks representing `a`.
+"""
+numChunks(T::Type) = @error "not implemented: numChunks($T)"
+numChunks(b) = numChunks(typeof(b))
+
+"""
+    numBits(a)
+Number of bit chunks representing `a`.
+"""
+numBits(T::Type) = @error "not implemented: numBits($T)"
+numBits(b) = numBits(typeof(b))
 
 """
     BStringAdd <: BitStringAddressType
@@ -144,8 +158,8 @@ Base.trailing_zeros(a::BSAdd64) = trailing_zeros(a.add)
 import Base: <<, >>>, >>, ⊻, &, |
 (>>>)(a::BSAdd64, n::Integer) = BSAdd64(a.add >>> n)
 
-nchunks(::Type{BSAdd64}) = 1
-nbits(::Type{BSAdd64}) = 64
+numChunks(::Type{BSAdd64}) = 1
+numBits(::Type{BSAdd64}) = 64
 Base.bitstring(a::BSAdd64) = bitstring(a.add)
 
 """
@@ -169,8 +183,8 @@ Base.trailing_zeros(a::BSAdd128) = trailing_zeros(a.add)
 import Base: <<, >>>, >>, ⊻, &, |
 (>>>)(a::BSAdd128, n::Integer) = BSAdd128(a.add >>> n)
 
-nchunks(::Type{BSAdd128}) = 1
-nbits(::Type{BSAdd128}) = 128
+numChunks(::Type{BSAdd128}) = 1
+numBits(::Type{BSAdd128}) = 128
 Base.bitstring(a::BSAdd128) = bitstring(a.add)
 
 """
@@ -682,12 +696,8 @@ function remove_ghost_bits(a::BitAdd{I,B}) where {I,B}
   return BitAdd{B}(SVector(madd))
 end
 
-nchunks(T::Type) = @error "not implemented: nchunks($T)"
-nchunks(::Type{BitAdd{I,B}}) where {I,B} = I
-nchunks(b) = nchunks(typeof(b))
-nbits(T::Type) = @error "not implemented: nbits($T)"
-nbits(::Type{BitAdd{I,B}}) where {I,B} = B
-nbits(b) = nbits(typeof(b))
+numChunks(::Type{BitAdd{I,B}}) where {I,B} = I
+numBits(::Type{BitAdd{I,B}}) where {I,B} = B
 
 # comparison check number of bits and then compares the tuples
 Base.isless(a::T, b::T) where T<:BitAdd = isless(a.chunks, b.chunks)
@@ -1077,15 +1087,15 @@ end
 
 Base.bitstring(b::BoseBA) = bitstring(b.bs)
 
-nchunks(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = I
-nbits(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = B
-nparticles(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = N
-nmodes(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = M
+numChunks(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = I
+numBits(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = B
+numParticles(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = N
+numModes(::Type{BoseBA{N,M,I,B}}) where {N,M,I,B} = M
 
-nparticles(T::Type) = @error "not implemented: nparticles($T)"
-nparticles(b) = nparticles(typeof(b))
-nmodes(T::Type) = @error "not implemented: nmodes($T)"
-nmodes(b) = nmodes(typeof(b))
+numParticles(T::Type) = @error "not implemented: numParticles($T)"
+numParticles(b) = numParticles(typeof(b))
+numModes(T::Type) = @error "not implemented: numModes($T)"
+numModes(b) = numModes(typeof(b))
 
 # comparison delegates to BitAdd
 Base.isless(a::BoseBA, b::BoseBA) = isless(a.bs, b.bs)
@@ -1095,7 +1105,7 @@ Base.hash(bba::BoseBA,  h::UInt) = hash(bba.bs, h)
 #################################
 """
     BoseFS{N,M,A} <: BitStringAddressType
-    BoseFS(bs::A, N = nparticles(A), M = nmodes(A))
+    BoseFS(bs::A, N = numParticles(A), M = numModes(A))
 
 Address type that represents a Fock state of `N` spinless bosons in `M` orbitals
 by wrapping a bitstring of type `A`. Orbitals are stored in reverse
@@ -1108,7 +1118,7 @@ end
 
 BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs) # slow - not sure why
 
-function BoseFS(bs::A, n=nparticles(bs), m=nmodes(bs)) where A <: BitStringAddressType
+function BoseFS(bs::A, n=numParticles(bs), m=numModes(bs)) where A <: BitStringAddressType
   bfs = BoseFS{n,m,A}(bs)
   check_consistency(bfs)
   return bfs
@@ -1280,13 +1290,13 @@ Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 # hashing delegates to bs
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.bitstring(b::BoseFS) = bitstring(b.bs)
-nchunks(::Type{BoseFS{N,M,A}}) where {N,M,A} = nchunks(A)
-nbits(::Type{BoseFS{N,M,A}}) where {N,M,A} = N+M-1 # generally true for bosons
-nparticles(::Type{BoseFS{N,M,A}}) where {N,M,A} = N
-nmodes(::Type{BoseFS{N,M,A}}) where {N,M,A} = M
+numChunks(::Type{BoseFS{N,M,A}}) where {N,M,A} = numChunks(A)
+numBits(::Type{BoseFS{N,M,A}}) where {N,M,A} = N+M-1 # generally true for bosons
+numParticles(::Type{BoseFS{N,M,A}}) where {N,M,A} = N
+numModes(::Type{BoseFS{N,M,A}}) where {N,M,A} = M
 
 function check_consistency(b::BoseFS{N,M,A}) where {N,M,A}
-  nbits(b) ≤ nbits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), nbits(A) = $(nbits(A))")
+  numBits(b) ≤ numBits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), numBits(A) = $(numBits(A))")
   check_consistency(b.bs)
 end
 
@@ -1317,11 +1327,14 @@ end
 # end
 
 """
-    nearUniform(Val(N),Val(M)) -> onr::SVector{M,Int}
-Create occupation number representation distributing `N` particles in `M` modes
-in a close-to-uniform fashion with each orbital filled with at least
+    nearUniform(N, M) -> onr::SVector{M,Int}
+Create occupation number representation `onr` distributing `N` particles in `M`
+modes in a close-to-uniform fashion with each orbital filled with at least
 `N ÷ M` particles and at most with `N ÷ M + 1` particles.
 """
+function nearUniform(n, m)
+  return nearUniform(Val(n),Val(m))
+end
 function nearUniform(::Val{N}, ::Val{M}) where {N, M}
   fillingfactor, extras = divrem(N, M)
   # startonr = fill(fillingfactor,M)
