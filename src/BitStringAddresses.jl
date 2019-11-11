@@ -51,14 +51,14 @@ abstract type BosonicFockStateAddress <: BitStringAddressType end
     numParticles(a)
 Number of particles represented by `a`.
 """
-numParticles(T::Type) = @error "not implemented: numParticles($T)"
+numParticles(::Type{T}) where T = error("not implemented: numParticles($T)")
 numParticles(b) = numParticles(typeof(b))
 
 """
     numModes(a)
 Number of modes represented by `a`.
 """
-numModes(T::Type) = @error "not implemented: numModes($T)"
+numModes(T::Type) = error("not implemented: numModes($T)")
 numModes(b) = numModes(typeof(b))
 
 #################################################
@@ -178,6 +178,8 @@ Base.zero(add::BSAdd64) = BSAdd64(0)
 Base.hash(a::BSAdd64, h::UInt) = hash(a.add, h)
 Base.trailing_ones(a::BSAdd64) = trailing_ones(a.add)
 Base.trailing_zeros(a::BSAdd64) = trailing_zeros(a.add)
+Base.count_ones(a::BSAdd64) = count_ones(a.add)
+
 import Base: <<, >>>, >>, ⊻, &, |
 (>>>)(a::BSAdd64, n::Integer) = BSAdd64(a.add >>> n)
 
@@ -204,6 +206,8 @@ Base.zero(add::BSAdd128) = BSAdd128(0)
 Base.hash(a::BSAdd128, h::UInt) = hash(a.add, h)
 Base.trailing_ones(a::BSAdd128) = trailing_ones(a.add)
 Base.trailing_zeros(a::BSAdd128) = trailing_zeros(a.add)
+Base.count_ones(a::BSAdd128) = count_ones(a.add)
+
 import Base: <<, >>>, >>, ⊻, &, |
 (>>>)(a::BSAdd128, n::Integer) = BSAdd128(a.add >>> n)
 
@@ -614,12 +618,14 @@ end
 #################################
 """
     BoseFS{N,M,A} <: BosonicFockStateAddress <: BitStringAddressType
-    BoseFS(bs::A, N = numParticles(A), M = numModes(A))
+    BoseFS(bs::A) where A <: BitAdd
+    BoseFS(bs::A, b)
 
 Address type that represents a Fock state of `N` spinless bosons in `M` orbitals
 by wrapping a bitstring of type `A`. Orbitals are stored in reverse
 order, i.e. the first orbital in a `BoseFS` is stored rightmost in the
-bitstring `bs`.
+bitstring `bs`. If the number of significant bits `b` is not encoded in `A` it
+must be passed as an argument (e.g. for `BSAdd64` and `BSAdd128`).
 """
 struct BoseFS{N,M,A} <: BosonicFockStateAddress
   bs::A
@@ -627,7 +633,9 @@ end
 
 BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs) # slow - not sure why
 
-function BoseFS(bs::A, n=numParticles(bs), m=numModes(bs)) where A <: BitStringAddressType
+function BoseFS(bs::A, b::Integer) where A <: BitStringAddressType
+  n = count_ones(bs)
+  m = b - n + 1
   bfs = BoseFS{n,m,A}(bs)
   check_consistency(bfs)
   return bfs
@@ -637,6 +645,12 @@ function BoseFS(bs::BitAdd{I,B}) where {B,I}
   n = count_ones(bs)
   m = B - n + 1
   return BoseFS{n,m,BitAdd{I,B}}(bs)
+end
+
+function BoseFS(bs::BStringAdd)
+  n = sum(bs.add)
+  m = length(bs.add) - n + 1
+  return BoseFS{n,m,BStringAdd}(bs)
 end
 
 """
@@ -717,8 +731,12 @@ numParticles(::Type{BoseFS{N,M,A}}) where {N,M,A} = N
 numModes(::Type{BoseFS{N,M,A}}) where {N,M,A} = M
 
 function check_consistency(b::BoseFS{N,M,A}) where {N,M,A}
-  numBits(b) ≤ numBits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), numBits(A) = $(numBits(A))")
+  numBits(b) ≤ numBits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), numBits(A) = $(numBits(A)).")
   check_consistency(b.bs)
+end
+function check_consistency(b::BoseFS{N,M,A}) where {N,M,A<:Union{BSAdd64,BSAdd128}}
+  numBits(b) ≤ numBits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), numBits(A) = $(numBits(A)).")
+  leading_zeros(b.bs.add) ≥ numBits(A) - numBits(b) ||  error("Ghost bits detected in $b.")
 end
 
 # performant and allocation free (if benchmarked on its own):
