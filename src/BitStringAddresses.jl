@@ -720,6 +720,13 @@ end
   return BoseFS{N,M,BitAdd{I,B}}(bs)
 end
 
+@inline function BoseFS{BStringAdd}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
+  @boundscheck  N + M - 1 == B || @error "Inconsistency in constructor BoseFS{BStringAdd}"
+  bs = bitaddr(onr, BStringAdd)
+  @boundscheck  length(bs.add) == B || @error "Inconsistency in constructor BoseFS{BStringAdd}"
+  return BoseFS{N,M,BStringAdd}(bs)
+end
+
 # comparison delegates to bs
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 # hashing delegates to bs
@@ -756,6 +763,12 @@ function onr(bba::BoseFS{N,M,A}) where {N,M,A}
   end
   return SVector(r)
 end
+
+# need a special case for BStringAdd because the bit ordering is reversed
+function onr(bba::BoseFS{N,M,A}) where {N,M,A<:BStringAdd}
+  onr(bba.bs,M)
+end
+
 
 # # works but is not faster
 # @generated function onr2(bba::BoseFS{N,M,A}) where {N,M,A}
