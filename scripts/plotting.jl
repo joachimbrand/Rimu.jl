@@ -1,6 +1,6 @@
 # plotting scripts
 
-using PyPlot
+using PyPlot, DataFrames
 # pygui(true)
 
 function plotQMCStats(df::DataFrame; newfig=true)

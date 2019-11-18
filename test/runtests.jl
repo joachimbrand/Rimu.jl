@@ -7,6 +7,45 @@ using LinearAlgebra
     @test 3==3
 end
 
+using Rimu.BitStringAddresses
+import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
+@testset "BitStringAddresses.jl" begin
+    # BitAdd
+    bs = BitAdd{40}(0xf342564fff)
+    bs1 = BitAdd{40}(0xf342564ffd)
+    bs2 = BitAdd{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
+    bs3 = BitAdd{44}(0xf342564fff)
+    @test bs > bs1
+    @test !(bs == bs1)
+    @test !(bs < bs1)
+    @test bs2 > bs1
+    @test bs3 > bs
+    @test bs & bs1 == bs1
+    @test bs | bs1 == bs
+    @test bs ⊻ bs1 == BitAdd{40}(2)
+    @test count_ones(bs2) == 105
+    @test count_zeros(bs2) == 39
+    w = BitAdd{65}((UInt(31),UInt(15)))
+    @test_throws ErrorException check_consistency(w)
+    @test_throws ErrorException BitAdd((UInt(31),UInt(15)),65)
+    wl = BitAdd((UInt(31),UInt(15)),85)
+    @test bs2 == BitAdd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
+    fa = BitAdd{133}()
+    @test trailing_zeros(bs<<3) == 3
+    @test trailing_ones(fa) == 133
+    @test trailing_ones(fa>>100) == 33
+    @test trailing_zeros(fa<<100) == 100
+    @test leading_zeros(fa>>130) == 130
+    @test leading_ones(fa<<130) == 3
+    @test bitstring(bs2) == "000011110011010000100101011001001111111111011111000000001101111111011111110111111101111111011111110111111101111111011111110111111101111111011111"
+    @test repr(BoseFS(bs2)) == "BoseFS{BitAdd}((5,7,7,7,7,7,7,7,7,7,7,2,0,0,0,0,0,0,0,5,10,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4,0,0,0,0))"
+    @test onr(BoseFS(bs)) == [12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4]
+    os = BoseFS{BitAdd}([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
+    @test os == BoseFS(bs)
+    @test hash(os) == hash(BoseFS(bs))
+    @test os.bs == bs
+end
+
 using Rimu.FastBufs
 @testset "FastBufs.jl" begin
     fb = FastBuf{Float64}(2000) # instantiate a FastBuf
@@ -92,6 +131,14 @@ end
     @test hp[18][1] == BSAdd64(0x000000000000d555)
     @test hp[18][2] ≈ -1.4142135623730951
     @test diagME(ham,aIni) == 0
+    os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
+    @test Rimu.Hamiltonians.bosehubbardinteraction(os) == 148
+    @test Rimu.Hamiltonians.ebhm(os) == (53, 148)
+    @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
+    hnnn = Rimu.Hamiltonians.hopnextneighbour(0xf342564fff,3,16,25)
+    bs = BitAdd{40}(0xf342564fff)
+    hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3,16,25)
+    @test BitAdd{40}(hnnn[1]) == hnnbs[1]
 end
 
 @testset "fciqmc.jl" begin
@@ -130,6 +177,80 @@ end
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(tup1, ham, pb, s)
     @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
+end
+
+@testset "fciqmc with BoseFS" begin
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    # ham = BoseHubbardReal1D(
+    #     n = 9,
+    #     m = 9,
+    #     u = 6.0,
+    #     t = 1.0,
+    #     AT = typeof(aIni))
+    # ham, aIni = setupBoseHubbardReal1D(
+    #     n = 9,
+    #     m = 9,
+    #     u = 6.0,
+    #     t = 1.0
+    # )
+
+    pa = RunTillLastStep(laststep = 100)
+
+    # standard fciqmc
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    @test sum(rdfs[:,:spawns]) == 1751
+
+    # fciqmc with delayed shift update
+    pa = RunTillLastStep(laststep = 100)
+    s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s)
+    @test sum(rdfs[:,:spawns]) == 2646
+
+    # replica fciqmc
+    tup1 = (copy(svec),copy(svec))
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+    pb = RunTillLastStep(laststep = 100)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rr = fciqmc!(tup1, ham, pb, s)
+    @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
+
+    # large bit string
+    n = 200
+    m = 200
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    # ham = BoseHubbardReal1D(
+    #     n = n,
+    #     m = m,
+    #     u = 6.0,
+    #     t = 1.0,
+    #     AT = typeof(aIni))
+    iShift = diagME(ham, aIni)
+
+    # standard fciqmc
+    tw = 1_000
+    s = LogUpdateAfterTargetWalkers(targetwalkers = tw)
+    svec = DVec(Dict(aIni => 20), 8*tw)
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    pa.laststep = 100
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
+    @test sum(rdfs[:,:spawns]) == 122128
 end
 
 @testset "dfvec.jl" begin
@@ -185,9 +306,14 @@ end
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
 @testset "MPI" begin
+    wd = pwd() # move to test/ folder if running from Atom
+    if wd[end-3:end] ≠ "test"
+        cd("test")
+    end
     # read name of mpi executable from environment variable if defined
     # necessary for allow-run-as root workaround for Pipelines
     mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
     rr = run(`$mpiexec -np 2 julia mpiexample.jl`)
     @test rr.exitcode == 0
+    cd(wd)
 end

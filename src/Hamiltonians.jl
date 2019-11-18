@@ -8,7 +8,7 @@ Models implemented so far are:
 """
 module Hamiltonians
 
-using Parameters
+using Parameters, StaticArrays
 using ..DictVectors
 
 
@@ -18,8 +18,7 @@ using ..ConsistentRNG
 export LinearOperator, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
 
-export BosonicHamiltonian, numParticles, numModes, bit_String_Length
-export nearUniform
+export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D
 
 # First we have some generic types and methods for any linear operator
@@ -162,8 +161,8 @@ Provides:
 """
 abstract type BosonicHamiltonian{T} <: LinearOperator{T} end
 
-numParticles(h::BosonicHamiltonian) = h.n
-numModes(h::BosonicHamiltonian) = h.m
+BitStringAddresses.numParticles(h::BosonicHamiltonian) = h.n
+BitStringAddresses.numModes(h::BosonicHamiltonian) = h.m
 
 """
     bit_String_Length(ham)
@@ -233,7 +232,7 @@ logbinomialapprox(n,k) =
 Create bitstring address with near uniform distribution of particles
 across modes for the Hamiltonian `ham`.
 """
-function nearUniform(h::BosonicHamiltonian)
+function BitStringAddresses.nearUniform(h::BosonicHamiltonian)
     fillingfactor, extras = divrem(h.n, h.m)
     startonr = fill(fillingfactor,h.m)
     startonr[1:extras] += ones(Int, extras)
@@ -249,7 +248,7 @@ end
 ###
 
 """
-    ham = BoseHubbardReal1D([n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
+    ham = BoseHubbardReal1D(;[n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
 
 Implements a one-dimensional Bose Hubbard chain in real space.
 
@@ -263,6 +262,17 @@ Implements a one-dimensional Bose Hubbard chain in real space.
 - `u::Float64`: the interaction parameter
 - `t::Float64`: the hopping strength
 - `AT::Type`: the address type
+
+# Functor use:
+    w = ham(v)
+    ham(w, v)
+Compute the matrix - vector product `w = ham * v`. The two-argument version is
+mutating for `w`.
+    ham(:dim)
+Return the dimension of the linear space if representable as `Int`, otherwise
+return `nothing`.
+    ham(:fdim)
+Return the approximate dimension of linear space as `Float64`.
 """
 @with_kw struct BoseHubbardReal1D{T} <: BosonicHamiltonian{T}
   n::Int = 6    # number of bosons
@@ -271,6 +281,18 @@ Implements a one-dimensional Bose Hubbard chain in real space.
   t::T = 1.0    # hopping strength
   AT::Type = BSAdd64 # address type
 end
+
+"""
+    BoseHubbardReal1D(add::BitStringAddressType; u=1.0, t=1.0)
+Set up the `BoseHubbardReal1D` with the correct particle and mode number and
+address type. Parameters `u` and `t` can be passed as keyword arguments.
+"""
+function BoseHubbardReal1D(add::BSA; u=1.0, t=1.0) where BSA <: BitStringAddressType
+  n = numParticles(add)
+  m = numModes(add)
+  return BoseHubbardReal1D(n,m,u,t,BSA)
+end
+
 # functor definitions need to be done separately for each concrete type
 function (h::BoseHubbardReal1D)(s::Symbol)
     if s == :dim # attempt to compute dimension as `Int`
@@ -295,6 +317,30 @@ function (h::BoseHubbardReal1D)(w, v) # mutating version
     end
     return w
 end
+
+# """
+#     setupBoseHubbardReal1D(; n, m, u, t, [AT = BoseFS, genInitialONR = nearUniform])
+#     -> ham::BoseHubbardReal1D, address::AT
+# Set up the Hamiltonian `ham` and initial address `address` for the Bose Hubbard
+# model with the given parameters as keyword arguments, see
+# [`BoseHubbardReal1D`](@ref). For `AT` pass an address type (or suitable
+# constructor) and for `genInitialONR` a function that takes `n` and `m` as
+# arguments and returns an occupation number representation, see
+# [`nearUniform()`](@ref):
+#
+# `onr = genInitialONR(n,m)`
+# """
+# function setupBoseHubbardReal1D(;n::Int, m::Int, u, t,
+#                     AT = BoseFS, genInitialONR = nearUniform)
+#     address = AT(genInitialONR(n,m))
+#     ham = BoseHubbardReal1D(n = n,
+#                             m = m,
+#                             u = u,
+#                             t = t,
+#                             AT = typeof(address)
+#     )
+#     return ham, address
+# end
 
 """
     diagME(ham, add)
@@ -336,6 +382,18 @@ in real space.
   t::T = 1.0    # hopping strength
   AT::Type = BSAdd64 # address type
 end
+
+"""
+    ExtendedBHReal1D(add::BitStringAddressType; u=1.0, v=1.0 t=1.0)
+Set up the `BoseHubbardReal1D` with the correct particle and mode number and
+address type. Parameters `u` and `t` can be passed as keyword arguments.
+"""
+function ExtendedBHReal1D(add::BSA; u=1.0, v=1.0, t=1.0) where BSA <: BitStringAddressType
+  n = numParticles(add)
+  m = numModes(add)
+  return ExtendedBHReal1D(n,m,u,v,t,BSA)
+end
+
 # functor definitions need to be done separately for each concrete type
 function (h::ExtendedBHReal1D)(s::Symbol)
     if s == :dim # attempt to compute dimension as `Int`
@@ -404,11 +462,12 @@ end
 Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction
 (without the *U* prefactor.)
 """
-function bosehubbardinteraction(address::Integer)
+function bosehubbardinteraction(address::T) where # T<:Integer
+  T<:Union{Integer,BitAdd}
   # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
   # currently this ammounts to counting occupation numbers of orbitals
   matrixelementint = 0
-  while address > 0
+  while !iszero(address)
     address >>>= trailing_zeros(address) # proceed to next occupied orbital
     bosonnumber = trailing_ones(address) # count how many bosons inside
     # surpsingly it is faster to not check whether this is nonzero and do the
@@ -419,6 +478,73 @@ function bosehubbardinteraction(address::Integer)
   return matrixelementint
 end #bosehubbardinteraction
 
+# function bosehubbardinteraction(a::BitAdd)
+#   return mapreduce(bosehubbardinteraction,+,a.chunks)
+# end
+function bitshiftright!(v::MVector{I,UInt64}, n::Integer) where I
+  if I==1
+    @inbounds v[1] >>>= n
+    return v
+  elseif n ≥ I*64
+    return fill!(v, zero(UInt64))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+  for i in I : -1 : d+2 #1 : I-d-1
+    @inbounds v[i] = (v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r))
+  end
+  @inbounds v[d+1] = v[1] >>> r # no carryover for leftmost chunk
+  for i in 1 : d
+    @inbounds v[i] = zero(UInt64)
+  end
+  return v
+end
+
+# function bitshiftright(v::SVector{I,UInt64}, n::Integer) where I
+#   if I==1
+#     @inbounds return v[1] >>> n
+#   elseif n ≥ I*64
+#     return zero(SVector{I,UInt64})
+#   end
+#   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+#   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+#   p1 = (zero(UInt64) for i in 1:d)
+#   @inbounds p2 = v[1] >>> r # no carryover for leftmost chunk
+#   p3 = ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)
+#   return SVector(p1...,p2,p3...)
+# end
+@inline function bitshiftright(v::SVector{I,UInt64}, n::Integer) where I
+  if I==1
+    @inbounds return v[1] >>> n
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
+  return ((zero(UInt64) for i in 1:d)..., (v[1] >>> r),
+    ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)...)
+end
+
+
+function Base.trailing_ones(a::MVector)
+  t = 0
+  for chunk in reverse(a)
+    s = trailing_ones(chunk)
+    t += s
+    s < 64 && break
+  end
+  return t # min(t, B) # assume no ghost bits
+end
+
+function Base.trailing_zeros(a::MVector)
+  t = 0
+  for chunk in reverse(a)
+    s = trailing_zeros(chunk)
+    t += s
+    s < 64 && break
+  end
+  return t
+end
+
+bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
 
@@ -451,7 +577,7 @@ end # bosehubbardinteraction(bsadd::BStringAdd)
 Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
 sum_j n_j n_{j+1} with periodic boundary conditions.
 """
-function ebhm(address::Integer, mModes)
+function ebhm(address::T, mModes) where T<:Union{Integer,BitAdd}
   # compute the diagonal matrix element of the Extended Bose Hubbard Hamiltonian
   # currently this ammounts to counting occupation numbers of orbitals
   #println("adress= ", bin(address))
@@ -486,6 +612,8 @@ function ebhm(address::Integer, mModes)
   return ebhmmatrixelementint , bhmmatrixelementint
 end #ebhm
 
+ebhm(b::BoseFS, m) = ebhm(b.bs, m)
+ebhm(b::BoseFS{N,M,A})  where {N,M,A} = ebhm(b, M)
 ebhm(adcont::BSAdd64, m) = ebhm(adcont.add, m)
 ebhm(adcont::BSAdd128, m) = ebhm(adcont.add, m)
 
@@ -527,16 +655,23 @@ function ebhm(bsadd::BStringAdd, mModes)
   return ebhmmatrixelementint, bhmmatrixelementint
 end # ebhm(bsadd::BStringAdd, ...)
 
-function numberoccupiedsites(address::Integer)
+function numberoccupiedsites(address::T) where # T<:Integer
+  T<:Union{Integer,BitAdd}
   # returns the number of occupied sites starting from bitstring address
   orbitalnumber = 0
-  while address > 0
+  while !iszero(address)
     orbitalnumber += 1
     address >>>= trailing_zeros(address)
     address >>>= trailing_ones(address)
   end # while address
   return orbitalnumber
 end # numberoccupiedsites
+
+# function numberoccupiedsites(address::BitAdd)
+#   return mapreduce(numberoccupiedsites,+,address.chunks)
+# end
+
+numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
 
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
 
@@ -578,7 +713,8 @@ orbitals.
 hopnextneighbour
 
 function hopnextneighbour(address::T, chosen::Int,
-  mmodes::Int, nparticles::Int) where T<:Integer
+  mmodes::Int, nparticles::Int) where T<:Union{Integer,BitAdd}
+  # T<:Union{Integer,BStringAdd}
   # compute the address of a hopping event defined by chosen
   # Take care of the type of address
   site = (chosen + 1) >>> 1 # integer divide by 2 to find the orbital to hop from
@@ -653,6 +789,12 @@ function hopnextneighbour(address::T, chosen::Int,
     end
   end
   return naddress, tones # return new address and product of occupation numbers
+end
+
+function hopnextneighbour(address::BoseFS{N,M,A}, chosen::Int,
+                          args...) where {N,M,A}
+  nbs, tones = hopnextneighbour(address.bs, chosen, M, N)
+  return BoseFS{N,M,A}(nbs), tones
 end
 
 function hopnextneighbour(address::BSAdd64, chosen, mmodes, nparticles)
