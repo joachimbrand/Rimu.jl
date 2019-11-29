@@ -31,7 +31,7 @@ export IsStochasticNonlinear
 export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
 export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
 export localpart, free, mpi_no_exchange
-export OvershootControl
+export OvershootControl, DoubleLogUpdateAfterTargetWalkers
 
 include("strategies_and_params.jl")
 include("mpi_helpers.jl")

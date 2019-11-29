@@ -176,6 +176,22 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 end
 
 """
+    DoubleLogUpdate(ξ = 0.3, ζ = 0.3) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ`.
+
+```math
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)
+```
+"""
+@with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
+    targetwalkers::Int
+    ξ::Float64 = 0.3 # restoring force to bring walker number to the target
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    a::Int = 100 # time period that allows double damping
+end
+
+"""
     DelayedLogUpdate(ζ = 0.3, a = 10) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and delay of `a` steps.
@@ -253,6 +269,20 @@ end
                         shift, shiftMode, tnorm, args...)
     if shiftMode || tnorm > s.targetwalkers
         return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
+    end
+    return shift, false, tnorm
+end
+
+@inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, args...)
+    if shiftMode || tnorm > s.targetwalkers
+        if s.a > 0
+            s.a -= 1
+            return shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
+        else
+            return update_shift(LogUpdate(s.ζ), shift, true, tnorm, pnorm, dτ, step, df)
+        end
     end
     return shift, false, tnorm
 end

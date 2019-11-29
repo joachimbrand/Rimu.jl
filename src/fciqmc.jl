@@ -86,7 +86,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         # the updated "previous" norm pnorm is returned from `update_shift()`
         # in order to allow delaying the update, e.g. with `DelayedLogUpdate`
         # pnorm = tnorm # remember norm of this step for next step (previous norm)
-        dτ = update_dτ(τ_strat, dτ) # will need to pass more information later
+        dτ = update_dτ(τ_strat, dτ, tnorm) # will need to pass more information later
         # when we add different stratgies
         len = length(v) # MPI sycncronising: total number of configs
         # record results according to ReportingStrategy r_strat
