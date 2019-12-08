@@ -23,9 +23,11 @@ include("Blocking.jl")
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
+export DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
+export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
-export TimeStepStrategy, ConstantTimeStep
+export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
 export IsStochasticNonlinear
 export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
