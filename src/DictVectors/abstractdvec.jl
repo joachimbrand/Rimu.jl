@@ -227,6 +227,21 @@ function LinearAlgebra.dot(x::AbstractDVec{K,T1}, y::AbstractDVec{K,T2}) where {
     return result # the type is promote_type(T1,T2) - could be complex!
 end
 
+function ddot(x::AbstractDVec{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
+    # for mixed value types
+    result = zero(promote_type(T1,T2))
+    if length(x) < length(y) # try to save time by looking for the smaller vec
+        for (key, val) in kvpairs(x)
+            result += conj(val)*y[key]
+        end
+    else
+        for (key, val) in kvpairs(y)
+            result += conj(x[key])*val
+        end
+    end
+    return result # the type is promote_type(T1,T2) - could be complex!
+end
+
 ## some methods below that we could inherit from AbstracDict with subtyping
 
 """

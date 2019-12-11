@@ -191,7 +191,7 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 end
 
 """
-    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    DoubleLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`.
 See [`DoubleLogUpdate`](@ref).
@@ -203,7 +203,7 @@ See [`DoubleLogUpdate`](@ref).
 end
 
 """
-    LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    DoubleLogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`. After `a` steps
 the strategy swiches to [`LogUpdate`](@ref).
@@ -214,6 +214,21 @@ See [`DoubleLogUpdate`](@ref).
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
     ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
     a::Int = 100 # time period that allows double damping
+end
+
+@with_kw mutable struct PartialNormUpdate <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    pavec::FastDVec
+end
+
+@with_kw mutable struct DelayedPartialNormUpdate <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    a::Int = 200 # time period that allows double damping
+    pavec::FastDVec
 end
 
 """
@@ -261,7 +276,7 @@ Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
 """
 @inline function update_shift(s::HistoryLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, step, df, args...)
     prev_n_w = s.n_w # previous sum of walker numbers
     # compute sum of walker numbers from history
     s.n_w = sum([df[end-i*s.d, :norm] for i in 0:(s.k-1)])
@@ -272,21 +287,21 @@ end
 
 @inline function update_shift(s::LogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, step, df, args...)
     # return new shift and new shiftMode
     return shift - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
 
 @inline function update_shift(s::DoubleLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, step, df, args...)
     # return new shift and new shiftMode
     return shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
 
 @inline function update_shift(s::DelayedLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, step, df, args...)
     # return new shift and new shiftMode
     if step % s.a == 0 && size(df,1) > s.a
         prevnorm = df[end-s.a+1,:norm]
@@ -307,25 +322,48 @@ end
 
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df, args...)
+                        tnorm, args...)
     if shiftMode || tnorm > s.targetwalkers
-            return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
+            return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, args...)
     end
     return shift, false, tnorm
 end
 
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkersSwitch,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df, args...)
+                        tnorm, args...)
     if shiftMode || tnorm > s.targetwalkers
         if s.a > 0
             s.a -= 1
-            return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
+            return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, args...)
         else
-            return update_shift(LogUpdate(s.ζ), shift, true, tnorm, pnorm, dτ, step, df)
+            return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
         end
     end
     return shift, false, tnorm
+end
+
+@inline function update_shift(s::PartialNormUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, v)
+    panorm = ddot(s.pavec,v)
+    # println("tnorm = $tnorm, panorm = $panorm, pnorm = $pnorm")
+    return shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(panorm/pnorm), true, panorm
+end
+
+@inline function update_shift(s::DelayedPartialNormUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, v)
+    if s.a > 1
+        s.a -= 1
+        return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df, v)
+    elseif s.a == 1
+        s.a -= 1
+        panorm = ddot(s.pavec,v)
+        return update_shift(PartialNormUpdate(s.targetwalkers,s.ζ,s.ξ,s.pavec), shift, true, tnorm, panorm, dτ, step, df, v)
+    else
+        return update_shift(PartialNormUpdate(s.targetwalkers,s.ζ,s.ξ,s.pavec), shift, true, tnorm, pnorm, dτ, step, df, v)
+    end
 end
 
 @inline function update_shift(s::DelayedLogUpdateAfterTargetWalkers,

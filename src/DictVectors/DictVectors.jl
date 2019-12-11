@@ -36,6 +36,7 @@ export AbstractDVec, capacity, zero!, kvpairs, pairtype
 export DVec
 export DFVec, tuples, gettuple, flagtype, flags
 export FastDVec
+export ddot
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.

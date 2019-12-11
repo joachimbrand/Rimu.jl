@@ -25,6 +25,7 @@ export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
 export DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
 export DoubleLogUpdateAfterTargetWalkersSwitch
+export PartialNormUpdate, DelayedPartialNormUpdate
 export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
 export TimeStepStrategy, ConstantTimeStep, OvershootControl

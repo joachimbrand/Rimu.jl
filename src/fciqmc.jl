@@ -83,7 +83,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
                                     shift, shiftMode,
-                                    tnorm, pnorm, dτ, step, df)
+                                    tnorm, pnorm, dτ, step, df, v)
         # the updated "previous" norm pnorm is returned from `update_shift()`
         # in order to allow delaying the update, e.g. with `DelayedLogUpdate`
         # pnorm = tnorm # remember norm of this step for next step (previous norm)
