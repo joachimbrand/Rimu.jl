@@ -19,7 +19,7 @@ export LinearOperator, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
 
 export BosonicHamiltonian, bit_String_Length
-export BoseHubbardReal1D, ExtendedBHReal1D
+export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardTrapping1D
 
 # First we have some generic types and methods for any linear operator
 # that could be used for FCIQMC
@@ -353,6 +353,110 @@ function diagME(h::BoseHubbardReal1D, address)
 end
 
 ###
+### BoseHubbardTrapping1D
+###
+
+
+"""
+    ham = BoseHubbardReal1D(;[n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
+
+Implements a one-dimensional Bose Hubbard chain in real space.
+
+```math
+\\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1)
+```
+
+# Arguments
+- `n::Int`: the number of bosons
+- `m::Int`: the number of lattice sites
+- `u::Float64`: the interaction parameter
+- `t::Float64`: the hopping strength
+- `AT::Type`: the address type
+
+# Functor use:
+    w = ham(v)
+    ham(w, v)
+Compute the matrix - vector product `w = ham * v`. The two-argument version is
+mutating for `w`.
+    ham(:dim)
+Return the dimension of the linear space if representable as `Int`, otherwise
+return `nothing`.
+    ham(:fdim)
+Return the approximate dimension of linear space as `Float64`.
+"""
+@with_kw struct BoseHubbardTrapping1D{T} <: BosonicHamiltonian{T}
+  n::Int = 6    # number of bosons
+  m::Int = 6    # number of lattice sites
+  u::T = 1.0    # interaction strength
+  t::T = 1.0    # hopping strength
+  Ω::T = 1.0    # trapping potential
+  i::T = 3    # potential minimum
+  AT::Type = BSAdd64 # address type
+end
+
+
+"""
+    ExtendedBHReal1D(add::BitStringAddressType; u=1.0, v=1.0 t=1.0)
+Set up the `BoseHubbardReal1D` with the correct particle and mode number and
+address type. Parameters `u` and `t` can be passed as keyword arguments.
+"""
+function BoseHubbardTrapping1D(add::BSA; u=1.0, v=1.0, t=1.0, Ω=1.0, i=1.0) where BSA <: BitStringAddressType
+  n = numParticles(add)
+  m = numModes(add)
+  return ExtendedBHReal1D(n,m,u,v,t,BSA)
+end
+
+# functor definitions need to be done separately for each concrete type
+function (h::BoseHubbardTrapping1D)(s::Symbol)
+    if s == :dim # attempt to compute dimension as `Int`
+        return hasIntDimension(h) ? dimensionLO(h) : nothing
+    elseif s == :fdim
+        return fDimensionLO(h) # return dimension as floating point
+    end
+    return nothing
+end
+# should be all that is needed to make the Hamiltonian a linear map:
+function (h::BoseHubbardTrapping1D{E})(v::AbstractDVec{K,V}) where {E, K, V}
+    T = promote_type(E,V) # allow for type promotion
+    w = empty(v, T) # allocate new vector; non-mutating version
+    return h(w,v)
+end
+function (h::BoseHubbardTrapping1D)(w, v) # mutating version
+    for (key,val) in pairs(v)
+        w[key] += diagME(h, key)*val
+        for (add,elem) in Hops(h, key)
+            w[add] += elem*val
+        end
+    end
+    return w
+end
+
+function bosehubbardtrappingpotential(address::T, i_0) where # T<:Integer
+  T<:Union{Integer,BitAdd}
+  # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
+  # currently this ammounts to counting occupation numbers of orbitals
+  matrixelementint = 0
+  sitecounter = 1
+  while !iszero(address)
+    tzeros = trailing_zeros(address)
+    sitecounter += tzeros
+    address >>>= trailing_zeros(address) # proceed to next occupied orbital
+    bosonnumber = trailing_ones(address) # count how many bosons inside
+    # surpsingly it is faster to not check whether this is nonzero and do the
+    # following operations anyway
+    address >>>= bosonnumber # remove the countedorbital
+    matrixelementint += bosonnumber*(sitecounter-i_0)^2
+  end
+  return matrixelementint
+end #bosehubbardtrappingpotential
+
+function diagME(h::BoseHubbardTrapping1D, address)
+  h.u * bosehubbardinteraction(address) / 2 + h.Ω * bosehubbardtrappingpotential(address,h.i)
+end
+
+
+
+###
 ### ExtendedBoseHubbardReal1D
 ###
 
@@ -427,7 +531,7 @@ end
 # The off-diagonal matrix elements of the 1D Hubbard chain are the same for
 # the extended and original Bose-Hubbard model.
 
-BoseHubbardExtOrNot = Union{ExtendedBHReal1D, BoseHubbardReal1D}
+BoseHubbardExtOrNot = Union{ExtendedBHReal1D, BoseHubbardReal1D, BoseHubbardTrapping1D}
 # type alias for convenience
 
 """
@@ -547,6 +651,10 @@ end
 bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
+
+bosehubbardtrappingpotential(b::BoseFS,i_0) = bosehubbardtrappingpotential(b.bs,i_0)
+bosehubbardtrappingpotential(adcont::BSAdd64,i_0) = bosehubbardtrappingpotential(adcont.add,i_0)
+bosehubbardtrappingpotential(adcont::BSAdd128,i_0) = bosehubbardtrappingpotential(adcont.add,i_0)
 
 function bosehubbardinteraction(bsadd::BStringAdd)
   #computes diagonal elementsDIAG_OF_K
