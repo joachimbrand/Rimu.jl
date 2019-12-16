@@ -454,9 +454,9 @@ function bosehubbardtrappingpotential(bsadd::BoseFS, i_0)
   # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
   # currently this ammounts to counting occupation numbers of orbitals
   matrixelementint = 0
-  for site in enumerate(onr(bsadd))
-    i = site[1]
-    n = site[2]
+  for (i,n) in enumerate(onr(bsadd))
+    # i = site[1]
+    # n = site[2]
     matrixelementint += n*(i-i_0)^2
   end
   return matrixelementint
