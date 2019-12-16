@@ -46,10 +46,10 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     # # println("after barrier")
-    rdf,v =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w)
+    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w)
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
-    return rdf,v
+    return rdf
 end
 
 # for continuation runs we can also pass a DataFrame
@@ -111,7 +111,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
     # pack up parameters for continuation runs
     # note that this modifes the struct pa
     @pack! pa = step, shiftMode, shift, dτ
-    return  df,v
+    return  df
     # note that `svec` and `pa` are modified but not returned explicitly
 end # fciqmc
 
