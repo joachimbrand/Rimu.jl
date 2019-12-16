@@ -6,7 +6,8 @@ import MPI
 using Feather
 import Humanize: datasize, timedelta
 
-Rimu.StochasticStyle(::DVec) = IsDeterministic()
+# Rimu.StochasticStyle(::DVec) = IsDeterministic()
+# Rimu.StochasticStyle(::DVec) = IsStochastic()
 
 # function main()
 # Initialise MPI

@@ -664,7 +664,6 @@ bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
 
-bosehubbardtrappingpotential(b::BoseFS,i_0) = bosehubbardtrappingpotential(b.bs,i_0)
 bosehubbardtrappingpotential(adcont::BSAdd64,i_0) = bosehubbardtrappingpotential(adcont.add,i_0)
 bosehubbardtrappingpotential(adcont::BSAdd128,i_0) = bosehubbardtrappingpotential(adcont.add,i_0)
 
