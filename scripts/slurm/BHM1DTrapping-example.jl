@@ -19,23 +19,23 @@ np = 1 # MPI.Comm_size(comm)
 # define the problem
 Ĥ = BoseHubbardTrapping1D(
     n = 1,
-    m = 25,
+    m = 45,
     u = 0.0,
-    t = 1.0,
+    t = 200.0,
     Ω = 1.0,
-    i = 13.0,
-    AT = BSAdd64)
+    i = 23.0,
+    AT = BoseFS)
 
-targetwalkers = 2_000
-timesteps = 5000
+targetwalkers = 10_000
+timesteps = 20000
 
 
 
 # prepare initial state and allocate memory
-c = zeros(Int,25)
-c[13]=1
-aIni = nearUniform(Ĥ)
-svec = DVec(Dict(aIni => 10), (targetwalkers*2)÷np)
+c = zeros(Int,45)
+c[10]=1
+aIni = BoseFS(c)#nearUniform(Ĥ)
+svec = DVec(Dict(aIni => 10.0), (targetwalkers*10)÷np)
 # our buffer for the state vector and initial state
 w = similar(svec) # working memory, preallocated
 
@@ -63,7 +63,7 @@ s_strat = DoubleLogUpdate(targetwalkers = targetwalkers)
 #s_strat = LogUpdateAfterTargetWalkers(targetwalkers = targetwalkers)
 r_strat = ReportDFAndInfo(k=1,i=100)#, writeinfo = dvs.isroot)
 t_strat = ConstantTimeStep()
-et = @elapsed df,v = fciqmc!(dvs, params, Ĥ, s_strat, r_strat, t_strat, w)
+et = @elapsed df = fciqmc!(dvs, params, Ĥ, s_strat, r_strat, t_strat, w)
 println("parallel fciqmc compiled in $et seconds")
 
 params.laststep = timesteps # set actual number of time steps to run
@@ -76,7 +76,7 @@ println(params, s_strat, r_strat, t_strat)
 
 # run main calculation
 println("Starting main calculation with $timesteps steps. Hang on ...")
-et = @elapsed df,v = fciqmc!(dvs, params, df, Ĥ, s_strat, r_strat, t_strat, w)
+et = @elapsed df = fciqmc!(dvs, params, df, Ĥ, s_strat, r_strat, t_strat, w)
 actualtimesteps = size(df,1)-1
 # params.laststep += 2000
 # s_strat = PartialNormUpdate(targetwalkers = targetwalkers, ξ=0.0,pavec=pavec)#, a=3000)
