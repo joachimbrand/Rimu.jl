@@ -8,7 +8,7 @@ represent a vector-like object with `valtype(dv) == V`. The value of the
 for each entry. Indexing is done with an
 arbitrary (in general non-integer) `keytype(dv) == K`.
 When constructed from a `Vector{V}`,
-the keys will be integers `∈ [0, length(v)]` and the flag `zero(UInt16)`.
+the keys will be integers `∈ [1, length(v)]` and the flag `zero(UInt16)`.
 See [`AbstractDVec`](@ref). The
 method [`capacity()`](@ref) is defined but not a strict upper limit as `Dict`
 objects can expand.
