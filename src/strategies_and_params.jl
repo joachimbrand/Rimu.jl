@@ -106,6 +106,26 @@ Update the time step according to the strategy `s`.
 update_dτ(::ConstantTimeStep, dτ, args...) = dτ
 # here we implement the trivial strategy: don't change dτ
 
+"Slow down/Speed up `dτ` to control the psips overshoot."
+@with_kw mutable struct OvershootControl <: TimeStepStrategy
+    targetwalkers::Int
+    dτinit::Float64
+    speedup::Bool
+end
+
+@inline function update_dτ(s::OvershootControl, dτ, tnorm, args...)
+    if tnorm >= s.targetwalkers
+        s.speedup = true
+    end
+    if s.speedup && dτ < s.dτinit
+        dτ += 0.1*(1-dτ/s.dτinit)*dτ
+    else
+        dτ = (1-tnorm/(s.targetwalkers*1.1))*s.dτinit
+    end
+    return dτ
+end
+# here we implement the trivial strategy: don't change dτ
+
 """
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:
@@ -153,6 +173,47 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 """
 @with_kw struct LogUpdate <: ShiftStrategy
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+end
+
+"""
+    DoubleLogUpdate(ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ` and `ξ`.
+
+```math
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
+```
+"""
+@with_kw mutable struct DoubleLogUpdate <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+end
+
+"""
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+Strategy for updating the shift: After `targetwalkers` is reached, update the
+shift according to the log formula with damping parameter `ζ` and `ξ`.
+See [`DoubleLogUpdate`](@ref).
+"""
+@with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+end
+
+"""
+    LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+Strategy for updating the shift: After `targetwalkers` is reached, update the
+shift according to the log formula with damping parameter `ζ` and `ξ`. After `a` steps
+the strategy swiches to [`LogUpdate`](@ref).
+See [`DoubleLogUpdate`](@ref).
+"""
+@with_kw mutable struct DoubleLogUpdateAfterTargetWalkersSwitch <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    a::Int = 100 # time period that allows double damping
 end
 
 """
@@ -216,6 +277,13 @@ end
     return shift - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
 
+@inline function update_shift(s::DoubleLogUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df)
+    # return new shift and new shiftMode
+    return shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
+end
+
 @inline function update_shift(s::DelayedLogUpdate,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df)
@@ -233,6 +301,29 @@ end
                         shift, shiftMode, tnorm, args...)
     if shiftMode || tnorm > s.targetwalkers
         return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
+    end
+    return shift, false, tnorm
+end
+
+@inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, args...)
+    if shiftMode || tnorm > s.targetwalkers
+            return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
+    end
+    return shift, false, tnorm
+end
+
+@inline function update_shift(s::DoubleLogUpdateAfterTargetWalkersSwitch,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, args...)
+    if shiftMode || tnorm > s.targetwalkers
+        if s.a > 0
+            s.a -= 1
+            return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
+        else
+            return update_shift(LogUpdate(s.ζ), shift, true, tnorm, pnorm, dτ, step, df)
+        end
     end
     return shift, false, tnorm
 end

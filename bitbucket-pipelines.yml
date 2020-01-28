@@ -10,6 +10,7 @@ pipelines:
             - export JULIA_MPIEXEC=/tmp/mpiexecwrapper
             - echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
             - chmod +x $JULIA_MPIEXEC
+            - julia -e 'using InteractiveUtils; versioninfo(verbose=true)'
             - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
             - julia -e 'using Pkg; Pkg.test("Rimu")'
             # - julia --project=test/ -e 'using Pkg; Pkg.instantiate()'
@@ -26,6 +27,7 @@ pipelines:
             - export JULIA_MPIEXEC=/tmp/mpiexecwrapper
             - echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
             - chmod +x $JULIA_MPIEXEC
+            - julia -e 'println(ENV)'
             - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
             # - julia test/runtests.jl
             - julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
