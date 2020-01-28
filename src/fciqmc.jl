@@ -284,7 +284,7 @@ end # fciqmc_step!
 `StochasticStyle` specifies the native style of the generalised vector `V` that
 determines how simulations are to proceed. This can be fully stochastic (with
 `IsStochastic`), fully deterministic (with `IsDeterministic`), or semistochastic
-(with `IsSemistochastic`).
+(with [`IsSemistochastic`](@ref)).
 """
 abstract type StochasticStyle end
 
@@ -296,7 +296,46 @@ end
 
 struct IsDeterministic <: StochasticStyle end
 
-struct IsSemistochastic <: StochasticStyle end
+"""
+    IsSemistochastic(threshold::Float16, d_space)
+Trait for generalised vector of configurations indicating semistochastic
+propagation. Set with [`setSemistochastic!`](@ref).
+```
+> StochasticStyle(V) = IsSemistochastic(threshold, d_space)
+```
+where `d_space` is a vector of addresses defining the the stochastic subspace.
+"""
+struct IsSemistochastic{T} <: StochasticStyle
+    threshold::Float16
+    d_space::Vector{T} # list of addresses in deterministic space
+end
+
+"""
+    setSemistochastic!(dv, threshold::Float16, d_space)
+Set the deterministic space for `dv` with threshold `threshold`, where
+`d_space` is a vector of addresses defining the the stochastic subspace.
+"""
+function setSemistochastic!(dv, threshold::Float16, d_space)
+    clearDSpace!(dv)
+    for add in d_space
+        (val, flag) = dv[add]
+        dv[add] = (val, flag | one(typeof(flag)))
+    end
+    StochasticStyle(dv) = IsSemistochastic(threshold, d_space)
+    dv
+end
+
+"""
+    clearDFlags!(dv)
+Clear all flags in `dv` of the deterministic bit (rightmost bit).
+"""
+function clearDFlags!(dv)
+    for (add, (val, flag)) in pairs(dv)
+        # delete determimistic bit (rightmost) in `flag`
+        dv[add] = (val, flag ⊻ one(typeof(flag)))
+    end
+    dv
+end
 
 # some sensible defaults
 StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
@@ -531,3 +570,93 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
     return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
+
+function fciqmc_col!(s::IsSemistochastic, w, ham::LinearOperator, add,
+         val_flag_tuple::Tuple{N, F}, shift, dτ) where {N<:Number, F<:Integer}
+    (val, flag) = val_flag_tuple
+    deterministic = flag & one(F) # extract deterministic flag
+    # diagonal death or clone
+    new_val = w[add][1] + (1 + dτ*(shift - diagME(ham,add)))*val
+    if deterministic
+        w[add] = (new_val, flag) # new tuple
+    else
+        if new_val < s.threshold
+            if new_val/s.threshold > cRand()
+                new_val = convert(N,s.threshold)
+                w[add] = (new_val, flag) # new tuple
+            end
+            # else # do nothing, stochastic space and rounded to zero
+        else
+            w[add] = (new_val, flag) # new tuple
+        end
+    end
+    # off-diagonal: spawning psips
+    if deterministic
+        for (nadd, elem) in Hops(ham, add)
+            wnapsips, wnaflag = w[nadd]
+            if wnaflag & one(F) # new address `nadd` is also in deterministic space
+                w[nadd] = (wnapsips - dτ * elem * val, wnaflag)  # new tuple
+            else
+                # TODO: det -> sto
+                pspawn = abs(val * dτ * matelem) # non-negative Float64, pgen = 1
+                nspawn = floor(pspawn) # deal with integer part separately
+                cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+                # at this point, nspawn is non-negative
+                # now converted to correct type and compute sign
+                nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
+                # - because Hamiltonian appears with - sign in iteration equation
+                if sign(wnapsips) * sign(nspawns) < 0 # record annihilations
+                    annihilations += min(abs(wnapsips),abs(nspawns))
+                end
+                if !iszero(nspawns) # successful attempt to spawn
+                    w[naddress] = (wnapsips+nspawns, wnaflag)
+                    # perform spawn (if nonzero): add walkers with correct sign
+                    spawns += abs(nspawns)
+                end
+            end
+        end
+    else
+        # TODO: stochastic
+        hops = Hops(ham, add)
+        for n in 1:floor(abs(val)) # abs(val÷s.threshold) # for each psip attempt to spawn once
+            naddress, pgen, matelem = generateRandHop(hops)
+            pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+            nspawn = floor(pspawn) # deal with integer part separately
+            cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+            # at this point, nspawn is non-negative
+            # now converted to correct type and compute sign
+            nspawns = convert(typeof(val), -nspawn * sign(val) * sign(matelem))
+            # - because Hamiltonian appears with - sign in iteration equation
+            wnapsips, wnaflag = w[naddress]
+            if sign(wnapsips) * sign(nspawns) < 0 # record annihilations
+                annihilations += min(abs(wnapsips),abs(nspawns))
+            end
+            if !iszero(nspawns)
+                w[naddress] = (wnapsips+nspawns, wnaflag)
+                # perform spawn (if nonzero): add walkers with correct sign
+                spawns += abs(nspawns)
+            end
+        end
+        # deal with non-integer remainder
+        rval =  abs(val%1) # abs(val%threshold)
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(val), -nspawn * sign(val) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        wnapsips, wnaflag = w[naddress]
+        if sign(wnapsips) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(wnapsips),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] = (wnapsips+nspawns, wnaflag)
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(nspawns)
+        end
+        # done with stochastic spawning
+    end
+    return missing
+end
