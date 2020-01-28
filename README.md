@@ -5,7 +5,9 @@
 
 *Random Integrators for many-body quantum systems*
 
-Developed by Joachim Brand with contributions from Elke Pahl, Mingrui Yang, and Didier Adrien.
+Concept: Joachim Brand and Elke Pahl.
+Contributors: Joachim Brand, Elke Pahl, Mingrui Yang
+Additional contributions and help are acknowledged by Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
 
 To install the package clone the git repository with `git clone` to a convenient location, e.g.
 `~/mygitpackagefolder/`. Then
