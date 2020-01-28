@@ -7,7 +7,7 @@
 
 Concept: Joachim Brand and Elke Pahl.
 Contributors: Joachim Brand, Elke Pahl, Mingrui Yang
-Additional contributions and help are acknowledged by Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
+Discussions, help, and additional contributions are acknowledged by Ali Alavi, Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
 
 To install the package clone the git repository with `git clone` to a convenient location, e.g.
 `~/mygitpackagefolder/`. Then
