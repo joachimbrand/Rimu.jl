@@ -8,7 +8,7 @@ module Blocking
 
 using DataFrames
 
-export blocker, blocking, blockingErrorEstimation, mtest
+export blocker, blocking, blockingErrorEstimation, mtest, block_trim
 
 """
 Reblock the data by successively taking the mean of adjacent data points
@@ -187,6 +187,16 @@ function mtest(df::DataFrame)
     if k > length(M)-1
         println("\x1b[32mM test failed, more data needed\x1b[0m")
     end
+end
+
+"""
+Trim down the length of a dataset to integer power of 2
+"""
+function block_trim(v)
+    l = length(v)
+    k = Int(floor(log2(l)))
+    e = 2^k
+    v = v[l-e+1:end]
 end
 
 end # module Blocking
