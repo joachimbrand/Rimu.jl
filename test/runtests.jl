@@ -253,6 +253,25 @@ end
     @test sum(rdfs[:,:spawns]) == 122128
 end
 
+@testset "IsStochasticWithThreshold" begin
+# Define the initial Fock state with n particles and m modes
+n = m = 9
+aIni = nearUniform(BoseFS{n,m})
+ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+pa = RunTillLastStep(laststep = 100)
+
+# standard fciqmc
+s = DoubleLogUpdate(targetwalkers = 100)
+svec = DVec(Dict(aIni => 2.0), ham(:dim))
+Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
+StochasticStyle(svec)
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+@test sum(rdfs[:,:norm]) ≈ 7643.091054376505
+
+end
+
 @testset "dfvec.jl" begin
     df = DFVec(Dict(3=>(3.5,true)))
 

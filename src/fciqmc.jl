@@ -80,6 +80,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         # perform one complete stochastic vector matrix multiplication
         v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w)
         tnorm = norm(v, 1) # MPI sycncronising: total number of psips
+        tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm)
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
                                     shift, shiftMode,
@@ -165,7 +166,9 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                 vNew = vsNew[i]
                 a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, vNew)
                 mstats[i] .= stats
-                norms[i] = norm(vNew,1) # total number of psips
+                tnorm = norm(vNew,1) # total number of psips
+                norms[i] = apply_memory_noise!(v, w, s_strat, pnorms[i], tnorm)
+
                 shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                     s_strat, shifts[i], vShiftModes[i],
                     norms[i], pnorms[i], dτ, step, dfs[i]
@@ -242,6 +245,7 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         ismissing(res) || (stats .+= res) # just add all stats together
     end
+    thresholdProject!(w) # apply walker threshold if applicable
     return w, v, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
@@ -256,6 +260,7 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         ismissing(res) || (stats .+= res) # just add all stats together
     end
+    thresholdProject!(w) # apply walker threshold if applicable
     sort_into_targets!(dv, w)
     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
     return dv, w, stats
@@ -263,6 +268,28 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
     # result `dv` and cumulative `stats` as an array on all ranks
     # stats == (spawns, deaths, clones, antiparticles, annihilations)
 end # fciqmc_step!
+
+"""
+    thresholdProject!(w)
+    thresholdProject!(s::StochasticStyle, w)
+Project all elements of `w` to `s.threshold` preserving the sign if
+`StochasticStyle(w)` requires projection.
+"""
+thresholdProject!(w) = thresholdProject!(StochasticStyle(w), w)
+
+thresholdProject!(s, w) = w # default does nothing
+
+function thresholdProject!(s::IsStochasticWithThreshold, w)
+    # perform projection if below threshold preserving the sign
+    for (add, val) in kvpairs(w)
+        pprob = abs(val)/s.threshold
+        if pprob < 1 # projection is only necessary if abs(val) < s.threshold
+            w[add] = (pprob > cRand()) ? s.threshold*sign(val) : zero(val)
+        end
+    end
+    return w
+end
+
 
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
@@ -275,76 +302,6 @@ end # fciqmc_step!
 #   return statistics
 # end
 
-# let's decide whether a simulation is deterministic, stochastic, or
-# semistochastic upon a trait on the vector type
-
-"""
-    StochasticStyle(V)
-    StochasticStyle(typeof(V))
-`StochasticStyle` specifies the native style of the generalised vector `V` that
-determines how simulations are to proceed. This can be fully stochastic (with
-`IsStochastic`), fully deterministic (with `IsDeterministic`), or semistochastic
-(with [`IsSemistochastic`](@ref)).
-"""
-abstract type StochasticStyle end
-
-struct IsStochastic <: StochasticStyle end
-
-struct IsStochasticNonlinear <: StochasticStyle
-    c::Float64 # parameter of nonlinear correction applied to local shift
-end
-
-struct IsDeterministic <: StochasticStyle end
-
-"""
-    IsSemistochastic(threshold::Float16, d_space)
-Trait for generalised vector of configurations indicating semistochastic
-propagation. Set with [`setSemistochastic!`](@ref).
-```
-> StochasticStyle(V) = IsSemistochastic(threshold, d_space)
-```
-where `d_space` is a vector of addresses defining the the stochastic subspace.
-"""
-struct IsSemistochastic{T} <: StochasticStyle
-    threshold::Float16
-    d_space::Vector{T} # list of addresses in deterministic space
-end
-
-"""
-    setSemistochastic!(dv, threshold::Float16, d_space)
-Set the deterministic space for `dv` with threshold `threshold`, where
-`d_space` is a vector of addresses defining the the stochastic subspace.
-"""
-function setSemistochastic!(dv, threshold::Float16, d_space)
-    clearDSpace!(dv)
-    for add in d_space
-        (val, flag) = dv[add]
-        dv[add] = (val, flag | one(typeof(flag)))
-    end
-    StochasticStyle(dv) = IsSemistochastic(threshold, d_space)
-    dv
-end
-
-"""
-    clearDFlags!(dv)
-Clear all flags in `dv` of the deterministic bit (rightmost bit).
-"""
-function clearDFlags!(dv)
-    for (add, (val, flag)) in pairs(dv)
-        # delete determimistic bit (rightmost) in `flag`
-        dv[add] = (val, flag ⊻ one(typeof(flag)))
-    end
-    dv
-end
-
-# some sensible defaults
-StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
-StochasticStyle(::Type{<:Array}) = IsDeterministic()
-StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
-# the following works for dispatch, i.e. the function is evaluated at compile time
-function StochasticStyle(T::Type{<:AbstractDVec})
-    ifelse(eltype(T) <: Integer, IsStochastic(), IsDeterministic())
-end
 
 # struct MySSVec{T} <: AbstractVector{T}
 #     v::Vector{T}
@@ -658,5 +615,56 @@ function fciqmc_col!(s::IsSemistochastic, w, ham::LinearOperator, add,
         end
         # done with stochastic spawning
     end
+    return missing
+end
+
+function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
+        add, val::N, shift, dτ) where N <: Real
+
+    # diagonal death or clone: deterministic fomula
+    w[add] += (1 + dτ*(shift - diagME(ham,add)))*val
+    # projection to threshold should be applied after all colums are evaluated
+
+    # # apply threshold if necessary
+    # if new_val < s.threshold
+    #     # project stochastically to threshold
+    #     w[add] = (new_val/s.threshold > cRand()) ? s.threshold : 0
+    # else
+    #     w[add] = new_val
+    # end
+
+    # off-diagonal: spawning psips stochastically
+    # only integers are spawned!!
+    hops = Hops(ham, add)
+    # first deal with integer psips
+    for n in 1:floor(abs(val)) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+        end
+    end
+    # deal with non-integer remainder: atempt to spawn
+    rval =  abs(val%1) # non-integer part reduces probability for spawning
+    naddress, pgen, matelem = generateRandHop(hops)
+    pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64
+    nspawn = floor(pspawn) # deal with integer part separately
+    cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+    # at this point, nspawn is non-negative
+    # now converted to correct type and compute sign
+    nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
+    # - because Hamiltonian appears with - sign in iteration equation
+    if !iszero(nspawns)
+        w[naddress] += nspawns
+        # perform spawn (if nonzero): add walkers with correct sign
+    end
+    # done with stochastic spawning
     return missing
 end
