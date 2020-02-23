@@ -133,6 +133,34 @@ end
 # here we implement the trivial strategy: don't change dτ
 
 """
+Abstract type for defining the strategy for injectimg memory noise.
+Implemented strategies:
+
+  * [`NoMemory`](@ref)
+  * [`DeltaMemory`](@ref)
+"""
+abstract type MemoryStrategy end
+
+"""
+    NoMemory <: MemoryStrategy
+Default strategy for [`MemoryStrategy`](@ref) indicating that
+no memory noise will be used.
+"""
+struct NoMemory <: MemoryStrategy end
+
+"""
+    DeltaMemory(Δ::Int) <: MemoryStrategy
+Before updating the shift memory noise with a memory length of `Δ` is applied,
+where `Δ = 1` means no memory noise.
+"""
+struct DeltaMemory <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+DeltaMemory(Δ::Int) = DeltaMemory(Δ, DataStructures.CircularBuffer{Float64}(Δ))
+
+
+"""
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:
 
@@ -196,31 +224,31 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
     ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
 end
 
-"""
-    DoubleLogUpdateMemoryNoise(;targetwalkers = 100,
-                               ζ = 0.3,
-                               ξ = 0.0225,
-                               Δ = 1) <: ShiftStrategy
-Strategy for updating the shift according to the log formula with damping
-parameter `ζ` and `ξ`.
-```math
-S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
-```
-Before updating the shift memory noise with a memory length of `Δ` is applied,
-where `Δ = 1` means no memory noise.
-"""
-struct DoubleLogUpdateMemoryNoise <: ShiftStrategy
-    targetwalkers::Int
-    ζ::Float64 # damping parameter, best left at value of 0.3
-    ξ::Float64 # restoring force to bring walker number to the target
-    Δ::Int # length of memory noise buffer
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
-end
-# construct with the following constructor:
-function DoubleLogUpdateMemoryNoise(;targetwalkers = 100, ζ = 0.3, ξ = 0.0225, Δ = 1)
-    cb = DataStructures.CircularBuffer{Float64, Δ}
-    DoubleLogUpdateMemoryNoise(targetwalkers, ζ, ξ, Δ, cb)
-end
+# """
+#     DoubleLogUpdateMemoryNoise(;targetwalkers = 100,
+#                                ζ = 0.3,
+#                                ξ = 0.0225,
+#                                Δ = 1) <: ShiftStrategy
+# Strategy for updating the shift according to the log formula with damping
+# parameter `ζ` and `ξ`.
+# ```math
+# S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
+# ```
+# Before updating the shift memory noise with a memory length of `Δ` is applied,
+# where `Δ = 1` means no memory noise.
+# """
+# struct DoubleLogUpdateMemoryNoise <: ShiftStrategy
+#     targetwalkers::Int
+#     ζ::Float64 # damping parameter, best left at value of 0.3
+#     ξ::Float64 # restoring force to bring walker number to the target
+#     Δ::Int # length of memory noise buffer
+#     noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+# end
+# # construct with the following constructor:
+# function DoubleLogUpdateMemoryNoise(;targetwalkers = 100, ζ = 0.3, ξ = 0.0225, Δ = 1)
+#     cb = DataStructures.CircularBuffer{Float64, Δ}
+#     DoubleLogUpdateMemoryNoise(targetwalkers, ζ, ξ, Δ, cb)
+# end
 
 """
     LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
@@ -370,15 +398,6 @@ end
 
 @inline update_shift(::DontUpdate, shift, tnorm, args...) = (shift, false, tnorm)
 
-"""
-    tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm)
-Apply memory noise to `v` according to the shift update strategy `s_strat`
-returning the updated norm.
-If the strategy does not require updating the norm, it does nothing and returns
-`tnorm`.
-"""
-apply_memory_noise!(v, w, s_strat, pnorm, tnorm) = tnorm
-
 
 # let's decide whether a simulation is deterministic, stochastic, or
 # semistochastic upon a trait on the vector type
@@ -464,3 +483,34 @@ StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
 function StochasticStyle(T::Type{<:AbstractDVec})
     ifelse(eltype(T) <: Integer, IsStochastic(), IsDeterministic())
 end
+
+# """
+#     tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
+# Apply memory noise to `v` according to the shift update strategy `s_strat`
+# returning the updated norm.
+# If the strategy does not require updating the norm, it does nothing and returns
+# `tnorm`.
+# """
+# apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ) = tnorm
+#
+# # maybe it would be better to apply this before projecting to threshold
+# function apply_memory_noise!(v, w, s_strat::DoubleLogUpdateMemoryNoise,
+#                              pnorm, tnorm, shift, dτ)
+#     if StochasticStyle(v) ∉ [IsStochasticWithThreshold, IsSemistochastic]
+#         @error "Memory noise not defined for $(StochasticStyle(v)). Use `IsStochasticWithThreshold` or `IsSemistochastic` instead."
+#     end
+#     @unpack noisebuffer = s_strat # extract noisebuffer from shift strategy
+#     r̃ = (pnorm - tnorm)/(dτ*pnorm) + shift # instantaneous noisy correction
+#     push!(noisebuffer, r̃) # add to noisebuffer
+#     r_noise = r̃ - sum(noisebuffer)/length(noisebuffer) # subtract Δ average
+#     lv = localpart(v)
+#     for (add, val) in kvpairs(w)
+#         c̃ = lv[add]
+#         c = c̃ + dτ*r_noise*val
+#         if sign(c̃) == sign(c)
+#             lv[add] = c
+#             # !!! Careful! This could lead to a sign change!!!!
+#         end
+#     end
+#     return norm(v, 1) # MPI sycncronising: total number of psips
+# end

@@ -22,7 +22,9 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w::D = similar(localpart(svec))) where {DD, D<:AbstractDVec}
+                 w::D = similar(localpart(svec))
+                 # ; m_strat::MemoryStrategy = NoMemory
+                 ) where {DD, D<:AbstractDVec}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
@@ -46,7 +48,9 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     # # println("after barrier")
-    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w)
+    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w
+                    )
+                    # ; m_strat = m_strat)
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     return rdf
@@ -59,6 +63,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  w::D = similar(localpart(v))
+                 # ; m_strat::MemoryStrategy = NoMemory
                  ) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -80,7 +85,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         # perform one complete stochastic vector matrix multiplication
         v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w)
         tnorm = norm(v, 1) # MPI sycncronising: total number of psips
-        tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm)
+        # tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
                                     shift, shiftMode,
@@ -120,7 +125,9 @@ end # fciqmc
 function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 vsNew::T = similar.(svecs)) where {N, K, V,
+                 vsNew::T = similar.(svecs)
+                 # ; m_strat::MemoryStrategy = NoMemory
+                 ) where {N, K, V,
                                                 T<:NTuple{N,AbstractDVec{K,V}}}
                  # N is number of replica, V is eltype(svecs[1])
     # unpack the parameters:
@@ -166,9 +173,10 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                 vNew = vsNew[i]
                 a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, vNew)
                 mstats[i] .= stats
-                tnorm = norm(vNew,1) # total number of psips
-                norms[i] = apply_memory_noise!(v, w, s_strat, pnorms[i], tnorm)
-
+                norms[i] =  norm(vNew,1) # total number of psips
+                # tnorm = norm(vNew,1) # total number of psips
+                # norms[i] = apply_memory_noise!(v, w, s_strat, pnorms[i], tnorm, shifts[i], dτ)
+                #
                 shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                     s_strat, shifts[i], vShiftModes[i],
                     norms[i], pnorms[i], dτ, step, dfs[i]
