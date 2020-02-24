@@ -324,12 +324,8 @@ function thresholdProject!(s::IsStochasticWithThreshold,
     nnorm = norm(w, 1) # new norm after applying noise
 
     # perform projection if below threshold preserving the sign
-    for (add, val) in kvpairs(w)
-        pprob = abs(val)/s.threshold
-        if pprob < 1 # projection is only necessary if abs(val) < s.threshold
-            w[add] = (pprob > cRand()) ? s.threshold*sign(val) : zero(val)
-        end
-    end
+    thresholdProject!(s, w, v, shift, dτ, NoMemory())
+
     projnorm = norm(w, 1) # new norm after projection
     rmul!(w, nnorm/projnorm) # scale in order to remedy projection noise
     m.pnorm = nnorm # record the current norm for next step
