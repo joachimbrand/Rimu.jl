@@ -153,11 +153,12 @@ struct NoMemory <: MemoryStrategy end
 Before updating the shift memory noise with a memory length of `Δ` is applied,
 where `Δ = 1` means no memory noise.
 """
-struct DeltaMemory <: MemoryStrategy
+mutable struct DeltaMemory <: MemoryStrategy
     Δ::Int # length of memory noise buffer
+    pnorm::Float64 # previous norm
     noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
 end
-DeltaMemory(Δ::Int) = DeltaMemory(Δ, DataStructures.CircularBuffer{Float64}(Δ))
+DeltaMemory(Δ::Int) = DeltaMemory(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
 
 
 """

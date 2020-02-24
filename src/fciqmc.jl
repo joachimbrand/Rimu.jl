@@ -23,7 +23,7 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  w::D = similar(localpart(svec))
-                 # ; m_strat::MemoryStrategy = NoMemory
+                 ; m_strat::MemoryStrategy = NoMemory()
                  ) where {DD, D<:AbstractDVec}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -49,8 +49,8 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     # # println("after barrier")
     rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w
-                    )
-                    # ; m_strat = m_strat)
+                    # )
+                    ; m_strat = m_strat)
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     return rdf
@@ -63,8 +63,9 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  w::D = similar(localpart(v))
-                 # ; m_strat::MemoryStrategy = NoMemory
-                 ) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
+                 ; m_strat::MemoryStrategy = NoMemory()
+                 # ) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
+                 ) where {D<:AbstractDVec, DF<:DataFrame}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -83,7 +84,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         step += 1
         # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
-        v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w)
+        v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w; m_strat=m_strat)
         tnorm = norm(v, 1) # MPI sycncronising: total number of psips
         # tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
         # update shift and mode if necessary
@@ -126,7 +127,7 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  vsNew::T = similar.(svecs)
-                 # ; m_strat::MemoryStrategy = NoMemory
+                 ; m_strat::MemoryStrategy = NoMemory()
                  ) where {N, K, V,
                                                 T<:NTuple{N,AbstractDVec{K,V}}}
                  # N is number of replica, V is eltype(svecs[1])
@@ -171,7 +172,8 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
             # perform one complete stochastic vector matrix multiplication
             @async begin
                 vNew = vsNew[i]
-                a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, vNew)
+                a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, vNew;
+                                           m_strat=m_strat)
                 mstats[i] .= stats
                 norms[i] =  norm(vNew,1) # total number of psips
                 # tnorm = norm(vNew,1) # total number of psips
@@ -228,7 +230,8 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
 end # fciqmc
 
 """
-    fciqmc_step!(Ĥ, v, shift, dτ, w) -> ṽ, w̃, stats
+    fciqmc_step!(Ĥ, v, shift, dτ, w;
+                          m_strat::MemoryStrategy = NoMemory()) -> ṽ, w̃, stats
 Perform a single matrix(/operator)-vector multiplication:
 ```math
 \\tilde{v} = [1 - dτ(\\hat{H} - S)]⋅v ,
@@ -244,7 +247,8 @@ Returns the result `ṽ`, a (possibly changed) reference to working memory `w̃`
 `stats = [spawns, deaths, clones, antiparticles, annihilations]`. Stats will
 contain zeros when running in deterministic mode.
 """
-function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
+function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D;
+                      m_strat::MemoryStrategy = NoMemory()) where D
     # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
     stats = zeros(valtype(v), 5) # pre-allocate array for stats
@@ -253,12 +257,13 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         ismissing(res) || (stats .+= res) # just add all stats together
     end
-    thresholdProject!(w) # apply walker threshold if applicable
+    thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
     return w, v, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
-function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
+function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D;
+                           m_strat::MemoryStrategy = NoMemory()) where {D,S}
     # MPI version
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
@@ -268,7 +273,7 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         ismissing(res) || (stats .+= res) # just add all stats together
     end
-    thresholdProject!(w) # apply walker threshold if applicable
+    thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
     sort_into_targets!(dv, w)
     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
     return dv, w, stats
@@ -279,15 +284,17 @@ end # fciqmc_step!
 
 """
     thresholdProject!(w)
+    thresholdProject!(w, v, shift, dτ, m_strat)
     thresholdProject!(s::StochasticStyle, w)
 Project all elements of `w` to `s.threshold` preserving the sign if
 `StochasticStyle(w)` requires projection.
 """
-thresholdProject!(w) = thresholdProject!(StochasticStyle(w), w)
+thresholdProject!(w, args...) = thresholdProject!(StochasticStyle(w), w, args...)
 
-thresholdProject!(s, w) = w # default does nothing
+thresholdProject!(s, w, v, shift, dτ, m_strat) = w # default does nothing
 
-function thresholdProject!(s::IsStochasticWithThreshold, w)
+function thresholdProject!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, ::NoMemory)
     # perform projection if below threshold preserving the sign
     for (add, val) in kvpairs(w)
         pprob = abs(val)/s.threshold
@@ -295,6 +302,37 @@ function thresholdProject!(s::IsStochasticWithThreshold, w)
             w[add] = (pprob > cRand()) ? s.threshold*sign(val) : zero(val)
         end
     end
+    return w
+end
+
+function thresholdProject!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, m::DeltaMemory)
+    tnorm = norm(w, 1) # norm after FCIQMC step
+    if isnan(m.pnorm)
+        m.pnorm = tnorm
+        return w
+    end
+    # compute memory noise
+    r̃ = (m.pnorm - tnorm)/(dτ*m.pnorm) + shift
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+    # apply `r` noise to current state vector
+    for (add, val) in kvpairs(v)
+        w[add] += dτ*r*val # apply `r` noise
+    end
+    nnorm = norm(w, 1) # new norm after applying noise
+
+    # perform projection if below threshold preserving the sign
+    for (add, val) in kvpairs(w)
+        pprob = abs(val)/s.threshold
+        if pprob < 1 # projection is only necessary if abs(val) < s.threshold
+            w[add] = (pprob > cRand()) ? s.threshold*sign(val) : zero(val)
+        end
+    end
+    projnorm = norm(w, 1) # new norm after projection
+    rmul!(w, nnorm/projnorm) # scale in order to remedy projection noise
+    m.pnorm = nnorm # record the current norm for next step
     return w
 end
 

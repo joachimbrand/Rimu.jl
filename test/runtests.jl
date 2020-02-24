@@ -270,6 +270,17 @@ seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
 @test sum(rdfs[:,:norm]) ≈ 7643.091054376505
 
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = NoMemory())
+@test sum(rdfs[:,:norm]) ≈ 7643.091054376505
+
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = DeltaMemory(10))
+@test sum(rdfs[:,:norm]) ≈ 7425.291567866873
 end
 
 @testset "dfvec.jl" begin
