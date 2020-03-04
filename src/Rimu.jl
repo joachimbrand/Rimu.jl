@@ -22,6 +22,7 @@ include("Blocking.jl")
 
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
 export MemoryStrategy, NoMemory, DeltaMemory
+export ProjectStrategy, NoProjection, ThresholdProject, ScaledThresholdProject
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
 export DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers

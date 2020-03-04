@@ -36,6 +36,7 @@ end
 
 localpart(dv) = dv # default for local data
 localpart(md::MPIData) = md.data
+StochasticStyle(d::MPIData) = StochasticStyle(d.data)
 
 """
     MPIDefault(nprocs, my_rank, comm)

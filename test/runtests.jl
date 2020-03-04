@@ -259,6 +259,7 @@ n = m = 9
 aIni = nearUniform(BoseFS{n,m})
 ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
 pa = RunTillLastStep(laststep = 100)
+p = ThresholdProject(1.0)
 
 # standard fciqmc
 s = DoubleLogUpdate(targetwalkers = 100)
@@ -267,20 +268,27 @@ Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
 StochasticStyle(svec)
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), p_strat = p)
 @test sum(rdfs[:,:norm]) ≈ 7643.091054376505
 
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = NoMemory())
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = NoMemory(), p_strat = p)
 @test sum(rdfs[:,:norm]) ≈ 7643.091054376505
 
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = DeltaMemory(10))
-@test sum(rdfs[:,:norm]) ≈ 7425.291567866873
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = DeltaMemory(10), p_strat = p)
+@test sum(rdfs[:,:norm]) ≈ 7566.1126497054465
+
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+p_strat = ScaledThresholdProject(1.0)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = DeltaMemory(10), p_strat = p_strat)
+@test sum(rdfs[:,:norm]) ≈ 7571.168683289753
 end
 
 @testset "dfvec.jl" begin

@@ -1,4 +1,4 @@
-## define parameters and strategies for fciqmc as well as methods that use them
+# # define parameters and strategies for fciqmc as well as methods that use them
 #
 # FciqmcRunStrategy, RunTillLastStep
 #
@@ -6,11 +6,12 @@
 #
 # ShiftStrategy, update_shift()
 #
-## We also include traits for state vectors:
+# # We also include traits for state vectors:
 #
 # StochasticStyle(),
 # IsStochastic(), IsStochasticNonlinear(), IsDeterministic(),
 # IsStochasticWithThreshold(), IsSemistochastic()
+#
 
 """
 Abstract type representing the strategy for running and terminating
@@ -28,6 +29,7 @@ abstract type FciqmcRunStrategy end
                  dτ::Float64 = 0.01 # current value of time step
     ) <: FciqmcRunStrategy
 Parameters for running [`fciqmc!()`](@ref) for a fixed number of time steps.
+For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 """
 @with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
     step::Int = 0 # number of current/starting timestep
@@ -515,3 +517,37 @@ end
 #     end
 #     return norm(v, 1) # MPI sycncronising: total number of psips
 # end
+
+"""
+Abstract type for defining the stategy of projection for fciqmc with
+floating point walker number with [`norm_project`](@ref).
+Implemented stategies:
+
+   * [`NoProjection`](@ref)
+   * [`ThresholdProject`](@ref)
+   * [`ScaledThresholdProject`](@ref)
+"""
+abstract type ProjectStrategy end
+
+"Do not project the walker amplitudes. See [`norm_project`](@ref)."
+struct NoProjection <: ProjectStrategy end
+
+"""
+    ThresholdProject(threshold = 1.0) <: ProjectStrategy
+Project stochastically for walker amplitudes below `threshold`.
+See [`norm_project`](@ref).
+"""
+@with_kw struct ThresholdProject <: ProjectStrategy
+    threshold::Float32 = 1.0f0
+end
+
+"""
+    ScaledThresholdProject(threshold = 1.0) <: ProjectStrategy
+Project stochastically for walker amplitudes below `threshold` and scale
+configuration array as to keep the norm constant. As a consequence, the
+final configuration amplitudes may be smaller than `threshold`.
+See [`norm_project`](@ref).
+"""
+@with_kw struct ScaledThresholdProject <: ProjectStrategy
+    threshold::Float32 = 1.0f0
+end
