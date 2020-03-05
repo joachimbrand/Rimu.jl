@@ -54,7 +54,7 @@ function blocking(v::Vector)
                     std_err = Float64[], std_err_err = Float64[], gamma = Float64[], M = Float64[])
     while length(v) >= 2
         n = length(v)
-        mean = sum(v)/Float64(n)::Float64
+        mean = sum(v)/n
         var = v .- mean
         sigmasq = sum(var.^2)/n
         gamma = sum(var[1:n-1].*var[2:n])/n
@@ -79,8 +79,8 @@ function covariance(vi::Vector,vj::Vector)
         n = length(vi)
         meani = sum(vi)/n
         meanj = sum(vj)/n
-        covsum = 0.0::Float64
-        for i in range(1,length=n)
+        covsum = zero(meani)
+        for i in 1:n
             covsum += (vi[i]-meani)*(vj[i]-meanj)
         end
         cov = covsum/(n-1)
