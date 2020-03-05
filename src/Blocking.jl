@@ -33,7 +33,7 @@ sd(v::Vector) = sqrt(variance(v))
 """
 Calculate the standard error of the dataset v
 """
-se(v::Vector) = sqrt(sd(v)/(length(v)-1))
+se(v::Vector) = sd(v)/sqrt(length(v)-1)
 
 """
 Reblock the data by successively taking the mean of adjacent data points
