@@ -11,6 +11,31 @@ using DataFrames
 export blocker, blocking, blockingErrorEstimation, mtest
 
 """
+Calculate the variance of the dataset v
+"""
+function variance(v::Vector)
+    n = 0::Int
+    sum = 0.0::Float64
+    sumsq = 0.0::Float64
+    for x in v
+        n += 1
+        sum += x
+        sumsq += x^2
+    end
+    return (sumsq-sum^2/n)/(n-1)
+end
+
+"""
+Calculate the standard deviation of the dataset v
+"""
+sd(v::Vector) = sqrt(variance(v))
+
+"""
+Calculate the standard error of the dataset v
+"""
+se(v::Vector) = sd(v)/sqrt(length(v)-1)
+
+"""
 Reblock the data by successively taking the mean of adjacent data points
 """
 function blocker(v::Vector)
@@ -54,8 +79,8 @@ function covariance(vi::Vector,vj::Vector)
         n = length(vi)
         meani = sum(vi)/n
         meanj = sum(vj)/n
-        covsum = 0
-        for i in range(1,length=n)
+        covsum = zero(meani)
+        for i in 1:n
             covsum += (vi[i]-meani)*(vj[i]-meanj)
         end
         cov = covsum/(n-1)
