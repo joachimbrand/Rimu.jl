@@ -355,16 +355,16 @@ norm_project!(::StochasticStyle, w, p) = norm(w, 1) # MPIsync
 # default, compute 1-norm
 
 function norm_project!(s::S, w, p::ThresholdProject) where S<:Union{IsStochasticWithThreshold}
-    return norm_project_threshold!(w, p) # MPIsync
+    return norm_project_threshold!(w, p.threshold) # MPIsync
 end
 
-function norm_project_threshold!(w, p) # MPIsync
+function norm_project_threshold!(w, threshold) # MPIsync
     # perform projection if below threshold preserving the sign
     lw = localpart(w)
     for (add, val) in kvpairs(lw)
-        pprob = abs(val)/p.threshold
+        pprob = abs(val)/threshold
         if pprob < 1 # projection is only necessary if abs(val) < s.threshold
-            lw[add] = (pprob > cRand()) ? p.threshold*sign(val) : zero(val)
+            lw[add] = (pprob > cRand()) ? threshold*sign(val) : zero(val)
         end
     end
     return norm(w, 1) # MPIsync
@@ -372,7 +372,7 @@ end
 
 function norm_project!(s::S, w, p::ScaledThresholdProject) where S<:Union{IsStochasticWithThreshold}
     f_norm = norm(w, 1) # MPIsync
-    proj_norm = norm_project_threshold!(w, p)
+    proj_norm = norm_project_threshold!(w, p.threshold)
     # MPI sycncronising
     rmul!(w, f_norm/proj_norm) # scale in order to remedy projection noise
     # TODO: MPI version of rmul!()
