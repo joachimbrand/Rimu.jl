@@ -420,6 +420,21 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     return w
 end
 
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ShiftMemory)
+    push!(m.noiseBuffer, shift) # add current value of `shift` to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = - shift + sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+    # apply `r` noise to current state vector
+    for (add, val) in kvpairs(v)
+       w[add] += dτ*r*val # apply `r` noise
+    end
+    # nnorm = norm(w, 1) # new norm after applying noise
+
+    return w
+end
+
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
 #   check that v and w are compatible

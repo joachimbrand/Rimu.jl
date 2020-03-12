@@ -140,6 +140,7 @@ Implemented strategies:
 
   * [`NoMemory`](@ref)
   * [`DeltaMemory`](@ref)
+  * [`ShiftMemory`](@ref)
 """
 abstract type MemoryStrategy end
 
@@ -152,7 +153,7 @@ struct NoMemory <: MemoryStrategy end
 
 """
     DeltaMemory(Δ::Int) <: MemoryStrategy
-Before updating the shift memory noise with a memory length of `Δ` is applied,
+Before updating the shift, memory noise with a memory length of `Δ` is applied,
 where `Δ = 1` means no memory noise.
 """
 mutable struct DeltaMemory <: MemoryStrategy
@@ -162,6 +163,17 @@ mutable struct DeltaMemory <: MemoryStrategy
 end
 DeltaMemory(Δ::Int) = DeltaMemory(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
 
+"""
+    ShiftMemory(Δ::Int) <: MemoryStrategy
+Effectively replaces the fluctuating `shift` update procedure for the
+coefficient vector by an averaged `shift` over `Δ` timesteps,
+where `Δ = 1` means no averaging.
+"""
+struct ShiftMemory <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ShiftMemory(Δ::Int) = ShiftMemory(Δ, DataStructures.CircularBuffer{Float64}(Δ))
 
 """
 Abstract type for defining the strategy for updating the `shift` with
