@@ -59,7 +59,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  w::D = similar(localpart(v))
-                 ) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
+                 ) where {D, DF<:Union{DataFrame, Nothing}}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -233,7 +233,7 @@ Returns the result `ṽ`, a (possibly changed) reference to working memory `w̃`
 `stats = [spawns, deaths, clones, antiparticles, annihilations]`. Stats will
 contain zeros when running in deterministic mode.
 """
-function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
+function fciqmc_step!(Ĥ, v, shift, dτ, w) where D
     # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
     stats = zeros(valtype(v), 5) # pre-allocate array for stats
@@ -243,6 +243,26 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
         ismissing(res) || (stats .+= res) # just add all stats together
     end
     return w, v, stats
+    # stats == [spawns, deaths, clones, antiparticles, annihilations]
+end # fciqmc_step!
+
+function fciqmc_step!(Ĥ, dv, shift, dτ, ws::NTuple{NT,W};
+    batchsize = max(100, min(length(dv)÷Threads.nthreads(), round(Int,sqrt(length(dv))*10)))
+    ) where {NT,W}
+    # println("batchsize ",batchsize)
+    # multithreaded version; should also work with MPI
+    @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
+    v = localpart(dv)
+    statss = Vector{Any}(undef, NT)
+    # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
+    zero!.(ws) # clear working memory
+    @sync for btr in Iterators.partition(pairs(v), batchsize)
+        Threads.@spawn statss[Threads.threadid()] = sum(btr) do tup
+            (add, num) = tup
+            fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
+        end
+    end
+    return sort_into_targets!(dv, ws, statss) # dv, w, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
@@ -425,7 +445,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!
 
@@ -474,7 +494,7 @@ function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!
 
@@ -528,6 +548,6 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!

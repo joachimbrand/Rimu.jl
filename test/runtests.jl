@@ -180,77 +180,95 @@ end
 end
 
 @testset "fciqmc with BoseFS" begin
-    # Define the initial Fock state with n particles and m modes
-    n = m = 9
-    aIni = nearUniform(BoseFS{n,m})
-    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    # ham = BoseHubbardReal1D(
-    #     n = 9,
-    #     m = 9,
-    #     u = 6.0,
-    #     t = 1.0,
-    #     AT = typeof(aIni))
-    # ham, aIni = setupBoseHubbardReal1D(
-    #     n = 9,
-    #     m = 9,
-    #     u = 6.0,
-    #     t = 1.0
-    # )
+# Define the initial Fock state with n particles and m modes
+n = m = 9
+aIni = nearUniform(BoseFS{n,m})
+ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+# ham = BoseHubbardReal1D(
+#     n = 9,
+#     m = 9,
+#     u = 6.0,
+#     t = 1.0,
+#     AT = typeof(aIni))
+# ham, aIni = setupBoseHubbardReal1D(
+#     n = 9,
+#     m = 9,
+#     u = 6.0,
+#     t = 1.0
+# )
 
-    pa = RunTillLastStep(laststep = 100)
+pa = RunTillLastStep(laststep = 100)
 
-    # standard fciqmc
-    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
-    StochasticStyle(svec)
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-    @test sum(rdfs[:,:spawns]) == 1751
+# standard fciqmc
+s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+svec = DVec(Dict(aIni => 2), ham(:dim))
+StochasticStyle(svec)
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+@test sum(rdfs[:,:spawns]) == 1751
 
-    # fciqmc with delayed shift update
-    pa = RunTillLastStep(laststep = 100)
-    s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
-    StochasticStyle(svec)
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s)
-    @test sum(rdfs[:,:spawns]) == 2646
+# fciqmc with delayed shift update
+pa = RunTillLastStep(laststep = 100)
+s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
+svec = DVec(Dict(aIni => 2), ham(:dim))
+StochasticStyle(svec)
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+@time rdfs = fciqmc!(vs, pa, ham, s)
+@test sum(rdfs[:,:spawns]) == 2646
 
-    # replica fciqmc
-    tup1 = (copy(svec),copy(svec))
-    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-    pb = RunTillLastStep(laststep = 100)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(tup1, ham, pb, s)
-    @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
+# replica fciqmc
+tup1 = (copy(svec),copy(svec))
+s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+pb = RunTillLastStep(laststep = 100)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+@time rr = fciqmc!(tup1, ham, pb, s)
+@test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
 
-    # large bit string
-    n = 200
-    m = 200
-    aIni = nearUniform(BoseFS{n,m})
-    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    # ham = BoseHubbardReal1D(
-    #     n = n,
-    #     m = m,
-    #     u = 6.0,
-    #     t = 1.0,
-    #     AT = typeof(aIni))
-    iShift = diagME(ham, aIni)
+# large bit string
+n = 200
+m = 200
+aIni = nearUniform(BoseFS{n,m})
+ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+# ham = BoseHubbardReal1D(
+#     n = n,
+#     m = m,
+#     u = 6.0,
+#     t = 1.0,
+#     AT = typeof(aIni))
+iShift = diagME(ham, aIni)
 
-    # standard fciqmc
-    tw = 1_000
-    s = LogUpdateAfterTargetWalkers(targetwalkers = tw)
-    svec = DVec(Dict(aIni => 20), 8*tw)
-    StochasticStyle(svec)
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-    pa.laststep = 100
-    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
-    @test sum(rdfs[:,:spawns]) == 122128
+# standard fciqmc
+tw = 1_000
+s = DoubleLogUpdate(targetwalkers = tw)
+svec = DVec(Dict(aIni => 20), 8*tw)
+StochasticStyle(svec)
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+pa.laststep = 100
+@time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
+@test sum(rdfs[:,:spawns]) == 39299
+
+# single step
+ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, similar(vs))
+@test sum(stats) == 1370
+
+# single step multi threading
+cws = capacity(vs)÷Threads.nthreads()+1
+ws = Tuple(similar(vs,cws) for i=1:Threads.nthreads())
+ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, ws)
+# @test sum(stats) == 1024
+# TODO: need to look at threadsafty of RNG!!!
+
+# run 100 steps with multi
+pa.laststep = 200
+@time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+# @test sum(rdfs[:,:spawns]) == 76544
+# TODO: need to look at threadsafty of RNG!!!
+
 end
 
 @testset "dfvec.jl" begin

@@ -27,9 +27,10 @@ haskey, empty!, isempty`) and, in addition:
 abstract type AbstractDVec{K,V} end
 
 """
-    DictVectors.capacity(dv::AbstractDVec)
-    capacity(dv, s = :effective)
-gives the effective holding capacity of `dv`.
+    DictVectors.capacity(dv::AbstractDVec, [s = :effective])
+    capacity(dvs::Tuple, [s = :effective])
+gives the effective holding capacity of `dv`. If a tuple of `dvs` is given it
+aggregates the capacities.
 
 Optional argument `s`:
 - `:effective`  the number of elements that
@@ -38,6 +39,9 @@ can be stored savely (default)
 """
 capacity
 # doc string here only; needs to be defined for each concrete type.
+
+# make capacity aggregate over tuple
+capacity(tup::Tuple, args...) = sum(capacity.(tup, args...))
 
 # Note: The following method definitions for the supertype
 # also extend (by a fallback method) to instances of the type.

@@ -261,6 +261,27 @@ function sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
     sort_into_targets!(ltarget, source, P, strategy)
 end
 
+# three-argument version
+"""
+    sort_into_targets!(target, source, stats) -> agg, wm, agg_stats
+Aggregate coefficients from `source` to `agg` and from `stats` to `agg_stats`
+according to thread- or MPI-level parallelism. `wm` passes back a reference to
+working memory.
+"""
+sort_into_targets!(target, w, stats) =  w, target, stats
+# default serial (single thread, no MPI) version: don't copy just swap
+
+function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
+    # multi-threaded non-MPI version
+    empty!(target)
+    for w in ws # combine newly walkers generated from different threads
+        add!(target, w)
+    end
+    return target, ws, sum(statss)
+end
+# TODO: three argument version for MPIData
+
+# four-argument version
 function sort_into_targets!(target, source, ::Type{P}, s::MPINoWalkerExchange) where P
     # specific for `MPINoWalkerExchange`: copy without communicating with
     # other ranks.
@@ -288,6 +309,7 @@ function sort_into_targets!(target, source, ::Type{P}, s::DistributeStrategy) wh
     # call strategy-specific method:
     return sort_into_targets!(target, bufs, lens, P, s)
 end
+# five-argument version
 function sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s::MPIDefault) where P
     # use standard MPI message passing communication
     # use ring structure for sending around data with blocking communications:
