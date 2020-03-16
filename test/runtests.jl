@@ -184,115 +184,97 @@ end
 end
 
 @testset "fciqmc with BoseFS" begin
-# Define the initial Fock state with n particles and m modes
-n = m = 9
-aIni = nearUniform(BoseFS{n,m})
-ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-# ham = BoseHubbardReal1D(
-#     n = 9,
-#     m = 9,
-#     u = 6.0,
-#     t = 1.0,
-#     AT = typeof(aIni))
-# ham, aIni = setupBoseHubbardReal1D(
-#     n = 9,
-#     m = 9,
-#     u = 6.0,
-#     t = 1.0
-# )
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
 
-pa = RunTillLastStep(laststep = 100)
+    pa = RunTillLastStep(laststep = 100)
 
-# standard fciqmc
-s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-svec = DVec(Dict(aIni => 2), ham(:dim))
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-@test sum(rdfs[:,:spawns]) == 1815
+    # standard fciqmc
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    @test sum(rdfs[:,:spawns]) == 1815
 
-# fciqmc with delayed shift update
-pa = RunTillLastStep(laststep = 100)
-s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
-svec = DVec(Dict(aIni => 2), ham(:dim))
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rdfs = fciqmc!(vs, pa, ham, s)
-@test sum(rdfs[:,:spawns]) == 2856
+    # fciqmc with delayed shift update
+    pa = RunTillLastStep(laststep = 100)
+    s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s)
+    @test sum(rdfs[:,:spawns]) == 2856
 
-# replica fciqmc
-tup1 = (copy(svec),copy(svec))
-s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-pb = RunTillLastStep(laststep = 100)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-@time rr = fciqmc!(tup1, ham, pb, s)
-@test sum(rr[1][:,:xHy]) ≈ -23326.578632257504
+    # replica fciqmc
+    tup1 = (copy(svec),copy(svec))
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+    pb = RunTillLastStep(laststep = 100)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rr = fciqmc!(tup1, ham, pb, s)
+    @test sum(rr[1][:,:xHy]) ≈ -23326.578632257504
 
-# large bit string
-n = 200
-m = 200
-aIni = nearUniform(BoseFS{n,m})
-ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-# ham = BoseHubbardReal1D(
-#     n = n,
-#     m = m,
-#     u = 6.0,
-#     t = 1.0,
-#     AT = typeof(aIni))
-iShift = diagME(ham, aIni)
+    # large bit string
+    n = 200
+    m = 200
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    iShift = diagME(ham, aIni)
 
-# standard fciqmc
-tw = 1_000
-s = DoubleLogUpdate(targetwalkers = tw)
-svec = DVec(Dict(aIni => 20), 8*tw)
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-pa.laststep = 100
-@time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
-@test sum(rdfs[:,:spawns]) == 39035
+    # standard fciqmc
+    tw = 1_000
+    s = DoubleLogUpdate(targetwalkers = tw)
+    svec = DVec(Dict(aIni => 20), 8*tw)
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    pa.laststep = 100
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
+    @test sum(rdfs[:,:spawns]) == 39035
 
-# single step
-ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, similar(vs))
-@test sum(stats) == 1429
+    # single step
+    ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, similar(vs))
+    @test sum(stats) == 1429
 
-# single step multi threading
-cws = capacity(vs)÷Threads.nthreads()+1
-ws = Tuple(similar(vs,cws) for i=1:Threads.nthreads())
-ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, ws;
-                batchsize = length(vs)÷4+1)
-if Threads.nthreads() == 1
-    @test sum(stats) == 363 # test assuming nthreads() == 1
-end
-# TODO: need to look at threadsafty of RNG!!!
+    # single step multi threading
+    cws = capacity(vs)÷Threads.nthreads()+1
+    ws = Tuple(similar(vs,cws) for i=1:Threads.nthreads())
+    ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, ws;
+                    batchsize = length(vs)÷4+1)
+    if Threads.nthreads() == 1
+        @test sum(stats) == 363 # test assuming nthreads() == 1
+    end
+    # TODO: need to look at threadsafty of RNG!!!
 
-# run 100 steps with multi
-pa.laststep = 200
-@time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
-if Threads.nthreads() == 1
-    @test sum(rdfs[:,:spawns]) == 41930 # test assuming nthreads() == 1
-end
-# TODO: need to look at threadsafty of RNG!!!
+    # run 100 steps with multi
+    pa.laststep = 200
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    if Threads.nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 41930 # test assuming nthreads() == 1
+    end
+    # TODO: need to look at threadsafty of RNG!!!
 
-# threaded version of standard fciqmc!
-tw = 1_000
-s = DoubleLogUpdate(targetwalkers = tw)
-svec = DVec(Dict(aIni => 20), 8*tw)
-StochasticStyle(svec)
-vs = copy(svec)
-seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
-pa.laststep = 100
-@time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
-if Threads.nthreads() == 1
-    @test sum(rdfs[:,:spawns]) == 8952 # test assuming nthreads() == 1
-end
-# something is wrong here
+    # threaded version of standard fciqmc!
+    tw = 1_000
+    s = DoubleLogUpdate(targetwalkers = tw)
+    svec = DVec(Dict(aIni => 20), 8*tw)
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    pa.laststep = 100
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    if Threads.nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 8952 # test assuming nthreads() == 1
+    end
+    # something is wrong here
 end
 
 @testset "dfvec.jl" begin
@@ -343,6 +325,35 @@ end
     dtv[218] = (14.7648230602334, 0x00ff) # change flag
     @test fdvt ≠ dtv
 end
+
+@testset "deterministic and multithreading" begin
+    # set up parameters for simulations
+    walkernumber = 20_000
+    steps = 100
+    dτ = 0.005
+
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    # ### Deterministic FCIQMC
+    svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
+    StochasticStyle(svec2)
+    pa = RunTillLastStep(laststep = steps,  dτ = dτ)
+    τ_strat = ConstantTimeStep()
+    s_strat = DoubleLogUpdate(targetwalkers = walkernumber)
+    r_strat = EveryTimeStep()
+    @time rdf = fciqmc!(svec2, pa, ham, s_strat, r_strat, τ_strat)
+    @test rdf.:shift[101] ≈ -6.840080658204963
+    # Multi-threading
+    svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
+    pa = RunTillLastStep(laststep = steps,  dτ = dτ)
+    cws = capacity(svec2)÷Threads.nthreads()+1
+    ws = Tuple(similar(svec2,cws) for i=1:Threads.nthreads())
+    @time rdf = fciqmc!(svec2, pa, ham, s_strat, r_strat, τ_strat, ws)
+    @test rdf.:shift[101] ≈ -6.840080658204963
+end
+
 
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,

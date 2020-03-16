@@ -240,7 +240,7 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
     zero!(w) # clear working memory
     for (add, num) in pairs(v)
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        ismissing(res) || (stats .+= res) # just add all stats together
+        stats .+= res # just add all stats together
     end
     return w, v, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
@@ -274,7 +274,7 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
     stats = zeros(valtype(v), 5) # pre-allocate array for stats
     for (add, num) in pairs(v)
         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        ismissing(res) || (stats .+= res) # just add all stats together
+        stats .+= res # just add all stats together
     end
     sort_into_targets!(dv, w)
     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
@@ -386,7 +386,7 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
-    return [missing for i=1:5]
+    return zeros(valtype(w), 5)
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
@@ -396,7 +396,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift,
     end
     # diagonal death or clone
     w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
-    return [missing for i=1:5]
+    return zeros(valtype(w), 5)
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
