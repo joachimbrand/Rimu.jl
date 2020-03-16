@@ -14,7 +14,7 @@ include("DictVectors/DictVectors.jl")
 include("BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("ConsistentRNG.jl")
-using .ConsistentRNG
+@reexport using .ConsistentRNG
 include("Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("Blocking.jl")

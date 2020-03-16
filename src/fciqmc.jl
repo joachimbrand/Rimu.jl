@@ -22,7 +22,7 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w::D = similar(localpart(svec))) where {DD, D<:AbstractDVec}
+                 w = similar(localpart(svec))) where {DD<:AbstractDVec}
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
@@ -233,7 +233,7 @@ Returns the result `ṽ`, a (possibly changed) reference to working memory `w̃`
 `stats = [spawns, deaths, clones, antiparticles, annihilations]`. Stats will
 contain zeros when running in deterministic mode.
 """
-function fciqmc_step!(Ĥ, v, shift, dτ, w) where D
+function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
     # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
     stats = zeros(valtype(v), 5) # pre-allocate array for stats
@@ -253,7 +253,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, ws::NTuple{NT,W};
     # multithreaded version; should also work with MPI
     @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
     v = localpart(dv)
-    statss = Vector{Any}(undef, NT)
+    statss = [zeros(Int,5) for i=1:NT]
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
     @sync for btr in Iterators.partition(pairs(v), batchsize)
@@ -386,7 +386,7 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
-    return missing
+    return [missing for i=1:5]
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
@@ -396,7 +396,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift,
     end
     # diagonal death or clone
     w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
-    return missing
+    return [missing for i=1:5]
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)

@@ -1,11 +1,8 @@
 """
     module ConsistentRNG
-Provides a random number generator that is locally and independently seeded for
-each worker. The initial state is save to file. If the appropriate file is
-found in the working directory, then the random number generator is loaded from
-this file.
+Provides a an array random number generators with one for each thread.
 
-Exports `cRand()`, `seedCRNG!()`, and `CRNG`.
+Exports `cRand()` and `seedCRNG!()`. These are thread consistent.
 """
 module ConsistentRNG
 #__precompile__(false) # do not precompile
@@ -14,7 +11,7 @@ using RandomNumbers
 import Random
 # using Distributed # only for info message
 
-export cRand, CRNG, seedCRNG!
+export cRand, seedCRNG! # threadsafe
 
 # pid = myid() # get process id number
 # rngFileName = "rngP$pid.jld2"
@@ -32,18 +29,38 @@ export cRand, CRNG, seedCRNG!
 #       # @info "generated random number generator and saved to file " rngFileName CRNG
 # end
 
+# """
+#     CRNG
+# Defines the random number generator that should be used everywhere. For parallel
+# runs it should be seeded separately on each process. Currently we are using
+# 'Xoroshiro128Plus' from 'RandomNumbers.jl', see the
+# [Documentation](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1).
+# In order to change the random number generator, edit 'ConsistentRNG.jl'.
+# """
+# const CRNG = RandomNumbers.Xorshifts.Xoroshiro128Plus() # fast and good
+# # Alternatively:
+# # const CRNG = Random.MersenneTwister() # standard Julia RNG
+
 """
     CRNG
-Defines the random number generator that should be used everywhere. For parallel
-runs it should be seeded separately on each process. Currently we are using
-'Xoroshiro128Plus' from 'RandomNumbers.jl', see the
-[Documentation](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1).
+Defines an array of random number generators suitable for threaded code.
+For MPI or distributed
+runs it should be seeded separately on each process with [`seedCRNG!`](@ref).
+Currently we are using 'Xoshiro256StarStar' from 'RandomNumbers.jl', see the
+[Documentation](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1)
+and this [Blog post](https://nullprogram.com/blog/2017/09/21/).
 In order to change the random number generator, edit 'ConsistentRNG.jl'.
-"""
-const CRNG = RandomNumbers.Xorshifts.Xoroshiro128Plus() # fast and good
-# Alternatively:
-# const CRNG = Random.MersenneTwister() # standard Julia RNG
 
+```julia
+rng = CRNG[Threads.threadid()]
+rand(rng)
+```
+"""
+# const CRNG = [RandomNumbers.Xorshifts.Xoroshiro128Plus() for i in 1:Threads.nthreads()]
+const CRNG = Tuple(RandomNumbers.Xorshifts.Xoshiro256StarStar() for i in 1:Threads.nthreads())
+# fast and good
+
+@inline trng() = @inbounds CRNG[Threads.threadid()]
 
 """
     r = cRand(args...)
@@ -52,7 +69,9 @@ Similar to 'rand(args)' but uses consistent random number generator 'CRNG'.
 Currently we are using `Xorshifts.Xoroshiro128Plus()` as random number generator
 from the `RandomNumbers` package. The initial state was seeded separately
 for each worker and saved to file."""
-cRand(args...) = rand(CRNG, args...)
+@inline cRand(args...) = rand(trng(), args...)
+# cRand(args...) = rand(CRNG, args...)
+# #
 
 # """
 #     seedcrng(seed::Tuple{UInt64,UInt64})
@@ -68,14 +87,33 @@ cRand(args...) = rand(CRNG, args...)
 #     @info "Seeded random number generator" myid() CRNG
 #     return CRNG
 # end
+# """
+#     seedCRNG!(seed)
+# Seed the consistent random number generator 'CRNG'.
+# """
+# function seedCRNG!(seed)
+#     Random.seed!(CRNG, seed)
+#     # @info "Seeded random number generator" myid() CRNG
+#     return CRNG
+# end
+
 """
     seedCRNG!(seed)
-Seed the consistent random number generator 'CRNG'.
+Seed the threaded consistent random number generators `CRNG`. If a single
+number is given, this will be used to seed a Mersenne Twister random number
+generator, which is then used to generate `UInt128` seeds for each rng in
+the vector [`TCRNG`](@ref).
 """
-function seedCRNG!(seed)
-    Random.seed!(CRNG, seed)
-    # @info "Seeded random number generator" myid() CRNG
+function seedCRNG!(seeds::Vector)
+    for (i,seed) in enumerate(seeds)
+        Random.seed!(CRNG[i], seed)
+    end
+    return CRNG
+end
+function seedCRNG!(seed::Number)
+    mtrng = RandomNumbers.MersenneTwisters.MT19937(seed)
+    seedCRNG!(rand(mtrng,UInt128,length(CRNG)))
     return CRNG
 end
 
-end
+end # module
