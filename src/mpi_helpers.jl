@@ -34,7 +34,6 @@ struct MPIData{D,S}
     end
 end
 
-localpart(dv) = dv # default for local data
 localpart(md::MPIData) = md.data
 
 """
@@ -262,24 +261,19 @@ function sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
 end
 
 # three-argument version
-"""
-    sort_into_targets!(target, source, stats) -> agg, wm, agg_stats
-Aggregate coefficients from `source` to `agg` and from `stats` to `agg_stats`
-according to thread- or MPI-level parallelism. `wm` passes back a reference to
-working memory.
-"""
-sort_into_targets!(target, w, stats) =  w, target, stats
-# default serial (single thread, no MPI) version: don't copy just swap
-
-function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
-    # multi-threaded non-MPI version
-    empty!(target)
-    for w in ws # combine newly walkers generated from different threads
-        add!(target, w)
+function sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
+    # multi-threaded MPI version
+    # should only ever run on thread 1
+    @assert Threads.threadid() == 1 "`sort_into_targets!()` is running on `threadid()` == $(Threads.threadid()) instead of 1!"
+    lwm = ws[1]
+    for i in 2:NT # combine new walkers generated from different threads
+        add!(lwm, ws[i])
     end
-    return target, ws, sum(statss)
+    sort_into_targets!(dtarget,lwm) # combine walkers from different MPI ranks
+    stats = sum(statss) # combine stats from all threads
+    MPI.Allreduce!(stats, +, dv.comm) # add stats from all MPI ranks
+    return dtarget, ws, stats
 end
-# TODO: three argument version for MPIData
 
 # four-argument version
 function sort_into_targets!(target, source, ::Type{P}, s::MPINoWalkerExchange) where P
@@ -306,7 +300,7 @@ function sort_into_targets!(target, source, ::Type{P}, s::DistributeStrategy) wh
             target[key] += val # local: just copy to target
         end
     end
-    # call strategy-specific method:
+    # call strategy-specific method (with 5 arguments):
     return sort_into_targets!(target, bufs, lens, P, s)
 end
 # five-argument version
