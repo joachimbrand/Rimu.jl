@@ -17,12 +17,12 @@ A pre-allocated data structure `w` for working memory can be passed as argument.
 This function mutates `v`, the parameter struct `pa` as well as
 `df`, and `w`.
 """
-function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
+function fciqmc!(svec, pa::FciqmcRunStrategy,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = similar(localpart(svec))) where {DD<:AbstractDVec}
+                 w = similar(localpart(svec)))
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
@@ -53,13 +53,13 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(v, pa::RunTillLastStep, df::DF,
+function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w::D = similar(localpart(v))
-                 ) where {D, DF<:Union{DataFrame, Nothing}}
+                 w = similar(localpart(v))
+                 )
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
