@@ -175,7 +175,7 @@ end
     @test sum(rdfs[:,:spawns]) == 2998
 
     # replica fciqmc
-    tup1 = (copy(svec),copy(svec))
+    tup1 = [copy(svec),copy(svec)]
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
@@ -211,7 +211,7 @@ end
     @test sum(rdfs[:,:spawns]) == 2998
 
     # replica fciqmc
-    tup1 = (copy(svec),copy(svec))
+    tup1 = [copy(svec),copy(svec)]
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()

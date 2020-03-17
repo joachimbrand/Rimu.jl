@@ -116,24 +116,25 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
 end # fciqmc
 
 # replica version
-function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
+function fciqmc!(vv::Vector, ham::LinearOperator, pa::RunTillLastStep,
                  s_strat::ShiftStrategy,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 vsNew::T = similar.(svecs)) where {N, K, V,
-                                                T<:NTuple{N,AbstractDVec{K,V}}}
-                 # N is number of replica, V is eltype(svecs[1])
+                 wv = similar.(vv))
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
+    V = valtype(vv[1])
+    N = length(vv) # number of replicas to propagate
+    # keep references to the passed data vectors around
+    vv_orig = similar(vv) # empty vector
+    vv_orig .= vv # fill it with references to the coefficient DVecs
 
-    maxlength = minimum(capacity.(svecs))
-    reduce(&, capacity.(vsNew) .≥ maxlength) || error("replica containers `vsNew` have insufficient capacity")
-    vsOld = svecs # keep reference of the starting vectors
-    zero!.(vsNew) # reset the vectors without allocating new memory
+    maxlength = minimum(capacity.(vv))
+    reduce(&, capacity.(wv) .≥ maxlength) || error("replica containers `wv` have insufficient capacity")
 
     shifts = [shift for i = 1:N] # Vector because it needs to be mutable
     vShiftModes = [shiftMode for i = 1:N] # separate for each replica
     pnorms = zeros(N) # initialise as vector
-    pnorms .= norm.(vsOld,1) # 1-norm i.e. number of psips as Tuple (of previous step)
+    pnorms .= norm.(vv,1) # 1-norm i.e. number of psips as Tuple (of previous step)
 
     # initalise df for storing results of each replica separately
     dfs = Tuple(DataFrame(steps=Int[], shift=Float64[], shiftMode=Bool[],
@@ -142,7 +143,7 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                          annihilations=V[]) for i in 1:N)
     # dfs is thus an NTuple of DataFrames
     for i in 1:N
-        push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vsOld[i]),
+        push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vv[i]),
                       pnorms[i], 0, 0, 0, 0, 0))
     end
 
@@ -151,28 +152,25 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
     PType = promote_type(V,eltype(ham)) # type of scalar product
     RType = promote_type(PType,Float64) # for division
     mixed_df= DataFrame(steps =Int[], xdoty =V[], xHy =PType[], aveH =RType[])
-    dp = vsOld[1]⋅vsOld[2] # <v_1 | v_2>
-    expval =  vsOld[1]⋅ham(vsOld[2]) # <v_1 | ham | v_2>
+    dp = vv[1]⋅vv[2] # <v_1 | v_2>
+    expval =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
     push!(mixed_df,(step, dp, expval, expval/dp))
 
     norms = zeros(N)
     mstats = [zeros(V,5) for i=1:N]
     while step < laststep
         step += 1
-        @sync for (i, vOld) in enumerate(vsOld) # loop over replicas
+        for (i, v) in enumerate(vv) # loop over replicas
             # perform one complete stochastic vector matrix multiplication
-            @async begin
-                vNew = vsNew[i]
-                a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, vNew)
-                mstats[i] .= stats
-                norms[i] = norm(vNew,1) # total number of psips
-                shifts[i], vShiftModes[i], pnorms[i] = update_shift(
-                    s_strat, shifts[i], vShiftModes[i],
-                    norms[i], pnorms[i], dτ, step, dfs[i]
-                )
-            end
+            vv[i], wv[i], stats = fciqmc_step!(ham, v, shifts[i], dτ, wv[i])
+            mstats[i] .= stats
+            norms[i] = norm(vv[i],1) # total number of psips
+            shifts[i], vShiftModes[i], pnorms[i] = update_shift(
+                s_strat, shifts[i], vShiftModes[i],
+                norms[i], pnorms[i], dτ, step, dfs[i]
+            )
         end #loop over replicas
-        lengths = length.(vsNew)
+        lengths = length.(vv)
         # update time step
         dτ = update_dτ(τ_strat, dτ) # will need to pass more information
         # later when we add different stratgies
@@ -181,16 +179,12 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
             push!(dfs[i], (step, shifts[i], vShiftModes[i], lengths[i],
                   norms[i], mstats[i]...))
         end
-        v1Dv2 = vsNew[1]⋅vsNew[2] # <v_1 | v_2> overlap
-        v2Dhv2 =  vsNew[1]⋅ham(vsNew[2]) # <v_1 | ham | v_2>
+        v1Dv2 = vv[1]⋅vv[2] # <v_1 | v_2> overlap
+        v2Dhv2 =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
         push!(mixed_df,(step, v1Dv2, v2Dhv2, v2Dhv2/v1Dv2))
 
         # prepare for next step:
         # pnorms .= norms # remember norm of this step for next step (previous norm)
-        dummy = vsOld # keep reference to old vector
-        vsOld = vsNew # new will be old
-        vsNew = dummy # new new is former old
-        zero!.(vsNew) # reset the vectors without allocating new memory
         llength = maximum(lengths)
         llength > 0.8*maxlength && if llength > maxlength
             @error "`maxlength` exceeded" llength maxlength
@@ -201,9 +195,9 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
 
     end # while step
     # make sure that `svecs` contains the current population:
-    if !(vsOld === svecs)
-        for i = 1:N
-            copyto!(svecs[i], vsOld[i])
+    for i = 1:N
+        if vv[i] ≢ vv_orig[i]
+            copyto!(vv_orig[i], vv[i])
         end
     end
     # pack up and parameters for continuation runs
@@ -213,7 +207,7 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
     @pack! pa = step, shiftMode, shift, dτ
 
     return mixed_df, dfs # return dataframes with stats
-    # note that `svecs` and `pa` are modified but not returned explicitly
+    # note that `vv_orig` and `pa` are modified but not returned explicitly
 end # fciqmc
 
 """
@@ -261,8 +255,9 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, ws::NTuple{NT,W};
             (add, num) = tup
             fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
         end
-    end
-    return sort_into_targets!(dv, ws, statss) # dv, w, stats
+    end # all threads have returned; now running on single thread again
+    return sort_into_targets!(dv, ws, statss) # MPI syncronizing
+    # dv, w, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 

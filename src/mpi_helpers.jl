@@ -34,6 +34,7 @@ struct MPIData{D,S}
     end
 end
 
+Base.valtype(md::MPIData{D,S}) where {D,S} = valtype(D)
 localpart(md::MPIData) = md.data
 
 """
