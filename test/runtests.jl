@@ -212,11 +212,20 @@ end
 
     # replica fciqmc
     tup1 = [copy(svec),copy(svec)]
-    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-    pb = RunTillLastStep(laststep = 100)
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
+    pb = RunTillLastStep(laststep = 300)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(tup1, ham, pb, s)
-    @test sum(rr[1][:,:xHy]) ≈ -12366.096729400324
+    @test sum(rr[1][:,:xHy]) ≈ -3.1790581344812755e6
+
+    # replica fciqmc with multithreading
+    tup1 = [copy(svec),copy(svec)]
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
+    pb = RunTillLastStep(laststep = 300)
+    ws = Tuple(similar(svec) for i=1:Threads.nthreads())
+    ww = [ws, copy.(ws)]
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rr = fciqmc!(tup1, ham, pb, s, ConstantTimeStep(), ww)
 
     # large bit string
     n = 200
