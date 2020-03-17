@@ -111,9 +111,9 @@ end
 using Rimu.ConsistentRNG
 @testset "ConsistentRNG.jl" begin
     seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
-    @test cRand(UInt128) == 0xb1255668221ecc61ad81afdb697725a2
+    @test cRand(UInt128) == 0xad2acf8f66080104f395d0b7ed4713d9
 
-    @test rand(ConsistentRNG.CRNG[1],UInt128) == 0x8e3534ee697dd556533b518f09ccee7d
+    @test rand(ConsistentRNG.CRNGs[1],UInt128) == 0x0b0c30478c16f78daa91bcc785895269
     # Only looks at first element of the `NTuple`. This should be reproducible
     # regardless of `numthreads()`.
 end
@@ -162,7 +162,7 @@ end
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-    @test sum(rdfs[:,:spawns]) == 1815
+    @test sum(rdfs[:,:spawns]) == 1725
 
     # fciqmc with delayed shift update
     pa = RunTillLastStep(laststep = 100)
@@ -172,7 +172,7 @@ end
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s)
-    @test sum(rdfs[:,:spawns]) == 2856
+    @test sum(rdfs[:,:spawns]) == 2998
 
     # replica fciqmc
     tup1 = (copy(svec),copy(svec))
@@ -180,7 +180,7 @@ end
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(tup1, ham, pb, s)
-    @test sum(rr[1][:,:xHy]) ≈ -23326.578632257504
+    @test sum(rr[1][:,:xHy]) ≈ -12366.096729400324
 end
 
 @testset "fciqmc with BoseFS" begin
@@ -198,7 +198,7 @@ end
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-    @test sum(rdfs[:,:spawns]) == 1815
+    @test sum(rdfs[:,:spawns]) == 1725
 
     # fciqmc with delayed shift update
     pa = RunTillLastStep(laststep = 100)
@@ -208,7 +208,7 @@ end
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s)
-    @test sum(rdfs[:,:spawns]) == 2856
+    @test sum(rdfs[:,:spawns]) == 2998
 
     # replica fciqmc
     tup1 = (copy(svec),copy(svec))
@@ -216,7 +216,7 @@ end
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(tup1, ham, pb, s)
-    @test sum(rr[1][:,:xHy]) ≈ -23326.578632257504
+    @test sum(rr[1][:,:xHy]) ≈ -12366.096729400324
 
     # large bit string
     n = 200
@@ -236,11 +236,11 @@ end
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
     pa.laststep = 100
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
-    @test sum(rdfs[:,:spawns]) == 39035
+    @test sum(rdfs[:,:spawns]) == 39288
 
     # single step
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, similar(vs))
-    @test sum(stats) == 1429
+    @test sum(stats) == 1319
 
     # single step multi threading
     cws = capacity(vs)÷Threads.nthreads()+1
@@ -248,17 +248,15 @@ end
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, ws;
                     batchsize = length(vs)÷4+1)
     if Threads.nthreads() == 1
-        @test sum(stats) == 363 # test assuming nthreads() == 1
+        @test sum(stats) == 342 # test assuming nthreads() == 1
     end
-    # TODO: need to look at threadsafty of RNG!!!
 
     # run 100 steps with multi
     pa.laststep = 200
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == 41930 # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 42358 # test assuming nthreads() == 1
     end
-    # TODO: need to look at threadsafty of RNG!!!
 
     # threaded version of standard fciqmc!
     tw = 1_000
@@ -272,9 +270,8 @@ end
     pa.laststep = 100
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == 8952 # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 10050 # test assuming nthreads() == 1
     end
-    # something is wrong here
 end
 
 @testset "dfvec.jl" begin
