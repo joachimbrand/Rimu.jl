@@ -272,7 +272,7 @@ function sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {N
     end
     sort_into_targets!(dtarget,lwm) # combine walkers from different MPI ranks
     stats = sum(statss) # combine stats from all threads
-    MPI.Allreduce!(stats, +, dv.comm) # add stats from all MPI ranks
+    MPI.Allreduce!(stats, +, dtarget.comm) # add stats from all MPI ranks
     return dtarget, ws, stats
 end
 

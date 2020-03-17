@@ -161,7 +161,10 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    r_strat = EveryTimeStep()
+    τ_strat = ConstantTimeStep()
+
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     @test sum(rdfs[:,:spawns]) == 1725
 
     # fciqmc with delayed shift update
@@ -171,15 +174,15 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s)
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     @test sum(rdfs[:,:spawns]) == 2998
 
     # replica fciqmc
-    tup1 = [copy(svec),copy(svec)]
+    vv = [copy(svec),copy(svec)]
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(tup1, ham, pb, s)
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
     @test sum(rr[1][:,:xHy]) ≈ -12366.096729400324
 end
 
@@ -190,6 +193,8 @@ end
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
 
     pa = RunTillLastStep(laststep = 100)
+    r_strat = EveryTimeStep()
+    τ_strat = ConstantTimeStep()
 
     # standard fciqmc
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
@@ -197,7 +202,7 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     @test sum(rdfs[:,:spawns]) == 1725
 
     # fciqmc with delayed shift update
@@ -207,15 +212,15 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s)
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     @test sum(rdfs[:,:spawns]) == 2998
 
     # replica fciqmc
-    tup1 = [copy(svec),copy(svec)]
+    vv = [copy(svec),copy(svec)]
     s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
     pb = RunTillLastStep(laststep = 300)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(tup1, ham, pb, s)
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
     @test sum(rr[1][:,:xHy]) ≈ -3.1790581344812755e6
 
     # replica fciqmc with multithreading
@@ -225,7 +230,7 @@ end
     ws = Tuple(similar(svec) for i=1:Threads.nthreads())
     ww = [ws, copy.(ws)]
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(tup1, ham, pb, s, ConstantTimeStep(), ww)
+    @time rr = fciqmc!(tup1, pb, ham, s, r_strat, ConstantTimeStep(), ww)
 
     # large bit string
     n = 200
@@ -242,9 +247,9 @@ end
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     pa.laststep = 100
-    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, similar(vs))
     @test sum(rdfs[:,:spawns]) == 39288
 
     # single step
@@ -349,7 +354,7 @@ end
     τ_strat = ConstantTimeStep()
     s_strat = DoubleLogUpdate(targetwalkers = walkernumber)
     r_strat = EveryTimeStep()
-    @time rdf = fciqmc!(svec2, pa, ham, s_strat, r_strat, τ_strat)
+    @time rdf = fciqmc!(svec2, pa, ham, s_strat, r_strat, τ_strat, similar(svec2))
     @test rdf.:shift[101] ≈ -6.840080658204963
     # Multi-threading
     svec2 = DVec(Dict(aIni => 2.0), ham(:dim))

@@ -6,14 +6,18 @@
     -> df
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
-`v` can be a single starting vector of type `:<AbstractDVec` or a tuple
-of such vectors. In the latter case, independent replicas are constructed.
+`v` can be a single starting vector of type `:<AbstractDVec` or a vector
+of such structures. In the latter case, independent replicas are constructed.
 Returns a `DataFrame` `df` with statistics about the run, or a tuple of `DataFrame`s
 for a replica run.
 Strategies can be given for updating the shift (see [`ShiftStrategy`](@ref))
 and (optionally), for reporting (see [`ReportingStrategy`](@ref)),
 and for updating the time step `dτ` (see [`TimeStepStrategy`](@ref)).
-A pre-allocated data structure `w` for working memory can be passed as argument.
+
+A pre-allocated data structure `w` for working memory can be passed as argument,
+and controls multi-threading behaviour. By default multi-threading is turned
+on. To turn multi-threading off, pass `similar(localpart(v))` for w.
+
 This function mutates `v`, the parameter struct `pa` as well as
 `df`, and `w`.
 """
@@ -22,7 +26,7 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = similar(localpart(svec)))
+                 w = threaded_working_memory(svec))
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
@@ -58,7 +62,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = similar(localpart(v))
+                 w = threaded_working_memory(svec)
                  )
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -116,10 +120,13 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
 end # fciqmc
 
 # replica version
-function fciqmc!(vv::Vector, ham::LinearOperator, pa::RunTillLastStep,
+function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
                  s_strat::ShiftStrategy,
+                 r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 wv = similar.(vv))
+                 wv = threaded_working_memory.(vv))
+                 # wv = similar.(localpart.(vv))
+    # τ_strat is currently ignored in the replica version
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     V = valtype(vv[1])
