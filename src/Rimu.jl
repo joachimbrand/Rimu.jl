@@ -14,7 +14,7 @@ include("DictVectors/DictVectors.jl")
 include("BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("ConsistentRNG.jl")
-using .ConsistentRNG
+@reexport using .ConsistentRNG
 include("Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("Blocking.jl")
@@ -35,6 +35,7 @@ export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
 export localpart, free, mpi_no_exchange
 
 include("strategies_and_params.jl")
+include("helpers.jl")
 include("mpi_helpers.jl")
 include("fciqmc.jl")
 

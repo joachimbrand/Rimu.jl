@@ -34,7 +34,7 @@ struct MPIData{D,S}
     end
 end
 
-localpart(dv) = dv # default for local data
+Base.valtype(md::MPIData{D,S}) where {D,S} = valtype(D)
 localpart(md::MPIData) = md.data
 
 """
@@ -261,6 +261,22 @@ function sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
     sort_into_targets!(ltarget, source, P, strategy)
 end
 
+# three-argument version
+function sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
+    # multi-threaded MPI version
+    # should only ever run on thread 1
+    @assert Threads.threadid() == 1 "`sort_into_targets!()` is running on `threadid()` == $(Threads.threadid()) instead of 1!"
+    lwm = ws[1]
+    for i in 2:NT # combine new walkers generated from different threads
+        add!(lwm, ws[i])
+    end
+    sort_into_targets!(dtarget,lwm) # combine walkers from different MPI ranks
+    stats = sum(statss) # combine stats from all threads
+    MPI.Allreduce!(stats, +, dtarget.comm) # add stats from all MPI ranks
+    return dtarget, ws, stats
+end
+
+# four-argument version
 function sort_into_targets!(target, source, ::Type{P}, s::MPINoWalkerExchange) where P
     # specific for `MPINoWalkerExchange`: copy without communicating with
     # other ranks.
@@ -285,9 +301,10 @@ function sort_into_targets!(target, source, ::Type{P}, s::DistributeStrategy) wh
             target[key] += val # local: just copy to target
         end
     end
-    # call strategy-specific method:
+    # call strategy-specific method (with 5 arguments):
     return sort_into_targets!(target, bufs, lens, P, s)
 end
+# five-argument version
 function sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s::MPIDefault) where P
     # use standard MPI message passing communication
     # use ring structure for sending around data with blocking communications:

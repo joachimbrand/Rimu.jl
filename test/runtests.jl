@@ -110,8 +110,12 @@ end
 
 using Rimu.ConsistentRNG
 @testset "ConsistentRNG.jl" begin
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @test cRand(Int) == 6792904027504972346
+    seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
+    @test cRand(UInt128) == 0xad2acf8f66080104f395d0b7ed4713d9
+
+    @test rand(ConsistentRNG.CRNGs[1],UInt128) == 0x0b0c30478c16f78daa91bcc785895269
+    # Only looks at first element of the `NTuple`. This should be reproducible
+    # regardless of `numthreads()`.
 end
 
 @testset "Hamiltonians.jl" begin
@@ -157,8 +161,11 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-    @test sum(rdfs[:,:spawns]) == 1751
+    r_strat = EveryTimeStep()
+    τ_strat = ConstantTimeStep()
+
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    @test sum(rdfs[:,:spawns]) == 1725
 
     # fciqmc with delayed shift update
     pa = RunTillLastStep(laststep = 100)
@@ -167,16 +174,16 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s)
-    @test sum(rdfs[:,:spawns]) == 2646
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    @test sum(rdfs[:,:spawns]) == 2998
 
     # replica fciqmc
-    tup1 = (copy(svec),copy(svec))
+    vv = [copy(svec),copy(svec)]
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(tup1, ham, pb, s)
-    @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
+    @test sum(rr[1][:,:xHy]) ≈ -12366.096729400324
 end
 
 @testset "fciqmc with BoseFS" begin
@@ -184,20 +191,10 @@ end
     n = m = 9
     aIni = nearUniform(BoseFS{n,m})
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    # ham = BoseHubbardReal1D(
-    #     n = 9,
-    #     m = 9,
-    #     u = 6.0,
-    #     t = 1.0,
-    #     AT = typeof(aIni))
-    # ham, aIni = setupBoseHubbardReal1D(
-    #     n = 9,
-    #     m = 9,
-    #     u = 6.0,
-    #     t = 1.0
-    # )
 
     pa = RunTillLastStep(laststep = 100)
+    r_strat = EveryTimeStep()
+    τ_strat = ConstantTimeStep()
 
     # standard fciqmc
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
@@ -205,8 +202,8 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
-    @test sum(rdfs[:,:spawns]) == 1751
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    @test sum(rdfs[:,:spawns]) == 1725
 
     # fciqmc with delayed shift update
     pa = RunTillLastStep(laststep = 100)
@@ -215,42 +212,80 @@ end
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s)
-    @test sum(rdfs[:,:spawns]) == 2646
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    @test sum(rdfs[:,:spawns]) == 2998
 
     # replica fciqmc
-    tup1 = (copy(svec),copy(svec))
-    s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-    pb = RunTillLastStep(laststep = 100)
+    vv = [copy(svec),copy(svec)]
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
+    pb = RunTillLastStep(laststep = 300)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(tup1, ham, pb, s)
-    @test sum(rr[1][:,:xHy]) ≈ -10456.373910680508
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
+    @test sum(rr[1][:,:xHy]) ≈ -3.1790581344812755e6
+
+    # replica fciqmc with multithreading
+    tup1 = [copy(svec),copy(svec)]
+    s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
+    pb = RunTillLastStep(laststep = 300)
+    ws = Tuple(similar(svec) for i=1:Threads.nthreads())
+    ww = [ws, copy.(ws)]
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rr = fciqmc!(tup1, pb, ham, s, r_strat, ConstantTimeStep(), ww)
 
     # large bit string
     n = 200
     m = 200
     aIni = nearUniform(BoseFS{n,m})
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    # ham = BoseHubbardReal1D(
-    #     n = n,
-    #     m = m,
-    #     u = 6.0,
-    #     t = 1.0,
-    #     AT = typeof(aIni))
     iShift = diagME(ham, aIni)
 
     # standard fciqmc
     tw = 1_000
-    s = LogUpdateAfterTargetWalkers(targetwalkers = tw)
+    s = DoubleLogUpdate(targetwalkers = tw)
     svec = DVec(Dict(aIni => 20), 8*tw)
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep())
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     pa.laststep = 100
-    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep())
-    @test sum(rdfs[:,:spawns]) == 122128
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, similar(vs))
+    @test sum(rdfs[:,:spawns]) == 39288
+
+    # single step
+    ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, similar(vs))
+    @test sum(stats) == 1319
+
+    # single step multi threading
+    cws = capacity(vs)÷Threads.nthreads()+1
+    ws = Tuple(similar(vs,cws) for i=1:Threads.nthreads())
+    ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, ws;
+                    batchsize = length(vs)÷4+1)
+    if Threads.nthreads() == 1
+        @test sum(stats) == 342 # test assuming nthreads() == 1
+    end
+
+    # run 100 steps with multi
+    pa.laststep = 200
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    if Threads.nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 42358 # test assuming nthreads() == 1
+    end
+
+    # threaded version of standard fciqmc!
+    tw = 1_000
+    s = DoubleLogUpdate(targetwalkers = tw)
+    svec = DVec(Dict(aIni => 20), 8*tw)
+    StochasticStyle(svec)
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    pa.laststep = 100
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    if Threads.nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 10050 # test assuming nthreads() == 1
+    end
 end
 
 @testset "dfvec.jl" begin
@@ -301,6 +336,35 @@ end
     dtv[218] = (14.7648230602334, 0x00ff) # change flag
     @test fdvt ≠ dtv
 end
+
+@testset "deterministic and multithreading" begin
+    # set up parameters for simulations
+    walkernumber = 20_000
+    steps = 100
+    dτ = 0.005
+
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    # ### Deterministic FCIQMC
+    svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
+    StochasticStyle(svec2)
+    pa = RunTillLastStep(laststep = steps,  dτ = dτ)
+    τ_strat = ConstantTimeStep()
+    s_strat = DoubleLogUpdate(targetwalkers = walkernumber)
+    r_strat = EveryTimeStep()
+    @time rdf = fciqmc!(svec2, pa, ham, s_strat, r_strat, τ_strat, similar(svec2))
+    @test rdf.:shift[101] ≈ -6.840080658204963
+    # Multi-threading
+    svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
+    pa = RunTillLastStep(laststep = steps,  dτ = dτ)
+    cws = capacity(svec2)÷Threads.nthreads()+1
+    ws = Tuple(similar(svec2,cws) for i=1:Threads.nthreads())
+    @time rdf = fciqmc!(svec2, pa, ham, s_strat, r_strat, τ_strat, ws)
+    @test rdf.:shift[101] ≈ -6.840080658204963
+end
+
 
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
