@@ -62,7 +62,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = threaded_working_memory(svec)
+                 w = threaded_working_memory(v)
                  )
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -164,7 +164,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
     push!(mixed_df,(step, dp, expval, expval/dp))
 
     norms = zeros(N)
-    mstats = [zeros(V,5) for i=1:N]
+    mstats = [zeros(Int,5) for i=1:N]
     while step < laststep
         step += 1
         for (i, v) in enumerate(vv) # loop over replicas
@@ -237,7 +237,7 @@ contain zeros when running in deterministic mode.
 function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
     # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    stats = zeros(Int, 5) # pre-allocate array for stats
     zero!(w) # clear working memory
     for (add, num) in pairs(v)
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
@@ -258,7 +258,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, ws::NTuple{NT,W};
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
     @sync for btr in Iterators.partition(pairs(v), batchsize)
-        Threads.@spawn statss[Threads.threadid()] = sum(btr) do tup
+        Threads.@spawn statss[Threads.threadid()] .+= sum(btr) do tup
             (add, num) = tup
             fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
         end
@@ -269,11 +269,11 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, ws::NTuple{NT,W};
 end # fciqmc_step!
 
 function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
-    # MPI version
+    # MPI version, single thread
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
     empty!(w)
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    stats = zeros(Int, 5) # pre-allocate array for stats
     for (add, num) in pairs(v)
         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         stats .+= res # just add all stats together
@@ -285,17 +285,6 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
     # result `dv` and cumulative `stats` as an array on all ranks
     # stats == (spawns, deaths, clones, antiparticles, annihilations)
 end # fciqmc_step!
-
-# to do: implement parallel version
-# function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
-#   check that v and w are compatible
-#   for each worker
-#      call fciqmc_step!()  on respective local parts
-#      sort and consolidate configurations to where they belong
-#      communicate via RemoteChannels
-#   end
-#   return statistics
-# end
 
 # let's decide whether a simulation is deterministic, stochastic, or
 # semistochastic upon a trait on the vector type
@@ -388,7 +377,7 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
-    return zeros(valtype(w), 5)
+    return zeros(Int, 5)
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
@@ -398,7 +387,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift,
     end
     # diagonal death or clone
     w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
-    return zeros(valtype(w), 5)
+    return zeros(Int, 5)
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)

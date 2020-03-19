@@ -116,6 +116,8 @@ using Rimu.ConsistentRNG
     @test rand(ConsistentRNG.CRNGs[1],UInt128) == 0x0b0c30478c16f78daa91bcc785895269
     # Only looks at first element of the `NTuple`. This should be reproducible
     # regardless of `numthreads()`.
+    @test rand(trng(),UInt16) == 0x4c52
+    @test rand(newChildRNG(),UInt16) == 0xc4f1
 end
 
 @testset "Hamiltonians.jl" begin
@@ -262,14 +264,14 @@ end
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, ws;
                     batchsize = length(vs)÷4+1)
     if Threads.nthreads() == 1
-        @test sum(stats) == 342 # test assuming nthreads() == 1
+        @test sum(stats) == 1303 # test assuming nthreads() == 1
     end
 
     # run 100 steps with multi
     pa.laststep = 200
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == 42358 # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 88269 # test assuming nthreads() == 1
     end
 
     # threaded version of standard fciqmc!
@@ -284,7 +286,7 @@ end
     pa.laststep = 100
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == 10050 # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 39106 # test assuming nthreads() == 1
     end
 end
 
