@@ -11,7 +11,7 @@ using RandomNumbers
 import Random
 # using Distributed # only for info message
 
-export cRand, seedCRNG! # threadsafe
+export cRand, seedCRNG!, trng, newChildRNG # threadsafe
 
 """
 Baseline random number generator used throughout.
@@ -46,8 +46,8 @@ const CRNGs = Tuple(CRNG() for i in 1:Threads.nthreads())
 Thread local random number generator.
 
 ```julia
-rand(rng())
-rand(rng(),UInt)
+rand(trng())
+rand(trng(),UInt)
 ```
 """
 @inline trng() = @inbounds CRNGs[Threads.threadid()]
@@ -83,4 +83,16 @@ function seedCRNG!(seed::Number)
         @inbounds Random.seed!(CRNGs[i], hash(rand(rng,UInt)))
     end
 end
+
+"""
+    newChildRNG(parent_rng = trng())
+Random number generator that is seeded deterministically from the
+thread-consistent global rng [`trng()`](@ref). By scrambling with `hash()`,
+a statistically independent pseudo-random sequence from the parent rng is
+accessed.
+"""
+function newChildRNG(parent_rng = trng())
+    return CRNG(hash(rand(parent_rng,UInt)))
+end
+
 end # module
