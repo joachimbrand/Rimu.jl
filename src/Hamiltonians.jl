@@ -9,9 +9,9 @@ Models implemented so far are:
 module Hamiltonians
 
 using Parameters, StaticArrays
+using Random: AbstractRNG
+
 using ..DictVectors
-
-
 using ..BitStringAddresses
 using ..ConsistentRNG
 
@@ -110,12 +110,25 @@ function generateRandHop(ham::LinearOperator, add)
   # return new address, generation probability, and matrix element
 end
 
-function generateRandHop(hops::Hops)
+# function generateRandHop(hops::Hops)
+#   # method using the Hops-type iterator
+#   # generic implementation of a random excitation generator drawing from
+#   # a uniform distribution
+#   nl = length(hops) # check how many sites we could hop to
+#   chosen = cRand(1:nl) # choose one of them
+#   #chosen = _nearlydivisionless(nl) + 1 # choose one of them
+#   # using a faster random number algorithm
+#   naddress, melem = hops[chosen]
+#   return naddress, 1.0/nl, melem
+#   # return new address, generation probability, and matrix element
+# end
+
+function generateRandHop(hops::Hops, rng::AbstractRNG = trng())
   # method using the Hops-type iterator
   # generic implementation of a random excitation generator drawing from
   # a uniform distribution
   nl = length(hops) # check how many sites we could hop to
-  chosen = cRand(1:nl) # choose one of them
+  chosen = rand(rng, 1:nl) # choose one of them
   #chosen = _nearlydivisionless(nl) + 1 # choose one of them
   # using a faster random number algorithm
   naddress, melem = hops[chosen]

@@ -5,6 +5,7 @@ Random Integrator for Many-Body Quantum Systems
 module Rimu
 
 using Reexport, Parameters, LinearAlgebra, DataFrames
+using Random: AbstractRNG
 import MPI
 
 include("FastBufs.jl")

@@ -116,6 +116,8 @@ using Rimu.ConsistentRNG
     @test rand(ConsistentRNG.CRNGs[1],UInt128) == 0x0b0c30478c16f78daa91bcc785895269
     # Only looks at first element of the `NTuple`. This should be reproducible
     # regardless of `numthreads()`.
+    @test rand(trng(),UInt16) == 0x4c52
+    @test rand(newChildRNG(),UInt16) == 0xc4f1
 end
 
 @testset "Hamiltonians.jl" begin
@@ -242,7 +244,7 @@ end
     # standard fciqmc
     tw = 1_000
     s = DoubleLogUpdate(targetwalkers = tw)
-    svec = DVec(Dict(aIni => 20), 8*tw)
+    svec = DVec(Dict(aIni => 20), 20*tw)
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
@@ -250,41 +252,43 @@ end
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     pa.laststep = 100
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, similar(vs))
-    @test sum(rdfs[:,:spawns]) == 39288
+    @test sum(rdfs[:,:spawns]) == 39466
 
     # single step
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, similar(vs))
-    @test sum(stats) == 1319
+    @test sum(stats) == 1323
 
     # single step multi threading
     cws = capacity(vs)÷Threads.nthreads()+1
     ws = Tuple(similar(vs,cws) for i=1:Threads.nthreads())
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, ws;
                     batchsize = length(vs)÷4+1)
-    if Threads.nthreads() == 1
-        @test sum(stats) == 342 # test assuming nthreads() == 1
-    end
+    @test sum(stats) == 1364 # should be independent of number of threads
 
     # run 100 steps with multi
     pa.laststep = 200
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
     if Threads.nthreads() == 1
         @test sum(rdfs[:,:spawns]) == 42358 # test assuming nthreads() == 1
+    elseif Threads.nthreads() == 4
+        @test sum(rdfs[:,:spawns]) == 88052
     end
 
     # threaded version of standard fciqmc!
     tw = 1_000
     s = DoubleLogUpdate(targetwalkers = tw)
-    svec = DVec(Dict(aIni => 20), 8*tw)
+    svec = DVec(Dict(aIni => 20), 20*tw)
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(),ConstantTimeStep())
     pa.laststep = 100
-    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep())
     if Threads.nthreads() == 1
         @test sum(rdfs[:,:spawns]) == 10050 # test assuming nthreads() == 1
+    elseif Threads.nthreads() == 4
+        @test sum(rdfs[:,:spawns]) == 38965
     end
 end
 

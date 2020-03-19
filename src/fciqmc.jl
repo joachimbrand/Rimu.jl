@@ -62,7 +62,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = threaded_working_memory(svec)
+                 w = threaded_working_memory(v)
                  )
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -164,7 +164,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
     push!(mixed_df,(step, dp, expval, expval/dp))
 
     norms = zeros(N)
-    mstats = [zeros(V,5) for i=1:N]
+    mstats = [zeros(Int,5) for i=1:N]
     while step < laststep
         step += 1
         for (i, v) in enumerate(vv) # loop over replicas
@@ -237,30 +237,33 @@ contain zeros when running in deterministic mode.
 function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
     # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    stats = zeros(Int, 5) # pre-allocate array for stats
     zero!(w) # clear working memory
     for (add, num) in pairs(v)
-        res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
+        res = fciqmc_col!(w, Ĥ, add, num, shift, dτ, trng())
         stats .+= res # just add all stats together
     end
     return w, v, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
-function fciqmc_step!(Ĥ, dv, shift, dτ, ws::NTuple{NT,W};
+function fciqmc_step!( Ĥ, dv, shift, dτ, ws::NTuple{NT,W};
     batchsize = max(100, min(length(dv)÷Threads.nthreads(), round(Int,sqrt(length(dv))*10)))
     ) where {NT,W}
+    # threadlocal version
     # println("batchsize ",batchsize)
     # multithreaded version; should also work with MPI
     @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
     v = localpart(dv)
     statss = [zeros(Int,5) for i=1:NT]
-    # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
     @sync for btr in Iterators.partition(pairs(v), batchsize)
-        Threads.@spawn statss[Threads.threadid()] = sum(btr) do tup
-            (add, num) = tup
-            fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
+        tlrng = ConsistentRNG.newChildRNG() # task local RNG
+        Threads.@spawn begin
+            statss[Threads.threadid()] .+= sum(btr) do tup
+                (add, num) = tup
+                fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ, tlrng)
+            end
         end
     end # all threads have returned; now running on single thread again
     return sort_into_targets!(dv, ws, statss) # MPI syncronizing
@@ -269,13 +272,13 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, ws::NTuple{NT,W};
 end # fciqmc_step!
 
 function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
-    # MPI version
+    # MPI version, single thread
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
     empty!(w)
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    stats = zeros(Int, 5) # pre-allocate array for stats
     for (add, num) in pairs(v)
-        res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
+        res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ, trng())
         stats .+= res # just add all stats together
     end
     sort_into_targets!(dv, w)
@@ -286,16 +289,6 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
     # stats == (spawns, deaths, clones, antiparticles, annihilations)
 end # fciqmc_step!
 
-# to do: implement parallel version
-# function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
-#   check that v and w are compatible
-#   for each worker
-#      call fciqmc_step!()  on respective local parts
-#      sort and consolidate configurations to where they belong
-#      communicate via RemoteChannels
-#   end
-#   return statistics
-# end
 
 # let's decide whether a simulation is deterministic, stochastic, or
 # semistochastic upon a trait on the vector type
@@ -363,7 +356,7 @@ end
 # ```
 
 """
-    fciqmc_col!(w, ham, add, num, shift, dτ)
+    fciqmc_col!(w, ham, add, num, shift, dτ, rng)
     fciqmc_col!(::Type{T}, args...)
     -> spawns, deaths, clones, antiparticles, annihilations
 Spawning and diagonal step of FCIQMC for single column of `ham`. In essence it
@@ -385,36 +378,33 @@ fciqmc_col!(w::Union{AbstractArray,AbstractDVec}, args...) = fciqmc_col!(Stochas
 fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
     "first argument: trait not recognised",StochasticStyle,T))
 
-function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
+function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ, rng)
     w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
-    return zeros(valtype(w), 5)
+    return zeros(Int, 5)
 end
 
-function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
+function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ, rng)
     # off-diagonal: spawning psips
     for (nadd, elem) in Hops(ham, add)
         w[nadd] += -dτ * elem * num
     end
     # diagonal death or clone
     w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
-    return zeros(valtype(w), 5)
+    return zeros(Int, 5)
 end
 
-# fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
-# function inner_step!(w, ham::LinearOperator, add, num::Number,
-#                         shift, dτ)
 function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
-                        shift, dτ)
+                        shift, dτ, rng::AbstractRNG)
     # version for single population of integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
     hops = Hops(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = generateRandHop(hops, rng)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
-        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        rand(rng) < (pspawn - nspawn) && (nspawn += 1) # random spawn
         # at this point, nspawn is non-negative
         # now converted to correct type and compute sign
         nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
@@ -433,7 +423,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
     pd = dτ * (dME - shift)
     newdiagpop = (1-pd)*num
     ndiag = trunc(newdiagpop)
-    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    abs(newdiagpop-ndiag)>rand(rng) && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
     ndiags = convert(typeof(num),ndiag) # now integer type
     if sign(w[add]) ≠ sign(ndiags) # record annihilations
@@ -452,17 +442,17 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
 end # inner_step!
 
 function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num::Real,
-                        shift, dτ)
+                        shift, dτ, rng::AbstractRNG)
     # version for single population of integer psips
     # Nonlinearity in diagonal death step according to Ali's suggestion
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
     hops = Hops(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = generateRandHop(hops, rng)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
-        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        rand(rng) < (pspawn - nspawn) && (nspawn += 1) # random spawn
         # at this point, nspawn is non-negative
         # now converted to correct type and compute sign
         nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
@@ -482,7 +472,7 @@ function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num
     pd = dτ * (dME - shifteff)
     newdiagpop = (1-pd)*num
     ndiag = trunc(newdiagpop)
-    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    abs(newdiagpop-ndiag)>rand(rng) && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
     ndiags = convert(typeof(num),ndiag) # now integer type
     if sign(w[add]) ≠ sign(ndiags) # record annihilations
@@ -502,7 +492,7 @@ end # inner_step!
 
 function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
                         tup::Tuple{Real,Real},
-                        shift, dτ)
+                        shift, dτ, rng::AbstractRNG)
     # trying out Ali's suggestion with occupation ratio of neighbours
     # off-diagonal: spawning psips
     num = tup[1] # number of psips on configuration
@@ -510,10 +500,10 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
     hops = Hops(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = generateRandHop(hops, rng)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
-        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        rand(rng) < (pspawn - nspawn) && (nspawn += 1) # random spawn
         # at this point, nspawn is non-negative
         # now converted to correct type and compute sign
         nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
@@ -535,7 +525,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
     pd = dτ * (dME - mshift) # modified
     newdiagpop = (1-pd)*num
     ndiag = trunc(newdiagpop)
-    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    abs(newdiagpop-ndiag)>rand(rng) && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
     ndiags = convert(typeof(num),ndiag) # now appropriate type
     wapsips, waflag = w[add]
