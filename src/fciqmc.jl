@@ -421,6 +421,25 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::DeltaMemory2)
+    tnorm = norm(w, 1) # MPIsync
+    # current norm of `w` after FCIQMC step
+    # compute memory noise
+    r̃ = pnorm - tnorm + shift*dτ*pnorm
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = (r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer))/(dτ*pnorm)
+
+    # apply `r` noise to current state vector
+    for (add, val) in kvpairs(v)
+       w[add] += dτ*r*val # apply `r` noise
+    end
+    # nnorm = norm(w, 1) # new norm after applying noise
+
+    return w
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
                            w, v, shift, dτ, pnorm, m::ShiftMemory)
     push!(m.noiseBuffer, shift) # add current value of `shift` to buffer
     # Buffer only remembers up to `Δ` values. Average over whole buffer.

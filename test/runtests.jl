@@ -286,6 +286,12 @@ pa = RunTillLastStep(laststep = 100)
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = Rimu.DeltaMemory2(10), p_strat = p)
+@test sum(rdfs[:,:norm]) ≈ 7696.649821574053
+
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
 p_strat = ScaledThresholdProject(1.0)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), m_strat = DeltaMemory(10), p_strat = p_strat)
 @test sum(rdfs[:,:norm]) ≈ 7571.168683289753
