@@ -27,9 +27,10 @@ haskey, empty!, isempty`) and, in addition:
 abstract type AbstractDVec{K,V} end
 
 """
-    DictVectors.capacity(dv::AbstractDVec)
-    capacity(dv, s = :effective)
-gives the effective holding capacity of `dv`.
+    DictVectors.capacity(dv::AbstractDVec, [s = :effective])
+    capacity(dvs::Tuple, [s = :effective])
+gives the effective holding capacity of `dv`. If a tuple of `dvs` is given it
+aggregates the capacities.
 
 Optional argument `s`:
 - `:effective`  the number of elements that
@@ -38,6 +39,9 @@ can be stored savely (default)
 """
 capacity
 # doc string here only; needs to be defined for each concrete type.
+
+# make capacity aggregate over tuple
+capacity(tup::Tuple, args...) = sum(capacity.(tup, args...))
 
 # Note: The following method definitions for the supertype
 # also extend (by a fallback method) to instances of the type.
@@ -171,13 +175,36 @@ Inplace add `x+y` and store result in `x`.
     return x
 end
 
-# BLAS-like function: y += α*x
+# BLAS-like function: y .+= α*x
+"""
+    axpy!(α::Number, X::AbstractDVec, Y::AbstractDVec)
+    axpy!(α::Number, X::AbstractDVec, Ys::Tuple, batchsize)
+Overwrite `Y` with `α*X + Y` where `α` is scalar for `AbstractDVec`s.
+If a tuple `Ys` is passed with `Threads.nthreads()` `AbstractDVec`s, then
+perform the operation in parallel over threads with `batchsize` elements at a
+time.
+"""
 @inline function LinearAlgebra.axpy!(α::Number,x::AbstractDVec,y::AbstractDVec)
     for (k,v) in kvpairs(x)
         y[k] += α*v
     end
     return y
 end
+# multithreaded version
+@inline function LinearAlgebra.axpy!(α::Number,x::AbstractDVec,ys::NTuple{NT,W};
+        batchsize = length(x)÷NT
+    ) where {NT, W<:AbstractDVec}
+    @boundscheck @assert NT == Threads.nthreads()
+    @sync for btr in Iterators.partition(pairs(x), batchsize)
+        Threads.@spawn for (k,v) in btr
+            y = ys[Threads.threadid()]
+            y[k] += α*v
+        end
+    end # all threads have returned; now running on single thread again
+    return ys
+end
+# NOTE: the multithreaded version is allocating memory of quite considerable
+# size, apparently due to the `Iterators.partition()` iterator.
 
 # generic multiply with scalar inplace - this is slow (360 times slower than
 # the fast version for FastDVec)

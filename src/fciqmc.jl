@@ -6,25 +6,27 @@
     -> df
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
-`v` can be a single starting vector of type `:<AbstractDVec` or a tuple
-of such vectors. In the latter case, independent replicas are constructed.
+`v` can be a single starting vector of type `:<AbstractDVec` or a vector
+of such structures. In the latter case, independent replicas are constructed.
 Returns a `DataFrame` `df` with statistics about the run, or a tuple of `DataFrame`s
 for a replica run.
 Strategies can be given for updating the shift (see [`ShiftStrategy`](@ref))
 and (optionally), for reporting (see [`ReportingStrategy`](@ref)),
 and for updating the time step `dτ` (see [`TimeStepStrategy`](@ref)).
-A pre-allocated data structure `w` for working memory can be passed as argument.
+
+A pre-allocated data structure `w` for working memory can be passed as argument,
+and controls multi-threading behaviour. By default multi-threading is turned
+on. To turn multi-threading off, pass `similar(localpart(v))` for w.
+
 This function mutates `v`, the parameter struct `pa` as well as
 `df`, and `w`.
 """
-function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
+function fciqmc!(svec, pa::FciqmcRunStrategy,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w::D = similar(localpart(svec))
-                 ; kwargs...
-                 ) where {DD, D<:AbstractDVec}
+                 w = threaded_working_memory(svec); kwargs...)
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
@@ -57,16 +59,15 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(v, pa::RunTillLastStep, df::DF,
+function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w::D = similar(localpart(v))
+                 w = threaded_working_memory(v)
                  ; m_strat::MemoryStrategy = NoMemory(),
                  p_strat::ProjectStrategy = NoProjection()
-                 # ) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
-                 ) where {D<:AbstractDVec, DF<:DataFrame}
+                 )
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -127,27 +128,29 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
 end # fciqmc
 
 # replica version
-function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
+function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
                  s_strat::ShiftStrategy,
+                 r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 vsNew::T = similar.(svecs)
+                 wv = threaded_working_memory.(vv) # wv = similar.(localpart.(vv))
                  ; m_strat::MemoryStrategy = NoMemory(),
-                 p_strat::ProjectStrategy = NoProjection()
-                 ) where {N, K, V,
-                                                T<:NTuple{N,AbstractDVec{K,V}}}
-                 # N is number of replica, V is eltype(svecs[1])
+                 p_strat::ProjectStrategy = NoProjection())
+    # τ_strat is currently ignored in the replica version
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
+    V = valtype(vv[1])
+    N = length(vv) # number of replicas to propagate
+    # keep references to the passed data vectors around
+    vv_orig = similar(vv) # empty vector
+    vv_orig .= vv # fill it with references to the coefficient DVecs
 
-    maxlength = minimum(capacity.(svecs))
-    reduce(&, capacity.(vsNew) .≥ maxlength) || error("replica containers `vsNew` have insufficient capacity")
-    vsOld = svecs # keep reference of the starting vectors
-    zero!.(vsNew) # reset the vectors without allocating new memory
+    maxlength = minimum(capacity.(vv))
+    reduce(&, capacity.(wv) .≥ maxlength) || error("replica containers `wv` have insufficient capacity")
 
     shifts = [shift for i = 1:N] # Vector because it needs to be mutable
     vShiftModes = [shiftMode for i = 1:N] # separate for each replica
     pnorms = zeros(N) # initialise as vector
-    pnorms .= norm.(vsOld,1) # 1-norm i.e. number of psips as Tuple (of previous step)
+    pnorms .= norm.(vv,1) # 1-norm i.e. number of psips as Tuple (of previous step)
 
     # initalise df for storing results of each replica separately
     dfs = Tuple(DataFrame(steps=Int[], shift=Float64[], shiftMode=Bool[],
@@ -156,7 +159,7 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                          annihilations=V[]) for i in 1:N)
     # dfs is thus an NTuple of DataFrames
     for i in 1:N
-        push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vsOld[i]),
+        push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vv[i]),
                       pnorms[i], 0, 0, 0, 0, 0))
     end
 
@@ -165,34 +168,26 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
     PType = promote_type(V,eltype(ham)) # type of scalar product
     RType = promote_type(PType,Float64) # for division
     mixed_df= DataFrame(steps =Int[], xdoty =V[], xHy =PType[], aveH =RType[])
-    dp = vsOld[1]⋅vsOld[2] # <v_1 | v_2>
-    expval =  vsOld[1]⋅ham(vsOld[2]) # <v_1 | ham | v_2>
+    dp = vv[1]⋅vv[2] # <v_1 | v_2>
+    expval =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
     push!(mixed_df,(step, dp, expval, expval/dp))
 
     norms = zeros(N)
-    mstats = [zeros(V,5) for i=1:N]
+    mstats = [zeros(Int,5) for i=1:N]
     while step < laststep
         step += 1
-        @sync for (i, vOld) in enumerate(vsOld) # loop over replicas
+        for (i, v) in enumerate(vv) # loop over replicas
             # perform one complete stochastic vector matrix multiplication
-            @async begin
-                vNew = vsNew[i]
-                a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, pnorms[i], vNew;
-                                           m_strat = m_strat)
-                mstats[i] .= stats
-                norms[i] = norm_project!(vNew, p_strat)  # MPIsync
-                # project coefficients of `w` to threshold
-                # norms[i] =  norm(vNew,1) # total number of psips
-                # tnorm = norm(vNew,1) # total number of psips
-                # norms[i] = apply_memory_noise!(v, w, s_strat, pnorms[i], tnorm, shifts[i], dτ)
-                #
-                shifts[i], vShiftModes[i], pnorms[i] = update_shift(
-                    s_strat, shifts[i], vShiftModes[i],
-                    norms[i], pnorms[i], dτ, step, dfs[i]
-                )
-            end
+            vv[i], wv[i], stats = fciqmc_step!(ham, v, shifts[i], dτ, pnorms[i],
+                                        wv[i]; m_strat = m_strat)
+            mstats[i] .= stats
+            norms[i] = norm_project!(vv[i], p_strat)  # MPIsync
+            shifts[i], vShiftModes[i], pnorms[i] = update_shift(
+                s_strat, shifts[i], vShiftModes[i],
+                norms[i], pnorms[i], dτ, step, dfs[i]
+            )
         end #loop over replicas
-        lengths = length.(vsNew)
+        lengths = length.(vv)
         # update time step
         dτ = update_dτ(τ_strat, dτ) # will need to pass more information
         # later when we add different stratgies
@@ -201,16 +196,12 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
             push!(dfs[i], (step, shifts[i], vShiftModes[i], lengths[i],
                   norms[i], mstats[i]...))
         end
-        v1Dv2 = vsNew[1]⋅vsNew[2] # <v_1 | v_2> overlap
-        v2Dhv2 =  vsNew[1]⋅ham(vsNew[2]) # <v_1 | ham | v_2>
+        v1Dv2 = vv[1]⋅vv[2] # <v_1 | v_2> overlap
+        v2Dhv2 =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
         push!(mixed_df,(step, v1Dv2, v2Dhv2, v2Dhv2/v1Dv2))
 
         # prepare for next step:
         # pnorms .= norms # remember norm of this step for next step (previous norm)
-        dummy = vsOld # keep reference to old vector
-        vsOld = vsNew # new will be old
-        vsNew = dummy # new new is former old
-        zero!.(vsNew) # reset the vectors without allocating new memory
         llength = maximum(lengths)
         llength > 0.8*maxlength && if llength > maxlength
             @error "`maxlength` exceeded" llength maxlength
@@ -221,9 +212,9 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
 
     end # while step
     # make sure that `svecs` contains the current population:
-    if !(vsOld === svecs)
-        for i = 1:N
-            copyto!(svecs[i], vsOld[i])
+    for i = 1:N
+        if vv[i] ≢ vv_orig[i]
+            copyto!(vv_orig[i], vv[i])
         end
     end
     # pack up and parameters for continuation runs
@@ -233,7 +224,7 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
     @pack! pa = step, shiftMode, shift, dτ
 
     return mixed_df, dfs # return dataframes with stats
-    # note that `svecs` and `pa` are modified but not returned explicitly
+    # note that `vv_orig` and `pa` are modified but not returned explicitly
 end # fciqmc
 
 """
@@ -258,11 +249,11 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
                       m_strat::MemoryStrategy = NoMemory()) where D
     # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    stats = zeros(Int, 5) # pre-allocate array for stats
     zero!(w) # clear working memory
     for (add, num) in pairs(v)
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        ismissing(res) || (stats .+= res) # just add all stats together
+        stats .+= res # just add all stats together
     end
     applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     # norm_project!(w, p_strat) # project coefficients of `w` to threshold
@@ -271,16 +262,39 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
+function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
+      m_strat::MemoryStrategy = NoMemory(),
+      batchsize = max(100, min(length(dv)÷Threads.nthreads(), round(Int,sqrt(length(dv))*10)))
+    ) where {NT,W}
+    # println("batchsize ",batchsize)
+    # multithreaded version; should also work with MPI
+    @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
+    v = localpart(dv)
+    statss = [zeros(Int,5) for i=1:NT]
+    # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
+    zero!.(ws) # clear working memory
+    @sync for btr in Iterators.partition(pairs(v), batchsize)
+        Threads.@spawn statss[Threads.threadid()] .+= sum(btr) do tup
+            (add, num) = tup
+            fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
+        end
+    end # all threads have returned; now running on single thread again
+    applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
+    return sort_into_targets!(dv, ws, statss) # MPI syncronizing
+    # dv, w, stats
+    # stats == [spawns, deaths, clones, antiparticles, annihilations]
+end # fciqmc_step!
+
 function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, pnorm, w::D;
                            m_strat::MemoryStrategy = NoMemory()) where {D,S}
-    # MPI version
+    # MPI version, single thread
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
     empty!(w)
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    stats = zeros(Int, 5) # pre-allocate array for stats
     for (add, num) in pairs(v)
         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        ismissing(res) || (stats .+= res) # just add all stats together
+        stats .+= res # just add all stats together
     end
     applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
@@ -292,55 +306,6 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, pnorm, w::D;
     # stats == (spawns, deaths, clones, antiparticles, annihilations)
 end # fciqmc_step!
 
-# """
-#     thresholdProject!(w)
-#     thresholdProject!(w, v, shift, dτ, m_strat)
-#     thresholdProject!(s::StochasticStyle, w)
-# Project all elements of `w` to `s.threshold` preserving the sign if
-# `StochasticStyle(w)` requires projection.
-# """
-# thresholdProject!(w, args...) = thresholdProject!(StochasticStyle(w), w, args...)
-#
-# thresholdProject!(s, w, v, shift, dτ, m_strat) = w # default does nothing
-#
-# function thresholdProject!(s::IsStochasticWithThreshold,
-#                            w, v, shift, dτ, ::NoMemory)
-#     # perform projection if below threshold preserving the sign
-#     for (add, val) in kvpairs(w)
-#         pprob = abs(val)/s.threshold
-#         if pprob < 1 # projection is only necessary if abs(val) < s.threshold
-#             w[add] = (pprob > cRand()) ? s.threshold*sign(val) : zero(val)
-#         end
-#     end
-#     return w
-# end
-#
-# function thresholdProject!(s::IsStochasticWithThreshold,
-#                            w, v, shift, dτ, m::DeltaMemory)
-#     tnorm = norm(w, 1) # norm after FCIQMC step
-#     if isnan(m.pnorm)
-#         m.pnorm = tnorm
-#         return w
-#     end
-#     # compute memory noise
-#     r̃ = (m.pnorm - tnorm)/(dτ*m.pnorm) + shift
-#     push!(m.noiseBuffer, r̃) # add current value to buffer
-#     r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
-#
-#     # apply `r` noise to current state vector
-#     for (add, val) in kvpairs(v)
-#         w[add] += dτ*r*val # apply `r` noise
-#     end
-#     nnorm = norm(w, 1) # new norm after applying noise
-#
-#     # perform projection if below threshold preserving the sign
-#     thresholdProject!(s, w, v, shift, dτ, NoMemory())
-#
-#     projnorm = norm(w, 1) # new norm after projection
-#     rmul!(w, nnorm/projnorm) # scale in order to remedy projection noise
-#     m.pnorm = nnorm # record the current norm for next step
-#     return w
-# end
 
 """
     norm_project!(w, p_strat::ProjectStrategy) -> norm
@@ -392,6 +357,10 @@ function applyMemoryNoise!(w::Union{AbstractArray,AbstractDVec}, args...)
     applyMemoryNoise!(StochasticStyle(w), w, args...)
 end
 
+function applyMemoryNoise!(ws::NTuple{NT,W}, args...) where {NT,W}
+    applyMemoryNoise!(StochasticStyle(W), ws, args...)
+end
+
 function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::MemoryStrategy)
     return w # default does nothing
 end
@@ -412,9 +381,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
 
     # apply `r` noise to current state vector
-    for (add, val) in kvpairs(v)
-       w[add] += dτ*r*val # apply `r` noise
-    end
+    axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
     return w
@@ -431,9 +398,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     r = (r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer))/(dτ*pnorm)
 
     # apply `r` noise to current state vector
-    for (add, val) in kvpairs(v)
-       w[add] += dτ*r*val # apply `r` noise
-    end
+    axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
     return w
@@ -446,9 +411,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     r = - shift + sum(m.noiseBuffer)/length(m.noiseBuffer)
 
     # apply `r` noise to current state vector
-    for (add, val) in kvpairs(v)
-       w[add] += dτ*r*val # apply `r` noise
-    end
+    axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
     return w
@@ -525,7 +488,7 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
-    return missing
+    return zeros(Int, 5)
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
@@ -535,7 +498,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift,
     end
     # diagonal death or clone
     w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
-    return missing
+    return zeros(Int, 5)
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
@@ -584,7 +547,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!
 
@@ -633,7 +596,7 @@ function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!
 
@@ -687,7 +650,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!
 
@@ -778,7 +741,7 @@ function fciqmc_col!(s::IsSemistochastic, w, ham::LinearOperator, add,
         end
         # done with stochastic spawning
     end
-    return missing
+    return [0, 0, 0, 0, 0]
 end
 
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
@@ -829,5 +792,5 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
         # perform spawn (if nonzero): add walkers with correct sign
     end
     # done with stochastic spawning
-    return missing
+    return [0, 0, 0, 0, 0]
 end

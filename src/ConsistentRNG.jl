@@ -1,11 +1,8 @@
 """
     module ConsistentRNG
-Provides a random number generator that is locally and independently seeded for
-each worker. The initial state is save to file. If the appropriate file is
-found in the working directory, then the random number generator is loaded from
-this file.
+Provides a an array random number generators with one for each thread.
 
-Exports `cRand()`, `seedCRNG!()`, and `CRNG`.
+Exports [`cRand()`](@ref) and [`seedCRNG!()`](@ref). These are thread consistent.
 """
 module ConsistentRNG
 #__precompile__(false) # do not precompile
@@ -14,68 +11,88 @@ using RandomNumbers
 import Random
 # using Distributed # only for info message
 
-export cRand, CRNG, seedCRNG!
-
-# pid = myid() # get process id number
-# rngFileName = "rngP$pid.jld2"
-# # file name for storing the initial state of the rng encodes the process number
-#
-# if isfile(rngFileName)
-#       rdict = load(rngFileName)
-#       const CRNG = copy(rdict["rng"])
-#       println("CRNG loaded from file ",rngFileName)
-#       @info "loaded random number generator from file " rngFileName CRNG
-# else
-#       const CRNG = Xorshifts.Xoroshiro128Plus()
-#       save(rngFileName,"rng",CRNG)
-#       println("New CRNG generated and saved to file ",rngFileName)
-#       # @info "generated random number generator and saved to file " rngFileName CRNG
-# end
+export cRand, seedCRNG!, trng, newChildRNG # threadsafe
 
 """
-    CRNG
-Defines the random number generator that should be used everywhere. For parallel
-runs it should be seeded separately on each process. Currently we are using
-'Xoroshiro128Plus' from 'RandomNumbers.jl', see the
-[Documentation](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1).
+Baseline random number generator used throughout.
+Currently we are using 'Xoshiro256StarStar' from 'RandomNumbers.jl', see the
+[Documentation](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1)
+and this [Blog post](https://nullprogram.com/blog/2017/09/21/).
 In order to change the random number generator, edit 'ConsistentRNG.jl'.
 """
-const CRNG = RandomNumbers.Xorshifts.Xoroshiro128Plus() # fast and good
-# Alternatively:
-# const CRNG = Random.MersenneTwister() # standard Julia RNG
+const CRNG = RandomNumbers.Xorshifts.Xoshiro256StarStar
 
+"""
+    CRNGs
+Defines an array of random number generators suitable for threaded code.
+For MPI or distributed
+runs it should be seeded separately on each process with [`seedCRNG!`](@ref).
+Currently we are using 'Xoshiro256StarStar' from 'RandomNumbers.jl', see the
+[Documentation](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1)
+and this [Blog post](https://nullprogram.com/blog/2017/09/21/).
+In order to change the random number generator, edit 'ConsistentRNG.jl'.
+
+```julia
+rng = CRNGs[Threads.threadid()]
+rand(rng)
+```
+"""
+# const CRNGs = [RandomNumbers.Xorshifts.Xoroshiro128Plus() for i in 1:Threads.nthreads()]
+const CRNGs = Tuple(CRNG() for i in 1:Threads.nthreads())
+# fast and good
+
+"""
+    trng()
+Thread local random number generator.
+
+```julia
+rand(trng())
+rand(trng(),UInt)
+```
+"""
+@inline trng() = @inbounds CRNGs[Threads.threadid()]
 
 """
     r = cRand(args...)
-Similar to 'rand(args)' but uses consistent random number generator 'CRNG'.
+Similar to 'rand(args)' but uses consistent random number generator 'CRNGs'.
 'cRand()' generates a single uniformly distributed random number in the interval [0,1).
-Currently we are using `Xorshifts.Xoroshiro128Plus()` as random number generator
-from the `RandomNumbers` package. The initial state was seeded separately
-for each worker and saved to file."""
-cRand(args...) = rand(CRNG, args...)
+Currently we are using 'Xoshiro256StarStar' from 'RandomNumbers.jl', see the
+[Documentation](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1)
+and this [Blog post](https://nullprogram.com/blog/2017/09/21/).
+"""
+@inline cRand(args...) = rand(trng(), args...)
+# cRand(args...) = rand(CRNGs, args...)
+# #
 
-# """
-#     seedcrng(seed::Tuple{UInt64,UInt64})
-# Seed the consistent random number generator 'CRNG'. Similar to
-# 'Random.seed!(CRNG,seed)' but without forwarding the sequence.
-# """
-# function seedcrng(seed::Tuple{UInt64,UInt64})
-#     if seed == (0,0)
-#         error("0 cannot be the seed")
-#     end
-#     CRNG.x = seed[1]
-#     CRNG.y = seed[2]
-#     @info "Seeded random number generator" myid() CRNG
-#     return CRNG
-# end
 """
     seedCRNG!(seed)
-Seed the consistent random number generator 'CRNG'.
+Seed the threaded consistent random number generators `CRNGs`. If a single
+number is given, this will be used to seed a random sequence, which is hashed
+and then used to generate seeds for each rng in
+the vector [`TCRNG`](@ref).
 """
-function seedCRNG!(seed)
-    Random.seed!(CRNG, seed)
-    # @info "Seeded random number generator" myid() CRNG
-    return CRNG
+function seedCRNG!(seeds::Vector)
+    for (i,seed) in enumerate(seeds)
+        Random.seed!(CRNGs[i], seed)
+    end
+    return CRNGs
+end
+function seedCRNG!(seed::Number)
+    rng=CRNG(seed)
+    for i = 1:length(CRNGs)
+        @inbounds Random.seed!(CRNGs[i], hash(rand(rng,UInt)))
+    end
 end
 
+"""
+    newChildRNG(parent_rng = trng())
+Random number generator that is seeded deterministically from the
+thread-consistent global rng [`trng()`](@ref). By scrambling with `hash()`,
+a statistically independent pseudo-random sequence from the parent rng is
+accessed.
+"""
+function newChildRNG(parent_rng = trng())
+    return CRNG(hash(rand(parent_rng,UInt)))
 end
+
+end # module
