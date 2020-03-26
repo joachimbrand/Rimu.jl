@@ -410,7 +410,7 @@ end
     # ### Deterministic FCIQMC
     svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
     Rimu.StochasticStyle(::Type{typeof(svec2)}) = IsDeterministic()
-    StochasticStyle(svec)
+    StochasticStyle(svec2)
 
     pa = RunTillLastStep(laststep = steps,  dτ = dτ)
     τ_strat = ConstantTimeStep()
