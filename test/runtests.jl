@@ -154,6 +154,9 @@ end
 
     svec = DVec(Dict(aIni => 2.0), ham(:dim))
     v2 = ham(svec)
+    v3 = ham*v2
+    @test norm(v3,1) ≈ 1482.386824949077
+    @test v2 == mul!(similar(svec), ham, svec)
     @test norm(v2) ≈ 12
     @test v2 == ham*svec
     @test dot(v2,ham,svec) == v2⋅(ham*svec) ≈ 144

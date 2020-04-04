@@ -8,10 +8,10 @@ Models implemented so far are:
 """
 module Hamiltonians
 
-using Parameters, StaticArrays
+using Parameters, StaticArrays, LinearAlgebra
 
 import Base: *
-import LinearAlgebra
+import LinearAlgebra: mul!, dot
 
 using ..DictVectors
 using ..BitStringAddresses
@@ -36,23 +36,58 @@ Provides:
 * [`Hops`](@ref): iterator over reachable off-diagonal matrix elements
 * [`generateRandHop`](@ref): function to generate random off-diagonal matrix element
 * `hamiltonian[address1, address2]`: indexing with `getindex()` - mostly for testing purposes
-* `*(LO, v)` operation by multiplication operator (`== LO(v)`)
-* [`dot(x, LO, v)`](@ref) compute `x⋅LO(v)` minimizing allocations
+* `*(LO, v)` deterministic matrix-vector multiply (`== LO(v)`)
+* `mul!(w, LO, v)` mutating matrix-vector multiply
+* [`dot(x, LO, v)`](@ref) compute `x⋅(LO*v)` minimizing allocations
 
-Methods to be implemented:
+Methods that need to be implemented:
 * [`numOfHops(lo::LinearOperator, address)`](@ref)
 * [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref)
 * [`diagME(lo::LinearOperator, address)`](@ref)
 * [`hasIntDimension(lo::LinearOperator)`](@ref)
 * [`dimensionLO(lo::LinearOperator)`](@ref), if applicable
 * [`fDimensionLO(lo::LinearOperator)`](@ref)
-* `(lo::LO<:LinearOperator)(v::AbstractDVec)` functor for deterministic operation
-* `(lo::LO<:LinearOperator)(w, v)` mutating functor method
 """
 abstract type LinearOperator{T} end
 
 Base.eltype(::LinearOperator{T}) where {T} = T
-*(LO::LinearOperator, v) = LO(v)
+
+function *(h::LinearOperator{E}, v::AbstractDVec{K,V}) where {E, K, V}
+    T = promote_type(E,V) # allow for type promotion
+    w = empty(v, T) # allocate new vector; non-mutating version
+    for (key,val) in pairs(v)
+        w[key] += diagME(h, key)*val
+        for (add,elem) in Hops(h, key)
+            w[add] += elem*val
+        end
+    end
+    return w
+end
+
+# # five argument version: not doing this now as it will be slower than 3-args
+# function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec, α, β)
+#     rmul!(w, β)
+#     for (key,val) in pairs(v)
+#         w[key] += α * diagME(h, key) * val
+#         for (add,elem) in Hops(h, key)
+#             w[add] += α * elem * val
+#         end
+#     end
+#     return w
+# end
+
+# three argument version
+function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec)
+    empty!(w)
+    for (key,val) in pairs(v)
+        w[key] += diagME(h, key)*val
+        for (add,elem) in Hops(h, key)
+            w[add] += elem*val
+        end
+    end
+    return w
+end
+
 
 """
     dot(x, LO::LinearOperator, v)
@@ -335,20 +370,17 @@ function (h::BoseHubbardReal1D)(s::Symbol)
     return nothing
 end
 # should be all that is needed to make the Hamiltonian a linear map:
-function (h::BoseHubbardReal1D{E})(v::AbstractDVec{K,V}) where {E, K, V}
-    T = promote_type(E,V) # allow for type promotion
-    w = empty(v, T) # allocate new vector; non-mutating version
-    return h(w,v)
-end
-function (h::BoseHubbardReal1D)(w, v) # mutating version
-    for (key,val) in pairs(v)
-        w[key] += diagME(h, key)*val
-        for (add,elem) in Hops(h, key)
-            w[add] += elem*val
-        end
-    end
-    return w
-end
+(h::BoseHubbardReal1D)(v) = h*v
+# (h::BoseHubbardReal1D)(w, v) = mul!(w, h, v) # mutating version
+# function (h::BoseHubbardReal1D)(w, v) # mutating version
+#     for (key,val) in pairs(v)
+#         w[key] += diagME(h, key)*val
+#         for (add,elem) in Hops(h, key)
+#             w[add] += elem*val
+#         end
+#     end
+#     return w
+# end
 
 # """
 #     setupBoseHubbardReal1D(; n, m, u, t, [AT = BoseFS, genInitialONR = nearUniform])
@@ -436,20 +468,17 @@ function (h::ExtendedBHReal1D)(s::Symbol)
     return nothing
 end
 # should be all that is needed to make the Hamiltonian a linear map:
-function (h::ExtendedBHReal1D{E})(v::AbstractDVec{K,V}) where {E, K, V}
-    T = promote_type(E,V) # allow for type promotion
-    w = empty(v, T) # allocate new vector; non-mutating version
-    return h(w,v)
-end
-function (h::ExtendedBHReal1D)(w, v) # mutating version
-    for (key,val) in pairs(v)
-        w[key] += diagME(h, key)*val
-        for (add,elem) in Hops(h, key)
-            w[add] += elem*val
-        end
-    end
-    return w
-end
+(h::ExtendedBHReal1D)(v) = h*v
+# (h::ExtendedBHReal1D)(w, v) = mul!(w, h, v) # mutating version
+# function (h::ExtendedBHReal1D)(w, v) # mutating version
+#     for (key,val) in pairs(v)
+#         w[key] += diagME(h, key)*val
+#         for (add,elem) in Hops(h, key)
+#             w[add] += elem*val
+#         end
+#     end
+#     return w
+# end
 
 function diagME(h::ExtendedBHReal1D, address)
   ebhinteraction, bhinteraction= ebhm(address, h.m)
