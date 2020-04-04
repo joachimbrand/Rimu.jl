@@ -333,3 +333,44 @@ Base.values(dv::AbstractDVec) = dv
 #
 # Base.iterate(dv::AbstractDVec) = iterate(values(dv))
 # Base.iterate(dv::AbstractDVec, state) = iterate(values(dv), state)
+
+# struct UniformProjector{K,V} <: AbstractDVec{K,V} end
+# UniformProjector(::Type{AbstractDVec{K,V}}) where {K,V} = UniformProjector{K,V}()
+# UniformProjector(::DV) where DV <: AbstractDVec = UniformProjector(DV)
+#
+# struct NormProjector{K,V} <: AbstractDVec{K,V} end
+# NormProjector(::Type{AbstractDVec{K,V}}) where {K,V} = NormProjector{K,V}()
+# NormProjector(::DV) where DV <: AbstractDVec = NormProjector(DV)
+#
+# function LinearAlgebra.dot(x::NormProjector{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
+#     # dot returns the promote_type of the arguments.
+#     # NOTE that this can be different from the return type of norm()->Float64
+#     return convert(promote_type(T1,T2),norm(y,1))
+# end
+#
+# function LinearAlgebra.dot(x::UniformProjector{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
+#     # dot returns the promote_type of the arguments.
+#     # NOTE that this can be different from the return type of norm()->Float64
+#     return convert(promote_type(T1,T2), sum(values(y)))
+# end
+
+"""
+    UniformProjector()
+Represents a vector with all elements 1. To be used with `dot()`.
+"""
+struct UniformProjector end
+LinearAlgebra.dot(::UniformProjector, y) = sum(y)
+
+"""
+    NormProjector()
+Results in computing the one-norm when used in `dot()`. E.g.
+```julia
+dot(NormProjector(),x)
+-> norm(x,1) # with type valtype(x)
+```
+`NormProjector()` thus represents the vector `sign.(x)`.
+"""
+struct NormProjector end
+LinearAlgebra.dot(::NormProjector, y) = convert(valtype(y),norm(y,1))
+# dot returns the promote_type of the arguments.
+# NOTE that this can be different from the return type of norm()->Float64
