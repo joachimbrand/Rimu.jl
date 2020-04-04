@@ -356,13 +356,19 @@ Base.values(dv::AbstractDVec) = dv
 
 """
     UniformProjector()
-Represents a vector with all elements 1. To be used with `dot()`.
+Represents a vector with all elements 1. To be used with [`dot()`](@ref).
+Minimizes memory allocations.
+
+```julia
+UniformProjector()⋅v == sum(v)
+dot(UniformProjector(), LO, v) == sum(LO*v)
+```
 """
 struct UniformProjector end
 
 LinearAlgebra.dot(::UniformProjector, y) = sum(y)
-LinearAlgebra.dot(p::UniformProjector, A, y) = p⋅(A*y)
-# LinearAlgebra.dot(::UniformProjector, A::LinearOperator, y) = sum(A(y))
+# a specialised fast and non-allocating method for
+# `dot(::UniformProjector, A::LinearOperator, y)` is defined in `Hamiltonians.jl`
 
 """
     NormProjector()
@@ -378,4 +384,3 @@ struct NormProjector end
 LinearAlgebra.dot(::NormProjector, y) = convert(valtype(y),norm(y,1))
 # dot returns the promote_type of the arguments.
 # NOTE that this can be different from the return type of norm()->Float64
-LinearAlgebra.dot(p::NormProjector, A, y) = p⋅(A*y)

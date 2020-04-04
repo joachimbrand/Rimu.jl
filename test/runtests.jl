@@ -157,6 +157,7 @@ end
     @test norm(v2) ≈ 12
     @test v2 == ham*svec
     @test dot(v2,ham,svec) == v2⋅(ham*svec) ≈ 144
+    @test -⋅(UniformProjector(),ham,svec)≈⋅(NormProjector(),ham,svec)≈norm(v2,1)
 end
 
 @testset "fciqmc.jl" begin

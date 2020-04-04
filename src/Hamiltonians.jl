@@ -69,6 +69,17 @@ function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::Abst
   return result
 end
 
+function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
+  result = zero(promote_type(T,T2))
+  for (key,val) in pairs(v)
+      result += diagME(LO, key) * val
+      for (add,elem) in Hops(LO, key)
+          result += elem * val
+      end
+  end
+  return result
+end
+
 """
     Hops(ham, add)
 
