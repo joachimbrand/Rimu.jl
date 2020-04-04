@@ -169,7 +169,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
     RType = promote_type(PType,Float64) # for division
     mixed_df= DataFrame(steps =Int[], xdoty =V[], xHy =PType[], aveH =RType[])
     dp = vv[1]⋅vv[2] # <v_1 | v_2>
-    expval =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
+    expval = dot(vv[1], ham, vv[2]) # vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
     push!(mixed_df,(step, dp, expval, expval/dp))
 
     norms = zeros(N)

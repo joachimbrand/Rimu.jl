@@ -359,7 +359,10 @@ Base.values(dv::AbstractDVec) = dv
 Represents a vector with all elements 1. To be used with `dot()`.
 """
 struct UniformProjector end
+
 LinearAlgebra.dot(::UniformProjector, y) = sum(y)
+LinearAlgebra.dot(p::UniformProjector, A, y) = p⋅(A*y)
+# LinearAlgebra.dot(::UniformProjector, A::LinearOperator, y) = sum(A(y))
 
 """
     NormProjector()
@@ -371,6 +374,8 @@ dot(NormProjector(),x)
 `NormProjector()` thus represents the vector `sign.(x)`.
 """
 struct NormProjector end
+
 LinearAlgebra.dot(::NormProjector, y) = convert(valtype(y),norm(y,1))
 # dot returns the promote_type of the arguments.
 # NOTE that this can be different from the return type of norm()->Float64
+LinearAlgebra.dot(p::NormProjector, A, y) = p⋅(A*y)

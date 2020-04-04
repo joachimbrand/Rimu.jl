@@ -9,9 +9,11 @@ Models implemented so far are:
 module Hamiltonians
 
 using Parameters, StaticArrays
+
+import Base: *
+import LinearAlgebra
+
 using ..DictVectors
-
-
 using ..BitStringAddresses
 using ..ConsistentRNG
 
@@ -26,15 +28,16 @@ export BoseHubbardReal1D, ExtendedBHReal1D
 
 """
     LinearOperator{T}
-Supertype for linear operators over `T` that are suitable for FCIQMC.
-Indexing is done with addresses from a linear space that may be large
-(and will not need to be completely generated).
+Supertype that provides and interface for linear operators over `T` that are
+suitable for FCIQMC. Indexing is done with addresses from a linear space that
+may be large (and will not need to be completely generated).
 
 Provides:
 * [`Hops`](@ref): iterator over reachable off-diagonal matrix elements
 * [`generateRandHop`](@ref): function to generate random off-diagonal matrix element
-* `hamiltonian[address1, address2]`: indexing with `getindex()` - mostly for testing
-purposes
+* `hamiltonian[address1, address2]`: indexing with `getindex()` - mostly for testing purposes
+* `*(LO, v)` operation by multiplication operator (`== LO(v)`)
+* [`dot(x, LO, v)`](@ref) compute `x⋅LO(v)` minimizing allocations
 
 Methods to be implemented:
 * [`numOfHops(lo::LinearOperator, address)`](@ref)
@@ -43,10 +46,28 @@ Methods to be implemented:
 * [`hasIntDimension(lo::LinearOperator)`](@ref)
 * [`dimensionLO(lo::LinearOperator)`](@ref), if applicable
 * [`fDimensionLO(lo::LinearOperator)`](@ref)
+* `(lo::LO<:LinearOperator)(v::AbstractDVec)` functor for deterministic operation
+* `(lo::LO<:LinearOperator)(w, v)` mutating functor method
 """
 abstract type LinearOperator{T} end
 
 Base.eltype(::LinearOperator{T}) where {T} = T
+*(LO::LinearOperator, v) = LO(v)
+
+"""
+    dot(x, LO::LinearOperator, v)
+Evaluate `x⋅LO(v)` minimizing memory allocations.
+"""
+function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+  result = zero(promote_type(T1,promote_type(T,T2)))
+  for (key,val) in pairs(v)
+      result += conj(x[key]) * diagME(LO, key) * val
+      for (add,elem) in Hops(LO, key)
+          result += conj(x[add]) * elem * val
+      end
+  end
+  return result
+end
 
 """
     Hops(ham, add)

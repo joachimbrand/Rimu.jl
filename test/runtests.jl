@@ -151,6 +151,12 @@ end
     bs = BitAdd{40}(0xf342564fff)
     hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3,16,25)
     @test BitAdd{40}(hnnn[1]) == hnnbs[1]
+
+    svec = DVec(Dict(aIni => 2.0), ham(:dim))
+    v2 = ham(svec)
+    @test norm(v2) ≈ 12
+    @test v2 == ham*svec
+    @test dot(v2,ham,svec) == v2⋅(ham*svec) ≈ 144
 end
 
 @testset "fciqmc.jl" begin
