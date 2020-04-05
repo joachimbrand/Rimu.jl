@@ -1,10 +1,11 @@
 name = "Rimu"
 uuid = "c53c40cc-bd84-11e9-2cf4-a9fde2b9386e"
 authors = ["Joachim Brand <j.brand@massey.ac.nz>"]
-version = "0.2.2"
+version = "0.2.3"
 
 [deps]
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
@@ -14,7 +15,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
-julia = "1"
+julia = "1.3"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

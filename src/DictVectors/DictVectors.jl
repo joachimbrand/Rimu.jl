@@ -32,7 +32,8 @@ import Base: length, iterate, getindex, setindex, setindex!, get, get!, haskey,
 # include("FastBufs.jl")
 using ..FastBufs
 
-export AbstractDVec, capacity, zero!, kvpairs, pairtype
+export AbstractDVec, capacity, zero!, kvpairs, pairtype, add!
+export NormProjector, UniformProjector
 export DVec
 export DFVec, tuples, gettuple, flagtype, flags
 export FastDVec

@@ -6,23 +6,27 @@
     -> df
 
 Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
-`v` can be a single starting vector of type `:<AbstractDVec` or a tuple
-of such vectors. In the latter case, independent replicas are constructed.
+`v` can be a single starting vector of type `:<AbstractDVec` or a vector
+of such structures. In the latter case, independent replicas are constructed.
 Returns a `DataFrame` `df` with statistics about the run, or a tuple of `DataFrame`s
 for a replica run.
 Strategies can be given for updating the shift (see [`ShiftStrategy`](@ref))
 and (optionally), for reporting (see [`ReportingStrategy`](@ref)),
 and for updating the time step `dτ` (see [`TimeStepStrategy`](@ref)).
-A pre-allocated data structure `w` for working memory can be passed as argument.
+
+A pre-allocated data structure `w` for working memory can be passed as argument,
+and controls multi-threading behaviour. By default multi-threading is turned
+on. To turn multi-threading off, pass `similar(localpart(v))` for w.
+
 This function mutates `v`, the parameter struct `pa` as well as
 `df`, and `w`.
 """
-function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
+function fciqmc!(svec, pa::FciqmcRunStrategy,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w::D = similar(localpart(svec))) where {DD, D<:AbstractDVec}
+                 w = threaded_working_memory(svec); kwargs...)
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
@@ -46,20 +50,24 @@ function fciqmc!(svec::DD, pa::FciqmcRunStrategy,
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     # # println("after barrier")
-    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w)
+    rdf =  fciqmc!(svec, pa, df, ham, s_strat, r_strat, τ_strat, w
+                    # )
+                    ; kwargs...)
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; after")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
     return rdf
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(v, pa::RunTillLastStep, df::DF,
+function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w::D = similar(localpart(v))
-                 ) where {D<:AbstractDVec, DF<:Union{DataFrame, Nothing}}
+                 w = threaded_working_memory(v)
+                 ; m_strat::MemoryStrategy = NoMemory(),
+                 p_strat::ProjectStrategy = NoProjection()
+                 )
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -78,8 +86,12 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
         step += 1
         # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
-        v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, w)
-        tnorm = norm(v, 1) # MPI sycncronising: total number of psips
+        v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, pnorm, w;
+                                        m_strat=m_strat)
+        tnorm = norm_project!(v, p_strat)  # MPIsync
+        # project coefficients of `w` to threshold
+        # tnorm = norm(v, 1) # MPI sycncronising: total number of psips
+        # tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
                                     shift, shiftMode,
@@ -116,24 +128,29 @@ function fciqmc!(v, pa::RunTillLastStep, df::DF,
 end # fciqmc
 
 # replica version
-function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
+function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
                  s_strat::ShiftStrategy,
+                 r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 vsNew::T = similar.(svecs)) where {N, K, V,
-                                                T<:NTuple{N,AbstractDVec{K,V}}}
-                 # N is number of replica, V is eltype(svecs[1])
+                 wv = threaded_working_memory.(vv) # wv = similar.(localpart.(vv))
+                 ; m_strat::MemoryStrategy = NoMemory(),
+                 p_strat::ProjectStrategy = NoProjection())
+    # τ_strat is currently ignored in the replica version
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
+    V = valtype(vv[1])
+    N = length(vv) # number of replicas to propagate
+    # keep references to the passed data vectors around
+    vv_orig = similar(vv) # empty vector
+    vv_orig .= vv # fill it with references to the coefficient DVecs
 
-    maxlength = minimum(capacity.(svecs))
-    reduce(&, capacity.(vsNew) .≥ maxlength) || error("replica containers `vsNew` have insufficient capacity")
-    vsOld = svecs # keep reference of the starting vectors
-    zero!.(vsNew) # reset the vectors without allocating new memory
+    maxlength = minimum(capacity.(vv))
+    reduce(&, capacity.(wv) .≥ maxlength) || error("replica containers `wv` have insufficient capacity")
 
     shifts = [shift for i = 1:N] # Vector because it needs to be mutable
     vShiftModes = [shiftMode for i = 1:N] # separate for each replica
     pnorms = zeros(N) # initialise as vector
-    pnorms .= norm.(vsOld,1) # 1-norm i.e. number of psips as Tuple (of previous step)
+    pnorms .= norm.(vv,1) # 1-norm i.e. number of psips as Tuple (of previous step)
 
     # initalise df for storing results of each replica separately
     dfs = Tuple(DataFrame(steps=Int[], shift=Float64[], shiftMode=Bool[],
@@ -142,7 +159,7 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
                          annihilations=V[]) for i in 1:N)
     # dfs is thus an NTuple of DataFrames
     for i in 1:N
-        push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vsOld[i]),
+        push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vv[i]),
                       pnorms[i], 0, 0, 0, 0, 0))
     end
 
@@ -151,28 +168,26 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
     PType = promote_type(V,eltype(ham)) # type of scalar product
     RType = promote_type(PType,Float64) # for division
     mixed_df= DataFrame(steps =Int[], xdoty =V[], xHy =PType[], aveH =RType[])
-    dp = vsOld[1]⋅vsOld[2] # <v_1 | v_2>
-    expval =  vsOld[1]⋅ham(vsOld[2]) # <v_1 | ham | v_2>
+    dp = vv[1]⋅vv[2] # <v_1 | v_2>
+    expval = dot(vv[1], ham, vv[2]) # vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
     push!(mixed_df,(step, dp, expval, expval/dp))
 
     norms = zeros(N)
-    mstats = [zeros(V,5) for i=1:N]
+    mstats = [zeros(Int,5) for i=1:N]
     while step < laststep
         step += 1
-        @sync for (i, vOld) in enumerate(vsOld) # loop over replicas
+        for (i, v) in enumerate(vv) # loop over replicas
             # perform one complete stochastic vector matrix multiplication
-            @async begin
-                vNew = vsNew[i]
-                a, b, stats = fciqmc_step!(ham, vOld, shifts[i], dτ, vNew)
-                mstats[i] .= stats
-                norms[i] = norm(vNew,1) # total number of psips
-                shifts[i], vShiftModes[i], pnorms[i] = update_shift(
-                    s_strat, shifts[i], vShiftModes[i],
-                    norms[i], pnorms[i], dτ, step, dfs[i]
-                )
-            end
+            vv[i], wv[i], stats = fciqmc_step!(ham, v, shifts[i], dτ, pnorms[i],
+                                        wv[i]; m_strat = m_strat)
+            mstats[i] .= stats
+            norms[i] = norm_project!(vv[i], p_strat)  # MPIsync
+            shifts[i], vShiftModes[i], pnorms[i] = update_shift(
+                s_strat, shifts[i], vShiftModes[i],
+                norms[i], pnorms[i], dτ, step, dfs[i]
+            )
         end #loop over replicas
-        lengths = length.(vsNew)
+        lengths = length.(vv)
         # update time step
         dτ = update_dτ(τ_strat, dτ) # will need to pass more information
         # later when we add different stratgies
@@ -181,16 +196,12 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
             push!(dfs[i], (step, shifts[i], vShiftModes[i], lengths[i],
                   norms[i], mstats[i]...))
         end
-        v1Dv2 = vsNew[1]⋅vsNew[2] # <v_1 | v_2> overlap
-        v2Dhv2 =  vsNew[1]⋅ham(vsNew[2]) # <v_1 | ham | v_2>
+        v1Dv2 = vv[1]⋅vv[2] # <v_1 | v_2> overlap
+        v2Dhv2 =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
         push!(mixed_df,(step, v1Dv2, v2Dhv2, v2Dhv2/v1Dv2))
 
         # prepare for next step:
         # pnorms .= norms # remember norm of this step for next step (previous norm)
-        dummy = vsOld # keep reference to old vector
-        vsOld = vsNew # new will be old
-        vsNew = dummy # new new is former old
-        zero!.(vsNew) # reset the vectors without allocating new memory
         llength = maximum(lengths)
         llength > 0.8*maxlength && if llength > maxlength
             @error "`maxlength` exceeded" llength maxlength
@@ -201,9 +212,9 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
 
     end # while step
     # make sure that `svecs` contains the current population:
-    if !(vsOld === svecs)
-        for i = 1:N
-            copyto!(svecs[i], vsOld[i])
+    for i = 1:N
+        if vv[i] ≢ vv_orig[i]
+            copyto!(vv_orig[i], vv[i])
         end
     end
     # pack up and parameters for continuation runs
@@ -213,11 +224,12 @@ function fciqmc!(svecs::T, ham::LinearOperator, pa::RunTillLastStep,
     @pack! pa = step, shiftMode, shift, dτ
 
     return mixed_df, dfs # return dataframes with stats
-    # note that `svecs` and `pa` are modified but not returned explicitly
+    # note that `vv_orig` and `pa` are modified but not returned explicitly
 end # fciqmc
 
 """
-    fciqmc_step!(Ĥ, v, shift, dτ, w) -> ṽ, w̃, stats
+    fciqmc_step!(Ĥ, v, shift, dτ, pnorm, w;
+                          m_strat::MemoryStrategy = NoMemory()) -> ṽ, w̃, stats
 Perform a single matrix(/operator)-vector multiplication:
 ```math
 \\tilde{v} = [1 - dτ(\\hat{H} - S)]⋅v ,
@@ -233,29 +245,59 @@ Returns the result `ṽ`, a (possibly changed) reference to working memory `w̃`
 `stats = [spawns, deaths, clones, antiparticles, annihilations]`. Stats will
 contain zeros when running in deterministic mode.
 """
-function fciqmc_step!(Ĥ, v::D, shift, dτ, w::D) where D
+function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
+                      m_strat::MemoryStrategy = NoMemory()) where D
     # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    stats = zeros(Int, 5) # pre-allocate array for stats
     zero!(w) # clear working memory
     for (add, num) in pairs(v)
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        ismissing(res) || (stats .+= res) # just add all stats together
+        stats .+= res # just add all stats together
     end
+    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
+    # norm_project!(w, p_strat) # project coefficients of `w` to threshold
+    # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
     return w, v, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
-function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
-    # MPI version
+function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
+      m_strat::MemoryStrategy = NoMemory(),
+      batchsize = max(100, min(length(dv)÷Threads.nthreads(), round(Int,sqrt(length(dv))*10)))
+    ) where {NT,W}
+    # println("batchsize ",batchsize)
+    # multithreaded version; should also work with MPI
+    @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
+    v = localpart(dv)
+    statss = [zeros(Int,5) for i=1:NT]
+    # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
+    zero!.(ws) # clear working memory
+    @sync for btr in Iterators.partition(pairs(v), batchsize)
+        Threads.@spawn statss[Threads.threadid()] .+= sum(btr) do tup
+            (add, num) = tup
+            fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
+        end
+    end # all threads have returned; now running on single thread again
+    applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
+    return sort_into_targets!(dv, ws, statss) # MPI syncronizing
+    # dv, w, stats
+    # stats == [spawns, deaths, clones, antiparticles, annihilations]
+end # fciqmc_step!
+
+function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, pnorm, w::D;
+                           m_strat::MemoryStrategy = NoMemory()) where {D,S}
+    # MPI version, single thread
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
     empty!(w)
-    stats = zeros(valtype(v), 5) # pre-allocate array for stats
+    stats = zeros(Int, 5) # pre-allocate array for stats
     for (add, num) in pairs(v)
         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        ismissing(res) || (stats .+= res) # just add all stats together
+        stats .+= res # just add all stats together
     end
+    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
+    # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
     sort_into_targets!(dv, w)
     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
     return dv, w, stats
@@ -263,6 +305,117 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, w::D) where {D,S}
     # result `dv` and cumulative `stats` as an array on all ranks
     # stats == (spawns, deaths, clones, antiparticles, annihilations)
 end # fciqmc_step!
+
+
+"""
+    norm_project!(w, p_strat::ProjectStrategy) -> norm
+Computes the 1-norm of `w`.
+Project all elements of `w` to `s.threshold` preserving the sign if
+`StochasticStyle(w)` requires projection according to `p_strat`.
+See [`ProjectStrategy`](@ref).
+"""
+norm_project!(w, p) = norm_project!(StochasticStyle(w), w, p)
+
+norm_project!(::StochasticStyle, w, p) = norm(w, 1) # MPIsync
+# default, compute 1-norm
+
+function norm_project!(s::S, w, p::ThresholdProject) where S<:Union{IsStochasticWithThreshold}
+    return norm_project_threshold!(w, p.threshold) # MPIsync
+end
+
+function norm_project_threshold!(w, threshold) # MPIsync
+    # perform projection if below threshold preserving the sign
+    lw = localpart(w)
+    for (add, val) in kvpairs(lw)
+        pprob = abs(val)/threshold
+        if pprob < 1 # projection is only necessary if abs(val) < s.threshold
+            lw[add] = (pprob > cRand()) ? threshold*sign(val) : zero(val)
+        end
+    end
+    return norm(w, 1) # MPIsync
+end
+
+function norm_project!(s::S, w, p::ScaledThresholdProject) where S<:Union{IsStochasticWithThreshold}
+    f_norm = norm(w, 1) # MPIsync
+    proj_norm = norm_project_threshold!(w, p.threshold)
+    # MPI sycncronising
+    rmul!(w, f_norm/proj_norm) # scale in order to remedy projection noise
+    # TODO: MPI version of rmul!()
+    return f_norm
+end
+
+"""
+    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat::MemoryStrategy)
+Apply memory noise to `w` according to the strategy `m_strat`. Note that the
+strategy needs to be compatible with `StochasticStyle(w)`. The default is to
+not add memory noise. See [`MemoryStrategy`](@ref).
+
+`w` is the walker array after fciqmc step, `v` the previous one, `pnorm` the
+norm of `v`.
+"""
+function applyMemoryNoise!(w::Union{AbstractArray,AbstractDVec}, args...)
+    applyMemoryNoise!(StochasticStyle(w), w, args...)
+end
+
+function applyMemoryNoise!(ws::NTuple{NT,W}, args...) where {NT,W}
+    applyMemoryNoise!(StochasticStyle(W), ws, args...)
+end
+
+function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::MemoryStrategy)
+    return w # default does nothing
+end
+
+function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::DeltaMemory)
+    @warn "`DeltaMemory` was selected. It does not work with `$(typeof(s))` but requires `IsStochasticWithThreshold`. Ignoring memory noise for now." maxlog=10
+    return w # default does nothing
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::DeltaMemory)
+    tnorm = norm(w, 1) # MPIsync
+    # current norm of `w` after FCIQMC step
+    # compute memory noise
+    r̃ = (pnorm - tnorm)/(dτ*pnorm) + shift
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+    # apply `r` noise to current state vector
+    axpy!(dτ*r, v, w) # w .+= dτ*r .* v
+    # nnorm = norm(w, 1) # new norm after applying noise
+
+    return w
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::DeltaMemory2)
+    tnorm = norm(w, 1) # MPIsync
+    # current norm of `w` after FCIQMC step
+    # compute memory noise
+    r̃ = pnorm - tnorm + shift*dτ*pnorm
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = (r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer))/(dτ*pnorm)
+
+    # apply `r` noise to current state vector
+    axpy!(dτ*r, v, w) # w .+= dτ*r .* v
+    # nnorm = norm(w, 1) # new norm after applying noise
+
+    return w
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ShiftMemory)
+    push!(m.noiseBuffer, shift) # add current value of `shift` to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = - shift + sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+    # apply `r` noise to current state vector
+    axpy!(dτ*r, v, w) # w .+= dτ*r .* v
+    # nnorm = norm(w, 1) # new norm after applying noise
+
+    return w
+end
 
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
@@ -275,37 +428,6 @@ end # fciqmc_step!
 #   return statistics
 # end
 
-# let's decide whether a simulation is deterministic, stochastic, or
-# semistochastic upon a trait on the vector type
-
-"""
-    StochasticStyle(V)
-    StochasticStyle(typeof(V))
-`StochasticStyle` specifies the native style of the generalised vector `V` that
-determines how simulations are to proceed. This can be fully stochastic (with
-`IsStochastic`), fully deterministic (with `IsDeterministic`), or semistochastic
-(with `IsSemistochastic`).
-"""
-abstract type StochasticStyle end
-
-struct IsStochastic <: StochasticStyle end
-
-struct IsStochasticNonlinear <: StochasticStyle
-    c::Float64 # parameter of nonlinear correction applied to local shift
-end
-
-struct IsDeterministic <: StochasticStyle end
-
-struct IsSemistochastic <: StochasticStyle end
-
-# some sensible defaults
-StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
-StochasticStyle(::Type{<:Array}) = IsDeterministic()
-StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
-# the following works for dispatch, i.e. the function is evaluated at compile time
-function StochasticStyle(T::Type{<:AbstractDVec})
-    ifelse(eltype(T) <: Integer, IsStochastic(), IsDeterministic())
-end
 
 # struct MySSVec{T} <: AbstractVector{T}
 #     v::Vector{T}
@@ -366,7 +488,7 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
-    return missing
+    return zeros(Int, 5)
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
@@ -376,7 +498,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift,
     end
     # diagonal death or clone
     w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
-    return missing
+    return zeros(Int, 5)
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
@@ -425,7 +547,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!
 
@@ -474,7 +596,7 @@ function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!
 
@@ -528,6 +650,147 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
     else
         antiparticles += abs(ndiags)
     end
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return [spawns, deaths, clones, antiparticles, annihilations]
     # note that w is not returned
 end # inner_step!
+
+function fciqmc_col!(s::IsSemistochastic, w, ham::LinearOperator, add,
+         val_flag_tuple::Tuple{N, F}, shift, dτ) where {N<:Number, F<:Integer}
+    (val, flag) = val_flag_tuple
+    deterministic = flag & one(F) # extract deterministic flag
+    # diagonal death or clone
+    new_val = w[add][1] + (1 + dτ*(shift - diagME(ham,add)))*val
+    if deterministic
+        w[add] = (new_val, flag) # new tuple
+    else
+        if new_val < s.threshold
+            if new_val/s.threshold > cRand()
+                new_val = convert(N,s.threshold)
+                w[add] = (new_val, flag) # new tuple
+            end
+            # else # do nothing, stochastic space and rounded to zero
+        else
+            w[add] = (new_val, flag) # new tuple
+        end
+    end
+    # off-diagonal: spawning psips
+    if deterministic
+        for (nadd, elem) in Hops(ham, add)
+            wnapsips, wnaflag = w[nadd]
+            if wnaflag & one(F) # new address `nadd` is also in deterministic space
+                w[nadd] = (wnapsips - dτ * elem * val, wnaflag)  # new tuple
+            else
+                # TODO: det -> sto
+                pspawn = abs(val * dτ * matelem) # non-negative Float64, pgen = 1
+                nspawn = floor(pspawn) # deal with integer part separately
+                cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+                # at this point, nspawn is non-negative
+                # now converted to correct type and compute sign
+                nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
+                # - because Hamiltonian appears with - sign in iteration equation
+                if sign(wnapsips) * sign(nspawns) < 0 # record annihilations
+                    annihilations += min(abs(wnapsips),abs(nspawns))
+                end
+                if !iszero(nspawns) # successful attempt to spawn
+                    w[naddress] = (wnapsips+nspawns, wnaflag)
+                    # perform spawn (if nonzero): add walkers with correct sign
+                    spawns += abs(nspawns)
+                end
+            end
+        end
+    else
+        # TODO: stochastic
+        hops = Hops(ham, add)
+        for n in 1:floor(abs(val)) # abs(val÷s.threshold) # for each psip attempt to spawn once
+            naddress, pgen, matelem = generateRandHop(hops)
+            pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+            nspawn = floor(pspawn) # deal with integer part separately
+            cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+            # at this point, nspawn is non-negative
+            # now converted to correct type and compute sign
+            nspawns = convert(typeof(val), -nspawn * sign(val) * sign(matelem))
+            # - because Hamiltonian appears with - sign in iteration equation
+            wnapsips, wnaflag = w[naddress]
+            if sign(wnapsips) * sign(nspawns) < 0 # record annihilations
+                annihilations += min(abs(wnapsips),abs(nspawns))
+            end
+            if !iszero(nspawns)
+                w[naddress] = (wnapsips+nspawns, wnaflag)
+                # perform spawn (if nonzero): add walkers with correct sign
+                spawns += abs(nspawns)
+            end
+        end
+        # deal with non-integer remainder
+        rval =  abs(val%1) # abs(val%threshold)
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(val), -nspawn * sign(val) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        wnapsips, wnaflag = w[naddress]
+        if sign(wnapsips) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(wnapsips),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] = (wnapsips+nspawns, wnaflag)
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(nspawns)
+        end
+        # done with stochastic spawning
+    end
+    return [0, 0, 0, 0, 0]
+end
+
+function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
+        add, val::N, shift, dτ) where N <: Real
+
+    # diagonal death or clone: deterministic fomula
+    w[add] += (1 + dτ*(shift - diagME(ham,add)))*val
+    # projection to threshold should be applied after all colums are evaluated
+
+    # # apply threshold if necessary
+    # if new_val < s.threshold
+    #     # project stochastically to threshold
+    #     w[add] = (new_val/s.threshold > cRand()) ? s.threshold : 0
+    # else
+    #     w[add] = new_val
+    # end
+
+    # off-diagonal: spawning psips stochastically
+    # only integers are spawned!!
+    hops = Hops(ham, add)
+    # first deal with integer psips
+    for n in 1:floor(abs(val)) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+        end
+    end
+    # deal with non-integer remainder: atempt to spawn
+    rval =  abs(val%1) # non-integer part reduces probability for spawning
+    naddress, pgen, matelem = generateRandHop(hops)
+    pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64
+    nspawn = floor(pspawn) # deal with integer part separately
+    cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+    # at this point, nspawn is non-negative
+    # now converted to correct type and compute sign
+    nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
+    # - because Hamiltonian appears with - sign in iteration equation
+    if !iszero(nspawns)
+        w[naddress] += nspawns
+        # perform spawn (if nonzero): add walkers with correct sign
+    end
+    # done with stochastic spawning
+    return [0, 0, 0, 0, 0]
+end

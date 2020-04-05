@@ -8,10 +8,12 @@ Models implemented so far are:
 """
 module Hamiltonians
 
-using Parameters, StaticArrays
+using Parameters, StaticArrays, LinearAlgebra
+
+import Base: *
+import LinearAlgebra: mul!, dot
+
 using ..DictVectors
-
-
 using ..BitStringAddresses
 using ..ConsistentRNG
 
@@ -26,27 +28,140 @@ export BoseHubbardReal1D, ExtendedBHReal1D
 
 """
     LinearOperator{T}
-Supertype for linear operators over `T` that are suitable for FCIQMC.
-Indexing is done with addresses from a linear space that may be large
-(and will not need to be completely generated).
+Supertype that provides and interface for linear operators over `T` that are
+suitable for FCIQMC. Indexing is done with addresses from a linear space that
+may be large (and will not need to be completely generated).
 
 Provides:
 * [`Hops`](@ref): iterator over reachable off-diagonal matrix elements
 * [`generateRandHop`](@ref): function to generate random off-diagonal matrix element
-* `hamiltonian[address1, address2]`: indexing with `getindex()` - mostly for testing
-purposes
+* `hamiltonian[address1, address2]`: indexing with `getindex()` - mostly for testing purposes
+* `*(LO, v)` deterministic matrix-vector multiply (`== LO(v)`)
+* `mul!(w, LO, v)` mutating matrix-vector multiply
+* [`dot(x, LO, v)`](@ref) compute `x⋅(LO*v)` minimizing allocations
 
-Methods to be implemented:
+Methods that need to be implemented:
 * [`numOfHops(lo::LinearOperator, address)`](@ref)
 * [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref)
 * [`diagME(lo::LinearOperator, address)`](@ref)
 * [`hasIntDimension(lo::LinearOperator)`](@ref)
 * [`dimensionLO(lo::LinearOperator)`](@ref), if applicable
 * [`fDimensionLO(lo::LinearOperator)`](@ref)
+Optional:
+* [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
 """
 abstract type LinearOperator{T} end
 
 Base.eltype(::LinearOperator{T}) where {T} = T
+
+function *(h::LinearOperator{E}, v::AbstractDVec{K,V}) where {E, K, V}
+    T = promote_type(E,V) # allow for type promotion
+    w = empty(v, T) # allocate new vector; non-mutating version
+    for (key,val) in pairs(v)
+        w[key] += diagME(h, key)*val
+        for (add,elem) in Hops(h, key)
+            w[add] += elem*val
+        end
+    end
+    return w
+end
+
+# # five argument version: not doing this now as it will be slower than 3-args
+# function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec, α, β)
+#     rmul!(w, β)
+#     for (key,val) in pairs(v)
+#         w[key] += α * diagME(h, key) * val
+#         for (add,elem) in Hops(h, key)
+#             w[add] += α * elem * val
+#         end
+#     end
+#     return w
+# end
+
+# three argument version
+function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec)
+    empty!(w)
+    for (key,val) in pairs(v)
+        w[key] += diagME(h, key)*val
+        for (add,elem) in Hops(h, key)
+            w[add] += elem*val
+        end
+    end
+    return w
+end
+
+"""
+    Hamiltonians.LOStructure(op::LinearOperator)
+    Hamiltonians.LOStructure(typeof(op))
+`LOStructure` speficies properties of the linear operator `op`. If a special
+structure is known this can speed up calculations. Implemented structures are:
+
+* `Hamiltonians.HermitianLO` The operator is complex and hermitian or real and symmetric.
+* `Hamiltonians.ComplexLO` The operator has no known specific structure.
+
+In order to define this trait for a new linear operator type, define a method
+for `LOStructure(::Type{T}) where T <: MyNewLOType = …`.
+"""
+abstract type LOStructure end
+
+struct HermitianLO <: LOStructure end
+struct ComplexLO <: LOStructure end
+
+# defaults
+LOStructure(op::LinearOperator) = LOStructure(typeof(op))
+LOStructure(::Type{T}) where T <: LinearOperator = ComplexLO()
+
+
+"""
+    dot(x, LO::LinearOperator, v)
+Evaluate `x⋅LO(v)` minimizing memory allocations.
+"""
+function LinearAlgebra.dot(x::AbstractDVec, LO::LinearOperator, v::AbstractDVec)
+  return dot_w_trait(LOStructure(LO), x, LO, v)
+end
+# specialised method for UniformProjector
+function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
+  result = zero(promote_type(T,T2))
+  for (key,val) in pairs(v)
+      result += diagME(LO, key) * val
+      for (add,elem) in Hops(LO, key)
+          result += elem * val
+      end
+  end
+  return result
+end
+
+"""
+    Hamiltonians.dot_w_trait(::LOStructure, x, LO::LinearOperator, v)
+Internal function for making use of the `LinearOperator` trait `LOStructure`.
+"""
+dot_w_trait(::LOStructure, x, LO::LinearOperator, v) = dot_from_right(x,LO,v)
+# default for LOs without special structure: keep order
+
+function dot_w_trait(::HermitianLO, x, LO::LinearOperator, v)
+    if length(x) < length(v)
+        return conj(dot_from_right(v,LO,x)) # turn args around to execute faster
+    else
+        return dot_from_right(x,LO,v) # original order
+    end
+end
+
+"""
+    Hamiltonians.dot_from_right(x, LO, v)
+Internal function evaluates the 3-argument `dot()` function in order from right
+to left.
+"""
+function dot_from_right(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+    # function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+    result = zero(promote_type(T1,promote_type(T,T2)))
+    for (key,val) in pairs(v)
+        result += conj(x[key]) * diagME(LO, key) * val
+        for (add,elem) in Hops(LO, key)
+            result += conj(x[add]) * elem * val
+        end
+    end
+    return result
+end
 
 """
     Hops(ham, add)
@@ -141,16 +256,19 @@ end # getindex(ham)
 # Specialising to bosonic model Hamiltonians
 #
 """
+    BosonicHamiltonian{T} <: LinearOperator{T}
 Abstract type for representing Hamiltonians in a Fock space of fixed number of
 scalar bosons. At least the following fields should be present:
 * `n  # number of particles`
 * `m  # number of modes`
 * `AT # address type`
 
-Methods to be implemented:
+Methods that need to be implemented:
 * [`numOfHops(lo::LinearOperator, address)`](@ref) - number of off-diagonal matrix elements
 * [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref) - access an off-diagonal m.e. by index `chosen`
 * [`diagME(lo::LinearOperator, address)`](@ref) - diagonal matrix element
+Optional:
+* [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref) - can speed up deterministic calculations if `HermitianLO`
 
 Provides:
 * [`hasIntDimension(lo::LinearOperator)`](@ref)
@@ -268,9 +386,11 @@ Implements a one-dimensional Bose Hubbard chain in real space.
     ham(w, v)
 Compute the matrix - vector product `w = ham * v`. The two-argument version is
 mutating for `w`.
+
     ham(:dim)
 Return the dimension of the linear space if representable as `Int`, otherwise
 return `nothing`.
+
     ham(:fdim)
 Return the approximate dimension of linear space as `Float64`.
 """
@@ -281,6 +401,9 @@ Return the approximate dimension of linear space as `Float64`.
   t::T = 1.0    # hopping strength
   AT::Type = BSAdd64 # address type
 end
+
+# set the `LOStructure` trait
+LOStructure(::Type{BoseHubbardReal1D{T}}) where T <: Real = HermitianLO()
 
 """
     BoseHubbardReal1D(add::BitStringAddressType; u=1.0, t=1.0)
@@ -303,20 +426,17 @@ function (h::BoseHubbardReal1D)(s::Symbol)
     return nothing
 end
 # should be all that is needed to make the Hamiltonian a linear map:
-function (h::BoseHubbardReal1D{E})(v::AbstractDVec{K,V}) where {E, K, V}
-    T = promote_type(E,V) # allow for type promotion
-    w = empty(v, T) # allocate new vector; non-mutating version
-    return h(w,v)
-end
-function (h::BoseHubbardReal1D)(w, v) # mutating version
-    for (key,val) in pairs(v)
-        w[key] += diagME(h, key)*val
-        for (add,elem) in Hops(h, key)
-            w[add] += elem*val
-        end
-    end
-    return w
-end
+(h::BoseHubbardReal1D)(v) = h*v
+# (h::BoseHubbardReal1D)(w, v) = mul!(w, h, v) # mutating version
+# function (h::BoseHubbardReal1D)(w, v) # mutating version
+#     for (key,val) in pairs(v)
+#         w[key] += diagME(h, key)*val
+#         for (add,elem) in Hops(h, key)
+#             w[add] += elem*val
+#         end
+#     end
+#     return w
+# end
 
 # """
 #     setupBoseHubbardReal1D(; n, m, u, t, [AT = BoseFS, genInitialONR = nearUniform])
@@ -345,7 +465,7 @@ end
 """
     diagME(ham, add)
 
-Compute the diagonal matrix element of the linear operator `hamiltonian` at
+Compute the diagonal matrix element of the linear operator `ham` at
 address `add`.
 """
 function diagME(h::BoseHubbardReal1D, address)
@@ -383,6 +503,9 @@ in real space.
   AT::Type = BSAdd64 # address type
 end
 
+# set the `LOStructure` trait
+LOStructure(::Type{ExtendedBHReal1D{T}}) where T <: Real = HermitianLO()
+
 """
     ExtendedBHReal1D(add::BitStringAddressType; u=1.0, v=1.0 t=1.0)
 Set up the `BoseHubbardReal1D` with the correct particle and mode number and
@@ -404,20 +527,17 @@ function (h::ExtendedBHReal1D)(s::Symbol)
     return nothing
 end
 # should be all that is needed to make the Hamiltonian a linear map:
-function (h::ExtendedBHReal1D{E})(v::AbstractDVec{K,V}) where {E, K, V}
-    T = promote_type(E,V) # allow for type promotion
-    w = empty(v, T) # allocate new vector; non-mutating version
-    return h(w,v)
-end
-function (h::ExtendedBHReal1D)(w, v) # mutating version
-    for (key,val) in pairs(v)
-        w[key] += diagME(h, key)*val
-        for (add,elem) in Hops(h, key)
-            w[add] += elem*val
-        end
-    end
-    return w
-end
+(h::ExtendedBHReal1D)(v) = h*v
+# (h::ExtendedBHReal1D)(w, v) = mul!(w, h, v) # mutating version
+# function (h::ExtendedBHReal1D)(w, v) # mutating version
+#     for (key,val) in pairs(v)
+#         w[key] += diagME(h, key)*val
+#         for (add,elem) in Hops(h, key)
+#             w[add] += elem*val
+#         end
+#     end
+#     return w
+# end
 
 function diagME(h::ExtendedBHReal1D, address)
   ebhinteraction, bhinteraction= ebhm(address, h.m)
