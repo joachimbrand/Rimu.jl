@@ -106,6 +106,12 @@ end
     axpby!(0.1,dv,4.0,edv)
     dvc = copy(dv)
     @test dvc == dv
+    y = empty(dv)
+    axpy!(2.0, dv, y)
+    @test norm(y, 1) ≈ norm(dv,1)*2
+    ys = Tuple(empty(dv) for i in 1:Threads.nthreads())
+    axpy!(2.0, dv, ys, batchsize=100)
+    @test sum(norm.(ys, 1)) ≈ norm(dv,1)*2
 end
 
 using Rimu.ConsistentRNG
@@ -145,6 +151,25 @@ end
     bs = BitAdd{40}(0xf342564fff)
     hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3,16,25)
     @test BitAdd{40}(hnnn[1]) == hnnbs[1]
+
+    svec = DVec(Dict(aIni => 2.0), ham(:dim))
+    v2 = ham(svec)
+    v3 = ham*v2
+    @test norm(v3,1) ≈ 1482.386824949077
+    @test v2 == mul!(similar(svec), ham, svec)
+    @test norm(v2) ≈ 12
+    @test v2 == ham*svec
+    @test dot(v2,ham,svec) == v2⋅(ham*svec) ≈ 144
+    @test -⋅(UniformProjector(),ham,svec)≈⋅(NormProjector(),ham,svec)≈norm(v2,1)
+    @test Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO()
+    aIni2 = nearUniform(BoseFS{9,9})
+    hamc = BoseHubbardReal1D(aIni2, u=6.0+0im, t=1.0+0im) # formally a complex operator
+    @test Hamiltonians.LOStructure(hamc) == Hamiltonians.ComplexLO()
+    @test dot(v3,ham,svec) ≈ dot(v3,hamc,svec) ≈ dot(svec,ham,v3) ≈ dot(svec,hamc,v3) ≈ 864
+    hamcc = BoseHubbardReal1D(aIni2, u=6.0+0.1im, t=1.0+2im) # a complex operator
+    vc2 = hamcc*svec
+    @test isreal(dot(vc2,hamcc,svec))
+    @test dot(vc2,hamc,svec) ≉ dot(svec,hamc,vc2)
 end
 
 @testset "fciqmc.jl" begin
@@ -255,13 +280,13 @@ end
     @test sum(rdfs[:,:spawns]) == 39288
 
     # single step
-    ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, similar(vs))
+    ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, 1.0, similar(vs))
     @test sum(stats) == 1319
 
     # single step multi threading
     cws = capacity(vs)÷Threads.nthreads()+1
     ws = Tuple(similar(vs,cws) for i=1:Threads.nthreads())
-    ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, ws;
+    ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, 1.0, ws;
                     batchsize = length(vs)÷4+1)
     if Threads.nthreads() == 1
         @test sum(stats) == 1303 # test assuming nthreads() == 1
@@ -288,6 +313,58 @@ end
     if Threads.nthreads() == 1
         @test sum(rdfs[:,:spawns]) == 39106 # test assuming nthreads() == 1
     end
+end
+
+@testset "IsStochasticWithThreshold" begin
+# Define the initial Fock state with n particles and m modes
+n = m = 9
+aIni = nearUniform(BoseFS{n,m})
+ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+pa = RunTillLastStep(laststep = 100)
+p = ThresholdProject(1.0)
+
+# standard fciqmc
+s = DoubleLogUpdate(targetwalkers = 100)
+svec = DVec(Dict(aIni => 2.0), ham(:dim))
+Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
+StochasticStyle(svec)
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), p_strat = p)
+@test sum(rdfs[:,:norm]) ≈ 7638.362052272057
+
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = NoMemory(), p_strat = p)
+@test sum(rdfs[:,:norm]) ≈ 7638.362052272057
+
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p)
+@test sum(rdfs[:,:norm]) ≈ 7536.675175482031
+
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), p_strat = p)
+@test sum(rdfs[:,:norm]) ≈ 7705.509954395163
+
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+p_strat = ScaledThresholdProject(1.0)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p_strat)
+@test sum(rdfs[:,:norm]) ≈ 7583.605896301535
+
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+p_strat = ScaledThresholdProject(1.0)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10), p_strat = p_strat)
+@test sum(rdfs[:,:norm]) ≈ 8317.925503998082
+
 end
 
 @testset "dfvec.jl" begin
@@ -351,7 +428,9 @@ end
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
     # ### Deterministic FCIQMC
     svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
+    Rimu.StochasticStyle(::Type{typeof(svec2)}) = IsDeterministic()
     StochasticStyle(svec2)
+
     pa = RunTillLastStep(laststep = steps,  dτ = dτ)
     τ_strat = ConstantTimeStep()
     s_strat = DoubleLogUpdate(targetwalkers = walkernumber)

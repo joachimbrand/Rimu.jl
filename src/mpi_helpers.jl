@@ -36,6 +36,7 @@ end
 
 Base.valtype(md::MPIData{D,S}) where {D,S} = valtype(D)
 localpart(md::MPIData) = md.data
+StochasticStyle(d::MPIData) = StochasticStyle(d.data)
 
 """
     MPIDefault(nprocs, my_rank, comm)

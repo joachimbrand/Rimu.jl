@@ -1,10 +1,17 @@
-# define parameters and strategies for fciqmc as well as methods that use them
+# # define parameters and strategies for fciqmc as well as methods that use them
 #
 # FciqmcRunStrategy, RunTillLastStep
 #
 # TimeStepStrategy, update_dτ()
 #
 # ShiftStrategy, update_shift()
+#
+# # We also include traits for state vectors:
+#
+# StochasticStyle(),
+# IsStochastic(), IsStochasticNonlinear(), IsDeterministic(),
+# IsStochasticWithThreshold(), IsSemistochastic()
+#
 
 """
 Abstract type representing the strategy for running and terminating
@@ -22,6 +29,7 @@ abstract type FciqmcRunStrategy end
                  dτ::Float64 = 0.01 # current value of time step
     ) <: FciqmcRunStrategy
 Parameters for running [`fciqmc!()`](@ref) for a fixed number of time steps.
+For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 """
 @with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
     step::Int = 0 # number of current/starting timestep
@@ -127,6 +135,70 @@ end
 # here we implement the trivial strategy: don't change dτ
 
 """
+Abstract type for defining the strategy for injectimg memory noise.
+Implemented strategies:
+
+  * [`NoMemory`](@ref)
+  * [`DeltaMemory`](@ref)
+  * [`ShiftMemory`](@ref)
+"""
+abstract type MemoryStrategy end
+
+"""
+    NoMemory <: MemoryStrategy
+Default strategy for [`MemoryStrategy`](@ref) indicating that
+no memory noise will be used.
+"""
+struct NoMemory <: MemoryStrategy end
+
+"""
+    DeltaMemory(Δ::Int) <: MemoryStrategy
+Before updating the shift, memory noise with a memory length of `Δ` is applied,
+where `Δ = 1` means no memory noise.
+
+```
+r̃ = (pnorm - tnorm)/(dτ*pnorm) + shift
+r = r̃ - <r̃>
+```
+"""
+mutable struct DeltaMemory <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pnorm::Float64 # previous norm
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+DeltaMemory(Δ::Int) = DeltaMemory(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
+
+"""
+    DeltaMemory2(Δ::Int) <: MemoryStrategy
+Before updating the shift, memory noise with a memory length of `Δ` is applied,
+where `Δ = 1` means no memory noise.
+
+```
+r̃ = pnorm - tnorm + shift*dτ*pnorm
+r = (r̃ - <r̃>)/(dτ*pnorm)
+```
+The long-term average of `r` is not guaranteed to be zero.
+"""
+mutable struct DeltaMemory2 <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pnorm::Float64 # previous norm
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+DeltaMemory2(Δ::Int) = DeltaMemory2(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
+
+"""
+    ShiftMemory(Δ::Int) <: MemoryStrategy
+Effectively replaces the fluctuating `shift` update procedure for the
+coefficient vector by an averaged `shift` over `Δ` timesteps,
+where `Δ = 1` means no averaging.
+"""
+struct ShiftMemory <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ShiftMemory(Δ::Int) = ShiftMemory(Δ, DataStructures.CircularBuffer{Float64}(Δ))
+
+"""
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:
 
@@ -176,7 +248,7 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 end
 
 """
-    DoubleLogUpdate(ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    DoubleLogUpdate(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ`.
 
@@ -184,11 +256,37 @@ parameter `ζ` and `ξ`.
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
 ```
 """
-@with_kw mutable struct DoubleLogUpdate <: ShiftStrategy
+@with_kw struct DoubleLogUpdate <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
     ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
 end
+
+# """
+#     DoubleLogUpdateMemoryNoise(;targetwalkers = 100,
+#                                ζ = 0.3,
+#                                ξ = 0.0225,
+#                                Δ = 1) <: ShiftStrategy
+# Strategy for updating the shift according to the log formula with damping
+# parameter `ζ` and `ξ`.
+# ```math
+# S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
+# ```
+# Before updating the shift memory noise with a memory length of `Δ` is applied,
+# where `Δ = 1` means no memory noise.
+# """
+# struct DoubleLogUpdateMemoryNoise <: ShiftStrategy
+#     targetwalkers::Int
+#     ζ::Float64 # damping parameter, best left at value of 0.3
+#     ξ::Float64 # restoring force to bring walker number to the target
+#     Δ::Int # length of memory noise buffer
+#     noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+# end
+# # construct with the following constructor:
+# function DoubleLogUpdateMemoryNoise(;targetwalkers = 100, ζ = 0.3, ξ = 0.0225, Δ = 1)
+#     cb = DataStructures.CircularBuffer{Float64, Δ}
+#     DoubleLogUpdateMemoryNoise(targetwalkers, ζ, ξ, Δ, cb)
+# end
 
 """
     LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
@@ -337,3 +435,154 @@ end
 end
 
 @inline update_shift(::DontUpdate, shift, tnorm, args...) = (shift, false, tnorm)
+
+
+# let's decide whether a simulation is deterministic, stochastic, or
+# semistochastic upon a trait on the vector type
+
+"""
+    StochasticStyle(v)
+    StochasticStyle(typeof(v))
+`StochasticStyle` specifies the native style of the generalised vector `v` that
+determines how simulations are to proceed. This can be fully stochastic (with
+`IsStochastic`), fully deterministic (with `IsDeterministic`), or semistochastic
+(with [`IsSemistochastic`](@ref)).
+"""
+abstract type StochasticStyle end
+
+struct IsStochastic <: StochasticStyle end
+
+struct IsStochasticNonlinear <: StochasticStyle
+    c::Float64 # parameter of nonlinear correction applied to local shift
+end
+
+struct IsDeterministic <: StochasticStyle end
+
+"""
+    IsStochasticWithThreshold(threshold::Float16)
+Trait for generalised vector of configurations indicating stochastic
+propagation with real walker numbers and cutoff `threshold`.
+```
+> StochasticStyle(V) = IsStochasticWithThreshold(threshold)
+```
+During stochastic propoagation, walker numbers small than `threshold` will be
+stochastically projected to either zero or `threshold`.
+"""
+struct IsStochasticWithThreshold <: StochasticStyle
+    threshold::Float32
+end
+
+"""
+    IsSemistochastic(threshold::Float16, d_space)
+Trait for generalised vector of configurations indicating semistochastic
+propagation. Set with [`setSemistochastic!`](@ref).
+```
+> StochasticStyle(V) = IsSemistochastic(threshold, d_space)
+```
+where `d_space` is a vector of addresses defining the the stochastic subspace.
+"""
+struct IsSemistochastic{T} <: StochasticStyle
+    threshold::Float16
+    d_space::Vector{T} # list of addresses in deterministic space
+end
+
+"""
+    setSemistochastic!(dv, threshold::Float16, d_space)
+Set the deterministic space for `dv` with threshold `threshold`, where
+`d_space` is a vector of addresses defining the the stochastic subspace.
+"""
+function setSemistochastic!(dv, threshold::Float16, d_space)
+    clearDSpace!(dv)
+    for add in d_space
+        (val, flag) = dv[add]
+        dv[add] = (val, flag | one(typeof(flag)))
+    end
+    StochasticStyle(dv) = IsSemistochastic(threshold, d_space)
+    dv
+end
+
+"""
+    clearDFlags!(dv)
+Clear all flags in `dv` of the deterministic bit (rightmost bit).
+"""
+function clearDFlags!(dv)
+    for (add, (val, flag)) in pairs(dv)
+        # delete determimistic bit (rightmost) in `flag`
+        dv[add] = (val, flag ⊻ one(typeof(flag)))
+    end
+    dv
+end
+
+# some sensible defaults
+StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
+StochasticStyle(::Type{<:Array}) = IsDeterministic()
+StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
+# the following works for dispatch, i.e. the function is evaluated at compile time
+function StochasticStyle(T::Type{<:AbstractDVec})
+    ifelse(eltype(T) <: Integer, IsStochastic(), IsDeterministic())
+end
+
+# """
+#     tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
+# Apply memory noise to `v` according to the shift update strategy `s_strat`
+# returning the updated norm.
+# If the strategy does not require updating the norm, it does nothing and returns
+# `tnorm`.
+# """
+# apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ) = tnorm
+#
+# # maybe it would be better to apply this before projecting to threshold
+# function apply_memory_noise!(v, w, s_strat::DoubleLogUpdateMemoryNoise,
+#                              pnorm, tnorm, shift, dτ)
+#     if StochasticStyle(v) ∉ [IsStochasticWithThreshold, IsSemistochastic]
+#         @error "Memory noise not defined for $(StochasticStyle(v)). Use `IsStochasticWithThreshold` or `IsSemistochastic` instead."
+#     end
+#     @unpack noisebuffer = s_strat # extract noisebuffer from shift strategy
+#     r̃ = (pnorm - tnorm)/(dτ*pnorm) + shift # instantaneous noisy correction
+#     push!(noisebuffer, r̃) # add to noisebuffer
+#     r_noise = r̃ - sum(noisebuffer)/length(noisebuffer) # subtract Δ average
+#     lv = localpart(v)
+#     for (add, val) in kvpairs(w)
+#         c̃ = lv[add]
+#         c = c̃ + dτ*r_noise*val
+#         if sign(c̃) == sign(c)
+#             lv[add] = c
+#             # !!! Careful! This could lead to a sign change!!!!
+#         end
+#     end
+#     return norm(v, 1) # MPI sycncronising: total number of psips
+# end
+
+"""
+Abstract type for defining the stategy of projection for fciqmc with
+floating point walker number with [`norm_project`](@ref).
+Implemented stategies:
+
+   * [`NoProjection`](@ref)
+   * [`ThresholdProject`](@ref)
+   * [`ScaledThresholdProject`](@ref)
+"""
+abstract type ProjectStrategy end
+
+"Do not project the walker amplitudes. See [`norm_project`](@ref)."
+struct NoProjection <: ProjectStrategy end
+
+"""
+    ThresholdProject(threshold = 1.0) <: ProjectStrategy
+Project stochastically for walker amplitudes below `threshold`.
+See [`norm_project`](@ref).
+"""
+@with_kw struct ThresholdProject <: ProjectStrategy
+    threshold::Float32 = 1.0f0
+end
+
+"""
+    ScaledThresholdProject(threshold = 1.0) <: ProjectStrategy
+Project stochastically for walker amplitudes below `threshold` and scale
+configuration array as to keep the norm constant. As a consequence, the
+final configuration amplitudes may be smaller than `threshold`.
+See [`norm_project`](@ref).
+"""
+@with_kw struct ScaledThresholdProject <: ProjectStrategy
+    threshold::Float32 = 1.0f0
+end

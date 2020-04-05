@@ -80,7 +80,7 @@ nw_array = MPI.Gather(nwalkers, dv.root, comm)
 id == dv.root && println("Number of walkers on ranks: ", nw_array, ", sum = ", sum(nw_array))
 
 for n in 1:30
-    dv, w, stats = Rimu.fciqmc_step!(Ĥ, dv, 0.0, 0.01, w)
+    dv, w, stats = Rimu.fciqmc_step!(Ĥ, dv, 0.0, 0.01, NaN, w)
     id == dv.root && println("Step $n, stats = ",stats)
     cstats .+= stats
     id == dv.root && println("Step $n, cstats = ",cstats)

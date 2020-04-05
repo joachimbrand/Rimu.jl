@@ -175,13 +175,36 @@ Inplace add `x+y` and store result in `x`.
     return x
 end
 
-# BLAS-like function: y += α*x
+# BLAS-like function: y .+= α*x
+"""
+    axpy!(α::Number, X::AbstractDVec, Y::AbstractDVec)
+    axpy!(α::Number, X::AbstractDVec, Ys::Tuple, batchsize)
+Overwrite `Y` with `α*X + Y` where `α` is scalar for `AbstractDVec`s.
+If a tuple `Ys` is passed with `Threads.nthreads()` `AbstractDVec`s, then
+perform the operation in parallel over threads with `batchsize` elements at a
+time.
+"""
 @inline function LinearAlgebra.axpy!(α::Number,x::AbstractDVec,y::AbstractDVec)
     for (k,v) in kvpairs(x)
         y[k] += α*v
     end
     return y
 end
+# multithreaded version
+@inline function LinearAlgebra.axpy!(α::Number,x::AbstractDVec,ys::NTuple{NT,W};
+        batchsize = length(x)÷NT
+    ) where {NT, W<:AbstractDVec}
+    @boundscheck @assert NT == Threads.nthreads()
+    @sync for btr in Iterators.partition(pairs(x), batchsize)
+        Threads.@spawn for (k,v) in btr
+            y = ys[Threads.threadid()]
+            y[k] += α*v
+        end
+    end # all threads have returned; now running on single thread again
+    return ys
+end
+# NOTE: the multithreaded version is allocating memory of quite considerable
+# size, apparently due to the `Iterators.partition()` iterator.
 
 # generic multiply with scalar inplace - this is slow (360 times slower than
 # the fast version for FastDVec)
@@ -310,3 +333,54 @@ Base.values(dv::AbstractDVec) = dv
 #
 # Base.iterate(dv::AbstractDVec) = iterate(values(dv))
 # Base.iterate(dv::AbstractDVec, state) = iterate(values(dv), state)
+
+# struct UniformProjector{K,V} <: AbstractDVec{K,V} end
+# UniformProjector(::Type{AbstractDVec{K,V}}) where {K,V} = UniformProjector{K,V}()
+# UniformProjector(::DV) where DV <: AbstractDVec = UniformProjector(DV)
+#
+# struct NormProjector{K,V} <: AbstractDVec{K,V} end
+# NormProjector(::Type{AbstractDVec{K,V}}) where {K,V} = NormProjector{K,V}()
+# NormProjector(::DV) where DV <: AbstractDVec = NormProjector(DV)
+#
+# function LinearAlgebra.dot(x::NormProjector{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
+#     # dot returns the promote_type of the arguments.
+#     # NOTE that this can be different from the return type of norm()->Float64
+#     return convert(promote_type(T1,T2),norm(y,1))
+# end
+#
+# function LinearAlgebra.dot(x::UniformProjector{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
+#     # dot returns the promote_type of the arguments.
+#     # NOTE that this can be different from the return type of norm()->Float64
+#     return convert(promote_type(T1,T2), sum(values(y)))
+# end
+
+"""
+    UniformProjector()
+Represents a vector with all elements 1. To be used with [`dot()`](@ref).
+Minimizes memory allocations.
+
+```julia
+UniformProjector()⋅v == sum(v)
+dot(UniformProjector(), LO, v) == sum(LO*v)
+```
+"""
+struct UniformProjector end
+
+LinearAlgebra.dot(::UniformProjector, y) = sum(y)
+# a specialised fast and non-allocating method for
+# `dot(::UniformProjector, A::LinearOperator, y)` is defined in `Hamiltonians.jl`
+
+"""
+    NormProjector()
+Results in computing the one-norm when used in `dot()`. E.g.
+```julia
+dot(NormProjector(),x)
+-> norm(x,1) # with type valtype(x)
+```
+`NormProjector()` thus represents the vector `sign.(x)`.
+"""
+struct NormProjector end
+
+LinearAlgebra.dot(::NormProjector, y) = convert(valtype(y),norm(y,1))
+# dot returns the promote_type of the arguments.
+# NOTE that this can be different from the return type of norm()->Float64
