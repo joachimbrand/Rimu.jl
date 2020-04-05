@@ -30,7 +30,8 @@ export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
-export StochasticStyle, IsStochastic, IsDeterministic, IsSemistochastic
+export StochasticStyle, IsStochastic, IsDeterministic
+# export IsSemistochastic # is not yet ready
 export IsStochasticNonlinear, IsStochasticWithThreshold
 export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
 export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
