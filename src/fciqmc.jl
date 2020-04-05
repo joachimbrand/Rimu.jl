@@ -31,7 +31,7 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
-    v_proj, h_proj = energy_project(svec, ham, r_strat)
+    v_proj, h_proj = energy_project(svec, ham, r_strat) # MPIsync
 
     # prepare df for recording data
     df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
@@ -96,7 +96,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         tnorm = norm_project!(v, p_strat)  # MPIsync
         # project coefficients of `w` to threshold
 
-        v_proj, h_proj = energy_project(v, ham, r_strat)
+        v_proj, h_proj = energy_project(v, ham, r_strat)  # MPIsync
 
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,

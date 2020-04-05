@@ -107,18 +107,17 @@ end
 Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
 the `ReportingStrategy` `r`.
 """
-function energy_project(v::AbstractDVec, ham, ::RS) where
+function energy_project(v, ham, ::RS) where
                         {DV <: Missing, RS<:ReportingStrategy{DV}}
     return missing, missing
 end
 # default
 
-function energy_project(v::AbstractDVec, ham, r::RS) where
+function energy_project(v, ham, r::RS) where
                         {DV, RS<:ReportingStrategy{DV}}
     return r.projector⋅v, dot(r.projector, ham, v)
 end
-# TODO: make energy projection work with MPI; currently defining MPI default in
-# mpi_helpers.jl
+# The dot products work across MPI when `v::MPIData`; MPI sync
 
 """
     report!(df::DataFrame, t::Tuple, s<:ReportingStrategy)

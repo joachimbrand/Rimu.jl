@@ -253,6 +253,7 @@ function LinearAlgebra.dot(x::AbstractDVec{K,T1}, y::AbstractDVec{K,T2}) where {
     end
     return result # the type is promote_type(T1,T2) - could be complex!
 end
+# For MPI version see mpi_helpers.jl
 
 ## some methods below that we could inherit from AbstracDict with subtyping
 
@@ -354,6 +355,10 @@ Base.values(dv::AbstractDVec) = dv
 #     return convert(promote_type(T1,T2), sum(values(y)))
 # end
 
+
+# Define this type union for local (non-MPI) data
+DVecOrVec = Union{AbstractDVec,AbstractVector}
+
 """
     UniformProjector()
 Represents a vector with all elements 1. To be used with [`dot()`](@ref).
@@ -366,7 +371,7 @@ dot(UniformProjector(), LO, v) == sum(LO*v)
 """
 struct UniformProjector end
 
-LinearAlgebra.dot(::UniformProjector, y) = sum(y)
+LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(y)
 # a specialised fast and non-allocating method for
 # `dot(::UniformProjector, A::LinearOperator, y)` is defined in `Hamiltonians.jl`
 
@@ -381,6 +386,7 @@ dot(NormProjector(),x)
 """
 struct NormProjector end
 
-LinearAlgebra.dot(::NormProjector, y) = convert(valtype(y),norm(y,1))
+LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y),norm(y,1))
 # dot returns the promote_type of the arguments.
 # NOTE that this can be different from the return type of norm()->Float64
+# NOTE: This operation should work for `MPIData` and is MPI synchronizing

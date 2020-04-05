@@ -381,6 +381,10 @@ function Base.show(io::IO, s::MPIOSWin{T}) where T
     println(io, "  MPI.Win for number of elements in buffer")
 end
 
-energy_project(v::MPIData, ham, r) = (missing, missing)
-# TODO: make energy projection work with MPI; currently defining MPI default in
-# mpi_helpers.jl
+function LinearAlgebra.dot(x, md::MPIData)
+    return MPI.Allreduce(x⋅localpart(md), +, md.comm)
+end
+
+function LinearAlgebra.dot(x, lop, md::MPIData)
+    return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
+end
