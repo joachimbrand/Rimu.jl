@@ -48,7 +48,7 @@ Methods that need to be implemented:
 * [`dimensionLO(lo::LinearOperator)`](@ref), if applicable
 * [`fDimensionLO(lo::LinearOperator)`](@ref)
 Optional:
-* [`LOStructure(::Type{typeof(lo)})`](@ref)
+* [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
 """
 abstract type LinearOperator{T} end
 
@@ -91,16 +91,16 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec)
 end
 
 """
-    LOStructure(op::LinearOperator)
-    LOStructure(typeof(op))
+    Hamiltonians.LOStructure(op::LinearOperator)
+    Hamiltonians.LOStructure(typeof(op))
 `LOStructure` speficies properties of the linear operator `op`. If a special
 structure is known this can speed up calculations. Implemented structures are:
 
-* `HermitianLO` The operator is complex and hermitian or real and symmetric.
-* `ComplexLO` The operator has no known specific structure.
+* `Hamiltonians.HermitianLO` The operator is complex and hermitian or real and symmetric.
+* `Hamiltonians.ComplexLO` The operator has no known specific structure.
 
 In order to define this trait for a new linear operator type, define a method
-for `LOStructure(::Type{T}) where T <: MyNewLOType = …`. 
+for `LOStructure(::Type{T}) where T <: MyNewLOType = …`.
 """
 abstract type LOStructure end
 
@@ -132,7 +132,7 @@ function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::Abstrac
 end
 
 """
-    dot_w_trait(::LOStructure, x, LO::LinearOperator, v)
+    Hamiltonians.dot_w_trait(::LOStructure, x, LO::LinearOperator, v)
 Internal function for making use of the `LinearOperator` trait `LOStructure`.
 """
 dot_w_trait(::LOStructure, x, LO::LinearOperator, v) = dot_from_right(x,LO,v)
@@ -147,7 +147,7 @@ function dot_w_trait(::HermitianLO, x, LO::LinearOperator, v)
 end
 
 """
-    dot_from_right(x, LO, v)
+    Hamiltonians.dot_from_right(x, LO, v)
 Internal function evaluates the 3-argument `dot()` function in order from right
 to left.
 """
@@ -256,16 +256,19 @@ end # getindex(ham)
 # Specialising to bosonic model Hamiltonians
 #
 """
+    BosonicHamiltonian{T} <: LinearOperator{T}
 Abstract type for representing Hamiltonians in a Fock space of fixed number of
 scalar bosons. At least the following fields should be present:
 * `n  # number of particles`
 * `m  # number of modes`
 * `AT # address type`
 
-Methods to be implemented:
+Methods that need to be implemented:
 * [`numOfHops(lo::LinearOperator, address)`](@ref) - number of off-diagonal matrix elements
 * [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref) - access an off-diagonal m.e. by index `chosen`
 * [`diagME(lo::LinearOperator, address)`](@ref) - diagonal matrix element
+Optional:
+* [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref) - can speed up deterministic calculations if `HermitianLO`
 
 Provides:
 * [`hasIntDimension(lo::LinearOperator)`](@ref)
