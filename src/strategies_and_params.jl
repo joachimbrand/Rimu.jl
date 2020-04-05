@@ -441,9 +441,9 @@ end
 # semistochastic upon a trait on the vector type
 
 """
-    StochasticStyle(V)
-    StochasticStyle(typeof(V))
-`StochasticStyle` specifies the native style of the generalised vector `V` that
+    StochasticStyle(v)
+    StochasticStyle(typeof(v))
+`StochasticStyle` specifies the native style of the generalised vector `v` that
 determines how simulations are to proceed. This can be fully stochastic (with
 `IsStochastic`), fully deterministic (with `IsDeterministic`), or semistochastic
 (with [`IsSemistochastic`](@ref)).

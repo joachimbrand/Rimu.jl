@@ -47,6 +47,8 @@ Methods that need to be implemented:
 * [`hasIntDimension(lo::LinearOperator)`](@ref)
 * [`dimensionLO(lo::LinearOperator)`](@ref), if applicable
 * [`fDimensionLO(lo::LinearOperator)`](@ref)
+Optional:
+* [`LOStructure(::Type{typeof(lo)})`](@ref)
 """
 abstract type LinearOperator{T} end
 
@@ -88,22 +90,36 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec)
     return w
 end
 
+"""
+    LOStructure(op::LinearOperator)
+    LOStructure(typeof(op))
+`LOStructure` speficies properties of the linear operator `op`. If a special
+structure is known this can speed up calculations. Implemented structures are:
+
+* `HermitianLO` The operator is complex and hermitian or real and symmetric.
+* `ComplexLO` The operator has no known specific structure.
+
+In order to define this trait for a new linear operator type, define a method
+for `LOStructure(::Type{T}) where T <: MyNewLOType = …`. 
+"""
+abstract type LOStructure end
+
+struct HermitianLO <: LOStructure end
+struct ComplexLO <: LOStructure end
+
+# defaults
+LOStructure(op::LinearOperator) = LOStructure(typeof(op))
+LOStructure(::Type{T}) where T <: LinearOperator = ComplexLO()
+
 
 """
     dot(x, LO::LinearOperator, v)
 Evaluate `x⋅LO(v)` minimizing memory allocations.
 """
-function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
-  result = zero(promote_type(T1,promote_type(T,T2)))
-  for (key,val) in pairs(v)
-      result += conj(x[key]) * diagME(LO, key) * val
-      for (add,elem) in Hops(LO, key)
-          result += conj(x[add]) * elem * val
-      end
-  end
-  return result
+function LinearAlgebra.dot(x::AbstractDVec, LO::LinearOperator, v::AbstractDVec)
+  return dot_w_trait(LOStructure(LO), x, LO, v)
 end
-
+# specialised method for UniformProjector
 function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
   result = zero(promote_type(T,T2))
   for (key,val) in pairs(v)
@@ -113,6 +129,38 @@ function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::Abstrac
       end
   end
   return result
+end
+
+"""
+    dot_w_trait(::LOStructure, x, LO::LinearOperator, v)
+Internal function for making use of the `LinearOperator` trait `LOStructure`.
+"""
+dot_w_trait(::LOStructure, x, LO::LinearOperator, v) = dot_from_right(x,LO,v)
+# default for LOs without special structure: keep order
+
+function dot_w_trait(::HermitianLO, x, LO::LinearOperator, v)
+    if length(x) < length(v)
+        return conj(dot_from_right(v,LO,x)) # turn args around to execute faster
+    else
+        return dot_from_right(x,LO,v) # original order
+    end
+end
+
+"""
+    dot_from_right(x, LO, v)
+Internal function evaluates the 3-argument `dot()` function in order from right
+to left.
+"""
+function dot_from_right(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+    # function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+    result = zero(promote_type(T1,promote_type(T,T2)))
+    for (key,val) in pairs(v)
+        result += conj(x[key]) * diagME(LO, key) * val
+        for (add,elem) in Hops(LO, key)
+            result += conj(x[add]) * elem * val
+        end
+    end
+    return result
 end
 
 """
@@ -335,9 +383,11 @@ Implements a one-dimensional Bose Hubbard chain in real space.
     ham(w, v)
 Compute the matrix - vector product `w = ham * v`. The two-argument version is
 mutating for `w`.
+
     ham(:dim)
 Return the dimension of the linear space if representable as `Int`, otherwise
 return `nothing`.
+
     ham(:fdim)
 Return the approximate dimension of linear space as `Float64`.
 """
@@ -348,6 +398,9 @@ Return the approximate dimension of linear space as `Float64`.
   t::T = 1.0    # hopping strength
   AT::Type = BSAdd64 # address type
 end
+
+# set the `LOStructure` trait
+LOStructure(::Type{BoseHubbardReal1D{T}}) where T <: Real = HermitianLO()
 
 """
     BoseHubbardReal1D(add::BitStringAddressType; u=1.0, t=1.0)
@@ -409,7 +462,7 @@ end
 """
     diagME(ham, add)
 
-Compute the diagonal matrix element of the linear operator `hamiltonian` at
+Compute the diagonal matrix element of the linear operator `ham` at
 address `add`.
 """
 function diagME(h::BoseHubbardReal1D, address)
@@ -446,6 +499,9 @@ in real space.
   t::T = 1.0    # hopping strength
   AT::Type = BSAdd64 # address type
 end
+
+# set the `LOStructure` trait
+LOStructure(::Type{ExtendedBHReal1D{T}}) where T <: Real = HermitianLO()
 
 """
     ExtendedBHReal1D(add::BitStringAddressType; u=1.0, v=1.0 t=1.0)
