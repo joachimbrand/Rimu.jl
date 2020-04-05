@@ -162,7 +162,7 @@ end
     @test dot(v2,ham,svec) == v2⋅(ham*svec) ≈ 144
     @test -⋅(UniformProjector(),ham,svec)≈⋅(NormProjector(),ham,svec)≈norm(v2,1)
     @test Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO()
-    aIni2 = nearUniform(BoseFS{n,m})
+    aIni2 = nearUniform(BoseFS{9,9})
     hamc = BoseHubbardReal1D(aIni2, u=6.0+0im, t=1.0+0im) # formally a complex operator
     @test Hamiltonians.LOStructure(hamc) == Hamiltonians.ComplexLO()
     @test dot(v3,ham,svec) ≈ dot(v3,hamc,svec) ≈ dot(svec,ham,v3) ≈ dot(svec,hamc,v3) ≈ 864
