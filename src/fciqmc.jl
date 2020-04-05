@@ -31,20 +31,24 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
+    v_proj, h_proj = energy_project(svec, ham, r_strat)
+
     # prepare df for recording data
     df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
                         shiftMode=Bool[],len=Int[], norm=Float64[],
+                        vproj=typeof(v_proj)[], hproj=typeof(h_proj)[],
                         spawns=Int[], deaths=Int[], clones=Int[],
                         antiparticles=Int[], annihilations=Int[])
-    # Note the row structure defined here (currently 11 columns)
+    # Note the row structure defined here (currently 13 columns)
     # When changing the structure of `df`, it has to be changed in all places
     # where data is pushed into `df`.
     @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                            :vproj, :hproj,
                             :spawns, :deaths, :clones, :antiparticles,
                             :annihilations
                          ] "Column names in `df` not as expected."
     # Push first row of df to show starting point
-    push!(df, (step, dτ, shift, shiftMode, len, nor,
+    push!(df, (step, dτ, shift, shiftMode, len, nor, v_proj, h_proj,
                 0, 0, 0, 0, 0))
     # println("DataFrame is set up")
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
@@ -72,8 +76,9 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
     # check `df` for consistency
-    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len,
-                            :norm, :spawns, :deaths, :clones, :antiparticles,
+    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                            :vproj, :hproj,
+                            :spawns, :deaths, :clones, :antiparticles,
                             :annihilations
                          ] "Column names in `df` not as expected."
 
@@ -90,8 +95,9 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                                         m_strat=m_strat)
         tnorm = norm_project!(v, p_strat)  # MPIsync
         # project coefficients of `w` to threshold
-        # tnorm = norm(v, 1) # MPI sycncronising: total number of psips
-        # tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
+
+        v_proj, h_proj = energy_project(v, ham, r_strat)
+
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
                                     shift, shiftMode,
@@ -103,7 +109,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         # when we add different stratgies
         len = length(v) # MPI sycncronising: total number of configs
         # record results according to ReportingStrategy r_strat
-        report!(df, (step, dτ, shift, shiftMode, len, tnorm,
+        report!(df, (step, dτ, shift, shiftMode, len, tnorm, v_proj, h_proj,
                         step_stats...), r_strat)
         # DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
         #                 step_stats...))

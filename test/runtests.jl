@@ -220,14 +220,17 @@ end
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
 
     pa = RunTillLastStep(laststep = 100)
-    r_strat = EveryTimeStep()
-    τ_strat = ConstantTimeStep()
 
     # standard fciqmc
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     svec = DVec(Dict(aIni => 2), ham(:dim))
     StochasticStyle(svec)
     vs = copy(svec)
+
+    r_strat = EveryTimeStep(projector = UniformProjector())
+    # r_strat = EveryTimeStep(projector = copy(svec))
+    τ_strat = ConstantTimeStep()
+
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     @test sum(rdfs[:,:spawns]) == 1725
@@ -272,6 +275,8 @@ end
     svec = DVec(Dict(aIni => 20), 8*tw)
     StochasticStyle(svec)
     vs = copy(svec)
+    r_strat = EveryTimeStep(projector = copy(svec))
+
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
@@ -294,7 +299,7 @@ end
 
     # run 100 steps with multi
     pa.laststep = 200
-    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
         @test sum(rdfs[:,:spawns]) == 88269 # test assuming nthreads() == 1
     end
@@ -305,11 +310,13 @@ end
     svec = DVec(Dict(aIni => 20), 8*tw)
     StochasticStyle(svec)
     vs = copy(svec)
+    r_strat = EveryTimeStep(projector = copy(svec))
+
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, ws)
     pa.laststep = 100
-    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
         @test sum(rdfs[:,:spawns]) == 39106 # test assuming nthreads() == 1
     end

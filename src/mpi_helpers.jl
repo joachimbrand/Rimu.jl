@@ -380,3 +380,7 @@ function Base.show(io::IO, s::MPIOSWin{T}) where T
     println(io, "  MPI.Win and buf::Vector{$T} with capacity ",s.capacity)
     println(io, "  MPI.Win for number of elements in buffer")
 end
+
+energy_project(v::MPIData, ham, r) = (missing, missing)
+# TODO: make energy projection work with MPI; currently defining MPI default in
+# mpi_helpers.jl

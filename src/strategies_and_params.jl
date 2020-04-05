@@ -40,37 +40,85 @@ For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 end
 
 """
+    ReportingStrategy
 Abstract type for strategies for reporting data in a DataFrame with
-[`report!()`](@ref). Implemented strategies:
+[`report!()`](@ref). It also affects the calculation and reporting of
+projected quantities in the DataFrame.
+
+# Implemented strategies:
    * [`EveryTimeStep`](@ref)
    * [`EveryKthStep`](@ref)
    * [`ReportDFAndInfo`](@ref)
+# Examples
+```julia
+r_strat = EveryTimeStep(projector = copy(svec))
+```
+Record the projection of instananeous coefficient vector and Hamiltonian onto
+the starting vector, and report every time step.
+```julia
+r_strat = EveryKthStep(k=10, projector = UniformProjector())
+```
+Record the projection of instananeous coefficient vector and Hamiltonian onto
+the uniform vector of all 1s, and report every `k`th time step.
 """
-abstract type ReportingStrategy end
+abstract type ReportingStrategy{DV} end
 
-"Report every time step."
-struct EveryTimeStep <: ReportingStrategy end
-
 """
-    EveryKthStep(;k = 10)
-Report every `k`th step.
+    EveryTimeStep(;projector = missing)
+Report every time step. Include projection onto `projector`.
 """
-@with_kw struct EveryKthStep <: ReportingStrategy
-    k::Int = 10
+@with_kw struct EveryTimeStep{DV} <: ReportingStrategy{DV}
+    projector::DV = missing
 end
 
 """
-    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true)
+    EveryKthStep(;k = 10, projector = missing)
+Report every `k`th step. Include projection onto `projector`.
+"""
+@with_kw struct EveryKthStep{DV} <: ReportingStrategy{DV}
+    k::Int = 10
+    projector::DV = missing
+end
+
+"""
+    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = missing)
 Report every `k`th step in DataFrame and write info message to `io` every `i`th
 step (unless `writeinfo == false`). The flag `writeinfo` is useful for
-controlling info messages in MPI codes.
+controlling info messages in MPI codes. Include projection onto `projector`.
 """
-@with_kw struct ReportDFAndInfo <: ReportingStrategy
+@with_kw struct ReportDFAndInfo{DV} <: ReportingStrategy{DV}
     k::Int = 10 # how often to write to DataFrame
     i::Int = 100 # how often to write info message
     io::IO = stdout # IO stream for info messages
     writeinfo::Bool = true # write info only if true - useful for MPI codes
+    projector::DV = missing
 end
+
+# """
+#     ReportPEnergy(pv)
+# Report every time step including projection onto `pv`.
+# """
+# struct ReportPEnergy{DV} <: ReportingStrategy
+#     projector::DV
+# end
+
+"""
+    energy_project(v, ham, r::ReportingStrategy)
+Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
+the `ReportingStrategy` `r`.
+"""
+function energy_project(v::AbstractDVec, ham, ::RS) where
+                        {DV <: Missing, RS<:ReportingStrategy{DV}}
+    return missing, missing
+end
+# default
+
+function energy_project(v::AbstractDVec, ham, r::RS) where
+                        {DV, RS<:ReportingStrategy{DV}}
+    return r.projector⋅v, dot(r.projector, ham, v)
+end
+# TODO: make energy projection work with MPI; currently defining MPI default in
+# mpi_helpers.jl
 
 """
     report!(df::DataFrame, t::Tuple, s<:ReportingStrategy)
@@ -78,6 +126,7 @@ Record results in `df` and write informational messages according to strategy
 `s`. See [`ReportingStrategy`](@ref).
 """
 report!(df::DataFrame,t::Tuple,s::EveryTimeStep) = push!(df,t)
+# report!(df::DataFrame,t::Tuple,s::Union{EveryTimeStep, ReportPEnergy}) = push!(df,t)
 
 function report!(df::DataFrame,t::Tuple,s::EveryKthStep)
     step = t[1]
