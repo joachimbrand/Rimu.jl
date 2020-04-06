@@ -9,6 +9,7 @@ module Blocking
 using DataFrames
 
 export blocker, blocking, blockingErrorEstimation, mtest
+export autoblock, blockAndMTest
 
 """
 Calculate the variance of the dataset v
@@ -47,21 +48,42 @@ function blocker(v::Vector)
 end
 
 """
-perform a blocking analysis for single data set
+    blocking(v::Vector; typos = nothing) -> df
+Perform a blocking analysis according to Flyvberg and Peterson
+[JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480)
+for single data set and return a `DataFrame` with
+statistical data for each blocking step. M-test data according to Jonsson
+[PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304) is also
+provided.
+
+Keyword argument `typos`
+* `typos = nothing` - correct all presumed typos.
+* `typos = :FP` - use Flyvberg and Peterson (correct) standard error and Jonsson formul for M.
+* `typos = :Jonsson` - calculate `M` and standard error as written in Jonsson.
 """
-function blocking(v::Vector)
+function blocking(v::Vector; typos = nothing)
     df = DataFrame(blocks = Int[], mean = Float64[], stdev = Float64[],
                     std_err = Float64[], std_err_err = Float64[], gamma = Float64[], M = Float64[])
     while length(v) >= 2
         n = length(v)
         mean = sum(v)/n
         var = v .- mean
-        sigmasq = sum(var.^2)/n
-        gamma = sum(var[1:n-1].*var[2:n])/n
+        sigmasq = sum(var.^2)/n # uncorrected sample variance
+        if typos == nothing
+            gamma = sum(var[1:n-1].*var[2:n])/(n-1)
+        else # typos ∈ {:FP, :Jonsson}
+            gamma = sum(var[1:n-1].*var[2:n])/n
+            # sample covariance ŷ(1) Eq. (6) [Jonsson]
+            # but why is the denominator n and not (n-1)????
+        end
         mj = n*((n-1)*sigmasq/(n^2)+gamma)^2/(sigmasq^2)
         stddev = sqrt(sigmasq)
-        stderr = stddev/sqrt(n-1)
-        stderrerr = stderr*1/sqrt(2*(n-1))
+        if typos == nothing || typos == :FP
+            stderr = stddev/sqrt(n-1) # [F&P] Eq. (28)
+        else
+            stderr = stddev/sqrt(n) # [Jonsson] Fig. 2
+        end
+        stderrerr = stderr*1/sqrt(2*(n-1)) # [F&P] Eq. (28)
         v = blocker(v)
         #println(n, mean, stddev, stderr)
         push!(df,(n, mean, stddev, stderr, stderrerr, gamma, mj))
@@ -110,7 +132,8 @@ end
 
 
 """
-perform a blocking analysis for two data sets
+    blocking(x::Vector,y::Vector) -> df
+Perform a blocking analysis for the quotient of means `x̄/ȳ` from two data sets.
 """
 function blocking(vi::Vector,vj::Vector)
     df = DataFrame(blocks=Int[], mean_i=Float64[], SD_i=Float64[], SE_i=Float64[], SE_SE_i=Float64[],
@@ -182,12 +205,16 @@ function blockingErrorEstimation(df::DataFrame)
 end
 
 """
+    mtest(df::DataFrame; warn = true) -> k
 The "M test" based on Jonsson, M. Physical Review E, 98(4), 043304, (2018).
-If the blocking analysis (BA) has passed the M test, an error estimation will be
-given based on the smallest k (i.e. meaningful results at the k-th data point
-on a BA plot).
+Expects `df` to be output of a blocking analysis with column `df.M` containing
+relevant M_j values, which are compared to a χ^2 distribution.
+Returns the row number `k` where the M-test is passed.
+If the M-test has failed `mtest()` returns the value `-1` and optionally prints
+a warning message.
 """
-function mtest(df::DataFrame)
+function mtest(df::DataFrame; warn = true)
+    # the χ^2 99 percentiles
     q = [6.634897,  9.210340,  11.344867, 13.276704, 15.086272,
         16.811894, 18.475307, 20.090235, 21.665994, 23.209251,
         24.724970, 26.216967, 27.688250, 29.141238, 30.577914,
@@ -200,18 +227,133 @@ function mtest(df::DataFrame)
     k = 1
     while k <= length(M)-1
        if M[k] < q[k]
-           stder = round(df.std_err[k],digits=5)
-           stderer = round(df.std_err_err[k],digits=5)
-           println("\x1b[32mM test passed, the smallest k is $k\x1b[0m")
-           println("\x1b[32mStandard error estimation: $stder ± $stderer\x1b[0m")
+           # if info
+           #     stder = round(df.std_err[k],digits=3)
+           #     stderer = round(df.std_err_err[k],digits=3)
+           #     println("\x1b[32mM test passed, the smallest k is $k\x1b[0m")
+           #     println("\x1b[32mStandard error estimation: $stder ± $stderer\x1b[0m")
+           # end
            return k
        else
            k += 1
        end
     end
-    if k > length(M)-1
-        println("\x1b[32mM test failed, more data needed\x1b[0m")
+    if info
+        @warn "M test failed, more data needed"
     end
+    return -1 # indicating the the M-test has failed
+end
+
+# using Statistics, StatsBase
+#
+# function mm(x::Vector, x̄)
+#     n = length(x)
+#     σ2 = varm(x,x̄, corrected = false)
+#     γ = cov(x[1:n-1],x[2:n], corrected = false)
+#     m = n * ((n - 1) * σ2 + γ)^2 / σ2
+#     return m
+# end
+#
+# """
+#     autoblock(x,y)
+# Perform automated blocking analysis for `x̄/ȳ`.
+# """
+# function block2(x::Vector,y::Vector)
+#     n = length(x)
+#     @assert length(y)==n "Vectors do not have the same length"
+#     ms = Vector{Float64}(undef,trunc(Int,log2(n)))
+#     blocking_step = 1
+#     while n ≥ 2
+#         x̄ = mean(x)
+#         ȳ = mean(y)
+#         f̄ = x̄/ȳ
+#         σ2x = varm(x,x̄, corrected = false)
+#         γx = cov(x[1:n-1],x[2:n], corrected = false)
+#         mx = mm(x, x̄)
+#         my = mm(y, ȳ)
+#         sef = combination_division(x,y)
+#         x = blocker(x)
+#         y = blocker(y)
+#         n = length(x)
+#         blocking_step += 1
+#     end
+# end
+
+"""
+    v̄, σ, σσ, k, df = blockAndMTest(v::Vector)
+Perform a blocking analysis and M-test on `v` returning the mean `v̄`,
+standard error `σ`, its error `σσ`, the number of blocking steps `k`, and
+the `DataFrame` `df` with blocking data.
+"""
+function blockAndMTest(v::Vector)
+    df = blocking(v)
+    k = mtest(df, warn=false)
+    v̄ = df.mean[1]
+    if k>0
+        σ = df.std_err[k]
+        σσ = df.std_err_err[k]
+    else
+        @warn "M test failed, more data needed"
+        σ = maximum(df.std_err)
+        σσ = maximum(df.std_err_err)
+    end
+    return v̄, σ, σσ, k, df
+end
+
+function blockTestShiftAndProjected(df::DataFrame; start = 1, stop = size(df)[1])
+    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop])
+    v̄, σv, σσv, kv, dfv = blockAndMTest(df.vproj[start:stop])
+    h̄, σh, σσh, kh, dfh = blockAndMTest(df.hproj[start:stop])
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop])
+    k = max(ks, kv, kh)
+    @show ks, kv, kh
+    ks==kv==kh || @warn "k values are not the same."
+    return s̄, σs, dfp.mean_f[1], dfp.SE_f[k], ks, kv, kh
+end
+
+"""
+    autoblock(df::DataFrame; start = 1, stop = size(df)[1])
+    -> s̄, σs, ē, σe, k
+Determine mean shift `s̄` and projected energy `ē` with respective standard
+errors `σs` and `σe` by blocking analsis from the `DataFrame` `df` returned
+from `fciqmc!()`. The number `k` of blocking
+steps and decorrelation time `2^k` are obtained from the M-test for the
+shift and also applied to the projected energy, assuming that the projected
+quantities decorrelate on the same time scale. Returns a named tuple.
+"""
+function autoblock(df::DataFrame; start = 1, stop = size(df)[1])
+    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop]) # shift
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop]) # projected
+    return (s̄ = s̄, σs = σs, ē = dfp.mean_f[1], σe = dfp.SE_f[ks], k = ks)
+end
+
+# version for replica run
+"""
+    autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1])
+    -> s̄1, σs1, s̄2, σs2, ē1, σe1, ē2, σe2, ēH, σeH, k
+Replica version. `dftup` is the tuple of `DataFrame`s returned from replica
+`fciqmc!()`. Returns a named tuple with shifts and three variational energy
+estimators and respective errors obtained from blocking analysis. The larger
+of the `k` values from M-tests on the two shift time series is used.
+"""
+function autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1])
+    (df_mix, (df_1, df_2)) = dftup # unpack the three DataFrames
+    s̄1, σs1, σσs1, ks1, dfs1 = blockAndMTest(df1.shift[start:stop]) # shift 1
+    s̄2, σs2, σσs2, ks2, dfs2 = blockAndMTest(df2.shift[start:stop]) # shift 2
+    xdy = df_mix.xdy[start:stop]
+    s1_xdy = dfs1.shift[start:stop].*xdy
+    s2_xdy = dfs2.shift[start:stop].*xdy
+    xHy = df_mix.xHy[start:stop]
+    df_var_1 = blocking(s1_xdy, xdy)
+    df_var_2 = blocking(s2_xdy, xdy)
+    df_var_H = blocking(xHy, xdy)
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop])
+    ks = max(ks1, ks2)
+    return (s̄1=s̄1, σs1=σs1, s̄2=s̄2, σs2=σs2,
+        ē1 = df_var_1.mean_f[1], σe1 = df_var_1.SE_f[ks],
+        ē2 = df_var_2.mean_f[1], σe2 = df_var_2.SE_f[ks],
+        ēH = df_var_H.mean_f[1], σeH = df_var_H.SE_f[ks], k = ks)
+
 end
 
 end # module Blocking

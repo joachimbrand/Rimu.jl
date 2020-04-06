@@ -7,6 +7,41 @@ using LinearAlgebra
     @test 3==3
 end
 
+using Statistics
+@testset "Blocking.jl" begin
+n=10
+a = rand(n)
+m = mean(a)
+@test m == sum(a)/n
+myvar(a,m) = sum((a .- m).^2)/n
+@test var(a) == sum((a .- m).^2)/(n-1)
+@test var(a, corrected=false) == sum((a .- m).^2)/n == myvar(a,m)
+@test var(a, corrected=false) == var(a, corrected=false, mean = m)
+# @benchmark myvar($a, $m)
+# @benchmark var($a, corrected=false, mean = $m)
+# evaluating the above shows that the library function is faster and avoids
+# memory allocations completely
+
+# Define the initial Fock state with n particles and m modes
+n = m = 9
+aIni = nearUniform(BoseFS{n,m})
+ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+pa = RunTillLastStep(laststep = 1000)
+
+# standard fciqmc
+s = DoubleLogUpdate(targetwalkers = 100)
+svec = DVec(Dict(aIni => 2), ham(:dim))
+StochasticStyle(svec)
+vs = copy(svec)
+r_strat = EveryTimeStep(projector = copy(svec))
+τ_strat = ConstantTimeStep()
+
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+@time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+r = autoblock(rdfs, start=101)
+@test reduce(&, Tuple(r).≈(-5.956879167047395, 0.20131107806609871,  -5.156115604590991, 0.18436001934822677, 4))
+end
+
 using Rimu.BitStringAddresses
 import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
 @testset "BitStringAddresses.jl" begin
