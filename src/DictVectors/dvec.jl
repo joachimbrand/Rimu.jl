@@ -127,6 +127,15 @@ function Base.setindex!(dv::DVec{K,V}, v::V, key::K) where K where V
     return dv
 end
 
+function Base.setindex!(dv::DVec{K,V}, v::V, key::K) where {K, V<:AbstractFloat}
+    if abs(v) ≤ eps(V)
+        delete!(dv, key)
+    else
+        setindex!(dv.d, v, key)
+    end
+    return dv
+end
+
 # should be much faster than generic version from AbstractDVec
 function LinearAlgebra.rmul!(w::DVec, α::Number)
     rmul!(w.d.vals,α)
