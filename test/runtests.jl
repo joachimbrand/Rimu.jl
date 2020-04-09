@@ -395,7 +395,7 @@ seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p)
 @test sum(rdfs[:,:norm]) ≈ 7549.69670850616
-
+@test sum(rdfs.shiftnoise) ≈ 0.6218326086181127
 # DeltaMemory2
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()

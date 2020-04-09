@@ -38,18 +38,19 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
                         shiftMode=Bool[],len=Int[], norm=Float64[],
                         vproj=typeof(v_proj)[], hproj=typeof(h_proj)[],
                         spawns=Int[], deaths=Int[], clones=Int[],
-                        antiparticles=Int[], annihilations=Int[])
+                        antiparticles=Int[], annihilations=Int[],
+                        shiftnoise=Float64[])
     # Note the row structure defined here (currently 13 columns)
     # When changing the structure of `df`, it has to be changed in all places
     # where data is pushed into `df`.
     @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
                             :vproj, :hproj,
                             :spawns, :deaths, :clones, :antiparticles,
-                            :annihilations
+                            :annihilations, :shiftnoise
                          ] "Column names in `df` not as expected."
     # Push first row of df to show starting point
     push!(df, (step, dτ, shift, shiftMode, len, nor, v_proj, h_proj,
-                0, 0, 0, 0, 0))
+                0, 0, 0, 0, 0, 0.0))
     # println("DataFrame is set up")
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
@@ -79,7 +80,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
     @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
                             :vproj, :hproj,
                             :spawns, :deaths, :clones, :antiparticles,
-                            :annihilations
+                            :annihilations, :shiftnoise
                          ] "Column names in `df` not as expected."
 
     svec = v # keep around a reference to the starting data container
@@ -91,7 +92,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         step += 1
         # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
-        v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, pnorm, w;
+        v, w, step_stats, r = fciqmc_step!(ham, v, shift, dτ, pnorm, w;
                                         m_strat=m_strat)
         tnorm = norm_project!(v, p_strat)  # MPIsync
         # project coefficients of `w` to threshold
@@ -110,7 +111,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         len = length(v) # MPI sycncronising: total number of configs
         # record results according to ReportingStrategy r_strat
         report!(df, (step, dτ, shift, shiftMode, len, tnorm, v_proj, h_proj,
-                        step_stats...), r_strat)
+                        step_stats..., r), r_strat)
         # DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
         #                 step_stats...))
         # housekeeping: avoid overflow of dvecs
@@ -162,11 +163,11 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
     dfs = Tuple(DataFrame(steps=Int[], shift=Float64[], shiftMode=Bool[],
                          len=Int[], norm=Float64[], spawns=V[], deaths=V[],
                          clones=V[], antiparticles=V[],
-                         annihilations=V[]) for i in 1:N)
+                         annihilations=V[], shiftnoise=Float64[]) for i in 1:N)
     # dfs is thus an NTuple of DataFrames
     for i in 1:N
         push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vv[i]),
-                      pnorms[i], 0, 0, 0, 0, 0))
+                      pnorms[i], 0, 0, 0, 0, 0, 0.0))
     end
 
     # prepare `DataFrame` for variational ground state estimator
@@ -180,11 +181,12 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
 
     norms = zeros(N)
     mstats = [zeros(Int,5) for i=1:N]
+    rs = zeros(N)
     while step < laststep
         step += 1
         for (i, v) in enumerate(vv) # loop over replicas
             # perform one complete stochastic vector matrix multiplication
-            vv[i], wv[i], stats = fciqmc_step!(ham, v, shifts[i], dτ, pnorms[i],
+            vv[i], wv[i], stats, rs[i] = fciqmc_step!(ham, v, shifts[i], dτ, pnorms[i],
                                         wv[i]; m_strat = m_strat)
             mstats[i] .= stats
             norms[i] = norm_project!(vv[i], p_strat)  # MPIsync
@@ -200,7 +202,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
         # record results
         for i = 1:N
             push!(dfs[i], (step, shifts[i], vShiftModes[i], lengths[i],
-                  norms[i], mstats[i]...))
+                  norms[i], mstats[i]..., rs[i]))
         end
         v1Dv2 = vv[1]⋅vv[2] # <v_1 | v_2> overlap
         v2Dhv2 =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
@@ -261,10 +263,10 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         stats .+= res # just add all stats together
     end
-    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
+    r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     # norm_project!(w, p_strat) # project coefficients of `w` to threshold
     # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
-    return w, v, stats
+    return w, v, stats, r
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
@@ -285,8 +287,8 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
             fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
         end
     end # all threads have returned; now running on single thread again
-    applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
-    return sort_into_targets!(dv, ws, statss) # MPI syncronizing
+    r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
+    return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
     # dv, w, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
@@ -302,11 +304,11 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, pnorm, w::D;
         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         stats .+= res # just add all stats together
     end
-    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
+    r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
     sort_into_targets!(dv, w)
     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
-    return dv, w, stats
+    return dv, w, stats, r
     # returns the structure with the correctly distributed end
     # result `dv` and cumulative `stats` as an array on all ranks
     # stats == (spawns, deaths, clones, antiparticles, annihilations)
