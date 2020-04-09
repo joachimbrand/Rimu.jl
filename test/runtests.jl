@@ -432,6 +432,7 @@ p_strat = NoProjection() #ScaledThresholdProject(1.0)
 v2=DVec(Dict(aIni => 2))
 StochasticStyle(v2) # IsStochastic() is not suitable for DeltaMemory()
 @test_throws ErrorException Rimu.applyMemoryNoise!(v2, v2, 0.0, 0.1, 20, DeltaMemory(3))
+@test 0 == Rimu.applyMemoryNoise!(svec, copy(svec), 0.0, 0.1, 20, DeltaMemory(3))
 end
 
 @testset "dfvec.jl" begin

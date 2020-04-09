@@ -352,13 +352,14 @@ function norm_project!(s::S, w, p::ScaledThresholdProject) where S<:Union{IsStoc
 end
 
 """
-    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat::MemoryStrategy)
-Apply memory noise to `w` according to the strategy `m_strat`. Note that the
-strategy needs to be compatible with `StochasticStyle(w)`. The default is to
-not add memory noise. See [`MemoryStrategy`](@ref).
+    r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat::MemoryStrategy)
+Apply memory noise to `w`, i.e. `w .+= r.*v`, computing the noise `r` according
+to `m_strat`. Note that `m_strat`
+needs to be compatible with `StochasticStyle(w)`. Otherwise, an
+error exception is thrown. See [`MemoryStrategy`](@ref).
 
 `w` is the walker array after fciqmc step, `v` the previous one, `pnorm` the
-norm of `v`.
+norm of `v`, and `r` the instantaneously applied noise.
 """
 function applyMemoryNoise!(w::Union{AbstractArray,AbstractDVec}, args...)
     applyMemoryNoise!(StochasticStyle(w), w, args...)
@@ -369,13 +370,13 @@ function applyMemoryNoise!(ws::NTuple{NT,W}, args...) where {NT,W}
 end
 
 function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::NoMemory)
-    return w # does nothing
+    return 0.0 # does nothing
 end
 
 function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::MemoryStrategy)
     throw(ErrorException("MemoryStrategy `$(typeof(m))` does not work with StochasticStyle `$(typeof(s))`. Ignoring memory noise for now."))
     # @error "MemoryStrategy `$(typeof(m))` does not work with StochasticStyle `$(typeof(s))`. Ignoring memory noise for now." maxlog=2
-    return w # default prints an error message
+    return 0.0 # default prints an error message
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -392,7 +393,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
-    return w
+    return dτ*r
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -409,7 +410,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
-    return w
+    return dτ*r
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -422,7 +423,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
-    return w
+    return dτ*r
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -443,7 +444,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     axpy!(r, v, w) # w .+= r .* v
     # TODO: make this work with multithreading
     m.pp = tp + r*pp # update previous projection
-    return w
+    return r
 end
 
 # to do: implement parallel version
