@@ -276,6 +276,14 @@ function sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {N
     MPI.Allreduce!(stats, +, dtarget.comm) # add stats from all MPI ranks
     return dtarget, ws, stats
 end
+function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
+    # single threaded MPI version
+    # should only ever run on thread 1
+    # @assert Threads.threadid() == 1 "`sort_into_targets!()` is running on `threadid()` == $(Threads.threadid()) instead of 1!"
+    sort_into_targets!(dtarget,w) # combine walkers from different MPI ranks
+    MPI.Allreduce!(stats, +, dtarget.comm) # add stats from all MPI ranks
+    return dtarget, ws, stats
+end
 
 # four-argument version
 function sort_into_targets!(target, source, ::Type{P}, s::MPINoWalkerExchange) where P

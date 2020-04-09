@@ -26,7 +26,7 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = threaded_working_memory(svec); kwargs...)
+                 w = threadedWorkingMemory(svec); kwargs...)
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
@@ -68,7 +68,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = threaded_working_memory(v)
+                 w = threadedWorkingMemory(v)
                  ; m_strat::MemoryStrategy = NoMemory(),
                  p_strat::ProjectStrategy = NoProjection()
                  )
@@ -101,7 +101,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
                                     shift, shiftMode,
-                                    tnorm, pnorm, dτ, step, df)
+                                    tnorm, pnorm, dτ, step, df, v, w)
         # the updated "previous" norm pnorm is returned from `update_shift()`
         # in order to allow delaying the update, e.g. with `DelayedLogUpdate`
         # pnorm = tnorm # remember norm of this step for next step (previous norm)
@@ -138,7 +138,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 wv = threaded_working_memory.(vv) # wv = similar.(localpart.(vv))
+                 wv = threadedWorkingMemory.(vv) # wv = similar.(localpart.(vv))
                  ; m_strat::MemoryStrategy = NoMemory(),
                  p_strat::ProjectStrategy = NoProjection())
     # τ_strat is currently ignored in the replica version
@@ -190,7 +190,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
             norms[i] = norm_project!(vv[i], p_strat)  # MPIsync
             shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                 s_strat, shifts[i], vShiftModes[i],
-                norms[i], pnorms[i], dτ, step, dfs[i]
+                norms[i], pnorms[i], dτ, step, dfs[i], vv[i], wv[i]
             )
         end #loop over replicas
         lengths = length.(vv)
@@ -324,6 +324,7 @@ norm_project!(w, p) = norm_project!(StochasticStyle(w), w, p)
 
 norm_project!(::StochasticStyle, w, p) = norm(w, 1) # MPIsync
 # default, compute 1-norm
+# e.g. triggered with the `NoProjection` strategy
 
 function norm_project!(s::S, w, p::ThresholdProject) where S<:Union{IsStochasticWithThreshold}
     return norm_project_threshold!(w, p.threshold) # MPIsync
@@ -367,13 +368,14 @@ function applyMemoryNoise!(ws::NTuple{NT,W}, args...) where {NT,W}
     applyMemoryNoise!(StochasticStyle(W), ws, args...)
 end
 
-function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::MemoryStrategy)
-    return w # default does nothing
+function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::NoMemory)
+    return w # does nothing
 end
 
-function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::DeltaMemory)
-    @warn "`DeltaMemory` was selected. It does not work with `$(typeof(s))` but requires `IsStochasticWithThreshold`. Ignoring memory noise for now." maxlog=10
-    return w # default does nothing
+function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::MemoryStrategy)
+    throw(ErrorException("MemoryStrategy `$(typeof(m))` does not work with StochasticStyle `$(typeof(s))`. Ignoring memory noise for now."))
+    # @error "MemoryStrategy `$(typeof(m))` does not work with StochasticStyle `$(typeof(s))`. Ignoring memory noise for now." maxlog=2
+    return w # default prints an error message
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -420,6 +422,27 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
+    return w
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ProjectedMemory)
+    tp = m.projector⋅w # w  may be a tuple for multithreading
+    # TODO: make this work with multithreading and MPI
+
+    # current projection of `w` after FCIQMC step
+    pp  = m.pp
+    # projection of `v`, i.e. before FCIQMC step
+    # compute memory noise
+    r̃ = (pp - tp)/pp + shift*dτ
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+    # apply `r` noise to current state vector
+    axpy!(r, v, w) # w .+= r .* v
+    # TODO: make this work with multithreading
+    m.pp = tp + r*pp # update previous projection
     return w
 end
 
@@ -754,16 +777,16 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
         add, val::N, shift, dτ) where N <: Real
 
     # diagonal death or clone: deterministic fomula
-    w[add] += (1 + dτ*(shift - diagME(ham,add)))*val
+    # w[add] += (1 + dτ*(shift - diagME(ham,add)))*val
     # projection to threshold should be applied after all colums are evaluated
-
-    # # apply threshold if necessary
-    # if new_val < s.threshold
-    #     # project stochastically to threshold
-    #     w[add] = (new_val/s.threshold > cRand()) ? s.threshold : 0
-    # else
-    #     w[add] = new_val
-    # end
+    new_val = (1 + dτ*(shift - diagME(ham,add)))*val
+    # apply threshold if necessary
+    if new_val < s.threshold
+        # project stochastically to threshold
+        w[add] += (new_val/s.threshold > cRand()) ? s.threshold : 0
+    else
+        w[add] += new_val
+    end
 
     # off-diagonal: spawning psips stochastically
     # only integers are spawned!!

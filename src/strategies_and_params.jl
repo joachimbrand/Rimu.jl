@@ -247,6 +247,34 @@ end
 ShiftMemory(Δ::Int) = ShiftMemory(Δ, DataStructures.CircularBuffer{Float64}(Δ))
 
 """
+    ProjectedMemory(Δ::Int, projector, pp::Number) <: MemoryStrategy
+    ProjectedMemory(Δ::Int, projector, v::AbstractDVec)
+Before updating the shift, apply memory noise to minimize the fluctuations
+of the overlap of the coefficient vector with `projector`.
+Averaging over `Δ` time steps is applied, where `Δ = 1` means no memory noise
+is applied. Use `pp` to initialise the value of the projection or pass `v` in
+order to initialise the projection with `pp = projector.v`.
+```
+r̃ = (projector⋅w - projector⋅v)/(dτ*projector⋅v) + shift
+r = r̃ - <r̃>
+```
+where `v` is the coefficient vector before and `w` after applying a regular
+FCIQMC step.
+"""
+mutable struct ProjectedMemory{D} <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pp::Float64 # previous projection
+    projector::D # projector
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ProjectedMemory(Δ::Int, projector, pp::Number) = ProjectedMemory(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory(Δ::Int, projector, v::AbstractDVec)
+    pp = projector⋅v
+    ProjectedMemory(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+end
+
+
+"""
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:
 
@@ -308,6 +336,22 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
     targetwalkers::Int
     ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
     ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+end
+
+"""
+    DoubleLogProjected(target, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ` and `ξ` after projecting onto `projector`.
+
+```math
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
+```
+"""
+@with_kw struct DoubleLogProjected{P} <: ShiftStrategy
+    target::Float64
+    projector::P
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.08
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
 end
 
 # """
@@ -402,12 +446,12 @@ function HistoryLogUpdate(df::DataFrame; d = 100, k = 1, ζ= 0.3)
 end
 
 """
-    update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df)
+    update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df, v_new, v_old)
 Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
 """
 @inline function update_shift(s::HistoryLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, step, df, args...)
     prev_n_w = s.n_w # previous sum of walker numbers
     # compute sum of walker numbers from history
     s.n_w = sum([df[end-i*s.d, :norm] for i in 0:(s.k-1)])
@@ -418,21 +462,30 @@ end
 
 @inline function update_shift(s::LogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, args...)
     # return new shift and new shiftMode
     return shift - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
 
 @inline function update_shift(s::DoubleLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, args...)
     # return new shift and new shiftMode
     return shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
 
+@inline function update_shift(s::DoubleLogProjected,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, v_new, v_old)
+    # return new shift and new shiftMode
+    tp = s.projector⋅v_new
+    pp = s.projector⋅v_old
+    return shift - s.ζ/dτ * log(tp/pp) - s.ξ/dτ * log(tp/s.target) , true, tnorm
+end
+
 @inline function update_shift(s::DelayedLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, step, df, args...)
     # return new shift and new shiftMode
     if step % s.a == 0 && size(df,1) > s.a
         prevnorm = df[end-s.a+1,:norm]
