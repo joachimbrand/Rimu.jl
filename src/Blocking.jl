@@ -238,7 +238,7 @@ function mtest(df::DataFrame; warn = true)
            k += 1
        end
     end
-    if info
+    if warn
         @warn "M test failed, more data needed"
     end
     return -1 # indicating the the M-test has failed
