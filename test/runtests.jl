@@ -394,14 +394,14 @@ vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p)
-@test sum(rdfs[:,:norm]) ≈ 7517.967201522948
+@test sum(rdfs[:,:norm]) ≈ 7549.69670850616
 
 # DeltaMemory2
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), p_strat = p)
-@test sum(rdfs[:,:norm]) ≈ 7741.941976381574
+@test sum(rdfs[:,:norm]) ≈ 7719.272428893569
 
 # ScaledThresholdProject
 vs = copy(svec)
@@ -418,7 +418,7 @@ pa = RunTillLastStep(laststep = 100)
 p_strat = NoProjection() # ScaledThresholdProject(1.0)
 m_strat = Rimu.ProjectedMemory(10,UniformProjector(), vs)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = m_strat, p_strat = p_strat)
-@test sum(rdfs[:,:norm]) ≈ 7533.354766387553
+@test sum(rdfs[:,:norm]) ≈ 7478.177622204821
 
 # ShiftMemory
 vs = copy(svec)
@@ -426,7 +426,7 @@ seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
 p_strat = NoProjection() #ScaledThresholdProject(1.0)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10), p_strat = p_strat)
-@test sum(rdfs[:,:norm]) ≈ 7868.300757047945
+@test sum(rdfs[:,:norm]) ≈ 7785.909118143251
 
 # applyMemoryNoise
 v2=DVec(Dict(aIni => 2))
