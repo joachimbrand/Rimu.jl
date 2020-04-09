@@ -449,6 +449,79 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     return r
 end
 
+# This one works to remove the bias when projection is done with exact
+# eigenvector
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ProjectedMemory2)
+    tp = m.projector⋅w # w  may be a tuple for multithreading
+    # TODO: make this work with multithreading and MPI
+    # current projection of `w` after FCIQMC step
+
+    pp  = m.projector⋅v
+    # projection of `v`, i.e. before FCIQMC step
+    # compute memory noise
+    r̃ = (pp - tp)/pp + shift*dτ
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+    # apply `r` noise to current state vector
+    axpy!(r, v, w) # w .+= r .* v
+    # TODO: make this work with multithreading
+    m.pp = tp + r*pp # update previous projection
+    return r
+end
+
+# seems to not be effective
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ProjectedMemory3)
+    tp = m.projector⋅w # w  may be a tuple for multithreading
+    # TODO: make this work with multithreading and MPI
+    # current projection of `w` after FCIQMC step
+
+    pp  = m.projector⋅v
+    # projection of `v`, i.e. before FCIQMC step
+    # compute memory noise
+    r̃ = (pp - tp) + shift*dτ*pp
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+    if true # abs(pp) > 0.01
+        r = r/pp
+        # apply `r` noise to current state vector
+        axpy!(r, v, w) # w .+= r .* v
+        # TODO: make this work with multithreading
+        m.pp = tp + r*pp # update previous projection
+    else
+        r = 0.0
+        m.pp = tp
+    end
+    return r
+end
+
+# this one does not work well - no bias correction achieved
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ProjectedMemory4)
+    tp = m.projector⋅w # w  may be a tuple for multithreading
+    # TODO: make this work with multithreading and MPI
+    # current projection of `w` after FCIQMC step
+
+    pp  = m.projector⋅v
+    # projection of `v`, i.e. before FCIQMC step
+    # compute memory noise
+    r̃ = (pp - tp) + shift*dτ*pp
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+    sf = 0.2
+    r = sf*tanh(r/pp/sf)
+    # apply `r` noise to current state vector
+    axpy!(r, v, w) # w .+= r .* v
+    # TODO: make this work with multithreading
+    m.pp = tp + r*pp # update previous projection
+    return r
+end
+
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
 #   check that v and w are compatible
@@ -809,7 +882,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
             # perform spawn (if nonzero): add walkers with correct sign
         end
     end
-    # deal with non-integer remainder: atempt to spawn
+    # deal with non-integer remainder: attempt to spawn
     rval =  abs(val%1) # non-integer part reduces probability for spawning
     naddress, pgen, matelem = generateRandHop(hops)
     pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64

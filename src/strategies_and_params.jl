@@ -273,6 +273,41 @@ function ProjectedMemory(Δ::Int, projector, v::AbstractDVec)
     ProjectedMemory(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
 end
 
+mutable struct ProjectedMemory2{D} <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pp::Float64 # previous projection
+    projector::D # projector
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ProjectedMemory2(Δ::Int, projector, pp::Number) = ProjectedMemory2(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory2(Δ::Int, projector, v::AbstractDVec)
+    pp = projector⋅v
+    ProjectedMemory2(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+end
+
+mutable struct ProjectedMemory3{D} <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pp::Float64 # previous projection
+    projector::D # projector
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ProjectedMemory3(Δ::Int, projector, pp::Number) = ProjectedMemory3(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory3(Δ::Int, projector, v::AbstractDVec)
+    pp = projector⋅v
+    ProjectedMemory3(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+end
+mutable struct ProjectedMemory4{D} <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pp::Float64 # previous projection
+    projector::D # projector
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ProjectedMemory4(Δ::Int, projector, pp::Number) = ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory4(Δ::Int, projector, v::AbstractDVec)
+    pp = projector⋅v
+    ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+end
+
 
 """
 Abstract type for defining the strategy for updating the `shift` with
