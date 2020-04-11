@@ -529,6 +529,25 @@ end
     # @benchmark DictVectors.myspawndot(svec2, ws) # 651.476 μs
 end
 
+@testset "lomc!" begin
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    svec = DVec(Dict(aIni => 2), 2000)
+
+    # fciqmc with default parameters
+    nt = lomc!(ham, svec, laststep = 100) # run for 100 time steps
+    # continuation run
+    nt = lomc!(nt, nt.params.laststep + 100) # run for another 100 steps
+    @test size(nt.df)[1] == 201 # initial state + 200 steps
+
+    # fciqmc with deterministic outcome by seeding the rng and turning off multithreading
+    svec = DVec(Dict(aIni => 2), 2000)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    nt = lomc!(ham, svec, laststep = 100, threading = false) # run for 100 time steps
+    @test sum(nt.df.spawns) == 14760 #3580
+end
 
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,

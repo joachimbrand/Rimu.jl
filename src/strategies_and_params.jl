@@ -23,7 +23,7 @@ abstract type FciqmcRunStrategy end
 
 """
     RunTillLastStep(step::Int = 0 # number of current/starting timestep
-                 laststep::Int = 50 # number of final timestep
+                 laststep::Int = 100 # number of final timestep
                  shiftMode::Bool = false # whether to adjust shift
                  shift::Float64 = 0.0 # starting/current value of shift
                  dτ::Float64 = 0.01 # current value of time step
@@ -33,7 +33,7 @@ For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 """
 @with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
     step::Int = 0 # number of current/starting timestep
-    laststep::Int = 50 # number of final timestep
+    laststep::Int = 100 # number of final timestep
     shiftMode::Bool = false # whether to adjust shift
     shift::Float64 = 0.0 # starting/current value of shift
     dτ::Float64 = 0.01 # time step
@@ -359,19 +359,22 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 end
 
 """
-    DoubleLogUpdate(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    DoubleLogUpdate(;targetwalkers = 1000, ζ = 0.3, ξ = ζ^2/4) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ`.
 
 ```math
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
 ```
+When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
+T = 2/ζ.
 """
-@with_kw struct DoubleLogUpdate <: ShiftStrategy
+struct DoubleLogUpdate <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    ζ::Float64 # damping parameter, best left at value of 0.08
+    ξ::Float64  # restoring force to bring walker number to the target
 end
+DoubleLogUpdate(;targetwalkers = 1000,  ζ = 0.3, ξ = ζ^2/4) = DoubleLogUpdate(targetwalkers, ζ, ξ)
 
 """
     DoubleLogProjected(target, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
