@@ -313,12 +313,16 @@ end
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:
 
-   * [`DontUpdate`](@ref)
-   * [`LogUpdate`](@ref)
-   * [`DelayedLogUpdate`](@ref)
-   * [`LogUpdateAfterTargetWalkers`](@ref)
-   * [`DelayedLogUpdateAfterTargetWalkers`](@ref)
-   * [`HistoryLogUpdate`](@ref)
+* [`DoubleLogUpdate`](@ref) - default in [`lomc!()`](@ref)
+* [`DontUpdate`](@ref)
+* [`LogUpdate`](@ref)
+* [`DelayedLogUpdate`](@ref)
+* [`LogUpdateAfterTargetWalkers`](@ref) - FCIQMC standard
+* [`DelayedLogUpdateAfterTargetWalkers`](@ref)
+* [`DoubleLogUpdateAfterTargetWalkers`](@ref)
+* [`DoubleLogUpdateAfterTargetWalkersSwitch`](@ref)
+* [`HistoryLogUpdate`](@ref)
+* [`DoubleLogProjected`](@ref)
 """
 abstract type ShiftStrategy end
 
