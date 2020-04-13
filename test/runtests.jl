@@ -7,6 +7,41 @@ using LinearAlgebra
     @test 3==3
 end
 
+using Statistics
+@testset "Blocking.jl" begin
+n=10
+a = rand(n)
+m = mean(a)
+@test m == sum(a)/n
+myvar(a,m) = sum((a .- m).^2)/n
+@test var(a) == sum((a .- m).^2)/(n-1)
+@test var(a, corrected=false) == sum((a .- m).^2)/n == myvar(a,m)
+@test var(a, corrected=false) == var(a, corrected=false, mean = m)
+# @benchmark myvar($a, $m)
+# @benchmark var($a, corrected=false, mean = $m)
+# evaluating the above shows that the library function is faster and avoids
+# memory allocations completely
+
+# Define the initial Fock state with n particles and m modes
+n = m = 9
+aIni = nearUniform(BoseFS{n,m})
+ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+pa = RunTillLastStep(laststep = 1000)
+
+# standard fciqmc
+s = DoubleLogUpdate(targetwalkers = 100)
+svec = DVec(Dict(aIni => 2), ham(:dim))
+StochasticStyle(svec)
+vs = copy(svec)
+r_strat = EveryTimeStep(projector = copy(svec))
+τ_strat = ConstantTimeStep()
+
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+@time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+r = autoblock(rdfs, start=101)
+@test reduce(&, Tuple(r).≈(-5.956879167047395, 0.20131107806609871,  -5.156115604590991, 0.18436001934822677, 4))
+end
+
 using Rimu.BitStringAddresses
 import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
 @testset "BitStringAddresses.jl" begin
@@ -220,14 +255,17 @@ end
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
 
     pa = RunTillLastStep(laststep = 100)
-    r_strat = EveryTimeStep()
-    τ_strat = ConstantTimeStep()
 
     # standard fciqmc
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     svec = DVec(Dict(aIni => 2), ham(:dim))
     StochasticStyle(svec)
     vs = copy(svec)
+
+    r_strat = EveryTimeStep(projector = UniformProjector())
+    # r_strat = EveryTimeStep(projector = copy(svec))
+    τ_strat = ConstantTimeStep()
+
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     @test sum(rdfs[:,:spawns]) == 1725
@@ -272,6 +310,8 @@ end
     svec = DVec(Dict(aIni => 20), 8*tw)
     StochasticStyle(svec)
     vs = copy(svec)
+    r_strat = EveryTimeStep(projector = copy(svec))
+
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
@@ -294,7 +334,7 @@ end
 
     # run 100 steps with multi
     pa.laststep = 200
-    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
         @test sum(rdfs[:,:spawns]) == 88269 # test assuming nthreads() == 1
     end
@@ -305,11 +345,13 @@ end
     svec = DVec(Dict(aIni => 20), 8*tw)
     StochasticStyle(svec)
     vs = copy(svec)
+    r_strat = EveryTimeStep(projector = copy(svec))
+
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 1, shift = iShift, dτ = 0.001)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, ws)
     pa.laststep = 100
-    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, EveryTimeStep(),ConstantTimeStep(), ws)
+    @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
         @test sum(rdfs[:,:spawns]) == 39106 # test assuming nthreads() == 1
     end
@@ -320,51 +362,77 @@ end
 n = m = 9
 aIni = nearUniform(BoseFS{n,m})
 ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-pa = RunTillLastStep(laststep = 100)
-p = ThresholdProject(1.0)
+p = NoProjection() # ThresholdProject(1.0)
 
-# standard fciqmc
+# IsStochasticWithThreshold
 s = DoubleLogUpdate(targetwalkers = 100)
 svec = DVec(Dict(aIni => 2.0), ham(:dim))
 Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
 StochasticStyle(svec)
 vs = copy(svec)
+pa = RunTillLastStep(laststep = 100)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), p_strat = p)
-@test sum(rdfs[:,:norm]) ≈ 7638.362052272057
+@test sum(rdfs[:,:norm]) ≈ 7658.142200557433
 
+# NoMemory
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = NoMemory(), p_strat = p)
-@test sum(rdfs[:,:norm]) ≈ 7638.362052272057
+@test sum(rdfs[:,:norm]) ≈ 7658.142200557433
 
+# DeltaMemory
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(1), p_strat = p)
+@test sum(rdfs[:,:norm]) ≈ 7658.142200557433
+
+# DeltaMemory
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p)
-@test sum(rdfs[:,:norm]) ≈ 7536.675175482031
-
+@test sum(rdfs[:,:norm]) ≈ 7549.69670850616
+@test sum(rdfs.shiftnoise) ≈ 0.6218326086181127
+# DeltaMemory2
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), p_strat = p)
-@test sum(rdfs[:,:norm]) ≈ 7705.509954395163
+@test sum(rdfs[:,:norm]) ≈ 7719.272428893569
 
+# ScaledThresholdProject
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
 p_strat = ScaledThresholdProject(1.0)
 @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p_strat)
-@test sum(rdfs[:,:norm]) ≈ 7583.605896301535
+@test sum(rdfs[:,:norm]) ≈ 7552.573951281426
 
+# ProjectedMemory
 vs = copy(svec)
 seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
 pa = RunTillLastStep(laststep = 100)
-p_strat = ScaledThresholdProject(1.0)
-@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10), p_strat = p_strat)
-@test sum(rdfs[:,:norm]) ≈ 8317.925503998082
+p_strat = NoProjection() # ScaledThresholdProject(1.0)
+m_strat = Rimu.ProjectedMemory(10,UniformProjector(), vs)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = m_strat, p_strat = p_strat)
+@test sum(rdfs[:,:norm]) ≈ 7478.177622204821
 
+# ShiftMemory
+vs = copy(svec)
+seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+pa = RunTillLastStep(laststep = 100)
+p_strat = NoProjection() #ScaledThresholdProject(1.0)
+@time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10), p_strat = p_strat)
+@test sum(rdfs[:,:norm]) ≈ 7785.909118143251
+
+# applyMemoryNoise
+v2=DVec(Dict(aIni => 2))
+StochasticStyle(v2) # IsStochastic() is not suitable for DeltaMemory()
+@test_throws ErrorException Rimu.applyMemoryNoise!(v2, v2, 0.0, 0.1, 20, DeltaMemory(3))
+@test 0 == Rimu.applyMemoryNoise!(svec, copy(svec), 0.0, 0.1, 20, DeltaMemory(3))
 end
 
 @testset "dfvec.jl" begin
@@ -442,8 +510,23 @@ end
     pa = RunTillLastStep(laststep = steps,  dτ = dτ)
     cws = capacity(svec2)÷Threads.nthreads()+1
     ws = Tuple(similar(svec2,cws) for i=1:Threads.nthreads())
+    @test Rimu.threadedWorkingMemory(svec2) == ws
     @time rdf = fciqmc!(svec2, pa, ham, s_strat, r_strat, τ_strat, ws)
     @test rdf.:shift[101] ≈ -6.840080658204963
+    mytdot2(x, ys) = sum(map(y->x⋅y,ys))
+    mytdot(x, ys) = mapreduce(y->x⋅y,+,ys)
+    @test dot(svec2, ws) == mytdot(svec2, ws) == mytdot2(svec2, ws)
+    # @benchmark dot(svec2, ws) # 639.977 μs using Threads.@threads on 4 threads
+    # @benchmark mytdot(svec2, ws) # 2.210 ms
+    # @benchmark mytdot2(svec2, ws) # 2.154 ms
+    # function myspawndot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T2}}) where {N, K, T1, T2}
+    #     results = zeros(promote_type(T1,T2), N)
+    #     @sync for i in 1:N
+    #         Threads.@spawn results[i] = x⋅ys[i] # using dynamic scheduler
+    #     end
+    #     return sum(results)
+    # end
+    # @benchmark DictVectors.myspawndot(svec2, ws) # 651.476 μs
 end
 
 

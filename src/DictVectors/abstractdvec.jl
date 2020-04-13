@@ -192,9 +192,17 @@ time.
 end
 # multithreaded version
 @inline function LinearAlgebra.axpy!(α::Number,x::AbstractDVec,ys::NTuple{NT,W};
-        batchsize = length(x)÷NT
+        batchsize = batchsize = max(20, min(length(x)÷NT, round(Int,sqrt(length(x))*10)))
     ) where {NT, W<:AbstractDVec}
     @boundscheck @assert NT == Threads.nthreads()
+    if length(x) < NT*20 # just use main thread and copy into ys[1]
+        axpy!(α, x, ys[1])
+        return ys
+    end
+    return threaded_axpy!(α, x, ys, batchsize)
+end
+# unsafe version: we know that multithreaded is applicable
+@inline function threaded_axpy!(α, x, ys, batchsize)
     @sync for btr in Iterators.partition(pairs(x), batchsize)
         Threads.@spawn for (k,v) in btr
             y = ys[Threads.threadid()]
@@ -253,6 +261,29 @@ function LinearAlgebra.dot(x::AbstractDVec{K,T1}, y::AbstractDVec{K,T2}) where {
     end
     return result # the type is promote_type(T1,T2) - could be complex!
 end
+# For MPI version see mpi_helpers.jl
+
+# threaded dot()
+function LinearAlgebra.dot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T2}}) where {N, K, T1, T2}
+    results = zeros(promote_type(T1,T2), N)
+    Threads.@threads for i in 1:N
+        results[i] = x⋅ys[i]
+    end
+    return sum(results)
+end
+# function myspawndot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T2}}) where {N, K, T1, T2}
+#     results = zeros(promote_type(T1,T2), N)
+#     @sync for i in 1:N
+#         Threads.@spawn results[i] = x⋅ys[i] # using dynamic scheduler
+#     end
+#     return sum(results)
+# end
+# # This version with `Threads.@spawn` was slightly slower (651 μs vs 640 μs)
+# and needed more memory allocations (3.14 KiB vs 2.86 KiB) in an example
+# compared to the `Threads.@threads` version implemented above.
+# With 4 threads we got a speedup of 3.5 compared to single threaded sum(map(...))
+# for DVecs with ≈ 23_000 entries.
+
 
 ## some methods below that we could inherit from AbstracDict with subtyping
 
@@ -354,6 +385,10 @@ Base.values(dv::AbstractDVec) = dv
 #     return convert(promote_type(T1,T2), sum(values(y)))
 # end
 
+
+# Define this type union for local (non-MPI) data
+DVecOrVec = Union{AbstractDVec,AbstractVector}
+
 """
     UniformProjector()
 Represents a vector with all elements 1. To be used with [`dot()`](@ref).
@@ -366,7 +401,7 @@ dot(UniformProjector(), LO, v) == sum(LO*v)
 """
 struct UniformProjector end
 
-LinearAlgebra.dot(::UniformProjector, y) = sum(y)
+LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(y)
 # a specialised fast and non-allocating method for
 # `dot(::UniformProjector, A::LinearOperator, y)` is defined in `Hamiltonians.jl`
 
@@ -381,6 +416,7 @@ dot(NormProjector(),x)
 """
 struct NormProjector end
 
-LinearAlgebra.dot(::NormProjector, y) = convert(valtype(y),norm(y,1))
+LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y),norm(y,1))
 # dot returns the promote_type of the arguments.
 # NOTE that this can be different from the return type of norm()->Float64
+# NOTE: This operation should work for `MPIData` and is MPI synchronizing

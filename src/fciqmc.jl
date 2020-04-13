@@ -26,26 +26,31 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = threaded_working_memory(svec); kwargs...)
+                 w = threadedWorkingMemory(svec); kwargs...)
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
+    v_proj, h_proj = energy_project(svec, ham, r_strat) # MPIsync
+
     # prepare df for recording data
     df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
                         shiftMode=Bool[],len=Int[], norm=Float64[],
+                        vproj=typeof(v_proj)[], hproj=typeof(h_proj)[],
                         spawns=Int[], deaths=Int[], clones=Int[],
-                        antiparticles=Int[], annihilations=Int[])
-    # Note the row structure defined here (currently 11 columns)
+                        antiparticles=Int[], annihilations=Int[],
+                        shiftnoise=Float64[])
+    # Note the row structure defined here (currently 13 columns)
     # When changing the structure of `df`, it has to be changed in all places
     # where data is pushed into `df`.
     @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                            :vproj, :hproj,
                             :spawns, :deaths, :clones, :antiparticles,
-                            :annihilations
+                            :annihilations, :shiftnoise
                          ] "Column names in `df` not as expected."
     # Push first row of df to show starting point
-    push!(df, (step, dτ, shift, shiftMode, len, nor,
-                0, 0, 0, 0, 0))
+    push!(df, (step, dτ, shift, shiftMode, len, nor, v_proj, h_proj,
+                0, 0, 0, 0, 0, 0.0))
     # println("DataFrame is set up")
     # # (DD <: MPIData) && println("$(svec.s.id): arrived at barrier; before")
     # (DD <: MPIData) && MPI.Barrier(svec.s.comm)
@@ -64,7 +69,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = threaded_working_memory(v)
+                 w = threadedWorkingMemory(v)
                  ; m_strat::MemoryStrategy = NoMemory(),
                  p_strat::ProjectStrategy = NoProjection()
                  )
@@ -72,9 +77,10 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
     # check `df` for consistency
-    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len,
-                            :norm, :spawns, :deaths, :clones, :antiparticles,
-                            :annihilations
+    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                            :vproj, :hproj,
+                            :spawns, :deaths, :clones, :antiparticles,
+                            :annihilations, :shiftnoise
                          ] "Column names in `df` not as expected."
 
     svec = v # keep around a reference to the starting data container
@@ -86,16 +92,17 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         step += 1
         # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
-        v, w, step_stats = fciqmc_step!(ham, v, shift, dτ, pnorm, w;
+        v, w, step_stats, r = fciqmc_step!(ham, v, shift, dτ, pnorm, w;
                                         m_strat=m_strat)
         tnorm = norm_project!(v, p_strat)  # MPIsync
         # project coefficients of `w` to threshold
-        # tnorm = norm(v, 1) # MPI sycncronising: total number of psips
-        # tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
+
+        v_proj, h_proj = energy_project(v, ham, r_strat)  # MPIsync
+
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
                                     shift, shiftMode,
-                                    tnorm, pnorm, dτ, step, df)
+                                    tnorm, pnorm, dτ, step, df, v, w)
         # the updated "previous" norm pnorm is returned from `update_shift()`
         # in order to allow delaying the update, e.g. with `DelayedLogUpdate`
         # pnorm = tnorm # remember norm of this step for next step (previous norm)
@@ -103,8 +110,8 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         # when we add different stratgies
         len = length(v) # MPI sycncronising: total number of configs
         # record results according to ReportingStrategy r_strat
-        report!(df, (step, dτ, shift, shiftMode, len, tnorm,
-                        step_stats...), r_strat)
+        report!(df, (step, dτ, shift, shiftMode, len, tnorm, v_proj, h_proj,
+                        step_stats..., r), r_strat)
         # DF ≠ Nothing && push!(df, (step, dτ, shift, shiftMode, len, tnorm,
         #                 step_stats...))
         # housekeeping: avoid overflow of dvecs
@@ -132,7 +139,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 wv = threaded_working_memory.(vv) # wv = similar.(localpart.(vv))
+                 wv = threadedWorkingMemory.(vv) # wv = similar.(localpart.(vv))
                  ; m_strat::MemoryStrategy = NoMemory(),
                  p_strat::ProjectStrategy = NoProjection())
     # τ_strat is currently ignored in the replica version
@@ -156,11 +163,11 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
     dfs = Tuple(DataFrame(steps=Int[], shift=Float64[], shiftMode=Bool[],
                          len=Int[], norm=Float64[], spawns=V[], deaths=V[],
                          clones=V[], antiparticles=V[],
-                         annihilations=V[]) for i in 1:N)
+                         annihilations=V[], shiftnoise=Float64[]) for i in 1:N)
     # dfs is thus an NTuple of DataFrames
     for i in 1:N
         push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vv[i]),
-                      pnorms[i], 0, 0, 0, 0, 0))
+                      pnorms[i], 0, 0, 0, 0, 0, 0.0))
     end
 
     # prepare `DataFrame` for variational ground state estimator
@@ -174,17 +181,18 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
 
     norms = zeros(N)
     mstats = [zeros(Int,5) for i=1:N]
+    rs = zeros(N)
     while step < laststep
         step += 1
         for (i, v) in enumerate(vv) # loop over replicas
             # perform one complete stochastic vector matrix multiplication
-            vv[i], wv[i], stats = fciqmc_step!(ham, v, shifts[i], dτ, pnorms[i],
+            vv[i], wv[i], stats, rs[i] = fciqmc_step!(ham, v, shifts[i], dτ, pnorms[i],
                                         wv[i]; m_strat = m_strat)
             mstats[i] .= stats
             norms[i] = norm_project!(vv[i], p_strat)  # MPIsync
             shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                 s_strat, shifts[i], vShiftModes[i],
-                norms[i], pnorms[i], dτ, step, dfs[i]
+                norms[i], pnorms[i], dτ, step, dfs[i], vv[i], wv[i]
             )
         end #loop over replicas
         lengths = length.(vv)
@@ -194,7 +202,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
         # record results
         for i = 1:N
             push!(dfs[i], (step, shifts[i], vShiftModes[i], lengths[i],
-                  norms[i], mstats[i]...))
+                  norms[i], mstats[i]..., rs[i]))
         end
         v1Dv2 = vv[1]⋅vv[2] # <v_1 | v_2> overlap
         v2Dhv2 =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
@@ -255,10 +263,10 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
         res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         stats .+= res # just add all stats together
     end
-    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
+    r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     # norm_project!(w, p_strat) # project coefficients of `w` to threshold
     # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
-    return w, v, stats
+    return w, v, stats, r
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
@@ -279,8 +287,8 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
             fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
         end
     end # all threads have returned; now running on single thread again
-    applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
-    return sort_into_targets!(dv, ws, statss) # MPI syncronizing
+    r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
+    return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
     # dv, w, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
@@ -296,11 +304,11 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, pnorm, w::D;
         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
         stats .+= res # just add all stats together
     end
-    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
+    r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
     sort_into_targets!(dv, w)
     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
-    return dv, w, stats
+    return dv, w, stats, r
     # returns the structure with the correctly distributed end
     # result `dv` and cumulative `stats` as an array on all ranks
     # stats == (spawns, deaths, clones, antiparticles, annihilations)
@@ -318,6 +326,7 @@ norm_project!(w, p) = norm_project!(StochasticStyle(w), w, p)
 
 norm_project!(::StochasticStyle, w, p) = norm(w, 1) # MPIsync
 # default, compute 1-norm
+# e.g. triggered with the `NoProjection` strategy
 
 function norm_project!(s::S, w, p::ThresholdProject) where S<:Union{IsStochasticWithThreshold}
     return norm_project_threshold!(w, p.threshold) # MPIsync
@@ -345,13 +354,14 @@ function norm_project!(s::S, w, p::ScaledThresholdProject) where S<:Union{IsStoc
 end
 
 """
-    applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat::MemoryStrategy)
-Apply memory noise to `w` according to the strategy `m_strat`. Note that the
-strategy needs to be compatible with `StochasticStyle(w)`. The default is to
-not add memory noise. See [`MemoryStrategy`](@ref).
+    r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat::MemoryStrategy)
+Apply memory noise to `w`, i.e. `w .+= r.*v`, computing the noise `r` according
+to `m_strat`. Note that `m_strat`
+needs to be compatible with `StochasticStyle(w)`. Otherwise, an
+error exception is thrown. See [`MemoryStrategy`](@ref).
 
 `w` is the walker array after fciqmc step, `v` the previous one, `pnorm` the
-norm of `v`.
+norm of `v`, and `r` the instantaneously applied noise.
 """
 function applyMemoryNoise!(w::Union{AbstractArray,AbstractDVec}, args...)
     applyMemoryNoise!(StochasticStyle(w), w, args...)
@@ -361,13 +371,14 @@ function applyMemoryNoise!(ws::NTuple{NT,W}, args...) where {NT,W}
     applyMemoryNoise!(StochasticStyle(W), ws, args...)
 end
 
-function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::MemoryStrategy)
-    return w # default does nothing
+function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::NoMemory)
+    return 0.0 # does nothing
 end
 
-function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::DeltaMemory)
-    @warn "`DeltaMemory` was selected. It does not work with `$(typeof(s))` but requires `IsStochasticWithThreshold`. Ignoring memory noise for now." maxlog=10
-    return w # default does nothing
+function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::MemoryStrategy)
+    throw(ErrorException("MemoryStrategy `$(typeof(m))` does not work with StochasticStyle `$(typeof(s))`. Ignoring memory noise for now."))
+    # @error "MemoryStrategy `$(typeof(m))` does not work with StochasticStyle `$(typeof(s))`. Ignoring memory noise for now." maxlog=2
+    return 0.0 # default prints an error message
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -384,7 +395,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
-    return w
+    return dτ*r
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -401,7 +412,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
-    return w
+    return dτ*r
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -414,7 +425,101 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     axpy!(dτ*r, v, w) # w .+= dτ*r .* v
     # nnorm = norm(w, 1) # new norm after applying noise
 
-    return w
+    return dτ*r
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ProjectedMemory)
+    tp = m.projector⋅w # w  may be a tuple for multithreading
+    # TODO: make this work with multithreading and MPI
+
+    # current projection of `w` after FCIQMC step
+    pp  = m.pp
+    # projection of `v`, i.e. before FCIQMC step
+    # compute memory noise
+    r̃ = (pp - tp)/pp + shift*dτ
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+    # apply `r` noise to current state vector
+    axpy!(r, v, w) # w .+= r .* v
+    # TODO: make this work with multithreading
+    m.pp = tp + r*pp # update previous projection
+    return r
+end
+
+# This one works to remove the bias when projection is done with exact
+# eigenvector
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ProjectedMemory2)
+    tp = m.projector⋅w # w  may be a tuple for multithreading
+    # TODO: make this work with multithreading and MPI
+    # current projection of `w` after FCIQMC step
+
+    pp  = m.projector⋅v
+    # projection of `v`, i.e. before FCIQMC step
+    # compute memory noise
+    r̃ = (pp - tp)/pp + shift*dτ
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+    # apply `r` noise to current state vector
+    axpy!(r, v, w) # w .+= r .* v
+    # TODO: make this work with multithreading
+    m.pp = tp + r*pp # update previous projection
+    return r
+end
+
+# seems to not be effective
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ProjectedMemory3)
+    tp = m.projector⋅w # w  may be a tuple for multithreading
+    # TODO: make this work with multithreading and MPI
+    # current projection of `w` after FCIQMC step
+
+    pp  = m.projector⋅v
+    # projection of `v`, i.e. before FCIQMC step
+    # compute memory noise
+    r̃ = (pp - tp) + shift*dτ*pp
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+    if true # abs(pp) > 0.01
+        r = r/pp
+        # apply `r` noise to current state vector
+        axpy!(r, v, w) # w .+= r .* v
+        # TODO: make this work with multithreading
+        m.pp = tp + r*pp # update previous projection
+    else
+        r = 0.0
+        m.pp = tp
+    end
+    return r
+end
+
+# this one does not work well - no bias correction achieved
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+                           w, v, shift, dτ, pnorm, m::ProjectedMemory4)
+    tp = m.projector⋅w # w  may be a tuple for multithreading
+    # TODO: make this work with multithreading and MPI
+    # current projection of `w` after FCIQMC step
+
+    pp  = m.projector⋅v
+    # projection of `v`, i.e. before FCIQMC step
+    # compute memory noise
+    r̃ = (pp - tp) + shift*dτ*pp
+    push!(m.noiseBuffer, r̃) # add current value to buffer
+    # Buffer only remembers up to `Δ` values. Average over whole buffer.
+    r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+    sf = 0.2
+    r = sf*tanh(r/pp/sf)
+    # apply `r` noise to current state vector
+    axpy!(r, v, w) # w .+= r .* v
+    # TODO: make this work with multithreading
+    m.pp = tp + r*pp # update previous projection
+    return r
 end
 
 # to do: implement parallel version
@@ -748,16 +853,16 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
         add, val::N, shift, dτ) where N <: Real
 
     # diagonal death or clone: deterministic fomula
-    w[add] += (1 + dτ*(shift - diagME(ham,add)))*val
+    # w[add] += (1 + dτ*(shift - diagME(ham,add)))*val
     # projection to threshold should be applied after all colums are evaluated
-
-    # # apply threshold if necessary
-    # if new_val < s.threshold
-    #     # project stochastically to threshold
-    #     w[add] = (new_val/s.threshold > cRand()) ? s.threshold : 0
-    # else
-    #     w[add] = new_val
-    # end
+    new_val = (1 + dτ*(shift - diagME(ham,add)))*val
+    # apply threshold if necessary
+    if new_val < s.threshold
+        # project stochastically to threshold
+        w[add] += (new_val/s.threshold > cRand()) ? s.threshold : 0
+    else
+        w[add] += new_val
+    end
 
     # off-diagonal: spawning psips stochastically
     # only integers are spawned!!
@@ -777,7 +882,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
             # perform spawn (if nonzero): add walkers with correct sign
         end
     end
-    # deal with non-integer remainder: atempt to spawn
+    # deal with non-integer remainder: attempt to spawn
     rval =  abs(val%1) # non-integer part reduces probability for spawning
     naddress, pgen, matelem = generateRandHop(hops)
     pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64
