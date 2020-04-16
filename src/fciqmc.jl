@@ -1,4 +1,155 @@
 
+
+"""
+    lomc!(ham, v; kwargs...)
+    -> nt::NamedTuple
+
+Linear operator Monte Carlo:
+Perform the FCIQMC algorithm for determining the lowest eigenvalue of `ham`.
+`v` can be a single starting vector of (wrapped) type `:<AbstractDVec`,
+or a vector of such structures for a replica simulation.
+Returns a named tuple containg all information required for continuation runs.
+In particular, `nt.df` is a `DataFrame` with statistics about the run, or a
+tuple of `DataFrame`s for a replica run.
+
+### Keyword arguments, defaults, and precedence:
+* `laststep` - can be used to override information otherwise contained in `params`
+* `threading = :auto` - can be used to control the use of multithreading (overridden by `wm`)
+  * `:auto` - use multithreading if `s_strat.targetwalkers ≥ 500`
+  * `true` - use multithreading if available (set shell variable `JULIA_NUM_THREADS`!)
+  * `false` - run on single thread
+* `wm` - working memory; if set, it controls the use of multithreading and overrides `threading`; is mutated
+* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100)` - contains basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
+* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000)` - see [`ShiftStrategy`](@ref)
+* `r_strat::ReportingStrategy = EveryTimeStep()` - see [`ReportingStrategy`](@ref)
+* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
+* `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
+* `p_strat::ProjectStrategy = NoProjection()` - see [`ProjectStrategy`](@ref)
+
+### Return values
+```julia
+nt = lomc!(args...)
+```
+The named tuple `nt` contains the following fields:
+```julia
+nt = (
+    ham = ham, # the linear operator, from input
+    v = v, # the current coefficient vector, mutated from input
+    params = params, # struct with state parameters, mutated from input
+    df = df, # DataFrame with statistics per time step
+    wm = wm, # working memory, mutated from input
+    s_strat = s_strat, # from input
+    r_strat = r_strat, # from input
+    τ_strat = τ_strat, # from input
+    m_strat = m_strat, # from input
+    p_strat = p_strat, # from input
+)
+```
+"""
+function lomc!(ham, v;
+    laststep = nothing,
+    threading = :auto,
+    df = nothing,
+    wm = nothing,
+    params::FciqmcRunStrategy = RunTillLastStep(),
+    s_strat::ShiftStrategy = DoubleLogUpdate(),
+    r_strat::ReportingStrategy = EveryTimeStep(),
+    τ_strat::TimeStepStrategy = ConstantTimeStep(),
+    m_strat::MemoryStrategy = NoMemory(),
+    p_strat::ProjectStrategy = NoProjection()
+)
+    if !isnothing(laststep)
+        params.laststep = laststep
+    end
+    if isnothing(wm)
+        if threading == :auto
+            threading = s_strat.targetwalkers ≥ 500 ? true : false
+        end
+        # now threading is a Bool
+        if threading
+            wm = threadedWorkingMemory(v)
+        else
+            wm = similar(localpart(v))
+        end
+    end
+    if isnothing(df)
+        # unpack the parameters:
+        @unpack step, laststep, shiftMode, shift, dτ = params
+        len = length(v) # MPIsync
+        nor = norm(v, 1) # MPIsync
+        v_proj, h_proj = energy_project(v, ham, r_strat) # MPIsync
+
+        # prepare df for recording data
+        df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
+                            shiftMode=Bool[],len=Int[], norm=Float64[],
+                            vproj=typeof(v_proj)[], hproj=typeof(h_proj)[],
+                            spawns=Int[], deaths=Int[], clones=Int[],
+                            antiparticles=Int[], annihilations=Int[],
+                            shiftnoise=Float64[])
+        # Note the row structure defined here (currently 13 columns)
+        # When changing the structure of `df`, it has to be changed in all places
+        # where data is pushed into `df`.
+        @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+                                :vproj, :hproj,
+                                :spawns, :deaths, :clones, :antiparticles,
+                                :annihilations, :shiftnoise
+                             ] "Column names in `df` not as expected."
+        # Push first row of df to show starting point
+        push!(df, (step, dτ, shift, shiftMode, len, nor, v_proj, h_proj,
+                    0, 0, 0, 0, 0, 0.0))
+    end
+    # set up the named tuple of lomc!() return values
+    nt = (
+        ham = ham,
+        v = v,
+        params = params,
+        df = df,
+        wm = wm,
+        s_strat = s_strat,
+        r_strat = r_strat,
+        τ_strat = τ_strat,
+        m_strat = m_strat,
+        p_strat = p_strat,
+    )
+    return lomc!(nt) # call lomc!() with prepared arguments parameters
+end
+
+"""
+    lomc!(nt::NamedTuple, laststep::Int = nt.params.laststep)
+Linear operator Monte Carlo:
+Call signature for a continuation run.
+
+`nt` should have the same structure as the return value of `lomc!()`.
+The optional argument `laststep` can be used to set a new last step.
+If `laststep > nt.params.step`, additional time steps will be computed and
+the statistics in the `DataFrame` `nt.df` will be appended.
+"""
+function lomc!(a::NamedTuple) # should be type stable
+    @unpack ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat = a
+    fciqmc!(v, params, df, ham, s_strat, r_strat, τ_strat, wm;
+        m_strat = m_strat, p_strat = p_strat
+    )
+    nt = (
+        ham = ham,
+        v = v,
+        params = params,
+        df = df,
+        wm = wm,
+        s_strat = s_strat,
+        r_strat = r_strat,
+        τ_strat = τ_strat,
+        m_strat = m_strat,
+        p_strat = p_strat,
+    )
+    return nt
+end
+
+function lomc!(a::NamedTuple, laststep::Int) # should be type stable
+    a.params.laststep = laststep
+    return lomc!(a)
+end
+
+
 """
     fciqmc!(v, pa::FciqmcRunStrategy, [df,]
              ham, s_strat::ShiftStrategy,
@@ -20,6 +171,9 @@ on. To turn multi-threading off, pass `similar(localpart(v))` for w.
 
 This function mutates `v`, the parameter struct `pa` as well as
 `df`, and `w`.
+
+NOTE: The function `fciqmc!()` may be deprecated soon. Change all scripts to
+call `lomc!()` instead!
 """
 function fciqmc!(svec, pa::FciqmcRunStrategy,
                  ham,

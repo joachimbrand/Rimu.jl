@@ -23,7 +23,7 @@ abstract type FciqmcRunStrategy end
 
 """
     RunTillLastStep(step::Int = 0 # number of current/starting timestep
-                 laststep::Int = 50 # number of final timestep
+                 laststep::Int = 100 # number of final timestep
                  shiftMode::Bool = false # whether to adjust shift
                  shift::Float64 = 0.0 # starting/current value of shift
                  dτ::Float64 = 0.01 # current value of time step
@@ -33,7 +33,7 @@ For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 """
 @with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
     step::Int = 0 # number of current/starting timestep
-    laststep::Int = 50 # number of final timestep
+    laststep::Int = 100 # number of final timestep
     shiftMode::Bool = false # whether to adjust shift
     shift::Float64 = 0.0 # starting/current value of shift
     dτ::Float64 = 0.01 # time step
@@ -327,40 +327,44 @@ end
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:
 
-   * [`DontUpdate`](@ref)
-   * [`LogUpdate`](@ref)
-   * [`DelayedLogUpdate`](@ref)
-   * [`LogUpdateAfterTargetWalkers`](@ref)
-   * [`DelayedLogUpdateAfterTargetWalkers`](@ref)
-   * [`HistoryLogUpdate`](@ref)
+* [`DoubleLogUpdate`](@ref) - default in [`lomc!()`](@ref)
+* [`DontUpdate`](@ref)
+* [`LogUpdate`](@ref)
+* [`DelayedLogUpdate`](@ref)
+* [`LogUpdateAfterTargetWalkers`](@ref) - FCIQMC standard
+* [`DelayedLogUpdateAfterTargetWalkers`](@ref)
+* [`DoubleLogUpdateAfterTargetWalkers`](@ref)
+* [`DoubleLogUpdateAfterTargetWalkersSwitch`](@ref)
+* [`HistoryLogUpdate`](@ref)
+* [`DoubleLogProjected`](@ref)
 """
 abstract type ShiftStrategy end
 
 """
-    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3) <: ShiftStrategy
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ`.
 See [`LogUpdate`](@ref).
 """
 @with_kw struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
 
 """
-    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, a = 10) <: ShiftStrategy
+    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, a = 10) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and delay of
 `a` steps. See [`DelayedLogUpdate`](@ref).
 """
 @with_kw struct DelayedLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     a::Int = 10 # delay for updating shift
 end
 
 """
-    LogUpdate(ζ = 0.3) <: ShiftStrategy
+    LogUpdate(ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ`.
 
@@ -369,26 +373,29 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 ```
 """
 @with_kw struct LogUpdate <: ShiftStrategy
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
 
 """
-    DoubleLogUpdate(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    DoubleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ`.
 
 ```math
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
 ```
+When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
+T = 2/ζ.
 """
-@with_kw struct DoubleLogUpdate <: ShiftStrategy
+struct DoubleLogUpdate <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    ζ::Float64 # damping parameter, best left at value of 0.08
+    ξ::Float64  # restoring force to bring walker number to the target
 end
+DoubleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4) = DoubleLogUpdate(targetwalkers, ζ, ξ)
 
 """
-    DoubleLogProjected(target, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
+    DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ` after projecting onto `projector`.
 
@@ -396,13 +403,13 @@ parameter `ζ` and `ξ` after projecting onto `projector`.
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
 ```
 """
-@with_kw struct DoubleLogProjected{P} <: ShiftStrategy
+struct DoubleLogProjected{P} <: ShiftStrategy
     target::Float64
     projector::P
-    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.08
-    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
+    ζ::Float64 # damping parameter, best left at value of 0.08
+    ξ::Float64 # restoring force to bring walker number to the target
 end
-
+DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) = DoubleLogProjected(target, projector, ζ, ξ)
 # """
 #     DoubleLogUpdateMemoryNoise(;targetwalkers = 100,
 #                                ζ = 0.3,
@@ -430,19 +437,19 @@ end
 # end
 
 """
-    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`.
 See [`DoubleLogUpdate`](@ref).
 """
 @with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
 end
 
 """
-    LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`. After `a` steps
 the strategy swiches to [`LogUpdate`](@ref).
@@ -450,13 +457,13 @@ See [`DoubleLogUpdate`](@ref).
 """
 @with_kw mutable struct DoubleLogUpdateAfterTargetWalkersSwitch <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
     a::Int = 100 # time period that allows double damping
 end
 
 """
-    DelayedLogUpdate(ζ = 0.3, a = 10) <: ShiftStrategy
+    DelayedLogUpdate(ζ = 0.08, a = 10) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and delay of `a` steps.
 
@@ -465,7 +472,7 @@ S^{n+a} = S^n -\\frac{ζ}{a dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+a}}{\\|Ψ\\|_1^n
 ```
 """
 @with_kw struct DelayedLogUpdate <: ShiftStrategy
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     a::Int = 10 # delay for updating shift
 end
 
@@ -473,7 +480,7 @@ end
 struct DontUpdate <: ShiftStrategy end
 
 """
-    HistoryLogUpdate(df::DataFrame; d = 100, k=1, ζ= 0.3)
+    HistoryLogUpdate(df::DataFrame; d = 100, k=1, ζ= 0.08)
 Strategy for updating the shift according to log formula but with walker
 numbers accumulated from `k` samples of the history with delay `d`. A
 recent history has to be passed with the data frame `df` for initialisation.
@@ -488,7 +495,7 @@ mutable struct HistoryLogUpdate{T} <: ShiftStrategy
     k::Int # number of samples to take from history
     n_w::T # for remembering last time step's sum of walker numbers
 end
-function HistoryLogUpdate(df::DataFrame; d = 100, k = 1, ζ= 0.3)
+function HistoryLogUpdate(df::DataFrame; d = 100, k = 1, ζ= 0.08)
     size(df,1) ≤ d*k && @error "insufficient history for `HistoryLogUpdate`"
     n_w = sum(df[end-i*d, :norm] for i in 0:(k-1))
     return HistoryLogUpdate(ζ, d, k, n_w)

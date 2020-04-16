@@ -20,6 +20,7 @@ include("Hamiltonians.jl")
 include("Blocking.jl")
 @reexport using .Blocking
 
+export lomc!
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
 export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
 export ProjectStrategy, NoProjection, ThresholdProject, ScaledThresholdProject
