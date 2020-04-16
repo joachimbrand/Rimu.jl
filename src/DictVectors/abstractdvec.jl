@@ -398,6 +398,9 @@ Minimizes memory allocations.
 UniformProjector()⋅v == sum(v)
 dot(UniformProjector(), LO, v) == sum(LO*v)
 ```
+
+See also [`ReportingStrategy`](@ref) for use
+of projectors in FCIQMC.
 """
 struct UniformProjector end
 
@@ -413,6 +416,9 @@ dot(NormProjector(),x)
 -> norm(x,1) # with type valtype(x)
 ```
 `NormProjector()` thus represents the vector `sign.(x)`.
+
+See also [`ReportingStrategy`](@ref) for use
+of projectors in FCIQMC.
 """
 struct NormProjector end
 

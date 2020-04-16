@@ -49,6 +49,17 @@ projected quantities in the DataFrame.
    * [`EveryTimeStep`](@ref)
    * [`EveryKthStep`](@ref)
    * [`ReportDFAndInfo`](@ref)
+
+Every strategy accepts the keyword argument `projector` according to which
+a projection of the instantaneous coefficient vector `projector⋅v` and
+Hamiltonian `dot(projector, H, v)` are
+reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
+respectively. Possible values for `projector` are
+* `missing` - no projections are computed (default)
+* `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
+* [`UniformProjector()`](@ref) - projection onto vector of all ones
+* [`NormProjector()`](@ref) - compute norm instead of projection
+
 # Examples
 ```julia
 r_strat = EveryTimeStep(projector = copy(svec))
@@ -65,7 +76,8 @@ abstract type ReportingStrategy{DV} end
 
 """
     EveryTimeStep(;projector = missing)
-Report every time step. Include projection onto `projector`.
+Report every time step. Include projection onto `projector`. See
+[`ReportingStrategy`](@ref) for details.
 """
 @with_kw struct EveryTimeStep{DV} <: ReportingStrategy{DV}
     projector::DV = missing
@@ -73,7 +85,8 @@ end
 
 """
     EveryKthStep(;k = 10, projector = missing)
-Report every `k`th step. Include projection onto `projector`.
+Report every `k`th step. Include projection onto `projector`. See
+[`ReportingStrategy`](@ref) for details.
 """
 @with_kw struct EveryKthStep{DV} <: ReportingStrategy{DV}
     k::Int = 10
@@ -85,6 +98,7 @@ end
 Report every `k`th step in DataFrame and write info message to `io` every `i`th
 step (unless `writeinfo == false`). The flag `writeinfo` is useful for
 controlling info messages in MPI codes. Include projection onto `projector`.
+See [`ReportingStrategy`](@ref) for details.
 """
 @with_kw struct ReportDFAndInfo{DV} <: ReportingStrategy{DV}
     k::Int = 10 # how often to write to DataFrame
@@ -105,7 +119,7 @@ end
 """
     energy_project(v, ham, r::ReportingStrategy)
 Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
-the `ReportingStrategy` `r`.
+the [`ReportingStrategy`](@ref) `r`.
 """
 function energy_project(v, ham, ::RS) where
                         {DV <: Missing, RS<:ReportingStrategy{DV}}
