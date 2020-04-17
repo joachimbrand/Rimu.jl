@@ -1,6 +1,7 @@
 using Rimu
 using Test
 using LinearAlgebra
+using Parameters
 
 @testset "Rimu.jl" begin
     # Write your own tests here.
@@ -547,6 +548,18 @@ end
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     nt = lomc!(ham, svec, laststep = 100, threading = false) # run for 100 time steps
     @test sum(nt.df.spawns) == 3580
+
+    # using LinearAlgebra
+    # # the Fubini-Study metric
+    # γ(ψ,ϕ) = acos(sqrt(abs2(ψ⋅ϕ))/(norm(ψ)*norm(ϕ)))
+    @test γ(nt.v,DVec(Dict(aIni => 2))) ≈ 1.2562930899140765
+
+    # compute the average coefficient vector
+    m_strat = Rimu.LearnMemorySimpleAverage(av = DVec(Dict(aIni => 0.0),ham(:dim)))
+    nt = (; nt..., m_strat = m_strat) # reusing all the old values except for m_strat
+    nt = lomc!(nt, 500)
+    ave_v = nt.m_strat.av
+    @test γ(ave_v, DVec(Dict(aIni => 2))) ≈ 0.9432103342982565
 end
 
 # Note: This last test is set up to work on Pipelines, within a Docker

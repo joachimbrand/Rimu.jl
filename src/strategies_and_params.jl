@@ -322,6 +322,31 @@ function ProjectedMemory4(Δ::Int, projector, v::AbstractDVec)
     ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
 end
 
+"""
+    LearnMemorySimpleAverage(; averageVector, it::Int = 0)  <: MemoryStrategy
+Compute the average coefficient vector by simple step-wise addition. Otherwise
+like [`NoMemory`](@ref). See [`MemoryStrategy`](@ref).
+"""
+@with_kw mutable struct LearnMemorySimpleAverage{D}  <: MemoryStrategy
+    it::Int = 0 # iterations
+    av::D   # average vector
+end
+
+"""
+    learnState!(v, m_strat::MemoryStrategy)
+Learn the state vector according to `m_strat`. Modifies `m_strat`.
+See [`MemoryStrategy`](@ref) and
+[`LearnMemorySimpleAverage`](@ref).
+"""
+learnState!(v, m_strat::MemoryStrategy) = v
+# default does nothing
+
+function learnState!(v, m_strat::LearnMemorySimpleAverage)
+    add!(m_strat.av, v) # m_strat.av .+= v
+    m_strat.it += 1
+    return v
+end
+
 
 """
 Abstract type for defining the strategy for updating the `shift` with

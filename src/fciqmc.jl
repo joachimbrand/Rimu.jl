@@ -420,7 +420,7 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
     r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     # norm_project!(w, p_strat) # project coefficients of `w` to threshold
     # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
-    return w, v, stats, r
+    return learnState!(w, m_strat), v, stats, r
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
@@ -442,7 +442,8 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
         end
     end # all threads have returned; now running on single thread again
     r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
-    return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
+    v, w, stats = sort_into_targets!(dv, ws, statss) # MPI syncronizing
+    return learnState!(v, m_strat), w, stats,  r
     # dv, w, stats
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
@@ -462,7 +463,7 @@ function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, pnorm, w::D;
     # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
     sort_into_targets!(dv, w)
     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
-    return dv, w, stats, r
+    return learnState!(dv, m_strat), w, stats, r
     # returns the structure with the correctly distributed end
     # result `dv` and cumulative `stats` as an array on all ranks
     # stats == (spawns, deaths, clones, antiparticles, annihilations)
@@ -525,7 +526,8 @@ function applyMemoryNoise!(ws::NTuple{NT,W}, args...) where {NT,W}
     applyMemoryNoise!(StochasticStyle(W), ws, args...)
 end
 
-function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::NoMemory)
+function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::M
+    ) where M<:Union{NoMemory,LearnMemorySimpleAverage}
     return 0.0 # does nothing
 end
 

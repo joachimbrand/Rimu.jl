@@ -284,6 +284,19 @@ end
 # With 4 threads we got a speedup of 3.5 compared to single threaded sum(map(...))
 # for DVecs with ≈ 23_000 entries.
 
+# the Fubini-Study metric
+"""
+    γ(ψ,ϕ)
+Compute the Fubini-Study metric
+```math
+\\gamma(\\psi,\\phi) = \\arccos \\sqrt{\\frac{\\langle \\psi|\\phi\\rangle
+\\langle \\phi|\\psi\\rangle}{\\langle \\psi|\\psi\\rangle \\langle
+\\phi|\\phi\\rangle} .
+```
+"""
+γ(ψ,ϕ) = acos(abs(ψ⋅ϕ)/(norm(ψ)*norm(ϕ)))
+γ(ψ::AbstractDVec,ϕ::AbstractDVec) = acos(sqrt(abs2(ψ⋅ϕ)/(norm_sqr(ψ)*norm_sqr(ϕ))))
+
 
 ## some methods below that we could inherit from AbstracDict with subtyping
 
