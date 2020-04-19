@@ -286,16 +286,21 @@ end
 
 # the Fubini-Study metric
 """
-    γ(ψ,ϕ)
+    γ_FS(ψ,ϕ)
 Compute the Fubini-Study metric
 ```math
-\\gamma(\\psi,\\phi) = \\arccos \\sqrt{\\frac{\\langle \\psi|\\phi\\rangle
-\\langle \\phi|\\psi\\rangle}{\\langle \\psi|\\psi\\rangle \\langle
-\\phi|\\phi\\rangle} .
+\\gamma(\\psi,\\phi) = \\arccos
+    \\sqrt{\\frac{\\langle \\psi|\\phi\\rangle \\langle \\phi|\\psi\\rangle}
+                 {\\langle \\psi|\\psi\\rangle \\langle \\phi|\\phi\\rangle}} .
 ```
 """
-γ(ψ,ϕ) = acos(abs(ψ⋅ϕ)/(norm(ψ)*norm(ϕ)))
-γ(ψ::AbstractDVec,ϕ::AbstractDVec) = acos(sqrt(abs2(ψ⋅ϕ)/(norm_sqr(ψ)*norm_sqr(ϕ))))
+γ_FS(ψ,ϕ) = acos(abs(ψ⋅ϕ)/(norm(ψ)*norm(ϕ)))
+γ_FS(ψ::AbstractDVec,ϕ::AbstractDVec) = acos(sqrt(abs2(ψ⋅ϕ)/(norm_sqr(ψ)*norm_sqr(ϕ))))
+# \\sqrt{\\frac{\\langle \\psi|\\phi\\rangle
+# \\langle \\phi|\\psi\\rangle}{\\langle \\psi|\\psi\\rangle \\langle
+# \\phi|\\phi\\rangle} .
+# ```
+# """
 
 
 ## some methods below that we could inherit from AbstracDict with subtyping
