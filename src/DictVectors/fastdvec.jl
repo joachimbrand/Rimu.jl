@@ -89,11 +89,16 @@ function Base.similar(fdv::FastDVec{K,V}, ::Type{T}) where K where V where T
     FastDVec(similar(fdv.vals, V),similar(fdv.emptyslots),
              fdv.capacity,fdv.hashrange,hashtable)
 end
-Base.similar(fdv::FastDVec{K,V}) where K where V = similar(fdv, V)
+# Base.similar(fdv::FastDVec{K,V}) where K where V = similar(fdv, V)
+Base.similar(fdv::FastDVec; capacity = capacity(fdv))  = empty(fdv; capacity = capacity)
 
-Base.empty(fdv::FastDVec) = similar(fdv)
+
+function Base.empty(fdv::FastDVec{K,V}; capacity = capacity(fdv)) where K where V
+    return FastDVec{K,V}(capacity)
+end
+# Base.empty(fdv::FastDVec) = similar(fdv)
 Base.empty(fdv::FastDVec, T) = similar(fdv, T)
-Base.zero(fdv::FastDVec) = similar(fdv)
+# Base.zero(fdv::FastDVec) = similar(fdv)
 
 function Base.empty!(da::FastDVec)
     empty!(da.vals)

@@ -80,7 +80,8 @@ end
 end
 
 # the following also create and allocated new DFVec objects
-Base.empty(dv::DFVec{K,V,F}) where {K,V,F} = DFVec{K,V,F}(capacity(dv))
+Base.empty(dv::DFVec{K,V,F}; capacity::Integer = capacity(dv)) where {K,V,F} = DFVec{K,V,F}(capacity)
+# Base.empty(dv::DFVec{K,V,F}) where {K,V,F} = DFVec{K,V,F}(capacity(dv))
 Base.empty(dv::DFVec, ::Type{V}) where {V} = empty(dv,keytype(dv),V,flagtype(dv))
 function Base.empty(dv::DFVec, ::Type{K}, ::Type{V}, ::Type{F}) where {K,V,F}
     return DFVec{K,V,F}(capacity(dv))

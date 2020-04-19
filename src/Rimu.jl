@@ -30,6 +30,7 @@ export DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
 export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
+export EveryTimeStepSimpleAverage
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export StochasticStyle, IsStochastic, IsDeterministic
 # export IsSemistochastic # is not yet ready

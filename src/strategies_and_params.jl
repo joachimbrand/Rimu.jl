@@ -43,7 +43,7 @@ end
     ReportingStrategy
 Abstract type for strategies for reporting data in a DataFrame with
 [`report!()`](@ref). It also affects the calculation and reporting of
-projected quantities in the DataFrame.
+projected quantities in the DataFrame. See [`energy_project!()`](@ref).
 
 # Implemented strategies:
    * [`EveryTimeStep`](@ref)
@@ -108,28 +108,59 @@ See [`ReportingStrategy`](@ref) for details.
     projector::DV = missing
 end
 
-# """
-#     ReportPEnergy(pv)
-# Report every time step including projection onto `pv`.
-# """
-# struct ReportPEnergy{DV} <: ReportingStrategy
-#     projector::DV
-# end
+"""
+    EveryTimeStepSimpleAverage(;projector, it = 0) <: ReportingStrategy
+Construct a projector from averaging the instantaneous coefficient vectors.
+`it` counts samples for averaging.
+Report every time step. Include projection onto `projector`. See
+[`ReportingStrategy`](@ref) for details.
+
+An empty container suitable for averaging needs to be passed as keyword argument
+`projector`. E.g.
+
+```julia
+aIni = nearUniform(BoseFS{9,9})
+Ĥ = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+v = DVec(Dict(aIni => 2), 2000)
+r_strat = EveryTimeStepSimpleAverage(empty(v; capacity = Ĥ(:dim)))
+res = lomc!(Ĥ, v; r_strat = r_strat)
+```
+"""
+@with_kw mutable struct EveryTimeStepSimpleAverage{DV} <: ReportingStrategy{DV}
+    it::Int = 0 # iterations
+    projector::DV
+end
+EveryTimeStepSimpleAverage(dv) = EveryTimeStepSimpleAverage(0,dv)
+
 
 """
-    energy_project(v, ham, r::ReportingStrategy)
-Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
-the [`ReportingStrategy`](@ref) `r`.
+    energy_project!(v, ham, r::ReportingStrategy)
+    -> vproj, hproj
+Compute the projection of `vproj = r.projector⋅v` and
+`hproj = r.projector⋅ham*v` according to
+the [`ReportingStrategy`](@ref) `r`. May also modifiy the strategy `r`, e.g. by
+learning the `projector`.
+
+The return type is `NTuple{2,Union{Missing,eltype(ham)}}`.
 """
-function energy_project(v, ham, ::RS) where
+function energy_project!(v, ham, ::RS) where
                         {DV <: Missing, RS<:ReportingStrategy{DV}}
     return missing, missing
 end
 # default
 
-function energy_project(v, ham, r::RS) where
+function energy_project!(v, ham, r::RS) where
                         {DV, RS<:ReportingStrategy{DV}}
-    return r.projector⋅v, dot(r.projector, ham, v)
+    RT = eltype(ham)
+    return convert(RT, r.projector⋅v), convert(RT, dot(r.projector, ham, v))
+end
+# The dot products work across MPI when `v::MPIData`; MPI sync
+
+function energy_project!(v, ham, r::EveryTimeStepSimpleAverage)
+    add!(r.projector, v) # r.projector .+= v
+    r.it +=1 # increase counter
+    RT = eltype(ham)
+    return convert(RT, r.projector⋅v), convert(RT, dot(r.projector, ham, v))
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
@@ -138,8 +169,15 @@ end
 Record results in `df` and write informational messages according to strategy
 `s`. See [`ReportingStrategy`](@ref).
 """
+# function report!(
+#     df::DataFrame,
+#     t::Tuple,
+#     s::Union{EveryTimeStep,EveryTimeStepSimpleAverage}
+# )
+#     push!(df, t)
+# end
 report!(df::DataFrame,t::Tuple,s::EveryTimeStep) = push!(df,t)
-# report!(df::DataFrame,t::Tuple,s::Union{EveryTimeStep, ReportPEnergy}) = push!(df,t)
+report!(df::DataFrame,t::Tuple,s::EveryTimeStepSimpleAverage) = push!(df,t)
 
 function report!(df::DataFrame,t::Tuple,s::EveryKthStep)
     step = t[1]

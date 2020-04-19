@@ -560,6 +560,25 @@ end
     nt = lomc!(nt, 500)
     ave_v = nt.m_strat.av
     @test γ(ave_v, DVec(Dict(aIni => 2))) ≈ 0.9432103342982565
+
+    # EveryTimeStepSimpleAverage()
+    aIni = nearUniform(BoseFS{9,9})
+    Ĥ = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    v = DVec(Dict(aIni => 2), 2000)
+    r_strat = EveryTimeStepSimpleAverage(empty(v; capacity = Ĥ(:dim)))
+    @test Rimu.energy_project!(v, Ĥ, r_strat) == (4.0, 0.0)
+    @test r_strat.it == 1
+    @test r_strat.projector |> length == 1
+    @test Rimu.energy_project!(v, Ĥ, EveryTimeStep()) === (missing, missing)
+
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    nt = lomc!(Ĥ, v, laststep = 100, threading = false) # run for 100 time steps
+    r_strat = EveryTimeStepSimpleAverage(empty(v; capacity = Ĥ(:dim)))
+    nt = (; nt..., r_strat = r_strat) # reusing all the old values except for r_strat
+    nt = lomc!(nt, 500) # run another 400 time steps with averaging turned on
+    @test r_strat.it == 400
+    ave_v = r_strat.projector
+    @test γ(ave_v, DVec(Dict(aIni => 2))) ≈ 0.9432103342982566 # same as before
 end
 
 # Note: This last test is set up to work on Pipelines, within a Docker

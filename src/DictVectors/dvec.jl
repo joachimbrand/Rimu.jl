@@ -60,7 +60,13 @@ function DVec(adv::AbstractDVec{K,V}, capacity = capacity(adv)) where K where V
 end
 
 # the following also create and allocated new DVec objects
-Base.empty(dv::DVec{K,V}, c::Integer = capacity(dv) ) where {K,V} = DVec{K,V}(c)
+"""
+    empty(dv::DVec; capacity = capacity(dv))
+Create a new empty `DVec` object of the same type as `dv` with a capacity of
+at least `capacity`.
+"""
+Base.empty(dv::DVec{K,V}; capacity::Integer = capacity(dv)) where {K,V} = DVec{K,V}(capacity)
+Base.empty(dv::DVec{K,V}, c::Integer) where {K,V} = DVec{K,V}(c)
 Base.empty(dv::DVec, ::Type{V}) where {V} = empty(dv,keytype(dv),V)
 Base.empty(dv::DVec, ::Type{K}, ::Type{V}) where {K,V} = DVec{K,V}(capacity(dv))
 # thus empty() and zero() will conserve the capacity of dv
