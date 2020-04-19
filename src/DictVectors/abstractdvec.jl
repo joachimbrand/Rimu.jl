@@ -289,7 +289,7 @@ end
     γ_FS(ψ,ϕ)
 Compute the Fubini-Study metric
 ```math
-\\gamma(\\psi,\\phi) = \\arccos
+\\gamma_\\mathrm{FS}(\\psi,\\phi) = \\arccos
     \\sqrt{\\frac{\\langle \\psi|\\phi\\rangle \\langle \\phi|\\psi\\rangle}
                  {\\langle \\psi|\\psi\\rangle \\langle \\phi|\\phi\\rangle}} .
 ```
