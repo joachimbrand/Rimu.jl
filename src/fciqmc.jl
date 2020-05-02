@@ -499,7 +499,8 @@ function norm_project_threshold!(w, threshold) # MPIsync
     for (add, val) in kvpairs(lw)
         pprob = abs(val)/threshold
         if pprob < 1 # projection is only necessary if abs(val) < s.threshold
-            lw[add] = (pprob > cRand()) ? threshold*sign(val) : zero(val)
+            lw[add] = ifelse(pprob > cRand(), threshold*sign(val), zero(val))
+            # lw[add] = (pprob > cRand()) ? threshold*sign(val) : zero(val)
         end
     end
     return norm(w, 1) # MPIsync
@@ -634,7 +635,27 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     return r
 end
 
-# seems to not be effective
+function project_to_threshold(x::X, threshold::T) where {X,T}
+    P = promote_type(X,T)
+    if abs(x) < threshold
+        return ifelse(abs(x) > cRand()*threshold, convert(P,threshold*sign(x)), zero(P))
+    else
+        return convert(P,x)
+    end
+end
+
+function axpy_project!(α::Number,x::AbstractDVec,y::AbstractDVec{K,V}, threshold) where {K,V}
+    for (k,v) in kvpairs(x)
+        old_val = y[k]
+        if old_val == zero(V) # only perform threshold projection if entry is new
+            y[k] =  project_to_threshold(α*v, threshold)
+        else
+            y[k] = old_val + α*v # no need to project here
+        end
+    end
+    return y
+end
+
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
                            w, v, shift, dτ, pnorm, m::ProjectedMemory3)
     tp = m.projector⋅w # w  may be a tuple for multithreading
@@ -644,24 +665,18 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     pp  = m.projector⋅v
     # projection of `v`, i.e. before FCIQMC step
     # compute memory noise
-    r̃ = (pp - tp) + shift*dτ*pp
+    r̃ = (pp - tp)/pp + shift*dτ
     push!(m.noiseBuffer, r̃) # add current value to buffer
     # Buffer only remembers up to `Δ` values. Average over whole buffer.
     r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
-    if true # abs(pp) > 0.01
-        r = r/pp
-        # apply `r` noise to current state vector
-        axpy!(r, v, w) # w .+= r .* v
-        # TODO: make this work with multithreading
-        m.pp = tp + r*pp # update previous projection
-    else
-        r = 0.0
-        m.pp = tp
-    end
+
+    # apply `r` noise to current state vector
+    axpy_project!(r, v, w, s.threshold) # w .+= r .* v
+    # TODO: make this work with multithreading
+    m.pp = tp + r*pp # update previous projection
     return r
 end
 
-# this one does not work well - no bias correction achieved
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
                            w, v, shift, dτ, pnorm, m::ProjectedMemory4)
     tp = m.projector⋅w # w  may be a tuple for multithreading
@@ -671,18 +686,78 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     pp  = m.projector⋅v
     # projection of `v`, i.e. before FCIQMC step
     # compute memory noise
-    r̃ = (pp - tp) + shift*dτ*pp
+    r̃ = (pp - tp)/pp + shift*dτ
     push!(m.noiseBuffer, r̃) # add current value to buffer
     # Buffer only remembers up to `Δ` values. Average over whole buffer.
     r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
-    sf = 0.2
-    r = sf*tanh(r/pp/sf)
+    r *= m.scale # scales the noise
+
     # apply `r` noise to current state vector
     axpy!(r, v, w) # w .+= r .* v
+
+    # perform projection, only if necessary
+    if length(w) > m.lentol
+        norm_project_threshold!(w, s.threshold)
+    end
+
+    # if length(w) > m.lentol
+    #     axpy_project!(r, v, w, s.threshold) # w .+= r .* v
+    # else
+    #     axpy!(r, v, w) # w .+= r .* v
+    # end
     # TODO: make this work with multithreading
-    m.pp = tp + r*pp # update previous projection
     return r
 end
+
+# # seems to not be effective
+# function applyMemoryNoise!(s::IsStochasticWithThreshold,
+#                            w, v, shift, dτ, pnorm, m::ProjectedMemory3)
+#     tp = m.projector⋅w # w  may be a tuple for multithreading
+#     # TODO: make this work with multithreading and MPI
+#     # current projection of `w` after FCIQMC step
+#
+#     pp  = m.projector⋅v
+#     # projection of `v`, i.e. before FCIQMC step
+#     # compute memory noise
+#     r̃ = (pp - tp) + shift*dτ*pp
+#     push!(m.noiseBuffer, r̃) # add current value to buffer
+#     # Buffer only remembers up to `Δ` values. Average over whole buffer.
+#     r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+#     if true # abs(pp) > 0.01
+#         r = r/pp
+#         # apply `r` noise to current state vector
+#         axpy!(r, v, w) # w .+= r .* v
+#         # TODO: make this work with multithreading
+#         m.pp = tp + r*pp # update previous projection
+#     else
+#         r = 0.0
+#         m.pp = tp
+#     end
+#     return r
+# end
+
+# # this one does not work well - no bias correction achieved
+# function applyMemoryNoise!(s::IsStochasticWithThreshold,
+#                            w, v, shift, dτ, pnorm, m::ProjectedMemory4)
+#     tp = m.projector⋅w # w  may be a tuple for multithreading
+#     # TODO: make this work with multithreading and MPI
+#     # current projection of `w` after FCIQMC step
+#
+#     pp  = m.projector⋅v
+#     # projection of `v`, i.e. before FCIQMC step
+#     # compute memory noise
+#     r̃ = (pp - tp) + shift*dτ*pp
+#     push!(m.noiseBuffer, r̃) # add current value to buffer
+#     # Buffer only remembers up to `Δ` values. Average over whole buffer.
+#     r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+#     sf = 0.2
+#     r = sf*tanh(r/pp/sf)
+#     # apply `r` noise to current state vector
+#     axpy!(r, v, w) # w .+= r .* v
+#     # TODO: make this work with multithreading
+#     m.pp = tp + r*pp # update previous projection
+#     return r
+# end
 
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
@@ -1021,7 +1096,10 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
     # apply threshold if necessary
     if new_val < s.threshold
         # project stochastically to threshold
-        w[add] += (new_val/s.threshold > cRand()) ? s.threshold : 0
+        # w[add] += (new_val/s.threshold > cRand()) ? s.threshold : 0
+        if (new_val/s.threshold > cRand())
+            w[add] += s.threshold
+        end
     else
         w[add] += new_val
     end
@@ -1035,7 +1113,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
-        # at this point, nspawn is non-negative
+        # at this point, nspawn is non-negative and integer value
         # now converted to correct type and compute sign
         nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
         # - because Hamiltonian appears with - sign in iteration equation

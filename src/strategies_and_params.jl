@@ -333,7 +333,7 @@ mutable struct ProjectedMemory2{D} <: MemoryStrategy
 end
 ProjectedMemory2(Δ::Int, projector, pp::Number) = ProjectedMemory2(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
 function ProjectedMemory2(Δ::Int, projector, v::AbstractDVec)
-    pp = projector⋅v
+    pp = Float64(projector⋅v)
     ProjectedMemory2(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
 end
 
@@ -345,19 +345,41 @@ mutable struct ProjectedMemory3{D} <: MemoryStrategy
 end
 ProjectedMemory3(Δ::Int, projector, pp::Number) = ProjectedMemory3(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
 function ProjectedMemory3(Δ::Int, projector, v::AbstractDVec)
-    pp = projector⋅v
+    pp = Float64(projector⋅v)
     ProjectedMemory3(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
 end
-mutable struct ProjectedMemory4{D} <: MemoryStrategy
+
+"""
+    ProjectedMemory4(Δ::Int, projector, v::AbstractDVec, scale = 1.0)
+    ProjectedMemory4(Δ::Int, projector, lentol::Number, scale = 1.0)
+Before updating the shift, apply (scaled) memory noise to minimize the fluctuations
+of the overlap of the coefficient vector with `projector`.
+Averaging over `Δ` time steps is applied, where `Δ = 1`, or `scale = 0.0`
+means that no memory noise is applied.
+If the coefficient vector becomes longer than `lentol`, then projection to
+the threshold of `v` is applied. If `v` is passed, set
+`lentol = length(v)*1.5`.
+
+The memory noise is computed as
+```
+r̃ = (projector⋅w - projector⋅v)/(dτ*projector⋅v) + shift
+r = scale*(r̃ - <r̃>)
+```
+where `v` is the coefficient vector before and `w` after applying a regular
+FCIQMC step.
+"""
+struct ProjectedMemory4{D} <: MemoryStrategy
     Δ::Int # length of memory noise buffer
-    pp::Float64 # previous projection
     projector::D # projector
+    lentol::Float64 # tolerable length of coefficient vector
+    scale::Float64 # 0.0 < scale ≤ 1.0
     noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
 end
-ProjectedMemory4(Δ::Int, projector, pp::Number) = ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
-function ProjectedMemory4(Δ::Int, projector, v::AbstractDVec)
-    pp = projector⋅v
-    ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+ProjectedMemory4(Δ::Int, projector, lentol::Number, scale = 1.0) =
+    ProjectedMemory4(Δ, projector, lentol, scale, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory4(Δ::Int, projector, v::AbstractDVec, scale = 1.0)
+    lentol = length(v)*1.5
+    ProjectedMemory4(Δ, projector, lentol, scale, DataStructures.CircularBuffer{Float64}(Δ))
 end
 
 """
