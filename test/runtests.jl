@@ -552,14 +552,14 @@ end
     # using LinearAlgebra
     # # the Fubini-Study metric
     # γ(ψ,ϕ) = acos(sqrt(abs2(ψ⋅ϕ))/(norm(ψ)*norm(ϕ)))
-    @test γ(nt.v,DVec(Dict(aIni => 2))) ≈ 1.2562930899140765
+    @test γ_FS(nt.v,DVec(Dict(aIni => 2))) ≈ 1.2562930899140765
 
     # compute the average coefficient vector
     m_strat = Rimu.LearnMemorySimpleAverage(av = DVec(Dict(aIni => 0.0),ham(:dim)))
     nt = (; nt..., m_strat = m_strat) # reusing all the old values except for m_strat
     nt = lomc!(nt, 500)
     ave_v = nt.m_strat.av
-    @test γ(ave_v, DVec(Dict(aIni => 2))) ≈ 0.9432103342982565
+    @test γ_FS(ave_v, DVec(Dict(aIni => 2))) ≈ 0.9432103342982565
 
     # EveryTimeStepSimpleAverage()
     aIni = nearUniform(BoseFS{9,9})
@@ -578,7 +578,7 @@ end
     nt = lomc!(nt, 500) # run another 400 time steps with averaging turned on
     @test r_strat.it == 400
     ave_v = r_strat.projector
-    @test γ(ave_v, DVec(Dict(aIni => 2))) ≈ 0.9432103342982566 # same as before
+    @test γ_FS(ave_v, DVec(Dict(aIni => 2))) ≈ 0.9432103342982566 # same as before
 end
 
 # Note: This last test is set up to work on Pipelines, within a Docker

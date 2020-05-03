@@ -286,6 +286,7 @@ end
 
 # the Fubini-Study metric
 """
+    fubini_study_metric(ψ,ϕ)
     γ_FS(ψ,ϕ)
 Compute the Fubini-Study metric
 ```math
@@ -294,8 +295,19 @@ Compute the Fubini-Study metric
                  {\\langle \\psi|\\psi\\rangle \\langle \\phi|\\phi\\rangle}} .
 ```
 """
-γ_FS(ψ,ϕ) = acos(abs(ψ⋅ϕ)/(norm(ψ)*norm(ϕ)))
-γ_FS(ψ::AbstractDVec,ϕ::AbstractDVec) = acos(sqrt(abs2(ψ⋅ϕ)/(norm_sqr(ψ)*norm_sqr(ϕ))))
+γ_FS(args...) = fubini_study_metric(args...)
+"""
+    fubini_study_metric(ψ,ϕ)
+    γ_FS(ψ,ϕ)
+Compute the Fubini-Study metric
+```math
+\\gamma_\\mathrm{FS}(\\psi,\\phi) = \\arccos
+    \\sqrt{\\frac{\\langle \\psi|\\phi\\rangle \\langle \\phi|\\psi\\rangle}
+                 {\\langle \\psi|\\psi\\rangle \\langle \\phi|\\phi\\rangle}} .
+```
+"""
+fubini_study_metric(ψ,ϕ) = acos(abs(ψ⋅ϕ)/(norm(ψ)*norm(ϕ)))
+fubini_study_metric(ψ::AbstractDVec,ϕ::AbstractDVec) = acos(sqrt(abs2(ψ⋅ϕ)/(norm_sqr(ψ)*norm_sqr(ϕ))))
 # \\sqrt{\\frac{\\langle \\psi|\\phi\\rangle
 # \\langle \\phi|\\psi\\rangle}{\\langle \\psi|\\psi\\rangle \\langle
 # \\phi|\\phi\\rangle} .
