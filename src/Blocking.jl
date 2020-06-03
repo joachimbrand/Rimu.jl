@@ -97,7 +97,7 @@ end
 Calculate the autocovariance of dataset v with a delay h.
 """
 function autocovariance(v::Vector,h::Int; corrected::Bool=true)
-    n = length(vi)
+    n = length(v)
     mean_v = mean(v)
     covsum = zero(mean_v)
     for i in 1:n-h
@@ -134,22 +134,26 @@ Calculate the covariance between the two data sets vi and vj.
 """
 function covariance(vi::Vector,vj::Vector; corrected::Bool=true)
     if length(vi) != length(vj)
-        error("Two data sets with non-equal length!")
-    else
-        n = length(vi)
-        meani = mean(vi)
-        meanj = mean(vj)
-        covsum = zero(meani)
-        for i in 1:n
-            covsum += (vi[i]-meani)*(vj[i]-meanj)
-        end
-        if corrected
-            cov = covsum/(n-1)
+        @warn "Two data sets with non-equal length! Truncating the longer one."
+        if length(vi) > length(vj)
+            vi = vi[1:length(vj)]
         else
-            cov = covsum/n
+            vj = vj[1:length(vi)]
         end
-        return cov
     end
+    n = length(vi)
+    meani = mean(vi)
+    meanj = mean(vj)
+    covsum = zero(meani)
+    for i in 1:n
+        covsum += (vi[i]-meani)*(vj[i]-meanj)
+    end
+    if corrected
+        cov = covsum/(n-1)
+    else
+        cov = covsum/n
+    end
+    return cov
 end
 
 
@@ -158,18 +162,22 @@ find the standard error on standard errors on two datasets
 """
 function combination_division(vi::Vector,vj::Vector; corrected::Bool=true)
     if length(vi) != length(vj)
-        error("Two data sets with non-equal length!")
-    else
-        n = length(vi)
-        meani = mean(vi)
-        meanj = mean(vj)
-        meanf = meani/meanj
-        sei = se(vi;corrected=corrected)
-        sej = se(vj;corrected=corrected)
-        cov = covariance(vi,vj;corrected=corrected)
-        sef = abs(meanf*sqrt((sei/meani)^2 + (sej/meanj)^2 - 2.0*cov/(n*meani*meanj)))
-        return sef
+        @warn "Two data sets with non-equal length! Truncating the longer one."
+        if length(vi) > length(vj)
+            vi = vi[1:length(vj)]
+        else
+            vj = vj[1:length(vi)]
+        end
     end
+    n = length(vi)
+    meani = mean(vi)
+    meanj = mean(vj)
+    meanf = meani/meanj
+    sei = se(vi;corrected=corrected)
+    sej = se(vj;corrected=corrected)
+    cov = covariance(vi,vj;corrected=corrected)
+    sef = abs(meanf*sqrt((sei/meani)^2 + (sej/meanj)^2 - 2.0*cov/(n*meani*meanj)))
+    return sef
 end
 
 
@@ -182,29 +190,33 @@ function blocking(vi::Vector,vj::Vector; corrected::Bool=true)
             mean_j=Float64[], SD_j=Float64[], SE_j=Float64[], SE_SE_j=Float64[], Covariance=Float64[],
             mean_f=Float64[], SE_f=Float64[])
     if length(vi) != length(vj)
-        error("Two data sets with non-equal length!")
-    else
-        while length(vi) >= 2
-            n = length(vi)
-            meani = mean(vi)
-            meanj = mean(vj)
-            meanf = meani/meanj
-            sdi = std(vi;corrected=corrected)
-            sdj = std(vj;corrected=corrected)
-            sei = sdi/sqrt(n)
-            sej = sdj/sqrt(n)
-            sesei = sei*1/sqrt(2*(n-1))
-            sesej = sej*1/sqrt(2*(n-1))
-            cov = covariance(vi,vj;corrected=corrected)
-            #sef = sei/sej
-            sef = combination_division(vi,vj;corrected=corrected)
-            vi = blocker(vi)
-            vj = blocker(vj)
-            #println(n, mean, stddev, stderr)
-            push!(df,(n, meani, sdi, sei, sesei, meanj, sdj, sej, sesej, cov, meanf, sef))
+        @warn "Two data sets with non-equal length! Truncating the longer one."
+        if length(vi) > length(vj)
+            vi = vi[1:length(vj)]
+        else
+            vj = vj[1:length(vi)]
         end
-        return df
     end
+    while length(vi) >= 2
+        n = length(vi)
+        meani = mean(vi)
+        meanj = mean(vj)
+        meanf = meani/meanj
+        sdi = std(vi;corrected=corrected)
+        sdj = std(vj;corrected=corrected)
+        sei = sdi/sqrt(n)
+        sej = sdj/sqrt(n)
+        sesei = sei*1/sqrt(2*(n-1))
+        sesej = sej*1/sqrt(2*(n-1))
+        cov = covariance(vi,vj;corrected=corrected)
+        #sef = sei/sej
+        sef = combination_division(vi,vj;corrected=corrected)
+        vi = blocker(vi)
+        vj = blocker(vj)
+        #println(n, mean, stddev, stderr)
+        push!(df,(n, meani, sdi, sei, sesei, meanj, sdj, sej, sesej, cov, meanf, sef))
+    end
+    return df
 end
 
 # no longer needed, using the M test now
@@ -328,8 +340,8 @@ Perform a blocking analysis and M-test on `v` returning the mean `v̄`,
 standard error `σ`, its error `σσ`, the number of blocking steps `k`, and
 the `DataFrame` `df` with blocking data.
 """
-function blockAndMTest(v::Vector)
-    df = blocking(v)
+function blockAndMTest(v::Vector; corrected::Bool=true)
+    df = blocking(v;corrected=corrected)
     k = mtest(df, warn=false)
     v̄ = df.mean[1]
     if k>0
@@ -343,11 +355,11 @@ function blockAndMTest(v::Vector)
     return v̄, σ, σσ, k, df
 end
 
-function blockTestShiftAndProjected(df::DataFrame; start = 1, stop = size(df)[1])
-    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop])
-    v̄, σv, σσv, kv, dfv = blockAndMTest(df.vproj[start:stop])
-    h̄, σh, σσh, kh, dfh = blockAndMTest(df.hproj[start:stop])
-    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop])
+function blockTestShiftAndProjected(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool=true)
+    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop];corrected=corrected)
+    v̄, σv, σσv, kv, dfv = blockAndMTest(df.vproj[start:stop];corrected=corrected)
+    h̄, σh, σσh, kh, dfh = blockAndMTest(df.hproj[start:stop];corrected=corrected)
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop];corrected=corrected)
     k = max(ks, kv, kh)
     @show ks, kv, kh
     ks==kv==kh || @warn "k values are not the same."
@@ -364,9 +376,9 @@ steps and decorrelation time `2^k` are obtained from the M-test for the
 shift and also applied to the projected energy, assuming that the projected
 quantities decorrelate on the same time scale. Returns a named tuple.
 """
-function autoblock(df::DataFrame; start = 1, stop = size(df)[1])
-    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop]) # shift
-    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop]) # projected
+function autoblock(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool=true)
+    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop];corrected=corrected) # shift
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop];corrected=corrected) # projected
     return (s̄ = s̄, σs = σs, ē = dfp.mean_f[1], σe = dfp.SE_f[ks], k = ks)
 end
 
@@ -379,18 +391,18 @@ Replica version. `dftup` is the tuple of `DataFrame`s returned from replica
 estimators and respective errors obtained from blocking analysis. The larger
 of the `k` values from M-tests on the two shift time series is used.
 """
-function autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1])
+function autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1], corrected::Bool=true)
     (df_mix, (df_1, df_2)) = dftup # unpack the three DataFrames
-    s̄1, σs1, σσs1, ks1, dfs1 = blockAndMTest(df1.shift[start:stop]) # shift 1
-    s̄2, σs2, σσs2, ks2, dfs2 = blockAndMTest(df2.shift[start:stop]) # shift 2
+    s̄1, σs1, σσs1, ks1, dfs1 = blockAndMTest(df1.shift[start:stop];corrected=corrected) # shift 1
+    s̄2, σs2, σσs2, ks2, dfs2 = blockAndMTest(df2.shift[start:stop];corrected=corrected) # shift 2
     xdy = df_mix.xdy[start:stop]
     s1_xdy = dfs1.shift[start:stop].*xdy
     s2_xdy = dfs2.shift[start:stop].*xdy
     xHy = df_mix.xHy[start:stop]
-    df_var_1 = blocking(s1_xdy, xdy)
-    df_var_2 = blocking(s2_xdy, xdy)
-    df_var_H = blocking(xHy, xdy)
-    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop])
+    df_var_1 = blocking(s1_xdy, xdy;corrected=corrected)
+    df_var_2 = blocking(s2_xdy, xdy;corrected=corrected)
+    df_var_H = blocking(xHy, xdy;corrected=corrected)
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop];corrected=corrected)
     ks = max(ks1, ks2)
     return (s̄1=s̄1, σs1=σs1, s̄2=s̄2, σs2=σs2,
         ē1 = df_var_1.mean_f[1], σe1 = df_var_1.SE_f[ks],
