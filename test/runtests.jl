@@ -22,6 +22,21 @@ using Statistics
     # evaluating the above shows that the library function is faster and avoids
     # memory allocations completely
 
+    # test se
+    a = collect(1:10)
+    @test Rimu.Blocking.se(a) ≈ 0.9574271077563381
+    @test Rimu.Blocking.se(a;corrected=false) ≈ 0.9082951062292475
+    # test autocovariance
+    @test autocovariance(a,1) ≈ 6.416666666666667
+    @test autocovariance(a,1;corrected=false) ≈ 5.775
+    # test covariance
+    b = collect(2:11)
+    @test covariance(a,b) ≈ 9.166666666666666
+    @test covariance(a,b;corrected=false) ≈ 8.25
+    c = collect(2:20) # should be truncated
+    @test covariance(a,b) == covariance(a,c)
+    @test covariance(a,b;corrected=false) == covariance(a,c;corrected=false)
+
     # Define the initial Fock state with n particles and m modes
     n = m = 9
     aIni = nearUniform(BoseFS{n,m})
@@ -39,7 +54,8 @@ using Statistics
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     r = autoblock(rdfs, start=101)
-    @test reduce(&, Tuple(r).≈(-5.25223493152101, 0.19342756375228998, -6.527599639255635, 0.5197276766889821, 6))
+    #@test reduce(&, Tuple(r).≈(-5.25223493152101, 0.19342756375228998, -6.527599639255635, 0.5197276766889821, 6))
+    @test reduce(&, Tuple(r).≈(-5.25223493152101, 0.19342756375229, -6.527599639255635, 0.47607219512729554, 6))
 end
 
 using Rimu.BitStringAddresses

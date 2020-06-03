@@ -10,6 +10,7 @@ module Blocking
 
 using DataFrames, Statistics
 
+export autocovariance, covariance
 export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
 
