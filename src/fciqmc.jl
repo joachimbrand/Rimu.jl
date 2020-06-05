@@ -92,7 +92,7 @@ function lomc!(ham, v;
         # Note the row structure defined here (currently 13 columns)
         # When changing the structure of `df`, it has to be changed in all places
         # where data is pushed into `df`.
-        @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+        @assert Symbol.(names(df)) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
                                 :vproj, :hproj,
                                 :spawns, :deaths, :clones, :antiparticles,
                                 :annihilations, :shiftnoise
@@ -203,7 +203,7 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
     # Note the row structure defined here (currently 13 columns)
     # When changing the structure of `df`, it has to be changed in all places
     # where data is pushed into `df`.
-    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+    @assert Symbol.(names(df)) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
                             :vproj, :hproj,
                             :spawns, :deaths, :clones, :antiparticles,
                             :annihilations, :shiftnoise
@@ -237,7 +237,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
     # check `df` for consistency
-    @assert names(df) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
+    @assert Symbol.(names(df)) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
                             :vproj, :hproj,
                             :spawns, :deaths, :clones, :antiparticles,
                             :annihilations, :shiftnoise
