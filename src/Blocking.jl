@@ -35,12 +35,18 @@ export autoblock, blockAndMTest
 # sd(v::Vector) = sqrt(variance(v))
 #
 """
-Calculate the standard error of the dataset v
+    se(v::Vector;corrected::Bool=true)
+Calculate the standard error of the dataset `v`. If `corrected` is `true`
+(the default) then the sum in `std` is scaled with `n-1`, whereas the sum
+is scaled with `n` if corrected is `false` where `n = length(v)`.
 """
 se(v::Vector;corrected::Bool=true) = std(v;corrected=corrected)/sqrt(length(v))
 
 """
-Reblock the data by successively taking the mean of adjacent data points
+    blocker(v::Vector) -> new_v::Vector
+Reblock the data by successively taking the mean of two adjacent data points to
+form a new vector with a half of the `length(v)`. The last data point will be
+discarded if `length(v)` is odd.
 """
 function blocker(v::Vector)
     new_v = Array{Float64}(undef,(length(v)÷2))
@@ -95,7 +101,11 @@ function blocking_old(v::Vector; typos = nothing)
 end
 
 """
-Calculate the autocovariance of dataset v with a delay h.
+    autocovariance(v::Vector,h::Int; corrected::Bool=true)
+``\\hat{\\gamma}(h) =\\frac{1}{n}\\sum_{t=1}^{n-h}(v_{t+h}-\\bar{v})(v_t-\\bar{v})``
+Calculate the autocovariance of dataset `v` with a delay `h`. If `corrected` is `true`
+(the default) then the sum is scaled with `n-h`, whereas the sum
+is scaled with `n` if corrected is `false` where `n = length(v)`.
 """
 function autocovariance(v::Vector,h::Int; corrected::Bool=true)
     n = length(v)
@@ -104,14 +114,22 @@ function autocovariance(v::Vector,h::Int; corrected::Bool=true)
     for i in 1:n-h
         covsum += (v[i]-mean_v)*(v[i+h]-mean_v)
     end
-    if corrected
-        cov = covsum/(n-1)
-    else
-        cov = covsum/n
-    end
-    return cov
+    gamma = covsum/ifelse(corrected, (n-h), n)
+    return gamma
 end
 
+"""
+    blocking(v::Vector; corrected::Bool=true) -> df
+Perform a blocking analysis according to Flyvberg and Peterson
+[JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480)
+for single data set and return a `DataFrame` with
+statistical data for each blocking step. M-test data according to Jonsson
+[PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304) is also
+provided.
+If `corrected` is `true` (the default) then the sum in `var` is scaled
+with `n-1` and in `autocovariance` is scaled with `n-h`, whereas the sum
+is scaled with `n` for both if corrected is `false` where `n = length(v)`.
+"""
 function blocking(v::Vector; corrected::Bool=true)
     df = DataFrame(blocks = Int[], mean = Float64[], stdev = Float64[],
                     std_err = Float64[], std_err_err = Float64[], gamma = Float64[], M = Float64[])
@@ -131,17 +149,21 @@ function blocking(v::Vector; corrected::Bool=true)
 end
 
 """
-Calculate the covariance between the two data sets vi and vj.
+    covariance(x::Vector,y::Vector; corrected::Bool=true)
+Calculate the covariance between the two data sets `x` and `y` with equal length.
+If `corrected` is `true` (the default) then the sum is scaled with
+ `n-1`, whereas the sum is scaled with `n` if corrected is `false`
+ where `n = length(x) = length(y)`.
 """
 function covariance(vi::Vector,vj::Vector; corrected::Bool=true)
-    if length(vi) != length(vj)
-        @warn "Two data sets with non-equal length! Truncating the longer one."
-        if length(vi) > length(vj)
-            vi = vi[1:length(vj)]
-        else
-            vj = vj[1:length(vi)]
-        end
-    end
+    # if length(vi) != length(vj)
+    #     @warn "Two data sets with non-equal length! Truncating the longer one."
+    #     if length(vi) > length(vj)
+    #         vi = vi[1:length(vj)]
+    #     else
+    #         vj = vj[1:length(vi)]
+    #     end
+    # end
     n = length(vi)
     meani = mean(vi)
     meanj = mean(vj)
@@ -149,27 +171,28 @@ function covariance(vi::Vector,vj::Vector; corrected::Bool=true)
     for i in 1:n
         covsum += (vi[i]-meani)*(vj[i]-meanj)
     end
-    if corrected
-        cov = covsum/(n-1)
-    else
-        cov = covsum/n
-    end
+    cov = covsum/ifelse(corrected, (n-1), n)
     return cov
 end
 
 
 """
-find the standard error on standard errors on two datasets
+    combination_division(x::Vector,y::Vector; corrected::Bool=true)
+Find the standard error on the quotient of means `x̄/ȳ` from two data sets,
+note that the standard errors are different on ``(x̄/ȳ) \\neq \\bar{(\\frac{x}{y})}``.
+If `corrected` is `true` (the default) then the sums in both variance and covariance
+are scaled with `n-1`, whereas the sums are scaled with `n` if corrected is `false`
+ where `n = length(x) = length(y)`.
 """
 function combination_division(vi::Vector,vj::Vector; corrected::Bool=true)
-    if length(vi) != length(vj)
-        @warn "Two data sets with non-equal length! Truncating the longer one."
-        if length(vi) > length(vj)
-            vi = vi[1:length(vj)]
-        else
-            vj = vj[1:length(vi)]
-        end
-    end
+    # if length(vi) != length(vj)
+    #     @warn "Two data sets with non-equal length! Truncating the longer one."
+    #     if length(vi) > length(vj)
+    #         vi = vi[1:length(vj)]
+    #     else
+    #         vj = vj[1:length(vi)]
+    #     end
+    # end
     n = length(vi)
     meani = mean(vi)
     meanj = mean(vj)
@@ -183,21 +206,31 @@ end
 
 
 """
-    blocking(x::Vector,y::Vector) -> df
+    blocking(x::Vector,y::Vector) -> df::DataFrame
 Perform a blocking analysis for the quotient of means `x̄/ȳ` from two data sets.
+If `corrected` is `true` (the default) then the sums in both variance and covariance
+are scaled with `n-1`, whereas the sums are scaled with `n` if corrected is `false`
+ where `n = length(x) = length(y)`.
+Entries in returned dataframe:
+* `blocks` = number of blocks in current blocking step;
+* `mean_x`, `SD_x`, `SE_x`, `SE_SE_x` = the mean, standard deviation, standard error and error on standard error estimated for dataset `x`;
+* `mean_y`, `SD_y`, `SE_y`, `SE_SE_y` = ditto. for dataset `y`;
+* `Covariance` = the covariance between data in `x` and `y`;
+* `mean_f` = `x̄/ȳ`;
+* `SE_f` = standard error estimated for `x̄/ȳ`.
 """
 function blocking(vi::Vector,vj::Vector; corrected::Bool=true)
-    df = DataFrame(blocks=Int[], mean_i=Float64[], SD_i=Float64[], SE_i=Float64[], SE_SE_i=Float64[],
-            mean_j=Float64[], SD_j=Float64[], SE_j=Float64[], SE_SE_j=Float64[], Covariance=Float64[],
+    df = DataFrame(blocks=Int[], mean_x=Float64[], SD_x=Float64[], SE_x=Float64[], SE_SE_x=Float64[],
+            mean_y=Float64[], SD_y=Float64[], SE_y=Float64[], SE_SE_y=Float64[], Covariance=Float64[],
             mean_f=Float64[], SE_f=Float64[])
-    if length(vi) != length(vj)
-        @warn "Two data sets with non-equal length! Truncating the longer one."
-        if length(vi) > length(vj)
-            vi = vi[1:length(vj)]
-        else
-            vj = vj[1:length(vi)]
-        end
-    end
+    # if length(vi) != length(vj)
+    #     @warn "Two data sets with non-equal length! Truncating the longer one."
+    #     if length(vi) > length(vj)
+    #         vi = vi[1:length(vj)]
+    #     else
+    #         vj = vj[1:length(vi)]
+    #     end
+    # end
     while length(vi) >= 2
         n = length(vi)
         meani = mean(vi)
