@@ -27,7 +27,7 @@ pipelines:
     - step:
         name: documentation
         caches:
-            - julia
+            - julia-docs
         script:
             - apt-get update && apt-get install -y git openmpi-bin
             - export JULIA_PROJECT=@.
@@ -45,3 +45,4 @@ pipelines:
 definitions:
       caches:
         julia: ~/.julia
+        julia-docs: ~/.julia
