@@ -4,6 +4,8 @@ pipelines:
   default:
     - step:
         name: tests
+        caches:
+          - julia
         script:
             - apt-get update && apt-get install -y openmpi-bin
             - export JULIA_PROJECT=@.
@@ -13,6 +15,7 @@ pipelines:
             - export JULIA_NUM_THREADS=1
             - julia -e 'using InteractiveUtils; versioninfo(verbose=true)'
             - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
+            - julia -e 'using MPI'
             - julia -e 'using Pkg; Pkg.test("Rimu")'
             # - julia --project=test/ -e 'using Pkg; Pkg.instantiate()'
             # - julia --project=test/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd()));  Pkg.instantiate()'
@@ -36,3 +39,6 @@ pipelines:
             - julia --project=docs/ docs/make.jl
   # branches:
   #     master:
+definitions:
+  caches:
+    julia: ~/.julia
