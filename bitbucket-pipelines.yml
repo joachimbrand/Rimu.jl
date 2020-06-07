@@ -15,6 +15,7 @@ pipelines:
             - export JULIA_NUM_THREADS=1
             - julia -e 'using InteractiveUtils; versioninfo(verbose=true)'
             - julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
+            - julia -e 'using Pkg; Pkg.build("MPI")'
             - julia -e 'using MPI'
             - julia -e 'using Pkg; Pkg.test("Rimu")'
             # - julia --project=test/ -e 'using Pkg; Pkg.instantiate()'
