@@ -5,7 +5,7 @@ pipelines:
     - step:
         name: tests
         caches:
-          - julia
+            - julia
         script:
             - apt-get update && apt-get install -y openmpi-bin
             - export JULIA_PROJECT=@.
@@ -26,6 +26,8 @@ pipelines:
             # - mpirun -np 4 --allow-run-as-root julia test/mpiexample.jl
     - step:
         name: documentation
+        caches:
+            - julia
         script:
             - apt-get update && apt-get install -y git openmpi-bin
             - export JULIA_PROJECT=@.
@@ -41,5 +43,5 @@ pipelines:
   # branches:
   #     master:
 definitions:
-  caches:
-    julia: ~/.julia
+      caches:
+        julia: ~/.julia
