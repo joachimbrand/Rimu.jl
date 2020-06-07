@@ -44,5 +44,5 @@ pipelines:
   #     master:
 definitions:
       caches:
-        julia: ~/.julia
-        julia-docs: ~/.julia
+        julia: ~/.julia/compiled
+        julia-docs: ~/.julia/compiled
