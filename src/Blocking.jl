@@ -1,43 +1,52 @@
 """
 `Blocking`
 
-Module that contains functions performing the Flyvbjerg-Petersen blocking
-analysis for evaluating the standard error on a correlated data set.
+Module that contains functions performing the Flyvbjerg-Petersen
+(J. Chem. Phys. 91, 461 (1989)) blocking analysis for evaluating
+the standard error on a correlated data set. A "M-test" is also
+implemented based on Jonsson (Phys. Rev. E 98, 043304, (2018)).
 """
 module Blocking
 
-using DataFrames
+using DataFrames, Statistics
 
+export autocovariance, covariance
 export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
 
+# """
+# Calculate the variance of the dataset v
+# """
+# function variance(v::Vector)
+#     n = 0::Int
+#     sum = 0.0::Float64
+#     sumsq = 0.0::Float64
+#     for x in v
+#         n += 1
+#         sum += x
+#         sumsq += x^2
+#     end
+#     return (sumsq-sum^2/n)/(n-1)
+# end
+#
+# """
+# Calculate the standard deviation of the dataset v
+# """
+# sd(v::Vector) = sqrt(variance(v))
+#
 """
-Calculate the variance of the dataset v
+    se(v::Vector;corrected::Bool=true)
+Calculate the standard error of the dataset `v`. If `corrected` is `true`
+(the default) then the sum in `std` is scaled with `n-1`, whereas the sum
+is scaled with `n` if corrected is `false` where `n = length(v)`.
 """
-function variance(v::Vector)
-    n = 0::Int
-    sum = 0.0::Float64
-    sumsq = 0.0::Float64
-    for x in v
-        n += 1
-        sum += x
-        sumsq += x^2
-    end
-    return (sumsq-sum^2/n)/(n-1)
-end
+se(v::Vector;corrected::Bool=true) = std(v;corrected=corrected)/sqrt(length(v))
 
 """
-Calculate the standard deviation of the dataset v
-"""
-sd(v::Vector) = sqrt(variance(v))
-
-"""
-Calculate the standard error of the dataset v
-"""
-se(v::Vector) = sd(v)/sqrt(length(v)-1)
-
-"""
-Reblock the data by successively taking the mean of adjacent data points
+    blocker(v::Vector) -> new_v::Vector
+Reblock the data by successively taking the mean of two adjacent data points to
+form a new vector with a half of the `length(v)`. The last data point will be
+discarded if `length(v)` is odd.
 """
 function blocker(v::Vector)
     new_v = Array{Float64}(undef,(length(v)÷2))
@@ -61,7 +70,7 @@ Keyword argument `typos`
 * `typos = :FP` - use Flyvberg and Peterson (correct) standard error and Jonsson formul for M.
 * `typos = :Jonsson` - calculate `M` and standard error as written in Jonsson.
 """
-function blocking(v::Vector; typos = nothing)
+function blocking_old(v::Vector; typos = nothing)
     df = DataFrame(blocks = Int[], mean = Float64[], stdev = Float64[],
                     std_err = Float64[], std_err_err = Float64[], gamma = Float64[], M = Float64[])
     while length(v) >= 2
@@ -92,117 +101,197 @@ function blocking(v::Vector; typos = nothing)
 end
 
 """
-Calculate the covariance between the two data sets vi and vj.
+    autocovariance(v::Vector,h::Int; corrected::Bool=true)
+``\\hat{\\gamma}(h) =\\frac{1}{n}\\sum_{t=1}^{n-h}(v_{t+h}-\\bar{v})(v_t-\\bar{v})``
+Calculate the autocovariance of dataset `v` with a delay `h`. If `corrected` is `true`
+(the default) then the sum is scaled with `n-h`, whereas the sum
+is scaled with `n` if corrected is `false` where `n = length(v)`.
 """
-function covariance(vi::Vector,vj::Vector)
-    if length(vi) != length(vj)
-        error("Two data sets with non-equal length!")
-    else
-        n = length(vi)
-        meani = sum(vi)/n
-        meanj = sum(vj)/n
-        covsum = zero(meani)
-        for i in 1:n
-            covsum += (vi[i]-meani)*(vj[i]-meanj)
-        end
-        cov = covsum/(n-1)
-        return cov
+function autocovariance(v::Vector,h::Int; corrected::Bool=true)
+    n = length(v)
+    mean_v = mean(v)
+    covsum = zero(mean_v)
+    for i in 1:n-h
+        covsum += (v[i]-mean_v)*(v[i+h]-mean_v)
     end
+    gamma = covsum/ifelse(corrected, (n-h), n)
+    return gamma
+end
+
+"""
+    blocking(v::Vector; corrected::Bool=true) -> df
+Perform a blocking analysis according to Flyvberg and Peterson
+[JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480)
+for single data set and return a `DataFrame` with
+statistical data for each blocking step. M-test data according to Jonsson
+[PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304) is also
+provided.
+If `corrected` is `true` (the default) then the sum in `var` is scaled
+with `n-1` and in `autocovariance` is scaled with `n-h`, whereas the sum
+is scaled with `n` for both if corrected is `false` where `n = length(v)`.
+"""
+function blocking(v::Vector; corrected::Bool=true)
+    df = DataFrame(blocks = Int[], mean = Float64[], stdev = Float64[],
+                    std_err = Float64[], std_err_err = Float64[], gamma = Float64[], M = Float64[])
+    while length(v) >= 2
+        n = length(v) # size of current dataset
+        mean_v = mean(v)
+        variance = var(v; corrected=corrected) # variance
+        gamma = autocovariance(v,1; corrected=corrected) # sample covariance ŷ(1) Eq. (6) [Jonsson]
+        mj = n*((n-1)*variance/(n^2)+gamma)^2/(variance^2) # the M value Eq. (12) [Jonsson]
+        stddev = sqrt(variance) # standard deviation
+        stderr = stddev/sqrt(n) # standard error
+        stderrerr = stderr/sqrt(2*(n-1)) # error on standard error Eq. (28) [F&P]
+        v = blocker(v) # re-blocking the dataset
+        push!(df,(n, mean_v, stddev, stderr, stderrerr, gamma, mj))
+    end
+    return df
+end
+
+"""
+    covariance(x::Vector,y::Vector; corrected::Bool=true)
+Calculate the covariance between the two data sets `x` and `y` with equal length.
+If `corrected` is `true` (the default) then the sum is scaled with
+ `n-1`, whereas the sum is scaled with `n` if corrected is `false`
+ where `n = length(x) = length(y)`.
+"""
+function covariance(vi::Vector,vj::Vector; corrected::Bool=true)
+    # if length(vi) != length(vj)
+    #     @warn "Two data sets with non-equal length! Truncating the longer one."
+    #     if length(vi) > length(vj)
+    #         vi = vi[1:length(vj)]
+    #     else
+    #         vj = vj[1:length(vi)]
+    #     end
+    # end
+    n = length(vi)
+    meani = mean(vi)
+    meanj = mean(vj)
+    covsum = zero(meani)
+    for i in 1:n
+        covsum += (vi[i]-meani)*(vj[i]-meanj)
+    end
+    cov = covsum/ifelse(corrected, (n-1), n)
+    return cov
 end
 
 
 """
-find the standard error on standard errors on two datasets
+    combination_division(x::Vector,y::Vector; corrected::Bool=true)
+Find the standard error on the quotient of means `x̄/ȳ` from two data sets,
+note that the standard errors are different on ``(x̄/ȳ) \\neq \\bar{(\\frac{x}{y})}``.
+If `corrected` is `true` (the default) then the sums in both variance and covariance
+are scaled with `n-1`, whereas the sums are scaled with `n` if corrected is `false`
+ where `n = length(x) = length(y)`.
 """
-function combination_division(vi::Vector,vj::Vector)
-    if length(vi) != length(vj)
-        error("Two data sets with non-equal length!")
-    else
-        n = length(vi)
-        meani = sum(vi)/n
-        meanj = sum(vj)/n
-        meanf = meani/meanj
-        sei = se(vi)
-        sej = se(vj)
-        cov = covariance(vi,vj)
-        sef = abs(meanf*sqrt((sei/meani)^2 + (sej/meanj)^2 - 2.0*cov/(n*meani*meanj)))
-        return sef
-    end
+function combination_division(vi::Vector,vj::Vector; corrected::Bool=true)
+    # if length(vi) != length(vj)
+    #     @warn "Two data sets with non-equal length! Truncating the longer one."
+    #     if length(vi) > length(vj)
+    #         vi = vi[1:length(vj)]
+    #     else
+    #         vj = vj[1:length(vi)]
+    #     end
+    # end
+    n = length(vi)
+    meani = mean(vi)
+    meanj = mean(vj)
+    meanf = meani/meanj
+    sei = se(vi;corrected=corrected)
+    sej = se(vj;corrected=corrected)
+    cov = covariance(vi,vj;corrected=corrected)
+    sef = abs(meanf*sqrt((sei/meani)^2 + (sej/meanj)^2 - 2.0*cov/(n*meani*meanj)))
+    return sef
 end
 
 
 """
-    blocking(x::Vector,y::Vector) -> df
+    blocking(x::Vector,y::Vector) -> df::DataFrame
 Perform a blocking analysis for the quotient of means `x̄/ȳ` from two data sets.
+If `corrected` is `true` (the default) then the sums in both variance and covariance
+are scaled with `n-1`, whereas the sums are scaled with `n` if corrected is `false`
+ where `n = length(x) = length(y)`.
+Entries in returned dataframe:
+* `blocks` = number of blocks in current blocking step;
+* `mean_x`, `SD_x`, `SE_x`, `SE_SE_x` = the mean, standard deviation, standard error and error on standard error estimated for dataset `x`;
+* `mean_y`, `SD_y`, `SE_y`, `SE_SE_y` = ditto. for dataset `y`;
+* `Covariance` = the covariance between data in `x` and `y`;
+* `mean_f` = `x̄/ȳ`;
+* `SE_f` = standard error estimated for `x̄/ȳ`.
 """
-function blocking(vi::Vector,vj::Vector)
-    df = DataFrame(blocks=Int[], mean_i=Float64[], SD_i=Float64[], SE_i=Float64[], SE_SE_i=Float64[],
-            mean_j=Float64[], SD_j=Float64[], SE_j=Float64[], SE_SE_j=Float64[], Covariance=Float64[],
+function blocking(vi::Vector,vj::Vector; corrected::Bool=true)
+    df = DataFrame(blocks=Int[], mean_x=Float64[], SD_x=Float64[], SE_x=Float64[], SE_SE_x=Float64[],
+            mean_y=Float64[], SD_y=Float64[], SE_y=Float64[], SE_SE_y=Float64[], Covariance=Float64[],
             mean_f=Float64[], SE_f=Float64[])
-    if length(vi) != length(vj)
-        error("Two data sets with non-equal length!")
-    else
-        while length(vi) >= 2
-            n = length(vi)
-            meani = sum(vi)/n
-            meanj = sum(vj)/n
-            meanf = meani/meanj
-            sdi = sd(vi)
-            sdj = sd(vj)
-            sei = se(vi)
-            sej = se(vj)
-            sesei = sei*1/sqrt(2*(n-1))
-            sesej = sej*1/sqrt(2*(n-1))
-            cov = covariance(vi,vj)
-            #sef = sei/sej
-            sef = combination_division(vi,vj)
-            vi = blocker(vi)
-            vj = blocker(vj)
-            #println(n, mean, stddev, stderr)
-            push!(df,(n, meani, sdi, sei, sesei, meanj, sdj, sej, sesej, cov, meanf, sef))
-        end
-        return df
+    # if length(vi) != length(vj)
+    #     @warn "Two data sets with non-equal length! Truncating the longer one."
+    #     if length(vi) > length(vj)
+    #         vi = vi[1:length(vj)]
+    #     else
+    #         vj = vj[1:length(vi)]
+    #     end
+    # end
+    while length(vi) >= 2
+        n = length(vi)
+        meani = mean(vi)
+        meanj = mean(vj)
+        meanf = meani/meanj
+        sdi = std(vi;corrected=corrected)
+        sdj = std(vj;corrected=corrected)
+        sei = sdi/sqrt(n)
+        sej = sdj/sqrt(n)
+        sesei = sei*1/sqrt(2*(n-1))
+        sesej = sej*1/sqrt(2*(n-1))
+        cov = covariance(vi,vj;corrected=corrected)
+        #sef = sei/sej
+        sef = combination_division(vi,vj;corrected=corrected)
+        vi = blocker(vi)
+        vj = blocker(vj)
+        #println(n, mean, stddev, stderr)
+        push!(df,(n, meani, sdi, sei, sesei, meanj, sdj, sej, sesej, cov, meanf, sef))
     end
+    return df
 end
 
-"""
-estimating stnadard error from blocking analysis based on the overlapping of
-error bars, if all the error bars (or more than 3 on a roll) behind current
-one are overlapping with it, return the current standard error with error bar.
-"""
-function blockingErrorEstimation(df::DataFrame)
-    e = df.std_err[1:end-1] # ignoring the last data point
-    ee = df.std_err_err[1:end-1] # ignoring the last data point
-    n = length(e)
-    ind = collect(1:length(e))
-    e_upper = map(x->e[x]+ee[x],ind) # upper bounds
-    e_lower = map(x->e[x]-ee[x],ind) # lower bounds
-    i = 1 # start from the first data point
-    plateau = false
-    while i < n
-        count = 0 # set up a counter for checking overlapped error bars
-        for j in (i+1):n # j : all data points after i
-            if e_lower[i] >= e_lower[j] && e_upper[i] <= e_upper[j]
-                count += 1
-                #println("i: ",i," j: ",j," c: ",count)
-                # some tolerance, say if there are 3 overlaps on a roll could be a plateau
-                if count > 3 && (i + count) == j
-                    plateau = true
-                    println("\x1b[32mplateau detected\x1b[0m")
-                    return e[i], ee[i], plateau
-                end
-            end
-        end # for
-        if count == (n-i)
-            println("\x1b[32mNO plateau is detected, take the best estimation\x1b[0m")
-            return e[i], ee[i], plateau
-        else
-            i += 1 # move on to next point
-        end
-    end # while
-    println("\x1b[32mNO plateau, NO error bar overlap, take the second last point\x1b[0m")
-    return e[i], ee[i], plateau # return the last ponit
-end
+# no longer needed, using the M test now
+# """
+# estimating stnadard error from blocking analysis based on the overlapping of
+# error bars, if all the error bars (or more than 3 on a roll) behind current
+# one are overlapping with it, return the current standard error with error bar.
+# """
+# function blockingErrorEstimation(df::DataFrame)
+#     e = df.std_err[1:end-1] # ignoring the last data point
+#     ee = df.std_err_err[1:end-1] # ignoring the last data point
+#     n = length(e)
+#     ind = collect(1:length(e))
+#     e_upper = map(x->e[x]+ee[x],ind) # upper bounds
+#     e_lower = map(x->e[x]-ee[x],ind) # lower bounds
+#     i = 1 # start from the first data point
+#     plateau = false
+#     while i < n
+#         count = 0 # set up a counter for checking overlapped error bars
+#         for j in (i+1):n # j : all data points after i
+#             if e_lower[i] >= e_lower[j] && e_upper[i] <= e_upper[j]
+#                 count += 1
+#                 #println("i: ",i," j: ",j," c: ",count)
+#                 # some tolerance, say if there are 3 overlaps on a roll could be a plateau
+#                 if count > 3 && (i + count) == j
+#                     plateau = true
+#                     println("\x1b[32mplateau detected\x1b[0m")
+#                     return e[i], ee[i], plateau
+#                 end
+#             end
+#         end # for
+#         if count == (n-i)
+#             println("\x1b[32mNO plateau is detected, take the best estimation\x1b[0m")
+#             return e[i], ee[i], plateau
+#         else
+#             i += 1 # move on to next point
+#         end
+#     end # while
+#     println("\x1b[32mNO plateau, NO error bar overlap, take the second last point\x1b[0m")
+#     return e[i], ee[i], plateau # return the last ponit
+# end
 
 """
     mtest(df::DataFrame; warn = true) -> k
@@ -285,8 +374,8 @@ Perform a blocking analysis and M-test on `v` returning the mean `v̄`,
 standard error `σ`, its error `σσ`, the number of blocking steps `k`, and
 the `DataFrame` `df` with blocking data.
 """
-function blockAndMTest(v::Vector)
-    df = blocking(v)
+function blockAndMTest(v::Vector; corrected::Bool=true)
+    df = blocking(v;corrected=corrected)
     k = mtest(df, warn=false)
     v̄ = df.mean[1]
     if k>0
@@ -300,11 +389,11 @@ function blockAndMTest(v::Vector)
     return v̄, σ, σσ, k, df
 end
 
-function blockTestShiftAndProjected(df::DataFrame; start = 1, stop = size(df)[1])
-    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop])
-    v̄, σv, σσv, kv, dfv = blockAndMTest(df.vproj[start:stop])
-    h̄, σh, σσh, kh, dfh = blockAndMTest(df.hproj[start:stop])
-    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop])
+function blockTestShiftAndProjected(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool=true)
+    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop];corrected=corrected)
+    v̄, σv, σσv, kv, dfv = blockAndMTest(df.vproj[start:stop];corrected=corrected)
+    h̄, σh, σσh, kh, dfh = blockAndMTest(df.hproj[start:stop];corrected=corrected)
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop];corrected=corrected)
     k = max(ks, kv, kh)
     @show ks, kv, kh
     ks==kv==kh || @warn "k values are not the same."
@@ -321,9 +410,9 @@ steps and decorrelation time `2^k` are obtained from the M-test for the
 shift and also applied to the projected energy, assuming that the projected
 quantities decorrelate on the same time scale. Returns a named tuple.
 """
-function autoblock(df::DataFrame; start = 1, stop = size(df)[1])
-    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop]) # shift
-    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop]) # projected
+function autoblock(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool=true)
+    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop];corrected=corrected) # shift
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop];corrected=corrected) # projected
     return (s̄ = s̄, σs = σs, ē = dfp.mean_f[1], σe = dfp.SE_f[ks], k = ks)
 end
 
@@ -336,18 +425,18 @@ Replica version. `dftup` is the tuple of `DataFrame`s returned from replica
 estimators and respective errors obtained from blocking analysis. The larger
 of the `k` values from M-tests on the two shift time series is used.
 """
-function autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1])
+function autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1], corrected::Bool=true)
     (df_mix, (df_1, df_2)) = dftup # unpack the three DataFrames
-    s̄1, σs1, σσs1, ks1, dfs1 = blockAndMTest(df1.shift[start:stop]) # shift 1
-    s̄2, σs2, σσs2, ks2, dfs2 = blockAndMTest(df2.shift[start:stop]) # shift 2
+    s̄1, σs1, σσs1, ks1, dfs1 = blockAndMTest(df1.shift[start:stop];corrected=corrected) # shift 1
+    s̄2, σs2, σσs2, ks2, dfs2 = blockAndMTest(df2.shift[start:stop];corrected=corrected) # shift 2
     xdy = df_mix.xdy[start:stop]
     s1_xdy = dfs1.shift[start:stop].*xdy
     s2_xdy = dfs2.shift[start:stop].*xdy
     xHy = df_mix.xHy[start:stop]
-    df_var_1 = blocking(s1_xdy, xdy)
-    df_var_2 = blocking(s2_xdy, xdy)
-    df_var_H = blocking(xHy, xdy)
-    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop])
+    df_var_1 = blocking(s1_xdy, xdy;corrected=corrected)
+    df_var_2 = blocking(s2_xdy, xdy;corrected=corrected)
+    df_var_H = blocking(xHy, xdy;corrected=corrected)
+    dfp = blocking(df.hproj[start:stop], df.vproj[start:stop];corrected=corrected)
     ks = max(ks1, ks2)
     return (s̄1=s̄1, σs1=σs1, s̄2=s̄2, σs2=σs2,
         ē1 = df_var_1.mean_f[1], σe1 = df_var_1.SE_f[ks],
