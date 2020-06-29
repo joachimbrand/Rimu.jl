@@ -15,9 +15,10 @@ include("build.jl") # generates the html pages
 deploydocs(
     # repo here needs to point to the BitBucket Pages repository
     # repo = "bitbucket.org/joachimbrand/joachimbrand.bitbucket.io.git",
-    repo = "github.com/joachimbrand/Rimu.jl.git",
+    repo = "github.com/myang04/rimudoc.git",
     # BitBucket pages are served from the master branch
     devbranch = "feature/github-actions",
+    branch = "master"
     # As BitBucket Pages are shared between all the repositories of a user or a team,
     # it is best to deploy the docs to a subdirectory named after the package
     # dirname = "Rimu.jl",
