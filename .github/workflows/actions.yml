@@ -26,9 +26,9 @@ jobs:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
       - name: "Install MPI"
-        run:
-          - sudo apt-get update
-          - sudo apt-get install -y openmpi-bin
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openmpi-bin
       - name: "Run tests"
         run: |
           export JULIA_PROJECT=@.
