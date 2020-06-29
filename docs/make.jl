@@ -14,7 +14,8 @@ withenv(
 ) do
     deploydocs(
         # repo here needs to point to the BitBucket Pages repository
-        repo = "bitbucket.org/joachimbrand/joachimbrand.bitbucket.io.git",
+        #repo = "bitbucket.org/joachimbrand/joachimbrand.bitbucket.io.git",
+        repo = "github.com/joachimbrand/Rimu.jl.git",
         # BitBucket pages are served from the master branch
         branch = "master",
         # As BitBucket Pages are shared between all the repositories of a user or a team,
