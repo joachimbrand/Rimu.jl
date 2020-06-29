@@ -9,7 +9,7 @@ withenv(
     #"TRAVIS_REPO_SLUG" => "bitbucket.org/joachimbrand/joachimbrand.bitbucket.io",
     "TRAVIS_REPO_SLUG" => "github.com/myang04/rimudoc",
     "TRAVIS_PULL_REQUEST" => get(ENV, "BITBUCKET_BRANCH", nothing),
-    "TRAVIS_BRANCH" => get(ENV, "BITBUCKET_BRANCH", nothing),
+    "TRAVIS_BRANCH" => "feature/github-actions",
     "TRAVIS_TAG" => get(ENV, "BITBUCKET_TAG", nothing),
     "TRAVIS_PULL_REQUEST" => ("BITBUCKET_PR_ID" in keys(ENV)) ? "true" : "false",
 ) do
