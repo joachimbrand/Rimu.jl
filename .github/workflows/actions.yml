@@ -9,12 +9,14 @@ jobs:
     strategy:
       matrix:
         julia-version: [1.4.1]
-        julia-arch: [x64, x86]
-        os: [ubuntu-latest, windows-latest, macOS-latest]
+        # julia-arch: [x64, x86]
+        julia-arch: [x64]
+        # os: [ubuntu-latest, windows-latest, macOS-latest]
+        os: [ubuntu-latest]
         # 32-bit Julia binaries are not available on macOS
-        exclude:
-          - os: macOS-latest
-            julia-arch: x86
+        # exclude:
+        #   - os: macOS-latest
+        #     julia-arch: x86
 
     steps:
       - uses: actions/checkout@v1.0.0
@@ -25,6 +27,12 @@ jobs:
           arch: ${{ matrix.julia-arch }}
       - name: "Run tests"
         run: |
+          apt-get update && apt-get install -y openmpi-bin
+          export JULIA_PROJECT=@.
+          export JULIA_MPIEXEC=/tmp/mpiexecwrapper
+          echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
+          chmod +x $JULIA_MPIEXEC
+          export JULIA_NUM_THREADS=1
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"
