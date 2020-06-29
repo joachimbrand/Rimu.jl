@@ -7,7 +7,7 @@ withenv(
     # TRAVIS_REPO_SLUG is the only one that is repository-specific. This is because we are
     # actually deploying the HTML pages into a different repository.
     #"TRAVIS_REPO_SLUG" => "bitbucket.org/joachimbrand/joachimbrand.bitbucket.io",
-    "TRAVIS_REPO_SLUG" => "github.com/myang04/rimudoc"
+    "TRAVIS_REPO_SLUG" => "github.com/myang04/rimudoc",
     "TRAVIS_PULL_REQUEST" => get(ENV, "BITBUCKET_BRANCH", nothing),
     "TRAVIS_BRANCH" => get(ENV, "BITBUCKET_BRANCH", nothing),
     "TRAVIS_TAG" => get(ENV, "BITBUCKET_TAG", nothing),
