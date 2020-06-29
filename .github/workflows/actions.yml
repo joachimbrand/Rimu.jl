@@ -25,9 +25,12 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
+      - name: "Install MPI"
+        run:
+          - sudo apt-get update
+          - sudo apt-get install -y openmpi-bin
       - name: "Run tests"
         run: |
-          apt-get update && apt-get install -y openmpi-bin
           export JULIA_PROJECT=@.
           export JULIA_MPIEXEC=/tmp/mpiexecwrapper
           echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
