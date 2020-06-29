@@ -12,15 +12,15 @@ withenv(
     "TRAVIS_TAG" => get(ENV, "BITBUCKET_TAG", nothing),
     "TRAVIS_PULL_REQUEST" => ("BITBUCKET_PR_ID" in keys(ENV)) ? "true" : "false",
 ) do
-    deploydocs()
+    deploydocs(
         # repo here needs to point to the BitBucket Pages repository
         # repo = "bitbucket.org/joachimbrand/joachimbrand.bitbucket.io.git",
-        # repo = "github.com/joachimbrand/Rimu.jl.git",
+        repo = "github.com/joachimbrand/Rimu.jl.git",
         # BitBucket pages are served from the master branch
         # branch = "master",
         # As BitBucket Pages are shared between all the repositories of a user or a team,
         # it is best to deploy the docs to a subdirectory named after the package
         # dirname = "Rimu.jl",
-    # )
+    )
 end
 # @info "Documentation updated on https://joachimbrand.bitbucket.io/Rimu.jl/dev/ "
