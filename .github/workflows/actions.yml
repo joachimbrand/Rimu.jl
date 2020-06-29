@@ -39,6 +39,4 @@ jobs:
           mpirun echo "hello"
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
-          julia --project=@. -e "using Pkg; Pkg.build("MPI")"
-          julia --project=@. -e "using MPI"
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"
