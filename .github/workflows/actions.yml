@@ -40,3 +40,27 @@ jobs:
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"
+
+
+name: Documentation
+
+on:
+  push:
+    branches:
+      - master
+      - feature/github-actions
+    tags: '*'
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: '1.4.1'
+      - name: Install dependencies
+        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+      - name: Build and deploy
+        run: julia --project=docs/ docs/make.jl
