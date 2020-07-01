@@ -1,7 +1,7 @@
 # Rimu
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://joachimbrand.bitbucket.io/Rimu.jl/dev/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://joachimbrand.bitbucket.io/Rimu.jl/dev/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://joachimbrand.github.io/Rimu.jl/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://joachimbrand.github.io/Rimu.jl/dev/)
 
 *Random Integrators for many-body quantum systems*
 
@@ -18,4 +18,4 @@ pkg> develop ~/mygitpackagefolder/rimu.jl
 where the file path has to be adjusted to the location of the cloned git
 repository.
 
-For more information, consult the [documentation](https://joachimbrand.bitbucket.io/Rimu.jl/dev/).
+For more information, consult the [documentation](https://joachimbrand.github.io/Rimu.jl/dev/).
