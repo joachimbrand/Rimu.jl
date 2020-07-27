@@ -164,6 +164,18 @@ end
     return w
 end # mul!
 
+
+# copying (save) multiplication with scalar
+# For compatibility with KrylovKit v0.5:
+function *(α::N,dv::AbstractDVec{K,V}) where {K,V,N<:Number}
+    w = similar(dv, promote_type(N,V))
+    @inbounds mul!(w,dv,α)
+    return w
+end
+
+*(dv::AbstractDVec, α::Number) =  α*dv
+
+
 """
     add!(x::AbstractDVec,y::AbstactDVec)
 Inplace add `x+y` and store result in `x`.
@@ -214,9 +226,6 @@ function LinearAlgebra.rmul!(w::AbstractDVec, α::Number)
     end
     return w
 end # rmul!
-
-# copying (save) multiplication with scalar
-*(w::AbstractDVec, α::Number) = rmul!(copy(w), α)
 
 # BLAS-like function: y = α*x + β*y
 function LinearAlgebra.axpby!(α::Number, x::AbstractDVec, β::Number, y::AbstractDVec)

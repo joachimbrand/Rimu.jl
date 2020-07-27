@@ -1,3 +1,6 @@
+# copied from DataStructures.jl
+# MIT license
+# copyright 2013 Dahua Lin 
 # by JMW
 
 function unquote(e::Expr)
