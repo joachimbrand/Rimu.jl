@@ -132,6 +132,7 @@ end
 
     @test norm(myda2)≈592.9730179358922
     @test norm(myda2,1)==921
+    @test norm(myda2*2.0,1) == 2*norm(myda2,1)
     @test norm(myda2,Inf)==422
     @inferred norm(myda2,1)
     delete!(myda2,"d")
