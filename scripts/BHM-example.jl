@@ -23,6 +23,8 @@ steps_measure = 1_000
 
 # set the size of a time step
 dτ = 0.001
+# report every k-th step
+k = 1
 
 # prepare initial state and allocate memory
 # initial address
@@ -37,7 +39,7 @@ params = RunTillLastStep(dτ = dτ, laststep = steps_equilibrate + steps_measure
 # strategy for updating the shift
 s_strat = DoubleLogUpdate(targetwalkers = targetwalkers, ζ = 0.08)
 # strategy for reporting info and setting projectors
-r_strat = ReportDFAndInfo(k = 1, i = 100, projector = UniformProjector())
+r_strat = ReportDFAndInfo(k = k, i = 100, projector = UniformProjector())
 # strategy for updating dτ
 t_strat = ConstantTimeStep()
 
