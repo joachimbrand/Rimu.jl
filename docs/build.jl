@@ -26,7 +26,7 @@ makedocs(;
         # "Example" => "generated/qmcexample.md",
         "API" => "API.md",
     ],
-    repo="https://github.com/joachimbrand/Rimu.jl/tree/{commit}{path}#L{line}",
+    repo="https://github.com/joachimbrand/Rimu.jl/src/{commit}{path}#L{line}",
     sitename="Rimu.jl",
     authors="Joachim Brand <j.brand@massey.ac.nz>",
 )

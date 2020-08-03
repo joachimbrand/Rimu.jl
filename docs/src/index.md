@@ -64,7 +64,19 @@ julia> using Revise
 Rimu offers a number of tools for representing Hamiltonians (see
 [`Hamiltonians`](@ref)) and state vectors / wave functions
 (see [`DictVectors`](@ref))
-as well as algorithms to find the ground state, e.g. [`fciqmc!`](@ref).
+as well as algorithms to find the ground state, e.g. [`lomc!`](@ref).
+
+## Scripts (New)
+
+Rimu is written as a Julia package to be imported with `using Rimu` as described
+above. It supplies useful
+functions and types. Performing actual calculations and analysing the results
+is done with scripts. The folder `scripts/` contains a collections of scripts
+that are either examples for use of the Rimu package or useful scripts for
+data analysis. In particular:
+
+- `scripts/BHM-example.jl` is an example script that runs fciqmc on the 1D Bose-Hubbard model. A data frame with results is written to the file `fciqmcdata.feather`.
+- `scripts/BHM-example-mpi.jl` is an example script that runs the same fciqmc calculation as above with MPI enabled.
 
 ## Scripts
 

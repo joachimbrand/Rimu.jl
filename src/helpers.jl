@@ -5,7 +5,7 @@ using Base.Threads: nthreads
 
 localpart(dv) = dv # default for local data
 
-function threaded_working_memory(dv)
+function threadedWorkingMemory(dv)
     v = localpart(dv)
     cws = capacity(v)÷nthreads()+1
     return Tuple(similar(v,cws) for i=1:nthreads())

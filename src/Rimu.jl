@@ -20,6 +20,7 @@ include("Hamiltonians.jl")
 include("Blocking.jl")
 @reexport using .Blocking
 
+export lomc!
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
 export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
 export ProjectStrategy, NoProjection, ThresholdProject, ScaledThresholdProject
@@ -33,9 +34,12 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export StochasticStyle, IsStochastic, IsDeterministic
 # export IsSemistochastic # is not yet ready
 export IsStochasticNonlinear, IsStochasticWithThreshold
+export threadedWorkingMemory, localpart
+
+# exports for MPI functionality
 export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
 export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
-export localpart, free, mpi_no_exchange
+export free, mpi_no_exchange
 
 include("strategies_and_params.jl")
 include("helpers.jl")

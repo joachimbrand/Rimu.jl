@@ -34,6 +34,7 @@ uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 version = "0.21.0"
 
 [[LibGit2]]
+deps = ["Printf"]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
 
 [[Libdl]]
@@ -48,9 +49,9 @@ uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[MPI]]
 deps = ["Distributed", "DocStringExtensions", "Libdl", "Random", "Requires", "Serialization", "Sockets"]
-git-tree-sha1 = "a01349600200a1cb2157fd91e6d19e38642273ed"
+git-tree-sha1 = "54f6b52be12f84073fbb7c68c1b1983555ee7e72"
 uuid = "da04e1cc-30fd-572f-bb4f-1f8673147195"
-version = "0.12.0"
+version = "0.13.0"
 
 [[Markdown]]
 deps = ["Base64"]
@@ -61,12 +62,12 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "0c16b3179190d3046c073440d94172cfc3bb0553"
+git-tree-sha1 = "75d07cb840c300084634b4991761886d0d762724"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "0.3.12"
+version = "1.0.1"
 
 [[Pkg]]
-deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "Test", "UUIDs"]
+deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[Printf]]
