@@ -60,7 +60,7 @@ et = @elapsed df = lomc!(Ĥ,svec;
 
 # saving output data
 println("Writing data to disk...")
-Feather.write("fciqmcdata_fciqmc.feather", df.df)
+Feather.write("fciqmcdata.feather", df.df)
 
 # some quick stats
 (qmcShift,qmcShiftErr,qmcEnergy,qmcEnergyErr) = autoblock(df.df,start=steps_equilibrate)
