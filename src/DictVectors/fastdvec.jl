@@ -86,7 +86,7 @@ Base.size(da::FastDVec) = (length(da),)
 function Base.similar(fdv::FastDVec{K,V}, ::Type{T}) where K where V where T
     hashtable = [Array{Tuple{K,Int}}(undef,0) for i = 1 : fdv.hashrange]
     # need to construct new hashtable
-    FastDVec(similar(fdv.vals, V),similar(fdv.emptyslots),
+    FastDVec(similar(fdv.vals, T),similar(fdv.emptyslots),
              fdv.capacity,fdv.hashrange,hashtable)
 end
 Base.similar(fdv::FastDVec{K,V}) where K where V = similar(fdv, V)

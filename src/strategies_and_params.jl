@@ -23,7 +23,7 @@ abstract type FciqmcRunStrategy end
 
 """
     RunTillLastStep(step::Int = 0 # number of current/starting timestep
-                 laststep::Int = 50 # number of final timestep
+                 laststep::Int = 100 # number of final timestep
                  shiftMode::Bool = false # whether to adjust shift
                  shift::Float64 = 0.0 # starting/current value of shift
                  dτ::Float64 = 0.01 # current value of time step
@@ -33,44 +33,105 @@ For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 """
 @with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
     step::Int = 0 # number of current/starting timestep
-    laststep::Int = 50 # number of final timestep
+    laststep::Int = 100 # number of final timestep
     shiftMode::Bool = false # whether to adjust shift
     shift::Float64 = 0.0 # starting/current value of shift
     dτ::Float64 = 0.01 # time step
 end
 
 """
+    ReportingStrategy
 Abstract type for strategies for reporting data in a DataFrame with
-[`report!()`](@ref). Implemented strategies:
+[`report!()`](@ref). It also affects the calculation and reporting of
+projected quantities in the DataFrame.
+
+# Implemented strategies:
    * [`EveryTimeStep`](@ref)
    * [`EveryKthStep`](@ref)
    * [`ReportDFAndInfo`](@ref)
-"""
-abstract type ReportingStrategy end
 
-"Report every time step."
-struct EveryTimeStep <: ReportingStrategy end
+Every strategy accepts the keyword argument `projector` according to which
+a projection of the instantaneous coefficient vector `projector⋅v` and
+Hamiltonian `dot(projector, H, v)` are
+reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
+respectively. Possible values for `projector` are
+* `missing` - no projections are computed (default)
+* `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
+* [`UniformProjector()`](@ref) - projection onto vector of all ones
+* [`NormProjector()`](@ref) - compute norm instead of projection
+
+# Examples
+```julia
+r_strat = EveryTimeStep(projector = copy(svec))
+```
+Record the projection of instananeous coefficient vector and Hamiltonian onto
+the starting vector, and report every time step.
+```julia
+r_strat = EveryKthStep(k=10, projector = UniformProjector())
+```
+Record the projection of instananeous coefficient vector and Hamiltonian onto
+the uniform vector of all 1s, and report every `k`th time step.
+"""
+abstract type ReportingStrategy{DV} end
 
 """
-    EveryKthStep(;k = 10)
-Report every `k`th step.
+    EveryTimeStep(;projector = missing)
+Report every time step. Include projection onto `projector`. See
+[`ReportingStrategy`](@ref) for details.
 """
-@with_kw struct EveryKthStep <: ReportingStrategy
-    k::Int = 10
+@with_kw struct EveryTimeStep{DV} <: ReportingStrategy{DV}
+    projector::DV = missing
 end
 
 """
-    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true)
+    EveryKthStep(;k = 10, projector = missing)
+Report every `k`th step. Include projection onto `projector`. See
+[`ReportingStrategy`](@ref) for details.
+"""
+@with_kw struct EveryKthStep{DV} <: ReportingStrategy{DV}
+    k::Int = 10
+    projector::DV = missing
+end
+
+"""
+    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = missing)
 Report every `k`th step in DataFrame and write info message to `io` every `i`th
 step (unless `writeinfo == false`). The flag `writeinfo` is useful for
-controlling info messages in MPI codes.
+controlling info messages in MPI codes. Include projection onto `projector`.
+See [`ReportingStrategy`](@ref) for details.
 """
-@with_kw struct ReportDFAndInfo <: ReportingStrategy
+@with_kw struct ReportDFAndInfo{DV} <: ReportingStrategy{DV}
     k::Int = 10 # how often to write to DataFrame
     i::Int = 100 # how often to write info message
     io::IO = stdout # IO stream for info messages
     writeinfo::Bool = true # write info only if true - useful for MPI codes
+    projector::DV = missing
 end
+
+# """
+#     ReportPEnergy(pv)
+# Report every time step including projection onto `pv`.
+# """
+# struct ReportPEnergy{DV} <: ReportingStrategy
+#     projector::DV
+# end
+
+"""
+    energy_project(v, ham, r::ReportingStrategy)
+Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
+the [`ReportingStrategy`](@ref) `r`.
+"""
+function energy_project(v, ham, ::RS) where
+                        {DV <: Missing, RS<:ReportingStrategy{DV}}
+    return missing, missing
+end
+# default
+
+function energy_project(v, ham, r::RS) where
+                        {DV, RS<:ReportingStrategy{DV}}
+    return r.projector⋅v, dot(r.projector, ham, v)
+end
+# The dot products work across MPI when `v::MPIData`; MPI sync
 
 """
     report!(df::DataFrame, t::Tuple, s<:ReportingStrategy)
@@ -78,6 +139,7 @@ Record results in `df` and write informational messages according to strategy
 `s`. See [`ReportingStrategy`](@ref).
 """
 report!(df::DataFrame,t::Tuple,s::EveryTimeStep) = push!(df,t)
+# report!(df::DataFrame,t::Tuple,s::Union{EveryTimeStep, ReportPEnergy}) = push!(df,t)
 
 function report!(df::DataFrame,t::Tuple,s::EveryKthStep)
     step = t[1]
@@ -199,43 +261,110 @@ end
 ShiftMemory(Δ::Int) = ShiftMemory(Δ, DataStructures.CircularBuffer{Float64}(Δ))
 
 """
+    ProjectedMemory(Δ::Int, projector, pp::Number) <: MemoryStrategy
+    ProjectedMemory(Δ::Int, projector, v::AbstractDVec)
+Before updating the shift, apply memory noise to minimize the fluctuations
+of the overlap of the coefficient vector with `projector`.
+Averaging over `Δ` time steps is applied, where `Δ = 1` means no memory noise
+is applied. Use `pp` to initialise the value of the projection or pass `v` in
+order to initialise the projection with `pp = projector.v`.
+```
+r̃ = (projector⋅w - projector⋅v)/(dτ*projector⋅v) + shift
+r = r̃ - <r̃>
+```
+where `v` is the coefficient vector before and `w` after applying a regular
+FCIQMC step.
+"""
+mutable struct ProjectedMemory{D} <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pp::Float64 # previous projection
+    projector::D # projector
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ProjectedMemory(Δ::Int, projector, pp::Number) = ProjectedMemory(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory(Δ::Int, projector, v::AbstractDVec)
+    pp = projector⋅v
+    ProjectedMemory(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+end
+
+mutable struct ProjectedMemory2{D} <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pp::Float64 # previous projection
+    projector::D # projector
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ProjectedMemory2(Δ::Int, projector, pp::Number) = ProjectedMemory2(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory2(Δ::Int, projector, v::AbstractDVec)
+    pp = projector⋅v
+    ProjectedMemory2(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+end
+
+mutable struct ProjectedMemory3{D} <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pp::Float64 # previous projection
+    projector::D # projector
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ProjectedMemory3(Δ::Int, projector, pp::Number) = ProjectedMemory3(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory3(Δ::Int, projector, v::AbstractDVec)
+    pp = projector⋅v
+    ProjectedMemory3(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+end
+mutable struct ProjectedMemory4{D} <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    pp::Float64 # previous projection
+    projector::D # projector
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+ProjectedMemory4(Δ::Int, projector, pp::Number) = ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+function ProjectedMemory4(Δ::Int, projector, v::AbstractDVec)
+    pp = projector⋅v
+    ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+end
+
+
+"""
 Abstract type for defining the strategy for updating the `shift` with
 [`update_shift()`](@ref). Implemented strategies:
 
-   * [`DontUpdate`](@ref)
-   * [`LogUpdate`](@ref)
-   * [`DelayedLogUpdate`](@ref)
-   * [`LogUpdateAfterTargetWalkers`](@ref)
-   * [`DelayedLogUpdateAfterTargetWalkers`](@ref)
-   * [`HistoryLogUpdate`](@ref)
+* [`DoubleLogUpdate`](@ref) - default in [`lomc!()`](@ref)
+* [`DontUpdate`](@ref)
+* [`LogUpdate`](@ref)
+* [`DelayedLogUpdate`](@ref)
+* [`LogUpdateAfterTargetWalkers`](@ref) - FCIQMC standard
+* [`DelayedLogUpdateAfterTargetWalkers`](@ref)
+* [`DoubleLogUpdateAfterTargetWalkers`](@ref)
+* [`DoubleLogUpdateAfterTargetWalkersSwitch`](@ref)
+* [`HistoryLogUpdate`](@ref)
+* [`DoubleLogProjected`](@ref)
 """
 abstract type ShiftStrategy end
 
 """
-    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3) <: ShiftStrategy
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ`.
 See [`LogUpdate`](@ref).
 """
 @with_kw struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
 
 """
-    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, a = 10) <: ShiftStrategy
+    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, a = 10) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and delay of
 `a` steps. See [`DelayedLogUpdate`](@ref).
 """
 @with_kw struct DelayedLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     a::Int = 10 # delay for updating shift
 end
 
 """
-    LogUpdate(ζ = 0.3) <: ShiftStrategy
+    LogUpdate(ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ`.
 
@@ -244,24 +373,43 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 ```
 """
 @with_kw struct LogUpdate <: ShiftStrategy
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
 
 """
-    DoubleLogUpdate(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    DoubleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ`.
 
 ```math
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
 ```
+When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
+T = 2/ζ.
 """
-@with_kw struct DoubleLogUpdate <: ShiftStrategy
+struct DoubleLogUpdate <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    ζ::Float64 # damping parameter, best left at value of 0.08
+    ξ::Float64  # restoring force to bring walker number to the target
 end
+DoubleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4) = DoubleLogUpdate(targetwalkers, ζ, ξ)
 
+"""
+    DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ` and `ξ` after projecting onto `projector`.
+
+```math
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
+```
+"""
+struct DoubleLogProjected{P} <: ShiftStrategy
+    target::Float64
+    projector::P
+    ζ::Float64 # damping parameter, best left at value of 0.08
+    ξ::Float64 # restoring force to bring walker number to the target
+end
+DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) = DoubleLogProjected(target, projector, ζ, ξ)
 # """
 #     DoubleLogUpdateMemoryNoise(;targetwalkers = 100,
 #                                ζ = 0.3,
@@ -289,19 +437,19 @@ end
 # end
 
 """
-    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`.
 See [`DoubleLogUpdate`](@ref).
 """
 @with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
 end
 
 """
-    LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.3, ξ = 0.0225) <: ShiftStrategy
+    LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`. After `a` steps
 the strategy swiches to [`LogUpdate`](@ref).
@@ -309,13 +457,13 @@ See [`DoubleLogUpdate`](@ref).
 """
 @with_kw mutable struct DoubleLogUpdateAfterTargetWalkersSwitch <: ShiftStrategy
     targetwalkers::Int
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0225 # restoring force to bring walker number to the target
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
     a::Int = 100 # time period that allows double damping
 end
 
 """
-    DelayedLogUpdate(ζ = 0.3, a = 10) <: ShiftStrategy
+    DelayedLogUpdate(ζ = 0.08, a = 10) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and delay of `a` steps.
 
@@ -324,7 +472,7 @@ S^{n+a} = S^n -\\frac{ζ}{a dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+a}}{\\|Ψ\\|_1^n
 ```
 """
 @with_kw struct DelayedLogUpdate <: ShiftStrategy
-    ζ::Float64 = 0.3 # damping parameter, best left at value of 0.3
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     a::Int = 10 # delay for updating shift
 end
 
@@ -332,7 +480,7 @@ end
 struct DontUpdate <: ShiftStrategy end
 
 """
-    HistoryLogUpdate(df::DataFrame; d = 100, k=1, ζ= 0.3)
+    HistoryLogUpdate(df::DataFrame; d = 100, k=1, ζ= 0.08)
 Strategy for updating the shift according to log formula but with walker
 numbers accumulated from `k` samples of the history with delay `d`. A
 recent history has to be passed with the data frame `df` for initialisation.
@@ -347,19 +495,19 @@ mutable struct HistoryLogUpdate{T} <: ShiftStrategy
     k::Int # number of samples to take from history
     n_w::T # for remembering last time step's sum of walker numbers
 end
-function HistoryLogUpdate(df::DataFrame; d = 100, k = 1, ζ= 0.3)
+function HistoryLogUpdate(df::DataFrame; d = 100, k = 1, ζ= 0.08)
     size(df,1) ≤ d*k && @error "insufficient history for `HistoryLogUpdate`"
     n_w = sum(df[end-i*d, :norm] for i in 0:(k-1))
     return HistoryLogUpdate(ζ, d, k, n_w)
 end
 
 """
-    update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df)
+    update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df, v_new, v_old)
 Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
 """
 @inline function update_shift(s::HistoryLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, step, df, args...)
     prev_n_w = s.n_w # previous sum of walker numbers
     # compute sum of walker numbers from history
     s.n_w = sum([df[end-i*s.d, :norm] for i in 0:(s.k-1)])
@@ -370,21 +518,30 @@ end
 
 @inline function update_shift(s::LogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, args...)
     # return new shift and new shiftMode
     return shift - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
 
 @inline function update_shift(s::DoubleLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, args...)
     # return new shift and new shiftMode
     return shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
 
+@inline function update_shift(s::DoubleLogProjected,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, v_new, v_old)
+    # return new shift and new shiftMode
+    tp = s.projector⋅v_new
+    pp = s.projector⋅v_old
+    return shift - s.ζ/dτ * log(tp/pp) - s.ξ/dτ * log(tp/s.target) , true, tnorm
+end
+
 @inline function update_shift(s::DelayedLogUpdate,
                         shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df)
+                        tnorm, pnorm, dτ, step, df, args...)
     # return new shift and new shiftMode
     if step % s.a == 0 && size(df,1) > s.a
         prevnorm = df[end-s.a+1,:norm]
