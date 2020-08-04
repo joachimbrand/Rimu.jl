@@ -1,4 +1,4 @@
-# # Example
+# # Example: Bose-Hubbard Model
 
 # This is an example calculation finding the ground state of
 # a 1D Bose-Hubbard chain with 6 particles in 6 lattice site.
@@ -71,11 +71,11 @@ println(t_strat)
 
 # Finally, we can start the main FCIQMC loop with a timer "et":
 df = lomc!(Ĥ,svec;
-                        params = params,
-                        laststep = steps_equilibrate + steps_measure,
-                        s_strat = s_strat,
-                        r_strat = r_strat,
-                        τ_strat = t_strat)
+            params = params,
+            laststep = steps_equilibrate + steps_measure,
+            s_strat = s_strat,
+            r_strat = r_strat,
+            τ_strat = t_strat)
 
 # Saving output data stored in `df.df` into a `.feather` file which can be read in later:
 println("Writing data to disk...")

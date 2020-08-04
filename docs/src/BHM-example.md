@@ -124,12 +124,13 @@ println(t_strat)
 Finally, we can start the main FCIQMC loop with a timer "et":
 
 ```@example BHM-example
+r_strat = ReportDFAndInfo(k = k, projector = UniformProjector(), writeinfo = false) # hide
 df = lomc!(Ĥ,svec;
-                        params = params,
-                        laststep = steps_equilibrate + steps_measure,
-                        s_strat = s_strat,
-                        r_strat = r_strat,
-                        τ_strat = t_strat)
+            params = params,
+            laststep = steps_equilibrate + steps_measure,
+            s_strat = s_strat,
+            r_strat = r_strat,
+            τ_strat = t_strat)
 ```
 
 Saving output data stored in `df.df` into a `.feather` file which can be read in later:
