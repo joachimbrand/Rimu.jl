@@ -85,6 +85,12 @@ and set the DVec size to be targetwalkers*10:
 svec = DVec(Dict(aIni => nIni), targetwalkers*10)
 ```
 
+Let's plant a seed for the random number generator to get consistent result:
+
+```@example BHM-example
+Rimu.ConsistentRNG.seedCRNG!(17)
+```
+
 Now let's setup all the FCIQMC strategies.
 
 Passing dτ and total number of time steps into params:

@@ -49,6 +49,8 @@ nIni = 1
 # Putting the `nIni` number of walkers into the initial address `aIni`,
 # and set the DVec size to be targetwalkers*10:
 svec = DVec(Dict(aIni => nIni), targetwalkers*10)
+# Let's plant a seed for the random number generator to get consistent result:
+Rimu.ConsistentRNG.seedCRNG!(17)
 
 # Now let's setup all the FCIQMC strategies.
 
