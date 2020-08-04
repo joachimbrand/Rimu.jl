@@ -12,7 +12,7 @@ time evolution.
 ## Contents
 ```@contents
 Pages = ["index.md","hamiltonians.md","consistentrng.md","documentation.md",
-            "testing.md","API.md"]
+            "testing.md","API.md","BHM-example.md"]
 Depth = 4
 ```
 
