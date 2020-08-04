@@ -127,7 +127,7 @@ println(params, s_strat)
 println(t_strat)
 ```
 
-Finally, we can start the main FCIQMC loop with a timer "et":
+Finally, we can start the main FCIQMC loop:
 
 ```@example BHM-example
 r_strat = ReportDFAndInfo(k = k, projector = UniformProjector(), writeinfo = false) # hide

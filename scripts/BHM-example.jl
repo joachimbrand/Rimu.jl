@@ -71,7 +71,7 @@ println(params, s_strat)
 println(t_strat)
 
 
-# Finally, we can start the main FCIQMC loop with a timer "et":
+# Finally, we can start the main FCIQMC loop:
 df = lomc!(Ĥ,svec;
             params = params,
             laststep = steps_equilibrate + steps_measure,
