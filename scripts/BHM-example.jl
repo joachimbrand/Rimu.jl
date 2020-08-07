@@ -1,4 +1,4 @@
-# # Example: Bose-Hubbard Model
+# # Example: 1D Bose-Hubbard Model
 
 # This is an example calculation finding the ground state of
 # a 1D Bose-Hubbard chain with 6 particles in 6 lattice site.

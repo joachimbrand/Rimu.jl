@@ -25,7 +25,7 @@ makedocs(;
         ],
         # "Example" => "generated/qmcexample.md",
         "API" => "API.md",
-        "Example: BHM" => "BHM-example.md",
+        "Example: 1D Bose-Hubbard Model" => "BHM-example.md",
     ],
     #repo="https://github.com/joachimbrand/Rimu.jl/tree/{commit}{path}#L{line}",
     sitename="Rimu.jl",
