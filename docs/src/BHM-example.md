@@ -15,7 +15,7 @@ using DataFrames
 ```
 
 Now we define the physical problem:
-Seeting the number of lattice sites `m = 6`;
+Setting the number of lattice sites `m = 6`;
 and the number of particles `n = 6`:
 
 ```@example BHM-example
@@ -28,7 +28,7 @@ Generating a configuration that particles are evenly distributed:
 aIni = nearUniform(BoseFS{n,m})
 ```
 
-The Hamiltonian is difined based on the configuration `aIni`,
+The Hamiltonian is defined based on the configuration `aIni`,
 with additional onsite interaction strength `u = 6.0`
 and the hopping strength `t = 1.0`:
 
