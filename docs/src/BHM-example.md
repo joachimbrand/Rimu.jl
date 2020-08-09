@@ -137,12 +137,12 @@ df = lomc!(Ĥ,svec;
             s_strat = s_strat,
             r_strat = r_strat,
             τ_strat = t_strat)
+println("Writing data to disk...")
 ```
 
 Saving output data stored in `df.df` into a `.feather` file which can be read in later:
 
 ```@example BHM-example
-println("Writing data to disk...")
 Feather.write("fciqmcdata.feather", df.df)
 ```
 

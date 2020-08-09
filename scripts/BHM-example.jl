@@ -77,10 +77,9 @@ df = lomc!(Ĥ,svec;
             laststep = steps_equilibrate + steps_measure,
             s_strat = s_strat,
             r_strat = r_strat,
-            τ_strat = t_strat)
-
-# Saving output data stored in `df.df` into a `.feather` file which can be read in later:
+            τ_strat = t_strat);
 println("Writing data to disk...")
+# Saving output data stored in `df.df` into a `.feather` file which can be read in later:
 Feather.write("fciqmcdata.feather", df.df)
 
 # Now do some quick statistics:

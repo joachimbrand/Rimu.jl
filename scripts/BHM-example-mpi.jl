@@ -41,7 +41,7 @@ function main()
 
     # prepare initial state and allocate memory
     # initial address
-    aIni = nearUniform(Ĥ)
+    # aIni = nearUniform(BoseFS{n,m})
     # initial number of walkers per rank
     nIni = 1
     # set the DVec size to be targetwalkers*10÷np
@@ -86,7 +86,6 @@ function main()
     # start the main FCIQMC loop with a timer "et"
     et = @elapsed df = lomc!(Ĥ,svec;
                             params = params,
-                            laststep = steps_equilibrate + steps_measure,
                             s_strat = s_strat,
                             r_strat = r_strat,
                             τ_strat = t_strat)
