@@ -184,17 +184,17 @@ update_dτ(::ConstantTimeStep, dτ, args...) = dτ
 # end
 # @doc "Slow down/Speed up `dτ` to control the psips overshoot." OvershootControl
 
-@inline function update_dτ(s::OvershootControl, dτ, tnorm, args...)
-    if tnorm >= s.targetwalkers
-        s.speedup = true
-    end
-    if s.speedup && dτ < s.dτinit
-        dτ += 0.1*(1-dτ/s.dτinit)*dτ
-    else
-        dτ = (1-tnorm/(s.targetwalkers*1.1))*s.dτinit
-    end
-    return dτ
-end
+# @inline function update_dτ(s::OvershootControl, dτ, tnorm, args...)
+#     if tnorm >= s.targetwalkers
+#         s.speedup = true
+#     end
+#     if s.speedup && dτ < s.dτinit
+#         dτ += 0.1*(1-dτ/s.dτinit)*dτ
+#     else
+#         dτ = (1-tnorm/(s.targetwalkers*1.1))*s.dτinit
+#     end
+#     return dτ
+# end
 # here we implement the trivial strategy: don't change dτ
 
 """
