@@ -24,12 +24,12 @@ Depth = 4
 repository. Either hit the `]` key at the Julia REPL to get into `Pkg` mode and
 type
 ```julia-repl
-pkg> add https://joachimbrand@bitbucket.org/joachimbrand/rimu.jl#master
+pkg> add https://github.com/joachimbrand/Rimu.jl#master
 ```
 where `master` can be exchanged with the name of the desired git branch.
 Alternatively, use
 ```julia-repl
-julia> using Pkg; Pkg.add("https://joachimbrand@bitbucket.org/joachimbrand/rimu.jl#master")
+julia> using Pkg; Pkg.add(PackageSpec(url="https://github.com/joachimbrand/Rimu.jl", rev="master"))
 ```
 
 ### Install `Rimu` for development
