@@ -210,7 +210,7 @@ end
 # iteration over the FastDVec returns values
 @inline function Base.iterate(fdv::FastDVec, state...)
     it = _pair_iterate(fdv,state...)
-    it == nothing && return nothing
+    it === nothing && return nothing
     pair, state = it
     return pair[2], state # value
 end
@@ -219,7 +219,7 @@ end
 # iteration over the keys requires  ADVKeysIterator - 3 to 4 times faster than fallback
 @inline function Base.iterate(ki::ADVKeysIterator{DV}, state...) where DV<:FastDVec
     it = _pair_iterate(ki.dv,state...)
-    it == nothing && return nothing
+    it === nothing && return nothing
     pair, state = it
     return pair[1], state # key
 end

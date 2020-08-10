@@ -78,7 +78,7 @@ function blocking_old(v::Vector; typos = nothing)
         mean = sum(v)/n
         var = v .- mean
         sigmasq = sum(var.^2)/n # uncorrected sample variance
-        if typos == nothing
+        if typos === nothing
             gamma = sum(var[1:n-1].*var[2:n])/(n-1)
         else # typos ∈ {:FP, :Jonsson}
             gamma = sum(var[1:n-1].*var[2:n])/n
@@ -87,7 +87,7 @@ function blocking_old(v::Vector; typos = nothing)
         end
         mj = n*((n-1)*sigmasq/(n^2)+gamma)^2/(sigmasq^2)
         stddev = sqrt(sigmasq)
-        if typos == nothing || typos == :FP
+        if typos === nothing || typos == :FP
             stderr = stddev/sqrt(n-1) # [F&P] Eq. (28)
         else
             stderr = stddev/sqrt(n) # [Jonsson] Fig. 2

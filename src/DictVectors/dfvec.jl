@@ -223,7 +223,7 @@ flags(dv::DFVec) = FlagsIterator(dv)
 
 @inline function Base.iterate(fi::FlagsIterator, oldstate...)
     ps = iterate(fi.dv.d, oldstate...)
-    ps == nothing && return nothing
+    ps === nothing && return nothing
     pair, state = ps
     @inbounds return pair[2][2], state
 end
@@ -250,7 +250,7 @@ function kvpairs(dv::DFVec)
 end
 @inline function Base.iterate(kvi::KVPairsIterator, oldstate...)
     ps = iterate(kvi.dv.d, oldstate...)
-    ps == nothing && return nothing
+    ps === nothing && return nothing
     pair, state = ps
     @inbounds return Pair(pair[1], pair[2][1]), state
 end
@@ -274,7 +274,7 @@ Base.IteratorSize(::Type{DFVec}) = HasLength()
 
 @inline function Base.iterate(dv::DFVec, oldstate...)
     it = iterate(pairs(dv), oldstate...)
-    it == nothing && return nothing
+    it === nothing && return nothing
     pair, state = it
     @inbounds return (pair[2][1],state)
 end
