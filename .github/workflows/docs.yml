@@ -6,12 +6,14 @@ on:
       - master
       - develop
       - feature/github-actions
+      - 'feature/doc-**'
     tags: '*'
   pull_request:
     branches:
       - master
       - develop
       - feature/github-actions
+      - 'feature/doc-**'
 
 jobs:
   build:
@@ -35,6 +37,7 @@ jobs:
           julia -e 'using Pkg; Pkg.instantiate(); Pkg.build()'
           julia --project=docs/ -e 'using Pkg; Pkg.instantiate()'
           julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+          julia --project=docs/ -e 'using Rimu'
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

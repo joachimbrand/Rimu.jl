@@ -12,7 +12,7 @@ time evolution.
 ## Contents
 ```@contents
 Pages = ["index.md","hamiltonians.md","consistentrng.md","documentation.md",
-            "testing.md","API.md"]
+            "testing.md","API.md","BHM-example.md"]
 Depth = 4
 ```
 
@@ -24,12 +24,12 @@ Depth = 4
 repository. Either hit the `]` key at the Julia REPL to get into `Pkg` mode and
 type
 ```julia-repl
-pkg> add https://joachimbrand@bitbucket.org/joachimbrand/rimu.jl#master
+pkg> add https://github.com/joachimbrand/Rimu.jl#master
 ```
 where `master` can be exchanged with the name of the desired git branch.
 Alternatively, use
 ```julia-repl
-julia> using Pkg; Pkg.add("https://joachimbrand@bitbucket.org/joachimbrand/rimu.jl#master")
+julia> using Pkg; Pkg.add(PackageSpec(url="https://github.com/joachimbrand/Rimu.jl", rev="master"))
 ```
 
 ### Install `Rimu` for development
@@ -75,7 +75,8 @@ is done with scripts. The folder `scripts/` contains a collections of scripts
 that are either examples for use of the Rimu package or useful scripts for
 data analysis. In particular:
 
-- `scripts/ros-BHM_M50_U6-W10k.jl` is an example script that runs fciqmc on the 1D Bose-Hubbard model with MPI enabled. A data frame with results is written to the file `fciqmcdata.feather`.
+- `scripts/BHM-example.jl` is an example script that runs fciqmc on the 1D Bose-Hubbard model. A data frame with results is written to the file `fciqmcdata.feather`.
+- `scripts/BHM-example-mpi.jl` is an example script that runs the same fciqmc calculation as above with MPI enabled.
 - `scripts/read_file_and_plot.jl` reads the feather file (from the working directory) and displays basic plots and blocking analysis of the shift.
 - `plotting.jl` is a collection of (currently very primitive) plotting function. On purpose these are not part of the Rimu package in order to avoid a dependency on a plotting package.
 

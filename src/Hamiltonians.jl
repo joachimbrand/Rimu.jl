@@ -365,7 +365,16 @@ end
 ### BoseHubbardReal1D
 ###
 
-"""
+
+@with_kw struct BoseHubbardReal1D{T} <: BosonicHamiltonian{T}
+  n::Int = 6    # number of bosons
+  m::Int = 6    # number of lattice sites
+  u::T = 1.0    # interaction strength
+  t::T = 1.0    # hopping strength
+  AT::Type = BSAdd64 # address type
+end
+
+@doc """
     ham = BoseHubbardReal1D(;[n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
 
 Implements a one-dimensional Bose Hubbard chain in real space.
@@ -393,14 +402,7 @@ return `nothing`.
 
     ham(:fdim)
 Return the approximate dimension of linear space as `Float64`.
-"""
-@with_kw struct BoseHubbardReal1D{T} <: BosonicHamiltonian{T}
-  n::Int = 6    # number of bosons
-  m::Int = 6    # number of lattice sites
-  u::T = 1.0    # interaction strength
-  t::T = 1.0    # hopping strength
-  AT::Type = BSAdd64 # address type
-end
+""" BoseHubbardReal1D
 
 # set the `LOStructure` trait
 LOStructure(::Type{BoseHubbardReal1D{T}}) where T <: Real = HermitianLO()
@@ -476,7 +478,16 @@ end
 ### ExtendedBoseHubbardReal1D
 ###
 
-"""
+
+@with_kw struct ExtendedBHReal1D{T} <: BosonicHamiltonian{T}
+  n::Int = 6    # number of bosons
+  m::Int = 6    # number of lattice sites
+  u::T = 1.0    # on-site interaction strength
+  v::T = 1.0    # on-site interaction strength
+  t::T = 1.0    # hopping strength
+  AT::Type = BSAdd64 # address type
+end
+@doc """
     ham = ExtendedBHReal1D(n=6, m=6, u=1.0, v=1.0, t=1.0, AT=BSAdd64)
 
 Implements the extended Bose Hubbard model on a one-dimensional chain
@@ -493,15 +504,7 @@ in real space.
 - `v::Float64`: the next-neighbor interaction
 - `t::Float64`: the hopping strength
 - `AT::Type`: address type for identifying configuration
-"""
-@with_kw struct ExtendedBHReal1D{T} <: BosonicHamiltonian{T}
-  n::Int = 6    # number of bosons
-  m::Int = 6    # number of lattice sites
-  u::T = 1.0    # on-site interaction strength
-  v::T = 1.0    # on-site interaction strength
-  t::T = 1.0    # hopping strength
-  AT::Type = BSAdd64 # address type
-end
+""" ExtendedBHReal1D
 
 # set the `LOStructure` trait
 LOStructure(::Type{ExtendedBHReal1D{T}}) where T <: Real = HermitianLO()

@@ -21,7 +21,15 @@ Abstract type representing the strategy for running and terminating
 """
 abstract type FciqmcRunStrategy end
 
-"""
+
+@with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
+    step::Int = 0 # number of current/starting timestep
+    laststep::Int = 100 # number of final timestep
+    shiftMode::Bool = false # whether to adjust shift
+    shift::Float64 = 0.0 # starting/current value of shift
+    dτ::Float64 = 0.01 # time step
+end
+@doc """
     RunTillLastStep(step::Int = 0 # number of current/starting timestep
                  laststep::Int = 100 # number of final timestep
                  shiftMode::Bool = false # whether to adjust shift
@@ -30,14 +38,7 @@ abstract type FciqmcRunStrategy end
     ) <: FciqmcRunStrategy
 Parameters for running [`fciqmc!()`](@ref) for a fixed number of time steps.
 For alternative strategies, see [`FciqmcRunStrategy`](@ref).
-"""
-@with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
-    step::Int = 0 # number of current/starting timestep
-    laststep::Int = 100 # number of final timestep
-    shiftMode::Bool = false # whether to adjust shift
-    shift::Float64 = 0.0 # starting/current value of shift
-    dτ::Float64 = 0.01 # time step
-end
+""" RunTillLastStep
 
 """
     ReportingStrategy
@@ -74,32 +75,25 @@ the uniform vector of all 1s, and report every `k`th time step.
 """
 abstract type ReportingStrategy{DV} end
 
-"""
-    EveryTimeStep(;projector = missing)
-Report every time step. Include projection onto `projector`. See
-[`ReportingStrategy`](@ref) for details.
-"""
 @with_kw struct EveryTimeStep{DV} <: ReportingStrategy{DV}
     projector::DV = missing
 end
-
-"""
-    EveryKthStep(;k = 10, projector = missing)
-Report every `k`th step. Include projection onto `projector`. See
+@doc """
+    EveryTimeStep(;projector = missing)
+Report every time step. Include projection onto `projector`. See
 [`ReportingStrategy`](@ref) for details.
-"""
+""" EveryTimeStep
+
 @with_kw struct EveryKthStep{DV} <: ReportingStrategy{DV}
     k::Int = 10
     projector::DV = missing
 end
+@doc """
+    EveryKthStep(;k = 10, projector = missing)
+Report every `k`th step. Include projection onto `projector`. See
+[`ReportingStrategy`](@ref) for details.
+""" EveryKthStep
 
-"""
-    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = missing)
-Report every `k`th step in DataFrame and write info message to `io` every `i`th
-step (unless `writeinfo == false`). The flag `writeinfo` is useful for
-controlling info messages in MPI codes. Include projection onto `projector`.
-See [`ReportingStrategy`](@ref) for details.
-"""
 @with_kw struct ReportDFAndInfo{DV} <: ReportingStrategy{DV}
     k::Int = 10 # how often to write to DataFrame
     i::Int = 100 # how often to write info message
@@ -107,6 +101,13 @@ See [`ReportingStrategy`](@ref) for details.
     writeinfo::Bool = true # write info only if true - useful for MPI codes
     projector::DV = missing
 end
+@doc """
+    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = missing)
+Report every `k`th step in DataFrame and write info message to `io` every `i`th
+step (unless `writeinfo == false`). The flag `writeinfo` is useful for
+controlling info messages in MPI codes. Include projection onto `projector`.
+See [`ReportingStrategy`](@ref) for details.
+""" ReportDFAndInfo
 
 # """
 #     ReportPEnergy(pv)
@@ -176,24 +177,24 @@ Update the time step according to the strategy `s`.
 update_dτ(::ConstantTimeStep, dτ, args...) = dτ
 # here we implement the trivial strategy: don't change dτ
 
-"Slow down/Speed up `dτ` to control the psips overshoot."
-@with_kw mutable struct OvershootControl <: TimeStepStrategy
-    targetwalkers::Int
-    dτinit::Float64
-    speedup::Bool
-end
+# @with_kw mutable struct OvershootControl <: TimeStepStrategy
+#     targetwalkers::Int
+#     dτinit::Float64
+#     speedup::Bool
+# end
+# @doc "Slow down/Speed up `dτ` to control the psips overshoot." OvershootControl
 
-@inline function update_dτ(s::OvershootControl, dτ, tnorm, args...)
-    if tnorm >= s.targetwalkers
-        s.speedup = true
-    end
-    if s.speedup && dτ < s.dτinit
-        dτ += 0.1*(1-dτ/s.dτinit)*dτ
-    else
-        dτ = (1-tnorm/(s.targetwalkers*1.1))*s.dτinit
-    end
-    return dτ
-end
+# @inline function update_dτ(s::OvershootControl, dτ, tnorm, args...)
+#     if tnorm >= s.targetwalkers
+#         s.speedup = true
+#     end
+#     if s.speedup && dτ < s.dτinit
+#         dτ += 0.1*(1-dτ/s.dτinit)*dτ
+#     else
+#         dτ = (1-tnorm/(s.targetwalkers*1.1))*s.dτinit
+#     end
+#     return dτ
+# end
 # here we implement the trivial strategy: don't change dτ
 
 """
@@ -340,30 +341,35 @@ Abstract type for defining the strategy for updating the `shift` with
 """
 abstract type ShiftStrategy end
 
-"""
-    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08) <: ShiftStrategy
-Strategy for updating the shift: After `targetwalkers` is reached, update the
-shift according to the log formula with damping parameter `ζ`.
-See [`LogUpdate`](@ref).
-"""
 @with_kw struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
-
-"""
-    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, a = 10) <: ShiftStrategy
+@doc """
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
-shift according to the log formula with damping parameter `ζ` and delay of
-`a` steps. See [`DelayedLogUpdate`](@ref).
-"""
+shift according to the log formula with damping parameter `ζ`.
+See [`LogUpdate`](@ref).
+""" LogUpdateAfterTargetWalkers
+
+
 @with_kw struct DelayedLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     a::Int = 10 # delay for updating shift
 end
+@doc """
+    DelayedLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, a = 10) <: ShiftStrategy
+Strategy for updating the shift: After `targetwalkers` is reached, update the
+shift according to the log formula with damping parameter `ζ` and delay of
+`a` steps. See [`DelayedLogUpdate`](@ref).
+""" DelayedLogUpdateAfterTargetWalkers
 
-"""
+
+@with_kw struct LogUpdate <: ShiftStrategy
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+end
+@doc """
     LogUpdate(ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ`.
@@ -371,10 +377,8 @@ parameter `ζ`.
 ```math
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)
 ```
-"""
-@with_kw struct LogUpdate <: ShiftStrategy
-    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
-end
+""" LogUpdate
+
 
 """
     DoubleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
@@ -436,33 +440,40 @@ DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) = DoubleLogProje
 #     DoubleLogUpdateMemoryNoise(targetwalkers, ζ, ξ, Δ, cb)
 # end
 
-"""
-    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
-Strategy for updating the shift: After `targetwalkers` is reached, update the
-shift according to the log formula with damping parameter `ζ` and `ξ`.
-See [`DoubleLogUpdate`](@ref).
-"""
+
 @with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
 end
-
-"""
-    LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
+@doc """
+    LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
-shift according to the log formula with damping parameter `ζ` and `ξ`. After `a` steps
-the strategy swiches to [`LogUpdate`](@ref).
+shift according to the log formula with damping parameter `ζ` and `ξ`.
 See [`DoubleLogUpdate`](@ref).
-"""
+""" DoubleLogUpdateAfterTargetWalkers
+
+
 @with_kw mutable struct DoubleLogUpdateAfterTargetWalkersSwitch <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
     a::Int = 100 # time period that allows double damping
 end
+@doc """
+    LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
+Strategy for updating the shift: After `targetwalkers` is reached, update the
+shift according to the log formula with damping parameter `ζ` and `ξ`. After `a` steps
+the strategy swiches to [`LogUpdate`](@ref).
+See [`DoubleLogUpdate`](@ref).
+""" DoubleLogUpdateAfterTargetWalkersSwitch
 
-"""
+
+@with_kw struct DelayedLogUpdate <: ShiftStrategy
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    a::Int = 10 # delay for updating shift
+end
+@doc """
     DelayedLogUpdate(ζ = 0.08, a = 10) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and delay of `a` steps.
@@ -470,11 +481,7 @@ parameter `ζ` and delay of `a` steps.
 ```math
 S^{n+a} = S^n -\\frac{ζ}{a dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+a}}{\\|Ψ\\|_1^n}\\right)
 ```
-"""
-@with_kw struct DelayedLogUpdate <: ShiftStrategy
-    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
-    a::Int = 10 # delay for updating shift
-end
+""" DelayedLogUpdate
 
 "`DontUpdate() <: ShiftStrategy` Don't update the `shift`."
 struct DontUpdate <: ShiftStrategy end
@@ -724,22 +731,24 @@ abstract type ProjectStrategy end
 "Do not project the walker amplitudes. See [`norm_project`](@ref)."
 struct NoProjection <: ProjectStrategy end
 
-"""
-    ThresholdProject(threshold = 1.0) <: ProjectStrategy
-Project stochastically for walker amplitudes below `threshold`.
-See [`norm_project`](@ref).
-"""
+
 @with_kw struct ThresholdProject <: ProjectStrategy
     threshold::Float32 = 1.0f0
 end
+@doc """
+    ThresholdProject(threshold = 1.0) <: ProjectStrategy
+Project stochastically for walker amplitudes below `threshold`.
+See [`norm_project`](@ref).
+""" ThresholdProject
 
-"""
+
+@with_kw struct ScaledThresholdProject <: ProjectStrategy
+    threshold::Float32 = 1.0f0
+end
+@doc """
     ScaledThresholdProject(threshold = 1.0) <: ProjectStrategy
 Project stochastically for walker amplitudes below `threshold` and scale
 configuration array as to keep the norm constant. As a consequence, the
 final configuration amplitudes may be smaller than `threshold`.
 See [`norm_project`](@ref).
-"""
-@with_kw struct ScaledThresholdProject <: ProjectStrategy
-    threshold::Float32 = 1.0f0
-end
+""" ScaledThresholdProject
