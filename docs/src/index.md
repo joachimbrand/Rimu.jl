@@ -83,23 +83,22 @@ data analysis. In particular:
 ## MPI
 
 The Rimu package can run in parallel on different processes or node and
-distribute work by making use of MPI, or "message passing interface". For example,
-on my laptop, running
+distribute work by making use of MPI, or "message passing interface". For example, running
 ```
-> julia scripts/ros-BHM_M50_U6-W10k.jl
+> julia scripts/BHM-example.jl
 ```
-will run on one processor with the main `fciqmc!()` computation (i.e. after
-package loading and compilation) completing in 18 seconds.
+will run on one processor with the main `lomc!()` computation (i.e. after
+package loading and compilation) completing in 2.69 seconds.
 
 Running
 ```
-> mpirun -np 4 julia scripts/ros-BHM_M50_U6-W10k.jl
+> mpirun -np 4 julia scripts/BHM-example-mpi.jl
 ```
-on the same hardware makes use of 4 cores and the main part completes in 5.6
-seconds, a speedup factor of 3.1. This seems reasonable, given that extra work
+on the same hardware makes use of 4 cores and the main part completes in 1.04
+seconds, a speedup factor of 2.6. This seems reasonable, given that extra work
 needs to be done for communicating between different processes.
 
-Initialising and finalising MPI communication has to be handled at the script level. Enabling MPI communication for use in [`fciqmc!()`](@ref) is done by wrapping the primary data structures as [`MPIData`](@ref). A number of different strategies
+Initialising and finalising MPI communication has to be handled at the script level. Enabling MPI communication for use in [`lomc!()`](@ref) is done by wrapping the primary data structures as [`MPIData`](@ref). A number of different strategies
 for data communication are implemented and most easily accessed
 with the functions:
 
