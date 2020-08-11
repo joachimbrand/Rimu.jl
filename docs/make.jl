@@ -14,13 +14,13 @@ include("build.jl") # generates the html pages
 #     "TRAVIS_PULL_REQUEST" => ("BITBUCKET_PR_ID" in keys(ENV)) ? "true" : "false",
 # ) do
 
-gitcheckbranch = `git rev-parse --abbrev-ref HEAD`
+gitcheckbranch = `git rev-parse --abbrev-ref HEAD` # get the current branch name
 
-branchname = chomp(read(gitcheckbranch,String))
+branchname = chomp(read(gitcheckbranch,String)) # remove the \n 
 
 if branchname == "develop"
     devbranch = "develop"
-elseif startswith(branchname, "feature/doc") || branchname == "feature/github-actions"
+elseif branchname == "feature/github-actions"
     devbranch = branchname
 else
     devbranch = "master"
