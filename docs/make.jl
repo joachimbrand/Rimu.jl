@@ -20,7 +20,7 @@ branchname = chomp(read(gitcheckbranch,String))
 
 if branchname == "develop"
     devbranch = "develop"
-elseif startswith(branchname, "feature/doc")
+elseif startswith(branchname, "feature/doc") || branchname == "feature/github-actions"
     devbranch = branchname
 else
     devbranch = "master"
