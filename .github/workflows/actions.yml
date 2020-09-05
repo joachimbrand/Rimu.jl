@@ -6,6 +6,7 @@ on:
       - master
       - develop
       - 'feature/**'
+      - 'bugfix/**'
     tags: '*'
   pull_request:
     branches:
