@@ -279,7 +279,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
     end
     # make sure that `svec` contains the current population:
     if !(v === svec)
-        copyto!(svec, v)
+        copy!(svec, v)
     end
     # pack up parameters for continuation runs
     # note that this modifes the struct pa
