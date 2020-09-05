@@ -6,6 +6,7 @@ on:
       - master
       - develop
       - 'feature/**'
+      - 'bugfix/**'
     tags: '*'
   pull_request:
     branches:
@@ -18,7 +19,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        julia-version: [1.4.1]
+        julia-version: [1.5.1]
         # julia-arch: [x64, x86]
         julia-arch: [x64]
         # os: [ubuntu-latest, windows-latest, macOS-latest]

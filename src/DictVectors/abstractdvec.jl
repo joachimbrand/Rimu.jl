@@ -321,7 +321,7 @@ end
 Base.keys(dv::AbstractDVec) = ADVKeysIterator(dv)
 function Base.iterate(ki::ADVKeysIterator, oldstate...)
     it = iterate(pairs(ki.dv), oldstate...)
-    it == nothing && return nothing
+    it === nothing && return nothing
     pair, state = it
     return (pair[1],state)
 end
