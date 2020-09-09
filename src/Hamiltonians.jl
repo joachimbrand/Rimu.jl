@@ -575,6 +575,91 @@ function hop(ham::BoseHubbardExtOrNot, add, chosen::Integer)
     # return new address and matrix element
 end
 
+###
+### BoseHubbardMom1D
+###
+
+
+@with_kw struct BoseHubbardMom1D{T} <: BosonicHamiltonian{T}
+  n::Int = 6    # number of bosons
+  m::Int = 6    # number of lattice sites
+  u::T = 1.0    # interaction strength
+  t::T = 1.0    # hopping strength
+  AT::Type = BSAdd64 # address type
+end
+
+@doc """
+    ham = BoseHubbardMom1D(;[n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
+
+Implements a one-dimensional Bose Hubbard chain in momentum space.
+
+```math
+\\hat{H} = -t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpq} a^†_{p+q} a^†_{k-q} a_p a_k \\\\
+ϵ_k = - 2 t \\cos(k)
+```
+
+# Arguments
+- `n::Int`: the number of bosons
+- `m::Int`: the number of lattice sites
+- `u::Float64`: the interaction parameter
+- `t::Float64`: the hopping strength
+- `AT::Type`: the address type
+
+# Functor use:
+    w = ham(v)
+    ham(w, v)
+Compute the matrix - vector product `w = ham * v`. The two-argument version is
+mutating for `w`.
+
+    ham(:dim)
+Return the dimension of the linear space if representable as `Int`, otherwise
+return `nothing`.
+
+    ham(:fdim)
+Return the approximate dimension of linear space as `Float64`.
+""" BoseHubbardMom1D
+
+
+# set the `LOStructure` trait
+LOStructure(::Type{BoseHubbardMom1D{T}}) where T <: Real = HermitianLO()
+
+"""
+    BoseHubbardMom1D(add::BitStringAddressType; u=1.0, t=1.0)
+Set up the `BoseHubbardMom1D` with the correct particle and mode number and
+address type. Parameters `u` and `t` can be passed as keyword arguments.
+"""
+function BoseHubbardMom1D(add::BSA; u=1.0, t=1.0) where BSA <: BitStringAddressType
+  n = numParticles(add)
+  m = numModes(add)
+  return BoseHubbardMom1D(n,m,u,t,BSA)
+end
+
+# functor definitions need to be done separately for each concrete type
+function (h::BoseHubbardMom1D)(s::Symbol)
+  if s == :dim # attempt to compute dimension as `Int`
+      return hasIntDimension(h) ? dimensionLO(h) : nothing
+  elseif s == :fdim
+      return fDimensionLO(h) # return dimension as floating point
+  end
+  return nothing
+end
+# should be all that is needed to make the Hamiltonian a linear map:
+(h::BoseHubbardMom1D)(v) = h*v
+
+function numOfHops(ham::BoseHubbardMom1D, add)
+  singlies, doublies = numSandDoccupiedsites(add)
+  return (singlies*(singlies-1) + doublies)*(ham.m - 1)
+  # number of excitations that can be made
+end
+
+# still needed for BoseHubbardMom1D:
+#
+# hop()
+# diagonalME()
+#
+# unit tests!!!
+
+
 ################################################
 #
 # Internals of the Bose Hubbard model:
@@ -601,72 +686,6 @@ function bosehubbardinteraction(address::T) where # T<:Integer
   return matrixelementint
 end #bosehubbardinteraction
 
-# function bosehubbardinteraction(a::BitAdd)
-#   return mapreduce(bosehubbardinteraction,+,a.chunks)
-# end
-function bitshiftright!(v::MVector{I,UInt64}, n::Integer) where I
-  if I==1
-    @inbounds v[1] >>>= n
-    return v
-  elseif n ≥ I*64
-    return fill!(v, zero(UInt64))
-  end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  for i in I : -1 : d+2 #1 : I-d-1
-    @inbounds v[i] = (v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r))
-  end
-  @inbounds v[d+1] = v[1] >>> r # no carryover for leftmost chunk
-  for i in 1 : d
-    @inbounds v[i] = zero(UInt64)
-  end
-  return v
-end
-
-# function bitshiftright(v::SVector{I,UInt64}, n::Integer) where I
-#   if I==1
-#     @inbounds return v[1] >>> n
-#   elseif n ≥ I*64
-#     return zero(SVector{I,UInt64})
-#   end
-#   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-#   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-#   p1 = (zero(UInt64) for i in 1:d)
-#   @inbounds p2 = v[1] >>> r # no carryover for leftmost chunk
-#   p3 = ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)
-#   return SVector(p1...,p2,p3...)
-# end
-@inline function bitshiftright(v::SVector{I,UInt64}, n::Integer) where I
-  if I==1
-    @inbounds return v[1] >>> n
-  end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  return ((zero(UInt64) for i in 1:d)..., (v[1] >>> r),
-    ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)...)
-end
-
-# considered type piracy!!!
-function Base.trailing_ones(a::MVector)
-  t = 0
-  for chunk in reverse(a)
-    s = trailing_ones(chunk)
-    t += s
-    s < 64 && break
-  end
-  return t # min(t, B) # assume no ghost bits
-end
-
-# considered type piracy!!!
-function Base.trailing_zeros(a::MVector)
-  t = 0
-  for chunk in reverse(a)
-    s = trailing_zeros(chunk)
-    t += s
-    s < 64 && break
-  end
-  return t
-end
 
 bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
@@ -799,6 +818,10 @@ function numSandDoccupiedsites(address::T) where T<:Union{Integer,BitAdd}
   return singlies, doublies
 end
 
+numSandDoccupiedsites(b::BoseFS) = numSandDoccupiedsites(b.bs)
+numSandDoccupiedsites(a::BSAdd64) = numSandDoccupiedsites(a.add)
+numSandDoccupiedsites(a::BSAdd128) = numSandDoccupiedsites(a.add)
+
 function numberoccupiedsites(address::T) where # T<:Integer
   T<:Union{Integer,BitAdd}
   # returns the number of occupied sites starting from bitstring address
@@ -811,14 +834,8 @@ function numberoccupiedsites(address::T) where # T<:Integer
   return orbitalnumber
 end # numberoccupiedsites
 
-# function numberoccupiedsites(address::BitAdd)
-#   return mapreduce(numberoccupiedsites,+,address.chunks)
-# end
-
 numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
-
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
-
 numberoccupiedsites(a::BSAdd128) = numberoccupiedsites(a.add)
 
 function numberoccupiedsites(bsadd::BStringAdd)
