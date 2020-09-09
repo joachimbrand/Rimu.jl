@@ -646,7 +646,7 @@ end
     ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)...)
 end
 
-
+# considered type piracy!!!
 function Base.trailing_ones(a::MVector)
   t = 0
   for chunk in reverse(a)
@@ -657,6 +657,7 @@ function Base.trailing_ones(a::MVector)
   return t # min(t, B) # assume no ghost bits
 end
 
+# considered type piracy!!!
 function Base.trailing_zeros(a::MVector)
   t = 0
   for chunk in reverse(a)
@@ -777,6 +778,26 @@ function ebhm(bsadd::BStringAdd, mModes)
   ebhmmatrixelementint += bosonnumber2 * firstbosonnumber  #periodic bondary condition
   return ebhmmatrixelementint, bhmmatrixelementint
 end # ebhm(bsadd::BStringAdd, ...)
+
+"""
+    singlies, doublies = numSandDoccupiedsites(address)
+Returns the number of singly and doubly occupied sites for a bosonic bit string address.
+"""
+function numSandDoccupiedsites(address::T) where T<:Union{Integer,BitAdd}
+  # returns number of singly and doubly occupied sites
+  singlies = 0
+  doublies = 0
+  while !iszero(address)
+    singlies += 1
+    address >>>= trailing_zeros(address)
+    occupancy = trailing_ones(address)
+    if occupancy > 1
+      doublies += 1
+    end
+    address >>>= occupancy
+  end # while address
+  return singlies, doublies
+end
 
 function numberoccupiedsites(address::T) where # T<:Integer
   T<:Union{Integer,BitAdd}
