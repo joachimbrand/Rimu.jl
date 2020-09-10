@@ -22,6 +22,7 @@ export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
 
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D
+export BoseHubbardMom1D
 
 # First we have some generic types and methods for any linear operator
 # that could be used for FCIQMC
@@ -719,12 +720,47 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
   # return new address and matrix element
 end
 
-# still needed for BoseHubbardMom1D:
-#
-# hop()
-# diagonalME()
-#
-# unit tests!!!
+
+"""
+    ks(h::BoseHubbardMom1D)
+Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `onr()` 
+occupation number representation.
+"""
+function ks(h::BoseHubbardMom1D)
+  if isodd(h.m)
+    return -π*(1+1/h.m).+ 2*π/h.m .*(1:h.m)
+  else
+    return -π.+ 2*π/h.m .*(1:h.m)
+  end
+end
+
+
+function diagME(h::BoseHubbardMom1D, add)
+  onrep = BitStringAddresses.onr(add) # get occupation number representation 
+
+  # single particle part of Hubbard momentum space Hamiltonian
+  # ke = -2*h.t.*cos.(ks(h))⋅onrep # works but allocates memory due to broadcasting
+  # ugly but no allocations:
+  ke = 0.0
+  for (k,on) in zip(ks(h),onrep)
+    ke += -2*h.t * cos(k) * on
+  end
+
+  # now compute diagonal interaction energy
+  onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
+  for p in 1:h.m
+    for k in 1:h.m
+      if k==p
+        onproduct += onrep[k]*(onrep[k]-1)
+      else
+        onproduct += onrep[k]*onrep[p]
+      end
+    end
+  end
+  # @show onproduct
+  pe = h.u/h.m*sqrt(onproduct)
+  return ke + pe
+end
 
 
 ################################################

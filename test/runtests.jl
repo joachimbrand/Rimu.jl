@@ -243,9 +243,8 @@ end
     @test Hamiltonians.numSandDoccupiedsites(onr(bfs)) == Hamiltonians.numSandDoccupiedsites(bfs)
     ham = Hamiltonians.BoseHubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 315
-    onrep = onr(bfs)
-    @test typeof(bfs)(onrep) == bfs
     @test hop(ham, bfs, 305) == (BoseFS{BSAdd64}((3,0,2,1,0,1,1,3)), 0.4330127018922193)
+    @test diagME(ham,bfs) ≈ 2.482583935466499
 end
 
 @testset "fciqmc.jl" begin
@@ -593,6 +592,15 @@ end
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     nt = lomc!(ham, svec, laststep = 100, threading = false) # run for 100 time steps
     @test sum(nt.df.spawns) == (OV ? 3580 : 3638)
+
+    aIni2 = BoseFS((0,0,0,0,9,0,0,0,0))
+    ham2 = BoseHubbardMom1D(aIni2; u = 1.0, t=1.0)
+    sv2 = DVec(Dict(aIni2 => 2), 2000)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    nt = lomc!(ham2, sv2, laststep = 30, threading = false, 
+                r_strat = EveryTimeStep(projector = copy(sv2)),
+                s_strat = DoubleLogUpdate(targetwalkers = 100)) 
+    # need to analyse this - looks fishy
 end
 
 # Note: This last test is set up to work on Pipelines, within a Docker
