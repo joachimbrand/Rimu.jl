@@ -590,6 +590,7 @@ end
 
 @doc """
     ham = BoseHubbardMom1D(;[n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
+    ham = BoseHubbardMom1D(add; u=1.0, t=1.0)
 
 Implements a one-dimensional Bose Hubbard chain in momentum space.
 
@@ -650,6 +651,72 @@ function numOfHops(ham::BoseHubbardMom1D, add)
   singlies, doublies = numSandDoccupiedsites(add)
   return (singlies*(singlies-1) + doublies)*(ham.m - 1)
   # number of excitations that can be made
+end
+
+function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
+  onr = BitStringAddresses.m_onr(add) # get occupation number representation as a mutable array
+  singlies, doublies = numSandDoccupiedsites(add)
+  onproduct = 1
+  pair, q = fldmod1(chosen, ham.m-1) # floored integer division and modulus in ranges 1:(m-1)
+  # q is momentum transfer (in 1:m-1)
+  # pair identifies annihilation operators [in 1:singlies(singlies-1)+doublies]
+  # c_k c_p
+  k = p = 0
+  double = pair - singlies*(singlies-1)
+  # start make holes as the action of two annihilation operators
+  if double > 0 # need to choose doubly occupied site for double hole 
+    for (i, occ) in enumerate(onr)
+      if occ > 1
+        double -= 1
+        if double == 0 
+          onproduct *= occ*(occ-1)
+          onr[i] = occ-2 # annihilate two particles in onr
+          p = k = i # remember where we make the holes
+          break # should break out of the for loop
+        end
+      end
+    end
+  else # need to punch two single holes
+    first, second = fldmod1(pair, singlies-1) # where the holes are to be made
+    if second < first # put them in ascending order
+      f_hole = second
+      s_hole = first
+    else
+      f_hole = first
+      s_hole = second + 1 # as we are counting through all singlies
+    end
+    counter = 0
+    for (i, occ) in enumerate(onr)
+      if occ > 0
+        counter += 1
+        if counter == f_hole
+          onproduct *= occ
+          onr[i] = occ -1 # punch first hole
+          p = i # location of first hole
+        elseif counter == s_hole
+          onproduct *= occ * 4 # factor 4 because of statistical weight 2 for single holes
+          onr[i] = occ -1 # punch second hole
+          k = i # location of second hole 
+          break
+        end
+      end
+    end
+  end # if double > 0 # we're done punching holes
+
+  # now it is time to deal with two creation operators
+  # c^†_k-q 
+  kmq = mod1(k-q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onr[kmq]
+  onproduct *= occ + 1
+  onr[kmq] = occ + 1
+  # c^†_p+q 
+  ppq = mod1(p+q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onr[ppq]
+  onproduct *= occ + 1
+  onr[ppq] = occ + 1
+
+  return ADDRESS(onr), ham.u/ham.m*sqrt(onproduct)
+  # return new address and matrix element
 end
 
 # still needed for BoseHubbardMom1D:
@@ -821,6 +888,22 @@ end
 numSandDoccupiedsites(b::BoseFS) = numSandDoccupiedsites(b.bs)
 numSandDoccupiedsites(a::BSAdd64) = numSandDoccupiedsites(a.add)
 numSandDoccupiedsites(a::BSAdd128) = numSandDoccupiedsites(a.add)
+
+function numSandDoccupiedsites(onr::AbstractArray)
+  # returns number of singly and doubly occupied sites
+  singlies = 0
+  doublies = 0
+  for n in onr
+    if n > 0
+      singlies += 1
+      if n > 1
+        doublies += 1
+      end
+    end
+  end
+  return singlies, doublies
+end
+# this one is faster by about a factor of 2 if you already have the onr
 
 function numberoccupiedsites(address::T) where # T<:Integer
   T<:Union{Integer,BitAdd}

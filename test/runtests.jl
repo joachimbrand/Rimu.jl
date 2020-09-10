@@ -104,6 +104,9 @@ import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
     @test os == BoseFS(bs)
     @test hash(os) == hash(BoseFS(bs))
     @test os.bs == bs
+    bfs= BoseFS((1,0,2,1,2,1,1,3))
+    onrep = onr(bfs)
+    @test typeof(bfs)(onrep) == bfs
 end
 
 using Rimu.FastBufs
@@ -231,6 +234,18 @@ end
     vc2 = hamcc*svec
     @test isreal(dot(vc2,hamcc,svec))
     @test dot(vc2,hamc,svec) ≉ dot(svec,hamc,vc2)
+end
+
+@testset "BoseHubbardMom1D" begin
+    bfs= BoseFS((1,0,2,1,2,1,1,3))
+    @test Hamiltonians.numberoccupiedsites(bfs) == 7
+    @test Hamiltonians.numSandDoccupiedsites(bfs) == (7,3)
+    @test Hamiltonians.numSandDoccupiedsites(onr(bfs)) == Hamiltonians.numSandDoccupiedsites(bfs)
+    ham = Hamiltonians.BoseHubbardMom1D(bfs)
+    @test numOfHops(ham,bfs) == 315
+    onrep = onr(bfs)
+    @test typeof(bfs)(onrep) == bfs
+    @test hop(ham, bfs, 305) == (BoseFS{BSAdd64}((3,0,2,1,0,1,1,3)), 0.4330127018922193)
 end
 
 @testset "fciqmc.jl" begin

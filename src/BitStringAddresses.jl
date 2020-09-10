@@ -683,6 +683,11 @@ function BoseFS{A}(onr::T) where {A, T<:Union{AbstractVector,Tuple}}
 end
 
 # This constructor is performant!!
+@inline function BoseFS{N,M,A}(onr::T) where {N, M, A, T<:Union{AbstractVector,Tuple}}
+  return BoseFS{A}(onr, Val(N), Val(M), Val(N+M-1))
+end
+
+# This constructor is performant!!
 @inline function BoseFS{BSAdd64}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
   @boundscheck begin
     B > 64 && throw(BoundsError(BSAdd64(0),B))
@@ -763,6 +768,21 @@ function onr(bba::BoseFS{N,M,A}) where {N,M,A}
   end
   return SVector(r)
 end
+
+@inline function m_onr(bba::BoseFS{N,M,A}) where {N,M,A}
+  r = zeros(MVector{M,Int})
+  address = bba.bs
+  for orbitalnumber in 1:M
+    bosonnumber = trailing_ones(address)
+    @inbounds r[orbitalnumber] = bosonnumber
+    address >>>= bosonnumber + 1
+    iszero(address) && break
+  end
+  return r
+end
+# for some reason this is slower than the above onr() when benchmarked
+s_onr(arg) = m_onr(arg) |> SVector
+
 
 # need a special case for BStringAdd because the bit ordering is reversed
 function onr(bba::BoseFS{N,M,A}) where {N,M,A<:BStringAdd}
