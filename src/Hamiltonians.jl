@@ -784,7 +784,7 @@ add = BoseFS((1,0,2,1,2,1,1,3)) # address for a Fock state (configuration) with 
 ham = BoseHubbardMom1D(add; u = 2.0, t = 1.0)
 mom = Momentum(ham) # create an instance of the momentum operator
 diagME(mom, add) # 10.996 - to calculate the momentum of a single configuration 
-v = DVec(Dict(bfs => 10), 1000)
+v = DVec(Dict(add => 10), 1000)
 rayleighQuotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
 ```
 """
@@ -794,7 +794,7 @@ end
 LOStructure(::Type{Momentum{H,T}}) where {H,T <: Real} = HermitianLO()
 Momentum(ham::BoseHubbardMom1D{T}) where T = Momentum{typeof(ham), T}(ham)
 numOfHops(ham::Momentum, add) = 0
-diagME(mom::Momentum, add) = onr(add)⋅ks(mom.ham)
+diagME(mom::Momentum, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
 # surpsingly this is all that is needed. We don't even have to define `hop()`, because it is never reached.
 # `rayleighQuotient(Momentum(ham),v)` is performant!
 
