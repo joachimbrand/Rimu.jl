@@ -19,10 +19,11 @@ using ..ConsistentRNG
 
 export LinearOperator, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
+export rayleighQuotient
 
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D
-export BoseHubbardMom1D
+export BoseHubbardMom1D, Momentum
 
 # First we have some generic types and methods for any linear operator
 # that could be used for FCIQMC
@@ -251,6 +252,17 @@ function Base.getindex(ham::LinearOperator{T}, address1, address2) where T
   end
   return zero(T) # address1 not found
 end # getindex(ham)
+
+# A handy function that helps make use of the `LinearOperator` technology. 
+"""
+    rayleighQuotient(lo, v)
+Compute 
+```math
+\frac{⟨ v | lo | v ⟩}{⟨ v|v ⟩}
+```
+"""
+rayleighQuotient(lo, v) = dot(v, lo, v)/norm(v)^2
+
 
 ##########################################
 #
@@ -762,6 +774,29 @@ function diagME(h::BoseHubbardMom1D, add)
   return ke + pe
 end
 
+"""
+    Momentum(ham::LinearOperator) <: LinearOperator
+Momentum as a linear operator in Fock space. Pass a Hamiltonian `ham` in order to convey information about the Fock basis.
+
+Example use:
+```julia
+add = BoseFS((1,0,2,1,2,1,1,3)) # address for a Fock state (configuration) with 11 bosons in 8 modes
+ham = BoseHubbardMom1D(add; u = 2.0, t = 1.0)
+mom = Momentum(ham) # create an instance of the momentum operator
+diagME(mom, add) # 10.996 - to calculate the momentum of a single configuration 
+v = DVec(Dict(bfs => 10), 1000)
+rayleighQuotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
+```
+"""
+struct Momentum{H,T} <: LinearOperator{T}
+  ham::H
+end
+LOStructure(::Type{Momentum{H,T}}) where {H,T <: Real} = HermitianLO()
+Momentum(ham::BoseHubbardMom1D{T}) where T = Momentum{typeof(ham), T}(ham)
+numOfHops(ham::Momentum, add) = 0
+diagME(mom::Momentum, add) = onr(add)⋅ks(mom.ham)
+# surpsingly this is all that is needed. We don't even have to define `hop()`, because it is never reached.
+# `rayleighQuotient(Momentum(ham),v)` is performant!
 
 ################################################
 #
