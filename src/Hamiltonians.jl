@@ -662,7 +662,7 @@ end
 
 function numOfHops(ham::BoseHubbardMom1D, add)
   singlies, doublies = numSandDoccupiedsites(add)
-  return (singlies*(singlies-1) + doublies)*(ham.m - 1)
+  return singlies*(singlies-1)*(ham.m - 2) + doublies*(ham.m - 1)
   # number of excitations that can be made
 end
 
@@ -670,14 +670,14 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
   onr = BitStringAddresses.m_onr(add) # get occupation number representation as a mutable array
   singlies, doublies = numSandDoccupiedsites(add)
   onproduct = 1
-  pair, q = fldmod1(chosen, ham.m-1) # floored integer division and modulus in ranges 1:(m-1)
-  # q is momentum transfer (in 1:m-1)
-  # pair identifies annihilation operators [in 1:singlies(singlies-1)+doublies]
-  # c_k c_p
-  k = p = 0
-  double = pair - singlies*(singlies-1)
-  # start make holes as the action of two annihilation operators
+  k = p = q = 0
+  double = chosen - singlies*(singlies-1)*(ham.m - 2)
+  # start by making holes as the action of two annihilation operators
   if double > 0 # need to choose doubly occupied site for double hole 
+    # c_p c_p 
+    double, q = fldmod1(double, ham.m-1)
+    # double is location of double
+    # q is momentum transfer
     for (i, occ) in enumerate(onr)
       if occ > 1
         double -= 1
@@ -690,6 +690,8 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
       end
     end
   else # need to punch two single holes
+    # c_k c_p
+    pair, q = fldmod1(chosen, ham.m-2) # floored integer division and modulus in ranges 1:(m-1)
     first, second = fldmod1(pair, singlies-1) # where the holes are to be made
     if second < first # put them in ascending order
       f_hole = second
@@ -707,12 +709,16 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
           onr[i] = occ -1 # punch first hole
           p = i # location of first hole
         elseif counter == s_hole
-          onproduct *= occ * 4 # factor 4 because of statistical weight 2 for single holes
+          onproduct *= occ 
           onr[i] = occ -1 # punch second hole
           k = i # location of second hole 
           break
         end
       end
+    end
+    # we have p<k and 1 < q < ham.m - 2
+    if q ≥ k-p
+      q += 1 # to avoid putting particles back into the holes
     end
   end # if double > 0 # we're done punching holes
 
