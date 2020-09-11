@@ -245,7 +245,12 @@ end
     @test numOfHops(ham,bfs) == 315
     @test hop(ham, bfs, 305) == (BoseFS{BSAdd64}((3,0,2,1,0,1,1,3)), 0.4330127018922193)
     @test diagME(ham,bfs) ≈ 2.482583935466499
+    momentum = Momentum(ham)
+    @test diagME(momentum,bfs) ≈ 10.995574287564276
+    v = DVec(Dict(bfs => 10), 1000)
+    @test rayleighQuotient(momentum, v) ≈ 10.995574287564276
 end
+
 
 @testset "fciqmc.jl" begin
     ham = BoseHubbardReal1D(
