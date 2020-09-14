@@ -1,6 +1,6 @@
 """
 This module defines Hamiltonian types and standard methods.
-Model Hamiltonians should be subtyped to [`LinearOperator`](@ref).
+Model Hamiltonians should be subtyped to [`AbstractHamiltonian`](@ref).
 Models implemented so far are:
 
 * [`BoseHubbardReal1D`](@ref) Bose-Hubbard chain, real space
@@ -17,7 +17,7 @@ using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
 
-export LinearOperator, Hops, generateRandHop
+export AbstractHamiltonian, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
 export rayleighQuotient
 
@@ -29,10 +29,14 @@ export BoseHubbardMom1D, Momentum
 # that could be used for FCIQMC
 
 """
-    LinearOperator{T}
-Supertype that provides and interface for linear operators over `T` that are
-suitable for FCIQMC. Indexing is done with addresses from a linear space that
-may be large (and will not need to be completely generated).
+    AbstractHamiltonian{T}
+Supertype that provides an interface for linear operators over a linear space with scalar 
+type `T` that are suitable for FCIQMC. Indexing is done with addresses (typically not integers) 
+from an address space that may be large (and will not need to be completely generated).
+
+`AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) 
+from the module `DictVectors` and work well with addresses of type [`BitStringAddressType`](@ref) 
+from the module `BitStringAddresses`. The type works well with the external package `KrylovKit.jl`.
 
 Provides:
 * [`Hops`](@ref): iterator over reachable off-diagonal matrix elements
@@ -43,20 +47,20 @@ Provides:
 * [`dot(x, LO, v)`](@ref) compute `x⋅(LO*v)` minimizing allocations
 
 Methods that need to be implemented:
-* [`numOfHops(lo::LinearOperator, address)`](@ref)
-* [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref)
-* [`diagME(lo::LinearOperator, address)`](@ref)
-* [`hasIntDimension(lo::LinearOperator)`](@ref)
-* [`dimensionLO(lo::LinearOperator)`](@ref), if applicable
-* [`fDimensionLO(lo::LinearOperator)`](@ref)
+* [`numOfHops(lo::AbstractHamiltonian, address)`](@ref)
+* [`hop(lo::AbstractHamiltonian, address, chosen::Integer)`](@ref)
+* [`diagME(lo::AbstractHamiltonian, address)`](@ref)
+* [`hasIntDimension(lo::AbstractHamiltonian)`](@ref)
+* [`dimensionLO(lo::AbstractHamiltonian)`](@ref), if applicable
+* [`fDimensionLO(lo::AbstractHamiltonian)`](@ref)
 Optional:
 * [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
 """
-abstract type LinearOperator{T} end
+abstract type AbstractHamiltonian{T} end
 
-Base.eltype(::LinearOperator{T}) where {T} = T
+Base.eltype(::AbstractHamiltonian{T}) where {T} = T
 
-function *(h::LinearOperator{E}, v::AbstractDVec{K,V}) where {E, K, V}
+function *(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V}
     T = promote_type(E,V) # allow for type promotion
     w = empty(v, T) # allocate new vector; non-mutating version
     for (key,val) in pairs(v)
@@ -69,7 +73,7 @@ function *(h::LinearOperator{E}, v::AbstractDVec{K,V}) where {E, K, V}
 end
 
 # # five argument version: not doing this now as it will be slower than 3-args
-# function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec, α, β)
+# function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec, α, β)
 #     rmul!(w, β)
 #     for (key,val) in pairs(v)
 #         w[key] += α * diagME(h, key) * val
@@ -81,7 +85,7 @@ end
 # end
 
 # three argument version
-function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec)
+function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec)
     empty!(w)
     for (key,val) in pairs(v)
         w[key] += diagME(h, key)*val
@@ -93,7 +97,7 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec)
 end
 
 """
-    Hamiltonians.LOStructure(op::LinearOperator)
+    Hamiltonians.LOStructure(op::AbstractHamiltonian)
     Hamiltonians.LOStructure(typeof(op))
 `LOStructure` speficies properties of the linear operator `op`. If a special
 structure is known this can speed up calculations. Implemented structures are:
@@ -110,19 +114,19 @@ struct HermitianLO <: LOStructure end
 struct ComplexLO <: LOStructure end
 
 # defaults
-LOStructure(op::LinearOperator) = LOStructure(typeof(op))
-LOStructure(::Type{T}) where T <: LinearOperator = ComplexLO()
+LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))
+LOStructure(::Type{T}) where T <: AbstractHamiltonian = ComplexLO()
 
 
 """
-    dot(x, LO::LinearOperator, v)
+    dot(x, LO::AbstractHamiltonian, v)
 Evaluate `x⋅LO(v)` minimizing memory allocations.
 """
-function LinearAlgebra.dot(x::AbstractDVec, LO::LinearOperator, v::AbstractDVec)
+function LinearAlgebra.dot(x::AbstractDVec, LO::AbstractHamiltonian, v::AbstractDVec)
   return dot_w_trait(LOStructure(LO), x, LO, v)
 end
 # specialised method for UniformProjector
-function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
+function LinearAlgebra.dot(::UniformProjector, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
   result = zero(promote_type(T,T2))
   for (key,val) in pairs(v)
       result += diagME(LO, key) * val
@@ -134,13 +138,13 @@ function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::Abstrac
 end
 
 """
-    Hamiltonians.dot_w_trait(::LOStructure, x, LO::LinearOperator, v)
-Internal function for making use of the `LinearOperator` trait `LOStructure`.
+    Hamiltonians.dot_w_trait(::LOStructure, x, LO::AbstractHamiltonian, v)
+Internal function for making use of the `AbstractHamiltonian` trait `LOStructure`.
 """
-dot_w_trait(::LOStructure, x, LO::LinearOperator, v) = dot_from_right(x,LO,v)
+dot_w_trait(::LOStructure, x, LO::AbstractHamiltonian, v) = dot_from_right(x,LO,v)
 # default for LOs without special structure: keep order
 
-function dot_w_trait(::HermitianLO, x, LO::LinearOperator, v)
+function dot_w_trait(::HermitianLO, x, LO::AbstractHamiltonian, v)
     if length(x) < length(v)
         return conj(dot_from_right(v,LO,x)) # turn args around to execute faster
     else
@@ -153,8 +157,8 @@ end
 Internal function evaluates the 3-argument `dot()` function in order from right
 to left.
 """
-function dot_from_right(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
-    # function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+function dot_from_right(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+    # function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
     result = zero(promote_type(T1,promote_type(T,T2)))
     for (key,val) in pairs(v)
         result += conj(x[key]) * diagME(LO, key) * val
@@ -183,7 +187,7 @@ end
 ```
 """
 struct Hops{T,A,O}  <: AbstractVector{T}
-    h::O # Hamiltonian
+    h::O # AbstractHamiltonian
     add::A # address; usually a BitStringAddressType
     num::Int # number of possible hops
 
@@ -213,7 +217,7 @@ off-diagonal elements in the column corresponding to address `add` of
 the Hamiltonian matrix represented by `ham`. Alternatively, pass as
 argument an iterator over the accessible matrix elements.
 """
-function generateRandHop(ham::LinearOperator, add)
+function generateRandHop(ham::AbstractHamiltonian, add)
   # generic implementation of a random excitation generator drawing from
   # a uniform distribution
   # draws a random linked site and returns the site's address and generation
@@ -240,7 +244,7 @@ function generateRandHop(hops::Hops)
   # return new address, generation probability, and matrix element
 end
 
-function Base.getindex(ham::LinearOperator{T}, address1, address2) where T
+function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
   # calculate the matrix element when only two bitstring addresses are given
   # this is NOT used for the QMC algorithm and is currenlty not used either
   # for building the matrix for conventional diagonalisation.
@@ -253,7 +257,7 @@ function Base.getindex(ham::LinearOperator{T}, address1, address2) where T
   return zero(T) # address1 not found
 end # getindex(ham)
 
-# A handy function that helps make use of the `LinearOperator` technology. 
+# A handy function that helps make use of the `AbstractHamiltonian` technology. 
 """
     rayleighQuotient(lo, v)
 Compute 
@@ -269,7 +273,7 @@ rayleighQuotient(lo, v) = dot(v, lo, v)/norm(v)^2
 # Specialising to bosonic model Hamiltonians
 #
 """
-    BosonicHamiltonian{T} <: LinearOperator{T}
+    BosonicHamiltonian{T} <: AbstractHamiltonian{T}
 Abstract type for representing Hamiltonians in a Fock space of fixed number of
 scalar bosons. At least the following fields should be present:
 * `n  # number of particles`
@@ -277,20 +281,20 @@ scalar bosons. At least the following fields should be present:
 * `AT # address type`
 
 Methods that need to be implemented:
-* [`numOfHops(lo::LinearOperator, address)`](@ref) - number of off-diagonal matrix elements
-* [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref) - access an off-diagonal m.e. by index `chosen`
-* [`diagME(lo::LinearOperator, address)`](@ref) - diagonal matrix element
+* [`numOfHops(lo::AbstractHamiltonian, address)`](@ref) - number of off-diagonal matrix elements
+* [`hop(lo::AbstractHamiltonian, address, chosen::Integer)`](@ref) - access an off-diagonal m.e. by index `chosen`
+* [`diagME(lo::AbstractHamiltonian, address)`](@ref) - diagonal matrix element
 Optional:
 * [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref) - can speed up deterministic calculations if `HermitianLO`
 
 Provides:
-* [`hasIntDimension(lo::LinearOperator)`](@ref)
-* [`dimensionLO(lo::LinearOperator)`](@ref), might fail if linear space too large
-* [`fDimensionLO(lo::LinearOperator)`](@ref)
+* [`hasIntDimension(lo::AbstractHamiltonian)`](@ref)
+* [`dimensionLO(lo::AbstractHamiltonian)`](@ref), might fail if linear space too large
+* [`fDimensionLO(lo::AbstractHamiltonian)`](@ref)
 * [`bit_String_Length`](@ref)
 * [`nearUniform`](@ref), default version
 """
-abstract type BosonicHamiltonian{T} <: LinearOperator{T} end
+abstract type BosonicHamiltonian{T} <: AbstractHamiltonian{T} end
 
 BitStringAddresses.numParticles(h::BosonicHamiltonian) = h.n
 BitStringAddresses.numModes(h::BosonicHamiltonian) = h.m
@@ -781,7 +785,7 @@ function diagME(h::BoseHubbardMom1D, add)
 end
 
 """
-    Momentum(ham::LinearOperator) <: LinearOperator
+    Momentum(ham::AbstractHamiltonian) <: AbstractHamiltonian
 Momentum as a linear operator in Fock space. Pass a Hamiltonian `ham` in order to convey information about the Fock basis.
 
 Example use:
@@ -794,7 +798,7 @@ v = DVec(Dict(add => 10), 1000)
 rayleighQuotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
 ```
 """
-struct Momentum{H,T} <: LinearOperator{T}
+struct Momentum{H,T} <: AbstractHamiltonian{T}
   ham::H
 end
 LOStructure(::Type{Momentum{H,T}}) where {H,T <: Real} = HermitianLO()

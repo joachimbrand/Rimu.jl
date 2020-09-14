@@ -289,7 +289,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
 end # fciqmc
 
 # replica version
-function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
+function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::AbstractHamiltonian,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
@@ -677,7 +677,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
 end
 
 # to do: implement parallel version
-# function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
+# function fciqmc_step!(w::D, ham::AbstractHamiltonian, v::D, shift, dτ) where D<:DArray
 #   check that v and w are compatible
 #   for each worker
 #      call fciqmc_step!()  on respective local parts
@@ -750,7 +750,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift,
     return zeros(Int, 5)
 end
 
-function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
+function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
     # off-diagonal: spawning psips
     for (nadd, elem) in Hops(ham, add)
         w[nadd] += -dτ * elem * num
@@ -761,9 +761,9 @@ function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift,
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
-# function inner_step!(w, ham::LinearOperator, add, num::Number,
+# function inner_step!(w, ham::AbstractHamiltonian, add, num::Number,
 #                         shift, dτ)
-function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
+function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real,
                         shift, dτ)
     # version for single population of integer psips
     # off-diagonal: spawning psips
@@ -810,7 +810,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
     # note that w is not returned
 end # inner_step!
 
-function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num::Real,
+function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::AbstractHamiltonian, add, num::Real,
                         shift, dτ)
     # version for single population of integer psips
     # Nonlinearity in diagonal death step according to Ali's suggestion
@@ -859,7 +859,7 @@ function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num
     # note that w is not returned
 end # inner_step!
 
-function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
+function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
                         tup::Tuple{Real,Real},
                         shift, dτ)
     # trying out Ali's suggestion with occupation ratio of neighbours
@@ -913,7 +913,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
     # note that w is not returned
 end # inner_step!
 
-function fciqmc_col!(s::IsSemistochastic, w, ham::LinearOperator, add,
+function fciqmc_col!(s::IsSemistochastic, w, ham::AbstractHamiltonian, add,
          val_flag_tuple::Tuple{N, F}, shift, dτ) where {N<:Number, F<:Integer}
     (val, flag) = val_flag_tuple
     deterministic = flag & one(F) # extract deterministic flag
@@ -1003,7 +1003,7 @@ function fciqmc_col!(s::IsSemistochastic, w, ham::LinearOperator, add,
     return [0, 0, 0, 0, 0]
 end
 
-function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
+function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         add, val::N, shift, dτ) where N <: Real
 
     # diagonal death or clone: deterministic fomula

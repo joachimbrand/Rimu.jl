@@ -4,7 +4,7 @@
 
 This module contains definitions of Hamiltonians, in particular specific
 physical models of interest. These are organised by means of an interface
-around the abstract type [`LinearOperator`](@ref), in the spirit of the
+around the abstract type [`AbstractHamiltonian`](@ref), in the spirit of the
 `AbstractArray` interface as discussed in the [Julia Documentation](https://docs.julialang.org/en/v1/manual/interfaces/).
 
 ```@docs
@@ -49,10 +49,10 @@ Behind the implementation of a particular model is a more abstract interface
 for defining hamiltonians.
 If you want to define a new model you should make use of this interface.
 The most general form of a model Hamiltonian should subtype to
-`LinearOperator` and implement the relevant methods.
+`AbstractHamiltonian` and implement the relevant methods.
 
 ```@docs
-LinearOperator
+AbstractHamiltonian
 Hops
 generateRandHop
 ```
@@ -71,7 +71,7 @@ diagME
 
 For a many-body system consisting of spinless bosons, we already know more
 about the structure of the problem. `BosonicHamiltonian` is a pre-defined
-subtype of `LinearOperator`.
+subtype of `AbstractHamiltonian`.
 
 ```@docs
 BosonicHamiltonian
