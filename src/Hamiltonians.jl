@@ -738,7 +738,7 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
   onproduct *= occ + 1
   onr[ppq] = occ + 1
 
-  return ADDRESS(onr), ham.u/ham.m*sqrt(onproduct)
+  return ADDRESS(onr), ham.u/(2*ham.m)*sqrt(onproduct)
   # return new address and matrix element
 end
 
@@ -775,12 +775,12 @@ function diagME(h::BoseHubbardMom1D, add)
       if k==p
         onproduct += onrep[k]*(onrep[k]-1)
       else
-        onproduct += onrep[k]*onrep[p]
+        onproduct += 2*onrep[k]*onrep[p] # two terms in sum over creation operators
       end
     end
   end
   # @show onproduct
-  pe = h.u/h.m*sqrt(onproduct)
+  pe = h.u/(2*h.m)*onproduct
   return ke + pe
 end
 
