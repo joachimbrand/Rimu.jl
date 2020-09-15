@@ -243,12 +243,30 @@ end
     @test Hamiltonians.numSandDoccupiedsites(onr(bfs)) == Hamiltonians.numSandDoccupiedsites(bfs)
     ham = Hamiltonians.BoseHubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS{BSAdd64}((1,0,2,1,3,0,0,4)), 0.4330127018922193)
-    @test diagME(ham,bfs) ≈ 2.482583935466499
+    @test hop(ham, bfs, 205) == (BoseFS{BSAdd64}((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test diagME(ham,bfs) ≈ 14.296572875253808
     momentum = Momentum(ham)
     @test diagME(momentum,bfs) ≈ -1.5707963267948966
     v = DVec(Dict(bfs => 10), 1000)
-    @test rayleighQuotient(momentum, v) ≈ -1.5707963267948966
+    @test rayleigh_quotient(momentum, v) ≈ -1.5707963267948966
+
+    fs = BoseFS((1,2,1,0)) # should be zero momentum
+    ham = BoseHubbardMom1D(fs,t=1.0) 
+    m=Momentum(ham) # define momentum operator
+    mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
+    @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
+    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in Hops(ham, fs)]) # check that momentum does not change for hops
+    # construct full matrix
+    smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
+    # compute its eigenvalues
+    eig = eigen(Matrix(smat))
+    @test eig.values == [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]
+    # @test reduce(&, map(isapprox, eig.values, [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]))
+    # for comparison check real-space Bose Hubbard chain - the eigenvalues should be the same
+    hamr = BoseHubbardReal1D(fs,t=1.0)
+    smatr, addsr = Hamiltonians.build_sparse_matrix_from_LO(hamr,fs)
+    eigr = eigen(Matrix(smatr))
+    @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
 end
 
 

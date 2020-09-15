@@ -19,7 +19,7 @@ using ..ConsistentRNG
 
 export AbstractHamiltonian, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
-export rayleighQuotient
+export rayleigh_quotient
 
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D
@@ -844,7 +844,7 @@ ham = BoseHubbardMom1D(add; u = 2.0, t = 1.0)
 mom = Momentum(ham) # create an instance of the momentum operator
 diagME(mom, add) # 10.996 - to calculate the momentum of a single configuration 
 v = DVec(Dict(add => 10), 1000)
-rayleighQuotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
+rayleigh_quotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
 ```
 """
 struct Momentum{H,T} <: AbstractHamiltonian{T}
@@ -855,7 +855,7 @@ Momentum(ham::BoseHubbardMom1D{T}) where T = Momentum{typeof(ham), T}(ham)
 numOfHops(ham::Momentum, add) = 0
 diagME(mom::Momentum, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
 # surpsingly this is all that is needed. We don't even have to define `hop()`, because it is never reached.
-# `rayleighQuotient(Momentum(ham),v)` is performant!
+# `rayleigh_quotient(Momentum(ham),v)` is performant!
 
 ################################################
 #
