@@ -267,10 +267,8 @@ Compute
 """
 rayleigh_quotient(lo, v) = dot(v, lo, v)/norm(v)^2
 
-# using SparseArrays
 
 """
-    using SparseArrays
     sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham` 
 starting from the address `add`. The vector `basis` contains the addresses of basis configurations.
