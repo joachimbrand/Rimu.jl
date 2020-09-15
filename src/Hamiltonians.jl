@@ -646,22 +646,23 @@ end
 ###
 
 
-@with_kw struct BoseHubbardMom1D{T} <: BosonicHamiltonian{T}
+@with_kw struct BoseHubbardMom1D{T, AD} <: BosonicHamiltonian{T}
   n::Int = 6    # number of bosons
   m::Int = 6    # number of lattice sites
   u::T = 1.0    # interaction strength
   t::T = 1.0    # hopping strength
-  AT::Type = BSAdd64 # address type
+  # AT::Type = BSAdd64 # address type
+  add::AD       # starting address
 end
 
 @doc """
-    ham = BoseHubbardMom1D(;[n=6, m=6, u=1.0, t=1.0, AT = BSAdd64])
+    ham = BoseHubbardMom1D(;[n=6, m=6, u=1.0, t=1.0], add = add)
     ham = BoseHubbardMom1D(add; u=1.0, t=1.0)
 
 Implements a one-dimensional Bose Hubbard chain in momentum space.
 
 ```math
-\\hat{H} = -t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpq} a^†_{p+q} a^†_{k-q} a_p a_k \\\\
+\\hat{H} = -t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
 ϵ_k = - 2 t \\cos(k)
 ```
 
@@ -688,7 +689,7 @@ Return the approximate dimension of linear space as `Float64`.
 
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardMom1D{T}}) where T <: Real = HermitianLO()
+LOStructure(::Type{BoseHubbardMom1D{T, AD}}) where {T <: Real, AD} = HermitianLO()
 
 """
     BoseHubbardMom1D(add::BitStringAddressType; u=1.0, t=1.0)
@@ -698,7 +699,7 @@ address type. Parameters `u` and `t` can be passed as keyword arguments.
 function BoseHubbardMom1D(add::BSA; u=1.0, t=1.0) where BSA <: BitStringAddressType
   n = numParticles(add)
   m = numModes(add)
-  return BoseHubbardMom1D(n,m,u,t,BSA)
+  return BoseHubbardMom1D(n,m,u,t,add)
 end
 
 # functor definitions need to be done separately for each concrete type
@@ -851,7 +852,7 @@ struct Momentum{H,T} <: AbstractHamiltonian{T}
   ham::H
 end
 LOStructure(::Type{Momentum{H,T}}) where {H,T <: Real} = HermitianLO()
-Momentum(ham::BoseHubbardMom1D{T}) where T = Momentum{typeof(ham), T}(ham)
+Momentum(ham::BoseHubbardMom1D{T, AD}) where {T, AD} = Momentum{typeof(ham), T}(ham)
 numOfHops(ham::Momentum, add) = 0
 diagME(mom::Momentum, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
 # surpsingly this is all that is needed. We don't even have to define `hop()`, because it is never reached.
