@@ -262,7 +262,7 @@ end # getindex(ham)
     rayleigh_quotient(lo, v)
 Compute 
 ```math
-\frac{⟨ v | lo | v ⟩}{⟨ v|v ⟩}
+\\frac{⟨ v | lo | v ⟩}{⟨ v|v ⟩}
 ```
 """
 rayleigh_quotient(lo, v) = dot(v, lo, v)/norm(v)^2
