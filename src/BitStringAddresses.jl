@@ -11,7 +11,7 @@ import Base: isless, zero, iszero, show, ==, hash
 
 export BitStringAddressType, BSAdd64, BSAdd128
 export BitAdd, BoseFS
-export onr, nearUniform
+export onr, nearUniform, nearUniformONR
 export numBits, numChunks, numParticles, numModes
 export BStringAdd # deprecate
 export bitaddr, maxBSLength # deprecate
@@ -804,15 +804,15 @@ end
 # end
 
 """
-    nearUniform(N, M) -> onr::SVector{M,Int}
+    nearUniformONR(N, M) -> onr::SVector{M,Int}
 Create occupation number representation `onr` distributing `N` particles in `M`
 modes in a close-to-uniform fashion with each orbital filled with at least
 `N ÷ M` particles and at most with `N ÷ M + 1` particles.
 """
-function nearUniform(n, m)
-  return nearUniform(Val(n),Val(m))
+function nearUniformONR(n::Number, m::Number)
+  return nearUniformONR(Val(n),Val(m))
 end
-function nearUniform(::Val{N}, ::Val{M}) where {N, M}
+function nearUniformONR(::Val{N}, ::Val{M}) where {N, M}
   fillingfactor, extras = divrem(N, M)
   # startonr = fill(fillingfactor,M)
   startonr = fillingfactor * @MVector ones(Int,M)
@@ -836,10 +836,10 @@ BoseFS{BSAdd64}((2,2,1,1,1))
 ```
 """
 function nearUniform(::Type{BoseFS{N,M,A}}) where {N,M,A}
-  return BoseFS{A}(nearUniform(Val(N),Val(M)),Val(N),Val(M),Val(N+M-1))
+  return BoseFS{A}(nearUniformONR(Val(N),Val(M)),Val(N),Val(M),Val(N+M-1))
 end
 function nearUniform(::Type{BoseFS{N,M}}) where {N,M}
-  return BoseFS(nearUniform(Val(N),Val(M)))
+  return BoseFS(nearUniformONR(Val(N),Val(M)))
 end
 
 # function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
