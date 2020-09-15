@@ -8,7 +8,7 @@ Models implemented so far are:
 """
 module Hamiltonians
 
-using Parameters, StaticArrays, LinearAlgebra
+using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 
 import Base: *
 import LinearAlgebra: mul!, dot
@@ -259,14 +259,63 @@ end # getindex(ham)
 
 # A handy function that helps make use of the `AbstractHamiltonian` technology. 
 """
-    rayleighQuotient(lo, v)
+    rayleigh_quotient(lo, v)
 Compute 
 ```math
 \frac{⟨ v | lo | v ⟩}{⟨ v|v ⟩}
 ```
 """
-rayleighQuotient(lo, v) = dot(v, lo, v)/norm(v)^2
+rayleigh_quotient(lo, v) = dot(v, lo, v)/norm(v)^2
 
+# using SparseArrays
+
+"""
+    using SparseArrays
+    sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)
+Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham` 
+starting from the address `add`. The vector `basis` contains the addresses of basis configurations.
+Providing the number `nnzs` of expected calculated matrix elements may improve performance.
+"""
+function build_sparse_matrix_from_LO(ham::AbstractHamiltonian, fs; nnzs = 0)
+    adds = [fs] # list of addresses of length linear dimension of matrix
+    I = Vector{Int}(undef,0) # row indices, length nnz
+    J = Vector{Int}(undef,0) # column indices, length nnz
+    V = Vector{eltype(ham)}(undef,0) # values, length nnz
+    if nnzs > 0
+      sizehint!(I, nnzs)
+      sizehint!(J, nnzs)
+      sizehint!(V, nnzs)
+    end
+
+    k = 0 # 1:nnz, in principle, but possibly more as several contributions to a matrix element may occur
+    i = 0 # 1:dim, column of matrix
+    while true # loop over columns of the matrix
+        k += 1
+        i += 1 # next column
+        i > length(adds) && break
+        add = adds[i] # new address from list
+        # compute and push diagonal matrix element
+        melem = diagME(ham, add)
+        push!(I, i)
+        push!(J, i)
+        push!(V, melem)
+        for (nadd, melem) in Hops(ham, add) # loop over rows
+            k += 1
+            j = findnext(a->a == nadd, adds, 1) # find index of `nadd` in `adds`
+            if isnothing(j)
+                # new address: increase dimension of matrix by adding a row
+                push!(adds, nadd)
+                j = length(adds) # row index points to the new element in `adds`
+            end
+            # new nonzero matrix element
+            push!(I, i)
+            push!(J, j)
+            push!(V, melem)
+        end
+    end
+    return sparse(I,J,V), adds
+    # when the index pair `(i,j)` occurs mutiple times in `I` and `J` the elements are added.
+end
 
 ##########################################
 #
