@@ -1,6 +1,6 @@
 """
 This module defines Hamiltonian types and standard methods.
-Model Hamiltonians should be subtyped to [`LinearOperator`](@ref).
+Model Hamiltonians should be subtyped to [`AbstractHamiltonian`](@ref).
 Models implemented so far are:
 
 * [`BoseHubbardReal1D`](@ref) Bose-Hubbard chain, real space
@@ -8,7 +8,7 @@ Models implemented so far are:
 """
 module Hamiltonians
 
-using Parameters, StaticArrays, LinearAlgebra
+using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 
 import Base: *
 import LinearAlgebra: mul!, dot
@@ -17,20 +17,26 @@ using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
 
-export LinearOperator, Hops, generateRandHop
+export AbstractHamiltonian, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
+export rayleigh_quotient
 
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D
+export BoseHubbardMom1D, Momentum
 
 # First we have some generic types and methods for any linear operator
 # that could be used for FCIQMC
 
 """
-    LinearOperator{T}
-Supertype that provides and interface for linear operators over `T` that are
-suitable for FCIQMC. Indexing is done with addresses from a linear space that
-may be large (and will not need to be completely generated).
+    AbstractHamiltonian{T}
+Supertype that provides an interface for linear operators over a linear space with scalar 
+type `T` that are suitable for FCIQMC. Indexing is done with addresses (typically not integers) 
+from an address space that may be large (and will not need to be completely generated).
+
+`AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) 
+from the module `DictVectors` and work well with addresses of type [`BitStringAddressType`](@ref) 
+from the module `BitStringAddresses`. The type works well with the external package `KrylovKit.jl`.
 
 Provides:
 * [`Hops`](@ref): iterator over reachable off-diagonal matrix elements
@@ -41,20 +47,20 @@ Provides:
 * [`dot(x, LO, v)`](@ref) compute `x⋅(LO*v)` minimizing allocations
 
 Methods that need to be implemented:
-* [`numOfHops(lo::LinearOperator, address)`](@ref)
-* [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref)
-* [`diagME(lo::LinearOperator, address)`](@ref)
-* [`hasIntDimension(lo::LinearOperator)`](@ref)
-* [`dimensionLO(lo::LinearOperator)`](@ref), if applicable
-* [`fDimensionLO(lo::LinearOperator)`](@ref)
+* [`numOfHops(lo::AbstractHamiltonian, address)`](@ref)
+* [`hop(lo::AbstractHamiltonian, address, chosen::Integer)`](@ref)
+* [`diagME(lo::AbstractHamiltonian, address)`](@ref)
+* [`hasIntDimension(lo::AbstractHamiltonian)`](@ref)
+* [`dimensionLO(lo::AbstractHamiltonian)`](@ref), if applicable
+* [`fDimensionLO(lo::AbstractHamiltonian)`](@ref)
 Optional:
 * [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
 """
-abstract type LinearOperator{T} end
+abstract type AbstractHamiltonian{T} end
 
-Base.eltype(::LinearOperator{T}) where {T} = T
+Base.eltype(::AbstractHamiltonian{T}) where {T} = T
 
-function *(h::LinearOperator{E}, v::AbstractDVec{K,V}) where {E, K, V}
+function *(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V}
     T = promote_type(E,V) # allow for type promotion
     w = empty(v, T) # allocate new vector; non-mutating version
     for (key,val) in pairs(v)
@@ -67,7 +73,7 @@ function *(h::LinearOperator{E}, v::AbstractDVec{K,V}) where {E, K, V}
 end
 
 # # five argument version: not doing this now as it will be slower than 3-args
-# function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec, α, β)
+# function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec, α, β)
 #     rmul!(w, β)
 #     for (key,val) in pairs(v)
 #         w[key] += α * diagME(h, key) * val
@@ -79,7 +85,7 @@ end
 # end
 
 # three argument version
-function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec)
+function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec)
     empty!(w)
     for (key,val) in pairs(v)
         w[key] += diagME(h, key)*val
@@ -91,7 +97,7 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::LinearOperator, v::AbstractDVec)
 end
 
 """
-    Hamiltonians.LOStructure(op::LinearOperator)
+    Hamiltonians.LOStructure(op::AbstractHamiltonian)
     Hamiltonians.LOStructure(typeof(op))
 `LOStructure` speficies properties of the linear operator `op`. If a special
 structure is known this can speed up calculations. Implemented structures are:
@@ -108,19 +114,19 @@ struct HermitianLO <: LOStructure end
 struct ComplexLO <: LOStructure end
 
 # defaults
-LOStructure(op::LinearOperator) = LOStructure(typeof(op))
-LOStructure(::Type{T}) where T <: LinearOperator = ComplexLO()
+LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))
+LOStructure(::Type{T}) where T <: AbstractHamiltonian = ComplexLO()
 
 
 """
-    dot(x, LO::LinearOperator, v)
+    dot(x, LO::AbstractHamiltonian, v)
 Evaluate `x⋅LO(v)` minimizing memory allocations.
 """
-function LinearAlgebra.dot(x::AbstractDVec, LO::LinearOperator, v::AbstractDVec)
+function LinearAlgebra.dot(x::AbstractDVec, LO::AbstractHamiltonian, v::AbstractDVec)
   return dot_w_trait(LOStructure(LO), x, LO, v)
 end
 # specialised method for UniformProjector
-function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
+function LinearAlgebra.dot(::UniformProjector, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
   result = zero(promote_type(T,T2))
   for (key,val) in pairs(v)
       result += diagME(LO, key) * val
@@ -132,13 +138,13 @@ function LinearAlgebra.dot(::UniformProjector, LO::LinearOperator{T}, v::Abstrac
 end
 
 """
-    Hamiltonians.dot_w_trait(::LOStructure, x, LO::LinearOperator, v)
-Internal function for making use of the `LinearOperator` trait `LOStructure`.
+    Hamiltonians.dot_w_trait(::LOStructure, x, LO::AbstractHamiltonian, v)
+Internal function for making use of the `AbstractHamiltonian` trait `LOStructure`.
 """
-dot_w_trait(::LOStructure, x, LO::LinearOperator, v) = dot_from_right(x,LO,v)
+dot_w_trait(::LOStructure, x, LO::AbstractHamiltonian, v) = dot_from_right(x,LO,v)
 # default for LOs without special structure: keep order
 
-function dot_w_trait(::HermitianLO, x, LO::LinearOperator, v)
+function dot_w_trait(::HermitianLO, x, LO::AbstractHamiltonian, v)
     if length(x) < length(v)
         return conj(dot_from_right(v,LO,x)) # turn args around to execute faster
     else
@@ -151,8 +157,8 @@ end
 Internal function evaluates the 3-argument `dot()` function in order from right
 to left.
 """
-function dot_from_right(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
-    # function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::LinearOperator{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+function dot_from_right(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
+    # function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
     result = zero(promote_type(T1,promote_type(T,T2)))
     for (key,val) in pairs(v)
         result += conj(x[key]) * diagME(LO, key) * val
@@ -181,7 +187,7 @@ end
 ```
 """
 struct Hops{T,A,O}  <: AbstractVector{T}
-    h::O # Hamiltonian
+    h::O # AbstractHamiltonian
     add::A # address; usually a BitStringAddressType
     num::Int # number of possible hops
 
@@ -211,7 +217,7 @@ off-diagonal elements in the column corresponding to address `add` of
 the Hamiltonian matrix represented by `ham`. Alternatively, pass as
 argument an iterator over the accessible matrix elements.
 """
-function generateRandHop(ham::LinearOperator, add)
+function generateRandHop(ham::AbstractHamiltonian, add)
   # generic implementation of a random excitation generator drawing from
   # a uniform distribution
   # draws a random linked site and returns the site's address and generation
@@ -238,7 +244,7 @@ function generateRandHop(hops::Hops)
   # return new address, generation probability, and matrix element
 end
 
-function Base.getindex(ham::LinearOperator{T}, address1, address2) where T
+function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
   # calculate the matrix element when only two bitstring addresses are given
   # this is NOT used for the QMC algorithm and is currenlty not used either
   # for building the matrix for conventional diagonalisation.
@@ -251,12 +257,70 @@ function Base.getindex(ham::LinearOperator{T}, address1, address2) where T
   return zero(T) # address1 not found
 end # getindex(ham)
 
+# A handy function that helps make use of the `AbstractHamiltonian` technology. 
+"""
+    rayleigh_quotient(lo, v)
+Compute 
+```math
+\\frac{⟨ v | lo | v ⟩}{⟨ v|v ⟩}
+```
+"""
+rayleigh_quotient(lo, v) = dot(v, lo, v)/norm(v)^2
+
+
+"""
+    sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)
+Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham` 
+starting from the address `add`. The vector `basis` contains the addresses of basis configurations.
+Providing the number `nnzs` of expected calculated matrix elements may improve performance.
+"""
+function build_sparse_matrix_from_LO(ham::AbstractHamiltonian, fs; nnzs = 0)
+    adds = [fs] # list of addresses of length linear dimension of matrix
+    I = Vector{Int}(undef,0) # row indices, length nnz
+    J = Vector{Int}(undef,0) # column indices, length nnz
+    V = Vector{eltype(ham)}(undef,0) # values, length nnz
+    if nnzs > 0
+      sizehint!(I, nnzs)
+      sizehint!(J, nnzs)
+      sizehint!(V, nnzs)
+    end
+
+    k = 0 # 1:nnz, in principle, but possibly more as several contributions to a matrix element may occur
+    i = 0 # 1:dim, column of matrix
+    while true # loop over columns of the matrix
+        k += 1
+        i += 1 # next column
+        i > length(adds) && break
+        add = adds[i] # new address from list
+        # compute and push diagonal matrix element
+        melem = diagME(ham, add)
+        push!(I, i)
+        push!(J, i)
+        push!(V, melem)
+        for (nadd, melem) in Hops(ham, add) # loop over rows
+            k += 1
+            j = findnext(a->a == nadd, adds, 1) # find index of `nadd` in `adds`
+            if isnothing(j)
+                # new address: increase dimension of matrix by adding a row
+                push!(adds, nadd)
+                j = length(adds) # row index points to the new element in `adds`
+            end
+            # new nonzero matrix element
+            push!(I, i)
+            push!(J, j)
+            push!(V, melem)
+        end
+    end
+    return sparse(I,J,V), adds
+    # when the index pair `(i,j)` occurs mutiple times in `I` and `J` the elements are added.
+end
+
 ##########################################
 #
 # Specialising to bosonic model Hamiltonians
 #
 """
-    BosonicHamiltonian{T} <: LinearOperator{T}
+    BosonicHamiltonian{T} <: AbstractHamiltonian{T}
 Abstract type for representing Hamiltonians in a Fock space of fixed number of
 scalar bosons. At least the following fields should be present:
 * `n  # number of particles`
@@ -264,20 +328,20 @@ scalar bosons. At least the following fields should be present:
 * `AT # address type`
 
 Methods that need to be implemented:
-* [`numOfHops(lo::LinearOperator, address)`](@ref) - number of off-diagonal matrix elements
-* [`hop(lo::LinearOperator, address, chosen::Integer)`](@ref) - access an off-diagonal m.e. by index `chosen`
-* [`diagME(lo::LinearOperator, address)`](@ref) - diagonal matrix element
+* [`numOfHops(lo::AbstractHamiltonian, address)`](@ref) - number of off-diagonal matrix elements
+* [`hop(lo::AbstractHamiltonian, address, chosen::Integer)`](@ref) - access an off-diagonal m.e. by index `chosen`
+* [`diagME(lo::AbstractHamiltonian, address)`](@ref) - diagonal matrix element
 Optional:
 * [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref) - can speed up deterministic calculations if `HermitianLO`
 
 Provides:
-* [`hasIntDimension(lo::LinearOperator)`](@ref)
-* [`dimensionLO(lo::LinearOperator)`](@ref), might fail if linear space too large
-* [`fDimensionLO(lo::LinearOperator)`](@ref)
+* [`hasIntDimension(lo::AbstractHamiltonian)`](@ref)
+* [`dimensionLO(lo::AbstractHamiltonian)`](@ref), might fail if linear space too large
+* [`fDimensionLO(lo::AbstractHamiltonian)`](@ref)
 * [`bit_String_Length`](@ref)
 * [`nearUniform`](@ref), default version
 """
-abstract type BosonicHamiltonian{T} <: LinearOperator{T} end
+abstract type BosonicHamiltonian{T} <: AbstractHamiltonian{T} end
 
 BitStringAddresses.numParticles(h::BosonicHamiltonian) = h.n
 BitStringAddresses.numModes(h::BosonicHamiltonian) = h.m
@@ -575,6 +639,223 @@ function hop(ham::BoseHubbardExtOrNot, add, chosen::Integer)
     # return new address and matrix element
 end
 
+###
+### BoseHubbardMom1D
+###
+
+
+@with_kw struct BoseHubbardMom1D{T, AD} <: BosonicHamiltonian{T}
+  n::Int = 6    # number of bosons
+  m::Int = 6    # number of lattice sites
+  u::T = 1.0    # interaction strength
+  t::T = 1.0    # hopping strength
+  # AT::Type = BSAdd64 # address type
+  add::AD       # starting address
+end
+
+@doc """
+    ham = BoseHubbardMom1D(;[n=6, m=6, u=1.0, t=1.0], add = add)
+    ham = BoseHubbardMom1D(add; u=1.0, t=1.0)
+
+Implements a one-dimensional Bose Hubbard chain in momentum space.
+
+```math
+\\hat{H} = -t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
+ϵ_k = - 2 t \\cos(k)
+```
+
+# Arguments
+- `n::Int`: the number of bosons
+- `m::Int`: the number of lattice sites
+- `u::Float64`: the interaction parameter
+- `t::Float64`: the hopping strength
+- `AT::Type`: the address type
+
+# Functor use:
+    w = ham(v)
+    ham(w, v)
+Compute the matrix - vector product `w = ham * v`. The two-argument version is
+mutating for `w`.
+
+    ham(:dim)
+Return the dimension of the linear space if representable as `Int`, otherwise
+return `nothing`.
+
+    ham(:fdim)
+Return the approximate dimension of linear space as `Float64`.
+""" BoseHubbardMom1D
+
+
+# set the `LOStructure` trait
+LOStructure(::Type{BoseHubbardMom1D{T, AD}}) where {T <: Real, AD} = HermitianLO()
+
+"""
+    BoseHubbardMom1D(add::BitStringAddressType; u=1.0, t=1.0)
+Set up the `BoseHubbardMom1D` with the correct particle and mode number and
+address type. Parameters `u` and `t` can be passed as keyword arguments.
+"""
+function BoseHubbardMom1D(add::BSA; u=1.0, t=1.0) where BSA <: BitStringAddressType
+  n = numParticles(add)
+  m = numModes(add)
+  return BoseHubbardMom1D(n,m,u,t,add)
+end
+
+# functor definitions need to be done separately for each concrete type
+function (h::BoseHubbardMom1D)(s::Symbol)
+  if s == :dim # attempt to compute dimension as `Int`
+      return hasIntDimension(h) ? dimensionLO(h) : nothing
+  elseif s == :fdim
+      return fDimensionLO(h) # return dimension as floating point
+  end
+  return nothing
+end
+# should be all that is needed to make the Hamiltonian a linear map:
+(h::BoseHubbardMom1D)(v) = h*v
+
+function numOfHops(ham::BoseHubbardMom1D, add)
+  singlies, doublies = numSandDoccupiedsites(add)
+  return singlies*(singlies-1)*(ham.m - 2) + doublies*(ham.m - 1)
+  # number of excitations that can be made
+end
+
+function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
+  onr = BitStringAddresses.m_onr(add) # get occupation number representation as a mutable array
+  singlies, doublies = numSandDoccupiedsites(add)
+  onproduct = 1
+  k = p = q = 0
+  double = chosen - singlies*(singlies-1)*(ham.m - 2)
+  # start by making holes as the action of two annihilation operators
+  if double > 0 # need to choose doubly occupied site for double hole 
+    # c_p c_p 
+    double, q = fldmod1(double, ham.m-1)
+    # double is location of double
+    # q is momentum transfer
+    for (i, occ) in enumerate(onr)
+      if occ > 1
+        double -= 1
+        if double == 0 
+          onproduct *= occ*(occ-1)
+          onr[i] = occ-2 # annihilate two particles in onr
+          p = k = i # remember where we make the holes
+          break # should break out of the for loop
+        end
+      end
+    end
+  else # need to punch two single holes
+    # c_k c_p
+    pair, q = fldmod1(chosen, ham.m-2) # floored integer division and modulus in ranges 1:(m-1)
+    first, second = fldmod1(pair, singlies-1) # where the holes are to be made
+    if second < first # put them in ascending order
+      f_hole = second
+      s_hole = first
+    else
+      f_hole = first
+      s_hole = second + 1 # as we are counting through all singlies
+    end
+    counter = 0
+    for (i, occ) in enumerate(onr)
+      if occ > 0
+        counter += 1
+        if counter == f_hole
+          onproduct *= occ
+          onr[i] = occ -1 # punch first hole
+          p = i # location of first hole
+        elseif counter == s_hole
+          onproduct *= occ 
+          onr[i] = occ -1 # punch second hole
+          k = i # location of second hole 
+          break
+        end
+      end
+    end
+    # we have p<k and 1 < q < ham.m - 2
+    if q ≥ k-p
+      q += 1 # to avoid putting particles back into the holes
+    end
+  end # if double > 0 # we're done punching holes
+
+  # now it is time to deal with two creation operators
+  # c^†_k-q 
+  kmq = mod1(k-q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onr[kmq]
+  onproduct *= occ + 1
+  onr[kmq] = occ + 1
+  # c^†_p+q 
+  ppq = mod1(p+q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onr[ppq]
+  onproduct *= occ + 1
+  onr[ppq] = occ + 1
+
+  return ADDRESS(onr), ham.u/(2*ham.m)*sqrt(onproduct)
+  # return new address and matrix element
+end
+
+
+"""
+    ks(h::BoseHubbardMom1D)
+Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `onr()` 
+occupation number representation.
+"""
+function ks(h::BoseHubbardMom1D)
+  if isodd(h.m)
+    return -π*(1+1/h.m).+ 2*π/h.m .*(1:h.m)
+  else
+    return -π.+ 2*π/h.m .*(1:h.m)
+  end
+end
+
+
+function diagME(h::BoseHubbardMom1D, add)
+  onrep = BitStringAddresses.onr(add) # get occupation number representation 
+
+  # single particle part of Hubbard momentum space Hamiltonian
+  # ke = -2*h.t.*cos.(ks(h))⋅onrep # works but allocates memory due to broadcasting
+  # ugly but no allocations:
+  ke = 0.0
+  for (k,on) in zip(ks(h),onrep)
+    ke += -2*h.t * cos(k) * on
+  end
+
+  # now compute diagonal interaction energy
+  onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
+  for p in 1:h.m
+    for k in 1:h.m
+      if k==p
+        onproduct += onrep[k]*(onrep[k]-1)
+      else
+        onproduct += 2*onrep[k]*onrep[p] # two terms in sum over creation operators
+      end
+    end
+  end
+  # @show onproduct
+  pe = h.u/(2*h.m)*onproduct
+  return ke + pe
+end
+
+"""
+    Momentum(ham::AbstractHamiltonian) <: AbstractHamiltonian
+Momentum as a linear operator in Fock space. Pass a Hamiltonian `ham` in order to convey information about the Fock basis.
+
+Example use:
+```julia
+add = BoseFS((1,0,2,1,2,1,1,3)) # address for a Fock state (configuration) with 11 bosons in 8 modes
+ham = BoseHubbardMom1D(add; u = 2.0, t = 1.0)
+mom = Momentum(ham) # create an instance of the momentum operator
+diagME(mom, add) # 10.996 - to calculate the momentum of a single configuration 
+v = DVec(Dict(add => 10), 1000)
+rayleigh_quotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
+```
+"""
+struct Momentum{H,T} <: AbstractHamiltonian{T}
+  ham::H
+end
+LOStructure(::Type{Momentum{H,T}}) where {H,T <: Real} = HermitianLO()
+Momentum(ham::BoseHubbardMom1D{T, AD}) where {T, AD} = Momentum{typeof(ham), T}(ham)
+numOfHops(ham::Momentum, add) = 0
+diagME(mom::Momentum, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
+# surpsingly this is all that is needed. We don't even have to define `hop()`, because it is never reached.
+# `rayleigh_quotient(Momentum(ham),v)` is performant!
+
 ################################################
 #
 # Internals of the Bose Hubbard model:
@@ -601,71 +882,6 @@ function bosehubbardinteraction(address::T) where # T<:Integer
   return matrixelementint
 end #bosehubbardinteraction
 
-# function bosehubbardinteraction(a::BitAdd)
-#   return mapreduce(bosehubbardinteraction,+,a.chunks)
-# end
-function bitshiftright!(v::MVector{I,UInt64}, n::Integer) where I
-  if I==1
-    @inbounds v[1] >>>= n
-    return v
-  elseif n ≥ I*64
-    return fill!(v, zero(UInt64))
-  end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  for i in I : -1 : d+2 #1 : I-d-1
-    @inbounds v[i] = (v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r))
-  end
-  @inbounds v[d+1] = v[1] >>> r # no carryover for leftmost chunk
-  for i in 1 : d
-    @inbounds v[i] = zero(UInt64)
-  end
-  return v
-end
-
-# function bitshiftright(v::SVector{I,UInt64}, n::Integer) where I
-#   if I==1
-#     @inbounds return v[1] >>> n
-#   elseif n ≥ I*64
-#     return zero(SVector{I,UInt64})
-#   end
-#   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-#   mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-#   p1 = (zero(UInt64) for i in 1:d)
-#   @inbounds p2 = v[1] >>> r # no carryover for leftmost chunk
-#   p3 = ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)
-#   return SVector(p1...,p2,p3...)
-# end
-@inline function bitshiftright(v::SVector{I,UInt64}, n::Integer) where I
-  if I==1
-    @inbounds return v[1] >>> n
-  end
-  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
-  mask = ~0 >>> (64-r) # 2^r-1 # 0b0...01...1 with `r` 1s
-  return ((zero(UInt64) for i in 1:d)..., (v[1] >>> r),
-    ((v[i-d] >>> r) | ((v[i-d-1] & mask) << (64-r)) for i in I : -1 : d+2)...)
-end
-
-
-function Base.trailing_ones(a::MVector)
-  t = 0
-  for chunk in reverse(a)
-    s = trailing_ones(chunk)
-    t += s
-    s < 64 && break
-  end
-  return t # min(t, B) # assume no ghost bits
-end
-
-function Base.trailing_zeros(a::MVector)
-  t = 0
-  for chunk in reverse(a)
-    s = trailing_zeros(chunk)
-    t += s
-    s < 64 && break
-  end
-  return t
-end
 
 bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
@@ -778,6 +994,46 @@ function ebhm(bsadd::BStringAdd, mModes)
   return ebhmmatrixelementint, bhmmatrixelementint
 end # ebhm(bsadd::BStringAdd, ...)
 
+"""
+    singlies, doublies = numSandDoccupiedsites(address)
+Returns the number of singly and doubly occupied sites for a bosonic bit string address.
+"""
+function numSandDoccupiedsites(address::T) where T<:Union{Integer,BitAdd}
+  # returns number of singly and doubly occupied sites
+  singlies = 0
+  doublies = 0
+  while !iszero(address)
+    singlies += 1
+    address >>>= trailing_zeros(address)
+    occupancy = trailing_ones(address)
+    if occupancy > 1
+      doublies += 1
+    end
+    address >>>= occupancy
+  end # while address
+  return singlies, doublies
+end
+
+numSandDoccupiedsites(b::BoseFS) = numSandDoccupiedsites(b.bs)
+numSandDoccupiedsites(a::BSAdd64) = numSandDoccupiedsites(a.add)
+numSandDoccupiedsites(a::BSAdd128) = numSandDoccupiedsites(a.add)
+
+function numSandDoccupiedsites(onr::AbstractArray)
+  # returns number of singly and doubly occupied sites
+  singlies = 0
+  doublies = 0
+  for n in onr
+    if n > 0
+      singlies += 1
+      if n > 1
+        doublies += 1
+      end
+    end
+  end
+  return singlies, doublies
+end
+# this one is faster by about a factor of 2 if you already have the onr
+
 function numberoccupiedsites(address::T) where # T<:Integer
   T<:Union{Integer,BitAdd}
   # returns the number of occupied sites starting from bitstring address
@@ -790,14 +1046,8 @@ function numberoccupiedsites(address::T) where # T<:Integer
   return orbitalnumber
 end # numberoccupiedsites
 
-# function numberoccupiedsites(address::BitAdd)
-#   return mapreduce(numberoccupiedsites,+,address.chunks)
-# end
-
 numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
-
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
-
 numberoccupiedsites(a::BSAdd128) = numberoccupiedsites(a.add)
 
 function numberoccupiedsites(bsadd::BStringAdd)

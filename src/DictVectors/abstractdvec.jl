@@ -415,7 +415,7 @@ struct UniformProjector end
 
 LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(y)
 # a specialised fast and non-allocating method for
-# `dot(::UniformProjector, A::LinearOperator, y)` is defined in `Hamiltonians.jl`
+# `dot(::UniformProjector, A::AbstractHamiltonian, y)` is defined in `Hamiltonians.jl`
 
 """
     NormProjector()

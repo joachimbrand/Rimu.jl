@@ -11,7 +11,7 @@ import Base: isless, zero, iszero, show, ==, hash
 
 export BitStringAddressType, BSAdd64, BSAdd128
 export BitAdd, BoseFS
-export onr, nearUniform
+export onr, nearUniform, nearUniformONR
 export numBits, numChunks, numParticles, numModes
 export BStringAdd # deprecate
 export bitaddr, maxBSLength # deprecate
@@ -683,6 +683,11 @@ function BoseFS{A}(onr::T) where {A, T<:Union{AbstractVector,Tuple}}
 end
 
 # This constructor is performant!!
+@inline function BoseFS{N,M,A}(onr::T) where {N, M, A, T<:Union{AbstractVector,Tuple}}
+  return BoseFS{A}(onr, Val(N), Val(M), Val(N+M-1))
+end
+
+# This constructor is performant!!
 @inline function BoseFS{BSAdd64}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
   @boundscheck begin
     B > 64 && throw(BoundsError(BSAdd64(0),B))
@@ -764,6 +769,21 @@ function onr(bba::BoseFS{N,M,A}) where {N,M,A}
   return SVector(r)
 end
 
+@inline function m_onr(bba::BoseFS{N,M,A}) where {N,M,A}
+  r = zeros(MVector{M,Int})
+  address = bba.bs
+  for orbitalnumber in 1:M
+    bosonnumber = trailing_ones(address)
+    @inbounds r[orbitalnumber] = bosonnumber
+    address >>>= bosonnumber + 1
+    iszero(address) && break
+  end
+  return r
+end
+# for some reason this is slower than the above onr() when benchmarked
+s_onr(arg) = m_onr(arg) |> SVector
+
+
 # need a special case for BStringAdd because the bit ordering is reversed
 function onr(bba::BoseFS{N,M,A}) where {N,M,A<:BStringAdd}
   onr(bba.bs,M)
@@ -784,15 +804,15 @@ end
 # end
 
 """
-    nearUniform(N, M) -> onr::SVector{M,Int}
+    nearUniformONR(N, M) -> onr::SVector{M,Int}
 Create occupation number representation `onr` distributing `N` particles in `M`
 modes in a close-to-uniform fashion with each orbital filled with at least
 `N ÷ M` particles and at most with `N ÷ M + 1` particles.
 """
-function nearUniform(n, m)
-  return nearUniform(Val(n),Val(m))
+function nearUniformONR(n::Number, m::Number)
+  return nearUniformONR(Val(n),Val(m))
 end
-function nearUniform(::Val{N}, ::Val{M}) where {N, M}
+function nearUniformONR(::Val{N}, ::Val{M}) where {N, M}
   fillingfactor, extras = divrem(N, M)
   # startonr = fill(fillingfactor,M)
   startonr = fillingfactor * @MVector ones(Int,M)
@@ -816,10 +836,10 @@ BoseFS{BSAdd64}((2,2,1,1,1))
 ```
 """
 function nearUniform(::Type{BoseFS{N,M,A}}) where {N,M,A}
-  return BoseFS{A}(nearUniform(Val(N),Val(M)),Val(N),Val(M),Val(N+M-1))
+  return BoseFS{A}(nearUniformONR(Val(N),Val(M)),Val(N),Val(M),Val(N+M-1))
 end
 function nearUniform(::Type{BoseFS{N,M}}) where {N,M}
-  return BoseFS(nearUniform(Val(N),Val(M)))
+  return BoseFS(nearUniformONR(Val(N),Val(M)))
 end
 
 # function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
