@@ -35,11 +35,12 @@ of the model are then provided by the following methods:
 ### Model Hamiltonians
 
 Here is a list of fully implemented model Hamiltonians. So far there are two
-variants implemented of the Bose-Hubbard model in one dimensional in real space.
+variants implemented of the one-dimentional Bose-Hubbard model real space as well as a momentum-space Hubbard chain.
 
 ```@docs
 BoseHubbardReal1D
 ExtendedBHReal1D
+BoseHubbardMom1D
 ```
 
 
