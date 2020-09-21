@@ -386,7 +386,7 @@ Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ`.
 
 ```math
-S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
 ```
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
@@ -404,7 +404,7 @@ Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ` after projecting onto `projector`.
 
 ```math
-S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
 ```
 """
 struct DoubleLogProjected{P} <: ShiftStrategy
@@ -464,9 +464,26 @@ end
     LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`. After `a` steps
-the strategy swiches to [`LogUpdate`](@ref).
+the strategy switches to [`LogUpdate`](@ref).
 See [`DoubleLogUpdate`](@ref).
 """ DoubleLogUpdateAfterTargetWalkersSwitch
+
+@with_kw struct DelayedDoubleLogUpdate <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
+    A::Int = 10 # delay for updating shift
+end
+@doc """
+    DoubleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, A=10) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ` and `ξ` and delay of `A` steps.
+See [`DoubleLogUpdate`](@ref).
+
+```math
+S^{n+A} = S^n -\\frac{ζ}{A dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+A}}{\\|Ψ\\|_1^n}\\right)-\\frac{ξ}{A dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+A}}{\\|Ψ\\|_1^\\text{target}}\\right)
+```
+""" DelayedDoubleLogUpdate
 
 
 @with_kw struct DelayedLogUpdate <: ShiftStrategy
@@ -590,6 +607,18 @@ end
     return shift, false, tnorm
 end
 
+@inline function update_shift(s::DelayedDoubleLogUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, args...)
+    # return new shift and new shiftMode
+    if step % s.A == 0 && size(df,1) >= s.A
+        prevnorm = df[end-s.A+1,:norm]
+        return shift - s.ζ/(dτ * s.A) * log(tnorm/prevnorm) - s.ξ/(dτ * s.A) * log(tnorm/s.targetwalkers), true, tnorm
+    else
+        return shift, true, pnorm # important: return the old norm - not updated
+    end
+end
+
 @inline function update_shift(s::DelayedLogUpdateAfterTargetWalkers,
                         shift, shiftMode, tnorm, pnorm, args...)
     if shiftMode || tnorm > s.targetwalkers
@@ -629,7 +658,7 @@ propagation with real walker numbers and cutoff `threshold`.
 ```
 > StochasticStyle(V) = IsStochasticWithThreshold(threshold)
 ```
-During stochastic propoagation, walker numbers small than `threshold` will be
+During stochastic propagation, walker numbers small than `threshold` will be
 stochastically projected to either zero or `threshold`.
 """
 struct IsStochasticWithThreshold <: StochasticStyle
@@ -671,7 +700,7 @@ Clear all flags in `dv` of the deterministic bit (rightmost bit).
 """
 function clearDFlags!(dv)
     for (add, (val, flag)) in pairs(dv)
-        # delete determimistic bit (rightmost) in `flag`
+        # delete deterministic bit (rightmost) in `flag`
         dv[add] = (val, flag ⊻ one(typeof(flag)))
     end
     dv
@@ -718,9 +747,9 @@ end
 # end
 
 """
-Abstract type for defining the stategy of projection for fciqmc with
+Abstract type for defining the strategy of projection for fciqmc with
 floating point walker number with [`norm_project`](@ref).
-Implemented stategies:
+Implemented strategies:
 
    * [`NoProjection`](@ref)
    * [`ThresholdProject`](@ref)
