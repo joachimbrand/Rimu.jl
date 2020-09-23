@@ -26,7 +26,8 @@ export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
 export ProjectStrategy, NoProjection, ThresholdProject, ScaledThresholdProject
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
-export DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
+export DoubleLogUpdate, DelayedDoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
+export DelayedDoubleLogUpdateAfterTW
 export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
