@@ -723,6 +723,7 @@ floating point walker number with [`norm_project`](@ref).
 Implemented stategies:
 
    * [`NoProjection`](@ref)
+   * [`NoProjectionTwoNorm`](@ref)
    * [`ThresholdProject`](@ref)
    * [`ScaledThresholdProject`](@ref)
 """
@@ -730,6 +731,10 @@ abstract type ProjectStrategy end
 
 "Do not project the walker amplitudes. See [`norm_project`](@ref)."
 struct NoProjection <: ProjectStrategy end
+
+"Do not project the walker amplitudes. Use two-norm to 
+calculate walker numbers. See [`norm_project`](@ref)."
+struct NoProjectionTwoNorm <: ProjectStrategy end
 
 
 @with_kw struct ThresholdProject <: ProjectStrategy
