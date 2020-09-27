@@ -435,3 +435,21 @@ LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y),norm(y,1))
 # dot returns the promote_type of the arguments.
 # NOTE that this can be different from the return type of norm()->Float64
 # NOTE: This operation should work for `MPIData` and is MPI synchronizing
+
+"""
+    Norm2Projector()
+Results in computing the two-norm when used in `dot()`. E.g.
+```julia
+dot(NormProjector(),x)
+-> norm(x,2) # with type Float64
+```
+
+See also [`ReportingStrategy`](@ref) for use
+of projectors in FCIQMC.
+"""
+struct Norm2Projector end
+
+LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y,2)
+# NOTE that this returns a `Float64` opposite to the convention for 
+# dot to return the promote_type of the arguments.
+

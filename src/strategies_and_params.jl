@@ -59,7 +59,8 @@ respectively. Possible values for `projector` are
 * `missing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
 * [`UniformProjector()`](@ref) - projection onto vector of all ones
-* [`NormProjector()`](@ref) - compute norm instead of projection
+* [`NormProjector()`](@ref) - compute 1-norm instead of projection
+* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection
 
 # Examples
 ```julia
