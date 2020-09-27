@@ -733,8 +733,11 @@ abstract type ProjectStrategy end
 "Do not project the walker amplitudes. See [`norm_project`](@ref)."
 struct NoProjection <: ProjectStrategy end
 
-"Do not project the walker amplitudes. Use two-norm to 
-calculate walker numbers. See [`norm_project`](@ref)."
+"""
+Do not project the walker amplitudes. Use two-norm to 
+calculate walker numbers. This affects reported "norm" but also the shift update procedures.
+See [`norm_project`](@ref).
+"""
 struct NoProjectionTwoNorm <: ProjectStrategy end
 
 
