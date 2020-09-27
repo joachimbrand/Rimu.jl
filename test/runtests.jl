@@ -225,6 +225,7 @@ end
     @test v2 == ham*svec
     @test dot(v2,ham,svec) == v2⋅(ham*svec) ≈ 144
     @test -⋅(UniformProjector(),ham,svec)≈⋅(NormProjector(),ham,svec)≈norm(v2,1)
+    @test dot(Norm2Projector(),v2) ≈ norm(v2,2)
     @test Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO()
     aIni2 = nearUniform(BoseFS{9,9})
     hamc = BoseHubbardReal1D(aIni2, u=6.0+0im, t=1.0+0im) # formally a complex operator
@@ -386,7 +387,7 @@ end
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, 1.0, similar(vs))
     if Threads.nthreads() == 1 # I'm not sure why this is necessary, but there
         # seems to be a difference 
-        @test sum(stats) == (OV ? 643 : 479)
+        @test sum(stats) == (OV ? 436 : 479)
     elseif Threads.nthreads() == 4
         @test sum(stats) == (OV ? 643 : 707)
     end
@@ -397,14 +398,14 @@ end
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, 1.0, ws;
                     batchsize = length(vs)÷4+1)
     if Threads.nthreads() == 1
-        @test sum(stats) == (OV ? 642 : 475) # test assuming nthreads() == 1
+        @test sum(stats) == (OV ? 428 : 475) # test assuming nthreads() == 1
     end
 
     # run 100 steps with multi
     pa.laststep = 200
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == (OV ? 141757 : 136905) # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == (OV ? 136992 : 136905) # test assuming nthreads() == 1
     end
 
     # threaded version of standard fciqmc!
@@ -441,7 +442,14 @@ end
     pa = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 3250.3751731923294 : 3012.564012011806)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3250.375173192328 : 3012.564012011806)
+
+    # NoProjectionTwoNorm
+    vs = copy(svec)
+    pa = RunTillLastStep(laststep = 100)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), p_strat = NoProjectionTwoNorm())
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3518.9649297547053 : 3467.388948546654)
 
     # NoMemory
     vs = copy(svec)

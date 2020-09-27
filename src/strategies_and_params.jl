@@ -59,7 +59,8 @@ respectively. Possible values for `projector` are
 * `missing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
 * [`UniformProjector()`](@ref) - projection onto vector of all ones
-* [`NormProjector()`](@ref) - compute norm instead of projection
+* [`NormProjector()`](@ref) - compute 1-norm instead of projection
+* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection
 
 # Examples
 ```julia
@@ -723,6 +724,7 @@ floating point walker number with [`norm_project`](@ref).
 Implemented stategies:
 
    * [`NoProjection`](@ref)
+   * [`NoProjectionTwoNorm`](@ref)
    * [`ThresholdProject`](@ref)
    * [`ScaledThresholdProject`](@ref)
 """
@@ -730,6 +732,13 @@ abstract type ProjectStrategy end
 
 "Do not project the walker amplitudes. See [`norm_project`](@ref)."
 struct NoProjection <: ProjectStrategy end
+
+"""
+Do not project the walker amplitudes. Use two-norm to 
+calculate walker numbers. This affects reported "norm" but also the shift update procedures.
+See [`norm_project`](@ref).
+"""
+struct NoProjectionTwoNorm <: ProjectStrategy end
 
 
 @with_kw struct ThresholdProject <: ProjectStrategy

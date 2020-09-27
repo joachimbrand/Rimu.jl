@@ -482,6 +482,9 @@ norm_project!(::StochasticStyle, w, p) = norm(w, 1) # MPIsync
 # default, compute 1-norm
 # e.g. triggered with the `NoProjection` strategy
 
+norm_project!(::StochasticStyle, w, p::NoProjectionTwoNorm) = norm(w, 2) # MPIsync
+# compute 2-norm but do not perform projection
+
 function norm_project!(s::S, w, p::ThresholdProject) where S<:Union{IsStochasticWithThreshold}
     return norm_project_threshold!(w, p.threshold) # MPIsync
 end

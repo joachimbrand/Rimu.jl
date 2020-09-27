@@ -33,7 +33,7 @@ import Base: length, iterate, getindex, setindex, setindex!, get, get!, haskey,
 using ..FastBufs
 
 export AbstractDVec, capacity, zero!, kvpairs, pairtype, add!
-export NormProjector, UniformProjector
+export NormProjector, Norm2Projector, UniformProjector
 export DVec
 export DFVec, tuples, gettuple, flagtype, flags
 export FastDVec
