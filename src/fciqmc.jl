@@ -1014,9 +1014,10 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     # projection to threshold should be applied after all colums are evaluated
     new_val = (1 + dτ*(shift - diagME(ham,add)))*val
     # apply threshold if necessary
-    if new_val < s.threshold
+    if abs(new_val) < s.threshold
         # project stochastically to threshold
-        w[add] += (new_val/s.threshold > cRand()) ? s.threshold : 0
+        # w[add] += (abs(new_val)/s.threshold > cRand()) ? sign(new_val)*s.threshold : 0
+        w[add] += ifelse(cRand() < abs(new_val)/s.threshold, sign(new_val)*s.threshold, 0)
     else
         w[add] += new_val
     end

@@ -470,14 +470,14 @@ end
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 3593.0881344844074 : 3404.8587715385115)
-    @test sum(rdfs.shiftnoise) ≈ (OV ? 0.2800051045189369 : 0.20053422394595116)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3593.0881344844074 : 2683.334567725324)
+    @test sum(rdfs.shiftnoise) ≈ (OV ? 0.2800051045189369 : 0.282574064213998)
     # DeltaMemory2
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 2868.443452947778 : 3191.954261752702)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 2868.443452947778 : 3114.518739252482)
 
     # ScaledThresholdProject
     vs = copy(svec)
@@ -485,7 +485,7 @@ end
     pa = RunTillLastStep(laststep = 100)
     p_strat = ScaledThresholdProject(1.0)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 2479.8235792152586 : 3353.557855050109)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 2479.8235792152586 : 3122.817384314045)
 
     # ProjectedMemory
     vs = copy(svec)
@@ -509,6 +509,19 @@ end
     StochasticStyle(v2) # IsStochastic() is not suitable for DeltaMemory()
     @test_throws ErrorException Rimu.applyMemoryNoise!(v2, v2, 0.0, 0.1, 20, DeltaMemory(3))
     @test 0 == Rimu.applyMemoryNoise!(svec, copy(svec), 0.0, 0.1, 20, DeltaMemory(3))
+
+    # momentum space - tests annihilation
+    aIni = BoseFS((0,0,6,0,0,0))
+    ham = BoseHubbardMom1D(aIni, u=6.0)
+    s = DoubleLogUpdate(targetwalkers = 100)
+    svec = DVec(Dict(aIni => 2.0), ham(:dim))
+    Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
+    StochasticStyle(svec)
+    vs = copy(svec)
+    pa = RunTillLastStep(laststep = 100)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs))
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3250.375173192328 : 3687.674720780682)
 end
 
 @testset "dfvec.jl" begin
