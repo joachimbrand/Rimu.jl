@@ -271,7 +271,7 @@ Averaging over `Δ` time steps is applied, where `Δ = 1` means no memory noise
 is applied. Use `pp` to initialise the value of the projection or pass `v` in
 order to initialise the projection with `pp = projector.v`.
 ```
-r̃ = (projector⋅w - projector⋅v)/(dτ*projector⋅v) + shift
+r̃ = (projector⋅v - projector⋅w)/projector⋅v + dτ*shift
 r = r̃ - <r̃>
 ```
 where `v` is the coefficient vector before and `w` after applying a regular
@@ -734,7 +734,7 @@ abstract type ProjectStrategy end
 struct NoProjection <: ProjectStrategy end
 
 """
-Do not project the walker amplitudes. Use two-norm to 
+Do not project the walker amplitudes. Use two-norm to
 calculate walker numbers. This affects reported "norm" but also the shift update procedures.
 See [`norm_project`](@ref).
 """
