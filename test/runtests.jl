@@ -252,7 +252,7 @@ end
     @test rayleigh_quotient(momentum, v) ≈ -1.5707963267948966
 
     fs = BoseFS((1,2,1,0)) # should be zero momentum
-    ham = BoseHubbardMom1D(fs,t=1.0) 
+    ham = BoseHubbardMom1D(fs,t=1.0)
     m=Momentum(ham) # define momentum operator
     mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
@@ -386,10 +386,10 @@ end
     # single step
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, 1.0, similar(vs))
     if Threads.nthreads() == 1 # I'm not sure why this is necessary, but there
-        # seems to be a difference 
+        # seems to be a difference
         @test sum(stats) == (OV ? 436 : 479)
     elseif Threads.nthreads() == 4
-        @test sum(stats) == (OV ? 643 : 707)
+        @test sum(stats) == (OV ? 643 : 479)
     end
 
     # single step multi threading
@@ -470,14 +470,14 @@ end
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 3593.0881344844074 : 3404.8587715385115)
-    @test sum(rdfs.shiftnoise) ≈ (OV ? 0.2800051045189369 : 0.20053422394595116)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 2841.683858917014 : 2683.334567725324)
+    @test sum(rdfs.shiftnoise) ≈ (OV ? 0.456062023263646 : 0.282574064213998)
     # DeltaMemory2
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 2868.443452947778 : 3191.954261752702)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3407.75528796349 : 3114.518739252482)
 
     # ScaledThresholdProject
     vs = copy(svec)
@@ -485,16 +485,16 @@ end
     pa = RunTillLastStep(laststep = 100)
     p_strat = ScaledThresholdProject(1.0)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 2479.8235792152586 : 3353.557855050109)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3174.5195839788425 : 3122.817384314045)
 
     # ProjectedMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     p_strat = NoProjection() # ScaledThresholdProject(1.0)
-    m_strat = Rimu.ProjectedMemory(10,UniformProjector(), vs)
+    m_strat = Rimu.ProjectedMemory(5,UniformProjector(), vs)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = m_strat, p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 3007.216076256354 : 3055.346795977555)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3256.8110011126214 : 3054.5448859688427)
 
     # ShiftMemory
     vs = copy(svec)
@@ -502,13 +502,26 @@ end
     pa = RunTillLastStep(laststep = 100)
     p_strat = NoProjection() #ScaledThresholdProject(1.0)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10), p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ (OV ? 3575.6243544500435 : 3320.0700864646715)
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3231.4229026099574 : 3298.7124102559173)
 
     # applyMemoryNoise
     v2=DVec(Dict(aIni => 2))
     StochasticStyle(v2) # IsStochastic() is not suitable for DeltaMemory()
     @test_throws ErrorException Rimu.applyMemoryNoise!(v2, v2, 0.0, 0.1, 20, DeltaMemory(3))
     @test 0 == Rimu.applyMemoryNoise!(svec, copy(svec), 0.0, 0.1, 20, DeltaMemory(3))
+
+    # momentum space - tests annihilation
+    aIni = BoseFS((0,0,6,0,0,0))
+    ham = BoseHubbardMom1D(aIni, u=6.0)
+    s = DoubleLogUpdate(targetwalkers = 100)
+    svec = DVec(Dict(aIni => 2.0), ham(:dim))
+    Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
+    StochasticStyle(svec)
+    vs = copy(svec)
+    pa = RunTillLastStep(laststep = 100)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs))
+    @test sum(rdfs[:,:norm]) ≈ (OV ? 3939.3835802371677 : 3687.674720780682)
 end
 
 @testset "dfvec.jl" begin
@@ -628,9 +641,9 @@ end
     ham2 = BoseHubbardMom1D(aIni2; u = 1.0, t=1.0)
     sv2 = DVec(Dict(aIni2 => 2), 2000)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    nt = lomc!(ham2, sv2, laststep = 30, threading = false, 
+    nt = lomc!(ham2, sv2, laststep = 30, threading = false,
                 r_strat = EveryTimeStep(projector = copy(sv2)),
-                s_strat = DoubleLogUpdate(targetwalkers = 100)) 
+                s_strat = DoubleLogUpdate(targetwalkers = 100))
     # need to analyse this - looks fishy
 end
 
