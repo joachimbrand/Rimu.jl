@@ -475,7 +475,7 @@ See [`DoubleLogUpdate`](@ref).
     A::Int = 10 # delay for updating shift
 end
 @doc """
-    DoubleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, A=10) <: ShiftStrategy
+    DelayedDoubleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, A=10) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ` and delay of `A` steps.
 See [`DoubleLogUpdate`](@ref).
@@ -493,7 +493,7 @@ S^{n+A} = S^n -\\frac{ζ}{A dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+A}}{\\|Ψ\\|_1^n
     A::Int = 10 # delay for updating shift
 end
 @doc """
-    DoubleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, A=10) <: ShiftStrategy
+    DelayedDoubleLogUpdateAfterTW(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, A=10) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ` and delay of `A` steps after the number of target walkers is reached.
 See [`DoubleLogUpdate`](@ref).
