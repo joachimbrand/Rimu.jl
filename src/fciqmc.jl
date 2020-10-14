@@ -573,6 +573,22 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
+    w, v, shift, dτ, pnorm, m::DeltaMemory3)
+tnorm = norm(w, 1) # MPIsync
+# current norm of `w` after FCIQMC step
+# compute memory noise
+r̃ = (pnorm - tnorm)/pnorm + dτ*shift
+push!(m.noiseBuffer, r̃) # add current value to buffer
+# Buffer only remembers up to `Δ` values. Average over whole buffer.
+r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+# apply `r` noise to current state vector
+rmul!(w, 1 + m.level * r) # w = w * (1 + level*r)
+
+return r
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
                            w, v, shift, dτ, pnorm, m::ShiftMemory)
     push!(m.noiseBuffer, shift) # add current value of `shift` to buffer
     # Buffer only remembers up to `Δ` values. Average over whole buffer.

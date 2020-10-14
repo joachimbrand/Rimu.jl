@@ -251,6 +251,26 @@ end
 DeltaMemory2(Δ::Int) = DeltaMemory2(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
 
 """
+    DeltaMemory3(Δ::Int, level::Float64) <: MemoryStrategy
+Before updating the shift, apply multiplicative memory noise with a 
+memory length of `Δ` at level `level`,
+where `Δ = 1` means no memory noise.
+
+```
+r̃ = (pnorm - tnorm)/pnorm + dτ*shift
+r = r̃ - <r̃>
+w .*= 1 + level*r
+```
+"""
+mutable struct DeltaMemory3 <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    level::Float64 # previous norm
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+DeltaMemory3(Δ::Int,level::Float64) = DeltaMemory3(Δ, level, DataStructures.CircularBuffer{Float64}(Δ))
+
+
+"""
     ShiftMemory(Δ::Int) <: MemoryStrategy
 Effectively replaces the fluctuating `shift` update procedure for the
 coefficient vector by an averaged `shift` over `Δ` timesteps,
