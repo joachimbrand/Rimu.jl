@@ -710,9 +710,53 @@ propagation with real walker numbers and cutoff `threshold`.
 ```
 During stochastic propagation, walker numbers small than `threshold` will be
 stochastically projected to either zero or `threshold`.
+
+The trait can be conveniently defined on an instance of a generalised vector with the macro 
+[`@setThreshold`](@ref). Example:
+```julia
+> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
+> @setThreshold dv 0.6
+> StochasticStyle(dv)
+IsStochasticWithThreshold(0.6f0)
+```
 """
 struct IsStochasticWithThreshold <: StochasticStyle
     threshold::Float32
+end
+
+"""
+    @setThreshold dv threshold
+A macro to set a threshold for non-integer walker number FCIQMC. Technically, the macro sets the 
+trait [`StochasticStyle`](@ref) of the generalised vector `dv` to 
+[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating 
+point walker numbers.
+
+Example usage:
+```julia
+> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
+> @setThreshold dv 0.6
+> StochasticStyle(dv)
+IsStochasticWithThreshold(0.6f0)
+```
+"""
+macro setThreshold(dv, threshold)
+    return esc(quote
+        StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
+    end)
+    nothing
+end
+
+"""
+    @setDeterministic dv
+A macro to undo the effect of [`@setThreshold`] and set the 
+trait [`StochasticStyle`](@ref) of the generalised vector `dv` to 
+[`IsDeterministic()`](@ref).
+"""
+macro setDeterministic(dv)
+    return esc(quote
+        StochasticStyle(::Type{typeof($dv)}) = IsDeterministic()
+    end)
+    nothing
 end
 
 """

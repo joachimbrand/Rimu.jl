@@ -30,3 +30,12 @@ function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
     return target, ws, sum(statss)
 end
 # three argument version for MPIData to be found in mpi_helpers.jl
+
+# function setup_lomc(H::Type; n =6, m = 6, targetwalkers = )
+
+# function ini_state_vector(address, nwalkers, capacity, Style)
+#     if Style ∈ Union{IsDeterministic,IsStochasticWithThreshold,IsSemistochastic}
+#         nwalkers /= 1 # make it floating point
+#     end
+#     dv = DVec(Dict(address=>nwalkers), capacity)
+#     StochasticStyle(::Type{typeof(dv)}) = Style(1.0)
