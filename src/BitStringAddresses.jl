@@ -631,7 +631,7 @@ struct BoseFS{N,M,A} <: BosonicFockStateAddress
   bs::A
 end
 
-BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs) # slow - not sure why
+BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs) 
 
 function BoseFS(bs::A, b::Integer) where A <: BitStringAddressType
   n = count_ones(bs)
