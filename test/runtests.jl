@@ -1,6 +1,7 @@
 using Rimu
 using Test
 using LinearAlgebra
+using Statistics, DataFrames
 
 # the following is needed because random numbers of collections are computed
 # differently after version 1.5, and thus the results of many tests change
@@ -12,7 +13,6 @@ const OV = VERSION<v"1.5"
     @test 3==3
 end
 
-using Statistics
 @testset "Blocking.jl" begin
     n=10
     a = rand(n)
