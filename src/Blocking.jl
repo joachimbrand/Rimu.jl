@@ -454,7 +454,7 @@ Compute the growth witness
 ```math
 G_b^{(n)} = S̄^{(n)} - \\frac{\\log\\vert\\mathbf{c}^{(n+b)}\\vert - \\log\\vert\\mathbf{c}^{(n)}\\vert}{b d\\tau},
 ```
-where `S̄` is an average of the `shift` over `b` time steps and \$\\vert\\mathbf{c}^{(n)}\\vert =\$ `norm[n]`. 
+where `S̄` is an average of the `shift` over `b` time steps and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n]`. 
 The parameter `b ≥ 1` averages the derivative quantity over `b` time steps and helps suppress noise.
 
 If `pad` is set to `:false` then the returned array `g` has the length `length(norm) - b`.
