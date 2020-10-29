@@ -65,6 +65,8 @@ using Statistics
     else
         @test reduce(&, Tuple(r).≈(-5.714600548611788, 0.21631081209341332, -5.884807394477632, 0.3849918114544903, 6))
     end
+    g = growthWitness(rdfs, b=50)
+    @test sum(g) ≈ -5725.3936298329545
 end
 
 using Rimu.BitStringAddresses
