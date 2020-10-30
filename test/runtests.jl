@@ -442,8 +442,13 @@ end
     # IsStochasticWithThreshold
     s = DoubleLogUpdate(targetwalkers = 100)
     svec = DVec(Dict(aIni => 2.0), ham(:dim))
-    Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
-    StochasticStyle(svec)
+    # Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
+    @setThreshold svec 0.621
+    @test StochasticStyle(svec) == IsStochasticWithThreshold(0.621)
+    @setDeterministic svec
+    @test StochasticStyle(svec) == IsDeterministic()
+    setThreshold(svec, 1.0)
+    @test StochasticStyle(svec) == IsStochasticWithThreshold(1.0)
     vs = copy(svec)
     pa = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()

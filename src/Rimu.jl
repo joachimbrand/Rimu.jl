@@ -35,7 +35,7 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export StochasticStyle, IsStochastic, IsDeterministic
 # export IsSemistochastic # is not yet ready
 export IsStochasticNonlinear, IsStochasticWithThreshold
-export @setThreshold, @setDeterministic
+export @setThreshold, @setDeterministic, setThreshold
 export threadedWorkingMemory, localpart
 
 # exports for MPI functionality
