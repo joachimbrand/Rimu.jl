@@ -133,10 +133,13 @@ using Rimu.FastBufs
 end
 
 @testset "DictVectors.jl" begin
+    @test FastDVec(i => i^2 for i in 1:10; capacity = 30)|> length == 10
+    myfda = FastDVec("a" => 42; capacity = 40)
     myda2 = FastDVec{String,Int}(40)
     myda2["a"] = 42
     @test haskey(myda2,"a")
     @test !haskey(myda2,"b")
+    @test myfda == myda2
     myda2["c"] = 422
     myda2["d"] = 45
     myda2["f"] = 412
@@ -182,6 +185,13 @@ end
     ys = Tuple(empty(dv) for i in 1:Threads.nthreads())
     axpy!(2.0, dv, ys, batchsize=100)
     @test sum(norm.(ys, 1)) ≈ norm(dv,1)*2
+
+    mdv = DVec(:a => 2; capacity = 10)
+    @test mdv[:a] == 2
+    @test mdv[:b] == 0
+    @test length(mdv) == 1
+
+    @test DFVec(:a => (2,3); capacity = 10) == DFVec(Dict(:a => (2,3)))
 end
 
 using Rimu.ConsistentRNG

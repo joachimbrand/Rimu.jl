@@ -1,13 +1,17 @@
 """
-    DVec{K,T}(capacity) <: AbstractDVec{K,T}
+    DVec{K,V}(capacity) <: AbstractDVec{K,V}
+    DVec(key => value; capacity)
+    DVec(args...; capacity)
     DVec(d::Dict [, capacity])
-    DVec(v::Vector{T} [, capacity])
-Construct a wrapped dictionary with minimum capacity `capacity` to
-represent a vector-like object with `eltype(dv) == T`,
-which corresponds to the values of the `Dict`. Indexing is done with an
-arbitrary (in general non-integer) `keytype(dv) == K`.
+    DVec(v::Vector{V} [, capacity])
+Dictionary-based vector-like data structure with minimum capacity `capacity`
+for storing values with keys.
+The type of the values is `eltype(dv) == V`.
+Indexing is done with an
+arbitrary (in general non-integer) key with `keytype(dv) == K`.
+If the keyword argument `capacity` is passed then args are parsed as for `Dict`.
 When constructed from a `Vector`,
-the keys will be integers ∈ `[0, length(v)]`. See [`AbstractDVec`](@ref). The
+the keys will be integers ∈ `[1, length(v)]`. See [`AbstractDVec`](@ref). The
 method [`capacity()`](@ref) is defined but not a strict upper limit as `Dict`
 objects can expand.
 """
@@ -22,6 +26,8 @@ end
 # default constructor from `Dict` just wraps the dict, no copying or allocation:
 # dv = DVec(Dict(k => v, ...))
 
+# constructor like Dict with mandatory keyword capacity
+DVec(args...; capacity) = DVec(Dict(args...), capacity)
 
 function DVec(dict::D, capacity::Int) where D <: Dict
     if capacity*3 ≥ length(dict.keys)*2

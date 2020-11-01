@@ -1,17 +1,21 @@
 """
     DFVec{K,V,F}(capacity) <: AbstractDVec{K,V <: Number}
+    DFVec(key => (value, flag); capacity)
+    DFVec(args...; capacity)
     DFVec(d::Dict [, capacity])
     DFVec(v::Vector{V} [, capacity])
-Construct a wrapped dictionary with minimum capacity `capacity` to
-represent a vector-like object with `valtype(dv) == V`. The value of the
-`Dict` are of type `Tuple{V,F}`, which allows for storing a flag of type `F`
-for each entry. Indexing is done with an
-arbitrary (in general non-integer) `keytype(dv) == K`.
+Dictionary-based vector-like data structure with minimum capacity `capacity`
+for storing values and flags with keys.
+The values have type `eltype(dv) == V` and the flags have `flagtype(dv) == F`.
+Indexing is done with an
+arbitrary (in general non-integer) key with `keytype(dv) == K`.
+If the keyword argument `capacity` is passed then args are parsed as for `Dict`.
 When constructed from a `Vector{V}`,
 the keys will be integers `∈ [1, length(v)]` and the flag `zero(UInt16)`.
 See [`AbstractDVec`](@ref). The
 method [`capacity()`](@ref) is defined but not a strict upper limit as `Dict`
 objects can expand.
+
 """
 struct DFVec{K,V,F} <: AbstractDVec{K,V}
     d::Dict{K,Tuple{V,F}}
@@ -34,6 +38,9 @@ end
 function DFVec{K,V,F}(capacity::Int) where {K, V <: Number, F}
     return DFVec(Dict{K,Tuple{V,F}}(), capacity)
 end
+
+# like Dict with mandatory keyword argument capacity
+DFVec(args...; capacity) = DFVec(Dict(args...), capacity)
 
 # from Vector
 function DFVec(t::Vector{V}, capacity = length(t), F = UInt16) where V <: Number
