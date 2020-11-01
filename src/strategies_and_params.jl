@@ -59,8 +59,8 @@ respectively. Possible values for `projector` are
 * `missing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
 * [`UniformProjector()`](@ref) - projection onto vector of all ones
-* [`NormProjector()`](@ref) - compute 1-norm instead of projection
-* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection
+* [`NormProjector()`](@ref) - compute 1-norm instead of projection (only `df.vproj`)
+* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection (only `df.vproj`)
 
 # Examples
 ```julia
@@ -119,19 +119,28 @@ See [`ReportingStrategy`](@ref) for details.
 # end
 
 """
-    energy_project(v, ham, r::ReportingStrategy)
+    compute_proj_observables(v, ham, r::ReportingStrategy)
 Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
 the [`ReportingStrategy`](@ref) `r`.
 """
-function energy_project(v, ham, ::RS) where
+function compute_proj_observables(v, ham, ::RS) where
                         {DV <: Missing, RS<:ReportingStrategy{DV}}
     return missing, missing
 end
 # default
 
-function energy_project(v, ham, r::RS) where
+# generic version with projector, e.g. for computing projected energy
+function compute_proj_observables(v, ham, r::RS) where
                         {DV, RS<:ReportingStrategy{DV}}
     return r.projector⋅v, dot(r.projector, ham, v)
+end
+# The dot products work across MPI when `v::MPIData`; MPI sync
+
+# version for `Norm?Projector`s
+# Only norm of vector is computed to save time
+function compute_proj_observables(v, ham, r::RS) where
+                        {DV<:Union{NormProjector,Norm2Projector}, RS<:ReportingStrategy{DV}}
+    return r.projector⋅v, missing
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
