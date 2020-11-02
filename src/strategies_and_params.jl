@@ -59,8 +59,8 @@ respectively. Possible values for `projector` are
 * `missing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
 * [`UniformProjector()`](@ref) - projection onto vector of all ones
-* [`NormProjector()`](@ref) - compute 1-norm instead of projection
-* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection
+* [`NormProjector()`](@ref) - compute 1-norm instead of projection (only `df.vproj`)
+* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection (only `df.vproj`)
 
 # Examples
 ```julia
@@ -119,19 +119,28 @@ See [`ReportingStrategy`](@ref) for details.
 # end
 
 """
-    energy_project(v, ham, r::ReportingStrategy)
+    compute_proj_observables(v, ham, r::ReportingStrategy)
 Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
 the [`ReportingStrategy`](@ref) `r`.
 """
-function energy_project(v, ham, ::RS) where
+function compute_proj_observables(v, ham, ::RS) where
                         {DV <: Missing, RS<:ReportingStrategy{DV}}
     return missing, missing
 end
 # default
 
-function energy_project(v, ham, r::RS) where
+# generic version with projector, e.g. for computing projected energy
+function compute_proj_observables(v, ham, r::RS) where
                         {DV, RS<:ReportingStrategy{DV}}
     return r.projector⋅v, dot(r.projector, ham, v)
+end
+# The dot products work across MPI when `v::MPIData`; MPI sync
+
+# version for `Norm?Projector`s
+# Only norm of vector is computed to save time
+function compute_proj_observables(v, ham, r::RS) where
+                        {DV<:Union{NormProjector,Norm2Projector}, RS<:ReportingStrategy{DV}}
+    return r.projector⋅v, missing
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
@@ -249,6 +258,26 @@ mutable struct DeltaMemory2 <: MemoryStrategy
     noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
 end
 DeltaMemory2(Δ::Int) = DeltaMemory2(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
+
+"""
+    DeltaMemory3(Δ::Int, level::Float64) <: MemoryStrategy
+Before updating the shift, apply multiplicative memory noise with a
+memory length of `Δ` at level `level`,
+where `Δ = 1` means no memory noise.
+
+```
+r̃ = (pnorm - tnorm)/pnorm + dτ*shift
+r = r̃ - <r̃>
+w .*= 1 + level*r
+```
+"""
+mutable struct DeltaMemory3 <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    level::Float64 # previous norm
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+DeltaMemory3(Δ::Int,level::Float64) = DeltaMemory3(Δ, level, DataStructures.CircularBuffer{Float64}(Δ))
+
 
 """
     ShiftMemory(Δ::Int) <: MemoryStrategy
@@ -690,9 +719,74 @@ propagation with real walker numbers and cutoff `threshold`.
 ```
 During stochastic propagation, walker numbers small than `threshold` will be
 stochastically projected to either zero or `threshold`.
+
+The trait can be conveniently defined on an instance of a generalised vector with the macro
+[`@setThreshold`](@ref). Example:
+```julia-repl
+julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
+julia> @setThreshold dv 0.6
+julia> StochasticStyle(dv)
+IsStochasticWithThreshold(0.6f0)
+```
 """
 struct IsStochasticWithThreshold <: StochasticStyle
     threshold::Float32
+end
+
+"""
+    @setThreshold dv threshold
+A macro to set a threshold for non-integer walker number FCIQMC. Technically, the macro sets the
+trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
+[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating
+point walker numbers. Also available as function, see [`setThreshold`](@ref).
+
+Example usage:
+```julia-repl
+julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
+julia> @setThreshold dv 0.6
+IsStochasticWithThreshold(0.6f0)
+```
+"""
+macro setThreshold(dv, threshold)
+    return esc(quote
+        @assert !(valtype($dv) <:Integer) "`valtype(dv)` must not be integer."
+        Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
+        Rimu.StochasticStyle($dv)
+    end)
+end
+
+"""
+    setThreshold(dv, threshold)
+Set a threshold for non-integer walker number FCIQMC. Technically, the function sets the
+trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
+[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating
+point walker numbers. Also available as macro, see [`@setThreshold`](@ref).
+
+Example usage:
+```julia-repl
+julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
+julia> setThreshold(dv, 0.6)
+IsStochasticWithThreshold(0.6f0)
+```
+"""
+function setThreshold(dv, threshold)
+    @assert !(valtype(dv) <:Integer) "`valtype(dv)` must not be integer."
+    @eval Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
+    return Rimu.StochasticStyle(dv)
+end
+
+"""
+    @setDeterministic dv
+A macro to undo the effect of [`@setThreshold`] and set the
+trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
+[`IsDeterministic()`](@ref).
+"""
+macro setDeterministic(dv)
+    return esc(quote
+        @assert !(valtype($dv) <:Integer) "`valtype(dv)` must not be integer."
+        Rimu.StochasticStyle(::Type{typeof($dv)}) = IsDeterministic()
+        Rimu.StochasticStyle($dv)
+    end)
 end
 
 """

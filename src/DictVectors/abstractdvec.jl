@@ -22,7 +22,7 @@ haskey, empty!, isempty`) and, in addition:
 - `capacity(dv)`: holding capacity
 - `similar(dv [,Type])`
 - `iterate()`: should return values of type `V`
-- `pairs()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` the provide `values()` iterator as well!
+- `pairs()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` then provide `values()` iterator as well!
 """
 abstract type AbstractDVec{K,V} end
 
@@ -450,6 +450,5 @@ of projectors in FCIQMC.
 struct Norm2Projector end
 
 LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y,2)
-# NOTE that this returns a `Float64` opposite to the convention for 
+# NOTE that this returns a `Float64` opposite to the convention for
 # dot to return the promote_type of the arguments.
-

@@ -77,7 +77,7 @@ function lomc!(ham, v;
         @unpack step, laststep, shiftMode, shift, dτ = params
         len = length(v) # MPIsync
         nor = norm(v, 1) # MPIsync
-        v_proj, h_proj = energy_project(v, ham, r_strat) # MPIsync
+        v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
         # prepare df for recording data
         df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
@@ -185,7 +185,7 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
-    v_proj, h_proj = energy_project(svec, ham, r_strat) # MPIsync
+    v_proj, h_proj = compute_proj_observables(svec, ham, r_strat) # MPIsync
 
     # prepare df for recording data
     df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
@@ -251,7 +251,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         tnorm = norm_project!(v, p_strat)  # MPIsync
         # project coefficients of `w` to threshold
 
-        v_proj, h_proj = energy_project(v, ham, r_strat)  # MPIsync
+        v_proj, h_proj = compute_proj_observables(v, ham, r_strat)  # MPIsync
 
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
@@ -570,6 +570,22 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     # nnorm = norm(w, 1) # new norm after applying noise
 
     return dτ*r
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+    w, v, shift, dτ, pnorm, m::DeltaMemory3)
+tnorm = norm(w, 1) # MPIsync
+# current norm of `w` after FCIQMC step
+# compute memory noise
+r̃ = (pnorm - tnorm)/pnorm + dτ*shift
+push!(m.noiseBuffer, r̃) # add current value to buffer
+# Buffer only remembers up to `Δ` values. Average over whole buffer.
+r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+# apply `r` noise to current state vector
+rmul!(w, 1 + m.level * r) # w = w * (1 + level*r)
+
+return r
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,

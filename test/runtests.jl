@@ -1,6 +1,7 @@
 using Rimu
 using Test
 using LinearAlgebra
+using Statistics, DataFrames
 
 # the following is needed because random numbers of collections are computed
 # differently after version 1.5, and thus the results of many tests change
@@ -12,7 +13,6 @@ const OV = VERSION<v"1.5"
     @test 3==3
 end
 
-using Statistics
 @testset "Blocking.jl" begin
     n=10
     a = rand(n)
@@ -65,6 +65,12 @@ using Statistics
     else
         @test reduce(&, Tuple(r).≈(-5.714600548611788, 0.21631081209341332, -5.884807394477632, 0.3849918114544903, 6))
     end
+    g = growthWitness(rdfs, b=50)
+    # @test sum(g) ≈ -5725.3936298329545
+    @test length(g) == nrow(rdfs)
+    g = growthWitness(rdfs, b=50, pad = :false)
+    @test length(g) == nrow(rdfs) - 50
+    @test_throws AssertionError growthWitness(rdfs.norm, rdfs.shift[1:end-1],rdfs.dτ[1])
 end
 
 using Rimu.BitStringAddresses
@@ -127,10 +133,13 @@ using Rimu.FastBufs
 end
 
 @testset "DictVectors.jl" begin
+    @test FastDVec(i => i^2 for i in 1:10; capacity = 30)|> length == 10
+    myfda = FastDVec("a" => 42; capacity = 40)
     myda2 = FastDVec{String,Int}(40)
     myda2["a"] = 42
     @test haskey(myda2,"a")
     @test !haskey(myda2,"b")
+    @test myfda == myda2
     myda2["c"] = 422
     myda2["d"] = 45
     myda2["f"] = 412
@@ -176,6 +185,13 @@ end
     ys = Tuple(empty(dv) for i in 1:Threads.nthreads())
     axpy!(2.0, dv, ys, batchsize=100)
     @test sum(norm.(ys, 1)) ≈ norm(dv,1)*2
+
+    mdv = DVec(:a => 2; capacity = 10)
+    @test mdv[:a] == 2
+    @test mdv[:b] == 0
+    @test length(mdv) == 1
+
+    @test DFVec(:a => (2,3); capacity = 10) == DFVec(Dict(:a => (2,3)))
 end
 
 using Rimu.ConsistentRNG
@@ -436,8 +452,13 @@ end
     # IsStochasticWithThreshold
     s = DoubleLogUpdate(targetwalkers = 100)
     svec = DVec(Dict(aIni => 2.0), ham(:dim))
-    Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
-    StochasticStyle(svec)
+    # Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
+    @setThreshold svec 0.621
+    @test StochasticStyle(svec) == IsStochasticWithThreshold(0.621)
+    @setDeterministic svec
+    @test StochasticStyle(svec) == IsDeterministic()
+    setThreshold(svec, 1.0)
+    @test StochasticStyle(svec) == IsStochasticWithThreshold(1.0)
     vs = copy(svec)
     pa = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()

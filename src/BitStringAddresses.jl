@@ -631,7 +631,7 @@ struct BoseFS{N,M,A} <: BosonicFockStateAddress
   bs::A
 end
 
-BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs) # slow - not sure why
+BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs) 
 
 function BoseFS(bs::A, b::Integer) where A <: BitStringAddressType
   n = count_ones(bs)
@@ -712,6 +712,16 @@ end
     bs |= ~zero(UInt128)>>(128-on)
   end
   return BoseFS{N,M,BSAdd128}(BSAdd128(bs))
+end
+
+@inline function BoseFS{BitAdd{I,B}}(onr::T,::Val{N},::Val{M},::Val{B}) where {I,N,M,B,T<:Union{AbstractVector,Tuple}}
+  @boundscheck  ((N + M - 1 == B) && (I == (B-1) ÷ 64 + 1)) || @error "Inconsistency in constructor BoseFS"
+  bs = BitAdd{B}(0) # empty bitstring
+  for on in reverse(onr)
+    bs <<= on+1
+    bs |= BitAdd{B}()>>(B-on)
+  end
+  return BoseFS{N,M,BitAdd{I,B}}(bs)
 end
 
 @inline function BoseFS{BitAdd}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
