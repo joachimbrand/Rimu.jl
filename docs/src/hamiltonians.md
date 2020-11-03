@@ -4,7 +4,7 @@
 
 This module contains definitions of Hamiltonians, in particular specific
 physical models of interest. These are organised by means of an interface
-around the abstract type [`LinearOperator`](@ref), in the spirit of the
+around the abstract type [`AbstractHamiltonian`](@ref), in the spirit of the
 `AbstractArray` interface as discussed in the [Julia Documentation](https://docs.julialang.org/en/v1/manual/interfaces/).
 
 ```@docs
@@ -35,11 +35,12 @@ of the model are then provided by the following methods:
 ### Model Hamiltonians
 
 Here is a list of fully implemented model Hamiltonians. So far there are two
-variants implemented of the Bose-Hubbard model in one dimensional in real space.
+variants implemented of the one-dimentional Bose-Hubbard model real space as well as a momentum-space Hubbard chain.
 
 ```@docs
 BoseHubbardReal1D
 ExtendedBHReal1D
+BoseHubbardMom1D
 ```
 
 
@@ -49,10 +50,10 @@ Behind the implementation of a particular model is a more abstract interface
 for defining hamiltonians.
 If you want to define a new model you should make use of this interface.
 The most general form of a model Hamiltonian should subtype to
-`LinearOperator` and implement the relevant methods.
+`AbstractHamiltonian` and implement the relevant methods.
 
 ```@docs
-LinearOperator
+AbstractHamiltonian
 Hops
 generateRandHop
 ```
@@ -71,7 +72,7 @@ diagME
 
 For a many-body system consisting of spinless bosons, we already know more
 about the structure of the problem. `BosonicHamiltonian` is a pre-defined
-subtype of `LinearOperator`.
+subtype of `AbstractHamiltonian`.
 
 ```@docs
 BosonicHamiltonian

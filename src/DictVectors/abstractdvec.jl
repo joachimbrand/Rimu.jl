@@ -22,7 +22,7 @@ haskey, empty!, isempty`) and, in addition:
 - `capacity(dv)`: holding capacity
 - `similar(dv [,Type])`
 - `iterate()`: should return values of type `V`
-- `pairs()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` the provide `values()` iterator as well!
+- `pairs()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` then provide `values()` iterator as well!
 """
 abstract type AbstractDVec{K,V} end
 
@@ -321,7 +321,7 @@ end
 Base.keys(dv::AbstractDVec) = ADVKeysIterator(dv)
 function Base.iterate(ki::ADVKeysIterator, oldstate...)
     it = iterate(pairs(ki.dv), oldstate...)
-    it == nothing && return nothing
+    it === nothing && return nothing
     pair, state = it
     return (pair[1],state)
 end
@@ -415,7 +415,7 @@ struct UniformProjector end
 
 LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(y)
 # a specialised fast and non-allocating method for
-# `dot(::UniformProjector, A::LinearOperator, y)` is defined in `Hamiltonians.jl`
+# `dot(::UniformProjector, A::AbstractHamiltonian, y)` is defined in `Hamiltonians.jl`
 
 """
     NormProjector()
@@ -435,3 +435,20 @@ LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y),norm(y,1))
 # dot returns the promote_type of the arguments.
 # NOTE that this can be different from the return type of norm()->Float64
 # NOTE: This operation should work for `MPIData` and is MPI synchronizing
+
+"""
+    Norm2Projector()
+Results in computing the two-norm when used in `dot()`. E.g.
+```julia
+dot(NormProjector(),x)
+-> norm(x,2) # with type Float64
+```
+
+See also [`ReportingStrategy`](@ref) for use
+of projectors in FCIQMC.
+"""
+struct Norm2Projector end
+
+LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y,2)
+# NOTE that this returns a `Float64` opposite to the convention for
+# dot to return the promote_type of the arguments.

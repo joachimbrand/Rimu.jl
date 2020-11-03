@@ -13,6 +13,7 @@ using DataFrames, Statistics
 export autocovariance, covariance
 export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
+export growthWitness
 
 # """
 # Calculate the variance of the dataset v
@@ -78,7 +79,7 @@ function blocking_old(v::Vector; typos = nothing)
         mean = sum(v)/n
         var = v .- mean
         sigmasq = sum(var.^2)/n # uncorrected sample variance
-        if typos == nothing
+        if typos === nothing
             gamma = sum(var[1:n-1].*var[2:n])/(n-1)
         else # typos ∈ {:FP, :Jonsson}
             gamma = sum(var[1:n-1].*var[2:n])/n
@@ -87,7 +88,7 @@ function blocking_old(v::Vector; typos = nothing)
         end
         mj = n*((n-1)*sigmasq/(n^2)+gamma)^2/(sigmasq^2)
         stddev = sqrt(sigmasq)
-        if typos == nothing || typos == :FP
+        if typos === nothing || typos == :FP
             stderr = stddev/sqrt(n-1) # [F&P] Eq. (28)
         else
             stderr = stddev/sqrt(n) # [Jonsson] Fig. 2
@@ -444,5 +445,36 @@ function autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1], corrected:
         ēH = df_var_H.mean_f[1], σeH = df_var_H.SE_f[ks], k = ks)
 
 end
+
+#G_b^{(n)} = \\bar{S}^{(n)} - \\frac{\\log\\vert\\mathbf{c}^{(n+b)}\\vert - \\log\\vert\\mathbf{c}^{(n)}\\vert}{b d\\tau},
+"""
+    growthWitness(norm::AbstractArray, shift::AbstractArray, dt; b = 30, pad = :true) -> g
+    growthWitness(df::DataFrame; b = 30, pad = :true) -> g
+Compute the growth witness 
+```math
+G_b^{(n)} = S̄^{(n)} - \\frac{\\log\\vert\\mathbf{c}^{(n+b)}\\vert - \\log\\vert\\mathbf{c}^{(n)}\\vert}{b d\\tau},
+```
+where `S̄` is an average of the `shift` over `b` time steps and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n]`. 
+The parameter `b ≥ 1` averages the derivative quantity over `b` time steps and helps suppress noise.
+
+If `pad` is set to `:false` then the returned array `g` has the length `length(norm) - b`.
+If set to `:true` then `g` will be padded up to the same length as `norm` and `shift`.
+"""
+function growthWitness(norm::AbstractArray, shift::AbstractArray, dt; b = 30, pad = :true)
+    l = length(norm)
+    @assert length(shift) == l "`norm` and `shift` arrays need to have the same length."
+    n = l - b
+    g = Vector{Float64}(undef, pad ? l : n)
+    offset = pad ? b÷2 : 0 # use offset only if pad == :true
+    for i in 1:n
+        g[i + offset] = -(1/(b*dt) * log(norm[i+b]/norm[i]) - 1/(b+1) * sum(shift[i:i+b]))
+    end
+    if pad # pad the vector g at both ends
+        g[1:offset] .= g[offset]
+        g[offset+n+1 : end] .= g[offset+n]
+    end
+    return g
+end
+growthWitness(df::DataFrame; b = 30, pad = :true) = growthWitness(df.norm, df.shift, df.dτ[1]; b=b, pad=pad)
 
 end # module Blocking

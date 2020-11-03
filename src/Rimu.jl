@@ -23,10 +23,11 @@ include("Blocking.jl")
 export lomc!
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
 export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
-export ProjectStrategy, NoProjection, ThresholdProject, ScaledThresholdProject
+export ProjectStrategy, NoProjection, NoProjectionTwoNorm, ThresholdProject, ScaledThresholdProject
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
-export DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
+export DoubleLogUpdate, DelayedDoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
+export DelayedDoubleLogUpdateAfterTW
 export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
@@ -34,6 +35,7 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export StochasticStyle, IsStochastic, IsDeterministic
 # export IsSemistochastic # is not yet ready
 export IsStochasticNonlinear, IsStochasticWithThreshold
+export @setThreshold, @setDeterministic, setThreshold
 export threadedWorkingMemory, localpart
 
 # exports for MPI functionality

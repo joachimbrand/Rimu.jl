@@ -59,7 +59,8 @@ respectively. Possible values for `projector` are
 * `missing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
 * [`UniformProjector()`](@ref) - projection onto vector of all ones
-* [`NormProjector()`](@ref) - compute norm instead of projection
+* [`NormProjector()`](@ref) - compute 1-norm instead of projection (only `df.vproj`)
+* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection (only `df.vproj`)
 
 # Examples
 ```julia
@@ -118,19 +119,28 @@ See [`ReportingStrategy`](@ref) for details.
 # end
 
 """
-    energy_project(v, ham, r::ReportingStrategy)
+    compute_proj_observables(v, ham, r::ReportingStrategy)
 Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
 the [`ReportingStrategy`](@ref) `r`.
 """
-function energy_project(v, ham, ::RS) where
+function compute_proj_observables(v, ham, ::RS) where
                         {DV <: Missing, RS<:ReportingStrategy{DV}}
     return missing, missing
 end
 # default
 
-function energy_project(v, ham, r::RS) where
+# generic version with projector, e.g. for computing projected energy
+function compute_proj_observables(v, ham, r::RS) where
                         {DV, RS<:ReportingStrategy{DV}}
     return r.projector⋅v, dot(r.projector, ham, v)
+end
+# The dot products work across MPI when `v::MPIData`; MPI sync
+
+# version for `Norm?Projector`s
+# Only norm of vector is computed to save time
+function compute_proj_observables(v, ham, r::RS) where
+                        {DV<:Union{NormProjector,Norm2Projector}, RS<:ReportingStrategy{DV}}
+    return r.projector⋅v, missing
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
@@ -250,6 +260,26 @@ end
 DeltaMemory2(Δ::Int) = DeltaMemory2(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
 
 """
+    DeltaMemory3(Δ::Int, level::Float64) <: MemoryStrategy
+Before updating the shift, apply multiplicative memory noise with a
+memory length of `Δ` at level `level`,
+where `Δ = 1` means no memory noise.
+
+```
+r̃ = (pnorm - tnorm)/pnorm + dτ*shift
+r = r̃ - <r̃>
+w .*= 1 + level*r
+```
+"""
+mutable struct DeltaMemory3 <: MemoryStrategy
+    Δ::Int # length of memory noise buffer
+    level::Float64 # previous norm
+    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+end
+DeltaMemory3(Δ::Int,level::Float64) = DeltaMemory3(Δ, level, DataStructures.CircularBuffer{Float64}(Δ))
+
+
+"""
     ShiftMemory(Δ::Int) <: MemoryStrategy
 Effectively replaces the fluctuating `shift` update procedure for the
 coefficient vector by an averaged `shift` over `Δ` timesteps,
@@ -270,7 +300,7 @@ Averaging over `Δ` time steps is applied, where `Δ = 1` means no memory noise
 is applied. Use `pp` to initialise the value of the projection or pass `v` in
 order to initialise the projection with `pp = projector.v`.
 ```
-r̃ = (projector⋅w - projector⋅v)/(dτ*projector⋅v) + shift
+r̃ = (projector⋅v - projector⋅w)/projector⋅v + dτ*shift
 r = r̃ - <r̃>
 ```
 where `v` is the coefficient vector before and `w` after applying a regular
@@ -386,7 +416,7 @@ Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ`.
 
 ```math
-S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^\\text{target}}\\right)
 ```
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
@@ -404,7 +434,7 @@ Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ` after projecting onto `projector`.
 
 ```math
-S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
 ```
 """
 struct DoubleLogProjected{P} <: ShiftStrategy
@@ -464,9 +494,44 @@ end
     LogUpdateAfterTargetWalkersSwitch(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`. After `a` steps
-the strategy swiches to [`LogUpdate`](@ref).
+the strategy switches to [`LogUpdate`](@ref).
 See [`DoubleLogUpdate`](@ref).
 """ DoubleLogUpdateAfterTargetWalkersSwitch
+
+@with_kw struct DelayedDoubleLogUpdate <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
+    A::Int = 10 # delay for updating shift
+end
+@doc """
+    DelayedDoubleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, A=10) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ` and `ξ` and delay of `A` steps.
+See [`DoubleLogUpdate`](@ref).
+
+```math
+S^{n+A} = S^n -\\frac{ζ}{A dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+A}}{\\|Ψ\\|_1^n}\\right)-\\frac{ξ}{A dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+A}}{\\|Ψ\\|_1^\\text{target}}\\right)
+```
+""" DelayedDoubleLogUpdate
+
+
+@with_kw struct DelayedDoubleLogUpdateAfterTW <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
+    A::Int = 10 # delay for updating shift
+end
+@doc """
+    DelayedDoubleLogUpdateAfterTW(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, A=10) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameter `ζ` and `ξ` and delay of `A` steps after the number of target walkers is reached.
+See [`DoubleLogUpdate`](@ref).
+
+```math
+S^{n+A} = S^n -\\frac{ζ}{A dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+A}}{\\|Ψ\\|_1^n}\\right)-\\frac{ξ}{A dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+A}}{\\|Ψ\\|_1^\\text{target}}\\right)
+```
+""" DelayedDoubleLogUpdateAfterTW
 
 
 @with_kw struct DelayedLogUpdate <: ShiftStrategy
@@ -590,6 +655,29 @@ end
     return shift, false, tnorm
 end
 
+@inline function update_shift(s::DelayedDoubleLogUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, args...)
+    # return new shift and new shiftMode
+    if step % s.A == 0 && size(df,1) >= s.A
+        prevnorm = df[end-s.A+1,:norm]
+        return shift - s.ζ/(dτ * s.A) * log(tnorm/prevnorm) - s.ξ/(dτ * s.A) * log(tnorm/s.targetwalkers), true, tnorm
+    else
+        return shift, true, pnorm # important: return the old norm - not updated
+    end
+end
+
+@inline function update_shift(s::DelayedDoubleLogUpdateAfterTW,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, args...)
+    # return new shift and new shiftMode
+    if tnorm > s.targetwalkers
+        return update_shift(DelayedDoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ,s.A), shift, shiftMode, tnorm, pnorm, dτ, step, df, args...)
+    else
+        return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, shiftMode, tnorm, pnorm, dτ, args...)
+    end
+end
+
 @inline function update_shift(s::DelayedLogUpdateAfterTargetWalkers,
                         shift, shiftMode, tnorm, pnorm, args...)
     if shiftMode || tnorm > s.targetwalkers
@@ -629,11 +717,76 @@ propagation with real walker numbers and cutoff `threshold`.
 ```
 > StochasticStyle(V) = IsStochasticWithThreshold(threshold)
 ```
-During stochastic propoagation, walker numbers small than `threshold` will be
+During stochastic propagation, walker numbers small than `threshold` will be
 stochastically projected to either zero or `threshold`.
+
+The trait can be conveniently defined on an instance of a generalised vector with the macro
+[`@setThreshold`](@ref). Example:
+```julia-repl
+julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
+julia> @setThreshold dv 0.6
+julia> StochasticStyle(dv)
+IsStochasticWithThreshold(0.6f0)
+```
 """
 struct IsStochasticWithThreshold <: StochasticStyle
     threshold::Float32
+end
+
+"""
+    @setThreshold dv threshold
+A macro to set a threshold for non-integer walker number FCIQMC. Technically, the macro sets the
+trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
+[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating
+point walker numbers. Also available as function, see [`setThreshold`](@ref).
+
+Example usage:
+```julia-repl
+julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
+julia> @setThreshold dv 0.6
+IsStochasticWithThreshold(0.6f0)
+```
+"""
+macro setThreshold(dv, threshold)
+    return esc(quote
+        @assert !(valtype($dv) <:Integer) "`valtype(dv)` must not be integer."
+        Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
+        Rimu.StochasticStyle($dv)
+    end)
+end
+
+"""
+    setThreshold(dv, threshold)
+Set a threshold for non-integer walker number FCIQMC. Technically, the function sets the
+trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
+[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating
+point walker numbers. Also available as macro, see [`@setThreshold`](@ref).
+
+Example usage:
+```julia-repl
+julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
+julia> setThreshold(dv, 0.6)
+IsStochasticWithThreshold(0.6f0)
+```
+"""
+function setThreshold(dv, threshold)
+    @assert !(valtype(dv) <:Integer) "`valtype(dv)` must not be integer."
+    @eval Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
+    return Rimu.StochasticStyle(dv)
+end
+
+"""
+    @setDeterministic dv
+A macro to undo the effect of [`@setThreshold`] and set the
+trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
+[`IsDeterministic()`](@ref).
+"""
+macro setDeterministic(dv)
+    return esc(quote
+        @assert !(valtype($dv) <:Integer) "`valtype(dv)` must not be integer."
+        Rimu.StochasticStyle(::Type{typeof($dv)}) = IsDeterministic()
+        Rimu.StochasticStyle($dv)
+    end)
 end
 
 """
@@ -671,7 +824,7 @@ Clear all flags in `dv` of the deterministic bit (rightmost bit).
 """
 function clearDFlags!(dv)
     for (add, (val, flag)) in pairs(dv)
-        # delete determimistic bit (rightmost) in `flag`
+        # delete deterministic bit (rightmost) in `flag`
         dv[add] = (val, flag ⊻ one(typeof(flag)))
     end
     dv
@@ -718,11 +871,12 @@ end
 # end
 
 """
-Abstract type for defining the stategy of projection for fciqmc with
+Abstract type for defining the strategy of projection for fciqmc with
 floating point walker number with [`norm_project`](@ref).
-Implemented stategies:
+Implemented strategies:
 
    * [`NoProjection`](@ref)
+   * [`NoProjectionTwoNorm`](@ref)
    * [`ThresholdProject`](@ref)
    * [`ScaledThresholdProject`](@ref)
 """
@@ -730,6 +884,13 @@ abstract type ProjectStrategy end
 
 "Do not project the walker amplitudes. See [`norm_project`](@ref)."
 struct NoProjection <: ProjectStrategy end
+
+"""
+Do not project the walker amplitudes. Use two-norm to
+calculate walker numbers. This affects reported "norm" but also the shift update procedures.
+See [`norm_project`](@ref).
+"""
+struct NoProjectionTwoNorm <: ProjectStrategy end
 
 
 @with_kw struct ThresholdProject <: ProjectStrategy

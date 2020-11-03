@@ -8,6 +8,9 @@ Create a dictionary-like array indexed by keys of type `K` and values of type
     FastDVec(d::AbstractDict{K,V}, [capacity = length(d)])
     FastDVec(d::AbstractDVec{K,V}, [capacity = length(d)])
 Construct a `FastDVec` object from an existing array or dictionary.
+
+    FastDVec(args...; capacity)
+If the keyword argument `capacity` is passed then args are parsed as for `Dict`.
 """
 mutable struct FastDVec{K,V} <: AbstractDVec{K,V}
     # V = value, e.g. a walker type like W3
@@ -29,6 +32,14 @@ function FastDVec{K,V}(capacity::Int) where V <: Number where K
     emptyslots = FastBuf{Int}(capacity)
     FastDVec{K,V}(vals, emptyslots, capacity, hashrange, hashtable)
 end
+
+function FastDVec(p::Pair{K,V}; capacity) where {K,V}
+    fdv = FastDVec{K,V}(capacity)
+    fdv[p.first] = p.second
+    return fdv
+end
+
+FastDVec(args...; capacity) = FastDVec(Dict(args...), capacity)
 
 # convenience constructors
 function FastDVec(a::AbstractVector, capacity = length(a))
@@ -210,7 +221,7 @@ end
 # iteration over the FastDVec returns values
 @inline function Base.iterate(fdv::FastDVec, state...)
     it = _pair_iterate(fdv,state...)
-    it == nothing && return nothing
+    it === nothing && return nothing
     pair, state = it
     return pair[2], state # value
 end
@@ -219,7 +230,7 @@ end
 # iteration over the keys requires  ADVKeysIterator - 3 to 4 times faster than fallback
 @inline function Base.iterate(ki::ADVKeysIterator{DV}, state...) where DV<:FastDVec
     it = _pair_iterate(ki.dv,state...)
-    it == nothing && return nothing
+    it === nothing && return nothing
     pair, state = it
     return pair[1], state # key
 end

@@ -83,23 +83,22 @@ data analysis. In particular:
 ## MPI
 
 The Rimu package can run in parallel on different processes or node and
-distribute work by making use of MPI, or "message passing interface". For example,
-on my laptop, running
+distribute work by making use of MPI, or "message passing interface". For example, running
 ```
-> julia scripts/ros-BHM_M50_U6-W10k.jl
+> julia scripts/BHM-example.jl
 ```
-will run on one processor with the main `fciqmc!()` computation (i.e. after
-package loading and compilation) completing in 18 seconds.
+will run on one processor with the main `lomc!()` computation (i.e. after
+package loading and compilation) completing in 2.69 seconds.
 
 Running
 ```
-> mpirun -np 4 julia scripts/ros-BHM_M50_U6-W10k.jl
+> mpirun -np 4 julia scripts/BHM-example-mpi.jl
 ```
-on the same hardware makes use of 4 cores and the main part completes in 5.6
-seconds, a speedup factor of 3.1. This seems reasonable, given that extra work
+on the same hardware makes use of 4 cores and the main part completes in 1.04
+seconds, a speedup factor of 2.6. This seems reasonable, given that extra work
 needs to be done for communicating between different processes.
 
-Initialising and finalising MPI communication has to be handled at the script level. Enabling MPI communication for use in [`fciqmc!()`](@ref) is done by wrapping the primary data structures as [`MPIData`](@ref). A number of different strategies
+Initialising and finalising MPI communication has to be handled at the script level. Enabling MPI communication for use in [`lomc!()`](@ref) is done by wrapping the primary data structures as [`MPIData`](@ref). A number of different strategies
 for data communication are implemented and most easily accessed
 with the functions:
 
@@ -108,3 +107,10 @@ with the functions:
 - [`mpi_no_exchange`](@ref)
 
 See examples in the [Scripts](@ref) folder.
+
+## References:
+The code implements the FCIQMC algorithm described in
+- "Fermion Monte Carlo without fixed nodes: A game of life, death, and annihilation in Slater determinant space", G. H. Booth, A. J. W. Thom, A. Alavi, [*J. Chem. Phys.* **131**, 054106 (2009)](https://doi.org/10.1063/1.3193710).
+
+Scientific papers using the `Rimu` code:
+- "Improved walker population control for full configuration interaction quantum Monte Carlo", M. Yang, E. Pahl, J. Brand, [*J. Chem. Phys.* **153**, 170143 (2020)](https://doi.org/10.1063/5.0023088); DOI: 10.1063/5.0023088; [arXiv:2008.01927](https://arxiv.org/abs/2008.01927).

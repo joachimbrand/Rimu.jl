@@ -77,7 +77,7 @@ function lomc!(ham, v;
         @unpack step, laststep, shiftMode, shift, dτ = params
         len = length(v) # MPIsync
         nor = norm(v, 1) # MPIsync
-        v_proj, h_proj = energy_project(v, ham, r_strat) # MPIsync
+        v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
         # prepare df for recording data
         df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
@@ -185,7 +185,7 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
-    v_proj, h_proj = energy_project(svec, ham, r_strat) # MPIsync
+    v_proj, h_proj = compute_proj_observables(svec, ham, r_strat) # MPIsync
 
     # prepare df for recording data
     df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
@@ -251,7 +251,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         tnorm = norm_project!(v, p_strat)  # MPIsync
         # project coefficients of `w` to threshold
 
-        v_proj, h_proj = energy_project(v, ham, r_strat)  # MPIsync
+        v_proj, h_proj = compute_proj_observables(v, ham, r_strat)  # MPIsync
 
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
@@ -279,7 +279,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
     end
     # make sure that `svec` contains the current population:
     if !(v === svec)
-        copyto!(svec, v)
+        copy!(svec, v)
     end
     # pack up parameters for continuation runs
     # note that this modifes the struct pa
@@ -289,7 +289,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
 end # fciqmc
 
 # replica version
-function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::LinearOperator,
+function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::AbstractHamiltonian,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
@@ -482,6 +482,9 @@ norm_project!(::StochasticStyle, w, p) = norm(w, 1) # MPIsync
 # default, compute 1-norm
 # e.g. triggered with the `NoProjection` strategy
 
+norm_project!(::StochasticStyle, w, p::NoProjectionTwoNorm) = norm(w, 2) # MPIsync
+# compute 2-norm but do not perform projection
+
 function norm_project!(s::S, w, p::ThresholdProject) where S<:Union{IsStochasticWithThreshold}
     return norm_project_threshold!(w, p.threshold) # MPIsync
 end
@@ -567,6 +570,22 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     # nnorm = norm(w, 1) # new norm after applying noise
 
     return dτ*r
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+    w, v, shift, dτ, pnorm, m::DeltaMemory3)
+tnorm = norm(w, 1) # MPIsync
+# current norm of `w` after FCIQMC step
+# compute memory noise
+r̃ = (pnorm - tnorm)/pnorm + dτ*shift
+push!(m.noiseBuffer, r̃) # add current value to buffer
+# Buffer only remembers up to `Δ` values. Average over whole buffer.
+r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+# apply `r` noise to current state vector
+rmul!(w, 1 + m.level * r) # w = w * (1 + level*r)
+
+return r
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -677,7 +696,7 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
 end
 
 # to do: implement parallel version
-# function fciqmc_step!(w::D, ham::LinearOperator, v::D, shift, dτ) where D<:DArray
+# function fciqmc_step!(w::D, ham::AbstractHamiltonian, v::D, shift, dτ) where D<:DArray
 #   check that v and w are compatible
 #   for each worker
 #      call fciqmc_step!()  on respective local parts
@@ -750,7 +769,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift,
     return zeros(Int, 5)
 end
 
-function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift, dτ)
+function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
     # off-diagonal: spawning psips
     for (nadd, elem) in Hops(ham, add)
         w[nadd] += -dτ * elem * num
@@ -761,9 +780,9 @@ function fciqmc_col!(::IsDeterministic, w, ham::LinearOperator, add, num, shift,
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
-# function inner_step!(w, ham::LinearOperator, add, num::Number,
+# function inner_step!(w, ham::AbstractHamiltonian, add, num::Number,
 #                         shift, dτ)
-function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
+function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real,
                         shift, dτ)
     # version for single population of integer psips
     # off-diagonal: spawning psips
@@ -810,7 +829,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add, num::Real,
     # note that w is not returned
 end # inner_step!
 
-function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num::Real,
+function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::AbstractHamiltonian, add, num::Real,
                         shift, dτ)
     # version for single population of integer psips
     # Nonlinearity in diagonal death step according to Ali's suggestion
@@ -859,7 +878,7 @@ function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::LinearOperator, add, num
     # note that w is not returned
 end # inner_step!
 
-function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
+function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
                         tup::Tuple{Real,Real},
                         shift, dτ)
     # trying out Ali's suggestion with occupation ratio of neighbours
@@ -913,7 +932,7 @@ function fciqmc_col!(::IsStochastic, w, ham::LinearOperator, add,
     # note that w is not returned
 end # inner_step!
 
-function fciqmc_col!(s::IsSemistochastic, w, ham::LinearOperator, add,
+function fciqmc_col!(s::IsSemistochastic, w, ham::AbstractHamiltonian, add,
          val_flag_tuple::Tuple{N, F}, shift, dτ) where {N<:Number, F<:Integer}
     (val, flag) = val_flag_tuple
     deterministic = flag & one(F) # extract deterministic flag
@@ -1003,7 +1022,7 @@ function fciqmc_col!(s::IsSemistochastic, w, ham::LinearOperator, add,
     return [0, 0, 0, 0, 0]
 end
 
-function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
+function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         add, val::N, shift, dτ) where N <: Real
 
     # diagonal death or clone: deterministic fomula
@@ -1011,9 +1030,10 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::LinearOperator,
     # projection to threshold should be applied after all colums are evaluated
     new_val = (1 + dτ*(shift - diagME(ham,add)))*val
     # apply threshold if necessary
-    if new_val < s.threshold
+    if abs(new_val) < s.threshold
         # project stochastically to threshold
-        w[add] += (new_val/s.threshold > cRand()) ? s.threshold : 0
+        # w[add] += (abs(new_val)/s.threshold > cRand()) ? sign(new_val)*s.threshold : 0
+        w[add] += ifelse(cRand() < abs(new_val)/s.threshold, sign(new_val)*s.threshold, 0)
     else
         w[add] += new_val
     end
