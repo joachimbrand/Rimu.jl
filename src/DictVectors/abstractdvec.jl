@@ -64,6 +64,10 @@ pairtype(::AbstractDVec{K,V}) where {K,V} = Pair{K,V} # need this for each concr
 Base.isreal(v::AbstractDVec) = valtype(v) <: Real
 Base.ndims(::AbstractDVec) = 1
 
+function *(::Missing, v::AbstractDVec)
+    return missing
+end
+
 """
     zero!(v::AbstractDVec)
 Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types

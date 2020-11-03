@@ -21,7 +21,7 @@ import LinearAlgebra: mul!, dot
 import Base: length, iterate, getindex, setindex, setindex!, get, get!, haskey,
              getkey, pop!, isempty, empty, empty!, delete!, sizehint!,
              zero, similar, eltype, ==, isequal, copy, copyto!, *, fill!,
-             values, keys, pairs
+             values, keys, pairs, *
 # I don't know why we have to import == and isequal from Base. We are not
 # defining any new methods, but since removing the subtyping to AbstractDict,
 # suddenly we get errors like

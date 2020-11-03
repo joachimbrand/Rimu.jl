@@ -11,7 +11,7 @@ module Hamiltonians
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 
 import Base: *
-import LinearAlgebra: mul!, dot
+import LinearAlgebra: mul!, dot, adjoint
 
 using ..DictVectors
 using ..BitStringAddresses
@@ -30,12 +30,12 @@ export BoseHubbardMom1D, Momentum
 
 """
     AbstractHamiltonian{T}
-Supertype that provides an interface for linear operators over a linear space with scalar 
-type `T` that are suitable for FCIQMC. Indexing is done with addresses (typically not integers) 
+Supertype that provides an interface for linear operators over a linear space with scalar
+type `T` that are suitable for FCIQMC. Indexing is done with addresses (typically not integers)
 from an address space that may be large (and will not need to be completely generated).
 
-`AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) 
-from the module `DictVectors` and work well with addresses of type [`BitStringAddressType`](@ref) 
+`AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref)
+from the module `DictVectors` and work well with addresses of type [`BitStringAddressType`](@ref)
 from the module `BitStringAddresses`. The type works well with the external package `KrylovKit.jl`.
 
 Provides:
@@ -117,6 +117,13 @@ struct ComplexLO <: LOStructure end
 LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))
 LOStructure(::Type{T}) where T <: AbstractHamiltonian = ComplexLO()
 
+LinearAlgebra.adjoint(op::AbstractHamiltonian) = h_adjoint(LOStructure(op), op)
+
+h_adjoint(::HermitianLO, op) = op
+
+function h_adjoint(los::LOStructure, op)
+    throw(ErrorException("`adjoint()` not defined for `AbstractHamiltonian`s with `LOStructure` `$(typeof(los))`. Is your Hamiltonian hermitian?"))
+end
 
 """
     dot(x, LO::AbstractHamiltonian, v)
@@ -257,10 +264,10 @@ function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
   return zero(T) # address1 not found
 end # getindex(ham)
 
-# A handy function that helps make use of the `AbstractHamiltonian` technology. 
+# A handy function that helps make use of the `AbstractHamiltonian` technology.
 """
     rayleigh_quotient(lo, v)
-Compute 
+Compute
 ```math
 \\frac{⟨ v | lo | v ⟩}{⟨ v|v ⟩}
 ```
@@ -270,7 +277,7 @@ rayleigh_quotient(lo, v) = dot(v, lo, v)/norm(v)^2
 
 """
     sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)
-Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham` 
+Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
 starting from the address `add`. The vector `basis` contains the addresses of basis configurations.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 """
@@ -725,15 +732,15 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
   k = p = q = 0
   double = chosen - singlies*(singlies-1)*(ham.m - 2)
   # start by making holes as the action of two annihilation operators
-  if double > 0 # need to choose doubly occupied site for double hole 
-    # c_p c_p 
+  if double > 0 # need to choose doubly occupied site for double hole
+    # c_p c_p
     double, q = fldmod1(double, ham.m-1)
     # double is location of double
     # q is momentum transfer
     for (i, occ) in enumerate(onr)
       if occ > 1
         double -= 1
-        if double == 0 
+        if double == 0
           onproduct *= occ*(occ-1)
           onr[i] = occ-2 # annihilate two particles in onr
           p = k = i # remember where we make the holes
@@ -761,9 +768,9 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
           onr[i] = occ -1 # punch first hole
           p = i # location of first hole
         elseif counter == s_hole
-          onproduct *= occ 
+          onproduct *= occ
           onr[i] = occ -1 # punch second hole
-          k = i # location of second hole 
+          k = i # location of second hole
           break
         end
       end
@@ -775,12 +782,12 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
   end # if double > 0 # we're done punching holes
 
   # now it is time to deal with two creation operators
-  # c^†_k-q 
+  # c^†_k-q
   kmq = mod1(k-q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
   occ = onr[kmq]
   onproduct *= occ + 1
   onr[kmq] = occ + 1
-  # c^†_p+q 
+  # c^†_p+q
   ppq = mod1(p+q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
   occ = onr[ppq]
   onproduct *= occ + 1
@@ -793,7 +800,7 @@ end
 
 """
     ks(h::BoseHubbardMom1D)
-Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `onr()` 
+Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `onr()`
 occupation number representation.
 """
 function ks(h::BoseHubbardMom1D)
@@ -806,7 +813,7 @@ end
 
 
 function diagME(h::BoseHubbardMom1D, add)
-  onrep = BitStringAddresses.onr(add) # get occupation number representation 
+  onrep = BitStringAddresses.onr(add) # get occupation number representation
 
   # single particle part of Hubbard momentum space Hamiltonian
   # ke = -2*h.t.*cos.(ks(h))⋅onrep # works but allocates memory due to broadcasting
@@ -841,7 +848,7 @@ Example use:
 add = BoseFS((1,0,2,1,2,1,1,3)) # address for a Fock state (configuration) with 11 bosons in 8 modes
 ham = BoseHubbardMom1D(add; u = 2.0, t = 1.0)
 mom = Momentum(ham) # create an instance of the momentum operator
-diagME(mom, add) # 10.996 - to calculate the momentum of a single configuration 
+diagME(mom, add) # 10.996 - to calculate the momentum of a single configuration
 v = DVec(Dict(add => 10), 1000)
 rayleigh_quotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
 ```

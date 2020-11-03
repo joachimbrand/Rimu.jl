@@ -190,6 +190,7 @@ end
     @test mdv[:a] == 2
     @test mdv[:b] == 0
     @test length(mdv) == 1
+    @test ismissing(missing*mdv)
 
     @test DFVec(:a => (2,3); capacity = 10) == DFVec(Dict(:a => (2,3)))
 end
@@ -251,6 +252,10 @@ end
     vc2 = hamcc*svec
     @test isreal(dot(vc2,hamcc,svec))
     @test dot(vc2,hamc,svec) ≉ dot(svec,hamc,vc2)
+
+    @test adjoint(ham) == ham' == ham
+    @test Rimu.Hamiltonians.LOStructure(hamcc) == Rimu.Hamiltonians.ComplexLO()
+    @test_throws ErrorException hamcc'
 end
 
 @testset "BoseHubbardMom1D" begin
