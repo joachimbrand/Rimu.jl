@@ -119,11 +119,17 @@ LOStructure(::Type{T}) where T <: AbstractHamiltonian = ComplexLO()
 
 LinearAlgebra.adjoint(op::AbstractHamiltonian) = h_adjoint(LOStructure(op), op)
 
-h_adjoint(::HermitianLO, op) = op
-
-function h_adjoint(los::LOStructure, op)
+"""
+    h_adjoint(los::LOStructure, op::AbstractHamiltonian)
+Represent the adjoint of an `AbstractHamiltonian`. Extend this method to define
+custom adjoints.
+"""
+function h_adjoint(los::LOStructure, op) # default
     throw(ErrorException("`adjoint()` not defined for `AbstractHamiltonian`s with `LOStructure` `$(typeof(los))`. Is your Hamiltonian hermitian?"))
+    return op
 end
+
+h_adjoint(::HermitianLO, op) = op # adjoint is known
 
 """
     dot(x, LO::AbstractHamiltonian, v)
