@@ -76,14 +76,21 @@ the uniform vector of all 1s, and report every `k`th time step.
 """
 abstract type ReportingStrategy{DV} end
 
-@with_kw struct EveryTimeStep{DV} <: ReportingStrategy{DV}
-    projector::DV = missing
+struct EveryTimeStep{P1,P2} <: ReportingStrategy{P1}
+    proj1::P1
+    proj2::P2
 end
 @doc """
     EveryTimeStep(;projector = missing)
 Report every time step. Include projection onto `projector`. See
 [`ReportingStrategy`](@ref) for details.
 """ EveryTimeStep
+
+function EveryTimeStep(; projector = missing, ham = missing)
+    EveryTimeStep(projector, ham'*projector)
+    # we need the adjoint of the Hamiltonian here because eventually we want to
+    # compute df.hproj = dot(projector, ham, v) [== (ham'*projector)⋅v]
+end
 
 @with_kw struct EveryKthStep{DV} <: ReportingStrategy{DV}
     k::Int = 10
@@ -110,13 +117,9 @@ controlling info messages in MPI codes. Include projection onto `projector`.
 See [`ReportingStrategy`](@ref) for details.
 """ ReportDFAndInfo
 
-# """
-#     ReportPEnergy(pv)
-# Report every time step including projection onto `pv`.
-# """
-# struct ReportPEnergy{DV} <: ReportingStrategy
-#     projector::DV
-# end
+function (rs::ReportingStrategy)(args...; myproj)
+    return rs(args..., projector = myproj)
+end
 
 """
     compute_proj_observables(v, ham, r::ReportingStrategy)
