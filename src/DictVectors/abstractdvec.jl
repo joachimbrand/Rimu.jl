@@ -364,7 +364,7 @@ DVecOrVec = Union{AbstractDVec,AbstractVector}
 """
 Abstract supertype for projectors to be used in in lieu of DVecs or Vectors.
 """
-struct AbstractProjector end
+abstract type AbstractProjector end
 
 """
     UniformProjector()
