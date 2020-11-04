@@ -144,9 +144,20 @@ end # copy!
 end
 
 function Base.copy(v::AbstractDVec)
-    w = empty(v) # new adv of same type and same length
+    w = empty(v) # new adv of same type and same capacity
     @inbounds return copyto!(w, v)
 end # copy
+
+"""
+    copytight(v)
+Create a shallow copy of `v` using as little memory as possible. Specifically,
+if `v isa AbstractDVec`, the `capacity` of the copy will be set to `length(v)`.
+"""
+function copytight(v::AbstractDVec)
+    w = empty(v, length(v)) # new adv of same type and same length
+    @inbounds return copyto!(w, v)
+end
+copytight(v) = copy(v) # generic version, just copy
 
 
 """
