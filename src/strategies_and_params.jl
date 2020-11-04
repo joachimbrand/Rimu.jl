@@ -133,10 +133,6 @@ controlling info messages in MPI codes. Include projection onto `projector`.
 See [`ReportingStrategy`](@ref) for details.
 """ ReportDFAndInfo
 
-function (rs::ReportingStrategy)(args...; myproj)
-    return rs(args..., projector = myproj)
-end
-
 """
     compute_proj_observables(v, ham, r::ReportingStrategy)
 Compute the projection of `r.projector⋅v` and `r.hproj⋅v` or
