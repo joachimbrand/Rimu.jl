@@ -58,7 +58,7 @@ a projection of the instantaneous coefficient vector `projector⋅v` and
 reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
 respectively. Possible values for `projector` are
 * `nothing` - no projections are computed (default)
-* `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
+* `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copytight`](@ref) to conserve memory)
 * [`UniformProjector()`](@ref) - projection onto vector of all ones
 * [`NormProjector()`](@ref) - compute 1-norm instead of projection
 * [`Norm2Projector()`](@ref) - compute 2-norm instead of projection
@@ -82,10 +82,11 @@ the starting vector (performs fast eager calculation if
 and report every time step.
 
 ```julia
-r_strat = EveryKthStep(k=10, projector = UniformProjector())
+r_strat = EveryKthStep(k=10, projector = UniformProjector(), hproj = :lazy)
 ```
-Record the projection of instananeous coefficient vector onto
-the uniform vector of all 1s into `df.vproj`, and report every `k`th time step.
+Record the projection of the instananeous coefficient vector `v` onto
+the uniform vector of all 1s into `df.vproj` and of `ham⋅v` into `df.hproj`,
+and report every `k`th time step.
 """
 abstract type ReportingStrategy{P1,P2} end
 

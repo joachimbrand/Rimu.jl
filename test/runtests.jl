@@ -57,7 +57,10 @@ end
     τ_strat = ConstantTimeStep()
 
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    @time res = lomc!(ham, vs; params = pa, s_strat = s, r_strat,
+        τ_strat, wm = similar(vs)
+    ).df
     r = autoblock(rdfs, start=101)
     #@test reduce(&, Tuple(r).≈(-5.25223493152101, 0.19342756375228998, -6.527599639255635, 0.5197276766889821, 6))
     if OV
@@ -675,6 +678,18 @@ end
                 r_strat = EveryTimeStep(projector = copytight(sv2)),
                 s_strat = DoubleLogUpdate(targetwalkers = 100))
     # need to analyse this - looks fishy
+end
+
+@testset "ReportingStrategy internals" begin
+    aIni = BoseFS((2,4,0,0,1))
+    ham = BoseHubbardMom1D(aIni)
+    v = DVec(aIni => 2; capacity = 1)
+    r = EveryTimeStep(projector = copytight(v))
+    @test r.hproj == :auto
+    @test_throws ErrorException Rimu.compute_proj_observables(v, ham, r)
+    rr = Rimu.refine_r_strat(r, ham)
+    @test rr.hproj⋅v == dot(v, ham, v)
+    @test Rimu.compute_proj_observables(v, ham, rr) == (v⋅v, dot(v, ham, v))
 end
 
 # Note: This last test is set up to work on Pipelines, within a Docker
