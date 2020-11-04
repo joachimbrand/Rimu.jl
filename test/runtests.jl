@@ -193,6 +193,10 @@ end
     @test ismissing(missing*mdv)
 
     @test DFVec(:a => (2,3); capacity = 10) == DFVec(Dict(:a => (2,3)))
+    dv = DVec(:a => 2; capacity = 100)
+    cdv = copytight(dv)
+    @test dv == cdv
+    @test capacity(dv) > capacity(cdv)
 end
 
 using Rimu.ConsistentRNG
