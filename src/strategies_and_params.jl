@@ -51,66 +51,81 @@ projected quantities in the DataFrame.
    * [`EveryKthStep`](@ref)
    * [`ReportDFAndInfo`](@ref)
 
-Every strategy accepts the keyword argument `projector` according to which
+Every strategy accepts the keyword arguments `projector` and `hproj`
+according to which
 a projection of the instantaneous coefficient vector `projector⋅v` and
-Hamiltonian `dot(projector, H, v)` are
+`hproj⋅v` are
 reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
 respectively. Possible values for `projector` are
-* `missing` - no projections are computed (default)
+* `nothing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
 * [`UniformProjector()`](@ref) - projection onto vector of all ones
-* [`NormProjector()`](@ref) - compute 1-norm instead of projection (only `df.vproj`)
-* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection (only `df.vproj`)
+* [`NormProjector()`](@ref) - compute 1-norm instead of projection
+* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection
+
+In order to help set up the calculation of the projected energy,
+where `df.hproj` should report `dot(projector, ham, v)`, the keyword `hproj`
+accepts the following values (for `ReportingStrategy`s passed to `lomc!()`):
+* `:auto` - choose method depending on `projector` and `ham` (default)
+* `:lazy` - compute `dot(projector, ham, v)` every time (slow)
+* `:eager` -  precompute `hproj` as `ham'*v` (fast, requires `adjoint(ham)`)
+* `:not` - don't compute second projector (equivalent to `nothing`)
 
 # Examples
 ```julia
-r_strat = EveryTimeStep(projector = copy(svec))
+r_strat = EveryTimeStep(projector = copytight(svec))
 ```
-Record the projection of instananeous coefficient vector and Hamiltonian onto
-the starting vector, and report every time step.
+Record the projected energy components `df.vproj = svec⋅v` and
+`df.hproj = dot(svec,ham,v)` with respect to
+the starting vector (performs fast eager calculation if
+`Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO()`),
+and report every time step.
+
 ```julia
 r_strat = EveryKthStep(k=10, projector = UniformProjector())
 ```
-Record the projection of instananeous coefficient vector and Hamiltonian onto
-the uniform vector of all 1s, and report every `k`th time step.
+Record the projection of instananeous coefficient vector onto
+the uniform vector of all 1s into `df.vproj`, and report every `k`th time step.
 """
-abstract type ReportingStrategy{DV} end
+abstract type ReportingStrategy{P1,P2} end
 
-struct EveryTimeStep{P1,P2} <: ReportingStrategy{P1}
-    proj1::P1
-    proj2::P2
+@with_kw struct EveryTimeStep{P1,P2} <: ReportingStrategy{P1,P2}
+    projector::P1 = nothing # no projection by default
+    hproj::P2 = :auto # choose automatically by default
 end
 @doc """
-    EveryTimeStep(;projector = missing)
+    EveryTimeStep(;projector = nothing, hproj = :auto)
 Report every time step. Include projection onto `projector`. See
 [`ReportingStrategy`](@ref) for details.
 """ EveryTimeStep
 
-function EveryTimeStep(; projector = missing, ham = missing)
-    EveryTimeStep(projector, ham'*projector)
-    # we need the adjoint of the Hamiltonian here because eventually we want to
-    # compute df.hproj = dot(projector, ham, v) [== (ham'*projector)⋅v]
-end
+# function EveryTimeStep(; projector = missing, ham = missing)
+#     EveryTimeStep(projector, ham'*projector)
+#     # we need the adjoint of the Hamiltonian here because eventually we want to
+#     # compute df.hproj = dot(projector, ham, v) [== (ham'*projector)⋅v]
+# end
 
-@with_kw struct EveryKthStep{DV} <: ReportingStrategy{DV}
+@with_kw struct EveryKthStep{P1,P2} <: ReportingStrategy{P1,P2}
     k::Int = 10
-    projector::DV = missing
+    projector::P1 = nothing # no projection by default
+    hproj::P2 = :auto # choose automatically by default
 end
 @doc """
-    EveryKthStep(;k = 10, projector = missing)
+    EveryKthStep(;k = 10, projector = nothing, hproj = :auto)
 Report every `k`th step. Include projection onto `projector`. See
 [`ReportingStrategy`](@ref) for details.
 """ EveryKthStep
 
-@with_kw struct ReportDFAndInfo{DV} <: ReportingStrategy{DV}
+@with_kw struct ReportDFAndInfo{P1,P2} <: ReportingStrategy{P1,P2}
     k::Int = 10 # how often to write to DataFrame
     i::Int = 100 # how often to write info message
     io::IO = stdout # IO stream for info messages
     writeinfo::Bool = true # write info only if true - useful for MPI codes
-    projector::DV = missing
+    projector::P1 = nothing # no projection by default
+    hproj::P2 = :auto # choose automatically by default
 end
 @doc """
-    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = missing)
+    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = nothing, hproj = :auto)
 Report every `k`th step in DataFrame and write info message to `io` every `i`th
 step (unless `writeinfo == false`). The flag `writeinfo` is useful for
 controlling info messages in MPI codes. Include projection onto `projector`.
@@ -123,29 +138,53 @@ end
 
 """
     compute_proj_observables(v, ham, r::ReportingStrategy)
-Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
+Compute the projection of `r.projector⋅v` and `r.hproj⋅v` or
+`r.projector⋅ham*v` according to
 the [`ReportingStrategy`](@ref) `r`.
 """
 function compute_proj_observables(v, ham, ::RS) where
-                        {DV <: Missing, RS<:ReportingStrategy{DV}}
+                        {P1 <: Nothing, P2 <: Nothing,
+                         RS<:ReportingStrategy{P1,P2}}
+    return missing, missing # nothing to do
+end
+
+# catch an error
+function compute_proj_observables(v, ham, ::RS) where
+                        {P1, P2 <: Symbol,
+                         RS<:ReportingStrategy{P1,P2}}
+    throw(ErrorException("`Symbol` is not a valid type for `hproj`. Use `refine_r_strat()`!"))
     return missing, missing
 end
-# default
 
-# generic version with projector, e.g. for computing projected energy
+#  single projector, e.g. for norm calculation
 function compute_proj_observables(v, ham, r::RS) where
-                        {DV, RS<:ReportingStrategy{DV}}
+                        {P1, P2 <: Nothing,
+                         RS<:ReportingStrategy{P1,P2}}
+    return r.projector⋅v, missing
+end
+# The dot products work across MPI when `v::MPIData`; MPI sync
+
+# (slow) generic version with single projector, e.g. for computing projected energy
+function compute_proj_observables(v, ham, r::RS) where
+                        {P1, P2 <: Missing,
+                         RS<:ReportingStrategy{P1,P2}}
     return r.projector⋅v, dot(r.projector, ham, v)
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
-# version for `Norm?Projector`s
-# Only norm of vector is computed to save time
-function compute_proj_observables(v, ham, r::RS) where
-                        {DV<:Union{NormProjector,Norm2Projector}, RS<:ReportingStrategy{DV}}
-    return r.projector⋅v, missing
+# fast version with 2 projectors, e.g. for computing projected energy
+function compute_proj_observables(v, ham, r::ReportingStrategy)
+    return r.projector⋅v, r.hproj⋅v
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
+
+# # version for `Norm?Projector`s
+# # Only norm of vector is computed to save time
+# function compute_proj_observables(v, ham, r::RS) where
+#                         {DV<:Union{NormProjector,Norm2Projector}, RS<:ReportingStrategy{DV}}
+#     return r.projector⋅v, missing
+# end
+# # The dot products work across MPI when `v::MPIData`; MPI sync
 
 """
     report!(df::DataFrame, t::Tuple, s<:ReportingStrategy)

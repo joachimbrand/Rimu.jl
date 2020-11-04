@@ -58,6 +58,7 @@ function lomc!(ham, v;
     m_strat::MemoryStrategy = NoMemory(),
     p_strat::ProjectStrategy = NoProjection()
 )
+    r_strat = refine_r_strat(r_strat, ham)
     if !isnothing(laststep)
         params.laststep = laststep
     end
@@ -126,27 +127,65 @@ the statistics in the `DataFrame` `nt.df` will be appended.
 """
 function lomc!(a::NamedTuple) # should be type stable
     @unpack ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat = a
-    fciqmc!(v, params, df, ham, s_strat, r_strat, τ_strat, wm;
+    rr_strat = refine_r_strat(r_strat, ham)
+    fciqmc!(v, params, df, ham, s_strat, rr_strat, τ_strat, wm;
         m_strat = m_strat, p_strat = p_strat
     )
-    nt = (
-        ham = ham,
-        v = v,
-        params = params,
-        df = df,
-        wm = wm,
-        s_strat = s_strat,
-        r_strat = r_strat,
-        τ_strat = τ_strat,
-        m_strat = m_strat,
-        p_strat = p_strat,
-    )
+    # nt = (
+    #     ham = ham,
+    #     v = v,
+    #     params = params,
+    #     df = df,
+    #     wm = wm,
+    #     s_strat = s_strat,
+    #     r_strat = r_strat,
+    #     τ_strat = τ_strat,
+    #     m_strat = m_strat,
+    #     p_strat = p_strat,
+    # )
+    nt = (a..., r_strat = rr_strat)
     return nt
 end
 
 function lomc!(a::NamedTuple, laststep::Int) # should be type stable
     a.params.laststep = laststep
     return lomc!(a)
+end
+
+"""
+    Rimu.refine_r_strat(r_strat::ReportingStrategy, ham)
+Refine the reporting strategy by replacing `Symbol`s in the keyword argument
+`hproj` by the appropriate value. See [`ReportingStrategy`](@ref)
+"""
+refine_r_strat(r_strat::ReportingStrategy, ham) = r_strat # default
+
+function refine_r_strat(r_strat::ReportingStrategy{P1,P2}, ham) where
+                                                {P1 <: Nothing, P2 <: Symbol}
+    # return ReportingStrategy(r_strat, hproj = nothing) # ignore `hproj`
+    return @set r_strat.hproj = nothing # ignore `hproj`
+end
+
+function refine_r_strat(r_strat::ReportingStrategy{P1,P2}, ham) where
+                                                {P1, P2 <: Symbol}
+    if r_strat.hproj == :lazy
+        @info "`hproj = :lazy` may slow down the code"
+        return @set r_strat.hproj = missing
+    elseif r_strat.hproj == :not
+        return @set r_strat.hproj = nothing
+    elseif r_strat.hproj == :eager
+        return @set r_strat.hproj = copytight(ham'*r_strat.projector)
+    elseif r_strat.hproj == :auto
+        if P1  <: AbstractProjector # for projectors don't compute `df.hproj`
+            return @set r_strat.hproj = nothing
+        elseif Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO() # eager is possible
+            hpv = ham'*r_strat.projector # pre-calculate left vector with adjoint Hamiltonian
+            # use smaller container to save memory
+            return @set r_strat.hproj = copytight(hpv)
+        else # lazy is default
+            return @set r_strat.hproj = missing
+        end
+    end
+    @error "Value $(r_strat.hproj) for keyword `hproj` is not recognized. See documentation of [`ReportingStrategy`](@doc)."
 end
 
 
@@ -185,6 +224,10 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
+
+    # should not be necessary if we do all calls from lomc!()
+    r_strat = refine_r_strat(r_strat, ham)
+
     v_proj, h_proj = compute_proj_observables(svec, ham, r_strat) # MPIsync
 
     # prepare df for recording data
@@ -229,6 +272,9 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  )
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
+
+    # should not be necessary if we do all calls from lomc!()
+    r_strat = refine_r_strat(r_strat, ham)
 
     # check `df` for consistency
     @assert Symbol.(names(df)) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
@@ -304,6 +350,9 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::AbstractHamiltonian,
     # keep references to the passed data vectors around
     vv_orig = similar(vv) # empty vector
     vv_orig .= vv # fill it with references to the coefficient DVecs
+
+    # should not be necessary if we do all calls from lomc!()
+    r_strat = refine_r_strat(r_strat, ham)
 
     maxlength = minimum(capacity.(vv))
     reduce(&, capacity.(wv) .≥ maxlength) || error("replica containers `wv` have insufficient capacity")

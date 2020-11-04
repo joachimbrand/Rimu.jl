@@ -53,7 +53,7 @@ end
     svec = DVec(Dict(aIni => 2), ham(:dim))
     StochasticStyle(svec)
     vs = copy(svec)
-    r_strat = EveryTimeStep(projector = copy(svec))
+    r_strat = EveryTimeStep(projector = copytight(svec))
     τ_strat = ConstantTimeStep()
 
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
@@ -672,7 +672,7 @@ end
     sv2 = DVec(Dict(aIni2 => 2), 2000)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     nt = lomc!(ham2, sv2, laststep = 30, threading = false,
-                r_strat = EveryTimeStep(projector = copy(sv2)),
+                r_strat = EveryTimeStep(projector = copytight(sv2)),
                 s_strat = DoubleLogUpdate(targetwalkers = 100))
     # need to analyse this - looks fishy
 end
