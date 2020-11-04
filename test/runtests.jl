@@ -58,8 +58,8 @@ end
 
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat,
-        τ_strat, wm = similar(vs)
+    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat = r_strat,
+        τ_strat = τ_strat, wm = similar(vs)
     ).df
     r = autoblock(rdfs, start=101)
     #@test reduce(&, Tuple(r).≈(-5.25223493152101, 0.19342756375228998, -6.527599639255635, 0.5197276766889821, 6))

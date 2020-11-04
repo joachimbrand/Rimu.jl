@@ -100,19 +100,19 @@ function lomc!(ham, v;
                     0, 0, 0, 0, 0, 0.0))
     end
     # set up the named tuple of lomc!() return values
-    nt = (;ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat)
-    # nt = (
-    #     ham = ham,
-    #     v = v,
-    #     params = params,
-    #     df = df,
-    #     wm = wm,
-    #     s_strat = s_strat,
-    #     r_strat = r_strat,
-    #     τ_strat = τ_strat,
-    #     m_strat = m_strat,
-    #     p_strat = p_strat,
-    # )
+    # nt = (;ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat)
+    nt = (
+        ham = ham,
+        v = v,
+        params = params,
+        df = df,
+        wm = wm,
+        s_strat = s_strat,
+        r_strat = r_strat,
+        τ_strat = τ_strat,
+        m_strat = m_strat,
+        p_strat = p_strat,
+    )
     return lomc!(nt) # call lomc!() with prepared arguments parameters
 end
 
