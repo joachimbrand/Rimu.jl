@@ -163,6 +163,7 @@ function refine_r_strat(r_strat::ReportingStrategy{P1,P2}, ham) where
                                                 {P1 <: Nothing, P2 <: Symbol}
     # return ReportingStrategy(r_strat, hproj = nothing) # ignore `hproj`
     return @set r_strat.hproj = nothing # ignore `hproj`
+    # using @set macro from the Setfield.jl package
 end
 
 function refine_r_strat(r_strat::ReportingStrategy{P1,P2}, ham) where
