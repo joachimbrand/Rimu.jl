@@ -810,12 +810,15 @@ Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `o
 occupation number representation.
 """
 function ks(h::BoseHubbardMom1D)
-  if isodd(h.m)
-    return -π*(1+1/h.m).+ 2*π/h.m .*(1:h.m)
-  else
-    return -π.+ 2*π/h.m .*(1:h.m)
-  end
-end
+    m = numModes(h)
+    step = 2π/m
+    if isodd(m)
+        start = -π*(1+1/m) + step
+    else
+        start = -π + step
+    end
+    return StepRangeLen(start, step, m) # faster than range()
+end # fast! - can be completely resolved by compiler
 
 
 function diagME(h::BoseHubbardMom1D, add)
