@@ -705,6 +705,41 @@ function BoseFS2C(bsa::BStringAdd,bsb::BStringAdd)
 end
 
 """
+    BoseFS2C(onr::T) where T<:Union{AbstractVector,Tuple}
+    BoseFS2C{BST}(onr::T)
+Create `BoseFS2C` address from an occupation number representation, specifying
+the occupation number of each orbital.
+If a type `BST` is given it will define the underlying
+bit string type. Otherwise, the bit string type is chosen to fit the `onr`.
+"""
+function BoseFS2C(onra::TA,onrb::TB) where TA <:Union{AbstractVector,Tuple} where TB <:Union{AbstractVector,Tuple}
+  ma = length(onra)
+  mb = length(onrb)
+  na = Int(sum(onra))
+  nb = Int(sum(onrb))
+  ma == mb || error("Two components with different modes: $ma vs $mb.")
+  ba = na + ma - 1
+  bb = nb + mb - 1
+  if ba ≤ 64
+    AA = BSAdd64
+  elseif ba ≤ 128
+    AA = BSAdd128
+  else
+    AA = BitAdd
+  end
+  if bb ≤ 64
+    AB = BSAdd64
+  elseif bb ≤ 128
+    AB = BSAdd128
+  else
+    AB = BitAdd
+  end
+  bsa = bitaddr(onra,AA)
+  bsb = bitaddr(onra,AB)
+  BoseFS2C{na,nb,ma,AA,AB}(bsa,bsb)
+end
+
+"""
     BoseFS(onr::T) where T<:Union{AbstractVector,Tuple}
     BoseFS{BST}(onr::T)
 Create `BoseFS` address from an occupation number representation, specifying
