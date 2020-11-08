@@ -10,7 +10,7 @@ using Base.Cartesian
 import Base: isless, zero, iszero, show, ==, hash
 
 export BitStringAddressType, BSAdd64, BSAdd128
-export BitAdd, BoseFS
+export BitAdd, BoseFS, BoseFS2C
 export onr, nearUniform, nearUniformONR
 export numBits, numChunks, numParticles, numModes
 export BStringAdd # deprecate
@@ -651,6 +651,35 @@ function BoseFS(bs::BStringAdd)
   n = sum(bs.add)
   m = length(bs.add) - n + 1
   return BoseFS{n,m,BStringAdd}(bs)
+end
+
+
+#################################
+"""
+    BoseFS2C{NA,NB,M,AA,AB} <: BosonicFockStateAddress <: BitStringAddressType
+    BoseFS2C(bsa::A,bsb::A) where A <: BitAdd
+    BoseFS2C(bsa::A,bsb::A,b)
+
+Address type that represents a Fock state of `N` spinless bosons in `M` orbitals
+by wrapping a bitstring of type `A`. Orbitals are stored in reverse
+order, i.e. the first orbital in a `BoseFS` is stored rightmost in the
+bitstring `bs`. If the number of significant bits `b` is not encoded in `A` it
+must be passed as an argument (e.g. for `BSAdd64` and `BSAdd128`).
+"""
+struct BoseFS2C{NA,NB,M,A} <: BosonicFockStateAddress
+  bsa::A
+  bsb::A
+end
+
+BoseFS2C{NA,NB,M}(bsa::A,bsb::A) where {NA,NB,M,A} = BoseFS2C{NA,NB,M,A}(bsa,bsb) # slow - not sure why
+
+function BoseFS2C(bsa::A, bsb::A, b::Integer) where A <: BitStringAddressType
+  na = count_ones(bsa)
+  nb = count_ones(bsb)
+  m = b - na + 1
+  bfs = BoseFS2C{na,nb,m,A}(bsa,bsb)
+  #check_consistency(bfs)
+  return bfs
 end
 
 """
