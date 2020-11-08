@@ -666,20 +666,42 @@ order, i.e. the first orbital in a `BoseFS` is stored rightmost in the
 bitstring `bs`. If the number of significant bits `b` is not encoded in `A` it
 must be passed as an argument (e.g. for `BSAdd64` and `BSAdd128`).
 """
-struct BoseFS2C{NA,NB,M,A} <: BosonicFockStateAddress
-  bsa::A
-  bsb::A
+struct BoseFS2C{NA,NB,M,AA,AB} <: BosonicFockStateAddress
+  bsa::AA
+  bsb::AB
 end
 
-BoseFS2C{NA,NB,M}(bsa::A,bsb::A) where {NA,NB,M,A} = BoseFS2C{NA,NB,M,A}(bsa,bsb) # slow - not sure why
+BoseFS2C{NA,NB,M}(bsa::AA,bsb::AB) where {NA,NB,M,AA,AB} = BoseFS2C{NA,NB,M,AA,AB}(bsa,bsb) # slow - not sure why
 
-function BoseFS2C(bsa::A, bsb::A, b::Integer) where A <: BitStringAddressType
+function BoseFS2C(bsa::AA, bsb::AB, ba::Integer, bb::Integer) where AA <: BitStringAddressType where AB <: BitStringAddressType
   na = count_ones(bsa)
+  # println("na: ",na)  # debug
   nb = count_ones(bsb)
-  m = b - na + 1
-  bfs = BoseFS2C{na,nb,m,A}(bsa,bsb)
+  # println("nb: ",nb)  # debug
+  ma = ba - na + 1
+  mb = bb - nb + 1
+  ma == mb || error("Two components with different modes: $ma vs $mb.")
+  bfs = BoseFS2C{na,nb,ma,AA,AB}(bsa,bsb)
   #check_consistency(bfs)
   return bfs
+end
+
+function BoseFS2C(bsa::BitAdd{IA,BA}, bsb::BitAdd{IB,BB}) where {BA, BB ,IA, IB}
+  na = count_ones(bsa)
+  nb = count_ones(bsb)
+  ma = BA - na + 1
+  mb = BB - na + 1
+  ma == mb || error("Two components with different modes: $ma vs $mb.")
+  return BoseFS2C{na,nb,ma,BitAdd{IA,BA},BitAdd{IB,BB}}(bsa,bsb)
+end
+
+function BoseFS2C(bsa::BStringAdd,bsb::BStringAdd)
+  na = sum(bsa.add)
+  nb = sum(bsb.add)
+  ma = length(bsa.add) - na + 1
+  mb = length(bsb.add) - nb + 1
+  ma == mb || error("Two components with different modes: $ma vs $mb.")
+  return BoseFS2C{na,nb,ma,BStringAdd,BStringAdd}(bsa,bsb)
 end
 
 """
