@@ -116,6 +116,9 @@ import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
     bfs= BoseFS((1,0,2,1,2,1,1,3))
     onrep = onr(bfs)
     @test typeof(bfs)(onrep) == bfs
+    ba=BoseFS{BStringAdd}((2,4,0,5,3))
+    @test BitStringAddresses.i_onr(ba) == onr(ba) == onr(ba.bs, numModes(ba))
+    @test BitStringAddresses.i_onr(os) == onr(os)
 end
 
 using Rimu.FastBufs
