@@ -845,7 +845,7 @@ function diagME(h::BoseHubbardMom1D, add)
   # end
   for p = 1:h.m
       # faster triangular loop; 9 μs instead of 33 μs for nearUniform(BoseFS{200,199})
-      @inbounds onproduct += onrep[] * (onrep[p] - 1)
+      @inbounds onproduct += onrep[p] * (onrep[p] - 1)
       @inbounds @simd for k = 1:p-1
           onproduct += 4*onrep[k]*onrep[p]
       end
@@ -878,6 +878,7 @@ numOfHops(ham::Momentum, add) = 0
 diagME(mom::Momentum, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
 # surpsingly this is all that is needed. We don't even have to define `hop()`, because it is never reached.
 # `rayleigh_quotient(Momentum(ham),v)` is performant!
+
 
 ################################################
 #
