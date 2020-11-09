@@ -834,14 +834,21 @@ function diagME(h::BoseHubbardMom1D, add)
 
   # now compute diagonal interaction energy
   onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
-  for p in 1:h.m
-    for k in 1:h.m
-      if k==p
-        onproduct += onrep[k]*(onrep[k]-1)
-      else
-        onproduct += 2*onrep[k]*onrep[p] # two terms in sum over creation operators
+  # for p in 1:h.m
+  #   for k in 1:h.m
+  #     if k==p
+  #       onproduct += onrep[k]*(onrep[k]-1)
+  #     else
+  #       onproduct += 2*onrep[k]*onrep[p] # two terms in sum over creation operators
+  #     end
+  #   end
+  # end
+  for p = 1:h.m
+      # faster triangular loop; 9 μs instead of 33 μs for nearUniform(BoseFS{200,199})
+      @inbounds onproduct += onrep[] * (onrep[p] - 1)
+      @inbounds @simd for k = 1:p-1
+          onproduct += 4*onrep[k]*onrep[p]
       end
-    end
   end
   # @show onproduct
   pe = h.u/(2*h.m)*onproduct
