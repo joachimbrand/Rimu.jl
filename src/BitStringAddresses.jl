@@ -704,6 +704,15 @@ function BoseFS2C(bsa::BStringAdd,bsb::BStringAdd)
   return BoseFS2C{na,nb,ma,BStringAdd,BStringAdd}(bsa,bsb)
 end
 
+function BoseFS2C(bfsa::BoseFS{NA,MA,AA},bfsb::BoseFS{NB,MB,AB}) where {NA,MA,AA,NB,MB,AB}
+  na = NA
+  nb = NB
+  ma = MA
+  mb = MB
+  ma == mb || error("Two components with different modes: $ma vs $mb.")
+  return BoseFS2C{na,nb,ma,AA,AB}(bfsa.bs,bfsb.bs)
+end
+
 """
     BoseFS2C(onr::T) where T<:Union{AbstractVector,Tuple}
     BoseFS2C{BST}(onr::T)
