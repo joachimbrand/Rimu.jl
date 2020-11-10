@@ -9,6 +9,7 @@ Models implemented so far are:
 module Hamiltonians
 
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
+using Setfield
 
 import Base: *
 import LinearAlgebra: mul!, dot, adjoint
@@ -1011,7 +1012,7 @@ end
     hop(ham, add, chosen, numSandDoccupiedsites(add))
 end
 
-@inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
+@inline function hop_old(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
   onrep =  BitStringAddresses.m_onr(add)
   # get occupation number representation as a mutable array
   singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
@@ -1079,6 +1080,83 @@ end
   occ = onrep[ppq]
   onproduct *= occ + 1
   onrep[ppq] = occ + 1
+
+  return AD(onrep), U/(2*M)*sqrt(onproduct)
+  # return new address and matrix element
+end
+
+# a non-allocating version of hop()
+@inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
+  onrep =  BitStringAddresses.s_onr(add)
+  # get occupation number representation as a static array
+  singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
+  onproduct = 1
+  k = p = q = 0
+  double = chosen - singlies*(singlies-1)*(M - 2)
+  # start by making holes as the action of two annihilation operators
+  if double > 0 # need to choose doubly occupied site for double hole
+    # c_p c_p
+    double, q = fldmod1(double, M-1)
+    # double is location of double
+    # q is momentum transfer
+    for (i, occ) in enumerate(onrep)
+      if occ > 1
+        double -= 1
+        if double == 0
+          onproduct *= occ*(occ-1)
+          onrep = @set onrep[i] = occ-2
+          # annihilate two particles in onrep
+          p = k = i # remember where we make the holes
+          break # should break out of the for loop
+        end
+      end
+    end
+  else # need to punch two single holes
+    # c_k c_p
+    pair, q = fldmod1(chosen, M-2) # floored integer division and modulus in ranges 1:(m-1)
+    first, second = fldmod1(pair, singlies-1) # where the holes are to be made
+    if second < first # put them in ascending order
+      f_hole = second
+      s_hole = first
+    else
+      f_hole = first
+      s_hole = second + 1 # as we are counting through all singlies
+    end
+    counter = 0
+    for (i, occ) in enumerate(onrep)
+      if occ > 0
+        counter += 1
+        if counter == f_hole
+          onproduct *= occ
+          onrep = @set onrep[i] = occ-1
+          # punch first hole
+          p = i # location of first hole
+        elseif counter == s_hole
+          onproduct *= occ
+          onrep = @set onrep[i] = occ-1
+          # punch second hole
+          k = i # location of second hole
+          break
+        end
+      end
+    end
+    # we have p<k and 1 < q < ham.m - 2
+    if q ≥ k-p
+      q += 1 # to avoid putting particles back into the holes
+    end
+  end # if double > 0 # we're done punching holes
+
+  # now it is time to deal with two creation operators
+  # c^†_k-q
+  kmq = mod1(k-q, M) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onrep[kmq]
+  onproduct *= occ + 1
+  onrep = @set onrep[kmq] = occ + 1
+  # c^†_p+q
+  ppq = mod1(p+q, M) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onrep[ppq]
+  onproduct *= occ + 1
+  onrep = @set onrep[ppq] = occ + 1
 
   return AD(onrep), U/(2*M)*sqrt(onproduct)
   # return new address and matrix element

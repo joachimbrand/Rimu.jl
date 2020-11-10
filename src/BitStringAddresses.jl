@@ -5,6 +5,8 @@ Module with types and methods pertaining to bitstring addresses.
 module BitStringAddresses
 
 using StaticArrays
+using Setfield
+
 using Base.Cartesian
 
 import Base: isless, zero, iszero, show, ==, hash
@@ -474,7 +476,7 @@ Bitshift `b` to the left by `n` bits and fill from the right with zeros.
 
 ## this is still memory allocating for `I>3`.
 # TODO: rewrite this as generated function
-function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
+function unsafe_shift_left_old(b::BitAdd{I,B},n::Integer) where {I,B}
   if I == 1
     return BitAdd{B}((b.chunks[1]<<n,))
   elseif I == 2
@@ -491,6 +493,27 @@ function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
 end
 # This is faster than << for BitArray (yeah!).
 # About half the time and allocations.
+
+function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
+  if I == 1
+    return BitAdd{B}((b.chunks[1]<<n,))
+  elseif I == 2
+    return BitAdd{B}(bshl(b.chunks,n))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
+  a = zeros(SVector{I,UInt64})
+  for i in 1:(I-d-1) # shift chunks and `or` carryover
+    nchunk = (b.chunks[i+d]<<r) | ((b.chunks[i+d+1] & mask) >>> (64-r))
+    a = @set a[i] =  nchunk
+  end
+  if I-d > 0
+    lchunk = b.chunks[I]<<r # no carryover for rightmost chunk
+    a = @set a[I-d] = lchunk
+  end
+  return BitAdd{B}(SVector(a))
+end
+# this version does not allocate memory at all!!
 
 function bshl(c::SVector{2, UInt64}, n::Integer)
   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
