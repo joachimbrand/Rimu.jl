@@ -475,9 +475,8 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
     @sync for btr in Iterators.partition(pairs(v), batchsize)
-        Threads.@spawn statss[Threads.threadid()] .+= sum(btr) do tup
-            (add, num) = tup
-            fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
+        Threads.@spawn for (add, num) in btr
+            statss[Threads.threadid()] .+= fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
         end
     end # all threads have returned; now running on single thread again
     r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
@@ -805,7 +804,7 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
-    return zeros(Int, 5)
+    return (0, 0, 0, 0, 0)
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
@@ -815,7 +814,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, s
     end
     # diagonal death or clone
     w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
-    return zeros(Int, 5)
+    return (0, 0, 0, 0, 0)
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
@@ -864,7 +863,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     else
         antiparticles += abs(ndiags)
     end
-    return [spawns, deaths, clones, antiparticles, annihilations]
+    return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
 
@@ -913,7 +912,7 @@ function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::AbstractHamiltonian, add
     else
         antiparticles += abs(ndiags)
     end
-    return [spawns, deaths, clones, antiparticles, annihilations]
+    return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
 
@@ -967,7 +966,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
     else
         antiparticles += abs(ndiags)
     end
-    return [spawns, deaths, clones, antiparticles, annihilations]
+    return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
 
@@ -1058,7 +1057,7 @@ function fciqmc_col!(s::IsSemistochastic, w, ham::AbstractHamiltonian, add,
         end
         # done with stochastic spawning
     end
-    return [0, 0, 0, 0, 0]
+    return (0, 0, 0, 0, 0)
 end
 
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
@@ -1110,5 +1109,5 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         # perform spawn (if nonzero): add walkers with correct sign
     end
     # done with stochastic spawning
-    return [0, 0, 0, 0, 0]
+    return (0, 0, 0, 0, 0)
 end
