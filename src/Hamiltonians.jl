@@ -200,16 +200,16 @@ for (add,elem) in Hops(ham, current_address)
 end
 ```
 """
-struct Hops{T,A,O}  <: AbstractVector{T}
+struct Hops{T,A,O,I}  <: AbstractVector{T}
     h::O # AbstractHamiltonian
     add::A # address; usually a BitStringAddressType
     num::Int # number of possible hops
+    info::I # reserved for additional info to be stored here
+end
 
-    # inner constructor
-    function Hops(ham::O, add::A) where {O,A}
-        T = eltype(ham)
-        return new{T,A,O}(ham, add, numOfHops(ham, add))
-    end
+# default constructor
+function Hops(ham::O, add::A) where {T,A,O <: AbstractHamiltonian{T}}
+    return Hops{T,A,O,Nothing}(ham, add, numOfHops(ham, add), nothing)
 end
 
 Base.eltype(::Hops{T}) where {T} = T # apparently this works!
@@ -1007,13 +1007,13 @@ end
     return kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
 end
 
-function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen) where {TT,U,T,N,M,AD}
-    hop(ham, chosen, BitStringAddresses.m_onr(add), numSandDoccupiedsites(add))
-    # get occupation number representation as a mutable array
+@inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number) where {TT,U,T,N,M,AD}
+    hop(ham, add, chosen, numSandDoccupiedsites(add))
 end
 
-function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, chosen, onrep::MVector{M}, nSD) where {TT,U,T,N,M,AD}
-  # `onrep` is the occupation number representation as a mutable array
+@inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
+  onrep =  BitStringAddresses.m_onr(add)
+  # get occupation number representation as a mutable array
   singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
   onproduct = 1
   k = p = q = 0
@@ -1083,6 +1083,7 @@ function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, chosen, onrep::MVector{M}, nSD) w
   return AD(onrep), U/(2*M)*sqrt(onproduct)
   # return new address and matrix element
 end
+
 function hasIntDimension(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
   try
     binomial(N + M - 1, N)# formula for boson Hilbert spaces
@@ -1100,6 +1101,18 @@ function fDimensionLO(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:Bose
   fbinomial(N + M - 1, N) # formula for boson Hilbert spaces
   # NB: returns a Float64
 end #dimHS
+
+function Hops(ham::O, add::AD) where {TT,U,T,N,M,AD, O<:HubbardMom1D{TT,U,T,N,M,AD}}
+    nSandD = numSandDoccupiedsites(add)::Tuple{Int64,Int64}
+    # store this information for reuse
+    nH = numOfHops(ham, add, nSandD)
+    return Hops{TT,AD,O,Tuple{Int64,Int64}}(ham, add, nH, nSandD)
+end
+
+function Base.getindex(s::Hops{T,A,O,I}, i::Int) where {T,A,O<:HubbardMom1D,I}
+    nadd, melem = hop(s.h, s.add, i, s.info)
+    return (nadd, melem)
+end #  returns tuple (newaddress, matrixelement)
 
 
 ################################################
