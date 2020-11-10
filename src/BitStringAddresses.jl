@@ -793,6 +793,12 @@ function BoseFS2C(bsa::AA, bsb::AB, ba::Integer, bb::Integer) where AA <: BitStr
   return bfs
 end
 
+function BoseFS2C_(bsa::AA, bsb::AB, ba::Integer, bb::Integer) where AA <: BitStringAddressType where AB <: BitStringAddressType
+  bsa = BoseFS(bsa,ba)
+  bsb = BoseFS(bsb,bb)
+  return BoseFS2C(bsa,bsb)
+end
+
 function BoseFS2C(bsa::BitAdd{IA,BA}, bsb::BitAdd{IB,BB}) where {BA, BB ,IA, IB}
   na = count_ones(bsa)
   nb = count_ones(bsb)
@@ -800,6 +806,12 @@ function BoseFS2C(bsa::BitAdd{IA,BA}, bsb::BitAdd{IB,BB}) where {BA, BB ,IA, IB}
   mb = BB - na + 1
   ma == mb || error("Two components with different modes: $ma vs $mb.")
   return BoseFS2C{na,nb,ma,BitAdd{IA,BA},BitAdd{IB,BB}}(bsa,bsb)
+end
+
+function BoseFS2C_(bsa::BitAdd{IA,BA}, bsb::BitAdd{IB,BB}) where {BA, BB ,IA, IB}
+    bsa = BoseFS(bsa)
+    bsb = BoseFS(bsb)
+    return BoseFS2C(bsa,bsb)
 end
 
 function BoseFS2C(bsa::BStringAdd,bsb::BStringAdd)
@@ -845,6 +857,12 @@ function BoseFS2C(onra::TA,onrb::TB) where TA <:Union{AbstractVector,Tuple} wher
   bsa = bitaddr(onra,AA)
   bsb = bitaddr(onra,AB)
   BoseFS2C{na,nb,ma,AA,AB}(bsa,bsb)
+end
+
+function BoseFS2C_(onra::TA,onrb::TB) where TA <:Union{AbstractVector,Tuple} where TB <:Union{AbstractVector,Tuple}
+  bsa = BoseFS(onra)
+  bsb = BoseFS(onra)
+  BoseFS2C(bsa,bsb)
 end
 
 # performant and allocation free (if benchmarked on its own):
