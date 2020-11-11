@@ -22,7 +22,7 @@ haskey, empty!, isempty`) and, in addition:
 - `capacity(dv)`: holding capacity
 - `similar(dv [,Type])`
 - `iterate()`: should return values of type `V`
-- `pairs()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` the provide `values()` iterator as well!
+- `pairs()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` then provide `values()` iterator as well!
 """
 abstract type AbstractDVec{K,V} end
 
@@ -63,6 +63,10 @@ pairtype(::AbstractDVec{K,V}) where {K,V} = Pair{K,V} # need this for each concr
 
 Base.isreal(v::AbstractDVec) = valtype(v) <: Real
 Base.ndims(::AbstractDVec) = 1
+
+function *(::Missing, v::AbstractDVec)
+    return missing
+end
 
 """
     zero!(v::AbstractDVec)
@@ -140,9 +144,20 @@ end # copy!
 end
 
 function Base.copy(v::AbstractDVec)
-    w = empty(v) # new adv of same type and same length
+    w = empty(v) # new adv of same type and same capacity
     @inbounds return copyto!(w, v)
 end # copy
+
+"""
+    copytight(v)
+Create a shallow copy of `v` using as little memory as possible. Specifically,
+if `v isa AbstractDVec`, the `capacity` of the copy will be set to `length(v)`.
+"""
+function copytight(v::AbstractDVec)
+    w = empty(v, length(v)) # new adv of same type and same length
+    @inbounds return copyto!(w, v)
+end
+copytight(v) = copy(v) # generic version, just copy
 
 
 """
@@ -354,49 +369,13 @@ kvpairs(v) = pairs(v)
 # iteration over values is default
 Base.values(dv::AbstractDVec) = dv
 
-# struct ADVValuesIterator{DV}
-#     dv::DV
-# end
-# Base.values(dv::AbstractDVec) = ADVValuesIterator(dv)
-# Base.length(ki::ADVValuesIterator) = length(ki.dv)
-# Base.eltype(::Type{ADVValuesIterator{DV}}) where DV = valtype(DV)
-# Base.IteratorSize(::Type{ADVValuesIterator}) = HasLength()
-#
-# # fallback method for value iteration - from pairs
-# # This will not always work or not be the fastest way
-# @inline function Base.iterate(ki::ADVValuesIterator, oldstate...)
-#     it = iterate(pairs(ki.dv), oldstate...)
-#     it == nothing && return nothing
-#     pair, state = it
-#     @inbounds return (pair[2],state)
-# end
-#
-# Base.iterate(dv::AbstractDVec) = iterate(values(dv))
-# Base.iterate(dv::AbstractDVec, state) = iterate(values(dv), state)
-
-# struct UniformProjector{K,V} <: AbstractDVec{K,V} end
-# UniformProjector(::Type{AbstractDVec{K,V}}) where {K,V} = UniformProjector{K,V}()
-# UniformProjector(::DV) where DV <: AbstractDVec = UniformProjector(DV)
-#
-# struct NormProjector{K,V} <: AbstractDVec{K,V} end
-# NormProjector(::Type{AbstractDVec{K,V}}) where {K,V} = NormProjector{K,V}()
-# NormProjector(::DV) where DV <: AbstractDVec = NormProjector(DV)
-#
-# function LinearAlgebra.dot(x::NormProjector{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
-#     # dot returns the promote_type of the arguments.
-#     # NOTE that this can be different from the return type of norm()->Float64
-#     return convert(promote_type(T1,T2),norm(y,1))
-# end
-#
-# function LinearAlgebra.dot(x::UniformProjector{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
-#     # dot returns the promote_type of the arguments.
-#     # NOTE that this can be different from the return type of norm()->Float64
-#     return convert(promote_type(T1,T2), sum(values(y)))
-# end
-
-
 # Define this type union for local (non-MPI) data
 DVecOrVec = Union{AbstractDVec,AbstractVector}
+
+"""
+Abstract supertype for projectors to be used in in lieu of DVecs or Vectors.
+"""
+abstract type AbstractProjector end
 
 """
     UniformProjector()
@@ -411,7 +390,7 @@ dot(UniformProjector(), LO, v) == sum(LO*v)
 See also [`ReportingStrategy`](@ref) for use
 of projectors in FCIQMC.
 """
-struct UniformProjector end
+struct UniformProjector <: AbstractProjector end
 
 LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(y)
 # a specialised fast and non-allocating method for
@@ -429,7 +408,7 @@ dot(NormProjector(),x)
 See also [`ReportingStrategy`](@ref) for use
 of projectors in FCIQMC.
 """
-struct NormProjector end
+struct NormProjector <: AbstractProjector end
 
 LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y),norm(y,1))
 # dot returns the promote_type of the arguments.
@@ -447,9 +426,8 @@ dot(NormProjector(),x)
 See also [`ReportingStrategy`](@ref) for use
 of projectors in FCIQMC.
 """
-struct Norm2Projector end
+struct Norm2Projector <: AbstractProjector end
 
 LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y,2)
-# NOTE that this returns a `Float64` opposite to the convention for 
+# NOTE that this returns a `Float64` opposite to the convention for
 # dot to return the promote_type of the arguments.
-

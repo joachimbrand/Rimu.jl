@@ -58,6 +58,7 @@ function lomc!(ham, v;
     m_strat::MemoryStrategy = NoMemory(),
     p_strat::ProjectStrategy = NoProjection()
 )
+    r_strat = refine_r_strat(r_strat, ham)
     if !isnothing(laststep)
         params.laststep = laststep
     end
@@ -77,7 +78,7 @@ function lomc!(ham, v;
         @unpack step, laststep, shiftMode, shift, dτ = params
         len = length(v) # MPIsync
         nor = norm(v, 1) # MPIsync
-        v_proj, h_proj = energy_project(v, ham, r_strat) # MPIsync
+        v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
         # prepare df for recording data
         df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
@@ -99,6 +100,7 @@ function lomc!(ham, v;
                     0, 0, 0, 0, 0, 0.0))
     end
     # set up the named tuple of lomc!() return values
+    # nt = (;ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat)
     nt = (
         ham = ham,
         v = v,
@@ -126,27 +128,54 @@ the statistics in the `DataFrame` `nt.df` will be appended.
 """
 function lomc!(a::NamedTuple) # should be type stable
     @unpack ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat = a
-    fciqmc!(v, params, df, ham, s_strat, r_strat, τ_strat, wm;
+    rr_strat = refine_r_strat(r_strat, ham)
+    fciqmc!(v, params, df, ham, s_strat, rr_strat, τ_strat, wm;
         m_strat = m_strat, p_strat = p_strat
     )
-    nt = (
-        ham = ham,
-        v = v,
-        params = params,
-        df = df,
-        wm = wm,
-        s_strat = s_strat,
-        r_strat = r_strat,
-        τ_strat = τ_strat,
-        m_strat = m_strat,
-        p_strat = p_strat,
-    )
+    nt = (a..., r_strat = rr_strat)
     return nt
 end
 
 function lomc!(a::NamedTuple, laststep::Int) # should be type stable
     a.params.laststep = laststep
     return lomc!(a)
+end
+
+"""
+    Rimu.refine_r_strat(r_strat::ReportingStrategy, ham)
+Refine the reporting strategy by replacing `Symbol`s in the keyword argument
+`hproj` by the appropriate value. See [`ReportingStrategy`](@ref)
+"""
+refine_r_strat(r_strat::ReportingStrategy, ham) = r_strat # default
+
+function refine_r_strat(r_strat::ReportingStrategy{P1,P2}, ham) where
+                                                {P1 <: Nothing, P2 <: Symbol}
+    # return ReportingStrategy(r_strat, hproj = nothing) # ignore `hproj`
+    return @set r_strat.hproj = nothing # ignore `hproj`
+    # using @set macro from the Setfield.jl package
+end
+
+function refine_r_strat(r_strat::ReportingStrategy{P1,P2}, ham) where
+                                                {P1, P2 <: Symbol}
+    if r_strat.hproj == :lazy
+        @info "`hproj = :lazy` may slow down the code"
+        return @set r_strat.hproj = missing
+    elseif r_strat.hproj == :not
+        return @set r_strat.hproj = nothing
+    elseif r_strat.hproj == :eager
+        return @set r_strat.hproj = copytight(ham'*r_strat.projector)
+    elseif r_strat.hproj == :auto
+        if P1  <: AbstractProjector # for projectors don't compute `df.hproj`
+            return @set r_strat.hproj = nothing
+        elseif Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO() # eager is possible
+            hpv = ham'*r_strat.projector # pre-calculate left vector with adjoint Hamiltonian
+            # use smaller container to save memory
+            return @set r_strat.hproj = copytight(hpv)
+        else # lazy is default
+            return @set r_strat.hproj = missing
+        end
+    end
+    @error "Value $(r_strat.hproj) for keyword `hproj` is not recognized. See documentation of [`ReportingStrategy`](@doc)."
 end
 
 
@@ -185,7 +214,11 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
     nor = norm(svec, 1) # MPIsync
-    v_proj, h_proj = energy_project(svec, ham, r_strat) # MPIsync
+
+    # should not be necessary if we do all calls from lomc!()
+    r_strat = refine_r_strat(r_strat, ham)
+
+    v_proj, h_proj = compute_proj_observables(svec, ham, r_strat) # MPIsync
 
     # prepare df for recording data
     df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
@@ -230,6 +263,9 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
+    # should not be necessary if we do all calls from lomc!()
+    r_strat = refine_r_strat(r_strat, ham)
+
     # check `df` for consistency
     @assert Symbol.(names(df)) == [:steps, :dτ, :shift, :shiftMode, :len, :norm,
                             :vproj, :hproj,
@@ -251,7 +287,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         tnorm = norm_project!(v, p_strat)  # MPIsync
         # project coefficients of `w` to threshold
 
-        v_proj, h_proj = energy_project(v, ham, r_strat)  # MPIsync
+        v_proj, h_proj = compute_proj_observables(v, ham, r_strat)  # MPIsync
 
         # update shift and mode if necessary
         shift, shiftMode, pnorm = update_shift(s_strat,
@@ -304,6 +340,9 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::AbstractHamiltonian,
     # keep references to the passed data vectors around
     vv_orig = similar(vv) # empty vector
     vv_orig .= vv # fill it with references to the coefficient DVecs
+
+    # should not be necessary if we do all calls from lomc!()
+    r_strat = refine_r_strat(r_strat, ham)
 
     maxlength = minimum(capacity.(vv))
     reduce(&, capacity.(wv) .≥ maxlength) || error("replica containers `wv` have insufficient capacity")
@@ -436,9 +475,8 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
     @sync for btr in Iterators.partition(pairs(v), batchsize)
-        Threads.@spawn statss[Threads.threadid()] .+= sum(btr) do tup
-            (add, num) = tup
-            fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
+        Threads.@spawn for (add, num) in btr
+            statss[Threads.threadid()] .+= fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
         end
     end # all threads have returned; now running on single thread again
     r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
@@ -570,6 +608,22 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     # nnorm = norm(w, 1) # new norm after applying noise
 
     return dτ*r
+end
+
+function applyMemoryNoise!(s::IsStochasticWithThreshold,
+    w, v, shift, dτ, pnorm, m::DeltaMemory3)
+tnorm = norm(w, 1) # MPIsync
+# current norm of `w` after FCIQMC step
+# compute memory noise
+r̃ = (pnorm - tnorm)/pnorm + dτ*shift
+push!(m.noiseBuffer, r̃) # add current value to buffer
+# Buffer only remembers up to `Δ` values. Average over whole buffer.
+r = r̃ - sum(m.noiseBuffer)/length(m.noiseBuffer)
+
+# apply `r` noise to current state vector
+rmul!(w, 1 + m.level * r) # w = w * (1 + level*r)
+
+return r
 end
 
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
@@ -750,7 +804,7 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
     # todo: return something sensible
-    return zeros(Int, 5)
+    return (0, 0, 0, 0, 0)
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
@@ -760,7 +814,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, s
     end
     # diagonal death or clone
     w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
-    return zeros(Int, 5)
+    return (0, 0, 0, 0, 0)
 end
 
 # fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
@@ -809,7 +863,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     else
         antiparticles += abs(ndiags)
     end
-    return [spawns, deaths, clones, antiparticles, annihilations]
+    return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
 
@@ -858,7 +912,7 @@ function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::AbstractHamiltonian, add
     else
         antiparticles += abs(ndiags)
     end
-    return [spawns, deaths, clones, antiparticles, annihilations]
+    return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
 
@@ -912,7 +966,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
     else
         antiparticles += abs(ndiags)
     end
-    return [spawns, deaths, clones, antiparticles, annihilations]
+    return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end # inner_step!
 
@@ -1003,7 +1057,7 @@ function fciqmc_col!(s::IsSemistochastic, w, ham::AbstractHamiltonian, add,
         end
         # done with stochastic spawning
     end
-    return [0, 0, 0, 0, 0]
+    return (0, 0, 0, 0, 0)
 end
 
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
@@ -1055,5 +1109,5 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         # perform spawn (if nonzero): add walkers with correct sign
     end
     # done with stochastic spawning
-    return [0, 0, 0, 0, 0]
+    return (0, 0, 0, 0, 0)
 end

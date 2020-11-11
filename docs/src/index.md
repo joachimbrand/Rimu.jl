@@ -107,3 +107,10 @@ with the functions:
 - [`mpi_no_exchange`](@ref)
 
 See examples in the [Scripts](@ref) folder.
+
+## References
+The code implements the FCIQMC algorithm described in
+- "Fermion Monte Carlo without fixed nodes: A game of life, death, and annihilation in Slater determinant space", G. H. Booth, A. J. W. Thom, A. Alavi, [*J. Chem. Phys.* **131**, 054106 (2009)](https://doi.org/10.1063/1.3193710).
+
+Scientific papers using the `Rimu` code:
+- "Improved walker population control for full configuration interaction quantum Monte Carlo", M. Yang, E. Pahl, J. Brand, [*J. Chem. Phys.* **153**, 170143 (2020)](https://doi.org/10.1063/5.0023088); DOI: 10.1063/5.0023088; [arXiv:2008.01927](https://arxiv.org/abs/2008.01927).

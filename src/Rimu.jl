@@ -5,6 +5,7 @@ Random Integrator for Many-Body Quantum Systems
 module Rimu
 
 using Reexport, Parameters, LinearAlgebra, DataFrames
+using Setfield
 import MPI, DataStructures
 
 include("FastBufs.jl")
@@ -35,6 +36,7 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export StochasticStyle, IsStochastic, IsDeterministic
 # export IsSemistochastic # is not yet ready
 export IsStochasticNonlinear, IsStochasticWithThreshold
+export @setThreshold, @setDeterministic, setThreshold
 export threadedWorkingMemory, localpart
 
 # exports for MPI functionality
