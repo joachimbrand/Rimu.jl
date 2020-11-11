@@ -87,7 +87,7 @@ mutable struct MPIOSWin{T}  <: DistributeStrategy
         l_win = MPI.Win_create(n_elem, comm)
         mpiid = next_mpiID()
         obj = new{T}(mpiid, nprocs, myrank, comm, b_win, l_win, capacity, buf, n_elem)
-        MPI.refcount_inc() # required according to MPI.jl docs
+        # MPI.refcount_inc() # ref counting was removed in MPI.jl v0.16.0
         mpi_registry[mpiid] = Ref(obj) # register the object to avoid
         # arbitrary garbage collection
         # ccall(:jl_, Cvoid, (Any,), "installing finalizer on MPIOSWin")
@@ -171,7 +171,7 @@ function myclose(obj::MPIOSWin)
     # ccall(:jl_, Cvoid, (Any,), "running finalizer on MPIOSWin")
     MPI.free(obj.b_win)
     MPI.free(obj.l_win)
-    MPI.refcount_dec()
+    # MPI.refcount_dec() # ref counting was removed in MPI.jl v0.16.0
     return nothing
 end
 

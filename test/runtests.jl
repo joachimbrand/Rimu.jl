@@ -53,11 +53,14 @@ end
     svec = DVec(Dict(aIni => 2), ham(:dim))
     StochasticStyle(svec)
     vs = copy(svec)
-    r_strat = EveryTimeStep(projector = copy(svec))
+    r_strat = EveryTimeStep(projector = copytight(svec))
     τ_strat = ConstantTimeStep()
 
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat = r_strat,
+        τ_strat = τ_strat, wm = similar(vs)
+    ).df
     r = autoblock(rdfs, start=101)
     #@test reduce(&, Tuple(r).≈(-5.25223493152101, 0.19342756375228998, -6.527599639255635, 0.5197276766889821, 6))
     if OV
@@ -113,6 +116,9 @@ import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
     bfs= BoseFS((1,0,2,1,2,1,1,3))
     onrep = onr(bfs)
     @test typeof(bfs)(onrep) == bfs
+    ba=BoseFS{BStringAdd}((2,4,0,5,3))
+    @test BitStringAddresses.i_onr(ba) == onr(ba) == onr(ba.bs, numModes(ba))
+    @test BitStringAddresses.i_onr(os) == onr(os)
 end
 
 using Rimu.FastBufs
@@ -190,8 +196,13 @@ end
     @test mdv[:a] == 2
     @test mdv[:b] == 0
     @test length(mdv) == 1
+    @test ismissing(missing*mdv)
 
     @test DFVec(:a => (2,3); capacity = 10) == DFVec(Dict(:a => (2,3)))
+    dv = DVec(:a => 2; capacity = 100)
+    cdv = copytight(dv)
+    @test dv == cdv
+    @test capacity(dv) > capacity(cdv)
 end
 
 using Rimu.ConsistentRNG
@@ -251,6 +262,10 @@ end
     vc2 = hamcc*svec
     @test isreal(dot(vc2,hamcc,svec))
     @test dot(vc2,hamc,svec) ≉ dot(svec,hamc,vc2)
+
+    @test adjoint(ham) == ham' == ham
+    @test Rimu.Hamiltonians.LOStructure(hamcc) == Rimu.Hamiltonians.ComplexLO()
+    @test_throws ErrorException hamcc'
 end
 
 @testset "BoseHubbardMom1D" begin
@@ -258,7 +273,17 @@ end
     @test Hamiltonians.numberoccupiedsites(bfs) == 7
     @test Hamiltonians.numSandDoccupiedsites(bfs) == (7,3)
     @test Hamiltonians.numSandDoccupiedsites(onr(bfs)) == Hamiltonians.numSandDoccupiedsites(bfs)
+
     ham = Hamiltonians.BoseHubbardMom1D(bfs)
+    @test numOfHops(ham,bfs) == 273
+    @test hop(ham, bfs, 205) == (BoseFS{BSAdd64}((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test diagME(ham,bfs) ≈ 14.296572875253808
+    momentum = Momentum(ham)
+    @test diagME(momentum,bfs) ≈ -1.5707963267948966
+    v = DVec(Dict(bfs => 10), 1000)
+    @test rayleigh_quotient(momentum, v) ≈ -1.5707963267948966
+
+    ham = Hamiltonians.HubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 273
     @test hop(ham, bfs, 205) == (BoseFS{BSAdd64}((1,0,2,1,3,0,0,4)), 0.21650635094610965)
     @test diagME(ham,bfs) ≈ 14.296572875253808
@@ -279,10 +304,24 @@ end
     eig = eigen(Matrix(smat))
     # @test eig.values == [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]
     @test reduce(&, map(isapprox, eig.values, [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]))
+
     # for comparison check real-space Bose Hubbard chain - the eigenvalues should be the same
     hamr = BoseHubbardReal1D(fs,t=1.0)
     smatr, addsr = Hamiltonians.build_sparse_matrix_from_LO(hamr,fs)
     eigr = eigen(Matrix(smatr))
+    @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
+
+    ham = Hamiltonians.HubbardMom1D(fs,t=1.0)
+    m=Momentum(ham) # define momentum operator
+    mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
+    @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
+    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in Hops(ham, fs)]) # check that momentum does not change for hops
+    # construct full matrix
+    smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
+    # compute its eigenvalues
+    eig = eigen(Matrix(smat))
+    # @test eig.values == [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]
+    @test reduce(&, map(isapprox, eig.values, [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]))
     @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
 end
 
@@ -663,9 +702,21 @@ end
     sv2 = DVec(Dict(aIni2 => 2), 2000)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     nt = lomc!(ham2, sv2, laststep = 30, threading = false,
-                r_strat = EveryTimeStep(projector = copy(sv2)),
+                r_strat = EveryTimeStep(projector = copytight(sv2)),
                 s_strat = DoubleLogUpdate(targetwalkers = 100))
     # need to analyse this - looks fishy
+end
+
+@testset "ReportingStrategy internals" begin
+    aIni = BoseFS((2,4,0,0,1))
+    ham = BoseHubbardMom1D(aIni)
+    v = DVec(aIni => 2; capacity = 1)
+    r = EveryTimeStep(projector = copytight(v))
+    @test r.hproj == :auto
+    @test_throws ErrorException Rimu.compute_proj_observables(v, ham, r)
+    rr = Rimu.refine_r_strat(r, ham)
+    @test rr.hproj⋅v == dot(v, ham, v)
+    @test Rimu.compute_proj_observables(v, ham, rr) == (v⋅v, dot(v, ham, v))
 end
 
 # Note: This last test is set up to work on Pipelines, within a Docker

@@ -9,9 +9,10 @@ Models implemented so far are:
 module Hamiltonians
 
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
+using Setfield
 
 import Base: *
-import LinearAlgebra: mul!, dot
+import LinearAlgebra: mul!, dot, adjoint
 
 using ..DictVectors
 using ..BitStringAddresses
@@ -24,18 +25,19 @@ export rayleigh_quotient
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D
 export BoseHubbardMom1D, Momentum
+export HubbardMom1D
 
 # First we have some generic types and methods for any linear operator
 # that could be used for FCIQMC
 
 """
     AbstractHamiltonian{T}
-Supertype that provides an interface for linear operators over a linear space with scalar 
-type `T` that are suitable for FCIQMC. Indexing is done with addresses (typically not integers) 
+Supertype that provides an interface for linear operators over a linear space with scalar
+type `T` that are suitable for FCIQMC. Indexing is done with addresses (typically not integers)
 from an address space that may be large (and will not need to be completely generated).
 
-`AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) 
-from the module `DictVectors` and work well with addresses of type [`BitStringAddressType`](@ref) 
+`AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref)
+from the module `DictVectors` and work well with addresses of type [`BitStringAddressType`](@ref)
 from the module `BitStringAddresses`. The type works well with the external package `KrylovKit.jl`.
 
 Provides:
@@ -117,6 +119,19 @@ struct ComplexLO <: LOStructure end
 LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))
 LOStructure(::Type{T}) where T <: AbstractHamiltonian = ComplexLO()
 
+LinearAlgebra.adjoint(op::AbstractHamiltonian) = h_adjoint(LOStructure(op), op)
+
+"""
+    h_adjoint(los::LOStructure, op::AbstractHamiltonian)
+Represent the adjoint of an `AbstractHamiltonian`. Extend this method to define
+custom adjoints.
+"""
+function h_adjoint(los::LOStructure, op) # default
+    throw(ErrorException("`adjoint()` not defined for `AbstractHamiltonian`s with `LOStructure` `$(typeof(los))`. Is your Hamiltonian hermitian?"))
+    return op
+end
+
+h_adjoint(::HermitianLO, op) = op # adjoint is known
 
 """
     dot(x, LO::AbstractHamiltonian, v)
@@ -186,16 +201,16 @@ for (add,elem) in Hops(ham, current_address)
 end
 ```
 """
-struct Hops{T,A,O}  <: AbstractVector{T}
+struct Hops{T,A,O,I}  <: AbstractVector{T}
     h::O # AbstractHamiltonian
     add::A # address; usually a BitStringAddressType
     num::Int # number of possible hops
+    info::I # reserved for additional info to be stored here
+end
 
-    # inner constructor
-    function Hops(ham::O, add::A) where {O,A}
-        T = eltype(ham)
-        return new{T,A,O}(ham, add, numOfHops(ham, add))
-    end
+# default constructor
+function Hops(ham::O, add::A) where {T,A,O <: AbstractHamiltonian{T}}
+    return Hops{T,A,O,Nothing}(ham, add, numOfHops(ham, add), nothing)
 end
 
 Base.eltype(::Hops{T}) where {T} = T # apparently this works!
@@ -257,10 +272,10 @@ function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
   return zero(T) # address1 not found
 end # getindex(ham)
 
-# A handy function that helps make use of the `AbstractHamiltonian` technology. 
+# A handy function that helps make use of the `AbstractHamiltonian` technology.
 """
     rayleigh_quotient(lo, v)
-Compute 
+Compute
 ```math
 \\frac{⟨ v | lo | v ⟩}{⟨ v|v ⟩}
 ```
@@ -270,7 +285,7 @@ rayleigh_quotient(lo, v) = dot(v, lo, v)/norm(v)^2
 
 """
     sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)
-Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham` 
+Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
 starting from the address `add`. The vector `basis` contains the addresses of basis configurations.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 """
@@ -362,9 +377,9 @@ integer and `false` if not.
 If `true`, `dimensionLO(h)` will be successful and return an `Int`. The method
 `fDimensionLO(h)` should be useful in other cases.
 """
-function hasIntDimension(h::BosonicHamiltonian)
+function hasIntDimension(h)
   try
-    binomial(h.n + h.m - 1, h.n)# formula for boson Hilbert spaces
+    dimensionLO(h)
     return true
   catch
     false
@@ -725,15 +740,15 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
   k = p = q = 0
   double = chosen - singlies*(singlies-1)*(ham.m - 2)
   # start by making holes as the action of two annihilation operators
-  if double > 0 # need to choose doubly occupied site for double hole 
-    # c_p c_p 
+  if double > 0 # need to choose doubly occupied site for double hole
+    # c_p c_p
     double, q = fldmod1(double, ham.m-1)
     # double is location of double
     # q is momentum transfer
     for (i, occ) in enumerate(onr)
       if occ > 1
         double -= 1
-        if double == 0 
+        if double == 0
           onproduct *= occ*(occ-1)
           onr[i] = occ-2 # annihilate two particles in onr
           p = k = i # remember where we make the holes
@@ -761,9 +776,9 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
           onr[i] = occ -1 # punch first hole
           p = i # location of first hole
         elseif counter == s_hole
-          onproduct *= occ 
+          onproduct *= occ
           onr[i] = occ -1 # punch second hole
-          k = i # location of second hole 
+          k = i # location of second hole
           break
         end
       end
@@ -775,12 +790,12 @@ function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
   end # if double > 0 # we're done punching holes
 
   # now it is time to deal with two creation operators
-  # c^†_k-q 
+  # c^†_k-q
   kmq = mod1(k-q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
   occ = onr[kmq]
   onproduct *= occ + 1
   onr[kmq] = occ + 1
-  # c^†_p+q 
+  # c^†_p+q
   ppq = mod1(p+q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
   occ = onr[ppq]
   onproduct *= occ + 1
@@ -793,20 +808,23 @@ end
 
 """
     ks(h::BoseHubbardMom1D)
-Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `onr()` 
+Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `onr()`
 occupation number representation.
 """
 function ks(h::BoseHubbardMom1D)
-  if isodd(h.m)
-    return -π*(1+1/h.m).+ 2*π/h.m .*(1:h.m)
-  else
-    return -π.+ 2*π/h.m .*(1:h.m)
-  end
-end
+    m = numModes(h)
+    step = 2π/m
+    if isodd(m)
+        start = -π*(1+1/m) + step
+    else
+        start = -π + step
+    end
+    return StepRangeLen(start, step, m) # faster than range()
+end # fast! - can be completely resolved by compiler
 
 
 function diagME(h::BoseHubbardMom1D, add)
-  onrep = BitStringAddresses.onr(add) # get occupation number representation 
+  onrep = BitStringAddresses.onr(add) # get occupation number representation
 
   # single particle part of Hubbard momentum space Hamiltonian
   # ke = -2*h.t.*cos.(ks(h))⋅onrep # works but allocates memory due to broadcasting
@@ -818,14 +836,21 @@ function diagME(h::BoseHubbardMom1D, add)
 
   # now compute diagonal interaction energy
   onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
-  for p in 1:h.m
-    for k in 1:h.m
-      if k==p
-        onproduct += onrep[k]*(onrep[k]-1)
-      else
-        onproduct += 2*onrep[k]*onrep[p] # two terms in sum over creation operators
+  # for p in 1:h.m
+  #   for k in 1:h.m
+  #     if k==p
+  #       onproduct += onrep[k]*(onrep[k]-1)
+  #     else
+  #       onproduct += 2*onrep[k]*onrep[p] # two terms in sum over creation operators
+  #     end
+  #   end
+  # end
+  for p = 1:h.m
+      # faster triangular loop; 9 μs instead of 33 μs for nearUniform(BoseFS{200,199})
+      @inbounds onproduct += onrep[p] * (onrep[p] - 1)
+      @inbounds @simd for k = 1:p-1
+          onproduct += 4*onrep[k]*onrep[p]
       end
-    end
   end
   # @show onproduct
   pe = h.u/(2*h.m)*onproduct
@@ -841,7 +866,7 @@ Example use:
 add = BoseFS((1,0,2,1,2,1,1,3)) # address for a Fock state (configuration) with 11 bosons in 8 modes
 ham = BoseHubbardMom1D(add; u = 2.0, t = 1.0)
 mom = Momentum(ham) # create an instance of the momentum operator
-diagME(mom, add) # 10.996 - to calculate the momentum of a single configuration 
+diagME(mom, add) # 10.996 - to calculate the momentum of a single configuration
 v = DVec(Dict(add => 10), 1000)
 rayleigh_quotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
 ```
@@ -855,6 +880,318 @@ numOfHops(ham::Momentum, add) = 0
 diagME(mom::Momentum, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
 # surpsingly this is all that is needed. We don't even have to define `hop()`, because it is never reached.
 # `rayleigh_quotient(Momentum(ham),v)` is performant!
+
+###############################################
+
+struct HubbardMom1D{TT,U,T,N,M,AD} <: AbstractHamiltonian{T}
+    add::AD # default starting address, should have N particles and M modes
+    ks::SVector{M,TT} # values for k
+    kes::SVector{M,TT} # values for kinetic energy
+end
+
+@doc """
+    HubbardMom1D(add::BoseFS; u=1.0, t=1.0)
+Implements a one-dimensional Bose Hubbard chain in momentum space.
+
+```math
+\\hat{H} = -t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
+ϵ_k = - 2 t \\cos(k)
+```
+
+# Arguments
+- `add::BoseFS`: bosonic starting address, defines number of particles and sites
+- `u::Float64`: the interaction parameter
+- `t::Float64`: the hopping strength
+
+# Functor use:
+    w = ham(v)
+    ham(w, v)
+Compute the matrix - vector product `w = ham * v`. The two-argument version is
+mutating for `w`.
+
+    ham(:dim)
+Return the dimension of the linear space if representable as `Int`, otherwise
+return `nothing`.
+
+    ham(:fdim)
+Return the approximate dimension of linear space as `Float64`.
+""" HubbardMom1D
+
+# constructors
+function HubbardMom1D(add::BoseFS{N,M,A}; u::TT=1.0, t::TT=1.0) where {N, M, TT, A}
+    step = 2π/M
+    if isodd(M)
+        start = -π*(1+1/M) + step
+    else
+        start = -π + step
+    end
+    kr = range(start; step = step, length = M)
+    ks = SVector{M}(kr)
+    kes = SVector{M}(-2*cos.(kr))
+    return HubbardMom1D{TT,u,t,N,M,BoseFS{N,M,A}}(add, ks, kes)
+end
+# allow passing the N and M parameters for compatibility with show()
+function HubbardMom1D{N,M}(add::BoseFS{N,M,A}; u::TT=1.0, t::TT=1.0) where {N, M, TT, A}
+    return HubbardMom1D(add; u=u, t=t)
+end
+
+# display in a way that can be used as constructor
+function Base.show(io::IO, h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD}
+    print(io, "HubbardMom1D{$N,$M}(")
+    show(io, h.add)
+    print(io, "; u=$U, t=$T)")
+end
+
+Base.eltype(::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD} = TT
+
+# set the `LOStructure` trait
+LOStructure(::Type{HubbardMom1D{TT,U,T,N,M,AD}}) where {TT<:Real,U,T,N,M,AD} = HermitianLO()
+
+# functor definitions need to be done separately for each concrete type
+function (h::HubbardMom1D)(s::Symbol)
+  if s == :dim # attempt to compute dimension as `Int`
+      return hasIntDimension(h) ? dimensionLO(h) : nothing
+  elseif s == :fdim
+      return fDimensionLO(h) # return dimension as floating point
+  end
+  return nothing
+end
+# should be all that is needed to make the Hamiltonian a linear map:
+(h::HubbardMom1D)(v) = h*v
+
+Momentum(ham::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD} = Momentum{typeof(ham), TT}(ham)
+# for Momentum
+ks(h::HubbardMom1D) = h.ks
+
+# standard interface function
+function numOfHops(ham::HubbardMom1D, add)
+  nSandD = numSandDoccupiedsites(add)
+  return numOfHops(ham, add, nSandD)
+end
+
+# 3-argument version
+@inline function numOfHops(ham::HubbardMom1D{TT,U,T,N,M,AD}, add, nSandD) where {TT,U,T,N,M,AD}
+  singlies, doublies = nSandD
+  return singlies*(singlies-1)*(M - 2) + doublies*(M - 1)
+  # number of excitations that can be made
+end
+
+@inline function interaction_energy_diagonal(h::HubbardMom1D{TT,U,T,N,M,AD},
+        onrep::StaticVector) where {TT,U,T,N,M,AD<:BoseFS}
+    # now compute diagonal interaction energy
+    onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
+    for p = 1:M
+        @inbounds onproduct += onrep[p] * (onrep[p] - 1)
+        @inbounds @simd for k = 1:p-1
+            onproduct += 4*onrep[k]*onrep[p]
+        end
+    end
+    # @show onproduct
+    return U / 2M * onproduct
+end
+
+function kinetic_energy(h::HubbardMom1D, add::BitStringAddressType)
+    onrep = BitStringAddresses.m_onr(add) # get occupation number representation
+    return kinetic_energy(h, onrep)
+end
+
+@inline function kinetic_energy(h::HubbardMom1D, onrep::StaticVector)
+    return h.kes⋅onrep # safe as onrep is Real
+end
+
+@inline function diagME(h::HubbardMom1D, add)
+    onrep = BitStringAddresses.m_onr(add) # get occupation number representation
+    return diagME(h, onrep)
+end
+
+@inline function diagME(h::HubbardMom1D, onrep::StaticVector)
+    return kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
+end
+
+@inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number) where {TT,U,T,N,M,AD}
+    hop(ham, add, chosen, numSandDoccupiedsites(add))
+end
+
+@inline function hop_old(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
+  onrep =  BitStringAddresses.m_onr(add)
+  # get occupation number representation as a mutable array
+  singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
+  onproduct = 1
+  k = p = q = 0
+  double = chosen - singlies*(singlies-1)*(M - 2)
+  # start by making holes as the action of two annihilation operators
+  if double > 0 # need to choose doubly occupied site for double hole
+    # c_p c_p
+    double, q = fldmod1(double, M-1)
+    # double is location of double
+    # q is momentum transfer
+    for (i, occ) in enumerate(onrep)
+      if occ > 1
+        double -= 1
+        if double == 0
+          onproduct *= occ*(occ-1)
+          onrep[i] = occ-2 # annihilate two particles in onrep
+          p = k = i # remember where we make the holes
+          break # should break out of the for loop
+        end
+      end
+    end
+  else # need to punch two single holes
+    # c_k c_p
+    pair, q = fldmod1(chosen, M-2) # floored integer division and modulus in ranges 1:(m-1)
+    first, second = fldmod1(pair, singlies-1) # where the holes are to be made
+    if second < first # put them in ascending order
+      f_hole = second
+      s_hole = first
+    else
+      f_hole = first
+      s_hole = second + 1 # as we are counting through all singlies
+    end
+    counter = 0
+    for (i, occ) in enumerate(onrep)
+      if occ > 0
+        counter += 1
+        if counter == f_hole
+          onproduct *= occ
+          onrep[i] = occ -1 # punch first hole
+          p = i # location of first hole
+        elseif counter == s_hole
+          onproduct *= occ
+          onrep[i] = occ -1 # punch second hole
+          k = i # location of second hole
+          break
+        end
+      end
+    end
+    # we have p<k and 1 < q < ham.m - 2
+    if q ≥ k-p
+      q += 1 # to avoid putting particles back into the holes
+    end
+  end # if double > 0 # we're done punching holes
+
+  # now it is time to deal with two creation operators
+  # c^†_k-q
+  kmq = mod1(k-q, M) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onrep[kmq]
+  onproduct *= occ + 1
+  onrep[kmq] = occ + 1
+  # c^†_p+q
+  ppq = mod1(p+q, M) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onrep[ppq]
+  onproduct *= occ + 1
+  onrep[ppq] = occ + 1
+
+  return AD(onrep), U/(2*M)*sqrt(onproduct)
+  # return new address and matrix element
+end
+
+# a non-allocating version of hop()
+@inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
+  onrep =  BitStringAddresses.s_onr(add)
+  # get occupation number representation as a static array
+  singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
+  onproduct = 1
+  k = p = q = 0
+  double = chosen - singlies*(singlies-1)*(M - 2)
+  # start by making holes as the action of two annihilation operators
+  if double > 0 # need to choose doubly occupied site for double hole
+    # c_p c_p
+    double, q = fldmod1(double, M-1)
+    # double is location of double
+    # q is momentum transfer
+    for (i, occ) in enumerate(onrep)
+      if occ > 1
+        double -= 1
+        if double == 0
+          onproduct *= occ*(occ-1)
+          onrep = @set onrep[i] = occ-2
+          # annihilate two particles in onrep
+          p = k = i # remember where we make the holes
+          break # should break out of the for loop
+        end
+      end
+    end
+  else # need to punch two single holes
+    # c_k c_p
+    pair, q = fldmod1(chosen, M-2) # floored integer division and modulus in ranges 1:(m-1)
+    first, second = fldmod1(pair, singlies-1) # where the holes are to be made
+    if second < first # put them in ascending order
+      f_hole = second
+      s_hole = first
+    else
+      f_hole = first
+      s_hole = second + 1 # as we are counting through all singlies
+    end
+    counter = 0
+    for (i, occ) in enumerate(onrep)
+      if occ > 0
+        counter += 1
+        if counter == f_hole
+          onproduct *= occ
+          onrep = @set onrep[i] = occ-1
+          # punch first hole
+          p = i # location of first hole
+        elseif counter == s_hole
+          onproduct *= occ
+          onrep = @set onrep[i] = occ-1
+          # punch second hole
+          k = i # location of second hole
+          break
+        end
+      end
+    end
+    # we have p<k and 1 < q < ham.m - 2
+    if q ≥ k-p
+      q += 1 # to avoid putting particles back into the holes
+    end
+  end # if double > 0 # we're done punching holes
+
+  # now it is time to deal with two creation operators
+  # c^†_k-q
+  kmq = mod1(k-q, M) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onrep[kmq]
+  onproduct *= occ + 1
+  onrep = @set onrep[kmq] = occ + 1
+  # c^†_p+q
+  ppq = mod1(p+q, M) # in 1:m # use mod1() to implement periodic boundaries
+  occ = onrep[ppq]
+  onproduct *= occ + 1
+  onrep = @set onrep[ppq] = occ + 1
+
+  return AD(onrep), U/(2*M)*sqrt(onproduct)
+  # return new address and matrix element
+end
+
+function hasIntDimension(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
+  try
+    binomial(N + M - 1, N)# formula for boson Hilbert spaces
+    return true
+  catch
+    false
+  end
+end
+
+function dimensionLO(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
+    return binomial(N + M - 1, N) # formula for boson Hilbert spaces
+end
+
+function fDimensionLO(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
+  fbinomial(N + M - 1, N) # formula for boson Hilbert spaces
+  # NB: returns a Float64
+end #dimHS
+
+function Hops(ham::O, add::AD) where {TT,U,T,N,M,AD, O<:HubbardMom1D{TT,U,T,N,M,AD}}
+    nSandD = numSandDoccupiedsites(add)::Tuple{Int64,Int64}
+    # store this information for reuse
+    nH = numOfHops(ham, add, nSandD)
+    return Hops{TT,AD,O,Tuple{Int64,Int64}}(ham, add, nH, nSandD)
+end
+
+function Base.getindex(s::Hops{T,A,O,I}, i::Int) where {T,A,O<:HubbardMom1D,I}
+    nadd, melem = hop(s.h, s.add, i, s.info)
+    return (nadd, melem)
+end #  returns tuple (newaddress, matrixelement)
+
 
 ################################################
 #
@@ -1018,11 +1355,11 @@ numSandDoccupiedsites(b::BoseFS) = numSandDoccupiedsites(b.bs)
 numSandDoccupiedsites(a::BSAdd64) = numSandDoccupiedsites(a.add)
 numSandDoccupiedsites(a::BSAdd128) = numSandDoccupiedsites(a.add)
 
-function numSandDoccupiedsites(onr::AbstractArray)
+function numSandDoccupiedsites(onrep::AbstractArray)
   # returns number of singly and doubly occupied sites
   singlies = 0
   doublies = 0
-  for n in onr
+  for n in onrep
     if n > 0
       singlies += 1
       if n > 1
@@ -1032,7 +1369,7 @@ function numSandDoccupiedsites(onr::AbstractArray)
   end
   return singlies, doublies
 end
-# this one is faster by about a factor of 2 if you already have the onr
+# this one is faster by about a factor of 2 if you already have the onrep
 
 function numberoccupiedsites(address::T) where # T<:Integer
   T<:Union{Integer,BitAdd}
