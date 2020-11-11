@@ -24,7 +24,7 @@ export rayleigh_quotient
 
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D
-export BoseHubbardMom1D, Momentum
+export BoseHubbardMom1D, BoseHubbard2CMom1D, Momentum
 export HubbardMom1D
 
 # First we have some generic types and methods for any linear operator
@@ -855,6 +855,87 @@ function diagME(h::BoseHubbardMom1D, add)
   # @show onproduct
   pe = h.u/(2*h.m)*onproduct
   return ke + pe
+end
+
+
+
+
+
+###
+### BoseHubbardMom1D
+###
+
+
+@with_kw struct BoseHubbard2CMom1D{T, BoseFS2C} <: BosonicHamiltonian{T}
+  na::Int = 6    # number of bosons
+  nb::Int = 6    # number of bosons
+  m::Int = 6    # number of lattice sites
+  ua::T = 1.0    # interaction strength
+  ub::T = 1.0    # interaction strength
+  ta::T = 1.0    # hopping strength
+  tb::T = 1.0    # hopping strength
+  v::T = 1.0    # hopping strength
+  add::BoseFS2C       # starting address
+end
+
+@doc """
+    ham = BoseHubbard2CMom1D(;[n=6, m=6, u=1.0, t=1.0], add = add)
+    ham = BoseHubbard2CMom1D(add; u=1.0, t=1.0)
+
+Implements a one-dimensional Bose Hubbard chain in momentum space.
+
+```math
+\\hat{H} = -t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
+ϵ_k = - 2 t \\cos(k)
+```
+
+# Arguments
+- `n::Int`: the number of bosons
+- `m::Int`: the number of lattice sites
+- `u::Float64`: the interaction parameter
+- `t::Float64`: the hopping strength
+- `AT::Type`: the address type
+
+# Functor use:
+    w = ham(v)
+    ham(w, v)
+Compute the matrix - vector product `w = ham * v`. The two-argument version is
+mutating for `w`.
+
+    ham(:dim)
+Return the dimension of the linear space if representable as `Int`, otherwise
+return `nothing`.
+
+    ham(:fdim)
+Return the approximate dimension of linear space as `Float64`.
+""" BoseHubbard2CMom1D
+
+
+function BoseHubbard2CMom1D(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0) where {NA,NB,M,AA,AB}
+    return BoseHubbard2CMom1D(NA,NB,M,ua,ub,ta,tb,v,add)
+end
+
+function numOfHops(m::Int, add)
+  singlies, doublies = numSandDoccupiedsites(add)
+  return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
+  # number of excitations that can be made
+end
+
+# number of excitations that can be made
+function numOfHops(ham::BoseHubbard2CMom1D, add)
+  return numOfHops(ham.m, add.bsa) + numOfHops(ham.m, add.bsb)
+end
+
+function bosehubbard2Cintraaction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+    c1 = onr(add.bsa)
+    c2 = onr(add.bsb)
+    intraaction = 0::Int
+    for site = 1:M
+        if !iszero(c2[site])
+            intraaction += c2[site]*c1[site]
+        end
+    end
+    return intraaction
 end
 
 """
