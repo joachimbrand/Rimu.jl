@@ -23,8 +23,8 @@ export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
 export rayleigh_quotient
 
 export BosonicHamiltonian, bit_String_Length
-export BoseHubbardReal1D, ExtendedBHReal1D
-export BoseHubbardMom1D, BoseHubbard2CMom1D, Momentum
+export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbard2CReal1D
+export BoseHubbardMom1D, Momentum
 export HubbardMom1D
 
 # First we have some generic types and methods for any linear operator
@@ -654,6 +654,113 @@ function hop(ham::BoseHubbardExtOrNot, add, chosen::Integer)
     # return new address and matrix element
 end
 
+function hop(ham::BoseHubbard2CReal1D, add, chosen::Integer)
+    nhops = numOfHops(ham,add)
+    nhops_a = 2*numberoccupiedsites(add.bsa)
+    if chosen in 1:nhops_a
+        naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen, ham.m, ham.na)
+        elem = - ham.ta*sqrt(onproduct)
+        return BoseFS2C(naddress_from_bsa,add.bsb), elem
+    elseif chosen in nhops_a+1:nhops
+        chosen -= nhops_a
+        naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen, ham.m, ham.nb)
+        elem = - ham.tb*sqrt(onproduct)
+        return BoseFS2C(add.bsa,naddress_from_bsb), elem
+    end
+    # return new address and matrix element
+end
+
+
+
+
+
+###
+### BoseHubbard2CReal1D
+###
+
+
+@with_kw struct BoseHubbard2CReal1D{T, BoseFS2C} <: BosonicHamiltonian{T}
+  na::Int = 6    # number of bosons
+  nb::Int = 6    # number of bosons
+  m::Int = 6    # number of lattice sites
+  ua::T = 1.0    # interaction strength
+  ub::T = 1.0    # interaction strength
+  ta::T = 1.0    # hopping strength
+  tb::T = 1.0    # hopping strength
+  v::T = 1.0    # hopping strength
+  add::BoseFS2C       # starting address
+end
+
+@doc """
+    ham = BoseHubbard2CReal1D(;[n=6, m=6, u=1.0, t=1.0], add = add)
+    ham = BoseHubbard2CReal1D(add; u=1.0, t=1.0)
+
+Implements a one-dimensional Bose Hubbard chain in real space.
+
+```math
+\\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1)
+```
+
+# Arguments
+- `n::Int`: the number of bosons
+- `m::Int`: the number of lattice sites
+- `u::Float64`: the interaction parameter
+- `t::Float64`: the hopping strength
+- `AT::Type`: the address type
+
+# Functor use:
+    w = ham(v)
+    ham(w, v)
+Compute the matrix - vector product `w = ham * v`. The two-argument version is
+mutating for `w`.
+
+    ham(:dim)
+Return the dimension of the linear space if representable as `Int`, otherwise
+return `nothing`.
+
+    ham(:fdim)
+Return the approximate dimension of linear space as `Float64`.
+""" BoseHubbard2CReal1D
+
+
+function BoseHubbard2CReal1D(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0) where {NA,NB,M,AA,AB}
+    return BoseHubbard2CReal1D(NA,NB,M,ua,ub,ta,tb,v,add)
+end
+
+# function numOfHops(m::Int, add)
+#   singlies, doublies = numSandDoccupiedsites(add)
+#   return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
+#   # number of excitations that can be made
+# end
+
+# number of excitations that can be made
+function numOfHops(ham::BoseHubbard2CReal1D, add)
+  return 2*(numberoccupiedsites(add.bsa)+numberoccupiedsites(add.bsb))
+end
+
+function bosehubbard2Cintraaction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+    c1 = onr(add.bsa)
+    c2 = onr(add.bsb)
+    intraaction = 0::Int
+    for site = 1:M
+        if !iszero(c2[site])
+            intraaction += c2[site]*c1[site]
+        end
+    end
+    return intraaction
+end
+
+
+"""
+    diagME(ham, add)
+
+Compute the diagonal matrix element of the linear operator `ham` at
+address `add`.
+"""
+function diagME(h::BoseHubbard2CReal1D, address::BoseFS2C)
+  return h.ua * bosehubbardinteraction(address.bsa) / 2 + h.ub * bosehubbardinteraction(address.bsb) / 2 + h.v * bosehubbard2Cintraaction(address)
+end
+
 ###
 ### BoseHubbardMom1D
 ###
@@ -859,84 +966,6 @@ end
 
 
 
-
-
-###
-### BoseHubbardMom1D
-###
-
-
-@with_kw struct BoseHubbard2CMom1D{T, BoseFS2C} <: BosonicHamiltonian{T}
-  na::Int = 6    # number of bosons
-  nb::Int = 6    # number of bosons
-  m::Int = 6    # number of lattice sites
-  ua::T = 1.0    # interaction strength
-  ub::T = 1.0    # interaction strength
-  ta::T = 1.0    # hopping strength
-  tb::T = 1.0    # hopping strength
-  v::T = 1.0    # hopping strength
-  add::BoseFS2C       # starting address
-end
-
-@doc """
-    ham = BoseHubbard2CMom1D(;[n=6, m=6, u=1.0, t=1.0], add = add)
-    ham = BoseHubbard2CMom1D(add; u=1.0, t=1.0)
-
-Implements a one-dimensional Bose Hubbard chain in momentum space.
-
-```math
-\\hat{H} = -t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
-ϵ_k = - 2 t \\cos(k)
-```
-
-# Arguments
-- `n::Int`: the number of bosons
-- `m::Int`: the number of lattice sites
-- `u::Float64`: the interaction parameter
-- `t::Float64`: the hopping strength
-- `AT::Type`: the address type
-
-# Functor use:
-    w = ham(v)
-    ham(w, v)
-Compute the matrix - vector product `w = ham * v`. The two-argument version is
-mutating for `w`.
-
-    ham(:dim)
-Return the dimension of the linear space if representable as `Int`, otherwise
-return `nothing`.
-
-    ham(:fdim)
-Return the approximate dimension of linear space as `Float64`.
-""" BoseHubbard2CMom1D
-
-
-function BoseHubbard2CMom1D(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0) where {NA,NB,M,AA,AB}
-    return BoseHubbard2CMom1D(NA,NB,M,ua,ub,ta,tb,v,add)
-end
-
-function numOfHops(m::Int, add)
-  singlies, doublies = numSandDoccupiedsites(add)
-  return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
-  # number of excitations that can be made
-end
-
-# number of excitations that can be made
-function numOfHops(ham::BoseHubbard2CMom1D, add)
-  return numOfHops(ham.m, add.bsa) + numOfHops(ham.m, add.bsb)
-end
-
-function bosehubbard2Cintraaction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
-    c1 = onr(add.bsa)
-    c2 = onr(add.bsb)
-    intraaction = 0::Int
-    for site = 1:M
-        if !iszero(c2[site])
-            intraaction += c2[site]*c1[site]
-        end
-    end
-    return intraaction
-end
 
 """
     Momentum(ham::AbstractHamiltonian) <: AbstractHamiltonian
@@ -1452,6 +1481,24 @@ function numSandDoccupiedsites(onrep::AbstractArray)
 end
 # this one is faster by about a factor of 2 if you already have the onrep
 
+function numSandDoccupiedsites(b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+  # returns number of singly and doubly occupied sites
+  singlies = 0
+  doublies = 0
+  c1 = onr(b.bsa)
+  c2 = onr(b.bsb)
+  for site in 1:M
+    if c1[site]+c2[site] > 0
+      singlies += 1
+      if c1[site]+c2[site] > 1
+        doublies += 1
+      end
+    end
+  end
+  return singlies, doublies
+end
+# this one is faster by about a factor of 2 if you already have the onrep
+
 function numberoccupiedsites(address::T) where # T<:Integer
   T<:Union{Integer,BitAdd}
   # returns the number of occupied sites starting from bitstring address
@@ -1467,6 +1514,18 @@ end # numberoccupiedsites
 numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
 numberoccupiedsites(a::BSAdd128) = numberoccupiedsites(a.add)
+
+function numberoccupiedsites(b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+    c1 = onr(b.bsa)
+    c2 = onr(b.bsb)
+    occupiedsites = 0
+    for site = 1:M
+        if !iszero(c1[site]) || !iszero(c2[site])
+            occupiedsites += 1
+        end
+    end
+    return occupiedsites
+end
 
 function numberoccupiedsites(bsadd::BStringAdd)
   # counts number of occupied orbitals
