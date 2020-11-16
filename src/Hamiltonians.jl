@@ -654,21 +654,7 @@ function hop(ham::BoseHubbardExtOrNot, add, chosen::Integer)
     # return new address and matrix element
 end
 
-function hop(ham::BoseHubbard2CReal1D, add, chosen::Integer)
-    nhops = numOfHops(ham,add)
-    nhops_a = 2*numberoccupiedsites(add.bsa)
-    if chosen in 1:nhops_a
-        naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen, ham.m, ham.na)
-        elem = - ham.ta*sqrt(onproduct)
-        return BoseFS2C(naddress_from_bsa,add.bsb), elem
-    elseif chosen in nhops_a+1:nhops
-        chosen -= nhops_a
-        naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen, ham.m, ham.nb)
-        elem = - ham.tb*sqrt(onproduct)
-        return BoseFS2C(add.bsa,naddress_from_bsb), elem
-    end
-    # return new address and matrix element
-end
+
 
 
 
@@ -759,6 +745,22 @@ address `add`.
 """
 function diagME(h::BoseHubbard2CReal1D, address::BoseFS2C)
   return h.ua * bosehubbardinteraction(address.bsa) / 2 + h.ub * bosehubbardinteraction(address.bsb) / 2 + h.v * bosehubbard2Cintraaction(address)
+end
+
+function hop(ham::BoseHubbard2CReal1D, add, chosen::Integer)
+    nhops = numOfHops(ham,add)
+    nhops_a = 2*numberoccupiedsites(add.bsa)
+    if chosen in 1:nhops_a
+        naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen, ham.m, ham.na)
+        elem = - ham.ta*sqrt(onproduct)
+        return BoseFS2C(naddress_from_bsa,add.bsb), elem
+    elseif chosen in nhops_a+1:nhops
+        chosen -= nhops_a
+        naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen, ham.m, ham.nb)
+        elem = - ham.tb*sqrt(onproduct)
+        return BoseFS2C(add.bsa,naddress_from_bsb), elem
+    end
+    # return new address and matrix element
 end
 
 ###
