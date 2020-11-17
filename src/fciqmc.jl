@@ -284,7 +284,7 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
         # perform one complete stochastic vector matrix multiplication
         v, w, step_stats, r = fciqmc_step!(ham, v, real(shift), dτ, real(pnorm),
                                             w; m_strat=m_strat)
-        tnorm = T(norm_project!(v, p_strat))  # MPIsync
+        tnorm = norm_project!(p_strat, v) |> T  # MPIsync
         # project coefficients of `w` to threshold
 
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat)  # MPIsync
@@ -383,7 +383,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
                 dτ, real.(pnorms[i]), wv[i]; m_strat = m_strat
             )
             mstats[i] .= stats
-            norms[i] = T(norm_project!(vv[i], p_strat))  # MPIsync
+            norms[i] = T(norm_project!(p_strat, vv[i]))  # MPIsync
             shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                 s_strat, shifts[i], vShiftModes[i],
                 norms[i], pnorms[i], dτ, step, dfs[i], vv[i], wv[i]
@@ -458,8 +458,6 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
         stats .+= res # just add all stats together
     end
     r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
-    # norm_project!(w, p_strat) # project coefficients of `w` to threshold
-    # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
     return w, v, stats, r
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
@@ -509,22 +507,22 @@ end # fciqmc_step!
 
 
 """
-    norm_project!(w, p_strat::ProjectStrategy) -> norm
+    norm_project!(p_strat::ProjectStrategy, w) -> norm
 Computes the 1-norm of `w`.
 Project all elements of `w` to `s.threshold` preserving the sign if
 `StochasticStyle(w)` requires projection according to `p_strat`.
 See [`ProjectStrategy`](@ref).
 """
-norm_project!(w, p) = norm_project!(StochasticStyle(w), w, p)
+norm_project!(p::ProjectStrategy, w, args...) = norm_project!(StochasticStyle(w), p, w, args...)
 
-norm_project!(::StochasticStyle, w, p) = norm(w, 1) # MPIsync
+norm_project!(::StochasticStyle, p, w) = norm(w, 1) # MPIsync
 # default, compute 1-norm
 # e.g. triggered with the `NoProjection` strategy
 
-norm_project!(::StochasticStyle, w, p::NoProjectionTwoNorm) = norm(w, 2) # MPIsync
+norm_project!(::StochasticStyle, p::NoProjectionTwoNorm, w) = norm(w, 2) # MPIsync
 # compute 2-norm but do not perform projection
 
-function norm_project!(s::S, w, p::ThresholdProject) where S<:Union{IsStochasticWithThreshold}
+function norm_project!(s::S, p::ThresholdProject, w) where S<:Union{IsStochasticWithThreshold}
     return norm_project_threshold!(w, p.threshold) # MPIsync
 end
 
@@ -540,7 +538,7 @@ function norm_project_threshold!(w, threshold) # MPIsync
     return norm(w, 1) # MPIsync
 end
 
-function norm_project!(s::S, w, p::ScaledThresholdProject) where S<:Union{IsStochasticWithThreshold}
+function norm_project!(s::S, p::ScaledThresholdProject, w) where S<:Union{IsStochasticWithThreshold}
     f_norm = norm(w, 1) # MPIsync
     proj_norm = norm_project_threshold!(w, p.threshold)
     # MPI sycncronising
