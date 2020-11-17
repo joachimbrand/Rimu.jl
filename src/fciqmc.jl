@@ -204,16 +204,16 @@ This function mutates `v`, the parameter struct `pa` as well as
 NOTE: The function `fciqmc!()` may be deprecated soon. Change all scripts to
 call `lomc!()` instead!
 """
-function fciqmc!(svec, pa::FciqmcRunStrategy,
+function fciqmc!(svec, pa::FciqmcRunStrategy{T},
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
-                 w = threadedWorkingMemory(svec); kwargs...)
+                 w = threadedWorkingMemory(svec); kwargs...) where T
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
-    nor = norm(svec, 1) # MPIsync
+    nor = T(norm(svec, 1)) # MPIsync
 
     # should not be necessary if we do all calls from lomc!()
     r_strat = refine_r_strat(r_strat, ham)
@@ -221,8 +221,8 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
     v_proj, h_proj = compute_proj_observables(svec, ham, r_strat) # MPIsync
 
     # prepare df for recording data
-    df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
-                        shiftMode=Bool[],len=Int[], norm=Float64[],
+    df = DataFrame(steps=Int[], dτ=Float64[], shift=T[],
+                        shiftMode=Bool[],len=Int[], norm=T[],
                         vproj=typeof(v_proj)[], hproj=typeof(h_proj)[],
                         spawns=Int[], deaths=Int[], clones=Int[],
                         antiparticles=Int[], annihilations=Int[],
@@ -251,7 +251,7 @@ function fciqmc!(svec, pa::FciqmcRunStrategy,
 end
 
 # for continuation runs we can also pass a DataFrame
-function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
+function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
                  ham,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
@@ -259,7 +259,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                  w = threadedWorkingMemory(v)
                  ; m_strat::MemoryStrategy = NoMemory(),
                  p_strat::ProjectStrategy = NoProjection()
-                 )
+                 ) where T # type for shift and norm
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -274,7 +274,7 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
                          ] "Column names in `df` not as expected."
 
     svec = v # keep around a reference to the starting data container
-    pnorm = tnorm = norm(v, 1) # norm of "previous" vector
+    pnorm = tnorm = T(norm(v, 1)) # norm of "previous" vector
     maxlength = capacity(localpart(v))
     @assert maxlength ≤ capacity(w) "`w` needs to have at least `capacity(v)`"
 
@@ -282,9 +282,9 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
         step += 1
         # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
-        v, w, step_stats, r = fciqmc_step!(ham, v, shift, dτ, pnorm, w;
-                                        m_strat=m_strat)
-        tnorm = norm_project!(v, p_strat)  # MPIsync
+        v, w, step_stats, r = fciqmc_step!(ham, v, real(shift), dτ, real(pnorm),
+                                            w; m_strat=m_strat)
+        tnorm = T(norm_project!(v, p_strat))  # MPIsync
         # project coefficients of `w` to threshold
 
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat)  # MPIsync
@@ -325,13 +325,13 @@ function fciqmc!(v, pa::RunTillLastStep, df::DataFrame,
 end # fciqmc
 
 # replica version
-function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::AbstractHamiltonian,
+function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  wv = threadedWorkingMemory.(vv) # wv = similar.(localpart.(vv))
                  ; m_strat::MemoryStrategy = NoMemory(),
-                 p_strat::ProjectStrategy = NoProjection())
+                 p_strat::ProjectStrategy = NoProjection()) where T
     # τ_strat is currently ignored in the replica version
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -349,12 +349,12 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::AbstractHamiltonian,
 
     shifts = [shift for i = 1:N] # Vector because it needs to be mutable
     vShiftModes = [shiftMode for i = 1:N] # separate for each replica
-    pnorms = zeros(N) # initialise as vector
+    pnorms = zeros(T, N) # initialise as vector
     pnorms .= norm.(vv,1) # 1-norm i.e. number of psips as Tuple (of previous step)
 
     # initalise df for storing results of each replica separately
-    dfs = Tuple(DataFrame(steps=Int[], shift=Float64[], shiftMode=Bool[],
-                         len=Int[], norm=Float64[], spawns=V[], deaths=V[],
+    dfs = Tuple(DataFrame(steps=Int[], shift=T[], shiftMode=Bool[],
+                         len=Int[], norm=T[], spawns=V[], deaths=V[],
                          clones=V[], antiparticles=V[],
                          annihilations=V[], shiftnoise=Float64[]) for i in 1:N)
     # dfs is thus an NTuple of DataFrames
@@ -372,7 +372,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep, ham::AbstractHamiltonian,
     expval = dot(vv[1], ham, vv[2]) # vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
     push!(mixed_df,(step, dp, expval, expval/dp))
 
-    norms = zeros(N)
+    norms = zeros(T, N)
     mstats = [zeros(Int,5) for i=1:N]
     rs = zeros(N)
     while step < laststep
