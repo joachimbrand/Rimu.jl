@@ -686,7 +686,16 @@ end
     svec = DVec(Dict(aIni => 2), 2000)
 
     # fciqmc with default parameters
-    nt = lomc!(ham, svec, laststep = 100) # run for 100 time steps
+    pa = RunTillLastStep(shift = 0.0)
+    nt = lomc!(ham, svec, params=pa, laststep = 100) # run for 100 time steps
+    # continuation run
+    nt = lomc!(nt, nt.params.laststep + 100) # run for another 100 steps
+    @test size(nt.df)[1] == 201 # initial state + 200 steps
+
+    # fciqmc with complex shift and norm
+    svec = DVec(Dict(aIni => 2), 2000)
+    pa = RunTillLastStep(shift = 0.0 + 0im) # makes shift and norm type ComplexF64
+    nt = lomc!(ham, svec, params=pa, laststep = 100) # run for 100 time steps
     # continuation run
     nt = lomc!(nt, nt.params.laststep + 100) # run for another 100 steps
     @test size(nt.df)[1] == 201 # initial state + 200 steps

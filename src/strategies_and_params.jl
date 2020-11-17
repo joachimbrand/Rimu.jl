@@ -669,7 +669,7 @@ end
 
 @inline function update_shift(s::LogUpdateAfterTargetWalkers,
                         shift, shiftMode, tnorm, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
     end
     return shift, false, tnorm
@@ -678,7 +678,7 @@ end
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
             return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
     end
     return shift, false, tnorm
@@ -687,7 +687,7 @@ end
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkersSwitch,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         if s.a > 0
             s.a -= 1
             return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
@@ -714,7 +714,7 @@ end
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
     # return new shift and new shiftMode
-    if tnorm > s.targetwalkers
+    if real(tnorm) > s.targetwalkers
         return update_shift(DelayedDoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ,s.A), shift, shiftMode, tnorm, pnorm, dτ, step, df, args...)
     else
         return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, shiftMode, tnorm, pnorm, dτ, args...)
@@ -723,7 +723,7 @@ end
 
 @inline function update_shift(s::DelayedLogUpdateAfterTargetWalkers,
                         shift, shiftMode, tnorm, pnorm, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         return update_shift(DelayedLogUpdate(s.ζ,s.a), shift, true, tnorm, pnorm, args...)
     end
     return shift, false, pnorm

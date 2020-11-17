@@ -51,13 +51,13 @@ function lomc!(ham, v;
     threading = :auto,
     df = nothing,
     wm = nothing,
-    params::FciqmcRunStrategy = RunTillLastStep(),
+    params::FciqmcRunStrategy{T} = RunTillLastStep(),
     s_strat::ShiftStrategy = DoubleLogUpdate(),
     r_strat::ReportingStrategy = EveryTimeStep(),
     τ_strat::TimeStepStrategy = ConstantTimeStep(),
     m_strat::MemoryStrategy = NoMemory(),
     p_strat::ProjectStrategy = NoProjection()
-)
+) where T # type for shift and norm
     r_strat = refine_r_strat(r_strat, ham)
     if !isnothing(laststep)
         params.laststep = laststep
@@ -77,12 +77,12 @@ function lomc!(ham, v;
         # unpack the parameters:
         @unpack step, laststep, shiftMode, shift, dτ = params
         len = length(v) # MPIsync
-        nor = norm(v, 1) # MPIsync
+        nor = T(norm(v, 1)) # MPIsync
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
         # prepare df for recording data
-        df = DataFrame(steps=Int[], dτ=Float64[], shift=Float64[],
-                            shiftMode=Bool[],len=Int[], norm=Float64[],
+        df = DataFrame(steps=Int[], dτ=Float64[], shift=T[],
+                            shiftMode=Bool[],len=Int[], norm=T[],
                             vproj=typeof(v_proj)[], hproj=typeof(h_proj)[],
                             spawns=Int[], deaths=Int[], clones=Int[],
                             antiparticles=Int[], annihilations=Int[],
@@ -379,10 +379,11 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
         step += 1
         for (i, v) in enumerate(vv) # loop over replicas
             # perform one complete stochastic vector matrix multiplication
-            vv[i], wv[i], stats, rs[i] = fciqmc_step!(ham, v, shifts[i], dτ, pnorms[i],
-                                        wv[i]; m_strat = m_strat)
+            vv[i], wv[i], stats, rs[i] = fciqmc_step!(ham, v, real(shifts[i]),
+                dτ, real.(pnorms[i]), wv[i]; m_strat = m_strat
+            )
             mstats[i] .= stats
-            norms[i] = norm_project!(vv[i], p_strat)  # MPIsync
+            norms[i] = T(norm_project!(vv[i], p_strat))  # MPIsync
             shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                 s_strat, shifts[i], vShiftModes[i],
                 norms[i], pnorms[i], dτ, step, dfs[i], vv[i], wv[i]
