@@ -956,3 +956,13 @@ configuration array as to keep the norm constant. As a consequence, the
 final configuration amplitudes may be smaller than `threshold`.
 See [`norm_project`](@ref).
 """ ScaledThresholdProject
+
+@with_kw struct ComplexNoiseCancellation <: ProjectStrategy
+    κ::Float32 = 1.0f0
+end
+@doc """
+    ComplexNoiseCancellation(κ = 1.0) <: ProjectStrategy
+Use complex noise cancellation strategy with imaginary noise injected at
+level `κ`.
+See [`norm_project`](@ref).
+""" ComplexNoiseCancellation

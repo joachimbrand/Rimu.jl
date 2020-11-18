@@ -549,6 +549,24 @@ function norm_project!(s::S, p::ScaledThresholdProject, w, args...) where S<:Uni
     return f_norm
 end
 
+function norm_project!(s::IsStochasticWithThreshold,
+                        p::ComplexNoiseCancellation, w,
+                        shift::T, pnorm::T, dτ
+    ) where T <: Complex
+    f_norm = norm(w, 1)::Real # MPIsync
+    im_factor = dτ*imag(shift) + p.κ*√dτ*cRandn() # Wiener increment
+    scale_factor = 1 - im_factor*imag(pnorm)/f_norm
+    rmul!(w, scale_factor) # scale coefficient vector
+    c_im = f_norm/real(pnorm)*imag(pnorm) + im_factor*real(pnorm)
+    return complex(fnorm*scale_factor, c_im) |> T # return complex norm
+end
+
+function norm_project!(s::IsStochasticWithThreshold,
+                        p::ComplexNoiseCancellation, args...
+    )
+    @error "Use complex shift in `ComplexNoiseCancellation` with `ComplexNoiseCancellation`!"
+end
+
 """
     r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat::MemoryStrategy)
 Apply memory noise to `w`, i.e. `w .+= r.*v`, computing the noise `r` according

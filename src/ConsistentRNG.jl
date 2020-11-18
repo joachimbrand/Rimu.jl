@@ -11,7 +11,7 @@ using RandomNumbers
 import Random
 # using Distributed # only for info message
 
-export cRand, seedCRNG!, trng, newChildRNG # threadsafe
+export cRand, cRandn, seedCRNG!, trng, newChildRNG # threadsafe
 
 """
 Baseline random number generator used throughout.
@@ -63,6 +63,16 @@ and this [Blog post](https://nullprogram.com/blog/2017/09/21/).
 @inline cRand(args...) = rand(trng(), args...)
 # cRand(args...) = rand(CRNGs, args...)
 # #
+
+"""
+    r = cRandn(args...)
+Similar to 'randn(args)' but uses consistent random number generator 'CRNGs'.
+'cRandn()' generates a single normally distributed random number.
+Currently we are using 'Xoshiro256StarStar' from 'RandomNumbers.jl', see the
+[Documentation](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1)
+and this [Blog post](https://nullprogram.com/blog/2017/09/21/).
+"""
+@inline cRandn(args...) = randn(trng(), args...)
 
 """
     seedCRNG!(seed)
