@@ -15,8 +15,10 @@ on:
       - feature/github-actions
 
 jobs:
-  testNewVersion: 
+  testNewVersion:
     runs-on: ${{ matrix.os }}
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     strategy:
       matrix:
         julia-version: [1.5.2]
@@ -52,8 +54,10 @@ jobs:
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"
 
-  testOldVersion: 
+  testOldVersion:
     runs-on: ${{ matrix.os }}
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     strategy:
       matrix:
         julia-version: [1.4.2]
@@ -87,4 +91,4 @@ jobs:
           mpirun echo "hello"
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
-          julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"        
+          julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"
