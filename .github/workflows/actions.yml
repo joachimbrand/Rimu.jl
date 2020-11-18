@@ -15,8 +15,10 @@ on:
       - feature/github-actions
 
 jobs:
-  testNewVersion: 
+  testNewVersion:
     runs-on: ${{ matrix.os }}
+    # env:
+    #   ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     strategy:
       matrix:
         julia-version: [1.5.2]
@@ -30,9 +32,9 @@ jobs:
         #     julia-arch: x86
 
     steps:
-      - uses: actions/checkout@v1.0.0
+      - uses: actions/checkout@v2
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v0.2
+        uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
@@ -52,8 +54,10 @@ jobs:
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"
 
-  testOldVersion: 
+  testOldVersion:
     runs-on: ${{ matrix.os }}
+    # env:
+    #   ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     strategy:
       matrix:
         julia-version: [1.4.2]
@@ -67,9 +71,9 @@ jobs:
         #     julia-arch: x86
 
     steps:
-      - uses: actions/checkout@v1.0.0
+      - uses: actions/checkout@v2
       - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v0.2
+        uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
@@ -87,4 +91,4 @@ jobs:
           mpirun echo "hello"
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
-          julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"        
+          julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\");"
