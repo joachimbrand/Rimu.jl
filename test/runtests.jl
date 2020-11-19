@@ -728,6 +728,16 @@ end
     @test Rimu.compute_proj_observables(v, ham, rr) == (v⋅v, dot(v, ham, v))
 end
 
+@testset "ComplexNoiseCancellation" begin
+    aIni = BoseFS((2,4,0,0,1))
+    v = DVec(aIni => 2.0; capacity = 10)
+    @setThreshold v 0.4
+    @test_throws ErrorException Rimu.norm_project!(Rimu.ComplexNoiseCancellation(), v,4.0,5.0,0.6)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    tnorm = Rimu.norm_project!(Rimu.ComplexNoiseCancellation(), v, 4.0+2im, 5.0+1im, 0.6)
+    @test real(tnorm) ≈ norm(v)
+    @test tnorm ≈ 1.6216896894892896 + 2.2915515525535524im
+end
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.

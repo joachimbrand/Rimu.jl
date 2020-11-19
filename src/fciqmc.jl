@@ -282,7 +282,7 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
         step += 1
         # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
-        v, w, step_stats, r = fciqmc_step!(ham, v, real(shift), dτ, real(pnorm),
+        v, w, step_stats, r = fciqmc_step!(ham, v, shift, dτ, pnorm,
                                             w; m_strat=m_strat)
         tnorm = norm_project!(p_strat, v, shift, pnorm) |> T  # MPIsync
         # project coefficients of `w` to threshold
@@ -379,8 +379,8 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
         step += 1
         for (i, v) in enumerate(vv) # loop over replicas
             # perform one complete stochastic vector matrix multiplication
-            vv[i], wv[i], stats, rs[i] = fciqmc_step!(ham, v, real(shifts[i]),
-                dτ, real.(pnorms[i]), wv[i]; m_strat = m_strat
+            vv[i], wv[i], stats, rs[i] = fciqmc_step!(ham, v, shifts[i],
+                dτ, pnorms[i], wv[i]; m_strat = m_strat
             )
             mstats[i] .= stats
             norms[i] = norm_project!(p_strat, vv[i], shifts[i], pnorms[i]) |> T # MPIsync
@@ -544,8 +544,7 @@ function norm_project!(s::S, p::ScaledThresholdProject, w, args...) where S<:Uni
     f_norm = norm(w, 1) # MPIsync
     proj_norm = norm_project_threshold!(w, p.threshold)
     # MPI sycncronising
-    rmul!(w, f_norm/proj_norm) # scale in order to remedy projection noise
-    # TODO: MPI version of rmul!()
+    rmul!(localpart(w), f_norm/proj_norm) # scale in order to remedy projection noise
     return f_norm
 end
 
@@ -554,17 +553,20 @@ function norm_project!(s::IsStochasticWithThreshold,
                         shift::T, pnorm::T, dτ
     ) where T <: Complex
     f_norm = norm(w, 1)::Real # MPIsync
-    im_factor = dτ*imag(shift) + p.κ*√dτ*cRandn() # Wiener increment
+    im_factor = dτ*imag(shift) + p.κ*√dτ*sync_MPI_cRandn(w) # MPIsync
+    # Wiener increment
+    # do we need to synchronize such that we add the same noise on each MPI rank?
+    # or thread ? - not thread, as threading is done inside fciqmc_step!()
     scale_factor = 1 - im_factor*imag(pnorm)/f_norm
-    rmul!(w, scale_factor) # scale coefficient vector
+    rmul!(localpart(w), scale_factor) # scale coefficient vector
     c_im = f_norm/real(pnorm)*imag(pnorm) + im_factor*real(pnorm)
-    return complex(fnorm*scale_factor, c_im) |> T # return complex norm
+    return complex(f_norm*scale_factor, c_im) |> T # return complex norm
 end
 
 function norm_project!(s::IsStochasticWithThreshold,
                         p::ComplexNoiseCancellation, args...
     )
-    @error "Use complex shift in `ComplexNoiseCancellation` with `ComplexNoiseCancellation`!"
+    throw(ErrorException("Use complex shift in `ComplexNoiseCancellation` with `ComplexNoiseCancellation`!"))
 end
 
 """
@@ -577,6 +579,14 @@ error exception is thrown. See [`MemoryStrategy`](@ref).
 `w` is the walker array after fciqmc step, `v` the previous one, `pnorm` the
 norm of `v`, and `r` the instantaneously applied noise.
 """
+function applyMemoryNoise!(w::Union{AbstractArray{T},AbstractDVec{K,T}},
+         v, shift, dτ, pnorm, m
+    ) where  {K,T<:Real}
+    applyMemoryNoise!(StochasticStyle(w), w, v, real(shift), dτ, real(pnorm), m)
+end
+# only use real part of the shift and norm if the coefficients are real
+
+# otherwise, pass on complex shift in generic method
 function applyMemoryNoise!(w::Union{AbstractArray,AbstractDVec}, args...)
     applyMemoryNoise!(StochasticStyle(w), w, args...)
 end
@@ -814,6 +824,14 @@ be chosen. The possible values for `T` are:
 - [`IsStochasticNonlinear(c)`](@ref) stochastic algorithm with nonlinear diagonal
 - [`IsSemistochastic()`](@ref) semistochastic version: TODO
 """
+function fciqmc_col!(w::Union{AbstractArray{T},AbstractDVec{K,T}},
+    ham, add, num, shift, dτ
+) where  {K,T<:Real}
+    return fciqmc_col!(StochasticStyle(w), w, ham, add, num, real(shift), dτ)
+end
+# only use real part of the shift if the coefficients are real
+
+# otherwise, pass on complex shift in generic method
 fciqmc_col!(w::Union{AbstractArray,AbstractDVec}, args...) = fciqmc_col!(StochasticStyle(w), w, args...)
 
 # generic method for unknown trait: throw error
