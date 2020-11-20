@@ -284,7 +284,7 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
         # perform one complete stochastic vector matrix multiplication
         v, w, step_stats, r = fciqmc_step!(ham, v, shift, dτ, pnorm,
                                             w; m_strat=m_strat)
-        tnorm = norm_project!(p_strat, v, shift, pnorm) |> T  # MPIsync
+        tnorm = norm_project!(p_strat, v, shift, pnorm, dτ) |> T  # MPIsync
         # project coefficients of `w` to threshold
 
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat)  # MPIsync
@@ -383,7 +383,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
                 dτ, pnorms[i], wv[i]; m_strat = m_strat
             )
             mstats[i] .= stats
-            norms[i] = norm_project!(p_strat, vv[i], shifts[i], pnorms[i]) |> T # MPIsync
+            norms[i] = norm_project!(p_strat, vv[i], shifts[i], pnorms[i], dτ) |> T # MPIsync
             shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                 s_strat, shifts[i], vShiftModes[i],
                 norms[i], pnorms[i], dτ, step, dfs[i], vv[i], wv[i]
@@ -563,10 +563,10 @@ function norm_project!(s::IsStochasticWithThreshold,
     return complex(f_norm*scale_factor, c_im) |> T # return complex norm
 end
 
-function norm_project!(s::IsStochasticWithThreshold,
+function norm_project!(s::StochasticStyle,
                         p::ComplexNoiseCancellation, args...
     )
-    throw(ErrorException("Use complex shift in `ComplexNoiseCancellation` with `ComplexNoiseCancellation`!"))
+    throw(ErrorException("`ComplexNoiseCancellation` requires complex shift in `FciqmcRunStrategy` and  `IsStochasticWithThreshold`."))
 end
 
 """

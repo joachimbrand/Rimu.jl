@@ -737,7 +737,23 @@ end
     tnorm = Rimu.norm_project!(Rimu.ComplexNoiseCancellation(), v, 4.0+2im, 5.0+1im, 0.6)
     @test real(tnorm) ≈ norm(v)
     @test tnorm ≈ 1.6216896894892896 + 2.2915515525535524im
+
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    svec = DVec(aIni => 2; capacity = 200)
+    p_strat = Rimu.ComplexNoiseCancellation(κ = 0.0)
+    # fciqmc with default parameters
+    pa = RunTillLastStep(shift = 0.0, dτ=0.001)
+    s_strat = DoubleLogUpdate(targetwalkers = 100)
+    # nt = lomc!(ham, svec, params=pa, s_strat= s_strat, laststep = 1000)
+    @test_throws ErrorException nt = lomc!(ham, svec, params=pa, p_strat=p_strat, laststep = 1001) # run for 100 time steps
+    svec = DVec(aIni => 2.0; capacity = 200)
+    @setThreshold svec 0.4
+    pa = RunTillLastStep(shift = 0.0+0im, dτ=0.001)
+    p_strat = Rimu.ComplexNoiseCancellation(κ = 1.0)
+    nt = lomc!(ham, svec, params=pa,s_strat= s_strat, p_strat=p_strat, laststep = 10) # run for 100 time steps
 end
+
+
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
