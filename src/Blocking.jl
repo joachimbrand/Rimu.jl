@@ -13,7 +13,7 @@ using DataFrames, Statistics
 export autocovariance, covariance
 export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
-export growthWitness
+export growthWitness, gW
 
 # """
 # Calculate the variance of the dataset v
@@ -450,11 +450,11 @@ end
 """
     growthWitness(norm::AbstractArray, shift::AbstractArray, dt; b = 30, pad = :true) -> g
     growthWitness(df::DataFrame; b = 30, pad = :true) -> g
-Compute the growth witness 
+Compute the growth witness
 ```math
 G_b^{(n)} = S̄^{(n)} - \\frac{\\log\\vert\\mathbf{c}^{(n+b)}\\vert - \\log\\vert\\mathbf{c}^{(n)}\\vert}{b d\\tau},
 ```
-where `S̄` is an average of the `shift` over `b` time steps and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n]`. 
+where `S̄` is an average of the `shift` over `b` time steps and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n]`.
 The parameter `b ≥ 1` averages the derivative quantity over `b` time steps and helps suppress noise.
 
 If `pad` is set to `:false` then the returned array `g` has the length `length(norm) - b`.
@@ -464,7 +464,7 @@ function growthWitness(norm::AbstractArray, shift::AbstractArray, dt; b = 30, pa
     l = length(norm)
     @assert length(shift) == l "`norm` and `shift` arrays need to have the same length."
     n = l - b
-    g = Vector{Float64}(undef, pad ? l : n)
+    g = Vector{eltype(shift)}(undef, pad ? l : n)
     offset = pad ? b÷2 : 0 # use offset only if pad == :true
     for i in 1:n
         g[i + offset] = -(1/(b*dt) * log(norm[i+b]/norm[i]) - 1/(b+1) * sum(shift[i:i+b]))
@@ -476,5 +476,49 @@ function growthWitness(norm::AbstractArray, shift::AbstractArray, dt; b = 30, pa
     return g
 end
 growthWitness(df::DataFrame; b = 30, pad = :true) = growthWitness(df.norm, df.shift, df.dτ[1]; b=b, pad=pad)
+
+"""
+    gW(norm::AbstractArray, shift::AbstractArray, dt, [b]; pad = :true) -> g
+    gW(df::DataFrame, [b]; pad = :true) -> g
+Compute the growth witness
+```math
+G^{(n)} = S^{(n)} - \\frac{\\vert\\mathbf{c}^{(n+1)}\\vert - \\vert\\mathbf{c}^{(n)}\\vert}{\\vert\\mathbf{c}^{(n)}\\vert d\\tau},
+```
+where `S` is the `shift` and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n, 1]`.
+Setting `b ≥ 1` a sliding average over `b` time steps is computed.
+
+If `pad` is set to `:false` then the returned array `g` has the length `length(norm) - b`.
+If set to `:true` then `g` will be padded up to the same length as `norm` and `shift`.
+"""
+function gW(norm::AbstractArray, shift::AbstractArray, dt)
+    l = length(norm)
+    @assert length(shift) == l "`norm` and `shift` arrays need to have the same length."
+    n = l - 1
+    g = Vector{eltype(shift)}(undef, l)
+    for i in 1:n
+        g[i] = shift[i] - (norm[i+1] - norm[i])/(dt*norm[i])
+    end
+    # pad the vector g at the end
+    g[n+1] = g[n]
+    return g
+end
+function gW(norm::AbstractArray, shift::AbstractArray, dt, b; pad = :true)
+    g_raw = gW(norm, shift, dt)
+    l = length(norm)
+    @assert length(g_raw) == l "`norm` and `shift` arrays need to have the same length."
+    n = l - b
+    g = Vector{eltype(shift)}(undef, pad ? l : n)
+    offset = pad ? b÷2 : 0 # use offset only if pad == :true
+    for i in 1:n
+        g[i + offset] = 1/b * sum(g_raw[i:i+b-1])
+    end
+    if pad # pad the vector g at both ends
+        g[1:offset] .= g[offset]
+        g[offset+n+1 : end] .= g[offset+n]
+    end
+    return g
+end
+gW(df::DataFrame) = gW(df.norm, df.shift, df.dτ[1])
+gW(df::DataFrame, b; pad = :true) = gW(df.norm, df.shift, df.dτ[1], b; pad=pad)
 
 end # module Blocking
