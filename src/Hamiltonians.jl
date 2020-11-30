@@ -724,16 +724,16 @@ function numOfHops(ham::BoseHubbard2CReal1D, add)
   return 2*(numberoccupiedsites(add.bsa)+numberoccupiedsites(add.bsb))
 end
 
-function bosehubbard2Cintraaction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+function bosehubbard2Cinteraction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     c1 = onr(add.bsa)
     c2 = onr(add.bsb)
-    intraaction = 0::Int
+    interaction = 0::Int
     for site = 1:M
         if !iszero(c2[site])
-            intraaction += c2[site]*c1[site]
+            interaction += c2[site]*c1[site]
         end
     end
-    return intraaction
+    return interaction
 end
 
 
@@ -744,7 +744,7 @@ Compute the diagonal matrix element of the linear operator `ham` at
 address `add`.
 """
 function diagME(h::BoseHubbard2CReal1D, address::BoseFS2C)
-  return h.ua * bosehubbardinteraction(address.bsa) / 2 + h.ub * bosehubbardinteraction(address.bsb) / 2 + h.v * bosehubbard2Cintraaction(address)
+  return h.ua * bosehubbardinteraction(address.bsa) / 2 + h.ub * bosehubbardinteraction(address.bsb) / 2 + h.v * bosehubbard2Cinteraction(address)
 end
 
 function hop(ham::BoseHubbard2CReal1D, add, chosen::Integer)
