@@ -24,7 +24,7 @@ export rayleigh_quotient
 
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbard2CReal1D
-export BoseHubbardMom1D, Momentum
+export BoseHubbardMom1D, Momentum, BoseHubbard2CMom1D
 export HubbardMom1D
 
 # First we have some generic types and methods for any linear operator
@@ -713,11 +713,6 @@ function BoseHubbard2CReal1D(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,
     return BoseHubbard2CReal1D(NA,NB,M,ua,ub,ta,tb,v,add)
 end
 
-# function numOfHops(m::Int, add)
-#   singlies, doublies = numSandDoccupiedsites(add)
-#   return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
-#   # number of excitations that can be made
-# end
 
 # number of excitations that can be made
 function numOfHops(ham::BoseHubbard2CReal1D, add)
@@ -967,7 +962,63 @@ function diagME(h::BoseHubbardMom1D, add)
 end
 
 
+###
+### BoseHubbard2CMom1D
+###
 
+@with_kw struct BoseHubbard2CMom1D{T, BoseFS2C} <: BosonicHamiltonian{T}
+  na::Int = 6    # number of bosons
+  nb::Int = 6    # number of bosons
+  m::Int = 6    # number of lattice sites
+  ua::T = 1.0    # interaction strength
+  ub::T = 1.0    # interaction strength
+  ta::T = 1.0    # hopping strength
+  tb::T = 1.0    # hopping strength
+  v::T = 1.0    # hopping strength
+  add::BoseFS2C       # starting address
+end
+
+function BoseHubbard2CMom1D(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0) where {NA,NB,M,AA,AB}
+    return BoseHubbard2CMom1D(NA,NB,M,ua,ub,ta,tb,v,add)
+end
+
+function numOfHops(m::Int, add)
+  singlies, doublies = numSandDoccupiedsites(add)
+  return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
+  # number of excitations that can be made
+end
+
+function numOfHops(ham::BoseHubbard2CMom1D)
+  return numOfHops(ham.m, ham.add.bsa) + numOfHops(ham.m, ham.add.bsb)
+  # number of excitations that can be made
+end
+
+function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C, chosen::Integer)
+    ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
+    ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
+    nhops_a = numOfHops(ham_a, add.bsa)
+    # nhops_b = numOfHops(ham_b, add.bsb)
+    nhops = numOfHops(ham)
+    if chosen in 1:nhops_a
+        naddress_from_bsa, elem = hop(ham_a, add.bsa, chosen)
+        return BoseFS2C(naddress_from_bsa,add.bsb), elem
+    elseif chosen in nhops_a+1:nhops
+        chosen -= nhops_a
+        naddress_from_bsb, elem = hop(ham_b, add.bsb, chosen)
+        return BoseFS2C(add.bsa,naddress_from_bsb), elem
+    end
+    # return new address and matrix element
+end
+
+# the following diagonal ME is WRONG! The interaction is missing!
+function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
+    ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
+    ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
+    diagme_a = diagME(ham_a,add.bsa)
+    diagme_b = diagME(ham_b,add.bsb)
+    interaction2c = 0
+    return diagme_a + diagme_b + interaction2c
+end
 
 """
     Momentum(ham::AbstractHamiltonian) <: AbstractHamiltonian
