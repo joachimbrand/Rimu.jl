@@ -988,8 +988,8 @@ function numOfHops(m::Int, add)
   # number of excitations that can be made
 end
 
-function numOfHops(ham::BoseHubbard2CMom1D)
-  return numOfHops(ham.m, ham.add.bsa) + numOfHops(ham.m, ham.add.bsb)
+function numOfHops(ham::BoseHubbard2CMom1D, add)
+  return numOfHops(ham.m, add.bsa) + numOfHops(ham.m, add.bsb)
   # number of excitations that can be made
 end
 
@@ -998,7 +998,7 @@ function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C, chosen::Integer)
     ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
     nhops_a = numOfHops(ham_a, add.bsa)
     # nhops_b = numOfHops(ham_b, add.bsb)
-    nhops = numOfHops(ham)
+    nhops = numOfHops(ham, add)
     if chosen in 1:nhops_a
         naddress_from_bsa, elem = hop(ham_a, add.bsa, chosen)
         return BoseFS2C(naddress_from_bsa,add.bsb), elem
