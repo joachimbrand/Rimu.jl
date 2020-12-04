@@ -1010,14 +1010,22 @@ function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C, chosen::Integer)
     # return new address and matrix element
 end
 
-# the following diagonal ME is WRONG! The interaction is missing!
 function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
     ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
     ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
-    diagme_a = diagME(ham_a,add.bsa)
-    diagme_b = diagME(ham_b,add.bsb)
+    onrep_a = BitStringAddresses.onr(add.bsa)
+    onrep_b = BitStringAddresses.onr(add.bsb)
     interaction2c = 0
-    return diagme_a + diagme_b + interaction2c
+    for p in 1:ham.m
+        for k in 1:ham.m
+            if k==p
+              interaction2c += onrep_a[k]*onrep_b[k]
+            # else
+            #   interaction2c += 2*onrep_a[k]*onrep_b[p] # two terms in sum over creation operators
+            end
+        end
+    end
+    return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c
 end
 
 """
