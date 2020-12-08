@@ -989,25 +989,106 @@ function numOfHops(m::Int, add)
 end
 
 function numOfHops(ham::BoseHubbard2CMom1D, add)
-  return numOfHops(ham.m, add.bsa) + numOfHops(ham.m, add.bsb)
+  sa = numberoccupiedsites(add.bsa)
+  sb = numberoccupiedsites(add.bsb)
+  return numOfHops(ham.m, add.bsa) + numOfHops(ham.m, add.bsb) + 2*sa*(ham.m-1)*sb
   # number of excitations that can be made
 end
 
-function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C, chosen::Integer)
+function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
     ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
     ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
     nhops_a = numOfHops(ham_a, add.bsa)
-    # nhops_b = numOfHops(ham_b, add.bsb)
-    nhops = numOfHops(ham, add)
-    if chosen in 1:nhops_a
+    nhops_b = numOfHops(ham_b, add.bsb)
+    # println("Hops in A: $nhops_a, Hops in B: $nhops_b,")
+    if chosen > numOfHops(ham,add)
+        error("Hop is out of range!")
+    elseif chosen ≤ nhops_a
         naddress_from_bsa, elem = hop(ham_a, add.bsa, chosen)
-        return BoseFS2C(naddress_from_bsa,add.bsb), elem
-    elseif chosen in nhops_a+1:nhops
+        # println("Hop in A, chosen = $chosen") # debug
+        return BoseFS2C{NA,NB,M,AA,AB}(naddress_from_bsa,add.bsb), elem
+    elseif nhops_a < chosen ≤ nhops_a+nhops_b
         chosen -= nhops_a
         naddress_from_bsb, elem = hop(ham_b, add.bsb, chosen)
-        return BoseFS2C(add.bsa,naddress_from_bsb), elem
+        # println("Hop in B, chosen = $chosen") # debug
+        return BoseFS2C{NA,NB,M,AA,AB}(add.bsa,naddress_from_bsb), elem
+    elseif nhops_a+nhops_b < chosen
+        chosen -= (nhops_a+nhops_b)
+        sa = numberoccupiedsites(add.bsa)
+        sb = numberoccupiedsites(add.bsb)
+        # println("Hops across A and B: $(sa*(ham.m-1)*sb)")
+        if chosen ≤ sa*(ham.m-1)*sb
+            new_bsa, new_bsb, onproduct_a, onproduct_b = hop(add.bsa, add.bsb, chosen)
+            # elem = ham.ta/(2*ham.m)*sqrt(onproduct_a) + ham.tb/(2*ham.m)*sqrt(onproduct_b)
+            new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
+            # println("Hop A to B, chosen = $chosen") # debug
+            # return new_add, elem
+        elseif sa*(ham.m-1)*sb < chosen
+            chosen -= sa*(ham.m-1)*sb
+            new_bsb, new_bsa, onproduct_b, onproduct_a = hop(add.bsb, add.bsa, chosen) # swap bsa and bsb
+            # println("Hop B to A, chosen = $chosen") # debug
+        end
+        elem = ham.ta/(2*ham.m)*sqrt(onproduct_a) + ham.tb/(2*ham.m)*sqrt(onproduct_b)
+        new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
+        return new_add, elem
     end
     # return new address and matrix element
+end
+
+function hop(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
+    sa = numberoccupiedsites(add_a)
+    sb = numberoccupiedsites(add_b)
+    onrep_a = BitStringAddresses.s_onr(add_a)
+    onrep_b = BitStringAddresses.s_onr(add_b)
+    # b†_s b_q a†_p a_r
+    s = p = q = r = 0
+    onproduct_a = 1
+    onproduct_b = 1
+    p1, q1 = fldmod1(chosen, (M-1)*sb)
+    p, q2 = fldmod1(q1, sb)
+    if p ≥ p1
+        p += 1
+    end
+    hole_a = p1
+    # annihilat an A boson:
+    for (i, occ) in enumerate(onrep_a)
+      if occ > 0
+        hole_a -= 1
+        if hole_a == 0
+          onproduct_a *= occ
+          onrep_a = @set onrep_a[i] = occ-1
+          # annihilate two particles in onrep
+          r = i # remember where we make the holes
+          break # should break out of the for loop
+        end
+      end
+    end
+    # create an A boson:
+    onrep_a = @set onrep_a[p] += 1
+    onproduct_a *= onrep_a[p]
+    Δp = p-r
+    hole_b = q2
+    # annihilat a B boson:
+    for (i, occ) in enumerate(onrep_b)
+      if occ > 0
+        hole_b -= 1
+        if hole_b == 0
+          onproduct_b *= occ
+          onrep_b = @set onrep_b[i] = occ-1
+          # annihilate two particles in onrep
+          q = i # remember where we make the holes
+          break # should break out of the for loop
+        end
+      end
+    end
+    s = mod1(q-Δp, M)
+    # create a B boson:
+    onrep_b = @set onrep_b[s] += 1
+    onproduct_b *= onrep_b[s]
+    if mod(q+r,M)-mod(s+p,M) != 0
+        error("Momentum is not conserved!")
+    end
+    return BoseFS{NA,M,AA}(onrep_a), BoseFS{NB,M,AB}(onrep_b), onproduct_a, onproduct_b
 end
 
 function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
