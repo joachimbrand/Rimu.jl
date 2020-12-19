@@ -118,6 +118,13 @@ function LinearAlgebra.norm(md::MPIData, p::Real=2)
     end
 end
 
+"""
+    walkernumber(md::MPIData)
+Compute the walkernumber of the distributed data on every MPI rank with `MPI.Allreduce`.
+"""
+function walkernumber(md::MPIData)
+    return MPI.Allreduce(walkernumber(md.data), +, md.comm)
+end
 
 """
     mpi_default(data, comm = MPI.COMM_WORLD, root = 0)

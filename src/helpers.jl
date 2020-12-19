@@ -39,3 +39,17 @@ end
 #     end
 #     dv = DVec(Dict(address=>nwalkers), capacity)
 #     StochasticStyle(::Type{typeof(dv)}) = Style(1.0)
+
+"""
+    walkernumber(x)
+Compute the number of walkers in `x`. For real walker types this is identical to
+`norm(x,1)`. For complex walker types it reports the one norm separately for the
+real and the imaginary part as a `ComplexF64`.
+"""
+walkernumber(x) = norm(x,1) # generic fallback
+# for a single complex number
+walkernumber(x::Complex) = abs(real(x)) + abs(imag(x))*im |>ComplexF64
+# for AbstractDVec with complex walkers
+function walkernumber(x::AbstractDVec{K,V}) where K where V<:Complex
+    return isempty(x) ? 0.0+0.0im : mapreduce(p->walkernumber(p), +, x)|>ComplexF64
+end

@@ -37,7 +37,7 @@ export StochasticStyle, IsStochastic, IsDeterministic
 # export IsSemistochastic # is not yet ready
 export IsStochasticNonlinear, IsStochasticWithThreshold
 export @setThreshold, @setDeterministic, setThreshold
-export threadedWorkingMemory, localpart
+export threadedWorkingMemory, localpart, walkernumber
 
 # exports for MPI functionality
 export DistributeStrategy, MPIData, MPIDefault, MPIOSWin

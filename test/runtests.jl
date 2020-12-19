@@ -754,6 +754,13 @@ end
     @test gW(nt.df,4, pad= false) |> length == 7
 end
 
+@testset "helpers" begin
+    dvc= DVec(:a=>2-5im,capacity = 10)
+    @test walkernumber(dvc) == 2.0 + 5.0im
+    dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
+    @test walkernumber(dvr) == norm(dvr,1)
+end
+
 
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
