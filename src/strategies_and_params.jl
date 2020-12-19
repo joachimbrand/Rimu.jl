@@ -464,8 +464,8 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
 """
-struct DoubleLogUpdate <: ShiftStrategy
-    targetwalkers::Int
+struct DoubleLogUpdate{T} <: ShiftStrategy
+    targetwalkers::T
     ζ::Float64 # damping parameter, best left at value of 0.08
     ξ::Float64  # restoring force to bring walker number to the target
 end
@@ -877,9 +877,11 @@ end
 StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
 StochasticStyle(::Type{<:Array}) = IsDeterministic()
 StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
-# the following works for dispatch, i.e. the function is evaluated at compile time
+function StochasticStyle(T::Type{<:AbstractDVec{K,V}}) where {K,V<:AbstractFloat}
+    IsDeterministic()
+end
 function StochasticStyle(T::Type{<:AbstractDVec})
-    ifelse(eltype(T) <: Integer, IsStochastic(), IsDeterministic())
+    IsStochastic()
 end
 
 # """
