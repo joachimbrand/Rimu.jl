@@ -451,12 +451,11 @@ function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
                       m_strat::MemoryStrategy = NoMemory()) where D
     # serial version
     @assert w ≢ v "`w` and `v` must not be the same object"
-    stats = zeros(Int, 5) # pre-allocate array for stats
     zero!(w) # clear working memory
-    for (add, num) in pairs(v)
-        res = fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        stats .+= res # just add all stats together
-    end
+    # call fciqmc_col!() on every entry of `v` and add the stats returned by
+    # this function:
+    stats = mapreduce(p-> SVector(fciqmc_col!(w, Ĥ, p.first, p.second, shift, dτ)), +,
+      pairs(v))
     r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     return w, v, stats, r
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
