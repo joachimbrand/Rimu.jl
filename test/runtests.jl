@@ -763,6 +763,24 @@ end
     @test walkernumber(dvr) == norm(dvr,1)
 end
 
+@testset "complex walkers" begin
+    m = n = 6
+    aIni = nearUniform(BoseFS{n,m})
+    Ĥ = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    ζ = 0.08
+    N=50
+    s_strat = DoubleLogUpdate(ζ = ζ, ξ = ζ^2/4, targetwalkers = N + N*im)
+    svec = DVec(aIni => 2+2im, capacity = (real(s_strat.targetwalkers)*2+100))
+    r_strat = EveryTimeStep(projector = copytight(svec))
+
+    # seed random number generator
+    Rimu.ConsistentRNG.seedCRNG!(17+19)
+    params = RunTillLastStep(dτ = 0.001, laststep = 200, shift = 0.0 + 0.0im)
+    @time nt = lomc!(Ĥ, copy(svec); params, s_strat, r_strat)
+    df = nt.df
+    @test size(nt.df) == (201, 14)
+    # TODO: Add sensible tests.
+end
 
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
