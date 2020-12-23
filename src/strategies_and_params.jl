@@ -747,14 +747,15 @@ abstract type StochasticStyle end
 
 struct IsStochastic <: StochasticStyle end
 
+struct IsStochastic2Pop <: StochasticStyle end
+
 struct IsStochasticNonlinear <: StochasticStyle
     c::Float64 # parameter of nonlinear correction applied to local shift
 end
-
 struct IsDeterministic <: StochasticStyle end
 
 """
-    IsStochasticWithThreshold(threshold::Float16)
+    IsStochasticWithThreshold(threshold::Float32)
 Trait for generalised vector of configurations indicating stochastic
 propagation with real walker numbers and cutoff `threshold`.
 ```
@@ -879,6 +880,9 @@ StochasticStyle(::Type{<:Array}) = IsDeterministic()
 StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
 function StochasticStyle(T::Type{<:AbstractDVec{K,V}}) where {K,V<:AbstractFloat}
     IsDeterministic()
+end
+function StochasticStyle(T::Type{<:AbstractDVec{K,V}}) where {I<:Integer,K,V<:Complex{I}}
+    IsStochastic2Pop()
 end
 function StochasticStyle(T::Type{<:AbstractDVec})
     IsStochastic()

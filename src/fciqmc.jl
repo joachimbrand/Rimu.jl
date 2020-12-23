@@ -57,14 +57,14 @@ function lomc!(ham, v;
     τ_strat::TimeStepStrategy = ConstantTimeStep(),
     m_strat::MemoryStrategy = NoMemory(),
     p_strat::ProjectStrategy = NoProjection()
-) where T # type for shift and norm
+) where T # type for shift and walkernumber
     r_strat = refine_r_strat(r_strat, ham)
     if !isnothing(laststep)
         params.laststep = laststep
     end
     if isnothing(wm)
         if threading == :auto
-            threading = s_strat.targetwalkers ≥ 500 ? true : false
+            threading = max(real(s_strat.targetwalkers),imag(s_strat.targetwalkers)) ≥ 500 ? true : false
         end
         # now threading is a Bool
         if threading
@@ -77,7 +77,7 @@ function lomc!(ham, v;
         # unpack the parameters:
         @unpack step, laststep, shiftMode, shift, dτ = params
         len = length(v) # MPIsync
-        nor = T(norm(v, 1)) # MPIsync
+        nor = T(walkernumber(v)) # MPIsync
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
         # prepare df for recording data
@@ -213,7 +213,7 @@ function fciqmc!(svec, pa::FciqmcRunStrategy{T},
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
     len = length(svec) # MPIsync
-    nor = T(norm(svec, 1)) # MPIsync
+    nor = T(walkernumber(svec)) # MPIsync
 
     # should not be necessary if we do all calls from lomc!()
     r_strat = refine_r_strat(r_strat, ham)
@@ -259,7 +259,7 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
                  w = threadedWorkingMemory(v)
                  ; m_strat::MemoryStrategy = NoMemory(),
                  p_strat::ProjectStrategy = NoProjection()
-                 ) where T # type for shift and norm
+                 ) where T # type for shift and walkernumber
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
 
@@ -274,7 +274,7 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
                          ] "Column names in `df` not as expected."
 
     svec = v # keep around a reference to the starting data container
-    pnorm = tnorm = T(norm(v, 1)) # norm of "previous" vector
+    pnorm = tnorm = T(walkernumber(v)) # norm of "previous" vector
     maxlength = capacity(localpart(v))
     @assert maxlength ≤ capacity(w) "`w` needs to have at least `capacity(v)`"
 
@@ -350,7 +350,7 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
     shifts = [shift for i = 1:N] # Vector because it needs to be mutable
     vShiftModes = [shiftMode for i = 1:N] # separate for each replica
     pnorms = zeros(T, N) # initialise as vector
-    pnorms .= norm.(vv,1) # 1-norm i.e. number of psips as Tuple (of previous step)
+    pnorms .= walkernumber.(vv) # 1-norm i.e. number of psips as Tuple (of previous step)
 
     # initalise df for storing results of each replica separately
     dfs = Tuple(DataFrame(steps=Int[], shift=T[], shiftMode=Bool[],
@@ -507,8 +507,8 @@ end # fciqmc_step!
 
 
 """
-    norm_project!(p_strat::ProjectStrategy, w, shift, pnorm) -> norm
-Compute the norm of `w` and update the coefficient vector `w` according to
+    norm_project!(p_strat::ProjectStrategy, w, shift, pnorm) -> walkernumber
+Compute the walkernumber of `w` and update the coefficient vector `w` according to
 `p_strat`.
 
 This may include stochastic projection of the coefficients
@@ -517,7 +517,7 @@ and `p_strat`. See [`ProjectStrategy`](@ref).
 """
 norm_project!(p::ProjectStrategy, w, args...) = norm_project!(StochasticStyle(w), p, w, args...)
 
-norm_project!(::StochasticStyle, p, w, args...) = norm(w, 1) # MPIsync
+norm_project!(::StochasticStyle, p, w, args...) = walkernumber(w) # MPIsync
 # default, compute 1-norm
 # e.g. triggered with the `NoProjection` strategy
 
@@ -528,7 +528,8 @@ function norm_project!(s::S, p::ThresholdProject, w, args...) where S<:Union{IsS
     return norm_project_threshold!(w, p.threshold) # MPIsync
 end
 
-function norm_project_threshold!(w, threshold) # MPIsync
+function norm_project_threshold!(w, threshold)
+    # MPIsync
     # perform projection if below threshold preserving the sign
     lw = localpart(w)
     for (add, val) in kvpairs(lw)
@@ -537,7 +538,11 @@ function norm_project_threshold!(w, threshold) # MPIsync
             lw[add] = (pprob > cRand()) ? threshold*sign(val) : zero(val)
         end
     end
-    return norm(w, 1) # MPIsync
+    return walkernumber(w) # MPIsync
+end
+
+function norm_project_threshold!(w::AbstractDVec{K,V}, threshold) where {K,V<:Union{Integer,Complex{Int}}}
+    @error "Trying to scale integer based walker vector. Use float walkers!"
 end
 
 function norm_project!(s::S, p::ScaledThresholdProject, w, args...) where S<:Union{IsStochasticWithThreshold}
@@ -854,9 +859,6 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, s
     return (0, 0, 0, 0, 0)
 end
 
-# fciqmc_col!(::IsStochastic,  args...) = inner_step!(args...)
-# function inner_step!(w, ham::AbstractHamiltonian, add, num::Number,
-#                         shift, dτ)
 function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real,
                         shift, dτ)
     # version for single population of integer psips
@@ -902,7 +904,133 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     end
     return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
-end # inner_step!
+end
+
+function fciqmc_col!(::IsStochastic2Pop, w, ham::AbstractHamiltonian, add, cnum::Complex,
+                        cshift, dτ)
+    # version for complex integer psips
+    # off-diagonal: spawning psips
+    spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
+    # stats reported are complex, for each component separately
+    hops = Hops(ham,add)
+    # real psips first
+    num = real(cnum)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(real(w[naddress])) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(real(w[naddress])),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(nspawns)
+        end
+    end
+    # now imaginary psips
+    num = imag(cnum)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = im*convert(typeof(num), -nspawn * sign(num) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(imag(w[naddress])) * sign(imag(nspawns)) < 0 # record annihilations
+            annihilations += min(abs(imag(w[naddress])),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += im*abs(nspawns)
+        end
+    end
+
+    # diagonal death / clone
+    shift = real(cshift) # use only real part of shift for now
+    dME = diagME(ham,add)
+    pd = dτ * (dME - shift) # real valued so far
+    cnewdiagpop = (1-pd)*cnum # now it's complex
+    # treat real part
+    newdiagpop = real(cnewdiagpop)
+    num = real(cnum)
+    ndiag = trunc(newdiagpop)
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    # only treat non-integer part stochastically
+    ndiags = convert(typeof(num),ndiag) # now complex integer type
+    if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
+        annihilations += min(abs(real(w[add])),abs(real(ndiags)))
+    end
+    w[add] += ndiags # should carry the correct sign
+    if  pd < 0 # record event statistics
+        clones += abs(real(ndiags) - num)
+    elseif pd < 1
+        deaths += abs(real(ndiags) - num)
+    else
+        antiparticles += abs(real(ndiags))
+    end
+    # treat imaginary part
+    newdiagpop = imag(cnewdiagpop)
+    num = imag(cnum)
+    ndiag = trunc(newdiagpop)
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    # only treat non-integer part stochastically
+    ndiags = im*convert(typeof(num),ndiag) # now complex integer type
+    if sign(imag(w[add])) ≠ sign(ndiag) # record annihilations
+        annihilations += min(abs(imag(w[add])),abs(imag(ndiags)))
+    end
+    w[add] += ndiags # should carry the correct sign
+    if  pd < 0 # record event statistics
+        clones += im*abs(imag(ndiags) - num)
+    elseif pd < 1
+        deaths += im*abs(imag(ndiags) - num)
+    else
+        antiparticles += im*abs(imag(ndiags))
+    end
+
+    # imaginary part of shift leads to spawns across populations
+    cspawn = im*dτ*imag(shift)*cnum # to be spawned as complex number with signs
+    # real part - to be spawned into real walkers
+    rspawn = real(cspawn) # float with sign
+    nspawn = trunc(rspawn) # deal with integer part separately
+    cRand() < abs(rspawn - nspawn) && (nspawn += sign(rspawn)) # random spawn
+    # at this point, nspawn has correct sign
+    # now convert to correct type
+    cnspawn = convert(typeof(cnum), nspawn)
+    if sign(real(w[add])) * sign(nspawn) < 0 # record annihilations
+        annihilations += min(abs(real(w[add])),abs(nspawn))
+    end
+    if !iszero(cnspawn)
+        w[add] += cnspawn
+        # perform spawn (if nonzero): add walkers with correct sign
+        spawns += abs(nspawn)
+    end
+    # imag part - to be spawned into imaginary walkers
+    ispawn = imag(cspawn) # float with sign
+    nspawn = trunc(ispawn) # deal with integer part separately
+    cRand() < abs(ispawn - nspawn) && (nspawn += sign(ispawn)) # random spawn
+    # at this point, nspawn has correct sign
+    # now convert to correct type
+    cnspawn = convert(typeof(cnum), nspawn)*im # imaginary spawns!
+    if sign(imag(w[add])) * sign(nspawn) < 0 # record annihilations
+        annihilations += min(abs(imag(w[add])),abs(nspawn))
+    end
+    if !iszero(cnspawn)
+        w[add] += cnspawn
+        # perform spawn (if nonzero): add walkers with correct sign
+        spawns += abs(nspawn)
+    end
+    return (spawns, deaths, clones, antiparticles, annihilations)
+    # note that w is not returned
+end
 
 function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::AbstractHamiltonian, add, num::Real,
                         shift, dτ)

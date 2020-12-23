@@ -755,8 +755,13 @@ end
 end
 
 @testset "helpers" begin
+    v = [1,2,3]
+    @test walkernumber(v) == norm(v,1)
     dvc= DVec(:a=>2-5im,capacity = 10)
+    @test StochasticStyle(dvc) == IsStochastic2Pop()
     @test walkernumber(dvc) == 2.0 + 5.0im
+    dvi= DVec(:a=>Complex{Int32}(2-5im),capacity = 10)
+    @test StochasticStyle(dvi) == IsStochastic2Pop()
     dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
     @test walkernumber(dvr) == norm(dvr,1)
 end

@@ -41,15 +41,17 @@ end
 #     StochasticStyle(::Type{typeof(dv)}) = Style(1.0)
 
 """
-    walkernumber(x)
-Compute the number of walkers in `x`. For real walker types this is identical to
-`norm(x,1)`. For complex walker types it reports the one norm separately for the
-real and the imaginary part as a `ComplexF64`.
+    walkernumber(w)
+Compute the number of walkers in `w`. In most cases this is identical to
+`norm(w,1)`. For coefficient vectors with
+`StochasticStyle(w) == IsStochastic2Pop` it reports the one norm
+separately for the real and the imaginary part as a `ComplexF64`.
 """
-walkernumber(x) = norm(x,1) # generic fallback
-# for a single complex number
-walkernumber(x::Complex) = abs(real(x)) + abs(imag(x))*im |>ComplexF64
+walkernumber(w) = norm(w,1) # generic fallback
+# use StochasticStyle trait for dispatch
+walkernumber(w::AbstractDVec) = walkernumber(StochasticStyle(w), w)
+walkernumber(::StochasticStyle, w) = norm(w,1)
 # for AbstractDVec with complex walkers
-function walkernumber(x::AbstractDVec{K,V}) where K where V<:Complex
-    return isempty(x) ? 0.0+0.0im : mapreduce(p->walkernumber(p), +, x)|>ComplexF64
+function walkernumber(::IsStochastic2Pop, w)
+    return isempty(w) ? 0.0+0.0im : mapreduce(p->abs(real(p)) + abs(imag(p))*im, +, w)|>ComplexF64
 end
