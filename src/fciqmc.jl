@@ -80,12 +80,16 @@ function lomc!(ham, v;
         nor = T(walkernumber(v)) # MPIsync
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
+        # just for getting the type of step_statsd do a step with zero time:
+        vd, wd, step_statsd, rd = fciqmc_step!(ham, copytight(v), shift, 0.0, nor,
+                                            wm; m_strat=m_strat)
+        TS = eltype(step_statsd)
         # prepare df for recording data
         df = DataFrame(steps=Int[], dτ=Float64[], shift=T[],
                             shiftMode=Bool[],len=Int[], norm=T[],
                             vproj=typeof(v_proj)[], hproj=typeof(h_proj)[],
-                            spawns=Int[], deaths=Int[], clones=Int[],
-                            antiparticles=Int[], annihilations=Int[],
+                            spawns=TS[], deaths=TS[], clones=TS[],
+                            antiparticles=TS[], annihilations=TS[],
                             shiftnoise=Float64[])
         # Note the row structure defined here (currently 13 columns)
         # When changing the structure of `df`, it has to be changed in all places
