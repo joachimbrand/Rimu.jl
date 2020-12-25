@@ -1000,7 +1000,8 @@ function fciqmc_col!(::IsStochastic2Pop, w, ham::AbstractHamiltonian, add, cnum:
     end
 
     # imaginary part of shift leads to spawns across populations
-    cspawn = im*dτ*imag(shift)*cnum # to be spawned as complex number with signs
+    cspawn = im*dτ*imag(cshift)*cnum # to be spawned as complex number with signs
+
     # real part - to be spawned into real walkers
     rspawn = real(cspawn) # float with sign
     nspawn = trunc(rspawn) # deal with integer part separately
@@ -1011,26 +1012,24 @@ function fciqmc_col!(::IsStochastic2Pop, w, ham::AbstractHamiltonian, add, cnum:
     if sign(real(w[add])) * sign(nspawn) < 0 # record annihilations
         annihilations += min(abs(real(w[add])),abs(nspawn))
     end
-    if !iszero(cnspawn)
-        w[add] += cnspawn
-        # perform spawn (if nonzero): add walkers with correct sign
-        spawns += abs(nspawn)
-    end
+    w[add] += cnspawn
+    # perform spawn (if nonzero): add walkers with correct sign
+    spawns += abs(nspawn)
+
     # imag part - to be spawned into imaginary walkers
     ispawn = imag(cspawn) # float with sign
     nspawn = trunc(ispawn) # deal with integer part separately
     cRand() < abs(ispawn - nspawn) && (nspawn += sign(ispawn)) # random spawn
     # at this point, nspawn has correct sign
     # now convert to correct type
-    cnspawn = convert(typeof(cnum), nspawn)*im # imaginary spawns!
+    cnspawn = convert(typeof(cnum), nspawn*im)# imaginary spawns!
     if sign(imag(w[add])) * sign(nspawn) < 0 # record annihilations
         annihilations += min(abs(imag(w[add])),abs(nspawn))
     end
-    if !iszero(cnspawn)
-        w[add] += cnspawn
-        # perform spawn (if nonzero): add walkers with correct sign
-        spawns += abs(nspawn)
-    end
+    w[add] += cnspawn
+    # perform spawn (if nonzero): add walkers with correct sign
+    spawns += abs(nspawn)
+
     return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
 end
