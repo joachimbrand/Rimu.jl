@@ -770,6 +770,32 @@ function applyMemoryNoise!(s::IsStochasticWithThreshold,
     return r
 end
 
+function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::PurgeNegatives)
+    purge_negative_walkers!(w)
+    return 0.0
+end
+
+function purge_negative_walkers!(w::AbstractDVec{K,V}) where {K,V <:Real}
+    for (k,v) in pairs(w)
+        if v < 0
+            delete!(w,k)
+        end
+    end
+    return w
+end
+function purge_negative_walkers!(w::AbstractDVec{K,V}) where {K,V <:Complex}
+    for (k,v) in pairs(w)
+        if real(v) < 0
+            v = 0 + im*imag(v)
+        end
+        if imag(v) < 0
+            v = real(v)
+        end
+        w[k] = convert(V,v)
+    end
+    return w
+end
+
 # to do: implement parallel version
 # function fciqmc_step!(w::D, ham::AbstractHamiltonian, v::D, shift, dτ) where D<:DArray
 #   check that v and w are compatible

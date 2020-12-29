@@ -268,6 +268,12 @@ no memory noise will be used.
 struct NoMemory <: MemoryStrategy end
 
 """
+    PurgeNegatives <: MemoryStrategy
+Purge all negative sign walkers.
+"""
+struct PurgeNegatives <: MemoryStrategy end
+
+"""
     DeltaMemory(Δ::Int) <: MemoryStrategy
 Before updating the shift, memory noise with a memory length of `Δ` is applied,
 where `Δ = 1` means no memory noise.

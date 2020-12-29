@@ -40,26 +40,6 @@ end
 #     dv = DVec(Dict(address=>nwalkers), capacity)
 #     StochasticStyle(::Type{typeof(dv)}) = Style(1.0)
 
-function purge_negative_walkers!(w::AbstractDVec{K,V}) where {K,V <:Real}
-    for (k,v) in pairs(w)
-        if v < 0
-            delete!(w,k)
-        end
-    end
-    return w
-end
-function purge_negative_walkers!(w::AbstractDVec{K,V}) where {K,V <:Complex}
-    for (k,v) in pairs(w)
-        if real(v) < 0
-            v = 0 + im*imag(v)
-        end
-        if imag(v) < 0
-            v = real(v)
-        end
-        w[k] = convert(V,v)
-    end
-    return w
-end
 
 """
     walkernumber(w)
