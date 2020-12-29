@@ -757,6 +757,8 @@ end
     dvc= DVec(:a=>2-5im,capacity = 10)
     @test StochasticStyle(dvc) == IsStochastic2Pop()
     @test walkernumber(dvc) == 2.0 + 5.0im
+    Rimu.purge_negative_walkers!(dvc)
+    @test walkernumber(dvc) == 2.0 + 0.0im
     dvi= DVec(:a=>Complex{Int32}(2-5im),capacity = 10)
     @test StochasticStyle(dvi) == IsStochastic2Pop()
     dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
