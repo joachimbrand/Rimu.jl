@@ -53,6 +53,9 @@ walkernumber(w) = norm(w,1) # generic fallback
 walkernumber(w::AbstractDVec) = walkernumber(StochasticStyle(w), w)
 walkernumber(::StochasticStyle, w) = norm(w,1)
 # for AbstractDVec with complex walkers
-function walkernumber(::IsStochastic2Pop, w)
+function walkernumber(::T, w) where T <: Union{IsStochastic2Pop,
+                                               IsStochastic2PopInitiator,
+                                               IsStochastic2PopWithThreshold
+                                               }
     return isempty(w) ? 0.0+0.0im : mapreduce(p->abs(real(p)) + abs(imag(p))*im, +, w)|>ComplexF64
 end

@@ -478,6 +478,18 @@ end
     end
 end
 
+@testset "IsStochastic2PopWithThreshold" begin
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+
+    dvc = DVec(aIni => 2+3im; capacity = 10)
+    @test_throws AssertionError setThreshold(dvc,1.0)
+    dvcf = DVec(aIni => 2.0+3.0im; capacity = 10)
+    setThreshold(dvcf, 1.3)
+    @test StochasticStyle(dvcf) == Rimu.IsStochastic2PopWithThreshold(1.3)
+end
+
 @testset "IsStochasticWithThreshold" begin
     # Define the initial Fock state with n particles and m modes
     n = m = 9

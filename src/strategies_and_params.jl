@@ -753,7 +753,45 @@ abstract type StochasticStyle end
 
 struct IsStochastic <: StochasticStyle end
 
+"""
+    IsStochastic2Pop()
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of integer
+walkers.
+"""
 struct IsStochastic2Pop <: StochasticStyle end
+
+"""
+    IsStochastic2PopInitiator()
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of integer
+walkers. Initiator algorithm will be used.
+"""
+struct IsStochastic2PopInitiator <: StochasticStyle end
+
+"""
+    IsStochastic2PopWithThreshold(threshold::Float32)
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of real
+walkers and cutoff `threshold`.
+```
+> StochasticStyle(V) = IsStochastic2PopWithThreshold(threshold)
+```
+During stochastic propagation, walker numbers small than `threshold` will be
+stochastically projected to either zero or `threshold`.
+
+The trait can be conveniently defined on an instance of a generalised vector
+with the function [`setThreshold`](@ref). Example:
+```julia-repl
+julia> dv = DVec(nearUniform(BoseFS{3,3}) => 2.0+3.0im; capacity = 10)
+julia> setThreshold(dv, 0.6)
+julia> StochasticStyle(dv)
+IsStochastic2PopWithThreshold(0.6f0)
+```
+"""
+struct IsStochastic2PopWithThreshold <: StochasticStyle
+    threshold::Float32
+end
 
 struct IsStochasticNonlinear <: StochasticStyle
     c::Float64 # parameter of nonlinear correction applied to local shift
@@ -822,6 +860,12 @@ IsStochasticWithThreshold(0.6f0)
 function setThreshold(dv, threshold)
     @assert !(valtype(dv) <:Integer) "`valtype(dv)` must not be integer."
     @eval Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
+    return Rimu.StochasticStyle(dv)
+end
+
+function setThreshold(dv::AbstractDVec{K,V}, threshold) where {K,V<:Complex}
+    @assert !(real(valtype(dv)) <:Integer) "`valtype(dv)` must not be integer."
+    @eval Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochastic2PopWithThreshold($threshold)
     return Rimu.StochasticStyle(dv)
 end
 

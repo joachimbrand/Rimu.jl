@@ -1060,6 +1060,135 @@ function fciqmc_col!(::IsStochastic2Pop, w, ham::AbstractHamiltonian, add, cnum:
     # note that w is not returned
 end
 
+function fciqmc_col!(::IsStochastic2PopInitiator, w, ham::AbstractHamiltonian,
+                        add, cnum::Complex, cshift, dτ)
+    # version for complex integer psips with initiator approximation
+    # off-diagonal: spawning psips
+    spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
+    # stats reported are complex, for each component separately
+    hops = Hops(ham,add)
+    # real psips first
+    num = real(cnum)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(real(w[naddress])) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(real(w[naddress])),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(nspawns)
+        end
+    end
+    # now imaginary psips
+    num = imag(cnum)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = im*convert(typeof(num), -nspawn * sign(num) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(imag(w[naddress])) * sign(imag(nspawns)) < 0 # record annihilations
+            annihilations += min(abs(imag(w[naddress])),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += im*abs(nspawns)
+        end
+    end
+
+    # diagonal death / clone
+    shift = real(cshift) # use only real part of shift for now
+    dME = diagME(ham,add)
+    pd = dτ * (dME - shift) # real valued so far
+    cnewdiagpop = (1-pd)*cnum # now it's complex
+    # treat real part
+    newdiagpop = real(cnewdiagpop)
+    num = real(cnum)
+    ndiag = trunc(newdiagpop)
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    # only treat non-integer part stochastically
+    ndiags = convert(typeof(num),ndiag) # now complex integer type
+    if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
+        annihilations += min(abs(real(w[add])),abs(real(ndiags)))
+    end
+    w[add] += ndiags # should carry the correct sign
+    if  pd < 0 # record event statistics
+        clones += abs(real(ndiags) - num)
+    elseif pd < 1
+        deaths += abs(real(ndiags) - num)
+    else
+        antiparticles += abs(real(ndiags))
+    end
+    # treat imaginary part
+    newdiagpop = imag(cnewdiagpop)
+    num = imag(cnum)
+    ndiag = trunc(newdiagpop)
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    # only treat non-integer part stochastically
+    ndiags = im*convert(typeof(num),ndiag) # now complex integer type
+    if sign(imag(w[add])) ≠ sign(ndiag) # record annihilations
+        annihilations += min(abs(imag(w[add])),abs(imag(ndiags)))
+    end
+    w[add] += ndiags # should carry the correct sign
+    if  pd < 0 # record event statistics
+        clones += im*abs(imag(ndiags) - num)
+    elseif pd < 1
+        deaths += im*abs(imag(ndiags) - num)
+    else
+        antiparticles += im*abs(imag(ndiags))
+    end
+
+    # imaginary part of shift leads to spawns across populations
+    cspawn = im*dτ*imag(cshift)*cnum # to be spawned as complex number with signs
+
+    # real part - to be spawned into real walkers
+    if real(w[add]) ≠ 0 # only spawn into occupied sites (initiator approximation)
+        rspawn = real(cspawn) # float with sign
+        nspawn = trunc(rspawn) # deal with integer part separately
+        cRand() < abs(rspawn - nspawn) && (nspawn += sign(rspawn)) # random spawn
+        # at this point, nspawn has correct sign
+        # now convert to correct type
+        cnspawn = convert(typeof(cnum), nspawn)
+        if sign(real(w[add])) * sign(nspawn) < 0 # record annihilations
+            annihilations += min(abs(real(w[add])),abs(nspawn))
+        end
+        w[add] += cnspawn
+        # perform spawn (if nonzero): add walkers with correct sign
+        spawns += abs(nspawn)
+    end
+
+    # imag part - to be spawned into imaginary walkers
+    if imag(w[add]) ≠ 0 # only spawn into occupied sites (initiator approximation)
+        ispawn = imag(cspawn) # float with sign
+        nspawn = trunc(ispawn) # deal with integer part separately
+        cRand() < abs(ispawn - nspawn) && (nspawn += sign(ispawn)) # random spawn
+        # at this point, nspawn has correct sign
+        # now convert to correct type
+        cnspawn = convert(typeof(cnum), nspawn*im)# imaginary spawns!
+        if sign(imag(w[add])) * sign(nspawn) < 0 # record annihilations
+            annihilations += min(abs(imag(w[add])),abs(nspawn))
+        end
+        w[add] += cnspawn
+        # perform spawn (if nonzero): add walkers with correct sign
+        spawns += abs(nspawn)
+    end
+
+    return (spawns, deaths, clones, antiparticles, annihilations)
+    # note that w is not returned
+end
+
 function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::AbstractHamiltonian, add, num::Real,
                         shift, dτ)
     # version for single population of integer psips
