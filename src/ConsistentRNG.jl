@@ -12,6 +12,7 @@ import Random
 # using Distributed # only for info message
 
 export cRand, cRandn, seedCRNG!, trng, newChildRNG # threadsafe
+export sync_cRandn
 
 """
 Baseline random number generator used throughout.
@@ -104,5 +105,12 @@ accessed.
 function newChildRNG(parent_rng = trng())
     return CRNG(hash(rand(parent_rng,UInt)))
 end
+
+"""
+    sync_cRandn(v)
+Generate one random number with [`cRandn()`](@ref) in a synchronous way.
+Defaults to [`cRandn()`](@ref).
+"""
+sync_cRandn(v) = cRandn()
 
 end # module

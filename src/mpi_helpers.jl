@@ -403,16 +403,27 @@ function LinearAlgebra.dot(x, lop, md::MPIData)
     return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
 end
 
+# """
+#     sync_MPI_cRandn(v)
+#     sync_MPI_cRandn(md::MPIData)
+# Generate one random number with [`cRandn()`] in a synchronous way such that all
+# MPI ranks have the same random number.
+# The argument is ignored unless it is of type `MPIData`, in which case a random
+# number from the root rank is broadcasted to all MPI ranks.
+# """
+# function sync_MPI_cRandn(md::MPIData)
+#     MPI.bcast(cRandn(), md.root, md.comm)
+# end
+# # default version for non-MPI data
+# sync_MPI_cRandn(v) = cRandn()
+
 """
-    sync_MPI_cRandn(v)
-    sync_MPI_cRandn(md::MPIData)
-Generate one random number with [`cRandn()`] in a synchronous way such that all
-MPI ranks have the same random number.
+    sync_cRandn(md::MPIData)
+Generate one random number with [`cRandn()`](@ref) in a synchronous way such
+that all MPI ranks have the same random number.
 The argument is ignored unless it is of type `MPIData`, in which case a random
 number from the root rank is broadcasted to all MPI ranks.
 """
-function sync_MPI_cRandn(md::MPIData)
+function ConsistentRNG.sync_cRandn(md::MPIData)
     MPI.bcast(cRandn(), md.root, md.comm)
 end
-# default version for non-MPI data
-sync_MPI_cRandn(v) = cRandn()

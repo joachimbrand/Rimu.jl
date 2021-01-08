@@ -678,7 +678,7 @@ function norm_project!(s::IsStochasticWithThreshold,
                         shift::T, pnorm::T, dτ
     ) where T <: Complex
     f_norm = norm(w, 1)::Real # MPIsync
-    im_factor = dτ*imag(shift) + p.κ*√dτ*sync_MPI_cRandn(w) # MPIsync
+    im_factor = dτ*imag(shift) + p.κ*√dτ*sync_cRandn(w) # MPIsync
     # Wiener increment
     # do we need to synchronize such that we add the same noise on each MPI rank?
     # or thread ? - not thread, as threading is done inside fciqmc_step!()
