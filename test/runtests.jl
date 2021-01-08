@@ -457,7 +457,7 @@ end
     pa.laststep = 200
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == 136905 # (OV ? 136992 : 136905) # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 134595 # (OV ? 136992 : 136905) # test assuming nthreads() == 1
     end
 
     # threaded version of standard fciqmc!
@@ -474,7 +474,7 @@ end
     pa.laststep = 100
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == 119854 #(OV ? 118650 : 119854) # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 119005 #(OV ? 118650 : 119854) # test assuming nthreads() == 1
     end
 end
 
