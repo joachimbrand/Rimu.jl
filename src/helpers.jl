@@ -21,13 +21,16 @@ working memory.
 sort_into_targets!(target, w, stats) =  w, target, stats
 # default serial (single thread, no MPI) version: don't copy just swap
 
+my_combine(stats) = sum(stats)
+my_combine(stats::SArray) = stats # special case for fciqmc_step!() using ThreadsX
+
 function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
     # multi-threaded non-MPI version
     empty!(target)
     for w in ws # combine new walkers generated from different threads
         add!(target, w)
     end
-    return target, ws, sum(statss)
+    return target, ws, my_combine(statss)
 end
 # three argument version for MPIData to be found in mpi_helpers.jl
 

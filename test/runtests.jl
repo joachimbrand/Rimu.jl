@@ -794,6 +794,17 @@ end
     df = nt.df
     @test size(nt.df) == (201, 14)
     # TODO: Add sensible tests.
+
+    N=50
+    s_strat = DoubleLogUpdate(ζ = ζ, ξ = ζ^2/4, targetwalkers = N + N*im)
+    svec = DVec(aIni => 2+2im, capacity = (real(s_strat.targetwalkers)*2+100))
+    r_strat = EveryTimeStep(projector = copytight(svec))
+
+    # seed random number generator
+    Rimu.ConsistentRNG.seedCRNG!(17+19)
+    params = RunTillLastStep(dτ = 0.001, laststep = 1000, shift = 0.0 + 0.0im)
+    @time nt = lomc!(Ĥ, copy(svec); params, s_strat, r_strat)
+
 end
 
 # Note: This last test is set up to work on Pipelines, within a Docker

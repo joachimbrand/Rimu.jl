@@ -286,8 +286,9 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
         step += 1
         # println("Step: ",step)
         # perform one complete stochastic vector matrix multiplication
-        v, w, step_stats, r = fciqmc_step!(ham, v, shift, dτ, pnorm,
-                                            w; m_strat=m_strat)
+        v, w, step_stats, r = fciqmc_step!(ham, v, shift, dτ, pnorm, w
+                                            , 1.0 # for selecting multithreaded version
+                                            ; m_strat=m_strat)
         tnorm = norm_project!(p_strat, v, shift, pnorm, dτ) |> T  # MPIsync
         # project coefficients of `w` to threshold
 
@@ -451,20 +452,52 @@ Returns the result `ṽ`, a (possibly changed) reference to working memory `w̃`
 `stats = [spawns, deaths, clones, antiparticles, annihilations]`. Stats will
 contain zeros when running in deterministic mode.
 """
-function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
-                      m_strat::MemoryStrategy = NoMemory()) where D
-    # serial version
+function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, w, m = 1.0;
+                      m_strat::MemoryStrategy = NoMemory())
+    # single-threaded version suitable for MPI
+    # m is an optional dummy argument that can be removed later
+    v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
-    zero!(w) # clear working memory
+    empty!(w) # clear working memory
     # call fciqmc_col!() on every entry of `v` and add the stats returned by
     # this function:
     stats = mapreduce(p-> SVector(fciqmc_col!(w, Ĥ, p.first, p.second, shift, dτ)), +,
       pairs(v))
     r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
-    return w, v, stats, r
+    return (sort_into_targets!(dv, w, stats)... , r) # MPI syncronizing
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
+# function fciqmc_step!(Ĥ, v::D, shift, dτ, pnorm, w::D;
+#                       m_strat::MemoryStrategy = NoMemory()) where D
+#     # serial version
+#     @assert w ≢ v "`w` and `v` must not be the same object"
+#     zero!(w) # clear working memory
+#     # call fciqmc_col!() on every entry of `v` and add the stats returned by
+#     # this function:
+#     stats = mapreduce(p-> SVector(fciqmc_col!(w, Ĥ, p.first, p.second, shift, dτ)), +,
+#       pairs(v))
+#     r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
+#     return w, v, stats, r
+#     # stats == [spawns, deaths, clones, antiparticles, annihilations]
+# end # fciqmc_step!
+
+# provide allocation of statss array for multithreading as a separate function in order to
+# achive type stability
+# `nt` is the number of threads such that each thread can accummulate data
+# avoiding race conditions
+allocate_statss(v,nt) = allocate_statss(StochasticStyle(v), v, nt)
+allocate_statss(::StochasticStyle, v, nt) = [zeros(Int,5) for i=1:nt]
+function allocate_statss(::SS, v, nt) where SS <: Union{IsStochastic2Pop,IsStochastic2PopInitiator,IsStochastic2PopWithThreshold}
+    return [zeros(Complex{Int},5) for i=1:nt]
+end
+
+# Below follow multiple implementations of `fciqmc_step!` using multithreading.
+# This is for testing purposes only and eventually all but one should be removed.
+# The active version is selected by dispatch on the 7th positional argument
+# and by modifying the call from fciqmc!() in line 290.
+
+# previous default but slower than the other versions
 function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
       m_strat::MemoryStrategy = NoMemory(),
       batchsize = max(100, min(length(dv)÷Threads.nthreads(), round(Int,sqrt(length(dv))*10)))
@@ -473,7 +506,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
     # multithreaded version; should also work with MPI
     @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
     v = localpart(dv)
-    statss = [zeros(Int,5) for i=1:NT]
+    statss = allocate_statss(v, NT) # [zeros(Int,5) for i=1:NT]
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
     @sync for btr in Iterators.partition(pairs(v), batchsize)
@@ -483,30 +516,114 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
     end # all threads have returned; now running on single thread again
     r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
     return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
-    # dv, w, stats
-    # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
-function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, pnorm, w::D;
-                           m_strat::MemoryStrategy = NoMemory()) where {D,S}
-    # MPI version, single thread
+import SplittablesBase.halve, SplittablesBase.amount
+import Base.Threads.@spawn, Base.Threads.nthreads, Base.Threads.threadid
+
+# This version seems to be faster but have slightly more allocations
+function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
+      m_strat::MemoryStrategy = NoMemory()
+    ) where {NT,W}
+    # multithreaded version; should also work with MPI
+    @assert NT == nthreads() "`nthreads()` not matching dimension of `ws`"
     v = localpart(dv)
-    @assert w ≢ v "`w` and `v` must not be the same object"
-    empty!(w)
-    stats = zeros(Int, 5) # pre-allocate array for stats
-    for (add, num) in pairs(v)
-        res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
-        stats .+= res # just add all stats together
+    statss = allocate_statss(v, NT)
+
+    batchsize = max(100.0, min(amount(pairs(v))/NT, sqrt(amount(pairs(v)))*10))
+
+    # define recursive dispatch function that loops two halves in parallel
+    function loop_configs!(ps) # recursively spawn threads
+        if amount(ps) > batchsize
+            two_halves = halve(ps) #
+            fh = @spawn loop_configs!(two_halves[1]) # runs in parallel
+            loop_configs!(two_halves[2])           # with second half
+            wait(fh)                             # wait for fist half to finish
+        else # run serial
+            for (add, num) in ps
+                ss = fciqmc_col!(ws[threadid()], Ĥ, add, num, shift, dτ)
+                # @show threadid(), ss
+                statss[threadid()] .+= ss
+            end
+        end
+        return nothing
     end
-    r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
-    # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
-    sort_into_targets!(dv, w)
-    MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
-    return dv, w, stats, r
-    # returns the structure with the correctly distributed end
-    # result `dv` and cumulative `stats` as an array on all ranks
-    # stats == (spawns, deaths, clones, antiparticles, annihilations)
+
+    zero!.(ws) # clear working memory
+    loop_configs!(pairs(v))
+
+    r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
+    return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
+    #
+    # return statss
+end
+
+using ThreadsX
+# new attempt at threaded version: This one is type-unstable but has
+# the lowest memory allocations for large walker numbers and is fast
+function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Bool;
+      m_strat::MemoryStrategy = NoMemory()
+    ) where {NT,W}
+    # multithreaded version; should also work with MPI
+    @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
+    v = localpart(dv)
+    # statss = [zeros(Int,5) for i=1:NT]
+    # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
+    zero!.(ws) # clear working memory
+    # stats = mapreduce(p-> SVector(fciqmc_col!(ws[Threads.threadid()], Ĥ, p.first, p.second, shift, dτ)), +,
+    #   pairs(v))
+
+    stats = ThreadsX.sum(SVector(fciqmc_col!(ws[Threads.threadid()], Ĥ, p.first, p.second, shift, dτ)) for p in pairs(v))
+    # return ws, stats
+    r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
+    return (sort_into_targets!(dv, ws, stats)... , r) # MPI syncronizing
 end # fciqmc_step!
+
+# new attempt at threaded version: type stable but slower and more allocs
+function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Int;
+      m_strat::MemoryStrategy = NoMemory()
+    ) where {NT,W}
+    # multithreaded version; should also work with MPI
+    @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
+    v = localpart(dv)
+
+    statss = allocate_statss(v, NT)
+    zero!.(ws) # clear working memory
+
+    function col!(p) # take a pair address -> value and run `fciqmc_col!()` on it
+        statss[threadid()] .+= fciqmc_col!(ws[threadid()], Ĥ, p.first, p.second, shift, dτ)
+        return nothing
+    end
+
+    # parallel execution happens here:
+    ThreadsX.map(col!, pairs(v))
+
+    # return ws, stats
+    r = applyMemoryNoise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
+    return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
+end # fciqmc_step!
+
+#  ## old version for single-thread MPI. No longer needed
+# function Rimu.fciqmc_step!(Ĥ, dv::MPIData{D,S}, shift, dτ, pnorm, w::D;
+#                            m_strat::MemoryStrategy = NoMemory()) where {D,S}
+#     # MPI version, single thread
+#     v = localpart(dv)
+#     @assert w ≢ v "`w` and `v` must not be the same object"
+#     empty!(w)
+#     stats = zeros(Int, 5) # pre-allocate array for stats
+#     for (add, num) in pairs(v)
+#         res = Rimu.fciqmc_col!(w, Ĥ, add, num, shift, dτ)
+#         stats .+= res # just add all stats together
+#     end
+#     r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
+#     # thresholdProject!(w, v, shift, dτ, m_strat) # apply walker threshold if applicable
+#     sort_into_targets!(dv, w)
+#     MPI.Allreduce!(stats, +, dv.comm) # add stats of all ranks
+#     return dv, w, stats, r
+#     # returns the structure with the correctly distributed end
+#     # result `dv` and cumulative `stats` as an array on all ranks
+#     # stats == (spawns, deaths, clones, antiparticles, annihilations)
+# end # fciqmc_step!
 
 
 """
