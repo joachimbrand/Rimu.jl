@@ -1044,8 +1044,8 @@ function hop(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) wh
     s = p = q = r = 0
     onproduct_a = 1
     onproduct_b = 1
-    p1, q1 = fldmod1(chosen, (M-1)*sb)
-    p, q2 = fldmod1(q1, sb)
+    p1, q1 = fldmod1(chosen, (M-1)*sb) # p1: position for hole #1
+    p, q2 = fldmod1(q1, sb) # q2: position for hole #2
     if p ≥ p1
         p += 1
     end
@@ -1057,7 +1057,7 @@ function hop(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) wh
         if hole_a == 0
           onproduct_a *= occ
           onrep_a = @set onrep_a[i] = occ-1
-          # annihilate two particles in onrep
+          # annihilate one particle in onrep_a
           r = i # remember where we make the holes
           break # should break out of the for loop
         end
@@ -1075,7 +1075,7 @@ function hop(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) wh
         if hole_b == 0
           onproduct_b *= occ
           onrep_b = @set onrep_b[i] = occ-1
-          # annihilate two particles in onrep
+          # annihilate one particle in onrep_b
           q = i # remember where we make the holes
           break # should break out of the for loop
         end
