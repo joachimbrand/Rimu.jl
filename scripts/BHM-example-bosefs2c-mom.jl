@@ -18,17 +18,41 @@ using DataFrames
 # and the number of particles `n = 6`:
 m = 3; n = 3
 # Generating a configuration that particles are evenly distributed:
-aIni = nearUniform(BoseFS{n,m})
-aIni2c = BoseFS2C(aIni,BoseFS((0,1,0)))
-aIniMom = BoseFS((0,5,0))
-aIni2cMom = BoseFS2C(aIniMom,BoseFS((0,1,0)))
+# aIni = nearUniform(BoseFS{n,m})
+aIni2c = BoseFS2C(BoseFS((1,1,1)),BoseFS((0,1,0)))
+# aIni2c = BoseFS2C(aIni,aIni)
+
+# aIniMom = BoseFS((0,3,0))
+aIni2cMom = BoseFS2C(BoseFS((0,3,0)),BoseFS((0,1,0)))
+# aIni2cMom = BoseFS2C(aIniMom,aIniMom)
 # aIni2c_big = BoseFS2C(BoseFS(ones(Int,10)),BoseFS(ones(Int,10)))
 # The Hamiltonian is defined based on the configuration `aIni`,
 # with additional onsite interaction strength `u = 6.0`
 # and the hopping strength `t = 1.0`:
 # Ĥ = BoseHubbardReal1D(aIni; u = 1.0, t = 1.0)
-Ĥ2c = BoseHubbard2CReal1D(aIni2c; ua = 1.0, ub = 0.0, ta = 1.0, tb = 0.0, v= 0.0)
-Ĥ2cMom = BoseHubbard2CMom1D(aIni2cMom; ua = 1.0, ub = 0.0, ta = 1.0, tb = 0.0, v= 0.0)
+Ĥ2c = BoseHubbard2CReal1D(aIni2c; ua = 6.0, ub = 6.0, ta = 6.0, tb = 6.0, v= 6.0)
+Ĥ2cMom = BoseHubbard2CMom1D(aIni2cMom; ua = 6.0, ub = 6.0, ta = 6.0, tb = 6.0, v= 6.0)
+
+
+using LinearAlgebra
+
+# smat, adds = Hamiltonians.build_sparse_matrix_from_LO(Ĥ,aIni)
+# eig = eigen(Matrix(smat))
+
+smat2c, adds2c = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2c,aIni2c)
+eig2c = eigen(Matrix(smat2c))
+ishermitian(smat2c) || @warn "Matrix is not Hermitian!"
+
+smat2cMom, adds2cMom = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cMom,aIni2cMom)
+eig2cMom = eigen(Matrix(smat2cMom))
+ishermitian(smat2cMom) || @warn "Matrix is not Hermitian!"
+
+eig2c.values[1] ≈ eig2cMom.values[1]
+
+# ĤMom = BoseHubbardMom1D(BoseFS((0,3,0)))
+#
+# smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ĤMom,BoseFS((0,6,0)))
+# eigMom = eigen(Matrix(smat))
 
 # Now let's setup the Monte Carlo settings.
 # The number of walkers to use in this Monte Carlo run:
@@ -129,18 +153,7 @@ E_proj:$qmcEnergy ± $qmcEnergyErr")
 # Finished !
 println("Finished!")
 
-using LinearAlgebra
 
-# smat, adds = Hamiltonians.build_sparse_matrix_from_LO(Ĥ,aIni)
-# eig = eigen(Matrix(smat))
-
-smat2c, adds2c = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2c,aIni2c)
-eig2c = eigen(Matrix(smat2c))
-
-smat2cMom, adds2cMom = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cMom,aIni2cMom)
-eig2cMom = eigen(Matrix(smat2cMom))
-
-eig2c.values == eig2cMom.values
 
 # figure()
 # subplot(211)

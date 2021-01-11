@@ -982,7 +982,7 @@ function BoseHubbard2CMom1D(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,t
     return BoseHubbard2CMom1D(NA,NB,M,ua,ub,ta,tb,v,add)
 end
 
-function numOfHops(m::Int, add)
+function hopsWithin1C(m::Int, add)
   singlies, doublies = numSandDoccupiedsites(add)
   return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
   # number of excitations that can be made
@@ -991,7 +991,7 @@ end
 function numOfHops(ham::BoseHubbard2CMom1D, add)
   sa = numberoccupiedsites(add.bsa)
   sb = numberoccupiedsites(add.bsb)
-  return numOfHops(ham.m, add.bsa) + numOfHops(ham.m, add.bsb) + 2*sa*(ham.m-1)*sb
+  return hopsWithin1C(ham.m, add.bsa) + hopsWithin1C(ham.m, add.bsb) + sa*(ham.m-1)*sb
   # number of excitations that can be made
 end
 
@@ -1001,9 +1001,9 @@ function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Inte
     nhops_a = numOfHops(ham_a, add.bsa)
     nhops_b = numOfHops(ham_b, add.bsb)
     # println("Hops in A: $nhops_a, Hops in B: $nhops_b,")
-    if chosen > numOfHops(ham,add)
-        error("Hop is out of range!")
-    elseif chosen ≤ nhops_a
+    # if chosen > numOfHops(ham,add)
+    #     error("Hop is out of range!")
+    if chosen ≤ nhops_a
         naddress_from_bsa, elem = hop(ham_a, add.bsa, chosen)
         # println("Hop in A, chosen = $chosen") # debug
         return BoseFS2C{NA,NB,M,AA,AB}(naddress_from_bsa,add.bsb), elem
@@ -1012,30 +1012,23 @@ function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Inte
         naddress_from_bsb, elem = hop(ham_b, add.bsb, chosen)
         # println("Hop in B, chosen = $chosen") # debug
         return BoseFS2C{NA,NB,M,AA,AB}(add.bsa,naddress_from_bsb), elem
-    elseif nhops_a+nhops_b < chosen
+    else
         chosen -= (nhops_a+nhops_b)
         sa = numberoccupiedsites(add.bsa)
         sb = numberoccupiedsites(add.bsb)
         # println("Hops across A and B: $(sa*(ham.m-1)*sb)")
-        if chosen ≤ sa*(ham.m-1)*sb
-            new_bsa, new_bsb, onproduct_a, onproduct_b = hop(add.bsa, add.bsb, chosen)
-            # elem = ham.ta/(2*ham.m)*sqrt(onproduct_a) + ham.tb/(2*ham.m)*sqrt(onproduct_b)
-            new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
-            # println("Hop A to B, chosen = $chosen") # debug
-            # return new_add, elem
-        elseif sa*(ham.m-1)*sb < chosen
-            chosen -= sa*(ham.m-1)*sb
-            new_bsb, new_bsa, onproduct_b, onproduct_a = hop(add.bsb, add.bsa, chosen) # swap bsa and bsb
-            # println("Hop B to A, chosen = $chosen") # debug
-        end
-        elem = ham.ta/(2*ham.m)*sqrt(onproduct_a) + ham.tb/(2*ham.m)*sqrt(onproduct_b)
+        new_bsa, new_bsb, onproduct_a, onproduct_b = hopacross2adds(add.bsa, add.bsb, chosen)
+        new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
+        # println("Hop A to B, chosen = $chosen") # debug
+        # return new_add, elem
+        elem = ham.v/ham.m*sqrt(onproduct_a)*sqrt(onproduct_b)
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         return new_add, elem
     end
     # return new address and matrix element
 end
 
-function hop(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
+function hopacross2adds(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
     sa = numberoccupiedsites(add_a)
     sb = numberoccupiedsites(add_b)
     onrep_a = BitStringAddresses.s_onr(add_a)
@@ -1044,12 +1037,12 @@ function hop(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) wh
     s = p = q = r = 0
     onproduct_a = 1
     onproduct_b = 1
-    p1, q1 = fldmod1(chosen, (M-1)*sb) # p1: position for hole #1
-    p, q2 = fldmod1(q1, sb) # q2: position for hole #2
-    if p ≥ p1
+    hole_a, remainder = fldmod1(chosen, (M-1)*sb) # hole_a: position for hole_a
+    p, hole_b = fldmod1(remainder, sb) # hole_b: position for hole_b
+    if p ≥ hole_a
         p += 1
     end
-    hole_a = p1
+    # hole_a = p1
     # annihilat an A boson:
     for (i, occ) in enumerate(onrep_a)
       if occ > 0
@@ -1067,7 +1060,7 @@ function hop(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) wh
     onrep_a = @set onrep_a[p] += 1
     onproduct_a *= onrep_a[p]
     Δp = p-r
-    hole_b = q2
+    # hole_b = q2
     # annihilat a B boson:
     for (i, occ) in enumerate(onrep_b)
       if occ > 0
@@ -1106,7 +1099,7 @@ function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
             end
         end
     end
-    return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c
+    return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c*0 # placeholder! incorrect here!
 end
 
 """
