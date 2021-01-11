@@ -24,7 +24,7 @@ export rayleigh_quotient
 
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbard2CReal1D
-export BoseHubbardMom1D, Momentum, BoseHubbard2CMom1D
+export BoseHubbardMom1D, Momentum, BoseHubbard2CMom1D, BoseHubbardMom1D2C
 export HubbardMom1D
 
 # First we have some generic types and methods for any linear operator
@@ -1104,6 +1104,67 @@ function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
     end
     return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c # placeholder! incorrect here!
 end
+
+
+###
+### BoseHubbardMom1D2C
+###
+
+@with_kw struct BoseHubbardMom1D2C{T, BoseFS2C} <: BosonicHamiltonian{T}
+  ha:: BosonicHamiltonian{T}
+  hb:: BosonicHamiltonian{T}
+  v::T = 1.0    # hopping strength
+  add::BoseFS2C       # starting address
+end
+
+function BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
+    ha = BoseHubbardMom1D(add.bsa;u=ua,t=ta)
+    hb = BoseHubbardMom1D(add.bsb;u=ub,t=tb)
+    return BoseHubbardMom1D2C(ha,hb,v,add)
+end
+
+function numOfHops(ham::BoseHubbardMom1D2C, add)
+  sa = numberoccupiedsites(add.bsa)
+  sb = numberoccupiedsites(add.bsb)
+  return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(ham.hb.m-1)*sb
+  # number of excitations that can be made
+end
+
+
+function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
+    # ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
+    # ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
+    nhops_a = numOfHops(ham.ha, add.bsa)
+    nhops_b = numOfHops(ham.hb, add.bsb)
+    # println("Hops in A: $nhops_a, Hops in B: $nhops_b,")
+    # if chosen > numOfHops(ham,add)
+    #     error("Hop is out of range!")
+    if chosen ≤ nhops_a
+        naddress_from_bsa, elem = hop(ham.ha, add.bsa, chosen)
+        # println("Hop in A, chosen = $chosen") # debug
+        return BoseFS2C{NA,NB,M,AA,AB}(naddress_from_bsa,add.bsb), elem
+    elseif nhops_a < chosen ≤ nhops_a+nhops_b
+        chosen -= nhops_a
+        naddress_from_bsb, elem = hop(ham.hb, add.bsb, chosen)
+        # println("Hop in B, chosen = $chosen") # debug
+        return BoseFS2C{NA,NB,M,AA,AB}(add.bsa,naddress_from_bsb), elem
+    else
+        chosen -= (nhops_a+nhops_b)
+        sa = numberoccupiedsites(add.bsa)
+        sb = numberoccupiedsites(add.bsb)
+        # println("Hops across A and B: $(sa*(ham.m-1)*sb)")
+        new_bsa, new_bsb, onproduct_a, onproduct_b = hopacross2adds(add.bsa, add.bsb, chosen)
+        new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
+        # println("Hop A to B, chosen = $chosen") # debug
+        # return new_add, elem
+        elem = ham.v/ham.m*sqrt(onproduct_a)*sqrt(onproduct_b)
+        new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
+        return new_add, elem
+    end
+    # return new address and matrix element
+end
+
+
 
 """
     Momentum(ham::AbstractHamiltonian) <: AbstractHamiltonian
