@@ -1039,9 +1039,6 @@ function hopacross2adds(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::
     onproduct_b = 1
     hole_a, remainder = fldmod1(chosen, (M-1)*sb) # hole_a: position for hole_a
     p, hole_b = fldmod1(remainder, sb) # hole_b: position for hole_b
-    if p ≥ hole_a
-        p += 1
-    end
     # hole_a = p1
     # annihilat an A boson:
     for (i, occ) in enumerate(onrep_a)
@@ -1056,10 +1053,16 @@ function hopacross2adds(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::
         end
       end
     end
+    if p ≥ r
+        p += 1
+    end
+    # println("new A at $p")
+    # println("hole A at $r")
     # create an A boson:
+    ΔP = p-r
+    p = mod1(p, M)
     onrep_a = @set onrep_a[p] += 1
     onproduct_a *= onrep_a[p]
-    Δp = p-r
     # hole_b = q2
     # annihilat a B boson:
     for (i, occ) in enumerate(onrep_b)
@@ -1074,7 +1077,7 @@ function hopacross2adds(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::
         end
       end
     end
-    s = mod1(q-Δp, M)
+    s = mod1(q-ΔP, M)
     # create a B boson:
     onrep_b = @set onrep_b[s] += 1
     onproduct_b *= onrep_b[s]
@@ -1099,7 +1102,7 @@ function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
             end
         end
     end
-    return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c*0 # placeholder! incorrect here!
+    return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c # placeholder! incorrect here!
 end
 
 """
