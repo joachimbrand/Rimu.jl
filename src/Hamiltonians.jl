@@ -1095,14 +1095,10 @@ function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
     interaction2c = 0
     for p in 1:ham.m
         for k in 1:ham.m
-            if k==p
-              interaction2c += onrep_a[k]*onrep_b[k]
-            # else
-            #   interaction2c += 2*onrep_a[k]*onrep_b[p] # two terms in sum over creation operators
-            end
+          interaction2c += onrep_a[k]*onrep_b[p]
         end
     end
-    return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c # placeholder! incorrect here!
+    return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c
 end
 
 
