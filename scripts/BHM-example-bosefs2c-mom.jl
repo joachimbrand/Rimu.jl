@@ -19,19 +19,19 @@ using DataFrames
 m = 3; n = 3
 # Generating a configuration that particles are evenly distributed:
 # aIni = nearUniform(BoseFS{n,m})
-aIni2c = BoseFS2C(BoseFS((1,1,1)),BoseFS((1,1,1)))
+aIni2c = BoseFS2C(BoseFS((1,1,1,1)),BoseFS((1,1,1,1)))
 # aIni2c = BoseFS2C(aIni,aIni)
 
 # aIniMom = BoseFS((0,3,0))
-aIni2cMom = BoseFS2C(BoseFS((0,3,0)),BoseFS((0,3,0)))
+aIni2cMom = BoseFS2C(BoseFS((0,4,0,0)),BoseFS((0,3,0,0)))
 # aIni2cMom = BoseFS2C(aIniMom,aIniMom)
 # aIni2c_big = BoseFS2C(BoseFS(ones(Int,10)),BoseFS(ones(Int,10)))
 # The Hamiltonian is defined based on the configuration `aIni`,
 # with additional onsite interaction strength `u = 6.0`
 # and the hopping strength `t = 1.0`:
 # Ĥ = BoseHubbardReal1D(aIni; u = 1.0, t = 1.0)
-Ĥ2c = BoseHubbard2CReal1D(aIni2c; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 0.0)
-Ĥ2cMom = BoseHubbard2CMom1D(aIni2cMom; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 0.0)
+Ĥ2c = BoseHubbard2CReal1D(aIni2c; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 1.0)
+Ĥ2cMom = BoseHubbard2CMom1D(aIni2cMom; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 1.0)
 
 
 using LinearAlgebra
@@ -49,21 +49,21 @@ ishermitian(smat2cMom) || @warn "Matrix is not Hermitian!"
 
 eig2c.values[1] ≈ eig2cMom.values[1]
 
-ĤMom = BoseHubbardMom1D(BoseFS((0,3,0));u=6.0)
+ĤMom = BoseHubbardMom1D(BoseFS((0,4,0,0));u=6.0)
 
-smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ĤMom,BoseFS((0,3,0)))
+smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ĤMom,BoseFS((0,4,0,0)))
 eigMom = eigen(Matrix(smat))
 eigMom.values[1]
 
 # Now let's setup the Monte Carlo settings.
 # The number of walkers to use in this Monte Carlo run:
-targetwalkers = 5_000
+targetwalkers = 2_000
 # The number of time steps before doing statistics,
 # i.e. letting the walkers to sample Hilbert and to equilibrate:
-steps_equilibrate = 2_000
+steps_equilibrate = 3_000
 # And the number of time steps used for getting statistics,
 # e.g. time-average of shift, projected energy, walker numbers, etc.:
-steps_measure = 2_000
+steps_measure = 3_000
 
 
 # Set the size of a time step
@@ -81,6 +81,7 @@ nIni = 10
 # svec = DVec(Dict(aIni => nIni), targetwalkers*10)
 svec2c = DVec(Dict(aIni2c => nIni), targetwalkers*10)
 svec2cMom = DVec(Dict(aIni2cMom => nIni), targetwalkers*10)
+svec2ctest = DVec(Dict(aIni2cMom => nIni), targetwalkers*10)
 # Let's plant a seed for the random number generator to get consistent result:
 Rimu.ConsistentRNG.seedCRNG!(17)
 
@@ -94,6 +95,7 @@ s_strat = DoubleLogUpdate(targetwalkers = targetwalkers, ζ = 0.08)
 # r_strat = ReportDFAndInfo(k = k, i = 100, projector = copytight(svec))
 r_strat_2c = ReportDFAndInfo(k = k, i = 100, projector = copytight(svec2c))
 r_strat_2cMom = ReportDFAndInfo(k = k, i = 100, projector = copytight(svec2cMom))
+r_strat_2ctest = ReportDFAndInfo(k = k, i = 100, projector = copytight(svec2ctest))
 # Strategy for updating dτ:
 t_strat = ConstantTimeStep()
 
@@ -127,6 +129,15 @@ params = RunTillLastStep(step = 0, dτ = dτ, laststep = steps_equilibrate + ste
             laststep = steps_equilibrate + steps_measure,
             s_strat = s_strat,
             r_strat = r_strat_2cMom,
+            τ_strat = t_strat);
+            params = RunTillLastStep(step = 0, dτ = dτ, laststep = steps_equilibrate + steps_measure)
+
+params = RunTillLastStep(step = 0, dτ = dτ, laststep = steps_equilibrate + steps_measure)
+@time df2ctest = lomc!(ham1d2c,svec2ctest;
+            params = params,
+            laststep = steps_equilibrate + steps_measure,
+            s_strat = s_strat,
+            r_strat = r_strat_2ctest,
             τ_strat = t_strat);
 # println("Writing data to disk...")
 # Saving output data stored in `df.df` into a `.feather` file which can be read in later:

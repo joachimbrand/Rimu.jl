@@ -1028,7 +1028,7 @@ function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Inte
     # return new address and matrix element
 end
 
-function hopacross2adds(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
+@inline function hopacross2adds(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
     sa = numberoccupiedsites(add_a)
     sb = numberoccupiedsites(add_b)
     onrep_a = BitStringAddresses.s_onr(add_a)
@@ -1039,49 +1039,43 @@ function hopacross2adds(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::
     onproduct_b = 1
     hole_a, remainder = fldmod1(chosen, (M-1)*sb) # hole_a: position for hole_a
     p, hole_b = fldmod1(remainder, sb) # hole_b: position for hole_b
-    # hole_a = p1
-    # annihilat an A boson:
+    # annihilate an A boson:
     for (i, occ) in enumerate(onrep_a)
       if occ > 0
-        hole_a -= 1
-        if hole_a == 0
-          onproduct_a *= occ
-          onrep_a = @set onrep_a[i] = occ-1
-          # annihilate one particle in onrep_a
-          r = i # remember where we make the holes
+        hole_a -= 1 # searching for the position for hole_a
+        if hole_a == 0 # found the hole_a here
+          onproduct_a *= occ # record the normalisation factor before annihilate
+          onrep_a = @set onrep_a[i] = occ-1 # annihilate an A boson: a_r
+          r = i # remember where we make the hole
           break # should break out of the for loop
         end
       end
     end
     if p ≥ r
-        p += 1
+        p += 1 # to skip the hole_a
     end
-    # println("new A at $p")
-    # println("hole A at $r")
     # create an A boson:
-    ΔP = p-r
-    p = mod1(p, M)
-    onrep_a = @set onrep_a[p] += 1
-    onproduct_a *= onrep_a[p]
-    # hole_b = q2
-    # annihilat a B boson:
+    ΔP = p-r # change in momentun
+    p = mod1(p, M) # enforce periodic boundary condition
+    onrep_a = @set onrep_a[p] += 1 # create an A boson: a†_p
+    onproduct_a *= onrep_a[p] # record the normalisation factor after creation
+    # annihilate a B boson:
     for (i, occ) in enumerate(onrep_b)
       if occ > 0
-        hole_b -= 1
-        if hole_b == 0
-          onproduct_b *= occ
-          onrep_b = @set onrep_b[i] = occ-1
-          # annihilate one particle in onrep_b
+        hole_b -= 1 # searching for the position for hole_b
+        if hole_b == 0 # found the hole_b here
+          onproduct_b *= occ # record the normalisation factor before annihilate
+          onrep_b = @set onrep_b[i] = occ-1 # annihilate a B boson: b_q
           q = i # remember where we make the holes
           break # should break out of the for loop
         end
       end
     end
-    s = mod1(q-ΔP, M)
+    s = mod1(q-ΔP, M) # compute s with periodic boundary condition
     # create a B boson:
-    onrep_b = @set onrep_b[s] += 1
-    onproduct_b *= onrep_b[s]
-    if mod(q+r,M)-mod(s+p,M) != 0
+    onrep_b = @set onrep_b[s] += 1 # create a B boson: b†_s
+    onproduct_b *= onrep_b[s] # record the normalisation factor after creation
+    if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
         error("Momentum is not conserved!")
     end
     return BoseFS{NA,M,AA}(onrep_a), BoseFS{NB,M,AB}(onrep_b), onproduct_a, onproduct_b
@@ -1095,7 +1089,7 @@ function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
     interaction2c = 0
     for p in 1:ham.m
         for k in 1:ham.m
-          interaction2c += onrep_a[k]*onrep_b[p]
+          interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
     end
     return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c
@@ -1103,12 +1097,12 @@ end
 
 
 ###
-### BoseHubbardMom1D2C
+### BoseHubbardMom1D2C - No improvement comparing to BoseHubbard2CMom1D
 ###
 
-@with_kw struct BoseHubbardMom1D2C{T, BoseFS2C} <: BosonicHamiltonian{T}
-  ha:: BosonicHamiltonian{T}
-  hb:: BosonicHamiltonian{T}
+@with_kw struct BoseHubbardMom1D2C{T, ADA, ADB, BoseFS2C} <: BosonicHamiltonian{T}
+  ha:: BoseHubbardMom1D{T, ADA}
+  hb:: BoseHubbardMom1D{T, ADB}
   v::T = 1.0    # hopping strength
   add::BoseFS2C       # starting address
 end
@@ -1153,13 +1147,27 @@ function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Inte
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         # println("Hop A to B, chosen = $chosen") # debug
         # return new_add, elem
-        elem = ham.v/ham.m*sqrt(onproduct_a)*sqrt(onproduct_b)
+        elem = ham.v/ham.ha.m*sqrt(onproduct_a)*sqrt(onproduct_b)
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         return new_add, elem
     end
     # return new address and matrix element
 end
 
+
+function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C)
+    # ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
+    # ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
+    onrep_a = BitStringAddresses.onr(add.bsa)
+    onrep_b = BitStringAddresses.onr(add.bsb)
+    interaction2c = 0
+    for p in 1:ham.ha.m
+        for k in 1:ham.ha.m
+          interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
+        end
+    end
+    return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + ham.v/ham.ha.m*interaction2c
+end
 
 
 """
