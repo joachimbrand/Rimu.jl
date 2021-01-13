@@ -6,7 +6,7 @@ using Statistics, DataFrames
 # assuming VERSION ≥ v"1.5"
 # the following is needed because random numbers of collections are computed
 # differently after version 1.5, and thus the results of many tests change
-# The following Bool is true if run on an old version of Julia
+# for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
 @assert VERSION ≥ v"1.5"
 
 @testset "Rimu.jl" begin
@@ -207,7 +207,7 @@ using Rimu.ConsistentRNG
     seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
     @test cRand(UInt128) == 0xad2acf8f66080104f395d0b7ed4713d9
 
-    @test rand(ConsistentRNG.CRNGs[1],UInt128) == 0x0b0c30478c16f78daa91bcc785895269
+    @test rand(ConsistentRNG.CRNGs[][1],UInt128) == 0x0b0c30478c16f78daa91bcc785895269
     # Only looks at first element of the `NTuple`. This should be reproducible
     # regardless of `numthreads()`.
     @test rand(trng(),UInt16) == 0x4c52
