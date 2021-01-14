@@ -132,7 +132,10 @@ the statistics in the `DataFrame` `nt.df` will be appended.
 """
 function lomc!(a::NamedTuple) # should be type stable
     @unpack ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat = a
-    rr_strat = refine_r_strat(r_strat, ham)
+    ConsistentRNG.check_crng_independence(v) # sanity check of RNGs
+
+    rr_strat = refine_r_strat(r_strat, ham) # set up r_strat for fciqmc!()
+    
     fciqmc!(v, params, df, ham, s_strat, rr_strat, τ_strat, wm;
         m_strat = m_strat, p_strat = p_strat
     )
@@ -540,6 +543,8 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
             loop_configs!(two_halves[2])           # with second half
             wait(fh)                             # wait for fist half to finish
         else # run serial
+            # id = threadid() # specialise to which thread we are running on here
+            # serial_loop_configs!(ps, ws[id], statss[id], trng())
             for (add, num) in ps
                 ss = fciqmc_col!(ws[threadid()], Ĥ, add, num, shift, dτ)
                 # @show threadid(), ss
@@ -548,6 +553,15 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
         end
         return nothing
     end
+
+    # function serial_loop_configs!(ps, w, rng, stats)
+    #     @inbounds for (add, num) in ps
+    #         ss = fciqmc_col!(w, Ĥ, add, num, shift, dτ, rng)
+    #         # @show threadid(), ss
+    #         stats .+= ss
+    #     end
+    #     return nothing
+    # end
 
     zero!.(ws) # clear working memory
     loop_configs!(pairs(v))

@@ -212,6 +212,7 @@ using Rimu.ConsistentRNG
     # regardless of `numthreads()`.
     @test rand(trng(),UInt16) == 0x4c52
     @test rand(newChildRNG(),UInt16) == 0xc4f1
+    @test ConsistentRNG.check_crng_independence(0) == Threads.nthreads()
 end
 
 @testset "Hamiltonians.jl" begin
@@ -807,18 +808,27 @@ end
 
 end
 
+@testset "RMPI" begin
+    m = n = 6
+    aIni = nearUniform(BoseFS{n,m})
+    svec = DVec(aIni => 2, capacity = 10)
+    dv = MPIData(svec)
+    @test ConsistentRNG.check_crng_independence(dv) == mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)
+end
+
+
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
-@testset "MPI" begin
-    wd = pwd() # move to test/ folder if running from Atom
-    if wd[end-3:end] ≠ "test"
-        cd("test")
-    end
-    # read name of mpi executable from environment variable if defined
-    # necessary for allow-run-as root workaround for Pipelines
-    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
-    rr = run(`$mpiexec -np 2 julia mpiexample.jl`)
-    @test rr.exitcode == 0
-    cd(wd)
-end
+# @testset "MPI" begin
+#     wd = pwd() # move to test/ folder if running from Atom
+#     if wd[end-3:end] ≠ "test"
+#         cd("test")
+#     end
+#     # read name of mpi executable from environment variable if defined
+#     # necessary for allow-run-as root workaround for Pipelines
+#     mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
+#     rr = run(`$mpiexec -np 2 julia mpiexample.jl`)
+#     @test rr.exitcode == 0
+#     cd(wd)
+# end

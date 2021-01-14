@@ -22,6 +22,8 @@ include("Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("Blocking.jl")
 @reexport using .Blocking
+include("RimuIO.jl")
+using .RimuIO
 
 export lomc!
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
@@ -40,17 +42,20 @@ export StochasticStyle, IsStochastic, IsDeterministic, IsStochastic2Pop
 export IsStochasticNonlinear, IsStochasticWithThreshold
 export @setThreshold, @setDeterministic, setThreshold
 export threadedWorkingMemory, localpart, walkernumber
+export RimuIO
 
-# exports for MPI functionality
-export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
-export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
-export free, mpi_no_exchange
+# # exports for MPI functionality
+# export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
+# export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
+# export free, mpi_no_exchange
 
 include("strategies_and_params.jl")
 include("helpers.jl")
-include("mpi_helpers.jl")
+# include("mpi_helpers.jl")
 include("fciqmc.jl")
 
+include("RMPI.jl")
+@reexport using .RMPI
 
 
 export greet
