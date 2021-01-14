@@ -84,19 +84,39 @@ the vector [`CRNGs`](@ref). When no argument is given, each rng is seeded
 randomly.
 """
 function seedCRNG!(seeds::Vector)
+    @assert length(seeds) == length(CRNGs[]) "Incorrect number of seeds supplied for seeding CNRGs"
+    @assert length(CRNGs[]) == Threads.nthreads() "Number of CNRGs should be equal to nthreads()"
     for (i,seed) in enumerate(seeds)
+        @assert seed ≠ 0 "seed must not be zero"
         Random.seed!(CRNGs[][i], seed)
     end
     return CRNGs[]
 end
 function seedCRNG!(seed::Number)
+    @assert length(CRNGs[]) == Threads.nthreads() "Number of CNRGs should be equal to nthreads()"
+    @assert seed ≠ 0 "seed must not be zero"
     rng=CRNG(seed)
     for i = 1:length(CRNGs[])
-        @inbounds Random.seed!(CRNGs[][i], hash(rand(rng,UInt)))
+        seedi = hash(rand(rng,UInt))
+        @assert seedi ≠ 0 "seed must not be zero"
+        @inbounds Random.seed!(CRNGs[][i], seedi)
     end
     return CRNGs[]
 end
 seedCRNG!() = map(Random.seed!, CRNGs[])
+
+"""
+    ConsistentRNG.check_crng_independence(v)
+Primitve test to check the random number
+generators. It throws an error if some of the threaded random number
+generators are equal. Returns the number of threaded RNGs.
+"""
+function check_crng_independence(v)
+    @assert union(ConsistentRNG.CRNGs[]) == ConsistentRNG.CRNGs[] "Threaded random number generators must be independent" ConsistentRNG.CRNGs[]
+    @assert length(ConsistentRNG.CRNGs[]) == Threads.nthreads() "Number of CNRGs should be equal to nthreads()"
+    return length(ConsistentRNG.CRNGs[])
+end
+
 
 """
     newChildRNG(parent_rng = trng())
