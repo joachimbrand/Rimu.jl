@@ -55,7 +55,7 @@ include("helpers.jl")
 include("fciqmc.jl")
 
 include("RMPI.jl")
-@reexport using .RMPI
+# @reexport using .RMPI
 
 
 export greet
