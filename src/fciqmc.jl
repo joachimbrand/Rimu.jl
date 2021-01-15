@@ -81,7 +81,8 @@ function lomc!(ham, v;
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
         # just for getting the type of step_statsd do a step with zero time:
-        vd, wd, step_statsd, rd = fciqmc_step!(ham, copytight(v), shift, 0.0, nor,
+        vd, wd, step_statsd, rd = fciqmc_step!(ham, copytight(localpart(v)),
+                                            shift, 0.0, nor,
                                             wm; m_strat=m_strat)
         TS = eltype(step_statsd)
         # prepare df for recording data
@@ -135,7 +136,7 @@ function lomc!(a::NamedTuple) # should be type stable
     ConsistentRNG.check_crng_independence(v) # sanity check of RNGs
 
     rr_strat = refine_r_strat(r_strat, ham) # set up r_strat for fciqmc!()
-    
+
     fciqmc!(v, params, df, ham, s_strat, rr_strat, τ_strat, wm;
         m_strat = m_strat, p_strat = p_strat
     )
