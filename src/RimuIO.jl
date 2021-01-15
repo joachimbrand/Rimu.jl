@@ -18,12 +18,12 @@ end
     RimuIO.save(filename, df::DataFrame)
 Save dataframe in Arrow format.
 """
-save(filename, df::DataFrame) = Arrow.write(filename, df)
+save_df(filename, df::DataFrame) = Arrow.write(filename, df)
 
 """
-    RimuIO.load(filename) -> DataFrame
+    RimuIO.load_df(filename) -> DataFrame
 Load Arrow file into dataframe.
 """
-load(filename) = DataFrame(Arrow.Table(filename))
+load_df(filename) = DataFrame(Arrow.Table(filename))
 
 end # module RimuIO
