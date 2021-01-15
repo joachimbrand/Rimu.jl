@@ -44,19 +44,12 @@ export @setThreshold, @setDeterministic, setThreshold
 export threadedWorkingMemory, localpart, walkernumber
 export RimuIO
 
-# # exports for MPI functionality
-# export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
-# export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
-# export free, mpi_no_exchange
-
 include("strategies_and_params.jl")
 include("helpers.jl")
-# include("mpi_helpers.jl")
 include("fciqmc.jl")
 
 include("RMPI.jl")
 # @reexport using .RMPI
-
 
 export greet
 
