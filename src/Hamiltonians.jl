@@ -1107,6 +1107,29 @@ end
   add::BoseFS2C       # starting address
 end
 
+@doc """
+    ham = BoseHubbardMom1D2C(ha::BoseHubbardMom1D,hb::BoseHubbardMom1D,v=1.0,add=add)
+    ham = BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
+
+Implements a one-dimensional Bose Hubbard chain in momentum space.
+
+```math
+\\hat{H} = \\hat{H}_a + \\hat{H}_b + \\frac{u}{M}\\sum_{kpqr} b^†_{r} a^†_{q} b_p a_k δ_{r+q,p+k}
+```
+
+# Arguments
+- `h_a::BoseHubbardMom1D` and `h_b::BoseHubbardMom1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardMom1D`](@ref)
+- `v::Float64`: the inter-species interaction parameter
+- `add::BoseFS2C`: the two-component address type, see [`BoseFS2C`](@ref)
+
+    ham(:dim)
+Return the dimension of the linear space if representable as `Int`, otherwise
+return `nothing`.
+
+    ham(:fdim)
+Return the approximate dimension of linear space as `Float64`.
+""" BoseHubbardMom1D2C
+
 function BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
     ha = BoseHubbardMom1D(add.bsa;u=ua,t=ta)
     hb = BoseHubbardMom1D(add.bsb;u=ub,t=tb)
