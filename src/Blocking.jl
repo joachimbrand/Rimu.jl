@@ -13,7 +13,7 @@ using DataFrames, Statistics
 export autocovariance, covariance
 export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
-export growthWitness, gW
+export growthWitness, gW, smoothen
 
 # """
 # Calculate the variance of the dataset v
@@ -482,6 +482,27 @@ end
 growthWitness(df::DataFrame; b = 30, pad = :true) = growthWitness(df.norm, df.shift, df.dτ[1]; b=b, pad=pad)
 
 """
+    smoothen(noisy::AbstractVector, b; pad = :true)
+Smoothen the array `noisy` by averaging over a sliding window of length `b`.
+Pad to `length(noisy)` if `pad == true`. Otherwise, the returned array will have
+the length `length(noisy) - b`.
+"""
+function smoothen(noisy::AbstractVector, b; pad = :true)
+    l = length(noisy)
+    n = l - b
+    smooth = Vector{promote_type(eltype(noisy),Float64)}(undef, pad ? l : n)
+    offset = pad ? b÷2 : 0 # use offset only if pad == :true
+    for i in 1:n
+        smooth[i + offset] = 1/b * sum(noisy[i:i+b-1])
+    end
+    if pad # pad the vector g at both ends
+        smooth[1:offset] .= smooth[offset+1]
+        smooth[offset+n+1 : end] .= smooth[offset+n]
+    end
+    return smooth
+end
+
+"""
     gW(norm::AbstractArray, shift::AbstractArray, dt, [b]; pad = :true) -> g
     gW(df::DataFrame, [b]; pad = :true) -> g
 Compute the growth witness
@@ -508,19 +529,7 @@ function gW(norm::AbstractArray, shift::AbstractArray, dt)
 end
 function gW(norm::AbstractArray, shift::AbstractArray, dt, b; pad = :true)
     g_raw = gW(norm, shift, dt)
-    l = length(norm)
-    @assert length(g_raw) == l "`norm` and `shift` arrays need to have the same length."
-    n = l - b
-    g = Vector{eltype(shift)}(undef, pad ? l : n)
-    offset = pad ? b÷2 : 0 # use offset only if pad == :true
-    for i in 1:n
-        g[i + offset] = 1/b * sum(g_raw[i:i+b-1])
-    end
-    if pad # pad the vector g at both ends
-        g[1:offset] .= g[offset]
-        g[offset+n+1 : end] .= g[offset+n]
-    end
-    return g
+    return smoothen(g_raw, b; pad)
 end
 gW(df::DataFrame) = gW(df.norm, df.shift, df.dτ[1])
 gW(df::DataFrame, b; pad = :true) = gW(df.norm, df.shift, df.dτ[1], b; pad=pad)
