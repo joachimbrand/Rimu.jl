@@ -413,6 +413,9 @@ quantities decorrelate on the same time scale. Returns a named tuple.
 """
 function autoblock(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool=true)
     s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop];corrected=corrected) # shift
+    if eltype(df.hproj) == Missing
+        return (s̄ = s̄, σs = σs, ē = missing, σe = missing, k = ks)
+    end
     dfp = blocking(df.hproj[start:stop], df.vproj[start:stop];corrected=corrected) # projected
     return (s̄ = s̄, σs = σs, ē = dfp.mean_f[1], σe = dfp.SE_f[ks], k = ks)
 end
@@ -450,11 +453,11 @@ end
 """
     growthWitness(norm::AbstractArray, shift::AbstractArray, dt; b = 30, pad = :true) -> g
     growthWitness(df::DataFrame; b = 30, pad = :true) -> g
-Compute the growth witness 
+Compute the growth witness
 ```math
 G_b^{(n)} = S̄^{(n)} - \\frac{\\log\\vert\\mathbf{c}^{(n+b)}\\vert - \\log\\vert\\mathbf{c}^{(n)}\\vert}{b d\\tau},
 ```
-where `S̄` is an average of the `shift` over `b` time steps and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n]`. 
+where `S̄` is an average of the `shift` over `b` time steps and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n]`.
 The parameter `b ≥ 1` averages the derivative quantity over `b` time steps and helps suppress noise.
 
 If `pad` is set to `:false` then the returned array `g` has the length `length(norm) - b`.
