@@ -719,19 +719,22 @@ end
     @test Rimu.compute_proj_observables(v, ham, rr) == (v⋅v, dot(v, ham, v))
 end
 
-using Rimu.EmbarrassinglyDistributed
+using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
 @testset "EmbarrassinglyDistributed" begin
     add = BoseFS((1,1,0,1))
     v = DVec(add => 2, capacity = 200)
     ham = BoseHubbardReal1D(add, u=4.0)
-    @test setup_workers(4) == 4
-    seedCRNGs_workers!(127)
-    nt = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000)
+    @test setup_workers(4) == 4 # add workers and load code
+    seedCRNGs_workers!(127)     # seed rgns on workers deterministically
+    nt = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000) # parallel lomc!
     @test [size(df)[1] for df in nt.dfs] == [6001, 6001, 6001, 6001]
-    ntc = combine_dfs(nt)
+    ntc = combine_dfs(nt) # combine results into one DataFrame
     @test size(ntc.df)[1] == 21_001
-    energies = autoblock(ntc)
+    energies = autoblock(ntc) # perform `autoblock()` discarding `eqsteps` time steps
+    # in a single line:
+    # energies = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000) |> combine_dfs |> autoblock
     @test ismissing(energies.ē) && ismissing(energies.σe)
+    # golden master test on results because qmc evolution is deterministic
     @test energies.s̄ ≈ -4.11306250063903
     @test energies.σs ≈ 0.00576127659982331
 end
