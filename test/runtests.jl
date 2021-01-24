@@ -734,3 +734,50 @@ end
     @test rr.exitcode == 0
     cd(wd)
 end
+
+@testset "BoseFS2C" begin
+    bfs2c = BoseFS2C(BoseFS((1,2,0,4)),BoseFS((4,0,3,1)))
+    @test typeof(bfs2c) == BoseFS2C{7,8,4,BSAdd64,BSAdd64}
+    @test Hamiltonians.numberoccupiedsites(bfs2c.bsa) == 3
+    @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
+    @test Hamiltonians.numberoccupiedsites(bfs2c) == 4
+    @test onr(bfs2c.bsa) == [1,2,0,4]
+    @test onr(bfs2c.bsb) == [4,0,3,1]
+    @test Hamiltonians.bosehubbard2Cinteraction(bfs2c) == 8 # n_a*n_b over all sites
+end
+
+@testset "TwoComponentBosonicHamiltonian" begin
+    aIni2cReal = BoseFS2C(BoseFS((1,1,1,1)),BoseFS((1,1,1,1))) # real space two-component
+    Ĥ2cReal = BoseHubbardReal1D2C(aIni2cReal; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
+    hamA = BoseHubbardReal1D(n=4,m=4,u=6.0,t=1.0,AT=BoseFS{4,4,BSAdd64})
+    hamB = BoseHubbardReal1D(BoseFS((1,1,1,1));u=6.0)
+    @test hamA == Ĥ2cReal.ha
+    @test hamB == Ĥ2cReal.hb
+    @test numOfHops(Ĥ2cReal,aIni2cReal) == 16
+    @test numOfHops(Ĥ2cReal,aIni2cReal) == numOfHops(Ĥ2cReal.ha,aIni2cReal.bsa)+numOfHops(Ĥ2cReal.hb,aIni2cReal.bsb)
+    @test Ĥ2cReal(:dim) == 1225
+    @test Ĥ2cReal(:fdim) == 1225.0
+
+    hp2c = Hops(Ĥ2cReal,aIni2cReal)
+    @test length(hp2c) == 16
+    @test hp2c[1][1] == BoseFS2C{4,4,4,BSAdd64,BSAdd64}(BoseFS{BSAdd64}((0,2,1,1)), BoseFS{BSAdd64}((1,1,1,1)))
+    @test hp2c[1][2] ≈ -1.4142135623730951
+    @test diagME(Ĥ2cReal,aIni2cReal) ≈ 24.0 # from the V term
+
+    aIni2cMom = BoseFS2C(BoseFS((0,4,0,0)),BoseFS((0,4,0,0))) # momentum space two-component
+    Ĥ2cMom = BoseHubbardMom1D2C(aIni2cMom; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
+    @test numOfHops(Ĥ2cMom,aIni2cMom) == 9
+    @test Ĥ2cMom(:dim) == 1225
+    @test Ĥ2cMom(:fdim) == 1225.0
+
+    hp2cMom = Hops(Ĥ2cMom,aIni2cMom)
+    @test length(hp2cMom) == 9
+    @test hp2cMom[1][1] == BoseFS2C{4,4,4,BSAdd64,BSAdd64}(BoseFS{BSAdd64}((1,2,1,0)), BoseFS{BSAdd64}((0,4,0,0)))
+    @test hp2cMom[1][2] ≈ 2.598076211353316
+
+    smat2cReal, adds2cReal = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cReal,aIni2cReal)
+    eig2cReal = eigen(Matrix(smat2cReal))
+    smat2cMom, adds2cMom = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cMom,aIni2cMom)
+    eig2cMom = eigen(Matrix(smat2cMom))
+    @test eig2cReal.values[1] ≈ eig2cMom.values[1]
+end
