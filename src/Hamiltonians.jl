@@ -18,7 +18,7 @@ using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
 
-export AbstractHamiltonian, Hops, generateRandHop
+export AbstractHamiltonian, TwoComponentBosonicHamiltonian, Hops, generateRandHop
 export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
 export rayleigh_quotient
 
@@ -1662,10 +1662,10 @@ end #m1p
 #
 """
     TwoComponentBosonicHamiltonian{T} <: AbstractHamiltonian{T}
-Abstract type for representing Hamiltonians in a Fock space of fixed number of
-scalar bosons. At least the following fields should be present:
-* `ha  # number of particles`
-* `hb  # number of modes`
+Abstract type for representing interacting two-component Hamiltonians in a Fock space of fixed number of
+bosons with two different species. At least the following fields should be present:
+* `ha::BosonicHamiltonian  # Hamiltonian for boson species A`
+* `hb::BosonicHamiltonian  # Hamiltonian for boson species B`
 * `v  # inter-component interaction`
 * `AT::BoseFS2C # address type`
 
