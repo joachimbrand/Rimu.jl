@@ -5,7 +5,7 @@ time-series with `lomc!()` into chunks performed in parallel using the
 `Distributed` package.
 
 ### Exports:
-* [`d_lomc()`](@ref) - run [`lomc()`] in embarrassingly parallel mode
+* [`d_lomc!()`](@ref) - run [`lomc!()`](@ref) in embarrassingly parallel mode
 * [`combine_dfs()`](@ref) - combine the resulting `DataFrame`s to a single one
 * [`setup_workers()`](@ref) - set up workers for distributed computing
 * [`seedCRNGs_workers!()`](@ref) - seed random number generators for distributed computing
@@ -18,17 +18,27 @@ using Rimu, Rimu.ConsistentRNG
 
 export d_lomc!, setup_workers, seedCRNGs_workers!, combine_dfs
 
+"""
+    seedCRNGs_workers!([seed])
+Seed the random number generators `CRNG` from [`ConsistentRNG`](@ref) on all
+available processes in a `Distributed` environment deterministically from `seed`
+but such that their pseudo-random number sequences are statistically
+independent.
+
+If no `seed` is given, obtain one from system entropy
+(with [`Random.RandomDevice()`](@ref)).
+"""
 function seedCRNGs_workers!(seed=rand(Random.RandomDevice(),UInt))
     @everywhere seedCRNG!($seed + hash(myid()))
 end
 
 """
     d_lomc!(ham, v; eqsteps, kwargs...)
-    -> (DataFrame[], eqsteps)
-Perform linear operator Monte Carlo with [`lomc!()`] in embarrassingly parallel
+    -> (; dfs = DataFrame[], eqsteps)
+Perform linear operator Monte Carlo with [`lomc!()`](@ref) in embarrassingly parallel
 mode using `Distributed` computing. Returns all dataframes.
 
-### Keyword arguments in addition to those of `lomc!()`:
+### Keyword arguments in addition to those of [`lomc!()`](@ref):
 * `eqsteps` - Number of time steps used for equilibration. Each worker will run an independent simulation with `eqstep + (laststep - step) ÷ nworkers()` time steps.
 
 ### Example:
@@ -44,8 +54,15 @@ v = DVec(add => 2, capacity = 200)
 # run `lomc!()` for 20_100 time steps by
 # performing 4 parallel runs of `lomc!()` with 5_100 time steps each and
 # stiching the results together into a single dataframe:
-df = d_lomc!(ham, v; eqsteps = 100, laststep = 20_100) |> combine_dfs
+df, eqsteps = d_lomc!(ham, v; eqsteps = 100, laststep = 20_100) |> combine_dfs
+# or
+energies = d_lomc!(ham, v; eqsteps = 100, laststep = 20_100) |> combine_dfs |> autoblock
 ```
+
+### See also:
+* [`setup_workers()`](@ref)
+* [`seedCRNGs_workers!()`](@ref)
+* [`combine_dfs()`](@ref)
 """
 function d_lomc!(ham, v;
     eqsteps,
@@ -111,6 +128,12 @@ function combine_dfs(dfs::AbstractVector, eqsteps)
     return (; df=dfm, eqsteps)
 end # d_lomc!()
 
+"""
+    setup_workers([nw])
+Set up and prepare `nw` workers for distributed computing. If `nw` is not given,
+but multiple threads are available then as many workers will be prepared. The
+`Rimu` package code will be made available on all workers.
+"""
 function setup_workers(nw = nothing)
     # organise the right number of workers
     if isnothing(nw)
