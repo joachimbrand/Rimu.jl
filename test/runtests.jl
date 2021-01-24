@@ -719,6 +719,23 @@ end
     @test Rimu.compute_proj_observables(v, ham, rr) == (v⋅v, dot(v, ham, v))
 end
 
+using Rimu.EmbarrassinglyDistributed
+@testset "EmbarrassinglyDistributed" begin
+    add = BoseFS((1,1,0,1))
+    v = DVec(add => 2, capacity = 200)
+    ham = BoseHubbardReal1D(add, u=4.0)
+    @test setup_workers(4) == 4
+    seedCRNGs_workers!(127)
+    nt = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000)
+    @test [size(df)[1] for df in nt.dfs] == [6001, 6001, 6001, 6001]
+    ntc = combine_dfs(nt)
+    @test size(ntc.df)[1] == 21_001
+    energies = autoblock(ntc)
+    @test ismissing(energies.ē) && ismissing(energies.σe)
+    @test energies.s̄ ≈ -4.11306250063903
+    @test energies.σs ≈ 0.00576127659982331
+end
+
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.

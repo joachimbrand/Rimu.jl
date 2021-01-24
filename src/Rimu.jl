@@ -4,8 +4,9 @@ Random Integrator for Many-Body Quantum Systems
 """
 module Rimu
 
-using Reexport, Parameters, LinearAlgebra, DataFrames
-using Setfield
+# external dependencies
+using Reexport, Parameters, LinearAlgebra, DataFrames, Setfield
+@reexport using Distributed
 import MPI, DataStructures
 
 include("FastBufs.jl")
@@ -48,8 +49,7 @@ include("strategies_and_params.jl")
 include("helpers.jl")
 include("mpi_helpers.jl")
 include("fciqmc.jl")
-
-
+include("EmbarrassinglyDistributed.jl")
 
 export greet
 

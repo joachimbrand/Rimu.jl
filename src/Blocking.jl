@@ -420,6 +420,9 @@ function autoblock(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool
     return (s̄ = s̄, σs = σs, ē = dfp.mean_f[1], σe = dfp.SE_f[ks], k = ks)
 end
 
+# call signature for chaining 
+autoblock(nt::NamedTuple{(:df,:eqsteps)}) = autoblock(nt.df; start = nt.eqsteps)
+
 # version for replica run
 """
     autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1])
