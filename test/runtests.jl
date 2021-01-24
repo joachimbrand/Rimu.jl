@@ -724,9 +724,9 @@ using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
     add = BoseFS((1,1,0,1))
     v = DVec(add => 2, capacity = 200)
     ham = BoseHubbardReal1D(add, u=4.0)
-    @test setup_workers(4) == 4 # add workers and load code
+    @test setup_workers(4) == 4 # add workers and load code (Rimu and its modules)
     seedCRNGs_workers!(127)     # seed rgns on workers deterministically
-    nt = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000) # parallel lomc!
+    nt = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000) # perform parallel lomc!
     @test [size(df)[1] for df in nt.dfs] == [6001, 6001, 6001, 6001]
     ntc = combine_dfs(nt) # combine results into one DataFrame
     @test size(ntc.df)[1] == 21_001
