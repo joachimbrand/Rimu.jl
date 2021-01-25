@@ -794,8 +794,8 @@ end
 
 Address type that constructed with two [`BoseFS{N,M,A}`](@ref). It represents a
 Fock state with two components, e.g. two different species of bosons with particle
-number `NA` from specie A and particle number `NB` from specie B. The number of
-orbitals `M` is ecpacted to be the same for both components.
+number `NA` from species A and particle number `NB` from species B. The number of
+orbitals `M` is expacted to be the same for both components.
 """
 struct BoseFS2C{NA,NB,M,AA,AB} <: BosonicFockStateAddress
   bsa::BoseFS{NA,M,AA}
