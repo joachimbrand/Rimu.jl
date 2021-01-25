@@ -7,7 +7,7 @@ module Rimu
 using Reexport, Parameters, LinearAlgebra, DataFrames
 using Setfield, StaticArrays
 using SplittablesBase, ThreadsX
-
+@reexport using Distributed
 import MPI, DataStructures
 
 include("FastBufs.jl")
@@ -48,6 +48,8 @@ include("strategies_and_params.jl")
 include("helpers.jl")
 include("fciqmc.jl")
 
+# Modules for parallel computing not exported by default for now
+include("EmbarrassinglyDistributed.jl")
 include("RMPI.jl")
 # @reexport using .RMPI
 

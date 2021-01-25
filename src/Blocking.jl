@@ -417,9 +417,15 @@ is considered. Returns a named tuple.
 """
 function autoblock(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool=true)
     s̄, σs, σσs, ks, dfs = blockAndMTest(real.(df.shift[start:stop]);corrected=corrected) # shift
+    if eltype(df.hproj) == Missing
+        return (s̄ = s̄, σs = σs, ē = missing, σe = missing, k = ks)
+    end
     dfp = blocking(df.hproj[start:stop], df.vproj[start:stop];corrected=corrected) # projected
     return (s̄ = s̄, σs = σs, ē = dfp.mean_f[1], σe = dfp.SE_f[ks], k = ks)
 end
+
+# call signature for chaining
+autoblock(nt::NamedTuple{(:df,:eqsteps)}) = autoblock(nt.df; start = nt.eqsteps)
 
 # version for replica run
 """
