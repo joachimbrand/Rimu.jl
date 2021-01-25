@@ -760,7 +760,6 @@ end
     @test typeof(bfs2c) == BoseFS2C{7,8,4,BSAdd64,BSAdd64}
     @test Hamiltonians.numberoccupiedsites(bfs2c.bsa) == 3
     @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
-    @test Hamiltonians.numberoccupiedsites(bfs2c) == 4
     @test onr(bfs2c.bsa) == [1,2,0,4]
     @test onr(bfs2c.bsb) == [4,0,3,1]
     @test Hamiltonians.bosehubbard2Cinteraction(bfs2c) == 8 # n_a*n_b over all sites

@@ -24,7 +24,7 @@ export rayleigh_quotient
 
 export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardReal1D2C
-export BoseHubbardMom1D, Momentum, BoseHubbard2CMom1D, BoseHubbardMom1D2C
+export BoseHubbardMom1D, Momentum, BoseHubbardMom1D2C
 export HubbardMom1D
 
 # First we have some generic types and methods for any linear operator
@@ -1377,23 +1377,6 @@ function numSandDoccupiedsites(onrep::AbstractArray)
 end
 # this one is faster by about a factor of 2 if you already have the onrep
 
-function numSandDoccupiedsites(b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
-  # returns number of singly and doubly occupied sites
-  singlies = 0
-  doublies = 0
-  c1 = onr(b.bsa)
-  c2 = onr(b.bsb)
-  for site in 1:M
-    if c1[site]+c2[site] > 0
-      singlies += 1
-      if c1[site]+c2[site] > 1
-        doublies += 1
-      end
-    end
-  end
-  return singlies, doublies
-end
-# this one is faster by about a factor of 2 if you already have the onrep
 
 function numberoccupiedsites(address::T) where # T<:Integer
   T<:Union{Integer,BitAdd}
@@ -1410,18 +1393,6 @@ end # numberoccupiedsites
 numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
 numberoccupiedsites(a::BSAdd128) = numberoccupiedsites(a.add)
-
-function numberoccupiedsites(b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
-    c1 = onr(b.bsa)
-    c2 = onr(b.bsb)
-    occupiedsites = 0
-    for site = 1:M
-        if !iszero(c1[site]) || !iszero(c2[site])
-            occupiedsites += 1
-        end
-    end
-    return occupiedsites
-end
 
 function numberoccupiedsites(bsadd::BStringAdd)
   # counts number of occupied orbitals
@@ -1761,7 +1732,7 @@ end
 end
 
 @doc """
-    ham = BoseHubbardReal1D2C(ha::BoseHubbardReal1D,hb::BoseHubbardReal1D,v=1.0,add=add)
+    ham = BoseHubbardReal1D2C(ha::BoseHubbardReal1D,hb::BoseHubbardReal1D,v=1.0,add::BoseFS2C)
     ham = BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in real space.
@@ -1772,7 +1743,7 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 
 # Arguments
 - `h_a::BoseHubbardReal1D` and `h_b::BoseHubbardReal1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardReal1D`](@ref)
-- `v::Float64`: the inter-species interaction parameter
+- `v`: the inter-species interaction parameter
 - `add::BoseFS2C`: the two-component address type, see [`BoseFS2C`](@ref)
 
     ham(:dim)
@@ -1837,103 +1808,19 @@ function hop(ham::BoseHubbardReal1D2C, add, chosen::Integer)
 end
 
 
-#
-# ###
-# ### BoseHubbard2CMom1D
-# ###
-#
-# @with_kw struct BoseHubbard2CMom1D{T, BoseFS2C} <: TwoComponentBosonicHamiltonian{T}
-#   na::Int = 6    # number of bosons
-#   nb::Int = 6    # number of bosons
-#   m::Int = 6    # number of lattice sites
-#   ua::T = 1.0    # interaction strength
-#   ub::T = 1.0    # interaction strength
-#   ta::T = 1.0    # hopping strength
-#   tb::T = 1.0    # hopping strength
-#   v::T = 1.0    # hopping strength
-#   add::BoseFS2C       # starting address
-# end
-#
-# function BoseHubbard2CMom1D(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0) where {NA,NB,M,AA,AB}
-#     return BoseHubbard2CMom1D(NA,NB,M,ua,ub,ta,tb,v,add)
-# end
-#
-# function hopsWithin1C(m::Int, add)
-#   singlies, doublies = numSandDoccupiedsites(add)
-#   return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
-#   # number of excitations that can be made
-# end
-#
-# function numOfHops(ham::BoseHubbard2CMom1D, add)
-#   sa = numberoccupiedsites(add.bsa)
-#   sb = numberoccupiedsites(add.bsb)
-#   return hopsWithin1C(ham.m, add.bsa) + hopsWithin1C(ham.m, add.bsb) + sa*(ham.m-1)*sb
-#   # number of excitations that can be made
-# end
-#
-# function hop(ham::BoseHubbard2CMom1D, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
-#     ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
-#     ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
-#     nhops_a = numOfHops(ham_a, add.bsa)
-#     nhops_b = numOfHops(ham_b, add.bsb)
-#     # println("Hops in A: $nhops_a, Hops in B: $nhops_b,")
-#     # if chosen > numOfHops(ham,add)
-#     #     error("Hop is out of range!")
-#     if chosen ≤ nhops_a
-#         naddress_from_bsa, elem = hop(ham_a, add.bsa, chosen)
-#         # println("Hop in A, chosen = $chosen") # debug
-#         return BoseFS2C{NA,NB,M,AA,AB}(naddress_from_bsa,add.bsb), elem
-#     elseif nhops_a < chosen ≤ nhops_a+nhops_b
-#         chosen -= nhops_a
-#         naddress_from_bsb, elem = hop(ham_b, add.bsb, chosen)
-#         # println("Hop in B, chosen = $chosen") # debug
-#         return BoseFS2C{NA,NB,M,AA,AB}(add.bsa,naddress_from_bsb), elem
-#     else
-#         chosen -= (nhops_a+nhops_b)
-#         sa = numberoccupiedsites(add.bsa)
-#         sb = numberoccupiedsites(add.bsb)
-#         # println("Hops across A and B: $(sa*(ham.m-1)*sb)")
-#         new_bsa, new_bsb, onproduct_a, onproduct_b = hopacross2adds(add.bsa, add.bsb, chosen)
-#         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
-#         # println("Hop A to B, chosen = $chosen") # debug
-#         # return new_add, elem
-#         elem = ham.v/ham.m*sqrt(onproduct_a)*sqrt(onproduct_b)
-#         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
-#         return new_add, elem
-#     end
-#     # return new address and matrix element
-# end
-
-
-#
-# function diagME(ham::BoseHubbard2CMom1D, add::BoseFS2C)
-#     ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
-#     ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
-#     onrep_a = BitStringAddresses.onr(add.bsa)
-#     onrep_b = BitStringAddresses.onr(add.bsb)
-#     interaction2c = 0
-#     for p in 1:ham.m
-#         for k in 1:ham.m
-#           interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
-#         end
-#     end
-#     return diagME(ham_a,add.bsa) + diagME(ham_b,add.bsb) + ham.v/ham.m*interaction2c
-# end
-
-
 ###
 ### BoseHubbardMom1D2C
 ###
 
-@with_kw struct BoseHubbardMom1D2C{T, BoseFS2C} <: TwoComponentBosonicHamiltonian{T}
-  ha:: BoseHubbardMom1D{T}
-  hb:: BoseHubbardMom1D{T}
+@with_kw struct BoseHubbardMom1D2C{T, HA, HB} <: TwoComponentBosonicHamiltonian{T}
+  ha:: HA
+  hb:: HB
   v::T = 1.0        # hopping strength
   add::BoseFS2C     # starting address
 end
 
 @doc """
-    ham = BoseHubbardMom1D2C(ha::BoseHubbardMom1D,hb::BoseHubbardMom1D,v=1.0,add=add)
+    ham = BoseHubbardMom1D2C(ha::BoseHubbardMom1D,hb::BoseHubbardMom1D,v=1.0,add::BoseFS2C)
     ham = BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
@@ -1944,7 +1831,7 @@ Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 
 # Arguments
 - `h_a::BoseHubbardMom1D` and `h_b::BoseHubbardMom1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardMom1D`](@ref)
-- `v::Float64`: the inter-species interaction parameter
+- `v`: the inter-species interaction parameter
 - `add::BoseFS2C`: the two-component address type, see [`BoseFS2C`](@ref)
 
     ham(:dim)
@@ -1956,7 +1843,7 @@ Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardMom1D2C
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardMom1D2C{T, BoseFS2C}}) where {T <: Real, BoseFS2C} = HermitianLO()
+LOStructure(::Type{BoseHubbardMom1D2C{T, HA, HB}}) where {T <: Real, HA, HB} = HermitianLO()
 
 function BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
     ha = BoseHubbardMom1D(add.bsa;u=ua,t=ta)
@@ -1998,7 +1885,7 @@ function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Inte
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         # println("Hop A to B, chosen = $chosen") # debug
         # return new_add, elem
-        elem = ham.v/ham.ha.m*sqrt(onproduct_a)*sqrt(onproduct_b)
+        elem = ham.v/ham.ha.m*sqrt(onproduct_a*onproduct_b)
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         return new_add, elem
     end
@@ -2053,9 +1940,9 @@ end
     # create a B boson:
     onrep_b = @set onrep_b[s] += 1 # create a B boson: b†_s
     onproduct_b *= onrep_b[s] # record the normalisation factor after creation
-    if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
-        error("Momentum is not conserved!")
-    end
+    # if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
+    #     error("Momentum is not conserved!")
+    # end
     return BoseFS{NA,M,AA}(onrep_a), BoseFS{NB,M,AB}(onrep_b), onproduct_a, onproduct_b
 end
 

@@ -797,103 +797,14 @@ Fock state with two components, e.g. two different species of bosons with partic
 number `NA` from species A and particle number `NB` from species B. The number of
 orbitals `M` is expacted to be the same for both components.
 """
-struct BoseFS2C{NA,NB,M,AA,AB} <: BosonicFockStateAddress
+struct BoseFS2C{NA,NB,M,AA,AB} <: BitStringAddressType
   bsa::BoseFS{NA,M,AA}
   bsb::BoseFS{NB,M,AB}
 end
 
-# BoseFS2C{NA,NB,M}(bsa::AA,bsb::AB) where {NA,NB,M,AA,AB} = BoseFS2C{NA,NB,M,AA,AB}(bsa,bsb) # slow - not sure why
-
-# ATM we only use same M, it should just dispatch to the next constructor
-# function BoseFS2C(bfsa::BoseFS{NA,MA,AA},bfsb::BoseFS{NB,MB,AB}) where {NA,MA,AA,NB,MB,AB}
-#   MA == MB || error("Two components with different modes: $MA vs $MB.")
-#   return BoseFS2C{NA,NB,MA,BoseFS{NA,MA,AA},BoseFS{NB,MB,AB}}(bfsa,bfsb)
-# end
-#
-# function BoseFS2C(bsa::AA, bsb::AB, ba::Integer, bb::Integer) where AA <: BitStringAddressType where AB <: BitStringAddressType
-#   na = count_ones(bsa)
-#   # println("na: ",na)  # debug
-#   nb = count_ones(bsb)
-#   # println("nb: ",nb)  # debug
-#   ma = ba - na + 1
-#   mb = bb - nb + 1
-#   ma == mb || error("Two components with different modes: $ma vs $mb.")
-#   bfs = BoseFS2C{na,nb,ma,AA,AB}(bsa,bsb)
-#   #check_consistency(bfs)
-#   return bfs
-# end
-#
-# function BoseFS2C_(bsa::AA, bsb::AB, ba::Integer, bb::Integer) where AA <: BitStringAddressType where AB <: BitStringAddressType
-#   bsa = BoseFS(bsa,ba)
-#   bsb = BoseFS(bsb,bb)
-#   return BoseFS2C(bsa,bsb)
-# end
-#
-# function BoseFS2C(bsa::BitAdd{IA,BA}, bsb::BitAdd{IB,BB}) where {BA, BB ,IA, IB}
-#   na = count_ones(bsa)
-#   nb = count_ones(bsb)
-#   ma = BA - na + 1
-#   mb = BB - na + 1
-#   ma == mb || error("Two components with different modes: $ma vs $mb.")
-#   return BoseFS2C{na,nb,ma,BitAdd{IA,BA},BitAdd{IB,BB}}(bsa,bsb)
-# end
-#
-# function BoseFS2C_(bsa::BitAdd{IA,BA}, bsb::BitAdd{IB,BB}) where {BA, BB ,IA, IB}
-#     bsa = BoseFS(bsa)
-#     bsb = BoseFS(bsb)
-#     return BoseFS2C(bsa,bsb)
-# end
-#
-# function BoseFS2C(bsa::BStringAdd,bsb::BStringAdd)
-#   na = sum(bsa.add)
-#   nb = sum(bsb.add)
-#   ma = length(bsa.add) - na + 1
-#   mb = length(bsb.add) - nb + 1
-#   ma == mb || error("Two components with different modes: $ma vs $mb.")
-#   return BoseFS2C{na,nb,ma,BStringAdd,BStringAdd}(bsa,bsb)
-# end
-#
-#
-# """
-#     BoseFS2C(onr::T) where T<:Union{AbstractVector,Tuple}
-#     BoseFS2C{BST}(onr::T)
-# Create `BoseFS2C` address from an occupation number representation, specifying
-# the occupation number of each orbital.
-# If a type `BST` is given it will define the underlying
-# bit string type. Otherwise, the bit string type is chosen to fit the `onr`.
-# """
-# function BoseFS2C(onra::TA,onrb::TB) where TA <:Union{AbstractVector,Tuple} where TB <:Union{AbstractVector,Tuple}
-#   ma = length(onra)
-#   mb = length(onrb)
-#   na = Int(sum(onra))
-#   nb = Int(sum(onrb))
-#   ma == mb || error("Two components with different modes: $ma vs $mb.")
-#   ba = na + ma - 1
-#   bb = nb + mb - 1
-#   if ba ≤ 64
-#     AA = BSAdd64
-#   elseif ba ≤ 128
-#     AA = BSAdd128
-#   else
-#     AA = BitAdd
-#   end
-#   if bb ≤ 64
-#     AB = BSAdd64
-#   elseif bb ≤ 128
-#     AB = BSAdd128
-#   else
-#     AB = BitAdd
-#   end
-#   bsa = bitaddr(onra,AA)
-#   bsb = bitaddr(onra,AB)
-#   BoseFS2C{na,nb,ma,AA,AB}(bsa,bsb)
-# end
-#
-# function BoseFS2C_(onra::TA,onrb::TB) where TA <:Union{AbstractVector,Tuple} where TB <:Union{AbstractVector,Tuple}
-#   bsa = BoseFS(onra)
-#   bsb = BoseFS(onra)
-#   BoseFS2C(bsa,bsb)
-# end
+function BoseFS2C(onr_a::Tuple, onr_b::Tuple)
+    return BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
+end
 
 # performant and allocation free (if benchmarked on its own):
 """
