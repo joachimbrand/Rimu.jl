@@ -1732,8 +1732,8 @@ end
 end
 
 @doc """
-    ham = BoseHubbardReal1D2C(ha::BoseHubbardReal1D,hb::BoseHubbardReal1D,v=1.0,add::BoseFS2C)
-    ham = BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
+    ham = BoseHubbardReal1D2C(; ha::BoseHubbardReal1D, hb::BoseHubbardReal1D, v=1.0, add::BoseFS2C)
+    ham = BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in real space.
 
