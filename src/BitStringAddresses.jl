@@ -804,6 +804,14 @@ end
 
 BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
 
+function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+  print(io, "BoseFS2C(")
+  Base.show(io,b.bsa)
+  print(io, ",")
+  Base.show(io,b.bsb)
+  print(io, ")")
+end
+
 # performant and allocation free (if benchmarked on its own):
 """
     onr(bs)
