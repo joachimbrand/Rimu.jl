@@ -1681,7 +1681,7 @@ abstract type TwoComponentBosonicHamiltonian{T} <: AbstractHamiltonian{T} end
 
 Compute dimension of linear operator as integer.
 """
-dimensionLO(h::TwoComponentBosonicHamiltonian) =  dimensionLO(h.ha::BosonicHamiltonian)*dimensionLO(h.hb::BosonicHamiltonian)
+dimensionLO(h::TwoComponentBosonicHamiltonian) =  dimensionLO(h.ha::AbstractHamiltonian)*dimensionLO(h.hb::AbstractHamiltonian)
 # formula for boson Hilbert spaces
 
 """
@@ -1691,7 +1691,7 @@ Returns the dimension of Hilbert space as Float64. The exact result is
 returned if the value is smaller than 2^53. Otherwise, an improved Stirling formula
 is used.
 """
-fDimensionLO(h::TwoComponentBosonicHamiltonian) = fDimensionLO(h.ha::BosonicHamiltonian)*fDimensionLO(h.hb::BosonicHamiltonian)
+fDimensionLO(h::TwoComponentBosonicHamiltonian) = fDimensionLO(h.ha::AbstractHamiltonian)*fDimensionLO(h.hb::AbstractHamiltonian)
 
 # """
 #     nearUniform(ham)
@@ -1815,13 +1815,13 @@ end
 @with_kw struct BoseHubbardMom1D2C{T, HA, HB} <: TwoComponentBosonicHamiltonian{T}
   ha:: HA
   hb:: HB
-  v::T = 1.0        # hopping strength
-  add::BoseFS2C     # starting address
+  m::Int            # number of modes
+  v::T = 0.0        # hopping strength
 end
 
 @doc """
-    ham = BoseHubbardMom1D2C(ha::BoseHubbardMom1D,hb::BoseHubbardMom1D,v=1.0,add::BoseFS2C)
-    ham = BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
+    ham = BoseHubbardMom1D2C(ha::HubbardMom1D,hb::HubbardMom1D,m; v=0.0)
+    ham = BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=0.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 
@@ -1830,9 +1830,9 @@ Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 ```
 
 # Arguments
-- `h_a::BoseHubbardMom1D` and `h_b::BoseHubbardMom1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardMom1D`](@ref)
-- `v`: the inter-species interaction parameter
-- `add::BoseFS2C`: the two-component address type, see [`BoseFS2C`](@ref)
+- `ha::BoseHubbardMom1D` and `hb::BoseHubbardMom1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardMom1D`](@ref)
+- `m`: number of modes (needs be the same for `ha` and `hb`!)
+- `v=0.0`: the inter-species interaction parameter, default value: 0.0, i.e. non-interacting
 
     ham(:dim)
 Return the dimension of the linear space if representable as `Int`, otherwise
@@ -1845,16 +1845,17 @@ Return the approximate dimension of linear space as `Float64`.
 # set the `LOStructure` trait
 LOStructure(::Type{BoseHubbardMom1D2C{T, HA, HB}}) where {T <: Real, HA, HB} = HermitianLO()
 
-function BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
-    ha = BoseHubbardMom1D(add.bsa;u=ua,t=ta)
-    hb = BoseHubbardMom1D(add.bsb;u=ub,t=tb)
-    return BoseHubbardMom1D2C(ha,hb,v,add)
+function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0) where {NA,NB,M,AA,AB}
+    ha = HubbardMom1D(add.bsa;u=ua,t=ta)
+    hb = HubbardMom1D(add.bsb;u=ub,t=tb)
+    # return BoseHubbardMom1D2C(ha,hb,v,add)
+    return BoseHubbardMom1D2C(ha,hb,M,v)
 end
 
 function numOfHops(ham::BoseHubbardMom1D2C, add)
   sa = numberoccupiedsites(add.bsa)
   sb = numberoccupiedsites(add.bsb)
-  return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(ham.hb.m-1)*sb
+  return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(ham.m-1)*sb
   # number of excitations that can be made
 end
 
@@ -1885,7 +1886,7 @@ function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Inte
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         # println("Hop A to B, chosen = $chosen") # debug
         # return new_add, elem
-        elem = ham.v/ham.ha.m*sqrt(onproduct_a*onproduct_b)
+        elem = ham.v/ham.m*sqrt(onproduct_a*onproduct_b)
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         return new_add, elem
     end
@@ -1953,12 +1954,12 @@ function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C)
     onrep_a = BitStringAddresses.onr(add.bsa)
     onrep_b = BitStringAddresses.onr(add.bsb)
     interaction2c = 0
-    for p in 1:ham.ha.m
-        for k in 1:ham.ha.m
+    for p in 1:ham.m
+        for k in 1:ham.m
           interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
     end
-    return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + ham.v/ham.ha.m*interaction2c
+    return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + ham.v/ham.m*interaction2c
 end
 
 
