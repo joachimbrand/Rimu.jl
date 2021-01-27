@@ -1820,7 +1820,7 @@ end
 end
 
 @doc """
-    ham = BoseHubbardMom1D2C(ha::HubbardMom1D,hb::HubbardMom1D,m; v=0.0)
+    ham = BoseHubbardMom1D2C(; ha::HubbardMom1D, hb::HubbardMom1D, m, v=0.0)
     ham = BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=0.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
