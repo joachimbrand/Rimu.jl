@@ -802,9 +802,7 @@ struct BoseFS2C{NA,NB,M,AA,AB} <: BitStringAddressType
   bsb::BoseFS{NB,M,AB}
 end
 
-function BoseFS2C(onr_a::Tuple, onr_b::Tuple)
-    return BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
-end
+BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
 
 # performant and allocation free (if benchmarked on its own):
 """
