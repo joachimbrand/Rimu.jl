@@ -889,7 +889,7 @@ diagME(mom::Momentum, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold 
 
 ###############################################
 
-struct HubbardMom1D{TT,U,T,N,M,AD} <: AbstractHamiltonian{T}
+struct HubbardMom1D{TT,U,T,N,M,AD} <: AbstractHamiltonian{TT}
     add::AD # default starting address, should have N particles and M modes
     ks::SVector{M,TT} # values for k
     kes::SVector{M,TT} # values for kinetic energy
