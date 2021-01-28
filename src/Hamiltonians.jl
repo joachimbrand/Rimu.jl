@@ -1724,15 +1724,14 @@ end
 ###
 
 
-@with_kw struct BoseHubbardReal1D2C{T, BoseFS2C} <: TwoComponentBosonicHamiltonian{T}
-  ha:: BoseHubbardReal1D{T}
-  hb:: BoseHubbardReal1D{T}
-  v::T = 1.0        # hopping strength
-  add::BoseFS2C     # starting address
+@with_kw struct BoseHubbardReal1D2C{T, HA, HB} <: TwoComponentBosonicHamiltonian{T}
+  ha:: HA
+  hb:: HB
+  v::T = 1.0        # 2C interaction strength
 end
 
 @doc """
-    ham = BoseHubbardReal1D2C(; ha::BoseHubbardReal1D, hb::BoseHubbardReal1D, v=1.0, add::BoseFS2C)
+    ham = BoseHubbardReal1D2C(; ha::BoseHubbardReal1D, hb::BoseHubbardReal1D, v=1.0)
     ham = BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in real space.
@@ -1755,12 +1754,12 @@ Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardReal1D2C
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardReal1D2C{T,BoseFS2C}}) where {T <: Real,BoseFS2C} = HermitianLO()
+LOStructure(::Type{BoseHubbardReal1D2C{T}}) where {T <: Real} = HermitianLO()
 
 function BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
     ha = BoseHubbardReal1D(add.bsa;u=ua,t=ta)
     hb = BoseHubbardReal1D(add.bsb;u=ub,t=tb)
-    return BoseHubbardReal1D2C(ha,hb,v,add)
+    return BoseHubbardReal1D2C(ha,hb,v)
 end
 
 # number of excitations that can be made
@@ -1815,8 +1814,7 @@ end
 @with_kw struct BoseHubbardMom1D2C{T, HA, HB} <: TwoComponentBosonicHamiltonian{T}
   ha:: HA
   hb:: HB
-  m::Int            # number of modes
-  v::T = 0.0        # hopping strength
+  v::T = 0.0        # 2C interaction strength
 end
 
 @doc """
@@ -1845,17 +1843,19 @@ Return the approximate dimension of linear space as `Float64`.
 # set the `LOStructure` trait
 LOStructure(::Type{BoseHubbardMom1D2C{T, HA, HB}}) where {T <: Real, HA, HB} = HermitianLO()
 
-function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0) where {NA,NB,M,AA,AB}
-    ha = HubbardMom1D(add.bsa;u=ua,t=ta)
-    hb = HubbardMom1D(add.bsb;u=ub,t=tb)
-    # return BoseHubbardMom1D2C(ha,hb,v,add)
-    return BoseHubbardMom1D2C(ha,hb,M,v)
+# function BoseHubbardMom1D2C(ha::HA, hb::HB, v::T) where {M, HA, HB, T} = BoseHubbardMom1D2C{T, HA, HB, M}(ha, hb, v)
+
+function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v::TT=1.0) where {NA,NB,M,AA,AB,TT}
+    ha = HubbardMom1D{NA,M}(add.bsa;u=ua,t=ta)
+    hb = HubbardMom1D{NB,M}(add.bsb;u=ub,t=tb)
+    return BoseHubbardMom1D2C(ha,hb,v)
+    # return BoseHubbardMom1D2C{TT, HubbardMom1D{TT,ua,ta,NA,M,BoseFS{NA,M,AA}}, HubbardMom1D{TT,ub,tb,NB,M,BoseFS{NB,M,AB}}}(ha,hb,v)
 end
 
-function numOfHops(ham::BoseHubbardMom1D2C, add)
+function numOfHops(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
   sa = numberoccupiedsites(add.bsa)
   sb = numberoccupiedsites(add.bsb)
-  return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(ham.m-1)*sb
+  return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(M-1)*sb
   # number of excitations that can be made
 end
 
@@ -1886,7 +1886,7 @@ function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Inte
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         # println("Hop A to B, chosen = $chosen") # debug
         # return new_add, elem
-        elem = ham.v/ham.m*sqrt(onproduct_a*onproduct_b)
+        elem = ham.v/M*sqrt(onproduct_a*onproduct_b)
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         return new_add, elem
     end
@@ -1948,18 +1948,18 @@ end
 end
 
 
-function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C)
+function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     # ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
     # ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
     onrep_a = BitStringAddresses.onr(add.bsa)
     onrep_b = BitStringAddresses.onr(add.bsb)
     interaction2c = 0
-    for p in 1:ham.m
-        for k in 1:ham.m
+    for p in 1:M
+        for k in 1:M
           interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
     end
-    return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + ham.v/ham.m*interaction2c
+    return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + ham.v/M*interaction2c
 end
 
 
