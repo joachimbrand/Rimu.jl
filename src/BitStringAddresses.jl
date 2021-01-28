@@ -12,7 +12,7 @@ using Base.Cartesian
 import Base: isless, zero, iszero, show, ==, hash
 
 export BitStringAddressType, BSAdd64, BSAdd128
-export BitAdd, BoseFS
+export BitAdd, BoseFS, BoseFS2C
 export onr, nearUniform, nearUniformONR
 export numBits, numChunks, numParticles, numModes
 export BStringAdd # deprecate
@@ -676,6 +676,7 @@ function BoseFS(bs::BStringAdd)
   return BoseFS{n,m,BStringAdd}(bs)
 end
 
+
 """
     BoseFS(onr::T) where T<:Union{AbstractVector,Tuple}
     BoseFS{BST}(onr::T)
@@ -782,6 +783,33 @@ end
 function check_consistency(b::BoseFS{N,M,A}) where {N,M,A<:Union{BSAdd64,BSAdd128}}
   numBits(b) ≤ numBits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), numBits(A) = $(numBits(A)).")
   leading_zeros(b.bs.add) ≥ numBits(A) - numBits(b) ||  error("Ghost bits detected in $b.")
+end
+
+
+
+
+#################################
+"""
+    BoseFS2C{NA,NB,M,AA,AB} <: BosonicFockStateAddress <: BitStringAddressType
+
+Address type that constructed with two [`BoseFS{N,M,A}`](@ref). It represents a
+Fock state with two components, e.g. two different species of bosons with particle
+number `NA` from species A and particle number `NB` from species B. The number of
+orbitals `M` is expacted to be the same for both components.
+"""
+struct BoseFS2C{NA,NB,M,AA,AB} <: BitStringAddressType
+  bsa::BoseFS{NA,M,AA}
+  bsb::BoseFS{NB,M,AB}
+end
+
+BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
+
+function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+  print(io, "BoseFS2C(")
+  Base.show(io,b.bsa)
+  print(io, ",")
+  Base.show(io,b.bsb)
+  print(io, ")")
 end
 
 # performant and allocation free (if benchmarked on its own):
