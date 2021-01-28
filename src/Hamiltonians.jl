@@ -1724,14 +1724,12 @@ end
 ###
 
 
-@with_kw struct BoseHubbardReal1D2C{T, HA, HB} <: TwoComponentBosonicHamiltonian{T}
+@with_kw struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentBosonicHamiltonian{T}
   ha:: HA
   hb:: HB
-  v::T = 1.0        # 2C interaction strength
 end
 
 @doc """
-    ham = BoseHubbardReal1D2C(; ha::BoseHubbardReal1D, hb::BoseHubbardReal1D, v=1.0)
     ham = BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in real space.
@@ -1741,9 +1739,9 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 ```
 
 # Arguments
-- `h_a::BoseHubbardReal1D` and `h_b::BoseHubbardReal1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardReal1D`](@ref)
-- `v`: the inter-species interaction parameter
 - `add::BoseFS2C`: the two-component address type, see [`BoseFS2C`](@ref)
+- `h_a::BoseHubbardReal1D` and `h_b::BoseHubbardReal1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardReal1D`](@ref)
+- `v`: the inter-species interaction parameter V
 
     ham(:dim)
 Return the dimension of the linear space if representable as `Int`, otherwise
@@ -1754,12 +1752,12 @@ Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardReal1D2C
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardReal1D2C{T}}) where {T <: Real} = HermitianLO()
+LOStructure(::Type{BoseHubbardReal1D2C{T, V}}) where {T <: Real, V} = HermitianLO()
 
-function BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
+function BoseHubbardReal1D2C(add::BoseFS2C; ua::T=1.0,ub::T=1.0,ta::T=1.0,tb::T=1.0,v::T=1.0) where T
     ha = BoseHubbardReal1D(add.bsa;u=ua,t=ta)
     hb = BoseHubbardReal1D(add.bsb;u=ub,t=tb)
-    return BoseHubbardReal1D2C(ha,hb,v)
+    return BoseHubbardReal1D2C{T,BoseHubbardReal1D{T},BoseHubbardReal1D{T},v}(ha,hb)
 end
 
 # number of excitations that can be made
@@ -1786,8 +1784,8 @@ end
 Compute the diagonal matrix element of the linear operator `ham` at
 address `add`.
 """
-function diagME(ham::BoseHubbardReal1D2C, address::BoseFS2C)
-  return ham.ha.u * bosehubbardinteraction(address.bsa) / 2 + ham.hb.u * bosehubbardinteraction(address.bsb) / 2 + ham.v * bosehubbard2Cinteraction(address)
+function diagME(ham::BoseHubbardReal1D2C{T,HA,HB,V}, address::BoseFS2C) where {T,HA,HB,V}
+  return ham.ha.u * bosehubbardinteraction(address.bsa) / 2 + ham.hb.u * bosehubbardinteraction(address.bsb) / 2 + V * bosehubbard2Cinteraction(address)
 end
 
 function hop(ham::BoseHubbardReal1D2C, add, chosen::Integer)
@@ -1811,15 +1809,13 @@ end
 ### BoseHubbardMom1D2C
 ###
 
-@with_kw struct BoseHubbardMom1D2C{T, HA, HB} <: TwoComponentBosonicHamiltonian{T}
+@with_kw struct BoseHubbardMom1D2C{T, HA, HB, V} <: TwoComponentBosonicHamiltonian{T}
   ha:: HA
   hb:: HB
-  v::T = 0.0        # 2C interaction strength
 end
 
 @doc """
-    ham = BoseHubbardMom1D2C(; ha::HubbardMom1D, hb::HubbardMom1D, m, v=0.0)
-    ham = BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=0.0)
+    ham = BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 
@@ -1841,14 +1837,14 @@ Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardMom1D2C
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardMom1D2C{T, HA, HB}}) where {T <: Real, HA, HB} = HermitianLO()
+LOStructure(::Type{BoseHubbardMom1D2C{T, HA, HB, V}}) where {T <: Real, HA, HB, V} = HermitianLO()
 
 # function BoseHubbardMom1D2C(ha::HA, hb::HB, v::T) where {M, HA, HB, T} = BoseHubbardMom1D2C{T, HA, HB, M}(ha, hb, v)
 
-function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v::TT=1.0) where {NA,NB,M,AA,AB,TT}
+function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v::T=1.0) where {NA,NB,M,AA,AB,T}
     ha = HubbardMom1D{NA,M}(add.bsa;u=ua,t=ta)
     hb = HubbardMom1D{NB,M}(add.bsb;u=ub,t=tb)
-    return BoseHubbardMom1D2C(ha,hb,v)
+    return BoseHubbardMom1D2C{T, typeof(ha), typeof(hb), v}(ha,hb)
     # return BoseHubbardMom1D2C{TT, HubbardMom1D{TT,ua,ta,NA,M,BoseFS{NA,M,AA}}, HubbardMom1D{TT,ub,tb,NB,M,BoseFS{NB,M,AB}}}(ha,hb,v)
 end
 
@@ -1860,7 +1856,7 @@ function numOfHops(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where 
 end
 
 
-function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
+function hop(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Integer) where {T,HA,HB,V,NA,NB,M,AA,AB}
     # ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
     # ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
     nhops_a = numOfHops(ham.ha, add.bsa)
@@ -1886,7 +1882,7 @@ function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}, chosen::Inte
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         # println("Hop A to B, chosen = $chosen") # debug
         # return new_add, elem
-        elem = ham.v/M*sqrt(onproduct_a*onproduct_b)
+        elem = V/M*sqrt(onproduct_a*onproduct_b)
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
         return new_add, elem
     end
@@ -1948,7 +1944,7 @@ end
 end
 
 
-function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+function diagME(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}) where {T,HA,HB,V,NA,NB,M,AA,AB}
     # ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
     # ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
     onrep_a = BitStringAddresses.onr(add.bsa)
@@ -1959,7 +1955,7 @@ function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA
           interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
     end
-    return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + ham.v/M*interaction2c
+    return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + V/M*interaction2c
 end
 
 
