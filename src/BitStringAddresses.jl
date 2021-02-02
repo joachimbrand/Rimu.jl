@@ -718,7 +718,8 @@ end
     N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   end
   bs = zero(UInt64) # empty bitstring
-  for on in reverse(onr)
+  for i in length(onr):-1:1
+    on = onr[i]
     bs <<= on+1
     bs |= ~zero(UInt64)>>(64-on)
   end
