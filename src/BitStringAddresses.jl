@@ -732,7 +732,8 @@ end
     N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   end
   bs = zero(UInt128) # empty bitstring
-  for on in reverse(onr)
+  for i in length(onr):-1:1
+    on = onr[i]
     bs <<= on+1
     bs |= ~zero(UInt128)>>(128-on)
   end
@@ -742,7 +743,8 @@ end
 @inline function BoseFS{BitAdd{I,B}}(onr::T,::Val{N},::Val{M},::Val{B}) where {I,N,M,B,T<:Union{AbstractVector,Tuple}}
   @boundscheck  ((N + M - 1 == B) && (I == (B-1) ÷ 64 + 1)) || @error "Inconsistency in constructor BoseFS"
   bs = BitAdd{B}(0) # empty bitstring
-  for on in reverse(onr)
+  for i in length(onr):-1:1
+    on = onr[i]
     bs <<= on+1
     bs |= BitAdd{B}()>>(B-on)
   end
@@ -752,7 +754,8 @@ end
 @inline function BoseFS{BitAdd}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
   @boundscheck  N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   bs = BitAdd{B}(0) # empty bitstring
-  for on in reverse(onr)
+  for i in length(onr):-1:1
+    on = onr[i]
     bs <<= on+1
     bs |= BitAdd{B}()>>(B-on)
   end
