@@ -5,9 +5,17 @@ using Rimu.DictVectors
 using Test
 
 """
-    vec_interace_test(type::Type, keys::AbstractVector, values::AbstractVector, capacity)
+    test_dvec_interface(type::Type, keys::AbstractVector, values::AbstractVector, capacity)
 
-Thest the `AbstractDVec` interface.
+Test the `AbstractDVec` interface.
+
+# Example
+
+```jldoctest
+julia> test_dvec_interface(DVec, [1, 2, 3], [4.0, 5.0, 6.0], 10);
+Test Summary:       | Pass  Broken  Total
+DVec{Int64,Float64} |   71       1     72
+```
 """
 function test_dvec_interface(type, keys, values, cap)
     K = eltype(keys)
