@@ -824,8 +824,8 @@ using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
     # energies = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000) |> combine_dfs |> autoblock
     @test ismissing(energies.ē) && ismissing(energies.σe)
     # golden master test on results because qmc evolution is deterministic
-    @test energies.s̄ ≈ -4.11306250063903
-    @test energies.σs ≈ 0.00576127659982331
+    @test energies.s̄ ≈ -4.110595062715203
+    @test energies.σs ≈ 0.005418295257748296
 end
 
 using Rimu.RMPI
