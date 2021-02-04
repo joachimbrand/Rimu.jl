@@ -486,8 +486,10 @@ end # fciqmc_step!
 #     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 # end # fciqmc_step!
 
-# provide allocation of statss array for multithreading as a separate function in order to
-# achive type stability
+# Provide allocation of `statss` array for multithreading as a separate function in order to
+# achive type stability.
+# `statss` is a Vector with `nt` slots, each collecting the `stats` returned
+# by `fciqmc_col`.
 # `nt` is the number of threads such that each thread can accummulate data
 # avoiding race conditions
 allocate_statss(v,nt) = allocate_statss(StochasticStyle(v), v, nt)
@@ -499,7 +501,7 @@ end
 # Below follow multiple implementations of `fciqmc_step!` using multithreading.
 # This is for testing purposes only and eventually all but one should be removed.
 # The active version is selected by dispatch on the 7th positional argument
-# and by modifying the call from fciqmc!() in line 290.
+# and by modifying the call from fciqmc!() in line 294.
 
 # previous default but slower than the other versions
 function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
@@ -573,7 +575,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
     # return statss
 end
 
-using ThreadsX
+# using ThreadsX
 # new attempt at threaded version: This one is type-unstable but has
 # the lowest memory allocations for large walker numbers and is fast
 function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Bool;

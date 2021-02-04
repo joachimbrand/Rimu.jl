@@ -21,8 +21,8 @@ working memory.
 sort_into_targets!(target, w, stats) =  w, target, stats
 # default serial (single thread, no MPI) version: don't copy just swap
 
-my_combine(stats) = sum(stats)
-my_combine(stats::SArray) = stats # special case for fciqmc_step!() using ThreadsX
+combine_stats(stats) = sum(stats)
+combine_stats(stats::SArray) = stats # special case for fciqmc_step!() using ThreadsX
 
 function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
     # multi-threaded non-MPI version
@@ -30,18 +30,9 @@ function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
     for w in ws # combine new walkers generated from different threads
         add!(target, w)
     end
-    return target, ws, my_combine(statss)
+    return target, ws, combine_stats(statss)
 end
-# three argument version for MPIData to be found in mpi_helpers.jl
-
-# function setup_lomc(H::Type; n =6, m = 6, targetwalkers = )
-
-# function ini_state_vector(address, nwalkers, capacity, Style)
-#     if Style ∈ Union{IsDeterministic,IsStochasticWithThreshold,IsSemistochastic}
-#         nwalkers /= 1 # make it floating point
-#     end
-#     dv = DVec(Dict(address=>nwalkers), capacity)
-#     StochasticStyle(::Type{typeof(dv)}) = Style(1.0)
+# three argument version for MPIData to be found in RMPI.jl
 
 
 """
@@ -60,5 +51,5 @@ function walkernumber(::T, w) where T <: Union{IsStochastic2Pop,
                                                IsStochastic2PopInitiator,
                                                IsStochastic2PopWithThreshold
                                                }
-    return isempty(w) ? 0.0+0.0im : mapreduce(p->abs(real(p)) + abs(imag(p))*im, +, w)|>ComplexF64
+    return isempty(w) ? 0.0+0.0im : sum(p->abs(real(p)) + abs(imag(p))*im, w)|>ComplexF64
 end
