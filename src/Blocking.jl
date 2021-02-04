@@ -13,7 +13,7 @@ using DataFrames, Statistics
 export autocovariance, covariance
 export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
-export growthWitness
+export growthWitness, gW, smoothen
 
 # """
 # Calculate the variance of the dataset v
@@ -49,8 +49,9 @@ Reblock the data by successively taking the mean of two adjacent data points to
 form a new vector with a half of the `length(v)`. The last data point will be
 discarded if `length(v)` is odd.
 """
-function blocker(v::Vector)
-    new_v = Array{Float64}(undef,(length(v)÷2))
+function blocker(v::Vector{T}) where T
+    P = promote_type(T, Float64)
+    new_v = Array{P}(undef,(length(v)÷2))
     for i  in 1:length(v)÷2
         new_v[i] = 0.5*(v[2i-1]+v[2i])
     end
@@ -103,7 +104,7 @@ end
 
 """
     autocovariance(v::Vector,h::Int; corrected::Bool=true)
-``\\hat{\\gamma}(h) =\\frac{1}{n}\\sum_{t=1}^{n-h}(v_{t+h}-\\bar{v})(v_t-\\bar{v})``
+``\\hat{\\gamma}(h) =\\frac{1}{n}\\sum_{t=1}^{n-h}(v_{t+h}-\\bar{v})(v_t-\\bar{v})^*``
 Calculate the autocovariance of dataset `v` with a delay `h`. If `corrected` is `true`
 (the default) then the sum is scaled with `n-h`, whereas the sum
 is scaled with `n` if corrected is `false` where `n = length(v)`.
@@ -113,7 +114,7 @@ function autocovariance(v::Vector,h::Int; corrected::Bool=true)
     mean_v = mean(v)
     covsum = zero(mean_v)
     for i in 1:n-h
-        covsum += (v[i]-mean_v)*(v[i+h]-mean_v)
+        covsum += (v[i]-mean_v)*conj(v[i+h]-mean_v)
     end
     gamma = covsum/ifelse(corrected, (n-h), n)
     return gamma
@@ -131,9 +132,10 @@ If `corrected` is `true` (the default) then the sum in `var` is scaled
 with `n-1` and in `autocovariance` is scaled with `n-h`, whereas the sum
 is scaled with `n` for both if corrected is `false` where `n = length(v)`.
 """
-function blocking(v::Vector; corrected::Bool=true)
-    df = DataFrame(blocks = Int[], mean = Float64[], stdev = Float64[],
-                    std_err = Float64[], std_err_err = Float64[], gamma = Float64[], M = Float64[])
+function blocking(v::Vector{T}; corrected::Bool=true) where T
+    P = promote_type(T, Float64)
+    df = DataFrame(blocks = Int[], mean = P[], stdev = Float64[],
+                    std_err = Float64[], std_err_err = Float64[], gamma = P[], M = P[])
     while length(v) >= 2
         n = length(v) # size of current dataset
         mean_v = mean(v)
@@ -170,7 +172,7 @@ function covariance(vi::Vector,vj::Vector; corrected::Bool=true)
     meanj = mean(vj)
     covsum = zero(meani)
     for i in 1:n
-        covsum += (vi[i]-meani)*(vj[i]-meanj)
+        covsum += (vi[i]-meani)*conj(vj[i]-meanj)
     end
     cov = covsum/ifelse(corrected, (n-1), n)
     return cov
@@ -220,10 +222,11 @@ Entries in returned dataframe:
 * `mean_f` = `x̄/ȳ`;
 * `SE_f` = standard error estimated for `x̄/ȳ`.
 """
-function blocking(vi::Vector,vj::Vector; corrected::Bool=true)
-    df = DataFrame(blocks=Int[], mean_x=Float64[], SD_x=Float64[], SE_x=Float64[], SE_SE_x=Float64[],
-            mean_y=Float64[], SD_y=Float64[], SE_y=Float64[], SE_SE_y=Float64[], Covariance=Float64[],
-            mean_f=Float64[], SE_f=Float64[])
+function blocking(vi::Vector{T1},vj::Vector{T2}; corrected::Bool=true) where {T1, T2}
+    P = promote_type(T1, T2, Float64)
+    df = DataFrame(blocks=Int[], mean_x=P[], SD_x=Float64[], SE_x=Float64[], SE_SE_x=Float64[],
+            mean_y=P[], SD_y=Float64[], SE_y=Float64[], SE_SE_y=Float64[], Covariance=P[],
+            mean_f=P[], SE_f=Float64[])
     # if length(vi) != length(vj)
     #     @warn "Two data sets with non-equal length! Truncating the longer one."
     #     if length(vi) > length(vj)
@@ -409,10 +412,11 @@ errors `σs` and `σe` by blocking analsis from the `DataFrame` `df` returned
 from `fciqmc!()`. The number `k` of blocking
 steps and decorrelation time `2^k` are obtained from the M-test for the
 shift and also applied to the projected energy, assuming that the projected
-quantities decorrelate on the same time scale. Returns a named tuple.
+quantities decorrelate on the same time scale. Only the real part of the shift
+is considered. Returns a named tuple.
 """
 function autoblock(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool=true)
-    s̄, σs, σσs, ks, dfs = blockAndMTest(df.shift[start:stop];corrected=corrected) # shift
+    s̄, σs, σσs, ks, dfs = blockAndMTest(real.(df.shift[start:stop]);corrected=corrected) # shift
     if eltype(df.hproj) == Missing
         return (s̄ = s̄, σs = σs, ē = missing, σe = missing, k = ks)
     end
@@ -420,7 +424,7 @@ function autoblock(df::DataFrame; start = 1, stop = size(df)[1], corrected::Bool
     return (s̄ = s̄, σs = σs, ē = dfp.mean_f[1], σe = dfp.SE_f[ks], k = ks)
 end
 
-# call signature for chaining 
+# call signature for chaining
 autoblock(nt::NamedTuple{(:df,:eqsteps)}) = autoblock(nt.df; start = nt.eqsteps)
 
 # version for replica run
@@ -434,11 +438,11 @@ of the `k` values from M-tests on the two shift time series is used.
 """
 function autoblock(dftup::Tuple; start = 1, stop = size(dftup[1])[1], corrected::Bool=true)
     (df_mix, (df_1, df_2)) = dftup # unpack the three DataFrames
-    s̄1, σs1, σσs1, ks1, dfs1 = blockAndMTest(df1.shift[start:stop];corrected=corrected) # shift 1
-    s̄2, σs2, σσs2, ks2, dfs2 = blockAndMTest(df2.shift[start:stop];corrected=corrected) # shift 2
+    s̄1, σs1, σσs1, ks1, dfs1 = blockAndMTest(real.(df1.shift[start:stop]);corrected=corrected) # shift 1
+    s̄2, σs2, σσs2, ks2, dfs2 = blockAndMTest(real.(df2.shift[start:stop]);corrected=corrected) # shift 2
     xdy = df_mix.xdy[start:stop]
-    s1_xdy = dfs1.shift[start:stop].*xdy
-    s2_xdy = dfs2.shift[start:stop].*xdy
+    s1_xdy = real.(dfs1.shift[start:stop]).*xdy
+    s2_xdy = real.(dfs2.shift[start:stop]).*xdy
     xHy = df_mix.xHy[start:stop]
     df_var_1 = blocking(s1_xdy, xdy;corrected=corrected)
     df_var_2 = blocking(s2_xdy, xdy;corrected=corrected)
@@ -470,7 +474,7 @@ function growthWitness(norm::AbstractArray, shift::AbstractArray, dt; b = 30, pa
     l = length(norm)
     @assert length(shift) == l "`norm` and `shift` arrays need to have the same length."
     n = l - b
-    g = Vector{Float64}(undef, pad ? l : n)
+    g = Vector{eltype(shift)}(undef, pad ? l : n)
     offset = pad ? b÷2 : 0 # use offset only if pad == :true
     for i in 1:n
         g[i + offset] = -(1/(b*dt) * log(norm[i+b]/norm[i]) - 1/(b+1) * sum(shift[i:i+b]))
@@ -482,5 +486,58 @@ function growthWitness(norm::AbstractArray, shift::AbstractArray, dt; b = 30, pa
     return g
 end
 growthWitness(df::DataFrame; b = 30, pad = :true) = growthWitness(df.norm, df.shift, df.dτ[1]; b=b, pad=pad)
+
+"""
+    smoothen(noisy::AbstractVector, b; pad = :true)
+Smoothen the array `noisy` by averaging over a sliding window of length `b`.
+Pad to `length(noisy)` if `pad == true`. Otherwise, the returned array will have
+the length `length(noisy) - b`.
+"""
+function smoothen(noisy::AbstractVector, b; pad = :true)
+    l = length(noisy)
+    n = l - b
+    smooth = Vector{promote_type(eltype(noisy),Float64)}(undef, pad ? l : n)
+    offset = pad ? b÷2 : 0 # use offset only if pad == :true
+    for i in 1:n
+        smooth[i + offset] = 1/b * sum(noisy[i:i+b-1])
+    end
+    if pad # pad the vector g at both ends
+        smooth[1:offset] .= smooth[offset+1]
+        smooth[offset+n+1 : end] .= smooth[offset+n]
+    end
+    return smooth
+end
+
+"""
+    gW(norm::AbstractArray, shift::AbstractArray, dt, [b]; pad = :true) -> g
+    gW(df::DataFrame, [b]; pad = :true) -> g
+Compute the growth witness
+```math
+G^{(n)} = S^{(n)} - \\frac{\\vert\\mathbf{c}^{(n+1)}\\vert - \\vert\\mathbf{c}^{(n)}\\vert}{\\vert\\mathbf{c}^{(n)}\\vert d\\tau},
+```
+where `S` is the `shift` and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n, 1]`.
+Setting `b ≥ 1` a sliding average over `b` time steps is computed.
+
+If `pad` is set to `:false` then the returned array `g` has the length `length(norm) - b`.
+If set to `:true` then `g` will be padded up to the same length as `norm` and `shift`.
+"""
+function gW(norm::AbstractArray, shift::AbstractArray, dt)
+    l = length(norm)
+    @assert length(shift) == l "`norm` and `shift` arrays need to have the same length."
+    n = l - 1
+    g = Vector{eltype(shift)}(undef, l)
+    for i in 1:n
+        g[i] = shift[i] - (norm[i+1] - norm[i])/(dt*norm[i])
+    end
+    # pad the vector g at the end
+    g[n+1] = g[n]
+    return g
+end
+function gW(norm::AbstractArray, shift::AbstractArray, dt, b; pad = :true)
+    g_raw = gW(norm, shift, dt)
+    return smoothen(g_raw, b; pad)
+end
+gW(df::DataFrame) = gW(df.norm, df.shift, df.dτ[1])
+gW(df::DataFrame, b; pad = :true) = gW(df.norm, df.shift, df.dτ[1], b; pad=pad)
 
 end # module Blocking

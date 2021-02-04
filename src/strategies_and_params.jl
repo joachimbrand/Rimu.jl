@@ -14,26 +14,30 @@
 #
 
 """
+     FciqmcRunStrategy{T}
 Abstract type representing the strategy for running and terminating
-[`fciqmc!()`](@ref). Implemented strategies:
+[`fciqmc!()`](@ref). The type parameter `T` is relevant for reporting the shift
+and the norm.
+
+Implemented strategies:
 
    * [`RunTillLastStep`](@ref)
 """
-abstract type FciqmcRunStrategy end
+abstract type FciqmcRunStrategy{T} end
 
 
-@with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
+@with_kw mutable struct RunTillLastStep{T} <: FciqmcRunStrategy{T}
     step::Int = 0 # number of current/starting timestep
     laststep::Int = 100 # number of final timestep
     shiftMode::Bool = false # whether to adjust shift
-    shift::Float64 = 0.0 # starting/current value of shift
+    shift::T = 0.0 # starting/current value of shift
     dτ::Float64 = 0.01 # time step
 end
 @doc """
     RunTillLastStep(step::Int = 0 # number of current/starting timestep
                  laststep::Int = 100 # number of final timestep
                  shiftMode::Bool = false # whether to adjust shift
-                 shift::Float64 = 0.0 # starting/current value of shift
+                 shift = 0.0 # starting/current value of shift
                  dτ::Float64 = 0.01 # current value of time step
     ) <: FciqmcRunStrategy
 Parameters for running [`fciqmc!()`](@ref) for a fixed number of time steps.
@@ -264,6 +268,12 @@ no memory noise will be used.
 struct NoMemory <: MemoryStrategy end
 
 """
+    PurgeNegatives <: MemoryStrategy
+Purge all negative sign walkers.
+"""
+struct PurgeNegatives <: MemoryStrategy end
+
+"""
     DeltaMemory(Δ::Int) <: MemoryStrategy
 Before updating the shift, memory noise with a memory length of `Δ` is applied,
 where `Δ = 1` means no memory noise.
@@ -460,8 +470,8 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
 """
-struct DoubleLogUpdate <: ShiftStrategy
-    targetwalkers::Int
+struct DoubleLogUpdate{T} <: ShiftStrategy
+    targetwalkers::T
     ζ::Float64 # damping parameter, best left at value of 0.08
     ξ::Float64  # restoring force to bring walker number to the target
 end
@@ -665,7 +675,7 @@ end
 
 @inline function update_shift(s::LogUpdateAfterTargetWalkers,
                         shift, shiftMode, tnorm, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
     end
     return shift, false, tnorm
@@ -674,7 +684,7 @@ end
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
             return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
     end
     return shift, false, tnorm
@@ -683,7 +693,7 @@ end
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkersSwitch,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         if s.a > 0
             s.a -= 1
             return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
@@ -710,7 +720,7 @@ end
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
     # return new shift and new shiftMode
-    if tnorm > s.targetwalkers
+    if real(tnorm) > s.targetwalkers
         return update_shift(DelayedDoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ,s.A), shift, shiftMode, tnorm, pnorm, dτ, step, df, args...)
     else
         return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, shiftMode, tnorm, pnorm, dτ, args...)
@@ -719,7 +729,7 @@ end
 
 @inline function update_shift(s::DelayedLogUpdateAfterTargetWalkers,
                         shift, shiftMode, tnorm, pnorm, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         return update_shift(DelayedLogUpdate(s.ζ,s.a), shift, true, tnorm, pnorm, args...)
     end
     return shift, false, pnorm
@@ -743,14 +753,53 @@ abstract type StochasticStyle end
 
 struct IsStochastic <: StochasticStyle end
 
+"""
+    IsStochastic2Pop()
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of integer
+walkers.
+"""
+struct IsStochastic2Pop <: StochasticStyle end
+
+"""
+    IsStochastic2PopInitiator()
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of integer
+walkers. Initiator algorithm will be used.
+"""
+struct IsStochastic2PopInitiator <: StochasticStyle end
+
+"""
+    IsStochastic2PopWithThreshold(threshold::Float32)
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of real
+walkers and cutoff `threshold`.
+```
+> StochasticStyle(V) = IsStochastic2PopWithThreshold(threshold)
+```
+During stochastic propagation, walker numbers small than `threshold` will be
+stochastically projected to either zero or `threshold`.
+
+The trait can be conveniently defined on an instance of a generalised vector
+with the function [`setThreshold`](@ref). Example:
+```julia-repl
+julia> dv = DVec(nearUniform(BoseFS{3,3}) => 2.0+3.0im; capacity = 10)
+julia> setThreshold(dv, 0.6)
+julia> StochasticStyle(dv)
+IsStochastic2PopWithThreshold(0.6f0)
+```
+"""
+struct IsStochastic2PopWithThreshold <: StochasticStyle
+    threshold::Float32
+end
+
 struct IsStochasticNonlinear <: StochasticStyle
     c::Float64 # parameter of nonlinear correction applied to local shift
 end
-
 struct IsDeterministic <: StochasticStyle end
 
 """
-    IsStochasticWithThreshold(threshold::Float16)
+    IsStochasticWithThreshold(threshold::Float32)
 Trait for generalised vector of configurations indicating stochastic
 propagation with real walker numbers and cutoff `threshold`.
 ```
@@ -814,6 +863,12 @@ function setThreshold(dv, threshold)
     return Rimu.StochasticStyle(dv)
 end
 
+function setThreshold(dv::AbstractDVec{K,V}, threshold) where {K,V<:Complex}
+    @assert !(real(valtype(dv)) <:Integer) "`valtype(dv)` must not be integer."
+    @eval Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochastic2PopWithThreshold($threshold)
+    return Rimu.StochasticStyle(dv)
+end
+
 """
     @setDeterministic dv
 A macro to undo the effect of [`@setThreshold`] and set the
@@ -873,9 +928,14 @@ end
 StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
 StochasticStyle(::Type{<:Array}) = IsDeterministic()
 StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
-# the following works for dispatch, i.e. the function is evaluated at compile time
+function StochasticStyle(T::Type{<:AbstractDVec{K,V}}) where {K,V<:AbstractFloat}
+    IsDeterministic()
+end
+function StochasticStyle(T::Type{<:AbstractDVec{K,V}}) where {I<:Integer,K,V<:Complex{I}}
+    IsStochastic2Pop()
+end
 function StochasticStyle(T::Type{<:AbstractDVec})
-    ifelse(eltype(T) <: Integer, IsStochastic(), IsDeterministic())
+    IsStochastic()
 end
 
 # """
@@ -952,3 +1012,13 @@ configuration array as to keep the norm constant. As a consequence, the
 final configuration amplitudes may be smaller than `threshold`.
 See [`norm_project`](@ref).
 """ ScaledThresholdProject
+
+@with_kw struct ComplexNoiseCancellation <: ProjectStrategy
+    κ::Float32 = 1.0f0
+end
+@doc """
+    ComplexNoiseCancellation(κ = 1.0) <: ProjectStrategy
+Use complex noise cancellation strategy with imaginary noise injected at
+level `κ`.
+See [`norm_project`](@ref).
+""" ComplexNoiseCancellation

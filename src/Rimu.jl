@@ -4,8 +4,9 @@ Random Integrator for Many-Body Quantum Systems
 """
 module Rimu
 
-# external dependencies
-using Reexport, Parameters, LinearAlgebra, DataFrames, Setfield
+using Reexport, Parameters, LinearAlgebra, DataFrames
+using Setfield, StaticArrays
+using SplittablesBase, ThreadsX
 @reexport using Distributed
 import MPI, DataStructures
 
@@ -21,6 +22,8 @@ include("Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("Blocking.jl")
 @reexport using .Blocking
+include("RimuIO.jl")
+using .RimuIO
 
 export lomc!
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
@@ -34,22 +37,21 @@ export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
-export StochasticStyle, IsStochastic, IsDeterministic
+export StochasticStyle, IsStochastic, IsDeterministic, IsStochastic2Pop
 # export IsSemistochastic # is not yet ready
 export IsStochasticNonlinear, IsStochasticWithThreshold
 export @setThreshold, @setDeterministic, setThreshold
-export threadedWorkingMemory, localpart
-
-# exports for MPI functionality
-export DistributeStrategy, MPIData, MPIDefault, MPIOSWin
-export mpi_default, mpi_one_sided, fence, put, sbuffer, sbuffer!, targetrank
-export free, mpi_no_exchange
+export threadedWorkingMemory, localpart, walkernumber
+export RimuIO
 
 include("strategies_and_params.jl")
 include("helpers.jl")
-include("mpi_helpers.jl")
 include("fciqmc.jl")
+
+# Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
+include("RMPI.jl")
+# @reexport using .RMPI
 
 export greet
 

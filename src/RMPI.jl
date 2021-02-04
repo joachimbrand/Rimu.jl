@@ -1,8 +1,44 @@
-# import MPI, LinearAlgebra
+"""
+Module for providing MPI functionality for `Rimu`.
+"""
+module RMPI
+
+import MPI
+using Rimu, LinearAlgebra, Rimu.ConsistentRNG, Random
+
+# extending methods for:
+import Base: show, length, eltype
+import LinearAlgebra: dot, norm
+import Rimu.ConsistentRNG: sync_cRandn, check_crng_independence
+import Rimu: walkernumber, sort_into_targets!, localpart, StochasticStyle
+
+export MPIData
+export mpi_rank, is_mpi_root, @mpi_root, mpi_barrier
+export mpi_comm, mpi_root, mpi_size, mpi_seed_CRNGs!
+
+function __init__()
+    # Initialise the MPI library once at runtime.
+    MPI.Initialized() || MPI.Init()
+    # make sure that MPI ranks have independent random numbers
+    mpi_seed_CRNGs!()
+end
 
 const mpi_registry = Dict{Int,Any}()
 # The registry keeps references to distributed structures that must not be
 # garbage collected at random
+
+# default root and comm for this package
+"Default MPI root for `RMPI`."
+const mpi_root = zero(Int32)
+
+"Default MPI communicator for `RMPI`."
+mpi_comm() = MPI.COMM_WORLD
+
+"""
+    mpi_size(comm = mpi_comm())
+Size of MPI communicator.
+"""
+mpi_size(comm = mpi_comm()) = MPI.Comm_size(comm)
 
 """
     next_mpiID()
@@ -15,12 +51,56 @@ let mpiID::Int = 0
     next_mpiID() = (mpiID +=1; mpiID)
 end
 
+"""
+    mpi_rank(comm = mpi_comm())
+Return the current MPI rank.
+"""
+mpi_rank(comm = mpi_comm()) = MPI.Comm_rank(comm)
+
+"""
+    is_mpi_root(root = mpi_root)
+Returns `true` if called from the root rank
+"""
+is_mpi_root(root = mpi_root) = mpi_rank() == root
+
+"""
+    @mpi_root expr
+Evaluate expression only on the root rank.
+Extra care needs to be taken as `expr` *must not* contain any code that involves
+syncronising MPI operations, i.e. actions that would require syncronous action
+of all MPI ranks.
+
+Example:
+```julia
+wn = walkernumber(dv)   # an MPI syncronising function call that gathers
+                        # information from all MPI ranks
+@mpi_root @info "The current walker number is" wn # print info message on root only
+```
+"""
+macro mpi_root(args...)
+    :(is_mpi_root() && $(esc(args...)))
+end
+
+"""
+    mpi_barrier(comm = mpi_comm())
+The MPI barrier with optional argument. MPI syncronizing.
+"""
+mpi_barrier(comm = mpi_comm()) = MPI.Barrier(comm)
 
 abstract type DistributeStrategy end
 
 """
-Simple wrapper used for signaling that this data is part of a distributed
+    MPIData(data; kwargs...)
+Wrapper used for signaling that this data is part of a distributed
 data structure and communication should happen with MPI.
+
+Keyword arguments:
+* `setup = mpi_one_sided` - controls the communication stratgy
+  * [`mpi_one_sided`](@ref) uses one-sided communication with remote memory access (RMA), sets [`MPIOSWin`](@ref) strategy.
+  * [`mpi_default`](@ref) uses [`MPIDefault`](@ref) strategy.
+  * [`mpi_no_exchange`](@ref) sets [`MPINoWalkerExchange`](@ref) strategy. Experimental. Use with caution!
+* `comm = mpi_comm()`
+* `root = mpi_root`
 """
 struct MPIData{D,S}
     data::D # local data, e.g. a DVec
@@ -33,10 +113,18 @@ struct MPIData{D,S}
         return new{D,S}(data, comm, root, s.id==root, s)
     end
 end
+# convenient constructor with setup function
+function MPIData(data;
+                    setup = mpi_one_sided,
+                    comm = mpi_comm(),
+                    root = mpi_root
+                    )
+    return setup(data, comm, root)
+end
 
 Base.valtype(md::MPIData{D,S}) where {D,S} = valtype(D)
-localpart(md::MPIData) = md.data
-StochasticStyle(d::MPIData) = StochasticStyle(d.data)
+Rimu.localpart(md::MPIData) = md.data
+Rimu.StochasticStyle(d::MPIData) = Rimu.StochasticStyle(d.data)
 
 """
     MPIDefault(nprocs, my_rank, comm)
@@ -58,7 +146,6 @@ struct MPINoWalkerExchange <: DistributeStrategy
     id::Int32
     comm::MPI.Comm
 end
-
 
 """
     MPIOSWin(nprocs, myrank, comm, ::Type{T}, capacity)
@@ -96,15 +183,18 @@ mutable struct MPIOSWin{T}  <: DistributeStrategy
     end
 end
 Base.eltype(::MPIOSWin{T}) where T = T
+
 """
     length(md::MPIData)
 Compute the length of the distributed data on every MPI rank with
-`MPI.Allreduce`.
+`MPI.Allreduce`. MPI syncronizing.
 """
 Base.length(md::MPIData) = MPI.Allreduce(length(md.data), +, md.comm)
+
 """
     norm(md::MPIData, p=2)
 Compute the norm of the distributed data on every MPI rank with `MPI.Allreduce`.
+MPI syncronizing.
 """
 function LinearAlgebra.norm(md::MPIData, p::Real=2)
     if p === 2
@@ -118,14 +208,25 @@ function LinearAlgebra.norm(md::MPIData, p::Real=2)
     end
 end
 
+"""
+    walkernumber(md::MPIData)
+Compute the walkernumber of the distributed data on every MPI rank with `MPI.Allreduce`.
+MPI syncronizing.
+"""
+function Rimu.walkernumber(md::MPIData)
+    return MPI.Allreduce(walkernumber(md.data), +, md.comm)
+end
+
+###############################
+# setup strategies for MPIData()
 
 """
-    mpi_default(data, comm = MPI.COMM_WORLD, root = 0)
+    mpi_default(data, comm = mpi_comm(), root = mpi_root)
 Declare `data` as mpi-distributed and set communication strategy to default.
 Sets up the [`MPIData`](@ref) structure with
 [`MPIDefault`](@ref) strategy.
 """
-function mpi_default(data, comm = MPI.COMM_WORLD, root = 0)
+function mpi_default(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
@@ -133,12 +234,12 @@ function mpi_default(data, comm = MPI.COMM_WORLD, root = 0)
     return MPIData(data, comm, root, s)
 end
 """
-    mpi_no_exchange(data, comm = MPI.COMM_WORLD, root = 0)
+    mpi_no_exchange(data, comm = mpi_comm(), root = mpi_root)
 Declare `data` as mpi-distributed and set communication strategy to
 `MPINoWalkerExchange`. Sets up the [`MPIData`](@ref) structure with
 [`MPINoWalkerExchange`](@ref) strategy.
 """
-function mpi_no_exchange(data, comm = MPI.COMM_WORLD, root = 0)
+function mpi_no_exchange(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
@@ -147,13 +248,13 @@ function mpi_no_exchange(data, comm = MPI.COMM_WORLD, root = 0)
 end
 
 """
-    mpi_one_sided(data, comm = MPI.COMM_WORLD, root = 0)
+    mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
 Declare `data` as mpi-distributed and set communication strategy to one-sided
 with remote memory access (RMA).
 Sets up the [`MPIData`](@ref) structure with
 [`MPIOSWin`](@ref) strategy.
 """
-function mpi_one_sided(data, comm = MPI.COMM_WORLD, root = 0)
+function mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
@@ -179,6 +280,7 @@ end
     free(obj::MPIOSWin)
 De-reference the object, call finalizer and the garbage collector immediately.
 This is a syncronizing MPI call. Make sure that the object is not used later.
+MPI syncronizing.
 """
 function free(obj::MPIOSWin)
     global mpi_registry
@@ -201,6 +303,7 @@ function fence(s::MPIOSWin, assert = 0)
     MPI.Win_fence(assert, s.b_win)
     MPI.Win_fence(assert, s.l_win) # joint fences
 end
+
 """
     put(buf::Vector{T}, [len,] targetrank, s::MPIOSWin{T})
     put(obj::T, targetrank, s::MPIOSWin{T})
@@ -248,12 +351,13 @@ Compute the rank where the `key` belongs.
 targetrank(key, np, hash = hash(key)) = hash%np
 
 """
-    sort_into_targets!(target::MPIData, source)
+    sort_into_targets!(target::MPIData, source, stats)
 Distribute the entries of `source` to the `target` data structure such that all
 entries in the `target` dictionaries are on the process with the correct rank
-as controlled by [`targetrank()`](@ref).
+as controlled by [`targetrank()`](@ref). Combine `stats` if appropriate.
+MPI syncronizing.
 """
-function sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
+function Rimu.sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
     ltarget = localpart(dtarget)
     empty!(ltarget) # start with empty slate
     strategy = dtarget.s
@@ -263,7 +367,7 @@ function sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
 end
 
 # three-argument version
-function sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
+function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
     # multi-threaded MPI version
     # should only ever run on thread 1
     @assert Threads.threadid() == 1 "`sort_into_targets!()` is running on `threadid()` == $(Threads.threadid()) instead of 1!"
@@ -276,23 +380,22 @@ function sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {N
     MPI.Allreduce!(stats, +, dtarget.comm) # add stats from all MPI ranks
     return dtarget, ws, stats
 end
-function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
+function Rimu.sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
     # single threaded MPI version
-    # should only ever run on thread 1
-    # @assert Threads.threadid() == 1 "`sort_into_targets!()` is running on `threadid()` == $(Threads.threadid()) instead of 1!"
     sort_into_targets!(dtarget,w) # combine walkers from different MPI ranks
-    MPI.Allreduce!(stats, +, dtarget.comm) # add stats from all MPI ranks
-    return dtarget, ws, stats
+    vstats = convert(Vector,stats) # necessary for MPI.Allreduce
+    MPI.Allreduce!(vstats, +, dtarget.comm) # add stats from all MPI ranks
+    return dtarget, w, vstats
 end
 
 # four-argument version
-function sort_into_targets!(target, source, ::Type{P}, s::MPINoWalkerExchange) where P
+function Rimu.sort_into_targets!(target, source, ::Type{P}, s::MPINoWalkerExchange) where P
     # specific for `MPINoWalkerExchange`: copy without communicating with
     # other ranks.
     return copyto!(target, source)
 end
 
-function sort_into_targets!(target, source, ::Type{P}, s::DistributeStrategy) where P
+function Rimu.sort_into_targets!(target, source, ::Type{P}, s::DistributeStrategy) where P
     # now target is just a local data structure, e.g. DVec
     # allocate local buffers for sorting
     bufs = [Vector{P}(undef,length(source)) for i in 1:(s.np-1)] # type-stable
@@ -313,8 +416,9 @@ function sort_into_targets!(target, source, ::Type{P}, s::DistributeStrategy) wh
     # call strategy-specific method (with 5 arguments):
     return sort_into_targets!(target, bufs, lens, P, s)
 end
+
 # five-argument version
-function sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s::MPIDefault) where P
+function Rimu.sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s::MPIDefault) where P
     # use standard MPI message passing communication
     # use ring structure for sending around data with blocking communications:
     # first receive from lower ranks, then send, then recieve from higher ranks
@@ -355,7 +459,7 @@ function sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s:
     return target
 end # sort_into_targets! MPIDefault
 
-function sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s::MPIOSWin) where P
+function Rimu.sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s::MPIOSWin) where P
     # send data with RMA communications to higher rank by `offset`
     for offset in 1 : s.np-1
         # println("$(s.id) before first fence")
@@ -396,3 +500,54 @@ end
 function LinearAlgebra.dot(x, lop, md::MPIData)
     return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
 end
+
+"""
+    sync_cRandn(md::MPIData)
+Generate one random number with [`cRandn()`](@ref) in a synchronous way such
+that all MPI ranks have the same random number.
+The argument is ignored unless it is of type `MPIData`, in which case a random
+number from the root rank is broadcasted to all MPI ranks. MPI syncronizing.
+"""
+function ConsistentRNG.sync_cRandn(md::MPIData)
+    MPI.bcast(cRandn(), md.root, md.comm)
+end
+
+"""
+    ConsistentRNGs.check_crng_independence(dv::MPIData)
+Does a sanity check to detect dependence of random number generators across
+all MPI ranks. Returns the size of the combined RNG state,
+i.e. `mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)`.
+MPI syncronizing.
+"""
+ConsistentRNG.check_crng_independence(dv::MPIData) = _check_crng_independence(dv.comm)
+
+function _check_crng_independence(comm::MPI.Comm) # MPI syncronizing
+    # get vector of threaded RNGs on this rank
+    crngs = ConsistentRNG.CRNGs[]
+    # extract the numbers that make up the state of the RNGs and package into
+    # an MPI-suitable buffer
+    statebuffer = [getfield(rng,i) for rng in crngs for i in 1:fieldcount(typeof(rng))]
+    # gather from all ranks
+    combined_statebuffer = MPI.Allgather(statebuffer, comm)  # MPI syncronizing
+    # check independence
+    @mpi_root @assert union(combined_statebuffer) == combined_statebuffer "Dependency in parallel rngs detected"
+
+    @assert length(ConsistentRNG.CRNGs[]) == Threads.nthreads() "Number of CNRGs should be equal to nthreads()"
+    return length(combined_statebuffer)
+end
+
+"""
+    mpi_seed_CRNGs!(seed = rand(Random.RandomDevice(), UInt))
+Re-seed the random number generators in an MPI-safe way. If seed is provided,
+the random numbers from [`cRand()`](@ref) will follow a deterministic sequence.
+
+Independence of the random number generators on different MPI ranks is achieved
+buy adding `hash(mpi_rank())` to `seed`.
+"""
+function mpi_seed_CRNGs!(seed = rand(Random.RandomDevice(), UInt))
+    rngs = seedCRNG!(seed + hash(mpi_rank()))
+    _check_crng_independence(mpi_comm())
+    return rngs
+end
+
+end # module RMPI

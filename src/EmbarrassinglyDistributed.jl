@@ -12,9 +12,9 @@ time-series with `lomc!()` into chunks performed in parallel using the
 """
 module EmbarrassinglyDistributed
 
-using Reexport, Random, Parameters, DataFrames
+using Random, Parameters, DataFrames
 using Rimu, Rimu.ConsistentRNG
-@reexport using Distributed
+using Distributed
 
 export d_lomc!, setup_workers, seedCRNGs_workers!, combine_dfs
 
