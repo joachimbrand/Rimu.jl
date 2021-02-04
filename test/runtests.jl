@@ -845,3 +845,7 @@ end
     eig2cMom = eigen(Matrix(smat2cMom))
     @test eig2cReal.values[1] ≈ eig2cMom.values[1]
 end
+
+@safetestset "KrylovKit" begin
+    include("KrylovKit.jl")
+end
