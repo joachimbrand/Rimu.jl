@@ -32,6 +32,8 @@ function test_krylov_eigsolve(
     @test energy ≈ -4.0215 atol=0.0001
 end
 
-for dvec_type in (DVec,), address_type in (BSAdd64, BSAdd128)
+for dvec_type in (DVec,), address_type in (BSAdd64, BSAdd128, BoseFS{6,6,BSAdd64})
     test_krylov_eigsolve(dvec_type, address_type)
 end
+
+BoseFS{6,6}

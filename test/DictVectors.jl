@@ -71,10 +71,19 @@ function test_dvec_interface(type, keys, values, cap)
         @testset "types and traits" begin
             dvec = type(pairs...; capacity=cap)
             @test dvec isa AbstractDVec{K,V}
+
             @test eltype(dvec) ≡ V
+            @test eltype(typeof(dvec)) ≡ V
+
             @test keytype(dvec) ≡ K
+            @test keytype(typeof(dvec)) ≡ K
+
             @test valtype(dvec) ≡ V
+            @test valtype(typeof(dvec)) ≡ V
+
             @test pairtype(dvec) ≡ Pair{K,V}
+            @test pairtype(typeof(dvec)) ≡ Pair{K,V}
+
             @test isreal(dvec) == (V <: Real)
             @test ndims(dvec) == 1
         end
