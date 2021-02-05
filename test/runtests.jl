@@ -2,6 +2,7 @@ using Rimu
 using Test
 using LinearAlgebra
 using Statistics, DataFrames
+using SafeTestsets
 
 # assuming VERSION ≥ v"1.5"
 # the following is needed because random numbers of collections are computed
@@ -135,71 +136,8 @@ using Rimu.FastBufs
     @test isempty(fb)
 end
 
-@testset "DictVectors.jl" begin
-    @test FastDVec(i => i^2 for i in 1:10; capacity = 30)|> length == 10
-    myfda = FastDVec("a" => 42; capacity = 40)
-    myda2 = FastDVec{String,Int}(40)
-    myda2["a"] = 42
-    @test haskey(myda2,"a")
-    @test !haskey(myda2,"b")
-    @test myfda == myda2
-    myda2["c"] = 422
-    myda2["d"] = 45
-    myda2["f"] = 412
-
-    @test length(myda2) == 4
-
-    for (key, val) in pairs(myda2)
-        println("key ",key," val ",val)
-    end
-    show(myda2)
-
-    @test norm(myda2)≈592.9730179358922
-    @test norm(myda2,1)==921
-    @test norm(myda2*2.0,1) == 2*norm(myda2,1)
-    @test norm(myda2,Inf)==422
-    @inferred norm(myda2,1)
-    delete!(myda2,"d")
-    delete!(myda2,"c")
-    @test myda2.emptyslots == [3,2]
-    myda3 = similar(myda2)
-    copyto!(myda3,myda2)
-    @test length(myda3)==2
-    myda3["q"]= 3
-    delete!(myda3,"q")
-    @test myda2==myda3
-    fdv = FastDVec([rand() for i=1:1000], 2000)
-    ki = keys(fdv)
-    @test sort(collect(ki))==collect(1:1000)
-    cdv = FastDVec(fdv)
-    @test cdv == fdv
-    fdv[1600] = 10.0
-    cdv[1600] = 10.0
-    @test cdv == fdv
-    dv = DVec(fdv)
-    edv = empty(dv)
-    copyto!(edv,dv)
-    axpby!(0.1,dv,4.0,edv)
-    dvc = copy(dv)
-    @test dvc == dv
-    y = empty(dv)
-    axpy!(2.0, dv, y)
-    @test norm(y, 1) ≈ norm(dv,1)*2
-    ys = Tuple(empty(dv) for i in 1:Threads.nthreads())
-    axpy!(2.0, dv, ys, batchsize=100)
-    @test sum(norm.(ys, 1)) ≈ norm(dv,1)*2
-
-    mdv = DVec(:a => 2; capacity = 10)
-    @test mdv[:a] == 2
-    @test mdv[:b] == 0
-    @test length(mdv) == 1
-    @test ismissing(missing*mdv)
-
-    @test DFVec(:a => (2,3); capacity = 10) == DFVec(Dict(:a => (2,3)))
-    dv = DVec(:a => 2; capacity = 100)
-    cdv = copytight(dv)
-    @test dv == cdv
-    @test capacity(dv) > capacity(cdv)
+@safetestset "DictVectors.jl" begin
+    include("DictVectors.jl")
 end
 
 using Rimu.ConsistentRNG
@@ -594,55 +532,6 @@ end
     @test sum(rdfs[:,:norm]) ≈ 3687.674720780682 #(OV ? 3939.3835802371677 : 3687.674720780682)
 end
 
-@testset "dfvec.jl" begin
-    df = DFVec(Dict(3=>(3.5,true)))
-
-    df2 = DFVec(Dict(3=>(3.5,true)), 200)
-    @test capacity(df2) == 341
-    df3 = DFVec{Int,Float64,Int}(30)
-    @test capacity(df3) == 42
-    df4 = DFVec([1,2,3,4])
-
-    dv = DVec([1,2,3,4])
-
-    df5 = DFVec(dv)
-    @test eltype(dv) == Int
-    length(dv)
-    @test df4 == df5
-    @test df4 ≢ df5
-    @test df == df2
-    @test df ≠ df4
-    @test df5 == dv # checking keys, values, but not flags
-
-    dd = Dict("a"=>1,"b"=>2,"c"=>3)
-    ddv = DVec(dd)
-    values(ddv)
-    fddv = FastDVec(dd)
-    @test collect(values(fddv)) == collect(values(ddv))
-    ddf = DFVec(ddv)
-    @test collect(values(ddf)) == collect(values(ddv))
-    dt = Dict("a"=>(1,false),"b"=>(2,true),"c"=>(3,true))
-    dtv = DVec(dt)
-    collect(values(dtv))
-    collect(keys(dtv))
-    eltype(dtv)
-    valtype(dtv)
-    dtf = DFVec(dt)
-    @test collect(flags(dtf)) == [true, true, false]
-    @test DFVec(dtv) == dtf
-    ndfv = DFVec(dtf,500,UInt8)
-    dt = Dict(i => (sqrt(i),UInt16(i)) for i in 1:1000)
-    dtv = DFVec(dt)
-    dv = DVec(dtv)
-    @test dtv == dv
-    @test dv ≠ DVec(dt)
-    dvt = DVec(dt)
-    fdvt = DFVec(dvt)
-    @test fdvt == dtv
-    dtv[218] = (14.7648230602334, 0x00ff) # change flag
-    @test fdvt ≠ dtv
-end
-
 @testset "deterministic and multithreading" begin
     # set up parameters for simulations
     walkernumber = 20_000
@@ -906,4 +795,8 @@ end
     smat2cMom, adds2cMom = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cMom,aIni2cMom)
     eig2cMom = eigen(Matrix(smat2cMom))
     @test eig2cReal.values[1] ≈ eig2cMom.values[1]
+end
+
+@safetestset "KrylovKit" begin
+    include("KrylovKit.jl")
 end
