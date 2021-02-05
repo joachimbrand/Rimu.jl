@@ -439,6 +439,24 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
 end # fciqmc
 
 """
+    prep_shift(::StochasticStyle, shift, pnorm)
+Prepare shift according to `StochasticStyle`. Passes through `shift` except for
+`IsStochastic2PopRealShift` where a named tuple of suitable values for each walker
+population is computed from a complex shift argument.
+"""
+prep_shift(::StochasticStyle, shift, pnorm) = shift # default
+function prep_shift(::IsStochastic2PopRealShift, shift, pnorm)
+    return if abs(real(pnorm)*imag(pnorm)) > 1
+        (
+        r = real(shift) - imag(shift)*imag(pnorm)/real(pnorm),
+        i = real(shift) + imag(shift)*real(pnorm)/imag(pnorm),
+        )
+    else # ignore imaginary part of shift if population is small to avoid division by zero
+        (r = real(shift), i = real(shift))
+    end
+end # returns named tuple of real (Float64) numbers
+
+"""
     fciqmc_step!(Ĥ, v, shift, dτ, pnorm, w;
                           m_strat::MemoryStrategy = NoMemory()) -> ṽ, w̃, stats
 Perform a single matrix(/operator)-vector multiplication:
@@ -463,6 +481,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, w, m = 1.0;
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
     empty!(w) # clear working memory
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
     # call fciqmc_col!() on every entry of `v` and add the stats returned by
     # this function:
     stats = sum(p-> SVector(fciqmc_col!(w, Ĥ, p.first, p.second, shift, dτ)),
@@ -517,6 +536,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
     statss = allocate_statss(v, NT) # [zeros(Int,5) for i=1:NT]
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
     @sync for btr in Iterators.partition(pairs(v), batchsize)
         Threads.@spawn for (add, num) in btr
             statss[Threads.threadid()] .+= fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
@@ -539,6 +559,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
     statss = allocate_statss(v, NT)
 
     batchsize = max(100.0, min(amount(pairs(v))/NT, sqrt(amount(pairs(v)))*10))
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
 
     # define recursive dispatch function that loops two halves in parallel
     function loop_configs!(ps) # recursively spawn threads
@@ -589,6 +610,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Bool;
     # statss = [zeros(Int,5) for i=1:NT]
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
     # stats = mapreduce(p-> SVector(fciqmc_col!(ws[Threads.threadid()], Ĥ, p.first, p.second, shift, dτ)), +,
     #   pairs(v))
 
@@ -608,6 +630,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Int;
 
     statss = allocate_statss(v, NT)
     zero!.(ws) # clear working memory
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
 
     function col!(p) # take a pair address -> value and run `fciqmc_col!()` on it
         statss[threadid()] .+= fciqmc_col!(ws[threadid()], Ĥ, p.first, p.second, shift, dτ)
@@ -1109,7 +1132,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
         nspawns = im*convert(typeof(num), -nspawn * sign(num) * sign(matelem))
         # - because Hamiltonian appears with - sign in iteration equation
         if sign(imag(w[naddress])) * sign(imag(nspawns)) < 0 # record annihilations
-            annihilations += min(abs(imag(w[naddress])),abs(nspawns))
+            annihilations += min(abs(imag(w[naddress])),abs(imag(nspawns)))
         end
         if !iszero(nspawns)
             w[naddress] += nspawns
@@ -1129,7 +1152,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     ndiag = trunc(newdiagpop)
     abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
-    ndiags = convert(typeof(num),ndiag) # now complex integer type
+    ndiags = convert(typeof(num),ndiag) # now real integer type
     if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
         annihilations += min(abs(real(w[add])),abs(real(ndiags)))
     end
@@ -1148,7 +1171,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
     ndiags = im*convert(typeof(num),ndiag) # now complex integer type
-    if sign(imag(w[add])) ≠ sign(ndiag) # record annihilations
+    if sign(imag(w[add])) ≠ sign(imag(ndiag)) # record annihilations
         annihilations += min(abs(imag(w[add])),abs(imag(ndiags)))
     end
     w[add] += ndiags # should carry the correct sign
@@ -1190,6 +1213,109 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     w[add] += cnspawn
     # perform spawn (if nonzero): add walkers with correct sign
     spawns += abs(nspawn)
+
+    return (spawns, deaths, clones, antiparticles, annihilations)
+    # note that w is not returned
+end
+
+function fciqmc_col!(
+    ::DictVectors.IsStochastic2PopRealShift,
+    w,
+    ham::AbstractHamiltonian,
+    add,
+    cnum::Complex,
+    shift_tuple,
+    dτ,
+)
+    # version for complex integer psips with separate values of the shift for real
+    # and imaginary walkers
+    # off-diagonal: spawning psips
+    # stats reported are complex, for each component separately
+    spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
+    hops = Hops(ham,add)
+    # real psips first
+    num = real(cnum)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(real(w[naddress])) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(real(w[naddress])),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(nspawns)
+        end
+    end
+    # now imaginary psips
+    num = imag(cnum)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem)) # real number
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(imag(w[naddress])) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(imag(w[naddress])),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += im*nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += im*abs(nspawns)
+        end
+    end
+
+    # diagonal death / clone
+    dME = diagME(ham,add)
+    # treat real part
+    shift = shift_tuple.r # use shift for real propulation
+    pd = dτ * (dME - shift) # real valued so far
+    num = real(cnum)
+    newdiagpop = (1-pd)*num
+    ndiag = trunc(newdiagpop)
+    # only treat non-integer part stochastically
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    ndiags = convert(typeof(num),ndiag) # now (real) integer type
+    if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
+        annihilations += min(abs(real(w[add])),abs(ndiags))
+    end
+    w[add] += ndiags # should carry the correct sign
+    if  pd < 0 # record event statistics
+        clones += abs(ndiags - num)
+    elseif pd < 1
+        deaths += abs(ndiags - num)
+    else
+        antiparticles += abs(ndiags)
+    end
+    # treat imaginary part
+    shift = shift_tuple.i # use shift for imag population
+    pd = dτ * (dME - shift) # real valued so far
+    num = imag(cnum)
+    newdiagpop = (1-pd)*num
+    ndiag = trunc(newdiagpop)
+    # only treat non-integer part stochastically
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    ndiags = convert(typeof(num), ndiag) # now (real) integer type
+    if sign(imag(w[add])) ≠ sign(ndiag) # record annihilations
+        annihilations += min(abs(imag(w[add])), abs(ndiags))
+    end
+    w[add] += im*ndiags # should carry the correct sign
+    if  pd < 0 # record event statistics
+        clones += im*abs(ndiags - num)
+    elseif pd < 1
+        deaths += im*abs(ndiags - num)
+    else
+        antiparticles += im*abs(ndiags)
+    end
 
     return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
