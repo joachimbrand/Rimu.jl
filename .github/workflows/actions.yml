@@ -55,8 +55,7 @@ jobs:
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
       - uses: julia-actions/julia-processcoverage@latest
-      - uses: coverallsapp/github-action@latest
+      - uses: coverallsapp/github-action@v1.1.2
         with:
           github-token: ${{ secrets.github_token }}
           path-to-lcov: ./lcov.info
-        if: ${{ matrix.julia-version == '1' }}
