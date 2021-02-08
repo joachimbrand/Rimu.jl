@@ -20,9 +20,9 @@ DVec{Int64,Float64} |   71       1     72
 function test_dvec_interface(type, keys, values, cap)
     K = eltype(keys)
     V = eltype(values)
-    @testset "$type{$K,$V}" begin
-        pairs = [k => v for (k, v) in zip(keys, values)]
+    pairs = [k => v for (k, v) in zip(keys, values)]
 
+    @testset "$type{$K,$V}" begin
         @testset "constructors" begin
             dvec1 = type(pairs...; capacity=cap)
             dvec2 = type(Dict(pairs...), cap)
@@ -219,6 +219,22 @@ end
     keys2 = ['x', 'y', 'z', 'w', 'v']
     vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
     test_dvec_interface(DVec, keys2, vals2, 100)
+end
+@testset "DVec2" begin
+    keys1 = shuffle(1:10)
+    vals1 = shuffle(1:10) .* rand((-1.0, 1.0), 10)
+    test_dvec_interface(DVec2, keys1, vals1, 10)
+
+    keys2 = ['x', 'y', 'z', 'w', 'v']
+    vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
+    test_dvec_interface(DVec2, keys2, vals2, 100)
+
+    @testset "StochasticStyle" begin
+        @test StochasticStyle(DVec2(:a => 1; capacity=5)) == IsStochastic()
+        @test StochasticStyle(DVec2(:a => 1.5; capacity=5)) == IsDeterministic()
+        @test StochasticStyle(DVec2(:a => 1 + 2im; capacity=5)) == IsStochastic2Pop()
+        @test_throws ErrorException DVec2(:a => :b; capacity=5)
+    end
 end
 
 #=
