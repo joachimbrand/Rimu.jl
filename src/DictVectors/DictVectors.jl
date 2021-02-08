@@ -38,6 +38,12 @@ export DVec
 export DFVec, tuples, gettuple, flagtype, flags
 export FastDVec
 
+export StochasticStyle,
+    IsStochastic, IsDeterministic, IsStochastic2Pop,
+    IsStochasticNonlinear, IsStochasticWithThreshold,
+    IsStochastic2PopInitiator, IsStochastic2PopWithThreshold, IsSemistochastic,
+    @setThreshold, @setDeterministic, setThreshold
+
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.
 # In particular we provide concrete data structures with the aim of being
@@ -66,6 +72,7 @@ export FastDVec
 include("delegate.jl")
 
 include("abstractdvec.jl")
+include("stochasticstyle.jl")
 include("dvec.jl")
 include("dfvec.jl")
 include("fastdvec.jl")
