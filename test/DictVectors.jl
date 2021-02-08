@@ -135,8 +135,6 @@ function test_dvec_interface(type, keys, values, cap)
             for (k, v) in pairs
                 @test res1[k] == 2v
             end
-
-            @test_broken missing * dvec ≡ dvec * missing ≡ missing
         end
         @testset "add!" begin
             dvec1 = type(Dict(pairs), cap)
