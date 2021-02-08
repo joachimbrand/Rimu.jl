@@ -17,11 +17,6 @@ objects can expand.
 """
 struct DVec{A,T} <: AbstractDVec{A,T}
     d::Dict{A,T}
-
-    # function DVec(d::Dict{A,T}) where {A,T}
-    #     T <: Number || throw(TypeError(:DVec,"construction from `Dict` for the value type",Number,T))
-    #     return new{A,T}(d)
-    # end
 end
 # default constructor from `Dict` just wraps the dict, no copying or allocation:
 # dv = DVec(Dict(k => v, ...))
@@ -40,7 +35,7 @@ function DVec(dict::D, capacity::Int) where D <: Dict
 end
 
 # by specifying keytype, eltype, and capacity
-DVec{K,V}(capacity::Int) where V <: Number where K = DVec(Dict{K,V}(), capacity)
+DVec{K,V}(capacity::Int) where V where K = DVec(Dict{K,V}(), capacity)
 
 # from Vector
 function DVec(v::Vector{T}, capacity = length(v)) where T
@@ -75,29 +70,7 @@ Base.similar(dv::DVec, args...) = empty(dv, args...)
 # Base.similar(dv::DVec, ::Type{T}) where {T} = empty(dv, T)
 # Base.similar(dv::DVec) = empty(dv)
 
-Base.keytype(::Type{DVec{K,T}}) where T where K = K
-Base.valtype(::Type{DVec{K,T}}) where T where K = T
-Base.eltype(::Type{DVec{K,T}}) where T where K = T
-# for instances of AbstractDVec, eltype is already defined
-# for the type we need to do it here because it has to be specific
-pairtype(::Type{DVec{K,T}}) where {K,T} = Pair{K,T}
-
-capacity(dv::DVec) = (2*length(dv.d.keys))÷3
-# 2/3 of the allocated storage size
-# if number of elements grows larger, Dict will start rehashing and allocating
-# new memory
-function capacity(dv::DVec, s::Symbol)
-    if s ==:allocated
-        return length(dv.d.keys)
-    elseif s == :effective
-        return capacity(dv)
-    else
-        ArgumentError("Option symbol $s not recognized")
-    end
-end
-
-
-
+capacity(dv::DVec) = capacity(dv.d)
 
 # getindex returns the default value without adding it to dict
 function Base.getindex(dv::DVec{K,V}, add) where {K, V<:Number}

@@ -43,30 +43,34 @@ capacity
 # make capacity aggregate over tuple
 capacity(tup::Tuple, args...) = sum(capacity.(tup, args...))
 
-# Note: The following method definitions for the supertype
-# also extend (by a fallback method) to instances of the type.
-# However, for concrete subtypes, the methods have to be defined again as the
-# supertype methods do not apply (because the supertype and subtype are distinct
-# types).
-Base.valtype(::AbstractDVec{K,V}) where V where K = V
-Base.eltype(::AbstractDVec{K,V}) where V where K = V
+function capacity(d::Dict, s=:effective)
+    if s == :effective
+        return 2 * length(d.keys) ÷ 3
+    elseif s == :allocated
+        return length(d.keys)
+    else
+        throw(ArgumentError("Option symbol '$s' not recognized"))
+    end
+end
+
+Base.keytype(::Type{<:AbstractDVec{K}}) where K = K
+Base.keytype(dv::AbstractDVec) = keytype(typeof(dv))
+Base.valtype(::Type{<:AbstractDVec{<:Any,V}}) where V = V
+Base.valtype(dv::AbstractDVec) = valtype(typeof(dv))
 # conficts with definition and expected behaviour of AbstractDict
 # but is needed for KrylovKit
-Base.keytype(::AbstractDVec{K,V}) where V where K = K
+Base.eltype(::Type{<:AbstractDVec{<:Any,V}}) where V = V
+Base.eltype(dv::AbstractDVec) = eltype(typeof(dv))
 
 """
     pairtype(dv)
 Returns the type of stored data, as returned by the `pairs()` iterator.
 """
 pairtype(dv) = pairtype(typeof(dv))
-pairtype(::AbstractDVec{K,V}) where {K,V} = Pair{K,V} # need this for each concrete type
+pairtype(::Type{<:AbstractDVec{K,V}}) where {K,V} = Pair{K,V}
 
 Base.isreal(v::AbstractDVec) = valtype(v) <: Real
 Base.ndims(::AbstractDVec) = 1
-
-function *(::Missing, v::AbstractDVec)
-    return missing
-end
 
 """
     zero!(v::AbstractDVec)
@@ -103,14 +107,14 @@ LinearAlgebra.norm(x::AbstractDVec) = sqrt(norm_sqr(x))
 # end
 
 function norm1(x::AbstractDVec{K,V}) where K where V<:Number
-    return isempty(x) ? 0.0 : mapreduce(p->abs(p), +, x)|>Float64
+    return isempty(x) ? 0.0 : Float64(sum(abs, x))
 end
 
 """
     normInf(x::AbstractDVec)
 Infinity norm: largest absolute value of entries.
 """
-normInf(x::AbstractDVec) = isempty(x) ? 0.0 : mapreduce(p->abs(p), max, x)|>Float64
+normInf(x::AbstractDVec) = isempty(x) ? 0.0 : Float64(maximum(abs, x))
 
 """
     norm(x::AbstractDVec, p)
