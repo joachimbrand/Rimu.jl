@@ -75,14 +75,12 @@ end
 capacity(dv::DVec) = capacity(dv.d)
 
 # getindex returns the default value without adding it to dict
-function Base.getindex(dv::DVec{K,V}, add) where {K, V<:Number}
+function Base.getindex(dv::DVec{K,V}, add) where {K,V}
     get(dv.d, add, zero(V))
 end
-function Base.getindex(dv::DVec{K,Tuple{V,F}}, add) where {K, V<:Number, F}
+function Base.getindex(dv::DVec{K,Tuple{V,F}}, add) where {K,V<:Number,F}
     get(dv.d, add, tuple(zero(V),zero(F)))
 end
-
-Base.getindex(dv::DVec, add) = get(dv.d, add, zero(eltype(dv)))
 
 # iterator over pairs
 Base.pairs(dv::DVec) = dv.d # just return the contained dictionary
@@ -90,9 +88,6 @@ Base.pairs(dv::DVec) = dv.d # just return the contained dictionary
 # most functions are simply delegated to the wrapped dictionary
 @delegate DVec.d [ getindex, get, get!, haskey, getkey, pop!,
                               isempty, length, values, keys ]
-
-# standard iteration is over values of the dict
-Base.iterate(dv::DVec, state...) = iterate(values(dv.d), state...)
 
 # Some functions are delegated, but then need to return the main dictionary
 # NOTE: push! is not included below, because the fallback version just

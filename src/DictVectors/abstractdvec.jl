@@ -94,6 +94,8 @@ zero!(v::AbstractDVec) = empty!(v)
 
 Base.zero(dv::AbstractDVec) = empty(dv)
 
+Base.iterate(dv::AbstractDVec, state...) = iterate(values(dv), state...)
+
 """
     norm_sqr(x::AbstractDVec)
 Fast calculation of the square of the 2-norm of `x`.

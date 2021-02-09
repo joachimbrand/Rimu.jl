@@ -90,7 +90,6 @@ function Base.setindex!(dvec::DVec2, v::AbstractFloat, k)
 end
 
 Base.pairs(dvec::DVec2) = dvec.dict
-Base.iterate(dvec::DVec2, st...) = iterate(values(dvec), st...)
 
 function LinearAlgebra.rmul!(dvec::DVec2, α::Number)
     rmul!(dvec.dict.vals, α)

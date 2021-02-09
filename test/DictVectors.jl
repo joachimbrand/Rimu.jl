@@ -44,6 +44,11 @@ function test_dvec_interface(type, keys, values, cap)
 
             @test isempty(empty(dvec1))
             @test isempty(zero(dvec1))
+
+            dvec7 = type(IdDict(pairs), cap)
+            for (k, v) in pairs
+                @test dvec7[k] == v
+            end
         end
         @testset "setindex, delete" begin
             dvec = type(pairs...; capacity=cap)
@@ -89,6 +94,9 @@ function test_dvec_interface(type, keys, values, cap)
 
             @test isreal(dvec) == (V <: Real)
             @test ndims(dvec) == 1
+
+            @test valtype(empty(dvec, Rational)) ≡ Rational
+            @test pairtype(empty(dvec, String, Rational)) ≡ Pair{String, Rational}
         end
         @testset "norm" begin
             dvec = type(Dict(pairs), cap)
@@ -124,7 +132,7 @@ function test_dvec_interface(type, keys, values, cap)
             @test isempty(dvec)
             @test_throws ErrorException fill!(dvec, one(V))
         end
-        @testset "mul!, *" begin
+        @testset "mul!, *, rmul!" begin
             dvec = type(Dict(pairs), cap)
             res1 = type{K,V}(cap)
             mul!(res1, dvec, one(V))
@@ -137,6 +145,11 @@ function test_dvec_interface(type, keys, values, cap)
             @test res1 == res2 == res3
             for (k, v) in pairs
                 @test res1[k] == 2v
+            end
+
+            rmul!(dvec, V(3))
+            for (k, v) in pairs
+                @test dvec[k] == 3v
             end
         end
         @testset "add!" begin
@@ -204,12 +217,18 @@ function test_dvec_interface(type, keys, values, cap)
             @test issetequal(values, dvec_values)
             dvec_values = [k for k in Base.values(dvec)]
             @test issetequal(dvec_values, values)
+
+            @test issetequal(values, [v for v in dvec])
         end
         @testset "projection" begin
             dvec = type(Dict(pairs), cap)
             @test UniformProjector() ⋅ dvec == sum(dvec)
             @test NormProjector() ⋅ dvec == norm(dvec, 1)
             @test Norm2Projector() ⋅ dvec == norm(dvec, 2)
+        end
+        @testset "show" begin
+            h, _ = displaysize()
+            @test length(split(sprint(show, type(Dict(pairs), cap)), '\n')) < h
         end
     end
 
@@ -222,22 +241,22 @@ function test_dvec_interface(type, keys, values, cap)
 end
 
 @testset "DVec" begin
-    keys1 = shuffle(1:10)
-    vals1 = shuffle(1:10) .* rand((-1.0, 1.0), 10)
-    test_dvec_interface(DVec, keys1, vals1, 10)
+    keys1 = shuffle(1:20)
+    vals1 = shuffle(1:20) .* rand((-1.0, 1.0), 20)
+    test_dvec_interface(DVec, keys1, vals1, 100)
 
     keys2 = ['x', 'y', 'z', 'w', 'v']
     vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
-    test_dvec_interface(DVec, keys2, vals2, 100)
+    test_dvec_interface(DVec, keys2, vals2, 200)
 end
 @testset "DVec2" begin
-    keys1 = shuffle(1:10)
-    vals1 = shuffle(1:10) .* rand((-1.0, 1.0), 10)
-    test_dvec_interface(DVec2, keys1, vals1, 10)
+    keys1 = shuffle(1:20)
+    vals1 = shuffle(1:20) .* rand((-1.0, 1.0), 20)
+    test_dvec_interface(DVec2, keys1, vals1, 100)
 
     keys2 = ['x', 'y', 'z', 'w', 'v']
     vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
-    test_dvec_interface(DVec2, keys2, vals2, 100)
+    test_dvec_interface(DVec2, keys2, vals2, 200)
 
     @testset "StochasticStyle" begin
         @test StochasticStyle(DVec2(:a => 1; capacity=5)) == IsStochastic()
