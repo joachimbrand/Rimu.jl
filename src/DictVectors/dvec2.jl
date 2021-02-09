@@ -58,21 +58,10 @@ end
 
 Base.similar(dvec::DVec2, args...) = empty(dvec, args...)
 
-function Base.show(io::IO, dvec::DVec2{K,V}) where {K,V}
-    print(
-        io,
-        "DVec2{$K,$V,$(StochasticStyle(dvec))} with $(length(dvec)) entries, ",
-        "capacity $(capacity(dvec))",
-    )
-    limit, _ = displaysize()
-    for (i, p) in enumerate(dvec)
-        if length(dvec) > i > limit - 4
-            print(io, "\n  ⋮   => ⋮")
-            break
-        else
-            print(io, "\n  ", p)
-        end
-    end
+function Base.summary(io::IO, dvec::DVec2{K,V,S}) where {K,V,S}
+    cap = capacity(dvec)
+    len = length(dvec)
+    print(io, "DVec2{$K,$V,$S} with $len entries, capacity $cap")
 end
 
 # interface specification and stuff...

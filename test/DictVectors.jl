@@ -41,6 +41,9 @@ function test_dvec_interface(type, keys, values, cap)
             for k in 1:length(values)
                 @test dvec5[k] == dvec6[k] == values[k]
             end
+
+            @test isempty(empty(dvec1))
+            @test isempty(zero(dvec1))
         end
         @testset "setindex, delete" begin
             dvec = type(pairs...; capacity=cap)
@@ -208,6 +211,13 @@ function test_dvec_interface(type, keys, values, cap)
             @test NormProjector() ⋅ dvec == norm(dvec, 1)
             @test Norm2Projector() ⋅ dvec == norm(dvec, 2)
         end
+    end
+
+    @testset "StochasticStyle" begin
+        @test StochasticStyle(DVec(:a => 1; capacity=5)) == IsStochastic()
+        @test StochasticStyle(DVec(:a => 1.5; capacity=5)) == IsDeterministic()
+        @test StochasticStyle(DVec(:a => 1 + 2im; capacity=5)) == IsStochastic2Pop()
+        @test StochasticStyle(DVec(:a => :b; capacity=5)) == IsStochastic()
     end
 end
 

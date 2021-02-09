@@ -38,7 +38,7 @@ end
 DVec{K,V}(capacity::Int) where V where K = DVec(Dict{K,V}(), capacity)
 
 # from Vector
-function DVec(v::Vector{T}, capacity = length(v)) where T
+function DVec(v::AbstractVector{T}, capacity = length(v)) where T
     indices = 1:length(v) # will be keys of dictionary
     ps = map(tuple,indices,v) # create iterator over pairs
     return DVec(Dict(ps), capacity)
@@ -64,11 +64,13 @@ end
 Base.empty(dv::DVec{K,V}, c::Integer = capacity(dv) ) where {K,V} = DVec{K,V}(c)
 Base.empty(dv::DVec, ::Type{V}) where {V} = empty(dv,keytype(dv),V)
 Base.empty(dv::DVec, ::Type{K}, ::Type{V}) where {K,V} = DVec{K,V}(capacity(dv))
-# thus empty() and zero() will conserve the capacity of dv
-Base.zero(dv::DVec) = empty(dv)
 Base.similar(dv::DVec, args...) = empty(dv, args...)
-# Base.similar(dv::DVec, ::Type{T}) where {T} = empty(dv, T)
-# Base.similar(dv::DVec) = empty(dv)
+
+function Base.summary(io::IO, dvec::DVec{K,V}) where {K,V}
+    cap = capacity(dvec)
+    len = length(dvec)
+    print(io, "DVec{$K,$V} with $len entries, capacity $cap")
+end
 
 capacity(dv::DVec) = capacity(dv.d)
 
@@ -120,14 +122,3 @@ function LinearAlgebra.rmul!(w::DVec, α::Number)
     rmul!(w.d.vals,α)
     return w
 end # rmul!
-
-function Base.show(io::IO, da::DVec{K,V}) where V where K
-    print(io, "DVec{$K,$V} with $(length(da)) entries and capacity $(capacity(da)):")
-    for (i,p) in enumerate(pairs(da))
-        print(io, "\n  ", p)
-        if i>15
-            print(io, "\n  ⋮   => ⋮")
-            break
-        end
-    end
-end

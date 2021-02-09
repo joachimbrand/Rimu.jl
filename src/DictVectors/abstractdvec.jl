@@ -26,6 +26,19 @@ haskey, empty!, isempty`) and, in addition:
 """
 abstract type AbstractDVec{K,V} end
 
+function Base.show(io::IO, dvec::AbstractDVec{K,V}) where {K,V}
+    summary(io, dvec)
+    limit, _ = displaysize()
+    for (i, p) in enumerate(pairs(dvec))
+        if length(dvec) > i > limit - 4
+            print(io, "\n  ⋮   => ⋮")
+            break
+        else
+            print(io, "\n  ", p)
+        end
+    end
+end
+
 """
     DictVectors.capacity(dv::AbstractDVec, [s = :effective])
     capacity(dvs::Tuple, [s = :effective])
@@ -78,6 +91,8 @@ Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types
 it means removing all non-zero elements.
 """
 zero!(v::AbstractDVec) = empty!(v)
+
+Base.zero(dv::AbstractDVec) = empty(dv)
 
 """
     norm_sqr(x::AbstractDVec)
