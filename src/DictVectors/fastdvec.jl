@@ -188,10 +188,6 @@ end
 # end
 
 # Iterators
-@inline function Base.iterate(pit::ADVPairsIterator, state...)
-    return _pair_iterate(pit.dv, state...)
-end
-
 # non-exportet internal functions called by the iterators
 @inline function _pair_iterate(dv::FastDVec, state = (1,1))
     hind, pos = state
@@ -219,15 +215,6 @@ end
     return pair[2], state # value
 end
 
-
-# iteration over the keys requires  ADVKeysIterator - 3 to 4 times faster than fallback
-@inline function Base.iterate(ki::ADVKeysIterator{DV}, state...) where DV<:FastDVec
-    it = _pair_iterate(ki.dv,state...)
-    it === nothing && return nothing
-    pair, state = it
-    return pair[1], state # key
-end
-
 function Base.show(io::IO, da::FastDVec{K,V}) where V where K
     print(io, "FastDVec{$K,$V}([")
     init = true
@@ -241,7 +228,6 @@ function Base.show(io::IO, da::FastDVec{K,V}) where V where K
     end
     print(io, "])\n")
 end
-
 
 ## the following code seems to work but is not really faster than the generic one
 ## generic code moved to `abstractdvec.jl`
@@ -268,3 +254,43 @@ function LinearAlgebra.rmul!(w::FastDVec, α::Number)
     rmul!(w.vals,α)
     return w
 end # mul!
+
+# Iterators for `keys()` and `pairs()`
+struct FDVKeysIterator{DV}
+    dv::DV
+end
+Base.keys(dv::AbstractDVec) = FDVKeysIterator(dv)
+function Base.iterate(ki::FDVKeysIterator, oldstate...)
+    it = iterate(pairs(ki.dv), oldstate...)
+    it === nothing && return nothing
+    pair, state = it
+    return (pair[1],state)
+end
+Base.length(ki::FDVKeysIterator) = length(ki.dv)
+Base.eltype(::Type{FDVKeysIterator{DV}}) where DV = keytype(DV)
+Base.IteratorSize(::Type{FDVKeysIterator}) = HasLength()
+
+@inline function Base.iterate(ki::FDVKeysIterator{DV}, state...) where DV<:FastDVec
+    it = _pair_iterate(ki.dv,state...)
+    it === nothing && return nothing
+    pair, state = it
+    return pair[1], state # key
+end
+
+# iterator over pairs
+"""
+    FDVPairsIterator
+Iterator type for pairs from a [`AbstractDVec`](@ref).
+"""
+struct FDVPairsIterator{DV}
+    dv::DV
+end
+Base.length(ki::FDVPairsIterator) = length(ki.dv)
+Base.eltype(::Type{FDVPairsIterator{DV}}) where DV = Pair{keytype(DV),valtype(DV)}
+Base.IteratorSize(::Type{FDVPairsIterator}) = HasLength()
+
+Base.pairs(dv::AbstractDVec) = FDVPairsIterator(dv)
+
+@inline function Base.iterate(pit::FDVPairsIterator, state...)
+    return _pair_iterate(pit.dv, state...)
+end

@@ -83,8 +83,8 @@ zero!(v::AbstractDVec) = empty!(v)
     norm_sqr(x::AbstractDVec)
 Fast calculation of the square of the 2-norm of `x`.
 """
-function norm_sqr(x::AbstractDVec{K,V}) where K where V<:Number
-    return isempty(x) ? 0.0 : mapreduce(p->abs2(p), +, x)
+function norm_sqr(x::AbstractDVec{K,V}) where {K,V<:Number}
+    sum(abs2, x)
 end
 
 """
@@ -93,21 +93,8 @@ Computes the 2-norm of the DVec x.
 """
 LinearAlgebra.norm(x::AbstractDVec) = sqrt(norm_sqr(x))
 
-# # fastest
-# """
-#     norm2(x::DVec{K,V})
-# Computes the 2-norm of the DVec x.
-# """
-# function norm2(x::DVec{K,V}) where K where V<:Number
-#     return sqrt(mapreduce(p->abs2(p[2]), +, x))
-# end
-#
-# function norm2alt3(x::DVec{K,V}) where K where V<:Real
-#     return sqrt(mapreduce(p->p[2].^2, +, x))
-# end
-
-function norm1(x::AbstractDVec{K,V}) where K where V<:Number
-    return isempty(x) ? 0.0 : Float64(sum(abs, x))
+function norm1(x::AbstractDVec{K,V}) where {K,V<:Number}
+    return Float64(sum(abs, x))
 end
 
 """
@@ -168,7 +155,7 @@ copytight(v) = copy(v) # generic version, just copy
     fill!(da::AbstractDVec, x)
 Empties `da` if `x==zero(valtype(da))` and throws an error otherwise.
 """
-function Base.fill!(da::AbstractDVec{K,V}, x::V) where V where K
+function Base.fill!(da::AbstractDVec{K,V}, x::V) where {K,V}
     x == zero(V) || error("Trying to fill! $(typeof(da)) object with $x instead of $(zero(V))")
     return empty!(da) # remove all elements but keep capacity
 end
@@ -182,7 +169,6 @@ end
     end
     return w
 end # mul!
-
 
 # copying (save) multiplication with scalar
 # For compatibility with KrylovKit v0.5:
@@ -261,20 +247,6 @@ function LinearAlgebra.axpby!(α::Number, x::AbstractDVec, β::Number, y::Abstra
     return y
 end
 
-# function LinearAlgebra.dot(x::AbstractDVec{K,V}, y::AbstractDVec{K,V}) where {K,V}
-#     result = zero(V) # identical value types
-#     if length(x) < length(y) # try to save time by looking for the smaller vec
-#         for (key, val) in kvpairs(x)
-#             result += conj(val)*y[key]
-#         end
-#     else
-#         for (key, val) in y
-#             result += conj(x[key])*val
-#         end
-#     end
-#     return result # same type as valtype(x) - could be complex!
-# end
-
 function LinearAlgebra.dot(x::AbstractDVec{K,T1}, y::AbstractDVec{K,T2}) where {K,T1, T2}
     # for mixed value types
     result = zero(promote_type(T1,T2))
@@ -299,21 +271,6 @@ function LinearAlgebra.dot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T
     end
     return sum(results)
 end
-# function myspawndot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T2}}) where {N, K, T1, T2}
-#     results = zeros(promote_type(T1,T2), N)
-#     @sync for i in 1:N
-#         Threads.@spawn results[i] = x⋅ys[i] # using dynamic scheduler
-#     end
-#     return sum(results)
-# end
-# # This version with `Threads.@spawn` was slightly slower (651 μs vs 640 μs)
-# and needed more memory allocations (3.14 KiB vs 2.86 KiB) in an example
-# compared to the `Threads.@threads` version implemented above.
-# With 4 threads we got a speedup of 3.5 compared to single threaded sum(map(...))
-# for DVecs with ≈ 23_000 entries.
-
-
-## some methods below that we could inherit from AbstracDict with subtyping
 
 """
     isequal(l::AbstractDVec, r::AbstractDVec)
@@ -333,35 +290,6 @@ end
 
 ==(l::AbstractDVec, r::AbstractDVec) = isequal(l,r)
 
-# Iterators for `keys()` and `pairs()`
-struct ADVKeysIterator{DV}
-    dv::DV
-end
-Base.keys(dv::AbstractDVec) = ADVKeysIterator(dv)
-function Base.iterate(ki::ADVKeysIterator, oldstate...)
-    it = iterate(pairs(ki.dv), oldstate...)
-    it === nothing && return nothing
-    pair, state = it
-    return (pair[1],state)
-end
-Base.length(ki::ADVKeysIterator) = length(ki.dv)
-Base.eltype(::Type{ADVKeysIterator{DV}}) where DV = keytype(DV)
-Base.IteratorSize(::Type{ADVKeysIterator}) = HasLength()
-
-# iterator over pairs
-"""
-    ADVPairsIterator
-Iterator type for pairs from a [`AbstractDVec`](@ref).
-"""
-struct ADVPairsIterator{DV}
-    dv::DV
-end
-Base.length(ki::ADVPairsIterator) = length(ki.dv)
-Base.eltype(::Type{ADVPairsIterator{DV}}) where DV = Pair{keytype(DV),valtype(DV)}
-Base.IteratorSize(::Type{ADVPairsIterator}) = HasLength()
-
-Base.pairs(dv::AbstractDVec) = ADVPairsIterator(dv)
-
 """
     kvpairs(collection)
 Return an iterator over `key => value` pairs ignoring any flags. If no flags
@@ -374,7 +302,7 @@ kvpairs(v) = pairs(v)
 Base.values(dv::AbstractDVec) = dv
 
 # Define this type union for local (non-MPI) data
-DVecOrVec = Union{AbstractDVec,AbstractVector}
+const DVecOrVec = Union{AbstractDVec,AbstractVector}
 
 """
 Abstract supertype for projectors to be used in in lieu of DVecs or Vectors.

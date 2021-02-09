@@ -17,6 +17,7 @@ default_style(::Type{<:AbstractFloat}) = IsDeterministic()
 default_style(::Type{<:Complex}) = IsStochastic2Pop()
 default_style(::Type{T}) where T = error("Unable to pick default stochastic style for $T")
 
+# Constructors
 function DVec2(args...; capacity, style::Union{Nothing,StochasticStyle}=nothing)
     dict = Dict(args...)
     if isnothing(style)
@@ -45,6 +46,18 @@ function DVec2(
     return copyto!(dvec, adv)
 end
 
+function Base.empty(dvec::DVec2, c=capacity(dvec), style=StochasticStyle(dvec))
+    return DVec2(empty(dvec.dict), c, style)
+end
+function Base.empty(dvec::DVec2{K}, ::Type{V}) where {K,V}
+    return DVec2{K,V}(capacity(dvec), StochasticStyle(dvec))
+end
+function Base.empty(dvec::DVec2, ::Type{K}, ::Type{V}) where {K,V}
+    return DVec2{K,V}(capacity(dvec), StochasticStyle(dvec))
+end
+
+Base.similar(dvec::DVec2, args...) = empty(dvec, args...)
+
 function Base.show(io::IO, dvec::DVec2{K,V}) where {K,V}
     print(
         io,
@@ -67,18 +80,6 @@ StochasticStyle(::Type{<:DVec2{<:Any,<:Any,S}}) where S = S
 
 capacity(dvec::DVec2) = capacity(dvec.dict)
 
-function Base.empty(dvec::DVec2, c=capacity(dvec), style=StochasticStyle(dvec))
-    return DVec2(empty(dvec.dict), c, style)
-end
-function Base.empty(dvec::DVec2{K}, ::Type{V}) where {K,V}
-    return DVec2{K,V}(capacity(dvec), StochasticStyle(dvec))
-end
-function Base.empty(dvec::DVec2, ::Type{K}, ::Type{V}) where {K,V}
-    return DVec2{K,V}(capacity(dvec), StochasticStyle(dvec))
-end
-
-Base.similar(dvec::DVec2, args...) = empty(dvec, args...)
-
 function Base.getindex(dvec::DVec2{<:Any,V}, add) where V
     return get(dvec.dict, add, zero(V))
 end
@@ -100,7 +101,7 @@ function Base.setindex!(dvec::DVec2, v::AbstractFloat, k)
 end
 
 Base.pairs(dvec::DVec2) = dvec.dict
-Base.iterate(dvec::DVec2, st...) = iterate(values(dvec.dict), st...)
+Base.iterate(dvec::DVec2, st...) = iterate(values(dvec), st...)
 
 function LinearAlgebra.rmul!(dvec::DVec2, α::Number)
     rmul!(dvec.dict.vals, α)
