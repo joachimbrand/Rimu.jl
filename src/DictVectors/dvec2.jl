@@ -6,12 +6,36 @@ Functionally equivalent to [`DVec`](@ref), but with the following changes:
 * Any `AbstractDict` can be used for storage. To use this feature construct the `DVec2` as
   `DVec2(dict, capacity[, style])`.
 * Supports a `style` keyword argument that sets the `StochasticStyle`.
+
+## Constructors:
+
+* `DVec2(dict::AbstractDict, capacity[, style])`: create a `DVec2` with `dict` for storage.
+  Note that the data is not copied. Modifying the `DVec2` will also modify `dict`.
+
+* `DVec2(args...; capacity[, style])`: `args...` are passed to the `Dict` constructor. The
+  `Dict` is used for storage.
+
+* `DVec2{K,V}(capacity[, style])`: create an empty `DVec2{K,V}`.
+
+* `DVec2(::AbstractVector{T}[, capacity, style])`: create a `DVec2{Int,T}` from an array.
+   Capacity defaults to the length of the array
+
+* `DVec2(adv::AbstractDVec[, capacity, style])`: create a `DVec2` with the same contents as
+   `adv`. `capacity` and `style` are inherited from `adv` by default.
+
+In most cases, the default value for `style` is determined based on the resulting `DVec2`'s
+`eltype`. See also [`default_style`](@ref).
 """
 struct DVec2{K,V,S,D<:AbstractDict{K,V}} <: AbstractDVec{K,V}
     dict::D
 end
 
-# Need default for Complex{Float64}?
+"""
+    default_style(::Type)
+
+Pick a [`StochasticStyle`](@ref) based on the type. Throws an error if no known default
+style is known.
+"""
 default_style(::Type{<:Integer}) = IsStochastic()
 default_style(::Type{<:AbstractFloat}) = IsDeterministic()
 default_style(::Type{<:Complex}) = IsStochastic2Pop()
@@ -67,7 +91,7 @@ end
 # interface specification and stuff...
 StochasticStyle(::Type{<:DVec2{<:Any,<:Any,S}}) where S = S
 
-capacity(dvec::DVec2) = capacity(dvec.dict)
+capacity(dvec::DVec2, args...) = capacity(dvec.dict, args...)
 
 function Base.getindex(dvec::DVec2{<:Any,V}, add) where V
     return get(dvec.dict, add, zero(V))
@@ -96,7 +120,5 @@ function LinearAlgebra.rmul!(dvec::DVec2, α::Number)
     return dvec
 end
 
-@delegate DVec2.dict [
-    getindex, get, get!, haskey, getkey, pop!, isempty, length, values, keys
-]
+@delegate DVec2.dict [get, get!, haskey, getkey, pop!, isempty, length, values, keys]
 @delegate_return_parent DVec2.dict [delete!, empty!, sizehint!]

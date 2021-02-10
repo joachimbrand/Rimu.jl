@@ -72,6 +72,9 @@ function test_dvec_interface(type, keys, values, cap)
             @test capacity(dvec1) ≥ cap
             @test capacity(dvec2) ≥ 2 * cap
             @test capacity((dvec1, dvec2)) == capacity(dvec1) + capacity(dvec2)
+            @test capacity(dvec1, :effective) == capacity(dvec1)
+            @test capacity(dvec1, :effective) == 2 * capacity(dvec1, :allocated) ÷ 3
+            @test_throws ArgumentError capacity(dvec1, :something)
 
             dvec3 = type(values)
             @test capacity(dvec3) ≥ length(values)

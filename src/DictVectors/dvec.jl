@@ -72,7 +72,7 @@ function Base.summary(io::IO, dvec::DVec{K,V}) where {K,V}
     print(io, "DVec{$K,$V} with $len entries, capacity $cap")
 end
 
-capacity(dv::DVec) = capacity(dv.d)
+capacity(dv::DVec, args...) = capacity(dv.d, args...)
 
 # getindex returns the default value without adding it to dict
 function Base.getindex(dv::DVec{K,V}, add) where {K,V}
@@ -86,8 +86,7 @@ end
 Base.pairs(dv::DVec) = dv.d # just return the contained dictionary
 
 # most functions are simply delegated to the wrapped dictionary
-@delegate DVec.d [ getindex, get, get!, haskey, getkey, pop!,
-                              isempty, length, values, keys ]
+@delegate DVec.d [get, get!, haskey, getkey, pop!, isempty, length, values, keys]
 
 # Some functions are delegated, but then need to return the main dictionary
 # NOTE: push! is not included below, because the fallback version just
