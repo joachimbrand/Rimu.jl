@@ -494,7 +494,9 @@ end # fciqmc_step!
 # avoiding race conditions
 allocate_statss(v,nt) = allocate_statss(StochasticStyle(v), v, nt)
 allocate_statss(::StochasticStyle, v, nt) = [zeros(Int,5) for i=1:nt]
-function allocate_statss(::SS, v, nt) where SS <: Union{IsStochastic2Pop,IsStochastic2PopInitiator,IsStochastic2PopWithThreshold}
+function allocate_statss(::SS, v, nt) where SS <: Union{DictVectors.IsStochastic2Pop,
+    DictVectors.IsStochastic2PopInitiator,DictVectors.IsStochastic2PopWithThreshold
+}
     return [zeros(Complex{Int},5) for i=1:nt]
 end
 
@@ -989,8 +991,7 @@ be chosen. The possible values for `T` are:
 
 - [`IsDeterministic()`](@ref) deteministic algorithm
 - [`IsStochastic()`](@ref) stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm
-- [`IsStochasticNonlinear(c)`](@ref) stochastic algorithm with nonlinear diagonal
-- [`IsSemistochastic()`](@ref) semistochastic version: TODO
+- [`IsStochasticWithThreshold(c)`](@ref) stochastic algorithm with floating point walkers.
 """
 function fciqmc_col!(w::Union{AbstractArray{T},AbstractDVec{K,T}},
     ham, add, num, shift, dτ
@@ -1069,8 +1070,8 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     # note that w is not returned
 end
 
-function fciqmc_col!(::IsStochastic2Pop, w, ham::AbstractHamiltonian, add, cnum::Complex,
-                        cshift, dτ)
+function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian, add,
+                        cnum::Complex, cshift, dτ)
     # version for complex integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
@@ -1194,7 +1195,7 @@ function fciqmc_col!(::IsStochastic2Pop, w, ham::AbstractHamiltonian, add, cnum:
     # note that w is not returned
 end
 
-function fciqmc_col!(::IsStochastic2PopInitiator, w, ham::AbstractHamiltonian,
+function fciqmc_col!(::DictVectors.IsStochastic2PopInitiator, w, ham::AbstractHamiltonian,
                         add, cnum::Complex, cshift, dτ)
     # version for complex integer psips with initiator approximation
     # off-diagonal: spawning psips
@@ -1323,7 +1324,8 @@ function fciqmc_col!(::IsStochastic2PopInitiator, w, ham::AbstractHamiltonian,
     # note that w is not returned
 end
 
-function fciqmc_col!(nl::IsStochasticNonlinear, w, ham::AbstractHamiltonian, add, num::Real,
+function fciqmc_col!(nl::DictVectors.IsStochasticNonlinear, w, ham::AbstractHamiltonian,
+                        add, num::Real,
                         shift, dτ)
     # version for single population of integer psips
     # Nonlinearity in diagonal death step according to Ali's suggestion
@@ -1426,7 +1428,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
     # note that w is not returned
 end # inner_step!
 
-function fciqmc_col!(s::IsSemistochastic, w, ham::AbstractHamiltonian, add,
+function fciqmc_col!(s::DictVectors.IsSemistochastic, w, ham::AbstractHamiltonian, add,
          val_flag_tuple::Tuple{N, F}, shift, dτ) where {N<:Number, F<:Integer}
     (val, flag) = val_flag_tuple
     deterministic = flag & one(F) # extract deterministic flag

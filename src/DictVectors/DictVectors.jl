@@ -39,10 +39,10 @@ export DFVec, tuples, gettuple, flagtype, flags
 export FastDVec
 
 export StochasticStyle,
-    IsStochastic, IsDeterministic, IsStochastic2Pop,
-    IsStochasticNonlinear, IsStochasticWithThreshold,
-    IsStochastic2PopInitiator, IsStochastic2PopWithThreshold, IsSemistochastic,
+    IsStochastic, IsDeterministic, IsStochasticWithThreshold,
     @setThreshold, @setDeterministic, setThreshold
+    # IsStochasticNonlinear, IsStochastic2Pop,
+    # IsStochastic2PopInitiator, IsStochastic2PopWithThreshold, IsSemistochastic
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.

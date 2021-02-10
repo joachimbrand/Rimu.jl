@@ -3,8 +3,8 @@
     StochasticStyle(typeof(v))
 `StochasticStyle` specifies the native style of the generalised vector `v` that
 determines how simulations are to proceed. This can be fully stochastic (with
-`IsStochastic`), fully deterministic (with `IsDeterministic`), or semistochastic
-(with [`IsSemistochastic`](@ref)).
+`IsStochastic`), fully deterministic (with `IsDeterministic`), or stochastic with
+floating point walker numbers and threshold (with [`IsStochasticWithThreshold`](@ref)).
 """
 abstract type StochasticStyle end
 

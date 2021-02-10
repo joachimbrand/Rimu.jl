@@ -238,7 +238,7 @@ function test_dvec_interface(type, keys, values, cap)
     @testset "StochasticStyle" begin
         @test StochasticStyle(DVec(:a => 1; capacity=5)) == IsStochastic()
         @test StochasticStyle(DVec(:a => 1.5; capacity=5)) == IsDeterministic()
-        @test StochasticStyle(DVec(:a => 1 + 2im; capacity=5)) == IsStochastic2Pop()
+        @test StochasticStyle(DVec(:a => 1 + 2im; capacity=5)) == DictVectors.IsStochastic2Pop()
         @test StochasticStyle(DVec(:a => :b; capacity=5)) == IsStochastic()
     end
 end
@@ -264,7 +264,7 @@ end
     @testset "StochasticStyle" begin
         @test StochasticStyle(DVec2(:a => 1; capacity=5)) == IsStochastic()
         @test StochasticStyle(DVec2(:a => 1.5; capacity=5)) == IsDeterministic()
-        @test StochasticStyle(DVec2(:a => 1 + 2im; capacity=5)) == IsStochastic2Pop()
+        @test StochasticStyle(DVec2(:a => 1 + 2im; capacity=5)) == DictVectors.IsStochastic2Pop()
         @test_throws ErrorException DVec2(:a => :b; capacity=5)
     end
 end
