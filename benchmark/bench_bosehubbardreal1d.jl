@@ -34,20 +34,20 @@ H = BoseHubbardReal1D(addr; u=6.0, t=1.0)
 
 suite["DVec small"] = @benchmarkable run_lomc(
     $DVec, $H, $addr, $20000
-) samples=4 seconds=100
+) samples=3 seconds=100
 suite["DVec2 small"] = @benchmarkable run_lomc(
     $DVec2, $H, $addr, $20000
-) samples=4 seconds=100
+) samples=3 seconds=100
 
 addr = nearUniform(BoseFS{32,64})
 H = BoseHubbardReal1D(addr; u=6.0, t=1.0)
 
 suite["DVec big"] = @benchmarkable run_lomc(
-    $DVec, $H, $addr, $5000
-) samples=4 seconds=100
+    $DVec, $H, $addr, $6000
+) samples=3 seconds=100
 suite["DVec2 big"] = @benchmarkable run_lomc(
-    $DVec2, $H, $addr, $5000
-) samples=4 seconds=100
+    $DVec2, $H, $addr, $6000
+) samples=3 seconds=100
 
 end
 BenchBoseHubbardReal1D.suite
