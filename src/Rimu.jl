@@ -14,7 +14,7 @@ include("FastBufs.jl")
 using .FastBufs
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
-include("BitStringAddresses.jl")
+include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("ConsistentRNG.jl")
 @reexport using .ConsistentRNG
