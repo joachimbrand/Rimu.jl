@@ -20,9 +20,9 @@ DVec{Int64,Float64} |   71       1     72
 function test_dvec_interface(type, keys, values, cap)
     K = eltype(keys)
     V = eltype(values)
-    @testset "$type{$K,$V}" begin
-        pairs = [k => v for (k, v) in zip(keys, values)]
+    pairs = [k => v for (k, v) in zip(keys, values)]
 
+    @testset "$type{$K,$V}" begin
         @testset "constructors" begin
             dvec1 = type(pairs...; capacity=cap)
             dvec2 = type(Dict(pairs...), cap)
@@ -40,6 +40,14 @@ function test_dvec_interface(type, keys, values, cap)
             dvec6 = type(dvec5)
             for k in 1:length(values)
                 @test dvec5[k] == dvec6[k] == values[k]
+            end
+
+            @test isempty(empty(dvec1))
+            @test isempty(zero(dvec1))
+
+            dvec7 = type(IdDict(pairs), cap)
+            for (k, v) in pairs
+                @test dvec7[k] == v
             end
         end
         @testset "setindex, delete" begin
@@ -64,6 +72,9 @@ function test_dvec_interface(type, keys, values, cap)
             @test capacity(dvec1) ≥ cap
             @test capacity(dvec2) ≥ 2 * cap
             @test capacity((dvec1, dvec2)) == capacity(dvec1) + capacity(dvec2)
+            @test capacity(dvec1, :effective) == capacity(dvec1)
+            @test capacity(dvec1, :effective) == 2 * capacity(dvec1, :allocated) ÷ 3
+            @test_throws ArgumentError capacity(dvec1, :something)
 
             dvec3 = type(values)
             @test capacity(dvec3) ≥ length(values)
@@ -86,6 +97,9 @@ function test_dvec_interface(type, keys, values, cap)
 
             @test isreal(dvec) == (V <: Real)
             @test ndims(dvec) == 1
+
+            @test valtype(empty(dvec, Rational)) ≡ Rational
+            @test pairtype(empty(dvec, String, Rational)) ≡ Pair{String, Rational}
         end
         @testset "norm" begin
             dvec = type(Dict(pairs), cap)
@@ -121,7 +135,7 @@ function test_dvec_interface(type, keys, values, cap)
             @test isempty(dvec)
             @test_throws ErrorException fill!(dvec, one(V))
         end
-        @testset "mul!, *" begin
+        @testset "mul!, *, rmul!" begin
             dvec = type(Dict(pairs), cap)
             res1 = type{K,V}(cap)
             mul!(res1, dvec, one(V))
@@ -136,7 +150,10 @@ function test_dvec_interface(type, keys, values, cap)
                 @test res1[k] == 2v
             end
 
-            @test_broken missing * dvec ≡ dvec * missing ≡ missing
+            rmul!(dvec, V(3))
+            for (k, v) in pairs
+                @test dvec[k] == 3v
+            end
         end
         @testset "add!" begin
             dvec1 = type(Dict(pairs), cap)
@@ -203,6 +220,8 @@ function test_dvec_interface(type, keys, values, cap)
             @test issetequal(values, dvec_values)
             dvec_values = [k for k in Base.values(dvec)]
             @test issetequal(dvec_values, values)
+
+            @test issetequal(values, [v for v in dvec])
         end
         @testset "projection" begin
             dvec = type(Dict(pairs), cap)
@@ -210,17 +229,44 @@ function test_dvec_interface(type, keys, values, cap)
             @test NormProjector() ⋅ dvec == norm(dvec, 1)
             @test Norm2Projector() ⋅ dvec == norm(dvec, 2)
         end
+        @testset "show" begin
+            h, _ = displaysize()
+            @test length(split(sprint(show, type(Dict(pairs), cap)), '\n')) < h
+        end
+    end
+
+    @testset "StochasticStyle" begin
+        @test StochasticStyle(DVec(:a => 1; capacity=5)) == IsStochastic()
+        @test StochasticStyle(DVec(:a => 1.5; capacity=5)) == IsDeterministic()
+        @test StochasticStyle(DVec(:a => 1 + 2im; capacity=5)) == DictVectors.IsStochastic2Pop()
+        @test StochasticStyle(DVec(:a => :b; capacity=5)) == IsStochastic()
     end
 end
 
 @testset "DVec" begin
-    keys1 = shuffle(1:10)
-    vals1 = shuffle(1:10) .* rand((-1.0, 1.0), 10)
-    test_dvec_interface(DVec, keys1, vals1, 10)
+    keys1 = shuffle(1:20)
+    vals1 = shuffle(1:20) .* rand((-1.0, 1.0), 20)
+    test_dvec_interface(DVec, keys1, vals1, 100)
 
     keys2 = ['x', 'y', 'z', 'w', 'v']
     vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
-    test_dvec_interface(DVec, keys2, vals2, 100)
+    test_dvec_interface(DVec, keys2, vals2, 200)
+end
+@testset "DVec2" begin
+    keys1 = shuffle(1:20)
+    vals1 = shuffle(1:20) .* rand((-1.0, 1.0), 20)
+    test_dvec_interface(DVec2, keys1, vals1, 100)
+
+    keys2 = ['x', 'y', 'z', 'w', 'v']
+    vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
+    test_dvec_interface(DVec2, keys2, vals2, 200)
+
+    @testset "StochasticStyle" begin
+        @test StochasticStyle(DVec2(:a => 1; capacity=5)) == IsStochastic()
+        @test StochasticStyle(DVec2(:a => 1.5; capacity=5)) == IsDeterministic()
+        @test StochasticStyle(DVec2(:a => 1 + 2im; capacity=5)) == DictVectors.IsStochastic2Pop()
+        @test_throws ErrorException DVec2(:a => :b; capacity=5)
+    end
 end
 
 #=

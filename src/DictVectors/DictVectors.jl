@@ -34,9 +34,15 @@ using ..FastBufs
 
 export AbstractDVec, capacity, zero!, kvpairs, pairtype, add!, copytight
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector
-export DVec
+export DVec, DVec2
 export DFVec, tuples, gettuple, flagtype, flags
 export FastDVec
+
+export StochasticStyle,
+    IsStochastic, IsDeterministic, IsStochasticWithThreshold,
+    @setThreshold, @setDeterministic, setThreshold
+    # IsStochasticNonlinear, IsStochastic2Pop,
+    # IsStochastic2PopInitiator, IsStochastic2PopWithThreshold, IsSemistochastic
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.
@@ -66,7 +72,9 @@ export FastDVec
 include("delegate.jl")
 
 include("abstractdvec.jl")
+include("stochasticstyle.jl")
 include("dvec.jl")
+include("dvec2.jl")
 include("dfvec.jl")
 include("fastdvec.jl")
 

@@ -37,10 +37,6 @@ export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
-export StochasticStyle, IsStochastic, IsDeterministic, IsStochastic2Pop
-# export IsSemistochastic # is not yet ready
-export IsStochasticNonlinear, IsStochasticWithThreshold
-export @setThreshold, @setDeterministic, setThreshold
 export threadedWorkingMemory, localpart, walkernumber
 export RimuIO
 
@@ -52,10 +48,5 @@ include("fciqmc.jl")
 include("EmbarrassinglyDistributed.jl")
 include("RMPI.jl")
 # @reexport using .RMPI
-
-export greet
-
-"brief greeting"
-greet() = print("Kia ora!")
 
 end # module
