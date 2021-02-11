@@ -1230,29 +1230,6 @@ bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
 bosehubbardinteraction(adcont::BSAdd64) = bosehubbardinteraction(adcont.add)
 bosehubbardinteraction(adcont::BSAdd128) = bosehubbardinteraction(adcont.add)
 
-function bosehubbardinteraction(bsadd::BStringAdd)
-  #computes diagonal elementsDIAG_OF_K
-  i = 1
-  n = 0    #number particles in orbitals
-  f = true #flag first zero after a 1
-  matrixelementint = 0
-  #address is mutable struct, so we have to copy first
-  address = copy(bsadd.add)
-  while length(address) > 0
-    if address[1] == 1
-      n += 1
-      f = true
-    elseif (address[1] == 0 && f == true)
-      f = false
-      matrixelementint += n * (n-1)
-      n = 0
-    end #if
-    popfirst!(address) # removes first element of address
-  end #while
-  matrixelementint += n*(n-1)
-  return matrixelementint
-end # bosehubbardinteraction(bsadd::BStringAdd)
-
 """
     ebhm(address, m)
 
@@ -1298,44 +1275,6 @@ ebhm(b::BoseFS, m) = ebhm(b.bs, m)
 ebhm(b::BoseFS{N,M,A})  where {N,M,A} = ebhm(b, M)
 ebhm(adcont::BSAdd64, m) = ebhm(adcont.add, m)
 ebhm(adcont::BSAdd128, m) = ebhm(adcont.add, m)
-
-function ebhm(bsadd::BStringAdd, mModes)
-  #computes diagonal elementsDIAG_OF_K
-  bosonnumber1 = 0    #number particles in orbitals
-  bosonnumber2 = 0
-  firstbosonnumber = 0    #keap on memory the boson number of the first site
-  #to do the calculation with the last boson
-  f = true #flag first zero
-  bhmmatrixelementint = 0
-  ebhmmatrixelementint = 0
-  address = copy(bsadd.add)   #address is mutable struct, so we have to copy first
-  while f
-    if address[1] == 1  # count how many bosons inside
-      firstbosonnumber += 1
-    else  # remove the countedorbital and add the diagonal term
-      f = false
-      bhmmatrixelementint += firstbosonnumber * (firstbosonnumber-1)
-    end #if
-    popfirst!(address) # removes first element of address
-  end
-  bosonnumber1 = firstbosonnumber
-  Length = length(address)
-  for i=1:Length
-    if address[1] == 1  # count how many bosons inside
-      bosonnumber2 += 1
-    else  # remove the countedorbital and add the diagonal term
-      bhmmatrixelementint += bosonnumber2 * (bosonnumber2-1)
-      ebhmmatrixelementint +=bosonnumber2 * bosonnumber1
-      bosonnumber1 = bosonnumber2
-      bosonnumber2 = 0
-    end #if
-    popfirst!(address) # removes first element of address
-  end #while
-  bhmmatrixelementint += bosonnumber2 * (bosonnumber2-1)  #add the last term (non equal to zero only if the last site is occupied)
-  ebhmmatrixelementint += bosonnumber2 * bosonnumber1   #add the last term (non equal to zero only if the last site is occupied)
-  ebhmmatrixelementint += bosonnumber2 * firstbosonnumber  #periodic bondary condition
-  return ebhmmatrixelementint, bhmmatrixelementint
-end # ebhm(bsadd::BStringAdd, ...)
 
 """
     singlies, doublies = numSandDoccupiedsites(address)
@@ -1394,25 +1333,6 @@ numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
 numberoccupiedsites(a::BSAdd64) = numberoccupiedsites(a.add)
 numberoccupiedsites(a::BSAdd128) = numberoccupiedsites(a.add)
 
-function numberoccupiedsites(bsadd::BStringAdd)
-  # counts number of occupied orbitals
-  i = 1
-  n = 0    #number of occupied orbitals
-  f = true #flag last bit was zero
-  #address is mutable struct, so we have to copy first
-  address = copy(bsadd.add)
-  while length(address) > 0
-    if (address[1] == 1 && f == true)
-      n += 1
-      f = false
-    elseif address[1] == 0
-      f = true
-    end #if
-    popfirst!(address) # removes first element of address
-  end #while
-  return n
-end #function numberoccupiedsites(bsadd::BStringAdd)
-
 function numberlinkedsites(address)
   # return the number of other walker addresses that are linked in the
   # Hamiltonian
@@ -1431,7 +1351,6 @@ hopnextneighbour
 
 function hopnextneighbour(address::T, chosen::Int,
   mmodes::Int, nparticles::Int) where T<:Union{Integer,BitAdd}
-  # T<:Union{Integer,BStringAdd}
   # compute the address of a hopping event defined by chosen
   # Take care of the type of address
   site = (chosen + 1) >>> 1 # integer divide by 2 to find the orbital to hop from
@@ -1523,109 +1442,6 @@ function hopnextneighbour(address::BSAdd128, chosen, mmodes, nparticles)
   naddress, tones = hopnextneighbour(address.add, chosen, mmodes, nparticles)
   return BSAdd128(naddress), tones
 end
-
-function hopnextneighbour(bsadd::BStringAdd,chosen::Int,dummy1::Int,dummy2::Int)
-  # only hops to next neighbours
-  site = (chosen+1) >>> 1 #find orbital to hop from
-  if iseven(chosen)
-    j = -1
-  else
-    j = 1
-  end
-  nadd,nchosen,ndest = m1p(bsadd,site,j)
-  return nadd,nchosen*ndest #new address and product of occupation numbers
-end
-
-"""
-    nadd,nchosen,ndest = m1p(bsadd,site,j)
-
-Single particle hop in configuration given by address
-from chosen orbital (has to be an occupied orbital!)
-to orbital (chosen+j) (out of all M_MODES orbitals, j can be negative);
-returns new address and number of particles in orbital i and orbital (i+j) +1.
-WITH PERIODIC BOUNDARY CONDITIONS
-"""
-function m1p(bsadd::BStringAdd,chosen::Int,j::Int)
-  #1particle hop in configuration given by address
-  #from chosen orbital (has to be an occupied orbital!)
-  #to orbital (chosen+j) (out of all M_MODES orbitals, j can be negative)
-  # returns new address and number of particles in orbital i and orbital (i+j) +1
-  # WITH PERIODIC BOUNDARY CONDITIONS
-  nadd = copy(bsadd.add)
-  nocc = 0; i = 0 #counts occupied orbitals; index on bit
-  fempty = true   # flag for pointing on empty orbitals
-  #find the chosen orbital
-  while chosen > nocc
-     i += 1
-     if nadd[i] == 1 && fempty == true
-       nocc += 1; fempty = false
-     elseif nadd[i] == 0
-       fempty = true
-     end
-  end #while
-
-  # count number of particles in chosen orbital
-  L = length(nadd)
-  insert!(nadd,L+1,0) #insert extra 0 at end for case that chosen orbital is last orbital in rep
-
-  nchosen = 1; i += 1
-  while nadd[i] == 1
-    nchosen += 1; i += 1
-  end
-  deleteat!(nadd,L+1) #remove extra 0
-  #delete one particle from chosen orbital
-  deleteat!(nadd,i-1)
-  L -= 1
-  i -= 1; if i == L+1 i = 0 end # i is now pointing on '0' between chosen orbital and chosen+1
-                                # or at beginning of address
-  if sign(j) == 1 #move forward
-    ntot = 1 #counts total number of orbitals
-    while ntot < j
-      i += 1;
-      if i == L+1
-        i = 1; ntot += 1
-        if j == ntot i = 0;  break end
-      end
-      if nadd[i] == 0  ntot += 1 end
-      #i = rem((i+L), L) + 1 # periodic boundary conditions
-    end #while
-    i += 1#; if i == (L+1) insert end
-    #i = rem((i+L), L) + 1
-    #insert particle
-    insert!(nadd, i, 1)
-    L += 1
-    #count particles in orbital
-    ndest = 0
-    while nadd[i] == 1
-      ndest += 1
-      i += 1; if i == L+1 break end
-    end
-  else #move back
-    ntot = 0
-    if i == 0 i = L+1 end
-    while abs(j) > ntot
-      i -= 1
-      if i == 0
-        ntot += 1; i = L+1
-        if abs(j) == ntot
-          break
-        else
-          i -= 1
-        end
-      end
-      if nadd[i] == 0  ntot += 1 end
-    end #while
-    #insert particle
-    insert!(nadd, i, 1)
-    ndest = 0
-    while nadd[i] == 1
-      i -= 1; if i == 0 ndest += 1; break end; ndest += 1
-    end
-  end
-  return BStringAdd(nadd), nchosen, ndest
-end #m1p
-
-
 
 ##########################################
 #
