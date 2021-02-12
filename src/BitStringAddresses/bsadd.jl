@@ -43,6 +43,9 @@ for T in (BSAdd64, BSAdd128)
         Base.:>>(a::$T, n) = $T(a.add >> n)
         Base.:<<(a::$T, n) = $T(a.add << n)
 
+        Base.iseven(a::$T) = iseven(a.add)
+        Base.isodd(a::$T) = isodd(a.add)
+
         numChunks(::Type{$T}) = 1
         Base.bitstring(a::$T) = bitstring(a.add)
     end
