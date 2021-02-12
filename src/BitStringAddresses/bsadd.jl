@@ -6,23 +6,9 @@ Address type that encodes a bistring address in a UInt64.
 struct BSAdd64 <: BitStringAddressType
   add::UInt64
 end
-
-Base.isless(a1::BSAdd64,a2::BSAdd64) = isless(a1.add, a2.add)
-Base.zero(::Type{BSAdd64}) = BSAdd64(0)
-Base.zero(add::BSAdd64) = BSAdd64(0)
-Base.hash(a::BSAdd64, h::UInt) = hash(a.add, h)
-Base.trailing_ones(a::BSAdd64) = trailing_ones(a.add)
-Base.trailing_zeros(a::BSAdd64) = trailing_zeros(a.add)
-Base.count_ones(a::BSAdd64) = count_ones(a.add)
-
-import Base: <<, >>>, >>, ⊻, &, |
-(>>>)(a::BSAdd64, n::Integer) = BSAdd64(a.add >>> n)
-
-numChunks(::Type{BSAdd64}) = 1
+BSAdd64(bsa::BSAdd64) = bsa
 numBits(::Type{BSAdd64}) = 64
-Base.bitstring(a::BSAdd64) = bitstring(a.add)
 
-#################################################
 """
     BSAdd128 <: BitStringAddressType
 
@@ -31,21 +17,33 @@ Address type that encodes a bistring address in a UInt128.
 struct BSAdd128 <: BitStringAddressType
   add::UInt128
 end
-BSAdd128(bsa::BSAdd128) = bsa # convert to same type
+BSAdd128(bsa::BSAdd128) = bsa
 BSAdd128(bsa::BSAdd64) = BSAdd128(bsa.add)
-
-Base.isless(a1::BSAdd128,a2::BSAdd128) = isless(a1.add, a2.add)
-#Base.typemax(BSAdd128) = BSAdd128(typemax(UInt64))
-Base.zero(::Type{BSAdd128}) = BSAdd128(0)
-Base.zero(add::BSAdd128) = BSAdd128(0)
-Base.hash(a::BSAdd128, h::UInt) = hash(a.add, h)
-Base.trailing_ones(a::BSAdd128) = trailing_ones(a.add)
-Base.trailing_zeros(a::BSAdd128) = trailing_zeros(a.add)
-Base.count_ones(a::BSAdd128) = count_ones(a.add)
-
-import Base: <<, >>>, >>, ⊻, &, |
-(>>>)(a::BSAdd128, n::Integer) = BSAdd128(a.add >>> n)
-
-numChunks(::Type{BSAdd128}) = 1
 numBits(::Type{BSAdd128}) = 128
-Base.bitstring(a::BSAdd128) = bitstring(a.add)
+
+for T in (BSAdd64, BSAdd128)
+    @eval begin
+        Base.isless(a1::$T,a2::$T) = isless(a1.add, a2.add)
+        Base.zero(::Type{$T}) = $T(0)
+        Base.zero(add::$T) = $T(0)
+        Base.hash(a::$T, h::UInt) = hash(a.add, h)
+
+        Base.trailing_ones(a::$T) = trailing_ones(a.add)
+        Base.trailing_zeros(a::$T) = trailing_zeros(a.add)
+        Base.leading_ones(a::$T) = leading_ones(a.add)
+        Base.leading_zeros(a::$T) = leading_zeros(a.add)
+        Base.count_ones(a::$T) = count_ones(a.add)
+        Base.count_zeros(a::$T) = count_zeros(a.add)
+
+        Base.:&(a::$T, b::$T) = $T(a.add & b.add)
+        Base.:|(a::$T, b::$T) = $T(a.add | b.add)
+        Base.:⊻(a::$T, b::$T) = $T(a.add ⊻ b.add)
+        Base.:~(a::$T) = $T(~a.add)
+        Base.:>>>(a::$T, n) = $T(a.add >>> n)
+        Base.:>>(a::$T, n) = $T(a.add >> n)
+        Base.:<<(a::$T, n) = $T(a.add << n)
+
+        numChunks(::Type{$T}) = 1
+        Base.bitstring(a::$T) = bitstring(a.add)
+    end
+end
