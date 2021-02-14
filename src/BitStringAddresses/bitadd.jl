@@ -1,5 +1,5 @@
 """
-    BitAdd{I,B} <: BitStringAddressType
+    BitAdd{I,B} <: AbstractBitString
     BitAdd(address::Integer, B)
     BitAdd(chunks::T, B) where T<:Union{Tuple,SVector}
     BitAdd{B}(address)
@@ -20,7 +20,7 @@ Note that no checking for ghost bits occurs when constructing `BitAdd` from
 `SVector` or `Tuple`. See [`bitadd()`](@ref), [`check_consistency()`](@ref), and
 [`remove_ghost_bits()`](@ref) methods!
 """
-struct BitAdd{I,B} <: BitStringAddressType
+struct BitAdd{I,B} <: AbstractBitString
   chunks::SVector{I,UInt64} # bitstring of `B ≤ I*64` bits, stored as SVector
 
   # inner contructor: only allow passing `B` to enforce consistency of `B` and `I`
@@ -126,8 +126,8 @@ function remove_ghost_bits(a::BitAdd{I,B}) where {I,B}
   return BitAdd{B}(SVector(madd))
 end
 
-numChunks(::Type{BitAdd{I,B}}) where {I,B} = I
-numBits(::Type{BitAdd{I,B}}) where {I,B} = B
+num_chunks(::Type{BitAdd{I,B}}) where {I,B} = I
+num_bits(::Type{BitAdd{I,B}}) where {I,B} = B
 
 # comparison check number of bits and then compares the tuples
 Base.isless(a::T, b::T) where T<:BitAdd = isless(a.chunks, b.chunks)
