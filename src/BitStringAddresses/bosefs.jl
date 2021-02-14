@@ -195,6 +195,7 @@ end
 s_onr(arg) = m_onr(arg) |> SVector
 
 
+
 # # works but is not faster
 # @generated function onr2(bba::BoseFS{N,M,A}) where {N,M,A}
 #   quote
