@@ -1,25 +1,27 @@
 """
-    BSAdd64 <: BitStringAddressType
+    BSAdd64 <: AbstractBitString
 
 Address type that encodes a bistring address in a UInt64.
 """
-struct BSAdd64 <: BitStringAddressType
+struct BSAdd64 <: AbstractBitString
   add::UInt64
 end
 BSAdd64(bsa::BSAdd64) = bsa
-numBits(::Type{BSAdd64}) = 64
+num_bits(::Type{BSAdd64}) = 64
+chunk_size(::Type{BSAdd64}) = 64
 
 """
-    BSAdd128 <: BitStringAddressType
+    BSAdd128 <: AbstractBitstring
 
 Address type that encodes a bistring address in a UInt128.
 """
-struct BSAdd128 <: BitStringAddressType
+struct BSAdd128 <: AbstractBitString
   add::UInt128
 end
 BSAdd128(bsa::BSAdd128) = bsa
 BSAdd128(bsa::BSAdd64) = BSAdd128(bsa.add)
-numBits(::Type{BSAdd128}) = 128
+num_bits(::Type{BSAdd128}) = 128
+chunk_size(::Type{BSAdd128}) = 128
 
 for T in (BSAdd64, BSAdd128)
     @eval begin
@@ -46,7 +48,7 @@ for T in (BSAdd64, BSAdd128)
         Base.iseven(a::$T) = iseven(a.add)
         Base.isodd(a::$T) = isodd(a.add)
 
-        numChunks(::Type{$T}) = 1
+        num_chunks(::Type{$T}) = 1
         Base.bitstring(a::$T) = bitstring(a.add)
 
         chunks(a::$T) = SVector(a.add)

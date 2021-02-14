@@ -37,7 +37,7 @@ type `T` that are suitable for FCIQMC. Indexing is done with addresses (typicall
 from an address space that may be large (and will not need to be completely generated).
 
 `AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref)
-from the module `DictVectors` and work well with addresses of type [`BitStringAddressType`](@ref)
+from the module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref)
 from the module `BitStringAddresses`. The type works well with the external package `KrylovKit.jl`.
 
 Provides:
@@ -203,7 +203,7 @@ end
 """
 struct Hops{T,A,O,I}  <: AbstractVector{T}
     h::O # AbstractHamiltonian
-    add::A # address; usually a BitStringAddressType
+    add::A # address; usually a AbstractFockAddress
     num::Int # number of possible hops
     info::I # reserved for additional info to be stored here
 end
@@ -358,15 +358,15 @@ Provides:
 """
 abstract type BosonicHamiltonian{T} <: AbstractHamiltonian{T} end
 
-BitStringAddresses.numParticles(h::BosonicHamiltonian) = h.n
-BitStringAddresses.numModes(h::BosonicHamiltonian) = h.m
+BitStringAddresses.num_particles(h::BosonicHamiltonian) = h.n
+BitStringAddresses.num_modes(h::BosonicHamiltonian) = h.m
 
 """
     bit_String_Length(ham)
 
 Number of bits needed to represent an address for the linear operator `ham`.
 """
-bit_String_Length(bh::BosonicHamiltonian) = numModes(bh) + numParticles(bh) - 1
+bit_String_Length(bh::BosonicHamiltonian) = num_modes(bh) + num_particles(bh) - 1
 
 """
     hasIntDimension(ham)
@@ -487,13 +487,13 @@ Return the approximate dimension of linear space as `Float64`.
 LOStructure(::Type{BoseHubbardReal1D{T}}) where T <: Real = HermitianLO()
 
 """
-    BoseHubbardReal1D(add::BitStringAddressType; u=1.0, t=1.0)
+    BoseHubbardReal1D(add::AbstractFockAddress; u=1.0, t=1.0)
 Set up the `BoseHubbardReal1D` with the correct particle and mode number and
 address type. Parameters `u` and `t` can be passed as keyword arguments.
 """
-function BoseHubbardReal1D(add::BSA; u=1.0, t=1.0) where BSA <: BitStringAddressType
-  n = numParticles(add)
-  m = numModes(add)
+function BoseHubbardReal1D(add::BSA; u=1.0, t=1.0) where BSA <: AbstractFockAddress
+  n = num_particles(add)
+  m = num_modes(add)
   return BoseHubbardReal1D(n,m,u,t,BSA)
 end
 
@@ -587,13 +587,13 @@ in real space.
 LOStructure(::Type{ExtendedBHReal1D{T}}) where T <: Real = HermitianLO()
 
 """
-    ExtendedBHReal1D(add::BitStringAddressType; u=1.0, v=1.0 t=1.0)
+    ExtendedBHReal1D(add::AbstractFockAddress; u=1.0, v=1.0 t=1.0)
 Set up the `BoseHubbardReal1D` with the correct particle and mode number and
 address type. Parameters `u` and `t` can be passed as keyword arguments.
 """
-function ExtendedBHReal1D(add::BSA; u=1.0, v=1.0, t=1.0) where BSA <: BitStringAddressType
-  n = numParticles(add)
-  m = numModes(add)
+function ExtendedBHReal1D(add::BSA; u=1.0, v=1.0, t=1.0) where BSA <: AbstractFockAddress
+  n = num_particles(add)
+  m = num_modes(add)
   return ExtendedBHReal1D(n,m,u,v,t,BSA)
 end
 
@@ -706,13 +706,13 @@ Return the approximate dimension of linear space as `Float64`.
 LOStructure(::Type{BoseHubbardMom1D{T, AD}}) where {T <: Real, AD} = HermitianLO()
 
 """
-    BoseHubbardMom1D(add::BitStringAddressType; u=1.0, t=1.0)
+    BoseHubbardMom1D(add::AbstractFockAddress; u=1.0, t=1.0)
 Set up the `BoseHubbardMom1D` with the correct particle and mode number and
 address type. Parameters `u` and `t` can be passed as keyword arguments.
 """
-function BoseHubbardMom1D(add::BSA; u=1.0, t=1.0) where BSA <: BitStringAddressType
-  n = numParticles(add)
-  m = numModes(add)
+function BoseHubbardMom1D(add::BSA; u=1.0, t=1.0) where BSA <: AbstractFockAddress
+  n = num_particles(add)
+  m = num_modes(add)
   return BoseHubbardMom1D(n,m,u,t,add)
 end
 
@@ -813,7 +813,7 @@ Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `o
 occupation number representation.
 """
 function ks(h::BoseHubbardMom1D)
-    m = numModes(h)
+    m = num_modes(h)
     step = 2π/m
     if isodd(m)
         start = -π*(1+1/m) + step
@@ -994,7 +994,7 @@ end
     return U / 2M * onproduct
 end
 
-function kinetic_energy(h::HubbardMom1D, add::BitStringAddressType)
+function kinetic_energy(h::HubbardMom1D, add::AbstractFockAddress)
     onrep = BitStringAddresses.m_onr(add) # get occupation number representation
     return kinetic_energy(h, onrep)
 end
