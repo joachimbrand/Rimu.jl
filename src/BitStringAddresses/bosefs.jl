@@ -1,6 +1,6 @@
 #################################################
 """
-    BoseFS{N,M,A} <: BosonicFockStateAddress <: BitStringAddressType
+    BoseFS{N,M,A} <: AbstractFockAddress
     BoseFS(bs::A) where A <: BitAdd
     BoseFS(bs::A, b)
 
@@ -10,13 +10,13 @@ order, i.e. the first orbital in a `BoseFS` is stored rightmost in the
 bitstring `bs`. If the number of significant bits `b` is not encoded in `A` it
 must be passed as an argument (e.g. for `BSAdd64` and `BSAdd128`).
 """
-struct BoseFS{N,M,A} <: BosonicFockStateAddress
+struct BoseFS{N,M,A} <: AbstractFockAddress
   bs::A
 end
 
 BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs)
 
-function BoseFS(bs::A, b::Integer) where A <: BitStringAddressType
+function BoseFS(bs::A, b::Integer) where A <: AbstractBitString
   n = count_ones(bs)
   m = b - n + 1
   bfs = BoseFS{n,m,A}(bs)
@@ -121,18 +121,17 @@ Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 # hashing delegates to bs
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.bitstring(b::BoseFS) = bitstring(b.bs)
-numChunks(::Type{BoseFS{N,M,A}}) where {N,M,A} = numChunks(A)
-numBits(::Type{BoseFS{N,M,A}}) where {N,M,A} = N+M-1 # generally true for bosons
-numParticles(::Type{BoseFS{N,M,A}}) where {N,M,A} = N
-numModes(::Type{BoseFS{N,M,A}}) where {N,M,A} = M
+num_bits(::Type{BoseFS{N,M,A}}) where {N,M,A} = num_bits(A)
+num_particles(::Type{BoseFS{N,M,A}}) where {N,M,A} = N
+num_modes(::Type{BoseFS{N,M,A}}) where {N,M,A} = M
 
 function check_consistency(b::BoseFS{N,M,A}) where {N,M,A}
-  numBits(b) ≤ numBits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), numBits(A) = $(numBits(A)).")
+  num_bits(b) ≤ num_bits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), num_bits(A) = $(num_bits(A)).")
   check_consistency(b.bs)
 end
 function check_consistency(b::BoseFS{N,M,A}) where {N,M,A<:Union{BSAdd64,BSAdd128}}
-  numBits(b) ≤ numBits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), numBits(A) = $(numBits(A)).")
-  leading_zeros(b.bs.add) ≥ numBits(A) - numBits(b) ||  error("Ghost bits detected in $b.")
+  num_bits(b) ≤ num_bits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), num_bits(A) = $(num_bits(A)).")
+  leading_zeros(b.bs.add) ≥ num_bits(A) - num_bits(b) ||  error("Ghost bits detected in $b.")
 end
 
 
@@ -140,14 +139,14 @@ end
 
 #################################
 """
-    BoseFS2C{NA,NB,M,AA,AB} <: BosonicFockStateAddress <: BitStringAddressType
+    BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
 
 Address type that constructed with two [`BoseFS{N,M,A}`](@ref). It represents a
 Fock state with two components, e.g. two different species of bosons with particle
 number `NA` from species A and particle number `NB` from species B. The number of
 orbitals `M` is expacted to be the same for both components.
 """
-struct BoseFS2C{NA,NB,M,AA,AB} <: BitStringAddressType
+struct BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
   bsa::BoseFS{NA,M,AA}
   bsb::BoseFS{NB,M,AB}
 end
@@ -305,3 +304,82 @@ function Base.show(io::IO, b::BoseFS{N,M,A}) where {N,M,A}
   end
   print(io, "))")
 end
+
+#################################
+#
+# some functions for operating on addresses
+#
+
+"""
+    bitaddr(onr, Type)
+
+Calculate a bitstring address from an occupation number representation
+the type of the bitstring address is passed as the second argument.
+"""
+function bitaddr(onr, ::Type{T}) where T<: Integer
+  # calculate a bitstring address from an occupation number representation
+  # the type of the bitstring address is passed as the second argument
+  address = zero(T)
+  for ind = length(onr):-1:1
+    n = onr[ind]
+    address <<= n+1 # shift n+1 zeros
+    address |= T(2)^n - one(T) # add block of n 1's
+  end
+  return address
+end
+
+bitaddr(onr, ::Type{BoseFS})  = BoseFS(onr)
+bitaddr(onr, ::Type{BoseFS{N,M,A}}) where {N,M,A}  = BoseFS{A}(onr)
+
+function bitaddr(onr, ::Type{BitArray{1}})
+  address = BitArray(undef,0)
+  for ind = length(onr):-1:1
+    for i = 1:onr[ind]
+      insert!(address,1,1)
+    end
+    insert!(address,1,0)
+  end
+  popfirst!(address)
+  return address
+end
+
+bitaddr(onr, ::Type{BSAdd64}) = BSAdd64(bitaddr(onr,UInt64))
+
+bitaddr(onr, ::Type{BSAdd128}) = BSAdd128(bitaddr(onr,UInt128))
+
+maxBSLength(T::Type{BSAdd64}) = 64
+
+maxBSLength(T::Type{BSAdd128}) = 128
+
+"""
+    onr(address, m)
+
+Compute and return the occupation number representation as an array of `Int`
+corresponding to the given address.
+"""
+function onr(address::A,mm::Integer) where A<:Union{Integer}
+  # compute and return the occupation number representation corresponding to
+  # the given address
+  # note: it is much faster to pass mm as argument than to access it as global
+  # This is the fastest version with 11 seconds for 30,000,000 calls
+  # onr = zeros(UInt16,mm) # this limits us to 2^16-1 orbitals
+  onr = zeros(Int, mm)
+  orbitalnumber = 0
+  while !iszero(address)
+    orbitalnumber += 1
+    bosonnumber = trailing_ones(address)
+    # surpsingly it is faster to not check whether this is nonzero and do the
+    # following operations anyway
+    address >>>= bosonnumber
+    # bosonnumber has now the number of bosons in orbtial orbitalnumber
+    onr[orbitalnumber] = bosonnumber
+    address >>>= 1 # shift right and get ready to look at next orbital
+  end # while address
+  return onr
+end #
+
+onr(address::BSAdd64,mm::Integer) =
+    onr(address.add,mm)
+
+onr(address::BSAdd128,mm::Integer) =
+    onr(address.add,mm)

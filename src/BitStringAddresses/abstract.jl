@@ -1,55 +1,63 @@
 """
-    BitStringAddressType
+    AbstractBitString
 
-Abstract type for configuration addresses with the nature of a bitstring.
-A number of methods need to be implemented:
+Abstract type for bitstring storage. Not aware of the physics involved.
 
-* Bitwise operations: `&`, `|`, `~`, `⊻`, `<<`, `>>`, `>>>`.
+* `isless`, `&`, `|`, `~`, `⊻`, `<<`, `>>`, `>>>`, `trailing_zeros`, `trailing_ones`,
+ `leading_zeros`, `trailing_zeros`, `count_ones`, `count_zeros`, `bitstring`, `iseven`, and
+ `isodd`.
 
-* `iseven` and `isodd`.
+* [`num_chunks`](@ref): return the number of chunks the bitstring is split into.
 
-* `numChunks`: return the number of chunks the bitstring is split into.
+* [`num_bits`](@ref): total number of bits stored in the bitstring.
 
-* `numBits`: total number of bits stored in the bitstring.
+* [`chunk_size`](@ref): size of a single chunk
 
-* `chunks`: return a static array containing all the chunks of the bitstring.
-
-"""
-abstract type BitStringAddressType end
+* [`chunks`](@ref): return a static array containing all the chunks of the bitstring.
 
 """
-    numChunks(a)
+abstract type AbstractBitString end
+
+"""
+    num_chunks(::Type{<:AbstractBitString})
 Number of 64-bit chunks representing `a`.
 """
-numChunks(b) = numChunks(typeof(b))
+num_chunks(a) = num_chunks(typeof(a))
 
 """
-    numBits(a)
+    num_bits(::Type{<:AbstractBitString})
 Number of bit chunks representing `a`.
 """
-numBits(b) = numBits(typeof(b))
+num_bits(a) = num_bits(typeof(a))
 
 """
-    chunks(a)
-Return the chunks in `a`, wrapped in a static array.
+chunk_size(::Type{<:AbstractBitString})
+Size of a single chunk in bits.
+"""
+chunk_size(a) = chunk_size(typeof(a))
+
+"""
+    chunks(::AbstractBitString)
+Return the chunks of bitstring wrapped in a static array.
 """
 chunks
 
 """
-    BosonicFockStateAddress <: BitStringAddressType
-Supertype representing a bosonic Fock state. Implement [`numModes()`](@ref)
-and [`numParticles()`](@ref).
+    AbstractFockAddress
+Supertype representing a Fock state.
+
+TODO: document interface
 """
-abstract type BosonicFockStateAddress <: BitStringAddressType end
+abstract type AbstractFockAddress end
 
 """
-    numParticles(a)
-Number of particles represented by `a`.
+    num_particles(::Type{<:AbstractFockAddress})
+Number of particles represented by address.
 """
-numParticles(b) = numParticles(typeof(b))
+num_particles(b) = num_particles(typeof(b))
 
 """
-    numModes(a)
-Number of modes represented by `a`.
+    num_modes(::Type{<:AbstractFockAddress})
+Number of modes represented by address.
 """
-numModes(b) = numModes(typeof(b))
+num_modes(b) = num_modes(typeof(b))
