@@ -48,5 +48,7 @@ for T in (BSAdd64, BSAdd128)
 
         numChunks(::Type{$T}) = 1
         Base.bitstring(a::$T) = bitstring(a.add)
+
+        chunks(a::$T) = SVector(a.add)
     end
 end

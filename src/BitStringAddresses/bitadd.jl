@@ -419,3 +419,4 @@ function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
 end
 
 #################################
+chunks(ba::BitAdd) = ba.chunks

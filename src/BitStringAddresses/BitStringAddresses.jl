@@ -14,7 +14,7 @@ import Base: isless, zero, iszero, show, ==, hash
 export BitStringAddressType, BSAdd64, BSAdd128
 export BitAdd, BoseFS, BoseFS2C
 export onr, nearUniform, nearUniformONR
-export numBits, numChunks, numParticles, numModes
+export numBits, numChunks, chunks, numParticles, numModes
 export bitaddr, maxBSLength # deprecate
 
 include("abstract.jl")
