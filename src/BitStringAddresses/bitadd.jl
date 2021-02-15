@@ -128,6 +128,8 @@ end
 
 num_chunks(::Type{BitAdd{I,B}}) where {I,B} = I
 num_bits(::Type{BitAdd{I,B}}) where {I,B} = B
+chunk_size(::Type{<:BitAdd}) = 64
+chunks(b::BitAdd) = b.chunks
 
 # comparison check number of bits and then compares the tuples
 Base.isless(a::T, b::T) where T<:BitAdd = isless(a.chunks, b.chunks)
@@ -136,10 +138,10 @@ function Base.isless(a::BitAdd{I1,B1}, b::BitAdd{I2,B2}) where {I1,B1,I2,B2}
 end
 
 # bit operations
-import Base: <<, >>>, >>, ⊻, &, |
-⊻(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .⊻ b.chunks)
-(&)(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .& b.chunks)
-(|)(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .| b.chunks)
+Base.:⊻(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .⊻ b.chunks)
+Base.:&(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .& b.chunks)
+Base.:|(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .| b.chunks)
+Base.:~(a::BitAdd{I,B}) where {I,B} = BitAdd{B}(.~a.chunks)
 
 unsafe_count_ones(a::BitAdd) = mapreduce(count_ones, +, a.chunks)
 Base.count_ones(a::BitAdd) = unsafe_count_ones(remove_ghost_bits(a))
@@ -149,7 +151,7 @@ Base.count_zeros(a::BitAdd{I,B}) where {I,B} = B - count_ones(a)
     >>>(b::BitAdd,n::Integer)
 Bitshift `b` to the right by `n` bits and fill from the left with zeros.
 """
-@inline function >>>(b::BitAdd{I,B},n::Integer) where {I,B}
+@inline function Base.:>>>(b::BitAdd{I,B},n::Integer) where {I,B}
   return BitAdd{B}(lbshr(b.chunks,n)) # devolve to shifting SVector
 end
 
@@ -173,7 +175,7 @@ end
 #   return BitAdd{B}(SVector(a))
 # end
 
-(>>)(b::BitAdd,n::Integer) = b >>> n
+Base.:>>(b::BitAdd,n::Integer) = b >>> n
 
 """
     lbshr(c,k)
@@ -252,7 +254,7 @@ end
     <<(b::BitAdd,n::Integer)
 Bitshift `b` to the left by `n` bits and fill from the right with zeros.
 """
-<<(b::BitAdd{I,B},n::Integer) where {I,B} = remove_ghost_bits(unsafe_shift_left(b,n))
+Base.:<<(b::BitAdd{I,B},n::Integer) where {I,B} = remove_ghost_bits(unsafe_shift_left(b,n))
 
 ## this is still memory allocating for `I>3`.
 # TODO: rewrite this as generated function
@@ -417,6 +419,3 @@ function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
   end
   nothing
 end
-
-#################################
-chunks(ba::BitAdd) = ba.chunks

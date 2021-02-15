@@ -1,4 +1,3 @@
-#################################################
 """
     BoseFS{N,M,A} <: AbstractFockAddress
     BoseFS(bs::A) where A <: BitAdd
@@ -116,9 +115,7 @@ end
   return BoseFS{N,M,BitAdd{I,B}}(bs)
 end
 
-# comparison delegates to bs
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
-# hashing delegates to bs
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.bitstring(b::BoseFS) = bitstring(b.bs)
 num_bits(::Type{BoseFS{N,M,A}}) where {N,M,A} = num_bits(A)
@@ -133,66 +130,6 @@ function check_consistency(b::BoseFS{N,M,A}) where {N,M,A<:Union{BSAdd64,BSAdd12
   num_bits(b) ≤ num_bits(A) || error("Inconsistency in $b: N+M-1 = $(N+M-1), num_bits(A) = $(num_bits(A)).")
   leading_zeros(b.bs.add) ≥ num_bits(A) - num_bits(b) ||  error("Ghost bits detected in $b.")
 end
-
-
-
-
-#################################
-"""
-    BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
-
-Address type that constructed with two [`BoseFS{N,M,A}`](@ref). It represents a
-Fock state with two components, e.g. two different species of bosons with particle
-number `NA` from species A and particle number `NB` from species B. The number of
-orbitals `M` is expacted to be the same for both components.
-"""
-struct BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
-  bsa::BoseFS{NA,M,AA}
-  bsb::BoseFS{NB,M,AB}
-end
-
-BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
-
-function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
-  print(io, "BoseFS2C(")
-  Base.show(io,b.bsa)
-  print(io, ",")
-  Base.show(io,b.bsb)
-  print(io, ")")
-end
-
-# performant and allocation free (if benchmarked on its own):
-"""
-    onr(bs)
-Compute and return the occupation number representation of the bit string
-address `bs` as an `SVector{M,Int32}`, where `M` is the number of orbitals.
-"""
-function onr(bba::BoseFS{N,M,A}) where {N,M,A}
-  r = zeros(MVector{M,Int32})
-  address = bba.bs
-  for orbitalnumber in 1:M
-    bosonnumber = Int32(trailing_ones(address))
-    r[orbitalnumber] = bosonnumber
-    address >>>= bosonnumber + 1
-    iszero(address) && break
-  end
-  return SVector(r)
-end
-
-@inline function m_onr(bba::BoseFS{N,M,A}) where {N,M,A}
-  r = zeros(MVector{M,Int32})
-  address = bba.bs
-  for orbitalnumber in 1:M
-    bosonnumber = Int32(trailing_ones(address))
-    @inbounds r[orbitalnumber] = bosonnumber
-    address >>>= bosonnumber + 1
-    iszero(address) && break
-  end
-  return r
-end
-# for some reason this is slower than the above onr() when benchmarked
-s_onr(arg) = m_onr(arg) |> SVector
-
 
 
 # # works but is not faster
@@ -307,8 +244,9 @@ end
 
 #################################
 #
-# some functions for operating on addresses
-#
+###
+### ONR
+###
 
 """
     bitaddr(onr, Type)
@@ -344,42 +282,61 @@ function bitaddr(onr, ::Type{BitArray{1}})
 end
 
 bitaddr(onr, ::Type{BSAdd64}) = BSAdd64(bitaddr(onr,UInt64))
-
 bitaddr(onr, ::Type{BSAdd128}) = BSAdd128(bitaddr(onr,UInt128))
 
 maxBSLength(T::Type{BSAdd64}) = 64
-
 maxBSLength(T::Type{BSAdd128}) = 128
 
 """
-    onr(address, m)
-
-Compute and return the occupation number representation as an array of `Int`
-corresponding to the given address.
+    onr(bs)
+Compute and return the occupation number representation of the bit string
+address `bs` as an `SVector{M,Int32}`, where `M` is the number of orbitals.
 """
-function onr(address::A,mm::Integer) where A<:Union{Integer}
-  # compute and return the occupation number representation corresponding to
-  # the given address
-  # note: it is much faster to pass mm as argument than to access it as global
-  # This is the fastest version with 11 seconds for 30,000,000 calls
-  # onr = zeros(UInt16,mm) # this limits us to 2^16-1 orbitals
-  onr = zeros(Int, mm)
-  orbitalnumber = 0
-  while !iszero(address)
-    orbitalnumber += 1
-    bosonnumber = trailing_ones(address)
-    # surpsingly it is faster to not check whether this is nonzero and do the
-    # following operations anyway
-    address >>>= bosonnumber
-    # bosonnumber has now the number of bosons in orbtial orbitalnumber
-    onr[orbitalnumber] = bosonnumber
-    address >>>= 1 # shift right and get ready to look at next orbital
-  end # while address
-  return onr
-end #
+function onr(bba::BoseFS{N,M,A}) where {N,M,A}
+  r = zeros(MVector{M,Int32})
+  address = bba.bs
+  for orbitalnumber in 1:M
+    bosonnumber = Int32(trailing_ones(address))
+    r[orbitalnumber] = bosonnumber
+    address >>>= bosonnumber + 1
+    iszero(address) && break
+  end
+  return SVector(r)
+end
 
-onr(address::BSAdd64,mm::Integer) =
-    onr(address.add,mm)
+@inline function m_onr(bba::BoseFS{N,M,A}) where {N,M,A}
+  r = zeros(MVector{M,Int32})
+  address = bba.bs
+  for orbitalnumber in 1:M
+    bosonnumber = Int32(trailing_ones(address))
+    @inbounds r[orbitalnumber] = bosonnumber
+    address >>>= bosonnumber + 1
+    iszero(address) && break
+  end
+  return r
+end
+# for some reason this is slower than the above onr() when benchmarked
+s_onr(arg) = m_onr(arg) |> SVector
 
-onr(address::BSAdd128,mm::Integer) =
-    onr(address.add,mm)
+"""
+    BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
+
+Address type that constructed with two [`BoseFS{N,M,A}`](@ref). It represents a
+Fock state with two components, e.g. two different species of bosons with particle
+number `NA` from species A and particle number `NB` from species B. The number of
+orbitals `M` is expacted to be the same for both components.
+"""
+struct BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
+  bsa::BoseFS{NA,M,AA}
+  bsb::BoseFS{NB,M,AB}
+end
+
+BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
+
+function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+    print(io, "BoseFS2C(")
+    Base.show(io,b.bsa)
+    print(io, ",")
+    Base.show(io,b.bsb)
+    print(io, ")")
+end
