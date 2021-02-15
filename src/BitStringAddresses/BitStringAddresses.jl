@@ -15,7 +15,7 @@ export AbstractBitString, BSAdd64, BSAdd128, BitAdd
 export AbstractFockAddress, BoseFS, BoseFS2C
 export onr, nearUniform, nearUniformONR
 export num_bits, num_chunks, chunks, num_particles, num_modes
-export bitaddr, maxBSLength # deprecate
+export bitaddr # deprecate
 
 include("abstract.jl")
 include("bsadd.jl")
