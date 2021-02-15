@@ -1091,7 +1091,7 @@ end
 
 # a non-allocating version of hop()
 @inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
-  onrep =  BitStringAddresses.s_onr(add)
+  onrep = onr(add)
   # get occupation number representation as a static array
   singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
   onproduct = 1
@@ -1681,8 +1681,8 @@ end
 @inline function hopacross2adds(add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen::Integer) where {NA,NB,M,AA,AB}
     sa = numberoccupiedsites(add_a)
     sb = numberoccupiedsites(add_b)
-    onrep_a = BitStringAddresses.s_onr(add_a)
-    onrep_b = BitStringAddresses.s_onr(add_b)
+    onrep_a = onr(add_a)
+    onrep_b = onr(add_b)
     # b†_s b_q a†_p a_r
     s = p = q = r = 0
     onproduct_a = 1

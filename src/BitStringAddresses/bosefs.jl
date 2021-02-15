@@ -289,31 +289,60 @@ bitaddr(onr, ::Type{BSAdd128}) = BSAdd128(bitaddr(onr,UInt128))
 Compute and return the occupation number representation of the bit string
 address `bs` as an `SVector{M,Int32}`, where `M` is the number of orbitals.
 """
-function onr(bba::BoseFS{N,M,A}) where {N,M,A}
-  r = zeros(MVector{M,Int32})
-  address = bba.bs
-  for orbitalnumber in 1:M
-    bosonnumber = Int32(trailing_ones(address))
-    r[orbitalnumber] = bosonnumber
-    address >>>= bosonnumber + 1
-    iszero(address) && break
-  end
-  return SVector(r)
+onr(bba::BoseFS) = SVector(m_onr(bba))
+
+"""
+    m_onr(bs)
+Compute and return the occupation number representation of the bit string
+address `bs` as an `MVector{M,Int32}`, where `M` is the number of orbitals.
+"""
+@inline m_onr(bba::BoseFS) = m_onr(Val(num_chunks(bba.bs)), bba)
+
+# Version specialized for single-chunk addresses.
+@inline function m_onr(::Val{1}, bba::BoseFS{N,M}) where {N,M}
+    result = zeros(MVector{M,Int32})
+    address = bba.bs
+    for orbital in 1:M
+        bosons = Int32(trailing_ones(address))
+        @inbounds result[orbital] = bosons
+        address >>>= bosons + 1
+        iszero(address) && break
+    end
+    return result
 end
 
-@inline function m_onr(bba::BoseFS{N,M,A}) where {N,M,A}
-  r = zeros(MVector{M,Int32})
-  address = bba.bs
-  for orbitalnumber in 1:M
-    bosonnumber = Int32(trailing_ones(address))
-    @inbounds r[orbitalnumber] = bosonnumber
-    address >>>= bosonnumber + 1
-    iszero(address) && break
-  end
-  return r
+# Version specialized for multi-chunk addresses.
+@inline function m_onr(::Val{K}, bba::BoseFS{N,M}) where {K,N,M}
+    B = num_bits(bba)
+    result = zeros(MVector{M,Int32})
+    address = bba.bs
+    orbital = 1
+    i = K
+    while true
+        chunk = chunks(address)[i]
+        if iszero(chunk)
+            orbital += 64
+            continue
+        end
+        bits_left = i == 1 && rem64(B) > 0 ? rem64(B) : 64
+        while true
+            bosons = trailing_ones(chunk)
+            @inbounds result[orbital] += unsafe_trunc(Int32, bosons)
+            chunk >>>= bosons
+            # Empty modes part only makes sense for sparse address
+            # It is better than looking for iszero in some cases
+            empty_modes = trailing_zeros(chunk)
+            orbital += empty_modes
+            chunk >>>= empty_modes
+            bits_left -= bosons + empty_modes
+            bits_left > 0 || break
+        end
+        i == 1 && break
+        i -= 1
+        orbital += bits_left
+    end
+    return result
 end
-# for some reason this is slower than the above onr() when benchmarked
-s_onr(arg) = m_onr(arg) |> SVector
 
 """
     BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
