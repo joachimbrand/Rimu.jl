@@ -141,9 +141,9 @@ end
 Base.:⊻(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .⊻ b.chunks)
 Base.:&(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .& b.chunks)
 Base.:|(a::BitAdd{I,B}, b::BitAdd{I,B}) where {I,B} = BitAdd{B}(a.chunks .| b.chunks)
-Base.:~(a::BitAdd{I,B}) where {I,B} = BitAdd{B}(.~a.chunks)
+Base.:~(a::BitAdd{I,B}) where {I,B} = remove_ghost_bits(BitAdd{B}(.~a.chunks))
 
-unsafe_count_ones(a::BitAdd) = mapreduce(count_ones, +, a.chunks)
+unsafe_count_ones(a::BitAdd) = sum(count_ones, a.chunks)
 Base.count_ones(a::BitAdd) = unsafe_count_ones(remove_ghost_bits(a))
 Base.count_zeros(a::BitAdd{I,B}) where {I,B} = B - count_ones(a)
 
