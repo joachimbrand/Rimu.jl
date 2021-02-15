@@ -46,33 +46,34 @@ end
 
 @testset "BitStringAddresses.jl" begin
     # BitAdd
-    bs = BitAdd{40}(0xf342564fff)
-    bs1 = BitAdd{40}(0xf342564ffd)
-    bs2 = BitAdd{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
-    bs3 = BitAdd{44}(0xf342564fff)
-    @test bs > bs1
-    @test !(bs == bs1)
-    @test !(bs < bs1)
-    @test bs2 > bs1
-    @test bs3 > bs
-    @test bs & bs1 == bs1
-    @test bs | bs1 == bs
-    @test bs ⊻ bs1 == BitAdd{40}(2)
-    @test count_ones(bs2) == 105
-    @test count_zeros(bs2) == 39
+    bs1 = BitAdd{40}(0xf342564fff)
+    bs2 = BitAdd{40}(0xf342564ffd)
+    bs3 = BitAdd{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
+    bs4 = BitAdd{44}(0xf342564fff)
+    @test bs1 > bs2
+    @test !(bs1 == bs2)
+    @test !(bs1 < bs2)
+    @test bs3 > bs2
+    @test bs4 > bs1
+    @test bs1 & bs2 == bs2
+    @test bs1 | bs2 == bs1
+    @test bs1 ⊻ bs2 == BitAdd{40}(2)
+    @test ~bs1 == BitAdd{40}(~0xf342564fff)
+    @test count_ones(bs3) == 105
+    @test count_zeros(bs3) == 39
     w = BitAdd{65}((UInt(31),UInt(15)))
     @test_throws ErrorException check_consistency(w)
     @test_throws ErrorException BitAdd((UInt(31),UInt(15)),65)
     wl = BitAdd((UInt(31),UInt(15)),85)
-    @test bs2 == BitAdd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
+    @test bs3 == BitAdd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
     fa = BitAdd{133}()
-    @test trailing_zeros(bs<<3) == 3
+    @test trailing_zeros(bs1<<3) == 3
     @test trailing_ones(fa) == 133
     @test trailing_ones(fa>>100) == 33
     @test trailing_zeros(fa<<100) == 100
     @test leading_zeros(fa>>130) == 130
     @test leading_ones(fa<<130) == 3
-    @test bitstring(bs2) == "000011110011010000100101011001001111111111011111000000001101111111011111110111111101111111011111110111111101111111011111110111111101111111011111"
+    @test bitstring(bs3) == "000011110011010000100101011001001111111111011111000000001101111111011111110111111101111111011111110111111101111111011111110111111101111111011111"
 end
 
 #=
