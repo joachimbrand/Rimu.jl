@@ -717,40 +717,6 @@ using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
     @test energies.σs ≈ 0.005418295257748296
 end
 
-using Rimu.RMPI
-@testset "RMPI" begin
-    m = n = 6
-    aIni = nearUniform(BoseFS{n,m})
-    svec = DVec(aIni => 2, capacity = 10)
-    dv = MPIData(svec)
-    @test ConsistentRNG.check_crng_independence(dv) == mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)
-end
-
-
-# Note: This last test is set up to work on Pipelines, within a Docker
-# container, where everything runs as root. It should also work locally,
-# where typically mpi is not (to be) run as root.
-@testset "MPI" begin
-    wd = pwd() # move to test/ folder if running from Atom
-    if wd[end-3:end] ≠ "test"
-        cd("test")
-    end
-    # read name of mpi executable from environment variable if defined
-    # necessary for allow-run-as root workaround for Pipelines
-    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
-
-    savefile = "mpi_df.arrow"
-    rm(savefile, force = true) # make sure to remove any old file
-
-    rr = run(`$mpiexec -np 2 julia script_mpi_minimum.jl`)
-    @test rr.exitcode == 0
-
-    df = RimuIO.load_df(savefile)
-    rm(savefile) # clean up
-    cd(wd)
-    @test size(df) == (501, 14)
-end
-
 @testset "BoseFS2C" begin
     bfs2c = BoseFS2C(BoseFS((1,2,0,4)),BoseFS((4,0,3,1)))
     @test typeof(bfs2c) == BoseFS2C{7,8,4,BSAdd64,BSAdd64}
@@ -799,4 +765,38 @@ end
 
 @safetestset "KrylovKit" begin
     include("KrylovKit.jl")
+end
+
+using Rimu.RMPI
+@testset "RMPI" begin
+    m = n = 6
+    aIni = nearUniform(BoseFS{n,m})
+    svec = DVec(aIni => 2, capacity = 10)
+    dv = MPIData(svec)
+    @test ConsistentRNG.check_crng_independence(dv) == mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)
+end
+
+
+# Note: This last test is set up to work on Pipelines, within a Docker
+# container, where everything runs as root. It should also work locally,
+# where typically mpi is not (to be) run as root.
+@testset "MPI" begin
+    wd = pwd() # move to test/ folder if running from Atom
+    if wd[end-3:end] ≠ "test"
+        cd("test")
+    end
+    # read name of mpi executable from environment variable if defined
+    # necessary for allow-run-as root workaround for Pipelines
+    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
+
+    savefile = "mpi_df.arrow"
+    rm(savefile, force = true) # make sure to remove any old file
+
+    rr = run(`$mpiexec -np 2 julia script_mpi_minimum.jl`)
+    @test rr.exitcode == 0
+
+    df = RimuIO.load_df(savefile)
+    rm(savefile) # clean up
+    cd(wd)
+    @test size(df) == (501, 14)
 end
