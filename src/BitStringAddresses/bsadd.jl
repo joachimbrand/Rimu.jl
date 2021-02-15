@@ -4,7 +4,7 @@
 Address type that encodes a bistring address in a UInt64.
 """
 struct BSAdd64 <: AbstractBitString
-  add::UInt64
+    add::UInt64
 end
 BSAdd64(bsa::BSAdd64) = bsa
 num_bits(::Type{BSAdd64}) = 64
@@ -16,7 +16,7 @@ chunk_size(::Type{BSAdd64}) = 64
 Address type that encodes a bistring address in a UInt128.
 """
 struct BSAdd128 <: AbstractBitString
-  add::UInt128
+    add::UInt128
 end
 BSAdd128(bsa::BSAdd128) = bsa
 BSAdd128(bsa::BSAdd64) = BSAdd128(bsa.add)
