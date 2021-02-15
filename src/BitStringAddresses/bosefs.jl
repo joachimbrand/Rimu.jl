@@ -284,9 +284,6 @@ end
 bitaddr(onr, ::Type{BSAdd64}) = BSAdd64(bitaddr(onr,UInt64))
 bitaddr(onr, ::Type{BSAdd128}) = BSAdd128(bitaddr(onr,UInt128))
 
-maxBSLength(T::Type{BSAdd64}) = 64
-maxBSLength(T::Type{BSAdd128}) = 128
-
 """
     onr(bs)
 Compute and return the occupation number representation of the bit string

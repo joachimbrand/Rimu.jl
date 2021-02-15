@@ -58,7 +58,7 @@ end
     @test bs1 & bs2 == bs2
     @test bs1 | bs2 == bs1
     @test bs1 ⊻ bs2 == BitAdd{40}(2)
-    @test ~bs1 == BitAdd{40}(~0xf342564fff)
+    @test ~bs1 == BitAdd{40}(~0xf342564fff & ~UInt64(0) >>> 24)
     @test count_ones(bs3) == 105
     @test count_zeros(bs3) == 39
     w = BitAdd{65}((UInt(31),UInt(15)))
