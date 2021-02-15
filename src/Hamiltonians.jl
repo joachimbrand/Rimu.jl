@@ -433,7 +433,7 @@ function BitStringAddresses.nearUniform(h::BosonicHamiltonian)
     fillingfactor, extras = divrem(h.n, h.m)
     startonr = fill(fillingfactor,h.m)
     startonr[1:extras] += ones(Int, extras)
-    return bitaddr(startonr, h.AT)
+    return h.AT(startonr)
 end
 
 ##########################################
@@ -1480,21 +1480,6 @@ returned if the value is smaller than 2^53. Otherwise, an improved Stirling form
 is used.
 """
 fDimensionLO(h::TwoComponentBosonicHamiltonian) = fDimensionLO(h.ha::AbstractHamiltonian)*fDimensionLO(h.hb::AbstractHamiltonian)
-
-# """
-#     nearUniform(ham)
-# Create bitstring address with near uniform distribution of particles
-# across modes for the Hamiltonian `ham`.
-# """
-# function BitStringAddresses.nearUniform(h::BosonicHamiltonian)
-#     fillingfactor, extras = divrem(h.n, h.m)
-#     startonr = fill(fillingfactor,h.m)
-#     startonr[1:extras] += ones(Int, extras)
-#     return bitaddr(startonr, h.AT)
-# end
-
-##########################################
-
 
 # functor definitions need to be done separately for each concrete type
 function (h::TwoComponentBosonicHamiltonian)(s::Symbol)

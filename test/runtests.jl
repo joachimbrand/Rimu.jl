@@ -118,15 +118,15 @@ end
         m = 9,
         u = 6.0,
         t = 1.0,
-        AT = BSAdd64)
+        AT = BoseFS{9,9,BSAdd64})
     @test ham(:dim) == 24310
 
     aIni = Rimu.Hamiltonians.nearUniform(ham)
-    @test aIni == BSAdd64(0x15555)
+    @test aIni == BoseFS{9,9}(BSAdd64(0x15555))
 
     hp = Hops(ham,aIni)
     @test length(hp) == 18
-    @test hp[18][1] == BSAdd64(0x000000000000d555)
+    @test hp[18][1] == BoseFS{9,9}(BSAdd64(0x000000000000d555))
     @test hp[18][2] ≈ -1.4142135623730951
     @test diagME(ham,aIni) == 0
     os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
@@ -227,7 +227,7 @@ end
         m = 9,
         u = 6.0,
         t = 1.0,
-        AT = BSAdd64)
+        AT = BoseFS{9,9,BSAdd64})
     aIni = nearUniform(ham)
     pa = RunTillLastStep(laststep = 100)
 
