@@ -1306,18 +1306,26 @@ function numSandDoccupiedsites(onrep::AbstractArray)
 end
 # this one is faster by about a factor of 2 if you already have the onrep
 
-function numberoccupiedsites(address)
-  # returns the number of occupied sites starting from bitstring address
-  orbitalnumber = 0
-  while !iszero(address)
-    orbitalnumber += 1
-    address >>>= trailing_zeros(address)
-    address >>>= trailing_ones(address)
-  end # while address
-  return orbitalnumber
-end # numberoccupiedsites
-
-numberoccupiedsites(b::BoseFS) = numberoccupiedsites(b.bs)
+function numberoccupiedsites(b::BoseFS)
+    address = b.bs
+    result = 0
+    K = num_chunks(address)
+    last_mask = 1 << (chunk_size(address) - 1)
+    prev_last = 0
+    # This loop compiles away for address<:BSAdd*
+    for i in K:-1:1
+        chunk = chunks(address)[i]
+        # This part handles sites that span across chunk boundaries
+        result -= Int(chunk & prev_last)
+        prev_last = (chunk & last_mask) >> (chunk_size(address) - 1)
+        while !iszero(chunk)
+            chunk >>>= trailing_zeros(chunk)
+            chunk >>>= trailing_ones(chunk)
+            result += 1
+        end
+    end
+    return result
+end
 
 function numberlinkedsites(address)
   # return the number of other walker addresses that are linked in the
