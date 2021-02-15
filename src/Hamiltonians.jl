@@ -1207,22 +1207,33 @@ end #  returns tuple (newaddress, matrixelement)
 Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction
 (without the *U* prefactor.)
 """
-function bosehubbardinteraction(address)
-    # compute bosonnumber * (bosonnumber-1) for the Bose Hubbard Hamiltonian
-    # currently this ammounts to counting occupation numbers of orbitals
-    matrixelementint = 0
-    while !iszero(address)
-        address >>>= trailing_zeros(address) # proceed to next occupied orbital
-        bosonnumber = trailing_ones(address) # count how many bosons inside
-        # surpsingly it is faster to not check whether this is nonzero and do the
-        # following operations anyway
-        address >>>= bosonnumber # remove the countedorbital
-        matrixelementint += bosonnumber * (bosonnumber-1)
+function bosehubbardinteraction(b::BoseFS)
+    address = b.bs
+    result = 0
+    K = num_chunks(address)
+    prev = 0
+    # This loop along with the first if compiles away for address<:BSAdd*
+    for i in K:-1:1
+        chunk = chunks(address)[i]
+        if i ≠ K
+            prev *= (chunks(address)[i + 1] & (UInt64(1) << (chunk_size(address) - 1))) > 0
+            # This part handles sites that span across chunk boundaries.
+            ones = trailing_ones(chunk)
+            chunk >>= ones
+            result -= prev * (prev - 1)
+            prev = ones + prev
+            result += prev * (prev - 1)
+        end
+        while !iszero(chunk)
+            chunk >>>= trailing_zeros(chunk)
+            ones = trailing_ones(chunk)
+            chunk >>>= ones
+            prev = ones
+            result += prev * (prev - 1)
+        end
     end
-    return matrixelementint
-end #bosehubbardinteraction
-
-bosehubbardinteraction(b::BoseFS) = bosehubbardinteraction(b.bs)
+    return result
+end
 
 """
     ebhm(address, m)

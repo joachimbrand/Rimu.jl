@@ -255,12 +255,8 @@ rem64(x) = x & 63
     i = K
     while true
         chunk = chunks(address)[i]
-        if iszero(chunk)
-            orbital += 64
-            continue
-        end
         bits_left = i == 1 && rem64(B) > 0 ? rem64(B) : 64
-        while true
+        while !iszero(chunk)
             bosons = trailing_ones(chunk)
             @inbounds result[orbital] += unsafe_trunc(Int32, bosons)
             chunk >>>= bosons
@@ -268,7 +264,7 @@ rem64(x) = x & 63
             orbital += empty_modes
             chunk >>>= empty_modes
             bits_left -= bosons + empty_modes
-            bits_left > 0 || break
+            #bits_left > 0 || break
         end
         i == 1 && break
         i -= 1
