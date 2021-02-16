@@ -1211,25 +1211,29 @@ function bosehubbardinteraction(b::BoseFS)
     address = b.bs
     result = 0
     K = num_chunks(address)
-    prev = 0
-    # This loop along with the first if compiles away for address<:BSAdd*
+    prev_bosons = 0
+    last_mask = UInt64(1) << (chunk_size(address) - 1) # = 0b100000...
+    prev_top_bit = false
+    # This loop along with the first if-statement compiles away for address<:BSAdd*
     for i in K:-1:1
         chunk = chunks(address)[i]
-        if i ≠ K
-            prev *= (chunks(address)[i + 1] & (UInt64(1) << (chunk_size(address) - 1))) > 0
+        if i ≠ K && prev_top_bit
             # This part handles sites that span across chunk boundaries.
-            ones = trailing_ones(chunk)
-            chunk >>= ones
-            result -= prev * (prev - 1)
-            prev = ones + prev
-            result += prev * (prev - 1)
+            # The idea here is to correct the already computed value, but only if the top bit
+            # in the previous chunk was 1.
+            bosons = trailing_ones(chunk)
+            chunk >>= bosons
+            result -= prev_bosons * (prev_bosons - 1)
+            prev_bosons = bosons + prev_bosons
+            result += prev_bosons * (prev_bosons - 1)
         end
+        prev_top_bit = (chunk & last_mask) > 0
         while !iszero(chunk)
             chunk >>>= trailing_zeros(chunk)
-            ones = trailing_ones(chunk)
-            chunk >>>= ones
-            prev = ones
-            result += prev * (prev - 1)
+            bosons = trailing_ones(chunk)
+            chunk >>>= bosons
+            prev_bosons = bosons
+            result += bosons * (bosons - 1)
         end
     end
     return result
@@ -1321,14 +1325,16 @@ function numberoccupiedsites(b::BoseFS)
     address = b.bs
     result = 0
     K = num_chunks(address)
-    last_mask = 1 << (chunk_size(address) - 1)
-    prev_last = 0
+    last_mask = 1 << (chunk_size(address) - 1) # = 0b100000...
+    prev_top_bit = false
     # This loop compiles away for address<:BSAdd*
     for i in K:-1:1
         chunk = chunks(address)[i]
-        # This part handles sites that span across chunk boundaries
-        result -= Int(chunk & prev_last)
-        prev_last = (chunk & last_mask) >> (chunk_size(address) - 1)
+        # This part handles sites that span across chunk boundaries.
+        # If the previous top bit and the current bottom bit are both 1, we have to subtract
+        # 1 from the result or the mode will be counted twice.
+        result -= (chunk & prev_top_bit) % Int
+        prev_top_bit = (chunk & last_mask) > 0
         while !iszero(chunk)
             chunk >>>= trailing_zeros(chunk)
             chunk >>>= trailing_ones(chunk)
