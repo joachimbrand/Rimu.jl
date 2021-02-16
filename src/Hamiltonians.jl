@@ -1385,10 +1385,10 @@ function hopnextneighbour(address::T, chosen, mmodes, nparticles) where T
             # we are on the last obital, ie. we have to remove the
             # leftmost bit (remove one from tgenerateBHHophat orbital), shift all bits to the right
             # and insert a 1 on the right to add one to the first orbital
-            naddress = ( (address ⊻ (T(1) << (bitcount-1))) << 1 ) | T(1)
+            naddress = ( (address ⊻ (one_bit_mask(T, bitcount-1))) << 1 ) | T(1)
             tones *= (trailing_ones(address) + 1) # mul occupation num of first obital
         else
-            naddress = address ⊻ (T(3) << (bitcount-1)) # shift bit by xor operation
+            naddress = address ⊻ (two_bit_mask(T, bitcount-1)) # shift bit by xor operation
             taddress >>>= 1 # move the next zero out to move the target obital into
             # position
             tones *= (trailing_ones(taddress) + 1) # mul occupation number +1
@@ -1418,10 +1418,10 @@ function hopnextneighbour(address::T, chosen, mmodes, nparticles) where T
                 # orbital to hop into is empty
                 tones = trailing_ones(taddress)
             end
-            naddress = address ⊻ (T(3) << (bitcount-1))
+            naddress = address ⊻ (two_bit_mask(T, bitcount-1))
             # shifts a single one to the right
         else # first orbital: we have to right shift the whole lot
-            naddress = (address >>> 1) | (T(1) << (nparticles + mmodes - 2))
+            naddress = (address >>> 1) | (one_bit_mask(T, nparticles + mmodes - 2))
             #(leading_zeros(zero(T)) - (lzeros = leading_zeros(taddress))-1))
             # adds one on the left after shifting to the right
             #

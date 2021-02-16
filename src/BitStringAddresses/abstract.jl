@@ -43,6 +43,18 @@ Return the chunks of bitstring wrapped in a static array.
 chunks
 
 """
+    one_bit_mask(::Type{T}, pos) where T<:AbstractBitString
+Optional faster way to to `T(1) << pos`.
+"""
+one_bit_mask(::Type{T}, pos) where T = T(1) << pos
+
+"""
+    three_bit_mask(::Type{T}, pos) where T<:AbstractBitString
+Optional faster way to to `T(3) << pos`.
+"""
+two_bit_mask(::Type{T}, pos) where T = T(3) << pos
+
+"""
     AbstractFockAddress
 Supertype representing a Fock state.
 
