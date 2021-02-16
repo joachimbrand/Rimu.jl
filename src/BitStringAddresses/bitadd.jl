@@ -419,3 +419,27 @@ function Base.show(io::IO, ba::BitAdd{I,B}) where {I,B}
   end
   nothing
 end
+
+function one_bit_mask(::Type{BitAdd{N,B}}, pos) where {N,B}
+    chunk = pos >> 6
+    offset = pos & 63
+    nt = ntuple(Val(N)) do i
+        ifelse(i == N - chunk, UInt64(1) << offset, zero(UInt64))
+    end
+    BitAdd{B}(SVector(nt))
+end
+
+function two_bit_mask(::Type{BitAdd{N,B}}, pos) where {N,B}
+    chunk = pos >> 6
+    offset = pos & 63
+    nt = ntuple(Val(N)) do i
+        if i == N - chunk
+            UInt64(3) << offset
+        elseif i == N - chunk - 1
+            UInt64(offset == 63)
+        else
+            zero(UInt64)
+        end
+    end
+    BitAdd{B}(SVector(nt))
+end
