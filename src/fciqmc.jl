@@ -445,7 +445,7 @@ Prepare shift according to `StochasticStyle`. Passes through `shift` except for
 population is computed from a complex shift argument.
 """
 prep_shift(::StochasticStyle, shift, pnorm) = shift # default
-function prep_shift(::IsStochastic2PopRealShift, shift, pnorm)
+function prep_shift(::DictVectors.IsStochastic2PopRealShift, shift, pnorm)
     return if abs(real(pnorm)*imag(pnorm)) > 1
         (
         r = real(shift) - imag(shift)*imag(pnorm)/real(pnorm),
