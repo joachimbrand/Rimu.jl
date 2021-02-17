@@ -274,6 +274,104 @@ rem64(x) = x & 63
 end
 
 """
+    occupied_orbitals(b)
+Iterate over occupied orbitals in `BoseFS` address. Returns tuples of
+`(boson_number, orbital_number, bit_offset)`.
+
+Note that the `bit_offset` is zero-based!
+
+# Example
+
+```jldoctest
+julia> b = BoseFS((1,5,0,4))
+julia> for (n, i) in occupied_orbitals(bose)
+    @show n, i
+end
+(n, i) = (1, 1)
+(n, i) = (5, 2)
+(n, i) = (4, 4)
+
+"""
+struct OccupiedOrbitalIterator{B,A}
+    address::A
+end
+
+function occupied_orbitals(b::BoseFS{N,M,A}) where {N,M,A}
+    return OccupiedOrbitalIterator{N + M - 1, A}(b.bs)
+end
+
+@inline function Base.iterate(osi::OccupiedOrbitalIterator)
+    empty_orbitals = trailing_zeros(osi.address)
+    return iterate(osi, (osi.address >> empty_orbitals, empty_orbitals, 1 + empty_orbitals))
+end
+@inline function Base.iterate(osi::OccupiedOrbitalIterator, (chunk, bit, orbital))
+    if iszero(chunk)
+        return nothing
+    else
+        bosons = trailing_ones(chunk)
+        chunk >>>= (bosons % UInt)
+        empty_orbitals = trailing_zeros(chunk)
+        chunk >>>= (empty_orbitals % UInt)
+        next_bit = bit + bosons + empty_orbitals
+        return (bosons, orbital, bit), (chunk, next_bit, orbital + empty_orbitals)
+    end
+end
+
+@inline function Base.iterate(osi::OccupiedOrbitalIterator{B,<:BitAdd}) where B
+    address = osi.address
+    i = num_chunks(address)
+    chunk = chunks(address)[i]
+    bits_left = i == 1 && rem64(B) > 0 ? rem64(B) : 64
+    orbital = 1
+    return iterate(osi, (i, chunk, bits_left, orbital))
+end
+@inline function Base.iterate(
+    osi::OccupiedOrbitalIterator{B,<:BitAdd}, (i, chunk, bits_left, orbital)
+) where {B}
+    i < 1 && return nothing
+    address = osi.address
+    bit_position = 0
+
+    # Remove and count trailing zeros.
+    empty_orbitals = min(trailing_zeros(chunk), bits_left)
+    chunk >>>= empty_orbitals % UInt
+    bits_left -= empty_orbitals
+    orbital += empty_orbitals
+    while bits_left < 1
+        i -= 1
+        i < 1 && return nothing
+        @inbounds chunk = chunks(address)[i]
+        bits_left = (i == 1 && rem64(B) > 0 ? rem64(B) : 64)
+        empty_orbitals = min(bits_left, trailing_zeros(chunk))
+        orbital += empty_orbitals
+        bits_left -= empty_orbitals
+        chunk >>>= empty_orbitals % UInt
+    end
+
+    bit_position = 64 - bits_left + 64 * (num_chunks(address) - i)
+
+    # Remove and count trailing ones.
+    result = 0
+    bosons = trailing_ones(chunk)
+    bits_left -= bosons
+    chunk >>>= bosons % UInt
+    result += bosons
+    while bits_left < 1
+        i -= 1
+        i < 1 && break #return (result, orbital), (0, chunk, 0, 0)
+        @inbounds chunk = chunks(address)[i]
+        bits_left = (i == 1 && rem64(B) > 0 ? rem64(B) : 64)
+
+        bosons = trailing_ones(chunk)
+        bits_left -= bosons
+        result += bosons
+        chunk >>>= bosons % UInt
+    end
+    return (result, orbital, bit_position), (i, chunk, bits_left, orbital)
+end
+
+
+"""
     BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
 
 Address type that constructed with two [`BoseFS{N,M,A}`](@ref). It represents a
