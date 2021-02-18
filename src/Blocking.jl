@@ -9,11 +9,13 @@ implemented based on Jonsson (Phys. Rev. E 98, 043304, (2018)).
 module Blocking
 
 using DataFrames, Statistics
+import Measurements
 
 export autocovariance, covariance
 export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
 export growthWitness, gW, smoothen
+export block_and_test, mean_and_se, mean_pm_se
 
 # """
 # Calculate the variance of the dataset v
@@ -49,7 +51,7 @@ Reblock the data by successively taking the mean of two adjacent data points to
 form a new vector with a half of the `length(v)`. The last data point will be
 discarded if `length(v)` is odd.
 """
-function blocker(v::Vector{T}) where T
+function blocker(v::AbstractVector{T}) where T
     P = promote_type(T, Float64)
     new_v = Array{P}(undef,(length(v)÷2))
     for i  in 1:length(v)÷2
@@ -109,7 +111,7 @@ Calculate the autocovariance of dataset `v` with a delay `h`. If `corrected` is 
 (the default) then the sum is scaled with `n-h`, whereas the sum
 is scaled with `n` if corrected is `false` where `n = length(v)`.
 """
-function autocovariance(v::Vector,h::Int; corrected::Bool=true)
+function autocovariance(v::AbstractVector,h::Int; corrected::Bool=true)
     n = length(v)
     mean_v = mean(v)
     covsum = zero(mean_v)
@@ -132,7 +134,7 @@ If `corrected` is `true` (the default) then the sum in `var` is scaled
 with `n-1` and in `autocovariance` is scaled with `n-h`, whereas the sum
 is scaled with `n` for both if corrected is `false` where `n = length(v)`.
 """
-function blocking(v::Vector{T}; corrected::Bool=true) where T
+function blocking(v::AbstractVector{T}; corrected::Bool=true) where T
     P = promote_type(T, Float64)
     df = DataFrame(blocks = Int[], mean = P[], stdev = Float64[],
                     std_err = Float64[], std_err_err = Float64[], gamma = P[], M = P[])
@@ -152,13 +154,118 @@ function blocking(v::Vector{T}; corrected::Bool=true) where T
 end
 
 """
+    blocks_with_m(v; corrected = true) -> (;blocks, mean, std_err, std_err_err, mj)
+Perform the blocking algorithm from Flyvberg and Peterson
+[JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480).
+Returns named tuple with the results from all blocking steps.
+"""
+@inline function blocks_with_m(v::AbstractVector{<:Real}; corrected::Bool=true)
+    n_steps = floor(Int,log2(length(v)))
+
+    # initialise arrays to be returned
+    blocks = Vector{Int}(undef,n_steps)
+    mean_arr = Vector{Float64}(undef,n_steps)
+    std_err = Vector{Float64}(undef,n_steps)
+    std_err_err = Vector{Float64}(undef,n_steps)
+    mj = Vector{Float64}(undef,n_steps)
+
+    for i in 1:n_steps
+        n = length(v)
+        blocks[i] = n
+        mean_v = mean(v)
+        mean_arr[i] = mean_v
+        variance = var(v; corrected=corrected, mean=mean_v) # variance
+        gamma = autocovariance(v,1; corrected=corrected) # sample covariance ŷ(1) Eq. (6) [Jonsson]
+        mj[i] = n*((n-1)*variance/(n^2)+gamma)^2/(variance^2) # the M value Eq. (12) [Jonsson]
+        stderr_v = sqrt(variance/n)# standard error
+        std_err[i] = stderr_v
+        std_err_err[i] = stderr_v/sqrt(2*(n-1)) # error on standard error Eq. (28) [F&P]
+        v = blocker(v) # re-blocking the dataset
+    end
+    (length(v)≤ 0 || length(v)>2) && @error "Something went wrong in `blocks_with_m`."
+    return (;blocks, mean=mean_arr, std_err, std_err_err, mj)
+end
+
+struct BlockingResult
+    mean::Float64
+    err::Float64
+    err_err::Float64
+    k::Int
+end
+
+"""
+    measurement(r::BlockingResult)
+    ±(r::BlockingResult)
+Convert a `BlockingResult` into a `Measurement`.
+"""
+Measurements.measurement(r::BlockingResult) = Measurements.measurement(r.mean, r.err)
+
+"""
+    block_and_test(v; corrected = true) -> BlockingResult(mean, err, err_err, k)
+Compute the sample mean `mean` and estimate the standard deviation of the mean
+(standard error) `err` of a correlated time series using the blocking algorithm from
+Flyvberg and Peterson [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480)
+and the M test of Jonsson
+[PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304). `k` is the number of
+blocking transformations required to pass the hypothesis test for an uncorrelated time
+series and `err_err` the estimated standard error or `err`. If decorrelating the
+time series fails according to the M test, `NaN` is returned as the standard error and `-1`
+for `k`.
+`corrected` controls whether
+bias correction for variances is used.
+"""
+function block_and_test(v::AbstractVector{<:Real}; corrected::Bool=true)
+    if length(v) == 0
+        @error "Attempted blocking on an empty vector"
+    elseif length(v) == 1 # treat like failed M test
+        return BlockingResult(v[1], NaN, NaN, -1)
+    else
+        nt = blocks_with_m(v; corrected)
+        k = mtest(nt.mj; warn=false)
+        mean = nt.mean[1]
+        if k > 0
+            err = nt.std_err[k]
+            err_err = nt.std_err_err[k]
+        else
+            err = NaN
+            err_err = NaN
+        end
+        return BlockingResult(mean, err, err_err, k)
+    end
+    return BlockingResult(0.0, NaN, NaN, -1)
+end
+
+"""
+    mean_and_se(v; corrected = true) -> (mean, err)
+Return the mean and estimated standard error from an automated blocking analysis as a tuple.
+See [`block_and_test`](@ref).
+`corrected` controls whether
+bias correction for variances is used.
+"""
+function mean_and_se(v::AbstractVector{<:Real}; corrected::Bool=true)
+    br = block_and_test(v; corrected)
+    return (br.mean, br.err)
+end
+
+"""
+    mean_pm_se(v; corrected = true) -> mean ± err
+Return the mean and estimated standard error from an automated blocking analysis as a
+[`Measurement`](@ref). See [`block_and_test`](@ref).
+`corrected` controls whether
+bias correction for variances is used.
+"""
+function mean_pm_se(v::AbstractVector{<:Real}; corrected::Bool=true)
+    return Measurements.measurement(block_and_test(v; corrected))
+end
+
+"""
     covariance(x::Vector,y::Vector; corrected::Bool=true)
 Calculate the covariance between the two data sets `x` and `y` with equal length.
 If `corrected` is `true` (the default) then the sum is scaled with
  `n-1`, whereas the sum is scaled with `n` if corrected is `false`
  where `n = length(x) = length(y)`.
 """
-function covariance(vi::Vector,vj::Vector; corrected::Bool=true)
+function covariance(vi::AbstractVector,vj::AbstractVector; corrected::Bool=true)
     # if length(vi) != length(vj)
     #     @warn "Two data sets with non-equal length! Truncating the longer one."
     #     if length(vi) > length(vj)
@@ -307,6 +414,9 @@ If the M-test has failed `mtest()` returns the value `-1` and optionally prints
 a warning message.
 """
 function mtest(df::DataFrame; warn = true)
+    return mtest(df.M; warn)
+end
+function mtest(mj::AbstractVector; warn = true)
     # the χ^2 99 percentiles
     q = [6.634897,  9.210340,  11.344867, 13.276704, 15.086272,
         16.811894, 18.475307, 20.090235, 21.665994, 23.209251,
@@ -314,12 +424,11 @@ function mtest(df::DataFrame; warn = true)
         31.999927, 33.408664, 34.805306, 36.190869, 37.566235,
         38.932173, 40.289360, 41.638398, 42.979820, 44.314105,
         45.641683, 46.962942, 48.278236, 49.587884, 50.892181]
-    Mj = df.M
-    M = reverse(cumsum(reverse(Mj)))
+    m = reverse(cumsum(reverse(mj)))
     #println(M)
     k = 1
-    while k <= length(M)-1
-       if M[k] < q[k]
+    while k <= length(m)-1
+       if m[k] < q[k]
            # if info
            #     stder = round(df.std_err[k],digits=3)
            #     stderer = round(df.std_err_err[k],digits=3)
