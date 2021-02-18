@@ -627,7 +627,7 @@ end
 # The off-diagonal matrix elements of the 1D Hubbard chain are the same for
 # the extended and original Bose-Hubbard model.
 
-BoseHubbardExtOrNot = Union{ExtendedBHReal1D, BoseHubbardReal1D}
+const BoseHubbardExtOrNot = Union{ExtendedBHReal1D, BoseHubbardReal1D}
 # type alias for convenience
 
 """
@@ -646,8 +646,7 @@ Compute matrix element of `hamiltonian` and new address of a single hop from
 address `add` with integer index `chosen`.
 """
 function hop(ham::BoseHubbardExtOrNot, add, chosen::Integer)
-    naddress, onproduct = hopnextneighbour(add, chosen,
-        ham.m, ham.n)
+    naddress, onproduct = hopnextneighbour(add, chosen)
     return naddress, - ham.t*sqrt(onproduct)
     # return new address and matrix element
 end
@@ -1208,33 +1207,9 @@ Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction
 (without the *U* prefactor.)
 """
 function bosehubbardinteraction(b::BoseFS)
-    address = b.bs
     result = 0
-    K = num_chunks(address)
-    prev_bosons = 0
-    last_mask = UInt64(1) << (chunk_size(address) - 1) # = 0b100000...
-    prev_top_bit = false
-    # This loop along with the first if-statement compiles away for address<:BSAdd*
-    for i in K:-1:1
-        chunk = chunks(address)[i]
-        if i ≠ K && prev_top_bit
-            # This part handles sites that span across chunk boundaries.
-            # The idea here is to correct the already computed value, but only if the top bit
-            # in the previous chunk was 1.
-            bosons = trailing_ones(chunk)
-            chunk >>= bosons
-            result -= prev_bosons * (prev_bosons - 1)
-            prev_bosons = bosons + prev_bosons
-            result += prev_bosons * (prev_bosons - 1)
-        end
-        prev_top_bit = (chunk & last_mask) > 0
-        while !iszero(chunk)
-            chunk >>>= trailing_zeros(chunk)
-            bosons = trailing_ones(chunk)
-            chunk >>>= bosons
-            prev_bosons = bosons
-            result += bosons * (bosons - 1)
-        end
+    for (n, _) in occupied_orbitals(b)
+        result += n * (n - 1)
     end
     return result
 end
@@ -1287,25 +1262,18 @@ ebhm(b::BoseFS{N,M,A})  where {N,M,A} = ebhm(b, M)
     singlies, doublies = numSandDoccupiedsites(address)
 Returns the number of singly and doubly occupied sites for a bosonic bit string address.
 """
-function numSandDoccupiedsites(address)
-  # returns number of singly and doubly occupied sites
-  singlies = 0
-  doublies = 0
-  while !iszero(address)
-    singlies += 1
-    address >>>= trailing_zeros(address)
-    occupancy = trailing_ones(address)
-    if occupancy > 1
-      doublies += 1
+function numSandDoccupiedsites(b::BoseFS)
+    singlies = 0
+    doublies = 0
+    for (n, _, _) in occupied_orbitals(b)
+        singlies += 1
+        doublies += n > 1
     end
-    address >>>= occupancy
-  end # while address
-  return singlies, doublies
+    return singlies, doublies
 end
 
-numSandDoccupiedsites(b::BoseFS) = numSandDoccupiedsites(b.bs)
-
 function numSandDoccupiedsites(onrep::AbstractArray)
+  # this one is faster by about a factor of 2 if you already have the onrep
   # returns number of singly and doubly occupied sites
   singlies = 0
   doublies = 0
@@ -1319,9 +1287,9 @@ function numSandDoccupiedsites(onrep::AbstractArray)
   end
   return singlies, doublies
 end
-# this one is faster by about a factor of 2 if you already have the onrep
 
 function numberoccupiedsites(b::BoseFS)
+    # This version is faster than using the occupied_sites iterator
     address = b.bs
     result = 0
     K = num_chunks(address)
@@ -1352,92 +1320,61 @@ function numberlinkedsites(address)
 end
 
 """
-    naddress, onproduct = hopnextneighbour(add, chosen, m, n)
+    naddress, onproduct = hopnextneighbour(add, chosen)
 
 Compute the new address of a hopping event for the Bose-Hubbard model.
 Returns the new address and the product of occupation numbers of the involved
 orbitals.
 """
-function hopnextneighbour(address::T, chosen, mmodes, nparticles) where T
-    # compute the address of a hopping event defined by chosen
-    # Take care of the type of address
-    site = (chosen + 1) >>> 1 # integer divide by 2 to find the orbital to hop from
-    taddress = address # make copy for counting
-    if isodd(chosen) #last bit; moves a boson to the right in the OCC_NUM_REP
-        # move one bit to the left
-        orbcount = 1 # count all orbitals; gives number of current one
-        occcount = 0 # count occupied orbitals to identify the one that needs work
-        bitcount = 0 # count position in bitstring
-        while occcount < site
-            tzeros = trailing_zeros(taddress)
-            bitcount += tzeros
-            orbcount += tzeros
-            taddress >>>= tzeros
-            occcount += 1
-            tones = trailing_ones(taddress)
-            bitcount += tones
-            taddress >>>= tones
-            # leaves taddress in a state where orbcount occupied orbitals have been
-            # removed; bitcount points to the last one removed
-            # 'tones' contains the occupation number of orbital 'site'
+function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
+    address = b.bs
+    site = (chosen + 1) >>> 1
+    if iseven(chosen) # hopping to the right
+        next = 0
+        curr = 0
+        offset = 0
+        sc = 0
+        reached_end = false
+        for (i, (num, sn, bit)) in enumerate(occupied_orbitals(b))
+            next = num * (sn == sc + 1) # only set next to > 0 if sites are neighbours
+            reached_end = i == site + 1
+            reached_end && break
+            curr = num
+            offset = bit + num
+            sc = sn
         end
-        if orbcount == mmodes
-            # we are on the last obital, ie. we have to remove the
-            # leftmost bit (remove one from tgenerateBHHophat orbital), shift all bits to the right
-            # and insert a 1 on the right to add one to the first orbital
-            naddress = ( (address ⊻ (one_bit_mask(T, bitcount-1))) << 1 ) | T(1)
-            tones *= (trailing_ones(address) + 1) # mul occupation num of first obital
+        if !reached_end
+            new_address = ((address ⊻ (one_bit_mask(A, offset-1))) << 1) | A(1)
+            prod = curr * (trailing_ones(address) + 1) # mul occupation num of first obital
         else
-            naddress = address ⊻ (two_bit_mask(T, bitcount-1)) # shift bit by xor operation
-            taddress >>>= 1 # move the next zero out to move the target obital into
-            # position
-            tones *= (trailing_ones(taddress) + 1) # mul occupation number +1
+            new_address = address ⊻ two_bit_mask(A, offset - 1)
+            prod = curr * (next + 1)
         end
-    else # isodd(chosen): chosen is even (last bit not set); move boson left
-        # move one bit to the right
-        if site > 1 || iseven(address)
-            bitcount = 0
-            tzeros = trailing_zeros(taddress)
-            bitcount += tzeros
-            taddress >>>= tzeros
-            orbcount = 1
-            tones = 0
-            while orbcount < site
-                tones = trailing_ones(taddress)
-                bitcount += tones
-                taddress >>>= tones
-                tzeros = trailing_zeros(taddress)
-                bitcount += tzeros
-                taddress >>>= tzeros
-                orbcount += 1
+    elseif isodd(chosen) # hopping to the left
+        if site == 1 && isodd(address)
+            # For leftmost site, we shift the whole address circularly by one bit.
+            new_address = (address >>> 1) | (one_bit_mask(A, N + M - 2))
+            # The bit twiddling is esentially taking leading ones of an address.
+            prod = trailing_ones(address) * leading_ones(
+                new_address << (sizeof(A) * 8 - N - M + 1)
+            )
+        else
+            prev = 0
+            curr = 0
+            offset = 0
+            sp = 0
+            for (i, (num, sc, bit)) in enumerate(occupied_orbitals(b))
+                curr = num
+                offset = bit
+                i == site && break
+                prev = num * (sc == sp + 1) # only set prev to > 0 if sites are neighbours
+                sp = sc
             end
-            if tzeros == 1
-                # tones now contains occ number of orbital to hop into
-                tones = (tones + 1)*trailing_ones(taddress)
-            else
-                # orbital to hop into is empty
-                tones = trailing_ones(taddress)
-            end
-            naddress = address ⊻ (two_bit_mask(T, bitcount-1))
-            # shifts a single one to the right
-        else # first orbital: we have to right shift the whole lot
-            naddress = (address >>> 1) | (one_bit_mask(T, nparticles + mmodes - 2))
-            #(leading_zeros(zero(T)) - (lzeros = leading_zeros(taddress))-1))
-            # adds one on the left after shifting to the right
-            #
-            # leading_zeros(zero(T)) is the number of bits in the address
-            # it looks a bit ugly but should be fast because the compiler
-            # can replace it by a number at compile time
-            tones = trailing_ones(taddress) * (leading_ones(
-                naddress << (leading_zeros(zero(T)) - nparticles - mmodes + 1)))
+            new_address = address ⊻ two_bit_mask(A, offset - 1)
+            prod = (curr + 1) * prev
         end
     end
-    return naddress, tones # return new address and product of occupation numbers
-end
-
-function hopnextneighbour(address::BoseFS{N,M,A}, chosen, _, _) where {N,M,A}
-  nbs, tones = hopnextneighbour(address.bs, chosen, M, N)
-  return BoseFS{N,M,A}(nbs), tones
+    return BoseFS{N,M,A}(new_address), prod
 end
 
 ##########################################
@@ -1590,12 +1527,12 @@ function hop(ham::BoseHubbardReal1D2C, add, chosen::Integer)
     nhops = numOfHops(ham,add)
     nhops_a = 2*numberoccupiedsites(add.bsa)
     if chosen in 1:nhops_a
-        naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen, ham.ha.m, ham.ha.n)
+        naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen)
         elem = - ham.ha.t*sqrt(onproduct)
         return BoseFS2C(naddress_from_bsa,add.bsb), elem
     elseif chosen in nhops_a+1:nhops
         chosen -= nhops_a
-        naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen, ham.hb.m, ham.hb.n)
+        naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen)
         elem = - ham.hb.t*sqrt(onproduct)
         return BoseFS2C(add.bsa,naddress_from_bsb), elem
     end
