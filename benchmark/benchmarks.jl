@@ -2,7 +2,7 @@ using Rimu
 using BenchmarkTools
 
 const SUITE = BenchmarkGroup()
-const SKIP = []
+const SKIP = ["bench_micro.jl"]
 
 for file in readdir(@__DIR__)
     if file in SKIP
