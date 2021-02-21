@@ -119,11 +119,11 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction
         (bosons, orbital, bit), st = iterate(occupied_orbitals(middle_full))
         @test bosons == 1
         @test orbital == 2
-        @test bit = 1
+        @test bit == 1
         (bosons, orbital, bit), st = iterate(occupied_orbitals(middle_full), st)
         @test bosons == 66
         @test orbital == 63
-        @test bit = 63
+        @test bit == 63
         @test isnothing(iterate(occupied_orbitals(middle_full), st))
     end
 
