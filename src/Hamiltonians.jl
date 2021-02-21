@@ -1329,7 +1329,7 @@ orbitals.
 function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
     address = b.bs
     site = (chosen + 1) >>> 1
-    if iseven(chosen) # hopping to the right
+    if isodd(chosen) # hopping to the right
         next = 0
         curr = 0
         offset = 0
@@ -1350,14 +1350,19 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
             new_address = address ⊻ two_bit_mask(A, offset - 1)
             prod = curr * (next + 1)
         end
-    elseif isodd(chosen) # hopping to the left
+    else # hopping to the left
         if site == 1 && isodd(address)
             # For leftmost site, we shift the whole address circularly by one bit.
             new_address = (address >>> 1) | (one_bit_mask(A, N + M - 2))
-            # The bit twiddling is esentially taking leading ones of an address.
-            prod = trailing_ones(address) * leading_ones(
-                new_address << (sizeof(A) * 8 - N - M + 1)
-            )
+            # BitAdd is aware of how many bits it has, so it can use leading_ones directly.
+            # TODO: should BSAdd64/128 also be aware of this?
+            if address isa BitAdd
+                prod = trailing_ones(address) * leading_ones(new_address)
+            else
+                prod = trailing_ones(address) * leading_ones(
+                    new_address << (sizeof(A) * 8 - N - M + 1)
+                )
+            end
         else
             prev = 0
             curr = 0

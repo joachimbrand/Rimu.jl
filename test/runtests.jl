@@ -15,65 +15,6 @@ using SafeTestsets
     @test 3==3
 end
 
-@testset "Blocking.jl" begin
-    n=10
-    a = rand(n)
-    m = mean(a)
-    @test m == sum(a)/n
-    myvar(a,m) = sum((a .- m).^2)/n
-    @test var(a) == sum((a .- m).^2)/(n-1)
-    @test var(a, corrected=false) == sum((a .- m).^2)/n == myvar(a,m)
-    @test var(a, corrected=false) == var(a, corrected=false, mean = m)
-    # @benchmark myvar($a, $m)
-    # @benchmark var($a, corrected=false, mean = $m)
-    # evaluating the above shows that the library function is faster and avoids
-    # memory allocations completely
-
-    # test se
-    a = collect(1:10)
-    @test Rimu.Blocking.se(a) ≈ 0.9574271077563381
-    @test Rimu.Blocking.se(a;corrected=false) ≈ 0.9082951062292475
-    # test autocovariance
-    @test autocovariance(a,1) ≈ 6.416666666666667
-    @test autocovariance(a,1;corrected=false) ≈ 5.775
-    # test covariance
-    b = collect(2:11)
-    @test covariance(a,b) ≈ 9.166666666666666
-    @test covariance(a,b;corrected=false) ≈ 8.25
-    c = collect(2:20) # should be truncated
-    @test covariance(a,b) == covariance(a,c)
-    @test covariance(a,b;corrected=false) == covariance(a,c;corrected=false)
-
-    # Define the initial Fock state with n particles and m modes
-    n = m = 9
-    aIni = nearUniform(BoseFS{n,m})
-    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    pa = RunTillLastStep(laststep = 1000)
-
-    # standard fciqmc
-    s = DoubleLogUpdate(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
-    StochasticStyle(svec)
-    vs = copy(svec)
-    r_strat = EveryTimeStep(projector = copytight(svec))
-    τ_strat = ConstantTimeStep()
-
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat = r_strat,
-        τ_strat = τ_strat, wm = similar(vs)
-    ).df
-    r = autoblock(rdfs, start=101)
-    @test all(Tuple(r).≈(-5.459498724286854, 0.19512207462981085, -6.474791532530609, 0.5301321595206501, 6))
-
-    g = growthWitness(rdfs, b=50)
-    # @test sum(g) ≈ -5725.3936298329545
-    @test length(g) == nrow(rdfs)
-    g = growthWitness(rdfs, b=50, pad = :false)
-    @test length(g) == nrow(rdfs) - 50
-    @test_throws AssertionError growthWitness(rdfs.norm, rdfs.shift[1:end-1],rdfs.dτ[1])
-end
-
 @safetestset "BitStringAddresses" begin
     include("BitStringAddresses.jl")
 end
@@ -133,10 +74,10 @@ end
     @test Rimu.Hamiltonians.bosehubbardinteraction(os) == 148
     @test Rimu.Hamiltonians.ebhm(os) == (53, 148)
     @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
-    hnnn = Rimu.Hamiltonians.hopnextneighbour(0xf342564fff,3,16,25)
-    bs = BitAdd{40}(0xf342564fff)
-    hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3,16,25)
-    @test BitAdd{40}(hnnn[1]) == hnnbs[1]
+    hnnn = Rimu.Hamiltonians.hopnextneighbour(BoseFS(BSAdd64(0xf342564fff), 40),3)
+    bs = BoseFS(BitAdd{40}(0xf342564fff))
+    hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3)
+    @test hnnn[1].bs.add == hnnbs[1].bs.chunks[1]
 
     svec = DVec(Dict(aIni => 2.0), ham(:dim))
     v2 = ham(svec)
@@ -655,6 +596,66 @@ end
     @time nt = lomc!(Ĥ, copy(svec); params, s_strat, r_strat)
 
 end
+
+@testset "Blocking.jl" begin
+    n=10
+    a = rand(n)
+    m = mean(a)
+    @test m == sum(a)/n
+    myvar(a,m) = sum((a .- m).^2)/n
+    @test var(a) == sum((a .- m).^2)/(n-1)
+    @test var(a, corrected=false) == sum((a .- m).^2)/n == myvar(a,m)
+    @test var(a, corrected=false) == var(a, corrected=false, mean = m)
+    # @benchmark myvar($a, $m)
+    # @benchmark var($a, corrected=false, mean = $m)
+    # evaluating the above shows that the library function is faster and avoids
+    # memory allocations completely
+
+    # test se
+    a = collect(1:10)
+    @test Rimu.Blocking.se(a) ≈ 0.9574271077563381
+    @test Rimu.Blocking.se(a;corrected=false) ≈ 0.9082951062292475
+    # test autocovariance
+    @test autocovariance(a,1) ≈ 6.416666666666667
+    @test autocovariance(a,1;corrected=false) ≈ 5.775
+    # test covariance
+    b = collect(2:11)
+    @test covariance(a,b) ≈ 9.166666666666666
+    @test covariance(a,b;corrected=false) ≈ 8.25
+    c = collect(2:20) # should be truncated
+    @test covariance(a,b) == covariance(a,c)
+    @test covariance(a,b;corrected=false) == covariance(a,c;corrected=false)
+
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    pa = RunTillLastStep(laststep = 1000)
+
+    # standard fciqmc
+    s = DoubleLogUpdate(targetwalkers = 100)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    r_strat = EveryTimeStep(projector = copytight(svec))
+    τ_strat = ConstantTimeStep()
+
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat = r_strat,
+        τ_strat = τ_strat, wm = similar(vs)
+    ).df
+    r = autoblock(rdfs, start=101)
+    @test all(Tuple(r).≈(-5.459498724286854, 0.19512207462981085, -6.474791532530609, 0.5301321595206501, 6))
+
+    g = growthWitness(rdfs, b=50)
+    # @test sum(g) ≈ -5725.3936298329545
+    @test length(g) == nrow(rdfs)
+    g = growthWitness(rdfs, b=50, pad = :false)
+    @test length(g) == nrow(rdfs) - 50
+    @test_throws AssertionError growthWitness(rdfs.norm, rdfs.shift[1:end-1],rdfs.dτ[1])
+end
+
 
 using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
 @testset "EmbarrassinglyDistributed" begin

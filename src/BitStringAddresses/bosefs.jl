@@ -113,15 +113,8 @@ end
 @inline function BoseFS{BitAdd}(
     onr::T,::Val{N},::Val{M},::Val{B}
 ) where {N,M,B,T<:Union{AbstractVector,Tuple}}
-    @boundscheck  N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
-    bs = BitAdd{B}(0) # empty bitstring
-    for i in length(onr):-1:1
-        on = onr[i]
-        bs <<= on+1
-        bs |= BitAdd{B}()>>(B-on)
-    end
     I = (B-1) ÷ 64 + 1 # number of UInt64s needed
-    return BoseFS{N,M,BitAdd{I,B}}(bs)
+    return BoseFS{BitAdd{I,B}}(onr, Val(N), Val(M), Val(B))
 end
 
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
@@ -348,7 +341,8 @@ end
         chunk >>>= empty_orbitals % UInt
     end
 
-    bit_position = 64 - bits_left + 64 * (num_chunks(address) - i)
+    # TODO clean this up
+    bit_position = (i == 1 && rem64(B) > 0 ? rem64(B) : 64) - bits_left + 64 * (num_chunks(address) - i)
 
     # Remove and count trailing ones.
     result = 0
