@@ -114,6 +114,7 @@ function check_consistency(a::BitAdd{I,B}) where {I,B}
   a # nothing
 end
 
+
 """
     remove_ghost_bits(bs)
 Remove set bits outside data field if any are present.
@@ -126,10 +127,14 @@ function remove_ghost_bits(a::BitAdd{I,B}) where {I,B}
   return BitAdd{B}(SVector(madd))
 end
 
+rem64(n) = n & 63
+div64(n) = n >>> 0x6
+
 num_chunks(::Type{BitAdd{I,B}}) where {I,B} = I
 num_bits(::Type{BitAdd{I,B}}) where {I,B} = B
 chunk_size(::Type{<:BitAdd}) = 64
 chunks(b::BitAdd) = b.chunks
+chunk_bits(a::BitAdd{I,B}, i) where {I,B} = ifelse(i == 1, 64 - B ÷ 64, 64)
 
 # comparison check number of bits and then compares the tuples
 Base.isless(a::T, b::T) where T<:BitAdd = isless(a.chunks, b.chunks)

@@ -7,6 +7,7 @@ using Rimu
 using Rimu.Hamiltonians: kinetic_energy, numberoccupiedsites
 using BenchmarkTools
 using Random
+using StaticArrays
 
 suite = BenchmarkGroup()
 suite["diagME"] = BenchmarkGroup()
@@ -30,21 +31,11 @@ end
 Generate random address.
 """
 function Base.rand(::Type{<:BoseFS{N,M}}) where {N,M}
-    B = N + M - 1
-    if B ≤ 64
-        T = BSAdd64
-    elseif B ≤ 128
-        T = BSAdd128
-    else
-        T = BitAdd{B}
+    onr = zeros(MVector{M,Int})
+    for _ in 1:N
+        onr[rand(1:M)] += 1
     end
-    addr = T(0)
-    while count_ones(addr) < N
-        i = rand(1:B)
-        flip = T(1) << (i - 1)
-        addr |= flip
-    end
-    return BoseFS{N,M}(addr)
+    return BoseFS{N,M}(SVector(onr))
 end
 
 Random.seed!(1337)

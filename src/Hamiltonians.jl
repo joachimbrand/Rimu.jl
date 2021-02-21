@@ -1206,12 +1206,31 @@ end #  returns tuple (newaddress, matrixelement)
 Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction
 (without the *U* prefactor.)
 """
-function bosehubbardinteraction(b::BoseFS)
+function bosehubbardinteraction(b::BoseFS{<:Any,<:Any,A}) where A
+    return bosehubbardinteraction(Val(num_chunks(A)), b)
+end
+
+@inline function bosehubbardinteraction(_, b::BoseFS)
     result = 0
-    for (n, _) in occupied_orbitals(b)
+    for (n, _, _) in occupied_orbitals(b)
         result += n * (n - 1)
     end
     return result
+end
+
+@inline function bosehubbardinteraction(::Val{1}, b::BoseFS)
+    # currently this ammounts to counting occupation numbers of orbitals
+    chunk = chunks(b.bs)[1]
+    matrixelementint = 0
+    while !iszero(chunk)
+        chunk >>>= trailing_zeros(chunk) # proceed to next occupied orbital
+        bosonnumber = trailing_ones(chunk) # count how many bosons inside
+        # surpsingly it is faster to not check whether this is nonzero and do the
+        # following operations anyway
+        chunk >>>= bosonnumber # remove the countedorbital
+        matrixelementint += bosonnumber * (bosonnumber - 1)
+    end
+    return matrixelementint
 end
 
 """
@@ -1273,27 +1292,43 @@ function numSandDoccupiedsites(b::BoseFS)
 end
 
 function numSandDoccupiedsites(onrep::AbstractArray)
-  # this one is faster by about a factor of 2 if you already have the onrep
-  # returns number of singly and doubly occupied sites
-  singlies = 0
-  doublies = 0
-  for n in onrep
-    if n > 0
-      singlies += 1
-      if n > 1
-        doublies += 1
-      end
+    # this one is faster by about a factor of 2 if you already have the onrep
+    # returns number of singly and doubly occupied sites
+    singlies = 0
+    doublies = 0
+    for n in onrep
+        if n > 0
+            singlies += 1
+            if n > 1
+                doublies += 1
+            end
+        end
     end
-  end
-  return singlies, doublies
+    return singlies, doublies
 end
 
-function numberoccupiedsites(b::BoseFS)
-    # This version is faster than using the occupied_sites iterator
+function numberoccupiedsites(b::BoseFS{<:Any,<:Any,S}) where S
+    return numberoccupiedsites(Val(num_chunks(S)), b)
+end
+
+@inline function numberoccupiedsites(::Val{1}, b::BoseFS)
+    chunk = b.bs.chunks[1]
+    result = 0
+    while true
+        chunk >>= trailing_zeros(chunk)
+        chunk >>= trailing_ones(chunk)
+        result += 1
+        iszero(chunk) && break
+    end
+    return result
+end
+
+@inline function numberoccupiedsites(_, b::BoseFS)
+    # This version is faster than using the occupied_orbital iterator
     address = b.bs
     result = 0
     K = num_chunks(address)
-    last_mask = 1 << (chunk_size(address) - 1) # = 0b100000...
+    last_mask = chunk_type(address)(1) << (chunk_size(address) - 1) # = 0b100000...
     prev_top_bit = false
     # This loop compiles away for address<:BSAdd*
     for i in K:-1:1
@@ -1344,7 +1379,7 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
             sc = sn
         end
         if !reached_end
-            new_address = ((address ⊻ (one_bit_mask(A, offset-1))) << 1) | A(1)
+            new_address = ((address ⊻ (one_bit_mask(A, offset-1))) << 1) | one_bit_mask(A, 0)
             prod = curr * (trailing_ones(address) + 1) # mul occupation num of first obital
         else
             new_address = address ⊻ two_bit_mask(A, offset - 1)
