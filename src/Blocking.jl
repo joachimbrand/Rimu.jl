@@ -16,6 +16,7 @@ export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
 export growthWitness, gW, smoothen
 export block_and_test, mean_and_se, mean_pm_se
+export crosscov_FP, cov_bare
 
 # """
 # Calculate the variance of the dataset v
@@ -649,6 +650,30 @@ end
 gW(df::DataFrame) = gW(df.norm, df.shift, df.dτ[1])
 gW(df::DataFrame, b; pad = :true) = gW(df.norm, df.shift, df.dτ[1], b; pad=pad)
 
+
+@doc raw"""
+    cov_bare(x, y; xmean = mean(x), ymean = mean(y))
+Compute the bare covariance between collections `x` and `y` returning a scalar:
+```math
+\frac{1}{n}\sum_{i=1}^{n} (x_i - \bar{x})(y_{i} - \bar{y})
+```
+Optionally,
+precomputed means can be passed as keyword arguments. `cov_bare(x,y)` is functionally
+equivalent to `Statistics.cov(x, conj(y); corrected = false)` but it is found to be
+significantly faster and avoids allocations.
+"""
+@inline function cov_bare(x, y; xmean = mean(x), ymean = mean(y))
+    n = length(x)
+    @assert length(y) == n
+    T = typeof(zero(promote_type(eltype(x), eltype(y))) / 1)
+    res = zero(T)
+    for i = 1:n
+        @inbounds res += (x[i] - xmean) * (y[i] - ymean)
+    end
+    return res / n
+end
+
+
 @doc raw"""
     crosscov_FP(x,y; [maxlag])
 Variant of a cross-covariance function inspired by estimator for a correlation function
@@ -657,27 +682,22 @@ keyword argument `maxlag` determines the length of the returned array as `maxlag
 The function accepts complex-valued vectors for `x` and `y`, which must have the same
 length ``n``. The returned vector the contains the values of
 ```math
-\begin{aligned}
 \tilde{\gamma}(h) = \frac{1}{n-h}\sum_{i=1}^{n-h} (x_i - \bar{x})(y_{i+h} - \bar{y})
-\end{aligned}
 ```
 for lags of `h = 0:maxlag`.
 """
-function crosscov_FP(x,y; maxlag = min(length(x), 10*floor(Int,log10(length(x)))))
-    @assert length(x) == length(y)
+function crosscov_FP(x, y; maxlag = min(length(x), 10 * floor(Int, log10(length(x)))))
     n = length(x)
+    @assert length(y) == n
     lags = 0:maxlag # possible values of h
-    xm = x .- mean(x) # subtract mean now, copies vector
-    ym = y .- mean(y)
-    T = typeof(zero(promote_type(eltype(x),eltype(y)))/1)
-    ccv = zeros(T,length(lags))
-    for (ih,h) in enumerate(lags)
-        γ = zero(T)
-        for i in 1:(n-h)
-            γ += xm[i] * ym[i+h]
-        end
-        ccv[ih] = γ/(n-h)
+    xmean = mean(x)
+    ymean = mean(y)
+    T = typeof(zero(promote_type(eltype(x), eltype(y))) / 1)
+    ccv = zeros(T, length(lags))
+    for (ih, h) in enumerate(lags)
+        ccv[ih] = cov_bare(@view(x[1:n-h]), @view(y[1+h:n]); xmean, ymean)
     end
     return ccv
 end
+
 end # module Blocking
