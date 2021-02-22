@@ -29,6 +29,17 @@ end
     # evaluating the above shows that the library function is faster and avoids
     # memory allocations completely
 
+    xr = rand(100)
+    @test Blocking.cov_bare(xr,xr) ≈ cov(xr,xr; corrected=false) ≈ var(xr; corrected=false)
+
+    x = rand(ComplexF64,100)
+    y = rand(ComplexF64,100)
+    @test Blocking.cov_bare(x,y) ≈ cov(x,conj(y); corrected=false)
+    # @benchmark Blocking.cov_bare($x,$y)
+    # @benchmark cov($x,conj($y); corrected=false)
+    # shows that cov_bare avoids allocations and is about 3 times faster
+    @test Blocking.crosscov_FP(x,y)[1] ≈ Blocking.cov_bare(x,y)
+
     # test se
     a = collect(1:10)
     @test Rimu.Blocking.se(a) ≈ 0.9574271077563381

@@ -665,8 +665,7 @@ significantly faster and avoids allocations.
 @inline function cov_bare(x, y; xmean = mean(x), ymean = mean(y))
     n = length(x)
     @assert length(y) == n
-    T = typeof(zero(promote_type(eltype(x), eltype(y))) / 1)
-    res = zero(T)
+    res = zero(promote_type(eltype(x), eltype(y))) / 1
     for i = 1:n
         @inbounds res += (x[i] - xmean) * (y[i] - ymean)
     end
