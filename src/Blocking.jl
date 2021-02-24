@@ -166,7 +166,7 @@ get_real(v) = real(v)
 get_real(v::StructArray{<:Complex}) = v.re
 
 get_imag(v) = imag(v)
-get_imag(v::StructArray{<:Complex}) = v.re
+get_imag(v::StructArray{<:Complex}) = v.im
 
 """
     blocks_with_m(v; corrected = true) -> (;blocks, mean, std_err, std_err_err, mj)
