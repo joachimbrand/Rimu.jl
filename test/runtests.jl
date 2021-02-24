@@ -10,11 +10,6 @@ using SafeTestsets
 # for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
 @assert VERSION ≥ v"1.5"
 
-@testset "Rimu.jl" begin
-    # Write your own tests here.
-    @test 3==3
-end
-
 @safetestset "BitStringAddresses" begin
     include("BitStringAddresses.jl")
 end
@@ -59,27 +54,27 @@ end
         m = 9,
         u = 6.0,
         t = 1.0,
-        AT = BoseFS{9,9,BSAdd64})
+        AT = BoseFS{9,9})
     @test ham(:dim) == 24310
 
     aIni = Rimu.Hamiltonians.nearUniform(ham)
-    @test aIni == BoseFS{9,9}(BSAdd64(0x15555))
+    @test aIni == BoseFS{9,9}((1,1,1,1,1,1,1,1,1))
 
     hp = Hops(ham,aIni)
     @test length(hp) == 18
-    @test hp[18][1] == BoseFS{9,9}(BSAdd64(0x000000000000d555))
+    @test hp[18][1] == BoseFS{9,9}(BitString{17}(0x000000000000d555))
     @test hp[18][2] ≈ -1.4142135623730951
     @test diagME(ham,aIni) == 0
     os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
     @test Rimu.Hamiltonians.bosehubbardinteraction(os) == 148
     @test Rimu.Hamiltonians.ebhm(os) == (53, 148)
     @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
-    hnnn = Rimu.Hamiltonians.hopnextneighbour(BoseFS(BSAdd64(0xf342564fff), 40),3)
-    bs = BoseFS(BitAdd{40}(0xf342564fff))
+    hnnn = Rimu.Hamiltonians.hopnextneighbour(BoseFS{25,16}(BitString{40}(0xf342564fff)),3)
+    bs = BoseFS(BitString{40}(0xf342564fff))
     hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3)
-    @test hnnn[1].bs.add == hnnbs[1].bs.chunks[1]
+    @test hnnn == hnnbs
 
-    svec = DVec(Dict(aIni => 2.0), ham(:dim))
+    svec = DVec2(Dict(aIni => 2.0), ham(:dim))
     v2 = ham(svec)
     v3 = ham*v2
     @test norm(v3,1) ≈ 1482.386824949077
@@ -112,7 +107,7 @@ end
 
     ham = Hamiltonians.BoseHubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS{BSAdd64}((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
     @test diagME(ham,bfs) ≈ 14.296572875253808
     momentum = Momentum(ham)
     @test diagME(momentum,bfs) ≈ -1.5707963267948966
@@ -121,7 +116,7 @@ end
 
     ham = Hamiltonians.HubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS{BSAdd64}((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
     @test diagME(ham,bfs) ≈ 14.296572875253808
     momentum = Momentum(ham)
     @test diagME(momentum,bfs) ≈ -1.5707963267948966
@@ -168,7 +163,7 @@ end
         m = 9,
         u = 6.0,
         t = 1.0,
-        AT = BoseFS{9,9,BSAdd64})
+        AT = BoseFS{9,9})
     aIni = nearUniform(ham)
     pa = RunTillLastStep(laststep = 100)
 
@@ -679,7 +674,7 @@ end
 
 @testset "BoseFS2C" begin
     bfs2c = BoseFS2C(BoseFS((1,2,0,4)),BoseFS((4,0,3,1)))
-    @test typeof(bfs2c) == BoseFS2C{7,8,4,BSAdd64,BSAdd64}
+    @test typeof(bfs2c) <: BoseFS2C{7,8,4}
     @test Hamiltonians.numberoccupiedsites(bfs2c.bsa) == 3
     @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
     @test onr(bfs2c.bsa) == [1,2,0,4]
@@ -690,7 +685,7 @@ end
 @testset "TwoComponentBosonicHamiltonian" begin
     aIni2cReal = BoseFS2C(BoseFS((1,1,1,1)),BoseFS((1,1,1,1))) # real space two-component
     Ĥ2cReal = BoseHubbardReal1D2C(aIni2cReal; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
-    hamA = BoseHubbardReal1D(n=4,m=4,u=6.0,t=1.0,AT=BoseFS{4,4,BSAdd64})
+    hamA = BoseHubbardReal1D(n=4,m=4,u=6.0,t=1.0,AT=BoseFS{4,4,BitString{7,1,UInt64}})
     hamB = BoseHubbardReal1D(BoseFS((1,1,1,1));u=6.0)
     @test hamA == Ĥ2cReal.ha
     @test hamB == Ĥ2cReal.hb
@@ -701,7 +696,7 @@ end
 
     hp2c = Hops(Ĥ2cReal,aIni2cReal)
     @test length(hp2c) == 16
-    @test hp2c[1][1] == BoseFS2C{4,4,4,BSAdd64,BSAdd64}(BoseFS{BSAdd64}((0,2,1,1)), BoseFS{BSAdd64}((1,1,1,1)))
+    @test hp2c[1][1] == BoseFS2C(BoseFS((0,2,1,1)), BoseFS((1,1,1,1)))
     @test hp2c[1][2] ≈ -1.4142135623730951
     @test diagME(Ĥ2cReal,aIni2cReal) ≈ 24.0 # from the V term
 
@@ -713,7 +708,7 @@ end
 
     hp2cMom = Hops(Ĥ2cMom,aIni2cMom)
     @test length(hp2cMom) == 9
-    @test hp2cMom[1][1] == BoseFS2C{4,4,4,BSAdd64,BSAdd64}(BoseFS{BSAdd64}((1,2,1,0)), BoseFS{BSAdd64}((0,4,0,0)))
+    @test hp2cMom[1][1] == BoseFS2C(BoseFS((1,2,1,0)), BoseFS((0,4,0,0)))
     @test hp2cMom[1][2] ≈ 2.598076211353316
 
     smat2cReal, adds2cReal = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cReal,aIni2cReal)

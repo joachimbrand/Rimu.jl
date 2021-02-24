@@ -34,6 +34,6 @@ function test_krylov_eigsolve(
     end
 end
 
-for dvec_type in (DVec, DVec2), address_type in (BoseFS{6,6,BSAdd64},)
+for dvec_type in (DVec, DVec2), address_type in (BoseFS{6,6},)
     test_krylov_eigsolve(dvec_type, address_type)
 end
