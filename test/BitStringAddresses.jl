@@ -26,7 +26,7 @@ using Test
     end
 
     @testset "Constructors" begin
-        @testset "Constructiong from small ints" begin
+        @testset "Constructing from small ints" begin
             @test BitString{5}(1) ==
                 BitString{5}(0x1) ==
                 BitString{5}(UInt16(1)) ==
@@ -228,7 +228,7 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction, hopnextnei
             end
             o[i] -= 1
             o[j] += 1
-            return BoseFS{N,M}(SVector(o)), (o[i] + 1) * (o[j])
+            return BoseFS{N}(SVector(o)), (o[i] + 1) * (o[j])
         end
 
         for (N, M) in ((16, 16), (64, 32), (200, 200), (100, 100), (200, 20), (20, 200))
