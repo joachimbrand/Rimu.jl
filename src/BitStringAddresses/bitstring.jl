@@ -35,7 +35,7 @@ an unsigned integer of type `T`.
   correct number of bits.
 
 """
-struct BitString{B,N,T<:Unsigned} <: AbstractBitString
+struct BitString{B,N,T<:Unsigned}
     chunks::SVector{N,T}
 
     # This constructor is only to be used internally. It doesn't check for ghost bits.
@@ -313,3 +313,8 @@ two_bit_mask(::Type{<:BitString{B}}, pos) where B = BitString{B}(3) << pos
 
 Base.isodd(s::BitString) = isodd(chunks(s)[end])
 Base.iseven(s::BitString) = iseven(chunks(s)[end])
+
+# For compatibility. Changing any of the hashes will slightly change the results and make
+# tests fail.
+Base.hash(b::BitString{<:Any,1}, h::UInt) = hash(b.chunks[1], h)
+Base.hash(b::BitString, h::UInt) = hash(b.chunks.data, h)

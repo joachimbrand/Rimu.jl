@@ -49,27 +49,7 @@ Optional faster way to to `T(1) << pos`.
 one_bit_mask(::Type{T}, pos) where T = T(1) << pos
 
 """
-    three_bit_mask(::Type{T}, pos) where T<:AbstractBitString
+    two_bit_mask(::Type{T}, pos) where T<:AbstractBitString
 Optional faster way to to `T(3) << pos`.
 """
 two_bit_mask(::Type{T}, pos) where T = T(3) << pos
-
-"""
-    AbstractFockAddress
-Supertype representing a Fock state.
-
-TODO: document interface
-"""
-abstract type AbstractFockAddress end
-
-"""
-    num_particles(::Type{<:AbstractFockAddress})
-Number of particles represented by address.
-"""
-num_particles(b) = num_particles(typeof(b))
-
-"""
-    num_modes(::Type{<:AbstractFockAddress})
-Number of modes represented by address.
-"""
-num_modes(b) = num_modes(typeof(b))

@@ -431,7 +431,7 @@ across modes for the Hamiltonian `ham`.
 """
 function BitStringAddresses.nearUniform(h::BosonicHamiltonian)
     fillingfactor, extras = divrem(h.n, h.m)
-    startonr = fill(fillingfactor,h.m)
+    startonr = fill(fillingfactor, h.m)
     startonr[1:extras] += ones(Int, extras)
     return h.AT(startonr)
 end
@@ -1364,7 +1364,7 @@ orbitals.
 function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
     address = b.bs
     site = (chosen + 1) >>> 1
-    if isodd(chosen) # hopping to the right
+    if isodd(chosen) # Hopping to the right
         next = 0
         curr = 0
         offset = 0
@@ -1378,40 +1378,33 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
             offset = bit + num
             sc = sn
         end
-        if !reached_end
+        if sc == M
             new_address = ((address ⊻ (one_bit_mask(A, offset-1))) << 1) | one_bit_mask(A, 0)
             prod = curr * (trailing_ones(address) + 1) # mul occupation num of first obital
         else
+            next *= reached_end
             new_address = address ⊻ two_bit_mask(A, offset - 1)
             prod = curr * (next + 1)
         end
-    else # hopping to the left
+    else # Hopping to the left
         if site == 1 && isodd(address)
             # For leftmost site, we shift the whole address circularly by one bit.
-            new_address = (address >>> 1) | (one_bit_mask(A, N + M - 2))
-            # BitAdd is aware of how many bits it has, so it can use leading_ones directly.
-            # TODO: should BSAdd64/128 also be aware of this?
-            if address isa BitAdd
-                prod = trailing_ones(address) * leading_ones(new_address)
-            else
-                prod = trailing_ones(address) * leading_ones(
-                    new_address << (sizeof(A) * 8 - N - M + 1)
-                )
-            end
+            new_address = (address >>> 1) | one_bit_mask(A, N + M - 2)
+            prod = trailing_ones(address) * leading_ones(new_address)
         else
             prev = 0
             curr = 0
             offset = 0
             sp = 0
             for (i, (num, sc, bit)) in enumerate(occupied_orbitals(b))
+                prev = curr * (sc == sp + 1) # only set prev to > 0 if sites are neighbours
                 curr = num
                 offset = bit
                 i == site && break
-                prev = num * (sc == sp + 1) # only set prev to > 0 if sites are neighbours
                 sp = sc
             end
             new_address = address ⊻ two_bit_mask(A, offset - 1)
-            prod = (curr + 1) * prev
+            prod = curr * (prev + 1)
         end
     end
     return BoseFS{N,M,A}(new_address), prod

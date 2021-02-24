@@ -1,7 +1,7 @@
 using Rimu
 using Rimu.BitStringAddresses
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits, bitstring_storage
-using Rimu.BitStringAddresses: check_consistency, occupied_orbitals
+using Rimu.BitStringAddresses: occupied_orbitals
 using StaticArrays
 using Test
 
@@ -14,15 +14,15 @@ using Test
         @test length(bitstring_storage(Val(64))) == 1
         @test eltype(bitstring_storage(Val(64))) == UInt64
 
-        @test length(bitstring_storage(Val(65))) == 1
-        @test eltype(bitstring_storage(Val(65))) == UInt128
-        @test length(bitstring_storage(Val(128))) == 1
-        @test eltype(bitstring_storage(Val(128))) == UInt128
+        @test length(bitstring_storage(Val(65))) == 2
+        @test eltype(bitstring_storage(Val(65))) == UInt64
+        @test length(bitstring_storage(Val(128))) == 2
+        @test eltype(bitstring_storage(Val(128))) == UInt64
 
         @test length(bitstring_storage(Val(129))) == 3
         @test eltype(bitstring_storage(Val(129))) == UInt64
-        @test length(bitstring_storage(Val(128))) == 1
-        @test eltype(bitstring_storage(Val(128))) == UInt128
+        @test length(bitstring_storage(Val(128))) == 2
+        @test eltype(bitstring_storage(Val(128))) == UInt64
     end
 
     @testset "Constructors" begin
@@ -47,7 +47,8 @@ using Test
             @test bs128a == BitString{129}(big"0xdecafc0ffee0000000deadbeefe")
 
             bs128b = @inferred BitString{128}(0x00000decafc0ffee0000000deadbeefe)
-            @test bs128b.chunks[1] ≡ 0x00000decafc0ffee0000000deadbeefe
+            @test bs128b.chunks[1] ≡ 0x00000decafc0ffee
+            @test bs128b.chunks[2] ≡ 0x0000000deadbeefe
             @test bs128b == BitString{128}(big"0xdecafc0ffee0000000deadbeefe")
         end
         @testset "Zero" begin
@@ -64,14 +65,41 @@ using Test
             @test !has_ghost_bits(BitString{5}(0b11111))
             @test !has_ghost_bits(BitString{5}(0b111111))
             @test !has_ghost_bits(BitString{100}(rand(UInt128)))
-            @test !has_ghost_bits(BitString{129}(big"0xffffffffffffffffffffffffffffffffffffffff"))
+            @test !has_ghost_bits(BitString{129}(big"0xffffffffffffffffffffffffffffffffffff"))
         end
     end
-
     @testset "Counting operations" begin
-        s = BitString{167}(big"0x7fffffffffffffffbff03fffbffffde7d")
+        # Create rand integer with n ones
+        function rand_int_n_ones(T, N)
+            result = zero(T)
+            while count_ones(result) < N
+                result |= 1 << rand(1:120)
+            end
+            return result
+        end
+        for N in (1, 2, 4, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120)
+            i = rand_int_n_ones(UInt128, N)
+            j = i & (UInt128(1) << 120 - 1)
+            s = BitString{120}(i)
+            @test count_ones(s) == count_ones(j)
+            @test count_zeros(s) == count_zeros(j) - 8
+            @test leading_ones(s) == leading_ones(j << 8)
+            @test trailing_ones(s) == trailing_ones(j)
+            @test leading_zeros(s) == min(leading_zeros(j << 8), 120)
+            @test trailing_zeros(s) == min(trailing_zeros(j), 120)
+        end
+        for N in (1, 2, 4, 10, 20, 30, 40, 50, 60)
+            i = rand_int_n_ones(UInt64, N)
+            j = i & (1 << 40 - 1)
+            s = BitString{40}(i)
+            @test count_ones(s) == count_ones(j)
+            @test count_zeros(s) == count_zeros(j) - 24
+            @test leading_ones(s) == leading_ones(j << 24)
+            @test trailing_ones(s) == trailing_ones(j)
+            @test leading_zeros(s) == min(leading_zeros(j << 24), 40)
+            @test trailing_zeros(s) == min(trailing_zeros(j), 40)
+        end
     end
-
     @testset "Bitwise operations" begin
         function rand_bitstring(B)
             s = rand(bitstring_storage(Val(B)))
@@ -110,48 +138,7 @@ using Test
     end
 end
 
-@testset "BSAdd" begin
-    for (T, U) in ((BSAdd64, UInt64), (BSAdd128, UInt128))
-        i = rand(U)
-        j = rand(U)
-        a = T(i)
-        b = T(j)
-        @test zero(a) == T(zero(U))
-        @test (a < b) == (i < j)
-        @test (a > b) == (i > j)
-
-        # Unary stuff
-        for f in (
-            trailing_zeros,
-            trailing_ones,
-            leading_zeros,
-            leading_ones,
-            count_ones,
-            count_zeros,
-            iseven,
-            isodd,
-            bitstring,
-        )
-            @test f(a) == f(i)
-            @test f(b) == f(j)
-        end
-
-        @test (~a).add == ~i
-        @test (~b).add == ~j
-        # Binary stuff
-        for f in (&, |, ⊻)
-            @test f(a, b).add == f(i, j)
-            @test f(b, a).add == f(j, i)
-        end
-        # Shifts
-        for f in (<<, >>, >>>)
-            @test f(a, 10).add == f(i, 10)
-            @test f(b, -5).add == f(j, -5)
-        end
-    end
-end
-
-using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction
+using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction, hopnextneighbour
 
 @testset "BoseFS" begin
     middle_full = BoseFS{67,100}(
@@ -194,7 +181,6 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction
         @test bosehubbardinteraction(middle_empty) == 8 * 7 + 2
         @test bosehubbardinteraction(two_full) == 136 * 135
     end
-
     @testset "occupied_orbitals" begin
         (bosons, orbital, bit), st = iterate(occupied_orbitals(middle_full))
         @test bosons == 1
@@ -206,8 +192,9 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction
         @test bit == 63
         @test isnothing(iterate(occupied_orbitals(middle_full), st))
     end
-
     @testset "Randomized tests" begin
+        # Note: the random number for these tests will be the same everytime. This is still
+        # an ok way to look for errors.
         function rand_onr(N, M)
             result = zeros(MVector{M,Int})
             for _ in 1:N
@@ -223,6 +210,25 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction
                 result[i] = n
             end
             return SVector(result)
+        end
+        function hopnextneighbour2(bose::BoseFS{N,M}, chosen) where {N,M}
+            o = MVector{M,Int32}(onr(bose))
+            site = (chosen + 1) ÷ 2
+            curr = 0
+            i = 1
+            while i ≤ M
+                curr += o[i] > 0
+                curr == site && break
+                i += 1
+            end
+            if isodd(chosen)
+                j = mod1(i + 1, M)
+            else
+                j = mod1(i - 1, M)
+            end
+            o[i] -= 1
+            o[j] += 1
+            return BoseFS{N,M}(SVector(o)), (o[i] + 1) * (o[j])
         end
 
         for (N, M) in ((16, 16), (64, 32), (200, 200), (100, 100), (200, 20), (20, 200))
@@ -240,6 +246,11 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction
                     @test bosehubbardinteraction(bose) == sum(input .* (input .- 1))
 
                     @test onr2(bose) == input
+
+                    @test all(
+                        hopnextneighbour2(bose, i) == hopnextneighbour(bose, i)
+                        for i in 1:numberoccupiedsites(bose) * 2
+                    )
                 end
             end
         end
