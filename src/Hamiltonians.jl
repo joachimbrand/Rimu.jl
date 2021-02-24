@@ -1227,7 +1227,7 @@ end
         bosonnumber = trailing_ones(chunk) # count how many bosons inside
         # surpsingly it is faster to not check whether this is nonzero and do the
         # following operations anyway
-        chunk >>>= bosonnumber # remove the countedorbital
+        chunk >>>= bosonnumber # remove the counted orbital
         matrixelementint += bosonnumber * (bosonnumber - 1)
     end
     return matrixelementint
