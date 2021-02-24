@@ -34,10 +34,13 @@ end
 
     x = rand(ComplexF64,100)
     y = rand(ComplexF64,100)
-    @test Blocking.cov_bare(x,y) ≈ cov(x,conj(y); corrected=false)
+    @test Blocking.cov_bare(x, y) ≈
+          cov(x, conj(y); corrected = false) ≈
+          covariance(x, conj(y); corrected = false)
     # @benchmark Blocking.cov_bare($x,$y)
-    # @benchmark cov($x,conj($y); corrected=false)
-    # shows that cov_bare avoids allocations and is about 3 times faster
+    # @benchmark cov($x,$(conj(y)); corrected=false)
+    # @benchmark covariance($x,$(conj(y)); corrected=false)
+    # shows that cov_bare avoids allocations and is about 3 times faster than cov
     @test Blocking.crosscov_FP(x,y)[1] ≈ Blocking.cov_bare(x,y)
 
     # test se
