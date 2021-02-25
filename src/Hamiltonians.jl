@@ -654,9 +654,6 @@ function hop(ham::BoseHubbardExtOrNot, add, chosen::Integer)
     # return new address and matrix element
 end
 
-
-
-
 ###
 ### BoseHubbardMom1D
 ###
@@ -1197,7 +1194,6 @@ function Base.getindex(s::Hops{T,A,O,I}, i::Int) where {T,A,O<:HubbardMom1D,I}
     nadd, melem = hop(s.h, s.add, i, s.info)
     return (nadd, melem)
 end #  returns tuple (newaddress, matrixelement)
-
 
 ################################################
 #

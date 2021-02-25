@@ -109,6 +109,7 @@ with the functions:
 See examples in the [Scripts](@ref) folder.
 
 ## References
+
 The code implements the FCIQMC algorithm described in
 - "Fermion Monte Carlo without fixed nodes: A game of life, death, and annihilation in Slater determinant space", G. H. Booth, A. J. W. Thom, A. Alavi, [*J. Chem. Phys.* **131**, 054106 (2009)](https://doi.org/10.1063/1.3193710).
 
