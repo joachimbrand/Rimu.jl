@@ -1,5 +1,6 @@
 """
     num_chunks(::Val{B})
+
 Determine the number of chunks needed to store `B` bits.
 """
 function num_chunks(::Val{B}) where {B}
@@ -10,6 +11,11 @@ function num_chunks(::Val{B}) where {B}
     end
 end
 
+"""
+    check_bitstring_typeparams(::Val{B}, ::Val{N})
+
+Check if number of bits `B` is consistent with number of chunks `N`. Throw an error if not.
+"""
 function check_bitstring_typeparams(::Val{B}, ::Val{N}) where {B,N}
     if B > N * 64
         s = N == 1 ? "" : "s"
@@ -51,12 +57,14 @@ struct BitString{B,N}
         return new{B,N}(setindex(zero(SVector{N,UInt64}), i, N))
     end
 end
+
 ###
-### Basic properties. These are all compile-time constants.
+### Basic properties.
 ###
 """
     num_chunks(::Type{<:BitString})
     num_chunks(s::BitString)
+
 Number of chunks in bitstring. Equivalent to `length(chunks(s))`.
 """
 num_chunks(::Type{<:BitString{<:Any,N}}) where {N} = N
@@ -64,14 +72,16 @@ num_chunks(::Type{<:BitString{<:Any,N}}) where {N} = N
 """
     num_bits(::Type{<:BitString})
     num_bits(s::BitString)
-Number of bits stored in bitstring.
+
+Total number of bits stored in bitstring.
 """
 num_bits(::Type{<:BitString{B}}) where {B} = B
 
 """
     top_chunk_bits(::Type{<:BitString})
     top_chunk_bits(s::BitString)
-Equivalent to `chunk_bits(s, 1)`.
+
+Number of bits stored in top chunk. Equivalent to `chunk_bits(s, 1)`.
 """
 function top_chunk_bits(::Type{<:BitString{B}}) where B
     return B % 64 == 0 ? 64 : B % 64
@@ -84,12 +94,14 @@ end
 """
     chunks(::Type{<:BitString})
     chunks(s)
-Return `SVector` that stores the chunks of `s`.
+
+`SVector` that stores the chunks of `s`.
 """
 chunks(s::BitString) = s.chunks
 """
     chunks_bits(s, i)
-Return the number of bits in the `i`-th chunk of `s`.
+
+Number of bits in the `i`-th chunk of `s`.
 """
 chunk_bits(s, i) = chunk_bits(typeof(s), i)
 chunk_bits(::Type{<:BitString{B,1}}, _) where {B} = B
@@ -104,6 +116,7 @@ end
 
 """
     remove_ghost_bits(s)
+
 Remove set bits outside data field if any are present.
 
 See also: [`has_ghost_bits`](@ref).
@@ -120,6 +133,7 @@ end
 
 """
     has_ghost_bits(s)
+
 Check for bits outside data field.
 
 See also: [`remove_ghost_bits`](@ref).
@@ -131,7 +145,7 @@ function has_ghost_bits(s::S) where {S<:BitString}
 end
 
 ###
-### Alternative/useful constructors. These are not super efficient.
+### Alternative/useful constructors. These are not super efficient, but they are safe.
 ###
 function BitString{B}(i::Union{Int128,Int64,Int32,Int16,Int8}) where {B}
     return remove_ghost_bits(BitString{B}(unsigned(i)))
@@ -275,11 +289,19 @@ Base.:>>>(s::BitString, k) = s >> k
 Base.:>>(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .>> k))
 Base.:<<(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .<< k))
 
-# TODO: ??
+# Is this ordering needed?
+function Base.isless(s1::B, s2::B) where {B<:BitString}
+    for i in 1:num_chunks(B)
+        if s1[i] ≠ s2[i]
+            return s1[i] < s2[i]
+        end
+    end
+    return false
+end
 Base.isodd(s::BitString) = isodd(chunks(s)[end])
 Base.iseven(s::BitString) = iseven(chunks(s)[end])
 
-# For compatibility. Changing any of the hashes will slightly change the results and make
+# For compatibility. Changing any of the hashes will slightly change results and make the
 # tests fail.
 Base.hash(b::BitString{<:Any,1}, h::UInt) = hash(b.chunks[1], h)
 Base.hash(b::BitString, h::UInt) = hash(b.chunks.data, h)
