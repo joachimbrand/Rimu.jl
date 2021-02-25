@@ -111,8 +111,8 @@ using Test
             @test iszero(a & ~a)
             @test a | ~a == ~zero(a)
             @test a ⊻ a == zero(a)
-            @test (a << 8) >> 8 ≠ a
-            @test (a >> 8) << 8 ≠ a
+            @test (a << 7) >> 7 == a & ~zero(BitString{B}) >> 7
+            @test (a >> 9) << 9 == a & ~zero(BitString{B}) << 9
             @test (a >> 23) >> 41 == a >>> 64
             @test (a << 23) << 41 == a << 64
             @test a >> B == zero(a)
