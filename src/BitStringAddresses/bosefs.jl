@@ -1,17 +1,20 @@
 """
     AbstractFockAddress
+
 Supertype representing a Fock state.
 """
 abstract type AbstractFockAddress end
 
 """
     num_particles(::Type{<:AbstractFockAddress})
+
 Number of particles represented by address.
 """
 num_particles(b) = num_particles(typeof(b))
 
 """
     num_modes(::Type{<:AbstractFockAddress})
+
 Number of modes represented by address.
 """
 num_modes(b) = num_modes(typeof(b))
@@ -135,6 +138,7 @@ num_modes(::Type{BoseFS{N,M,S}}) where {N,M,S} = M
 
 """
     nearUniformONR(N, M) -> onr::SVector{M,Int}
+
 Create occupation number representation `onr` distributing `N` particles in `M`
 modes in a close-to-uniform fashion with each orbital filled with at least
 `N ÷ M` particles and at most with `N ÷ M + 1` particles.
@@ -153,6 +157,7 @@ end
 """
     nearUniform(BoseFS{N,M})
     nearUniform(BoseFS{N,M,S}) -> bfs::BoseFS{N,M,S}
+
 Create bosonic Fock state with near uniform occupation number of `M` modes with
 a total of `N` particles. Specifying the bit address type `S` is optional.
 
@@ -169,11 +174,9 @@ function nearUniform(::Type{<:BoseFS{N,M}}) where {N,M}
     return BoseFS{N,M}(nearUniformONR(Val(N),Val(M)))
 end
 
-###
-### ONR
-###
 """
     onr(bs)
+
 Compute and return the occupation number representation of the bit string
 address `bs` as an `SVector{M,Int32}`, where `M` is the number of orbitals.
 """
@@ -181,6 +184,7 @@ onr(bba::BoseFS) = SVector(m_onr(bba))
 
 """
     m_onr(bs)
+
 Compute and return the occupation number representation of the bit string
 address `bs` as an `MVector{M,Int32}`, where `M` is the number of orbitals.
 """
@@ -218,7 +222,6 @@ end
             orbital += empty_modes
             chunk >>>= empty_modes % UInt
             bits_left -= bosons + empty_modes
-            #bits_left > 0 || break
         end
         i == 1 && break
         i -= 1
@@ -229,6 +232,7 @@ end
 
 """
     occupied_orbitals(b)
+
 Iterate over occupied orbitals in `BoseFS` address. Returns tuples of
 `(boson_number, orbital_number, bit_offset)`.
 
@@ -330,7 +334,7 @@ end
 Address type that constructed with two [`BoseFS{N,M,S}`](@ref). It represents a
 Fock state with two components, e.g. two different species of bosons with particle
 number `NA` from species S and particle number `NB` from species B. The number of
-orbitals `M` is expacted to be the same for both components.
+orbitals `M` is expected to be the same for both components.
 """
 struct BoseFS2C{NA,NB,M,SA,SB} <: AbstractFockAddress
     bsa::BoseFS{NA,M,SA}
