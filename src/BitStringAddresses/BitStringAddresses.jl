@@ -9,8 +9,6 @@ using Setfield
 
 using Base.Cartesian
 
-import Base: isless, zero, iszero, show, ==, hash
-
 export AbstractFockAddress, BoseFS, BoseFS2C
 export onr, nearUniform, nearUniformONR
 export num_bits, num_chunks, chunks, chunk_size, num_particles, num_modes
