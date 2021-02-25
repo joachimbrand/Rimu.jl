@@ -1,28 +1,21 @@
 using Rimu
 using Rimu.BitStringAddresses
-using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits, bitstring_storage
+using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
 using Rimu.BitStringAddresses: occupied_orbitals
 using StaticArrays
 using Test
 
 @testset "BitString" begin
-    @testset "bitstirng_storage" begin
-        @test length(bitstring_storage(Val(1))) == 1
-        @test eltype(bitstring_storage(Val(1))) == UInt64
-        @test length(bitstring_storage(Val(33))) == 1
-        @test eltype(bitstring_storage(Val(33))) == UInt64
-        @test length(bitstring_storage(Val(64))) == 1
-        @test eltype(bitstring_storage(Val(64))) == UInt64
-
-        @test length(bitstring_storage(Val(65))) == 2
-        @test eltype(bitstring_storage(Val(65))) == UInt64
-        @test length(bitstring_storage(Val(128))) == 2
-        @test eltype(bitstring_storage(Val(128))) == UInt64
-
-        @test length(bitstring_storage(Val(129))) == 3
-        @test eltype(bitstring_storage(Val(129))) == UInt64
-        @test length(bitstring_storage(Val(128))) == 2
-        @test eltype(bitstring_storage(Val(128))) == UInt64
+    @testset "num_chunks for Val(B)" begin
+        @test_throws ArgumentError num_chunks(Val(0))
+        @test_throws ArgumentError num_chunks(Val(-15))
+        @test num_chunks(Val(1)) == 1
+        @test num_chunks(Val(33)) == 1
+        @test num_chunks(Val(64)) == 1
+        @test num_chunks(Val(65)) == 2
+        @test num_chunks(Val(128)) == 2
+        @test num_chunks(Val(129)) == 3
+        @test num_chunks(Val(200)) == 4
     end
 
     @testset "Constructors" begin
@@ -53,12 +46,15 @@ using Test
         end
         @testset "Zero" begin
             a = BitString{100}(0)
+            @test all(iszero, chunks(a))
             @test zero(a) == a
 
             b = BitString{250}(0x0)
+            @test all(iszero, chunks(b))
             @test zero(b) == b
 
             c = BitString{16}(big"0")
+            @test all(iszero, chunks(c))
             @test zero(typeof(c)) == c
         end
         @testset "no ghost bits" begin
@@ -102,8 +98,9 @@ using Test
     end
     @testset "Bitwise operations" begin
         function rand_bitstring(B)
-            s = rand(bitstring_storage(Val(B)))
-            return remove_ghost_bits(BitString{B,length(s),eltype(s)}(s))
+            N = num_chunks(Val(B))
+            s = rand(SVector{N,UInt64})
+            return remove_ghost_bits(BitString{B,N}(s))
         end
 
         for B in (32, 65, 120, 200, 250)
@@ -142,15 +139,13 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction, hopnextnei
 
 @testset "BoseFS" begin
     middle_full = BoseFS{67,100}(
-        BitString{166,3,UInt64}(SVector(1, ~UInt64(0), UInt64(1) << 63 | UInt64(2)))
+        BitString{166,3}(SVector(1, ~UInt64(0), UInt64(1) << 63 | UInt64(2)))
     )
     middle_empty = BoseFS{10,150}(
-        BitString{159,3,UInt64}(SVector{3,UInt64}(255, 0, 3))
+        BitString{159,3}(SVector{3,UInt64}(255, 0, 3))
     )
     two_full = BoseFS{136,136}(
-        BitString{271,5,UInt64}(
-            SVector(UInt64(0), UInt64(0), UInt64(255), ~UInt64(0), ~UInt64(0))
-        )
+        BitString{271,5}(SVector(UInt64(0), UInt64(0), UInt64(255), ~UInt64(0), ~UInt64(0)))
     )
     @testset "onr" begin
         middle_full_onr = onr(middle_full)

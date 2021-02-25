@@ -59,12 +59,11 @@ end
 
 function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString{<:Any,1}}
     @boundscheck sum(onr) == N || error("invalid ONR")
-    T = chunk_type(S)
-    result = zero(T)
+    result = zero(UInt64)
     for i in M:-1:1
         curr_occnum = onr[i]
         result <<= curr_occnum + 1
-        result |= one(T) << curr_occnum - T(1)
+        result |= one(UInt64) << curr_occnum - 1
     end
     return BoseFS{N,M,S}(S(SVector(result)))
 end
@@ -72,8 +71,7 @@ end
 function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString}
     @boundscheck sum(onr) == N || error("invalid ONR")
     K = num_chunks(S)
-    T = chunk_type(S)
-    result = zeros(MVector{K,T})
+    result = zeros(MVector{K,UInt64})
     offset = 0
     bits_left = chunk_bits(S, K)
     i = 1
@@ -83,7 +81,7 @@ function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString
         curr_occnum = onr[i]
         while curr_occnum > 0
             x = min(curr_occnum, bits_left)
-            mask = (one(T) << x - 1) << offset
+            mask = (one(UInt64) << x - 1) << offset
             @inbounds result[j] |= mask
             bits_left -= x
             offset += x
@@ -304,7 +302,7 @@ end
         chunk >>>= empty_orbitals % UInt
     end
 
-    bit_position = chunk_bits(S, i) - bits_left + chunk_size(S) * (num_chunks(address) - i)
+    bit_position = chunk_bits(S, i) - bits_left + 64 * (num_chunks(address) - i)
 
     # Remove and count trailing ones.
     result = 0

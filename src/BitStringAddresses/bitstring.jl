@@ -1,47 +1,54 @@
 """
-    bitstring_storage(::Val{B}) where {B}
-
-This function determines how to store `B` bits.
+    num_chunks(::Val{B})
+Determine the number of chunks needed to store `B` bits.
 """
-function bitstring_storage(::Val{B}) where {B}
+function num_chunks(::Val{B}) where {B}
     return if B ≤ 0
         throw(ArgumentError("`B` must be positive!"))
-    #= Option: use smaller types. Probably not necessary.
-    elseif B ≤ 8
-        SVector{1, UInt8}
-    elseif B ≤ 16
-        SVector{1, UInt16}
-    elseif B ≤ 32
-        SVector{1, UInt32}
-    =#
-    else # Turns out it's never worth using UInt128 here.
-        SVector{(B - 1) ÷ 64 + 1, UInt64}
+    else # Turns out it's never worth using anything other than UInt64 here.
+        return (B - 1) ÷ 64 + 1
+    end
+end
+
+function check_bitstring_typeparams(::Val{B}, ::Val{N}) where {B,N}
+    if B > N * 64
+        s = N == 1 ? "" : "s"
+        error("$B bits do not fit into $N 64-bit chunk$s")
+    elseif B ≤ (N - 1) * 64
+        s = N == 2 ? "" : "s"
+        error("$B bits fit into $(N - 1) 64-bit chunk$s, but $N chunks were provided")
     end
 end
 
 """
-    BitString{B,N,T<:Unsigned} <: AbstractBitString
+    BitString{B,N} <: AbstractBitString
 
 Type for storing bitstrings of static size. Holds `B` bits in `N` chunks, where each chunk is
-an unsigned integer of type `T`.
+an `UInt64`
 
-`N` and `T` are chosen automatically to accommodate `B` bits as efficiently as possible.
+`N` is chosen automatically to accommodate `B` bits as efficiently as possible.
 
 # Constructors
 
-* `BitString{B,N,T}(::SVector{N,T})`: unsafe constructor. Does not check for ghost bits.
+* `BitString{B,N}(::SVector{N,T})`: unsafe constructor. Does not check for ghost bits.
+
+* `BitString{B,N}(i::UInt64)`: as above, but sets `i` as the rightmost chunk.
 
 * `BitString{B}(::Integer)`: Convert integer to `BitString`. Integer is truncated to the
   correct number of bits.
 
 """
-struct BitString{B,N,T<:Unsigned}
-    chunks::SVector{N,T}
+struct BitString{B,N}
+    chunks::SVector{N,UInt64}
 
     # This constructor is only to be used internally. It doesn't check for ghost bits.
-    function BitString{B,N,T}(s::SVector{N,T}) where {B,N,T}
-        SVector{N,T} ≡ bitstring_storage(Val(B)) || error("Invalid type parameters")
-        return new{B,N,T}(s)
+    function BitString{B,N}(s::SVector{N,UInt64}) where {B,N}
+        check_bitstring_typeparams(Val(B), Val(N))
+        return new{B,N}(s)
+    end
+    function BitString{B,N}(i::UInt64) where {B,N}
+        check_bitstring_typeparams(Val(B), Val(N))
+        return new{B,N}(setindex(zero(SVector{N,UInt64}), i, N))
     end
 end
 ###
@@ -62,32 +69,15 @@ Number of bits stored in bitstring.
 num_bits(::Type{<:BitString{B}}) where {B} = B
 
 """
-    chunk_type(::Type{<:BitString})
-    chunk_type(s::BitString)
-Type of integer used to store bitstring.
-"""
-chunk_type(::Type{<:BitString{<:Any,<:Any,T}}) where T = T
-
-"""
-    chunk_size(::Type{<:BitString})
-    chunk_size(s::BitString)
-Number of bits stored in each chunk of bitstring. Equivalent to
-`sizeof(eltype(chunks(s))) * 8`.
-"""
-chunk_size(::Type{<:BitString{<:Any,<:Any,T}}) where T = sizeof(T) * 8
-
-"""
     top_chunk_bits(::Type{<:BitString})
     top_chunk_bits(s::BitString)
 Equivalent to `chunk_bits(s, 1)`.
 """
-function top_chunk_bits(::Type{S}) where {S<:BitString}
-    B = num_bits(S)
-    C = chunk_size(S)
-    return B % C == 0 ? C : B % C
+function top_chunk_bits(::Type{<:BitString{B}}) where B
+    return B % 64 == 0 ? 64 : B % 64
 end
 
-for f in (:num_chunks, :num_bits, :chunk_size, :chunk_type, :top_chunk_bits)
+for f in (:num_chunks, :num_bits, :top_chunk_bits)
     @eval $f(s::BitString) = $f(typeof(s))
 end
 
@@ -102,9 +92,14 @@ chunks(s::BitString) = s.chunks
 Return the number of bits in the `i`-th chunk of `s`.
 """
 chunk_bits(s, i) = chunk_bits(typeof(s), i)
-chunk_bits(::Type{S}, _) where {S<:BitString{<:Any,1}} = num_bits(S)
+chunk_bits(::Type{<:BitString{B,1}}, _) where {B} = B
 function chunk_bits(::Type{S}, i) where {S<:BitString}
-    return ifelse(i == 1, top_chunk_bits(S), chunk_size(S))
+    return ifelse(i == 1, top_chunk_bits(S), 64)
+end
+
+function ghost_bit_mask(::Type{S}) where S<:BitString
+    unused_bits = 64 - top_chunk_bits(S)
+    return ~zero(UInt64) >>> unused_bits
 end
 
 """
@@ -114,21 +109,13 @@ Remove set bits outside data field if any are present.
 See also: [`has_ghost_bits`](@ref).
 """
 function remove_ghost_bits(s::S) where {S<:BitString}
-    T = chunk_type(S)
-    unused_bits = chunk_size(S) - top_chunk_bits(S)
-    # This compiles away if the following is true.
-    if unused_bits == 0
-        return s
-    else
-        mask = ~zero(T) >>> unused_bits
-        return S(setindex(s.chunks, s.chunks[1] & mask, 1))
-    end
+    mask = ghost_bit_mask(S)
+    return S(setindex(s.chunks, s.chunks[1] & mask, 1))
 end
 
 @inline function remove_ghost_bits(s::S) where {S<:BitString{<:Any,1}}
-    T = chunk_type(S)
-    mask = ~zero(T) >>> (chunk_size(S) - top_chunk_bits(S))
-    return S(SVector(chunks(s)[1] & mask))
+    mask = ghost_bit_mask(S)
+    return S(chunks(s) .& mask)
 end
 
 """
@@ -139,7 +126,7 @@ See also: [`remove_ghost_bits`](@ref).
 """
 function has_ghost_bits(s::S) where {S<:BitString}
     top = first(chunks(s))
-    mask = ~zero(top) << top_chunk_bits(S)
+    mask = ~zero(UInt64) << top_chunk_bits(S)
     return top & mask > 0
 end
 
@@ -150,52 +137,40 @@ function BitString{B}(i::Union{Int128,Int64,Int32,Int16,Int8}) where {B}
     return remove_ghost_bits(BitString{B}(unsigned(i)))
 end
 function BitString{B}(i::Union{UInt64,UInt32,UInt16,UInt8}) where {B}
-    S = bitstring_storage(Val(B))
-    T = eltype(S)
-    N = length(S)
-    s = setindex(zero(S), T(i), N)
-    return remove_ghost_bits(BitString{B,N,T}(s))
+    N = num_chunks(Val(B))
+    s = setindex(zero(SVector{N,UInt64}), UInt64(i), N)
+    return remove_ghost_bits(BitString{B,N}(s))
 end
 function BitString{B}(i::UInt128) where {B}
-    S = bitstring_storage(Val(B))
-    T = eltype(S)
-    N = length(S)
-    if T ≡ UInt128
-        s = setindex(zero(S), i, N)
-    else
-        left = i >>> 0x40 % UInt64
-        right = i & typemax(UInt64) % UInt64
-        s = S(ntuple(Val(N)) do i
-            i == N ? right : i == N - 1 ? left : zero(UInt64)
-        end)
+    N = num_chunks(Val(B))
+    left = i >>> 0x40 % UInt64
+    right = i & typemax(UInt64) % UInt64
+    s = ntuple(Val(N)) do i
+        i == N ? right : i == N - 1 ? left : zero(UInt64)
     end
-    return remove_ghost_bits(BitString{B,N,T}(s))
+    return remove_ghost_bits(BitString{B,N}(SVector{N,UInt64}(s)))
 end
 function BitString{B}(i::BigInt) where {B}
-    S = bitstring_storage(Val(B))
-    T = eltype(S)
-    N = length(S)
-    s = zero(S)
+    N = num_chunks(Val(B))
+    s = zero(SVector{N,UInt64})
     j = N
     while i ≠ 0
-        chunk = i & typemax(T) % T
-        i >>>= sizeof(T) * 8
+        chunk = i & typemax(UInt64) % UInt64
+        i >>>= 64
         s = setindex(s, chunk, j)
         j -= 1
     end
-    return remove_ghost_bits(BitString{B,N,T}(s))
+    return remove_ghost_bits(BitString{B,N}(s))
 end
 
 function Base.zero(S::Type{<:BitString{B}}) where {B}
-    s = zero(bitstring_storage(Val(B)))
-    N = length(s)
-    T = eltype(s)
-    BitString{B,N,T}(s)
+    N = num_chunks(Val(B))
+    BitString{B,N}(zero(SVector{N,UInt64}))
 end
 Base.zero(s::BitString) = zero(typeof(s))
 
-function Base.show(io::IO, s::BitString{B,N,T}) where {B,N,T}
-    print(io, "BitString{$B,$N,$T}(", join(map(i -> repr(i)[3:end], s.chunks), '|'), ')')
+function Base.show(io::IO, s::BitString{B,N}) where {B,N}
+    print(io, "BitString{$B,$N}(", join(map(i -> repr(i)[3:end], s.chunks), '|'), ')')
 end
 Base.bitstring(s::BitString{B}) where {B} = join(bitstring.(s.chunks))[(end - B + 1):end]
 
@@ -221,7 +196,7 @@ function _trailing(f, s::BitString)
         r == chunk_bits(s, i) || break
     end
     # If top chunk occupies the whole integer, result will always be smaller or equal to B.
-    if top_chunk_bits(s) ≠ chunk_size(s)
+    if top_chunk_bits(s) ≠ 64
         return min(num_bits(s), result)
     else
         return result
@@ -230,14 +205,14 @@ end
 
 function _leading(f, s::BitString)
     # First chunk is a special case - we have to ignore the empty space before the string.
-    result = min(f(s.chunks[1] << (chunk_size(s) - top_chunk_bits(s))), top_chunk_bits(s))
+    result = min(f(s.chunks[1] << (64 - top_chunk_bits(s))), top_chunk_bits(s))
 
     # This gets compiled away if N=1
     if num_chunks(s) > 1 && result == top_chunk_bits(s)
         for i in 2:num_chunks(s)
             r = f(s.chunks[i])
             result += r
-            r == chunk_size(s) || break
+            r == 64 || break
         end
     end
     return result
@@ -249,8 +224,6 @@ Base.leading_ones(s::BitString) = _leading(leading_ones, s)
 Base.leading_zeros(s::BitString) = _leading(leading_zeros, s)
 
 @generated function _right_shift(s::S, k) where {S<:BitString}
-    z = zero(chunk_type(S))
-    cs = chunk_size(S)
     N = num_chunks(S)
     quote
         $(Expr(:meta, :inline))
@@ -259,13 +232,15 @@ Base.leading_zeros(s::BitString) = _leading(leading_zeros, s)
         elseif k == 0
             return s
         else
-            d, r = divrem(k, $cs)
-            ri = $cs - r
-            mask = ~$z >>> ri # 2^r-1 # 0b0...01...1 with `r` 1s
+            # equivalent to d, r = divrem(k, 64)
+            d = k >>> 0x6
+            r = k & 63
+            ri = 64 - r
+            mask = ~zero(UInt64) >>> ri # 2^r-1 # 0b0...01...1 with `r` 1s
             c = chunks(s)
 
             @nif $(N + 1) l -> (d < l) l -> (
-                S(SVector((@ntuple l - 1 k -> $z)... ,c[1] >>> r,
+                S(SVector((@ntuple l - 1 k -> zero(UInt64))... ,c[1] >>> r,
                           (@ntuple $N-l q -> (c[q + 1] >>> r | ((c[q] & mask) << ri)))...
                           ))
             ) l -> (
@@ -276,19 +251,19 @@ Base.leading_zeros(s::BitString) = _leading(leading_zeros, s)
 end
 
 function _left_shift(s::S, k) where {S<:BitString}
-    T = chunk_type(S)
-    result = zeros(MVector{num_chunks(S),chunk_type(S)})
-    d, r = divrem(k, chunk_size(S))
+    result = zeros(MVector{num_chunks(S),UInt64})
+    # d, r = divrem(k, 64)
+    d = k >>> 0x6
+    r = k & 63
 
-    shift = SVector(s.chunks) .<< (r % UInt)
-    carry = s.chunks .>>> ((chunk_size(S) - r) % UInt)
+    shift = s.chunks .<< (r % UInt64)
+    carry = s.chunks .>>> ((64 - r) % UInt64)
 
     for i in d + 1:length(result)
-        @inbounds result[i - d] = shift[i] | get(carry, i + 1, zero(T))
+        @inbounds result[i - d] = shift[i] | get(carry, i + 1, zero(UInt64))
     end
     # This bit removes ghost bits.
-    mask = ~zero(T) >>> (chunk_size(S) - top_chunk_bits(S))
-    result[1] &= mask
+    result[1] &= ghost_bit_mask(S)
     return S(SVector(result))
 end
 
@@ -296,21 +271,11 @@ Base.:>>(s::BitString, k) = k ≥ 0 ? _right_shift(s, k) : _left_shift(s, -k)
 Base.:<<(s::BitString, k) = k > 0 ? _left_shift(s, k) : _right_shift(s, -k)
 Base.:>>>(s::BitString, k) = s >> k
 
-Base.:>>(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(SVector(s.chunks[1] >> k)))
-Base.:<<(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(SVector(s.chunks[1] << k)))
+# remove ghost bits must be applied to both because k might be negative.
+Base.:>>(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .>> k))
+Base.:<<(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .<< k))
 
-"""
-    one_bit_mask(::Type{T}, pos) where T<:AbstractBitString
-Optional faster way to to `T(1) << pos`.
-"""
-one_bit_mask(::Type{<:BitString{B}}, pos) where B = BitString{B}(1) << pos
-
-"""
-    three_bit_mask(::Type{T}, pos) where T<:AbstractBitString
-Optional faster way to to `T(3) << pos`.
-"""
-two_bit_mask(::Type{<:BitString{B}}, pos) where B = BitString{B}(3) << pos
-
+# TODO: ??
 Base.isodd(s::BitString) = isodd(chunks(s)[end])
 Base.iseven(s::BitString) = iseven(chunks(s)[end])
 

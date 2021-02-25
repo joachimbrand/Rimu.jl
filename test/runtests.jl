@@ -685,7 +685,7 @@ end
 @testset "TwoComponentBosonicHamiltonian" begin
     aIni2cReal = BoseFS2C(BoseFS((1,1,1,1)),BoseFS((1,1,1,1))) # real space two-component
     Ĥ2cReal = BoseHubbardReal1D2C(aIni2cReal; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
-    hamA = BoseHubbardReal1D(n=4,m=4,u=6.0,t=1.0,AT=BoseFS{4,4,BitString{7,1,UInt64}})
+    hamA = BoseHubbardReal1D(n=4,m=4,u=6.0,t=1.0,AT=BoseFS{4,4,BitString{7,1}})
     hamB = BoseHubbardReal1D(BoseFS((1,1,1,1));u=6.0)
     @test hamA == Ĥ2cReal.ha
     @test hamB == Ĥ2cReal.hb
