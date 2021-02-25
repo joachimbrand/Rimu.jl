@@ -64,7 +64,7 @@ function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString
     for i in M:-1:1
         curr_occnum = onr[i]
         result <<= curr_occnum + 1
-        result |= (one(T) << curr_occnum - 1)
+        result |= one(T) << curr_occnum - T(1)
     end
     return BoseFS{N,M,S}(S(SVector(result)))
 end
