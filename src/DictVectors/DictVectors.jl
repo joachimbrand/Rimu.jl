@@ -21,7 +21,7 @@ import LinearAlgebra: mul!, dot
 import Base: length, iterate, getindex, setindex, setindex!, get, get!, haskey,
              getkey, pop!, isempty, empty, empty!, delete!, sizehint!,
              zero, similar, eltype, ==, isequal, copy, copyto!, *, fill!,
-             values, keys, pairs
+             values, keys, pairs, *
 # I don't know why we have to import == and isequal from Base. We are not
 # defining any new methods, but since removing the subtyping to AbstractDict,
 # suddenly we get errors like
@@ -32,11 +32,17 @@ import Base: length, iterate, getindex, setindex, setindex!, get, get!, haskey,
 # include("FastBufs.jl")
 using ..FastBufs
 
-export AbstractDVec, capacity, zero!, kvpairs, pairtype, add!
-export NormProjector, Norm2Projector, UniformProjector
-export DVec
+export AbstractDVec, capacity, zero!, kvpairs, pairtype, add!, copytight
+export AbstractProjector, NormProjector, Norm2Projector, UniformProjector
+export DVec, DVec2
 export DFVec, tuples, gettuple, flagtype, flags
 export FastDVec
+
+export StochasticStyle,
+    IsStochastic, IsDeterministic, IsStochasticWithThreshold,
+    @setThreshold, @setDeterministic, setThreshold
+    # IsStochasticNonlinear, IsStochastic2Pop,
+    # IsStochastic2PopInitiator, IsStochastic2PopWithThreshold, IsSemistochastic
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.
@@ -66,7 +72,9 @@ export FastDVec
 include("delegate.jl")
 
 include("abstractdvec.jl")
+include("stochasticstyle.jl")
 include("dvec.jl")
+include("dvec2.jl")
 include("dfvec.jl")
 include("fastdvec.jl")
 

@@ -5,12 +5,14 @@ Module with types and methods pertaining to bitstring addresses.
 module BitStringAddresses
 
 using StaticArrays
+using Setfield
+
 using Base.Cartesian
 
 import Base: isless, zero, iszero, show, ==, hash
 
 export BitStringAddressType, BSAdd64, BSAdd128
-export BitAdd, BoseFS
+export BitAdd, BoseFS, BoseFS2C
 export onr, nearUniform, nearUniformONR
 export numBits, numChunks, numParticles, numModes
 export BStringAdd # deprecate
@@ -474,7 +476,7 @@ Bitshift `b` to the left by `n` bits and fill from the right with zeros.
 
 ## this is still memory allocating for `I>3`.
 # TODO: rewrite this as generated function
-function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
+function unsafe_shift_left_old(b::BitAdd{I,B},n::Integer) where {I,B}
   if I == 1
     return BitAdd{B}((b.chunks[1]<<n,))
   elseif I == 2
@@ -491,6 +493,27 @@ function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
 end
 # This is faster than << for BitArray (yeah!).
 # About half the time and allocations.
+
+function unsafe_shift_left(b::BitAdd{I,B},n::Integer) where {I,B}
+  if I == 1
+    return BitAdd{B}((b.chunks[1]<<n,))
+  elseif I == 2
+    return BitAdd{B}(bshl(b.chunks,n))
+  end
+  d, r = divrem(n,64) # shift by `d` chunks and `r` bits
+  mask = ~0 << (64-r) # (2^r-1) << (64-r) # 0b1...10...0 with `r` 1s
+  a = zeros(SVector{I,UInt64})
+  for i in 1:(I-d-1) # shift chunks and `or` carryover
+    nchunk = (b.chunks[i+d]<<r) | ((b.chunks[i+d+1] & mask) >>> (64-r))
+    a = @set a[i] =  nchunk
+  end
+  if I-d > 0
+    lchunk = b.chunks[I]<<r # no carryover for rightmost chunk
+    a = @set a[I-d] = lchunk
+  end
+  return BitAdd{B}(SVector(a))
+end
+# this version does not allocate memory at all!!
 
 function bshl(c::SVector{2, UInt64}, n::Integer)
   d, r = divrem(n,64) # shift by `d` chunks and `r` bits
@@ -631,7 +654,7 @@ struct BoseFS{N,M,A} <: BosonicFockStateAddress
   bs::A
 end
 
-BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs) 
+BoseFS{N,M}(bs::A) where {N,M,A} = BoseFS{N,M,A}(bs)
 
 function BoseFS(bs::A, b::Integer) where A <: BitStringAddressType
   n = count_ones(bs)
@@ -652,6 +675,7 @@ function BoseFS(bs::BStringAdd)
   m = length(bs.add) - n + 1
   return BoseFS{n,m,BStringAdd}(bs)
 end
+
 
 """
     BoseFS(onr::T) where T<:Union{AbstractVector,Tuple}
@@ -694,7 +718,8 @@ end
     N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   end
   bs = zero(UInt64) # empty bitstring
-  for on in reverse(onr)
+  for i in length(onr):-1:1
+    on = onr[i]
     bs <<= on+1
     bs |= ~zero(UInt64)>>(64-on)
   end
@@ -707,7 +732,8 @@ end
     N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   end
   bs = zero(UInt128) # empty bitstring
-  for on in reverse(onr)
+  for i in length(onr):-1:1
+    on = onr[i]
     bs <<= on+1
     bs |= ~zero(UInt128)>>(128-on)
   end
@@ -717,7 +743,8 @@ end
 @inline function BoseFS{BitAdd{I,B}}(onr::T,::Val{N},::Val{M},::Val{B}) where {I,N,M,B,T<:Union{AbstractVector,Tuple}}
   @boundscheck  ((N + M - 1 == B) && (I == (B-1) ÷ 64 + 1)) || @error "Inconsistency in constructor BoseFS"
   bs = BitAdd{B}(0) # empty bitstring
-  for on in reverse(onr)
+  for i in length(onr):-1:1
+    on = onr[i]
     bs <<= on+1
     bs |= BitAdd{B}()>>(B-on)
   end
@@ -727,7 +754,8 @@ end
 @inline function BoseFS{BitAdd}(onr::T,::Val{N},::Val{M},::Val{B}) where {N,M,B,T<:Union{AbstractVector,Tuple}}
   @boundscheck  N + M - 1 == B || @error "Inconsistency in constructor BoseFS"
   bs = BitAdd{B}(0) # empty bitstring
-  for on in reverse(onr)
+  for i in length(onr):-1:1
+    on = onr[i]
     bs <<= on+1
     bs |= BitAdd{B}()>>(B-on)
   end
@@ -761,17 +789,44 @@ function check_consistency(b::BoseFS{N,M,A}) where {N,M,A<:Union{BSAdd64,BSAdd12
   leading_zeros(b.bs.add) ≥ numBits(A) - numBits(b) ||  error("Ghost bits detected in $b.")
 end
 
+
+
+
+#################################
+"""
+    BoseFS2C{NA,NB,M,AA,AB} <: BosonicFockStateAddress <: BitStringAddressType
+
+Address type that constructed with two [`BoseFS{N,M,A}`](@ref). It represents a
+Fock state with two components, e.g. two different species of bosons with particle
+number `NA` from species A and particle number `NB` from species B. The number of
+orbitals `M` is expacted to be the same for both components.
+"""
+struct BoseFS2C{NA,NB,M,AA,AB} <: BitStringAddressType
+  bsa::BoseFS{NA,M,AA}
+  bsb::BoseFS{NB,M,AB}
+end
+
+BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
+
+function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+  print(io, "BoseFS2C(")
+  Base.show(io,b.bsa)
+  print(io, ",")
+  Base.show(io,b.bsb)
+  print(io, ")")
+end
+
 # performant and allocation free (if benchmarked on its own):
 """
     onr(bs)
 Compute and return the occupation number representation of the bit string
-address `bs` as an `SVector{M,Int}`, where `M` is the number of orbitals.
+address `bs` as an `SVector{M,Int32}`, where `M` is the number of orbitals.
 """
 function onr(bba::BoseFS{N,M,A}) where {N,M,A}
-  r = zeros(MVector{M,Int})
+  r = zeros(MVector{M,Int32})
   address = bba.bs
   for orbitalnumber in 1:M
-    bosonnumber = trailing_ones(address)
+    bosonnumber = Int32(trailing_ones(address))
     r[orbitalnumber] = bosonnumber
     address >>>= bosonnumber + 1
     iszero(address) && break
@@ -780,10 +835,10 @@ function onr(bba::BoseFS{N,M,A}) where {N,M,A}
 end
 
 @inline function m_onr(bba::BoseFS{N,M,A}) where {N,M,A}
-  r = zeros(MVector{M,Int})
+  r = zeros(MVector{M,Int32})
   address = bba.bs
   for orbitalnumber in 1:M
-    bosonnumber = trailing_ones(address)
+    bosonnumber = Int32(trailing_ones(address))
     @inbounds r[orbitalnumber] = bosonnumber
     address >>>= bosonnumber + 1
     iszero(address) && break
@@ -796,7 +851,7 @@ s_onr(arg) = m_onr(arg) |> SVector
 
 # need a special case for BStringAdd because the bit ordering is reversed
 function onr(bba::BoseFS{N,M,A}) where {N,M,A<:BStringAdd}
-  onr(bba.bs,M)
+  return SVector{M,Int32}(onr(bba.bs,M))
 end
 
 
@@ -812,6 +867,39 @@ end
 #     return SVector(t)
 #   end
 # end
+
+"""
+  OccupationNumberIterator(address)
+An iterator over the occupation numbers in `address`.
+"""
+struct OccupationNumberIterator{BS}
+    bs::BS
+    m::Int
+end
+
+OccupationNumberIterator(ad::BoseFS{N,M}) where {N,M} = OccupationNumberIterator(ad.bs, M)
+
+Base.length(oni::OccupationNumberIterator) = oni.m
+Base.eltype(oni::OccupationNumberIterator) = Int32
+
+function Base.iterate(oni::OccupationNumberIterator, bsstate = (oni.bs, oni.m))
+    bs, m = bsstate
+    iszero(m) && return nothing
+    bosonnumber = Int32(trailing_ones(bs))
+    bs >>>= bosonnumber + 1
+    return (bosonnumber, (bs, m-1))
+end
+
+# fast and works without allocations
+function i_onr(bba::BoseFS{N,M,A}) where {N,M,A}
+    SVector{M,Int32}(on for on in OccupationNumberIterator(bba))
+end
+
+
+# need a special case for BStringAdd because the bit ordering is reversed
+function i_onr(bba::BoseFS{N,M,A}) where {N,M,A <:BStringAdd}
+  return SVector{M,Int32}(onr(bba.bs,M))
+end
 
 """
     nearUniformONR(N, M) -> onr::SVector{M,Int}

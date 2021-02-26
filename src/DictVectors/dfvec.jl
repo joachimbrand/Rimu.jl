@@ -102,14 +102,6 @@ Base.similar(dv::DFVec, args...) = empty(dv, args...)
 flagtype(::Type{DFVec{K,V,F}}) where {K,V,F} = F
 flagtype(dv) = flagtype(typeof(dv))
 
-pairtype(::Type{DFVec{K,V,F}}) where {K,V,F} = Pair{K,Tuple{V,F}}
-
-Base.keytype(::Type{DFVec{K,V,F}}) where {K,V,F} = K
-Base.valtype(::Type{DFVec{K,V,F}}) where {K,V,F} = V
-Base.eltype(::Type{DFVec{K,V,F}}) where {K,V,F} = V
-# for instances of AbstractDVec, eltype is already defined
-# for the type we need to do it here because it has to be specific
-
 capacity(dv::DFVec) = (2*length(dv.d.keys))÷3
 # 2/3 of the allocated storage size
 # if number of elements grows larger, Dict will start rehashing and allocating

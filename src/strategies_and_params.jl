@@ -14,26 +14,30 @@
 #
 
 """
+     FciqmcRunStrategy{T}
 Abstract type representing the strategy for running and terminating
-[`fciqmc!()`](@ref). Implemented strategies:
+[`fciqmc!()`](@ref). The type parameter `T` is relevant for reporting the shift
+and the norm.
+
+Implemented strategies:
 
    * [`RunTillLastStep`](@ref)
 """
-abstract type FciqmcRunStrategy end
+abstract type FciqmcRunStrategy{T} end
 
 
-@with_kw mutable struct RunTillLastStep <: FciqmcRunStrategy
+@with_kw mutable struct RunTillLastStep{T} <: FciqmcRunStrategy{T}
     step::Int = 0 # number of current/starting timestep
     laststep::Int = 100 # number of final timestep
     shiftMode::Bool = false # whether to adjust shift
-    shift::Float64 = 0.0 # starting/current value of shift
+    shift::T = 0.0 # starting/current value of shift
     dτ::Float64 = 0.01 # time step
 end
 @doc """
     RunTillLastStep(step::Int = 0 # number of current/starting timestep
                  laststep::Int = 100 # number of final timestep
                  shiftMode::Bool = false # whether to adjust shift
-                 shift::Float64 = 0.0 # starting/current value of shift
+                 shift = 0.0 # starting/current value of shift
                  dτ::Float64 = 0.01 # current value of time step
     ) <: FciqmcRunStrategy
 Parameters for running [`fciqmc!()`](@ref) for a fixed number of time steps.
@@ -51,98 +55,137 @@ projected quantities in the DataFrame.
    * [`EveryKthStep`](@ref)
    * [`ReportDFAndInfo`](@ref)
 
-Every strategy accepts the keyword argument `projector` according to which
+Every strategy accepts the keyword arguments `projector` and `hproj`
+according to which
 a projection of the instantaneous coefficient vector `projector⋅v` and
-Hamiltonian `dot(projector, H, v)` are
+`hproj⋅v` are
 reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
 respectively. Possible values for `projector` are
-* `missing` - no projections are computed (default)
-* `dv::AbstractDVec` - compute projection onto coefficient vector `dv`
+* `nothing` - no projections are computed (default)
+* `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copytight`](@ref) to conserve memory)
 * [`UniformProjector()`](@ref) - projection onto vector of all ones
-* [`NormProjector()`](@ref) - compute 1-norm instead of projection (only `df.vproj`)
-* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection (only `df.vproj`)
+* [`NormProjector()`](@ref) - compute 1-norm instead of projection
+* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection
+
+In order to help set up the calculation of the projected energy,
+where `df.hproj` should report `dot(projector, ham, v)`, the keyword `hproj`
+accepts the following values (for `ReportingStrategy`s passed to `lomc!()`):
+* `:auto` - choose method depending on `projector` and `ham` (default)
+* `:lazy` - compute `dot(projector, ham, v)` every time (slow)
+* `:eager` -  precompute `hproj` as `ham'*v` (fast, requires `adjoint(ham)`)
+* `:not` - don't compute second projector (equivalent to `nothing`)
 
 # Examples
 ```julia
-r_strat = EveryTimeStep(projector = copy(svec))
+r_strat = EveryTimeStep(projector = copytight(svec))
 ```
-Record the projection of instananeous coefficient vector and Hamiltonian onto
-the starting vector, and report every time step.
-```julia
-r_strat = EveryKthStep(k=10, projector = UniformProjector())
-```
-Record the projection of instananeous coefficient vector and Hamiltonian onto
-the uniform vector of all 1s, and report every `k`th time step.
-"""
-abstract type ReportingStrategy{DV} end
+Record the projected energy components `df.vproj = svec⋅v` and
+`df.hproj = dot(svec,ham,v)` with respect to
+the starting vector (performs fast eager calculation if
+`Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO()`),
+and report every time step.
 
-@with_kw struct EveryTimeStep{DV} <: ReportingStrategy{DV}
-    projector::DV = missing
+```julia
+r_strat = EveryKthStep(k=10, projector = UniformProjector(), hproj = :lazy)
+```
+Record the projection of the instananeous coefficient vector `v` onto
+the uniform vector of all 1s into `df.vproj` and of `ham⋅v` into `df.hproj`,
+and report every `k`th time step.
+"""
+abstract type ReportingStrategy{P1,P2} end
+
+@with_kw struct EveryTimeStep{P1,P2} <: ReportingStrategy{P1,P2}
+    projector::P1 = nothing # no projection by default
+    hproj::P2 = :auto # choose automatically by default
 end
 @doc """
-    EveryTimeStep(;projector = missing)
+    EveryTimeStep(;projector = nothing, hproj = :auto)
 Report every time step. Include projection onto `projector`. See
 [`ReportingStrategy`](@ref) for details.
 """ EveryTimeStep
 
-@with_kw struct EveryKthStep{DV} <: ReportingStrategy{DV}
+# function EveryTimeStep(; projector = missing, ham = missing)
+#     EveryTimeStep(projector, ham'*projector)
+#     # we need the adjoint of the Hamiltonian here because eventually we want to
+#     # compute df.hproj = dot(projector, ham, v) [== (ham'*projector)⋅v]
+# end
+
+@with_kw struct EveryKthStep{P1,P2} <: ReportingStrategy{P1,P2}
     k::Int = 10
-    projector::DV = missing
+    projector::P1 = nothing # no projection by default
+    hproj::P2 = :auto # choose automatically by default
 end
 @doc """
-    EveryKthStep(;k = 10, projector = missing)
+    EveryKthStep(;k = 10, projector = nothing, hproj = :auto)
 Report every `k`th step. Include projection onto `projector`. See
 [`ReportingStrategy`](@ref) for details.
 """ EveryKthStep
 
-@with_kw struct ReportDFAndInfo{DV} <: ReportingStrategy{DV}
+@with_kw struct ReportDFAndInfo{P1,P2} <: ReportingStrategy{P1,P2}
     k::Int = 10 # how often to write to DataFrame
     i::Int = 100 # how often to write info message
     io::IO = stdout # IO stream for info messages
     writeinfo::Bool = true # write info only if true - useful for MPI codes
-    projector::DV = missing
+    projector::P1 = nothing # no projection by default
+    hproj::P2 = :auto # choose automatically by default
 end
 @doc """
-    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = missing)
+    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = nothing, hproj = :auto)
 Report every `k`th step in DataFrame and write info message to `io` every `i`th
 step (unless `writeinfo == false`). The flag `writeinfo` is useful for
 controlling info messages in MPI codes. Include projection onto `projector`.
 See [`ReportingStrategy`](@ref) for details.
 """ ReportDFAndInfo
 
-# """
-#     ReportPEnergy(pv)
-# Report every time step including projection onto `pv`.
-# """
-# struct ReportPEnergy{DV} <: ReportingStrategy
-#     projector::DV
-# end
-
 """
     compute_proj_observables(v, ham, r::ReportingStrategy)
-Compute the projection of `r.projector⋅v` and `r.projector⋅ham*v` according to
+Compute the projection of `r.projector⋅v` and `r.hproj⋅v` or
+`r.projector⋅ham*v` according to
 the [`ReportingStrategy`](@ref) `r`.
 """
 function compute_proj_observables(v, ham, ::RS) where
-                        {DV <: Missing, RS<:ReportingStrategy{DV}}
+                        {P1 <: Nothing, P2 <: Nothing,
+                         RS<:ReportingStrategy{P1,P2}}
+    return missing, missing # nothing to do
+end
+
+# catch an error
+function compute_proj_observables(v, ham, ::RS) where
+                        {P1, P2 <: Symbol,
+                         RS<:ReportingStrategy{P1,P2}}
+    throw(ErrorException("`Symbol` is not a valid type for `hproj`. Use `refine_r_strat()`!"))
     return missing, missing
 end
-# default
 
-# generic version with projector, e.g. for computing projected energy
+#  single projector, e.g. for norm calculation
 function compute_proj_observables(v, ham, r::RS) where
-                        {DV, RS<:ReportingStrategy{DV}}
+                        {P1, P2 <: Nothing,
+                         RS<:ReportingStrategy{P1,P2}}
+    return r.projector⋅v, missing
+end
+# The dot products work across MPI when `v::MPIData`; MPI sync
+
+# (slow) generic version with single projector, e.g. for computing projected energy
+function compute_proj_observables(v, ham, r::RS) where
+                        {P1, P2 <: Missing,
+                         RS<:ReportingStrategy{P1,P2}}
     return r.projector⋅v, dot(r.projector, ham, v)
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
-# version for `Norm?Projector`s
-# Only norm of vector is computed to save time
-function compute_proj_observables(v, ham, r::RS) where
-                        {DV<:Union{NormProjector,Norm2Projector}, RS<:ReportingStrategy{DV}}
-    return r.projector⋅v, missing
+# fast version with 2 projectors, e.g. for computing projected energy
+function compute_proj_observables(v, ham, r::ReportingStrategy)
+    return r.projector⋅v, r.hproj⋅v
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
+
+# # version for `Norm?Projector`s
+# # Only norm of vector is computed to save time
+# function compute_proj_observables(v, ham, r::RS) where
+#                         {DV<:Union{NormProjector,Norm2Projector}, RS<:ReportingStrategy{DV}}
+#     return r.projector⋅v, missing
+# end
+# # The dot products work across MPI when `v::MPIData`; MPI sync
 
 """
     report!(df::DataFrame, t::Tuple, s<:ReportingStrategy)
@@ -223,6 +266,12 @@ Default strategy for [`MemoryStrategy`](@ref) indicating that
 no memory noise will be used.
 """
 struct NoMemory <: MemoryStrategy end
+
+"""
+    PurgeNegatives <: MemoryStrategy
+Purge all negative sign walkers.
+"""
+struct PurgeNegatives <: MemoryStrategy end
 
 """
     DeltaMemory(Δ::Int) <: MemoryStrategy
@@ -421,8 +470,8 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
 """
-struct DoubleLogUpdate <: ShiftStrategy
-    targetwalkers::Int
+struct DoubleLogUpdate{T} <: ShiftStrategy
+    targetwalkers::T
     ζ::Float64 # damping parameter, best left at value of 0.08
     ξ::Float64  # restoring force to bring walker number to the target
 end
@@ -626,7 +675,7 @@ end
 
 @inline function update_shift(s::LogUpdateAfterTargetWalkers,
                         shift, shiftMode, tnorm, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
     end
     return shift, false, tnorm
@@ -635,7 +684,7 @@ end
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
             return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
     end
     return shift, false, tnorm
@@ -644,7 +693,7 @@ end
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkersSwitch,
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         if s.a > 0
             s.a -= 1
             return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, true, tnorm, pnorm, dτ, step, df)
@@ -671,7 +720,7 @@ end
                         shift, shiftMode,
                         tnorm, pnorm, dτ, step, df, args...)
     # return new shift and new shiftMode
-    if tnorm > s.targetwalkers
+    if real(tnorm) > s.targetwalkers
         return update_shift(DelayedDoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ,s.A), shift, shiftMode, tnorm, pnorm, dτ, step, df, args...)
     else
         return update_shift(DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ), shift, shiftMode, tnorm, pnorm, dτ, args...)
@@ -680,164 +729,13 @@ end
 
 @inline function update_shift(s::DelayedLogUpdateAfterTargetWalkers,
                         shift, shiftMode, tnorm, pnorm, args...)
-    if shiftMode || tnorm > s.targetwalkers
+    if shiftMode || real(tnorm) > s.targetwalkers
         return update_shift(DelayedLogUpdate(s.ζ,s.a), shift, true, tnorm, pnorm, args...)
     end
     return shift, false, pnorm
 end
 
 @inline update_shift(::DontUpdate, shift, tnorm, args...) = (shift, false, tnorm)
-
-
-# let's decide whether a simulation is deterministic, stochastic, or
-# semistochastic upon a trait on the vector type
-
-"""
-    StochasticStyle(v)
-    StochasticStyle(typeof(v))
-`StochasticStyle` specifies the native style of the generalised vector `v` that
-determines how simulations are to proceed. This can be fully stochastic (with
-`IsStochastic`), fully deterministic (with `IsDeterministic`), or semistochastic
-(with [`IsSemistochastic`](@ref)).
-"""
-abstract type StochasticStyle end
-
-struct IsStochastic <: StochasticStyle end
-
-struct IsStochasticNonlinear <: StochasticStyle
-    c::Float64 # parameter of nonlinear correction applied to local shift
-end
-
-struct IsDeterministic <: StochasticStyle end
-
-"""
-    IsStochasticWithThreshold(threshold::Float16)
-Trait for generalised vector of configurations indicating stochastic
-propagation with real walker numbers and cutoff `threshold`.
-```
-> StochasticStyle(V) = IsStochasticWithThreshold(threshold)
-```
-During stochastic propagation, walker numbers small than `threshold` will be
-stochastically projected to either zero or `threshold`.
-
-The trait can be conveniently defined on an instance of a generalised vector with the macro
-[`@setThreshold`](@ref). Example:
-```julia-repl
-julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
-julia> @setThreshold dv 0.6
-julia> StochasticStyle(dv)
-IsStochasticWithThreshold(0.6f0)
-```
-"""
-struct IsStochasticWithThreshold <: StochasticStyle
-    threshold::Float32
-end
-
-"""
-    @setThreshold dv threshold
-A macro to set a threshold for non-integer walker number FCIQMC. Technically, the macro sets the
-trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
-[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating
-point walker numbers. Also available as function, see [`setThreshold`](@ref).
-
-Example usage:
-```julia-repl
-julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
-julia> @setThreshold dv 0.6
-IsStochasticWithThreshold(0.6f0)
-```
-"""
-macro setThreshold(dv, threshold)
-    return esc(quote
-        @assert !(valtype($dv) <:Integer) "`valtype(dv)` must not be integer."
-        Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
-        Rimu.StochasticStyle($dv)
-    end)
-end
-
-"""
-    setThreshold(dv, threshold)
-Set a threshold for non-integer walker number FCIQMC. Technically, the function sets the
-trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
-[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating
-point walker numbers. Also available as macro, see [`@setThreshold`](@ref).
-
-Example usage:
-```julia-repl
-julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
-julia> setThreshold(dv, 0.6)
-IsStochasticWithThreshold(0.6f0)
-```
-"""
-function setThreshold(dv, threshold)
-    @assert !(valtype(dv) <:Integer) "`valtype(dv)` must not be integer."
-    @eval Rimu.StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
-    return Rimu.StochasticStyle(dv)
-end
-
-"""
-    @setDeterministic dv
-A macro to undo the effect of [`@setThreshold`] and set the
-trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
-[`IsDeterministic()`](@ref).
-"""
-macro setDeterministic(dv)
-    return esc(quote
-        @assert !(valtype($dv) <:Integer) "`valtype(dv)` must not be integer."
-        Rimu.StochasticStyle(::Type{typeof($dv)}) = IsDeterministic()
-        Rimu.StochasticStyle($dv)
-    end)
-end
-
-"""
-    IsSemistochastic(threshold::Float16, d_space)
-Trait for generalised vector of configurations indicating semistochastic
-propagation. Set with [`setSemistochastic!`](@ref).
-```
-> StochasticStyle(V) = IsSemistochastic(threshold, d_space)
-```
-where `d_space` is a vector of addresses defining the the stochastic subspace.
-"""
-struct IsSemistochastic{T} <: StochasticStyle
-    threshold::Float16
-    d_space::Vector{T} # list of addresses in deterministic space
-end
-
-"""
-    setSemistochastic!(dv, threshold::Float16, d_space)
-Set the deterministic space for `dv` with threshold `threshold`, where
-`d_space` is a vector of addresses defining the the stochastic subspace.
-"""
-function setSemistochastic!(dv, threshold::Float16, d_space)
-    clearDSpace!(dv)
-    for add in d_space
-        (val, flag) = dv[add]
-        dv[add] = (val, flag | one(typeof(flag)))
-    end
-    StochasticStyle(dv) = IsSemistochastic(threshold, d_space)
-    dv
-end
-
-"""
-    clearDFlags!(dv)
-Clear all flags in `dv` of the deterministic bit (rightmost bit).
-"""
-function clearDFlags!(dv)
-    for (add, (val, flag)) in pairs(dv)
-        # delete deterministic bit (rightmost) in `flag`
-        dv[add] = (val, flag ⊻ one(typeof(flag)))
-    end
-    dv
-end
-
-# some sensible defaults
-StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
-StochasticStyle(::Type{<:Array}) = IsDeterministic()
-StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
-# the following works for dispatch, i.e. the function is evaluated at compile time
-function StochasticStyle(T::Type{<:AbstractDVec})
-    ifelse(eltype(T) <: Integer, IsStochastic(), IsDeterministic())
-end
 
 # """
 #     tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
@@ -913,3 +811,13 @@ configuration array as to keep the norm constant. As a consequence, the
 final configuration amplitudes may be smaller than `threshold`.
 See [`norm_project`](@ref).
 """ ScaledThresholdProject
+
+@with_kw struct ComplexNoiseCancellation <: ProjectStrategy
+    κ::Float32 = 1.0f0
+end
+@doc """
+    ComplexNoiseCancellation(κ = 1.0) <: ProjectStrategy
+Use complex noise cancellation strategy with imaginary noise injected at
+level `κ`.
+See [`norm_project`](@ref).
+""" ComplexNoiseCancellation
