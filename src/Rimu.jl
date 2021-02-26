@@ -18,7 +18,7 @@ include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("ConsistentRNG.jl")
 @reexport using .ConsistentRNG
-include("Hamiltonians.jl")
+include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("Blocking.jl")
 @reexport using .Blocking
