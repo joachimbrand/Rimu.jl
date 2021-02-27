@@ -15,7 +15,7 @@ function __init__()
 end
 
 """
-    RimuIO.save(filename, df::DataFrame)
+    RimuIO.save_df(filename, df::DataFrame)
 Save dataframe in Arrow format.
 """
 save_df(filename, df::DataFrame) = Arrow.write(filename, df)
