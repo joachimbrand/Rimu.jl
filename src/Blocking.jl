@@ -45,7 +45,7 @@ Calculate the standard error of the dataset `v`. If `corrected` is `true`
 (the default) then the sum in `std` is scaled with `n-1`, whereas the sum
 is scaled with `n` if corrected is `false` where `n = length(v)`.
 """
-se(v::Vector;corrected::Bool=true) = std(v;corrected=corrected)/sqrt(length(v))
+se(v; corrected::Bool=true) = std(v;corrected=corrected)/sqrt(length(v))
 
 """
     blocker(v::Vector) -> new_v::Vector
@@ -390,7 +390,7 @@ If `corrected` is `true` (the default) then the sums in both variance and covari
 are scaled with `n-1`, whereas the sums are scaled with `n` if corrected is `false`
  where `n = length(x) = length(y)`.
 """
-function combination_division(vi::Vector,vj::Vector; corrected::Bool=true)
+function combination_division(vi::AbstractVector,vj::AbstractVector; corrected::Bool=true)
     # if length(vi) != length(vj)
     #     @warn "Two data sets with non-equal length! Truncating the longer one."
     #     if length(vi) > length(vj)
