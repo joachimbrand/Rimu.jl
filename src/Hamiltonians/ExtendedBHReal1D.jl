@@ -48,18 +48,6 @@ function (h::ExtendedBHReal1D)(s::Symbol)
     end
     return nothing
 end
-# should be all that is needed to make the Hamiltonian a linear map:
-(h::ExtendedBHReal1D)(v) = h*v
-# (h::ExtendedBHReal1D)(w, v) = mul!(w, h, v) # mutating version
-# function (h::ExtendedBHReal1D)(w, v) # mutating version
-#     for (key,val) in pairs(v)
-#         w[key] += diagME(h, key)*val
-#         for (add,elem) in Hops(h, key)
-#             w[add] += elem*val
-#         end
-#     end
-#     return w
-# end
 
 function diagME(h::ExtendedBHReal1D, address)
   ebhinteraction, bhinteraction= ebhm(address, h.m)

@@ -69,6 +69,9 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::Abstract
     return w
 end
 
+(h::AbstractHamiltonian)(v) = h * v
+(h::AbstractHamiltonian)(w, v) = mul!(w, h, v)
+
 """
     Hamiltonians.LOStructure(op::AbstractHamiltonian)
     Hamiltonians.LOStructure(typeof(op))

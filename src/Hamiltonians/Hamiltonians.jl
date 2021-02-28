@@ -26,6 +26,7 @@ export BosonicHamiltonian, bit_String_Length
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardReal1D2C
 export BoseHubbardMom1D, Momentum, BoseHubbardMom1D2C
 export HubbardMom1D
+export HubbardReal1D
 
 include("abstract.jl")
 
@@ -38,6 +39,8 @@ include("BoseHubbardMom1D2C.jl")
 include("BoseHubbardMom1D.jl")
 include("ExtendedBHReal1D.jl")
 include("Momentum.jl")
+
+include("HubbardReal1D.jl")
 
 const BoseHubbardExtOrNot = Union{ExtendedBHReal1D, BoseHubbardReal1D}
 # type alias for convenience

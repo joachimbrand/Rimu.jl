@@ -72,8 +72,6 @@ function (h::HubbardMom1D)(s::Symbol)
   return nothing
 end
 # should be all that is needed to make the Hamiltonian a linear map:
-(h::HubbardMom1D)(v) = h*v
-
 ks(h::HubbardMom1D) = h.ks
 
 # standard interface function

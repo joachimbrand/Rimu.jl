@@ -59,18 +59,6 @@ function (h::BoseHubbardReal1D)(s::Symbol)
     end
     return nothing
 end
-# should be all that is needed to make the Hamiltonian a linear map:
-(h::BoseHubbardReal1D)(v) = h*v
-# (h::BoseHubbardReal1D)(w, v) = mul!(w, h, v) # mutating version
-# function (h::BoseHubbardReal1D)(w, v) # mutating version
-#     for (key,val) in pairs(v)
-#         w[key] += diagME(h, key)*val
-#         for (add,elem) in Hops(h, key)
-#             w[add] += elem*val
-#         end
-#     end
-#     return w
-# end
 
 # """
 #     setupBoseHubbardReal1D(; n, m, u, t, [AT = BoseFS, genInitialONR = nearUniform])

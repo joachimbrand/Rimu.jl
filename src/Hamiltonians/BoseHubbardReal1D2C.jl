@@ -51,13 +51,6 @@ function bosehubbard2Cinteraction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,A
     return interaction
 end
 
-
-"""
-    diagME(ham, add)
-
-Compute the diagonal matrix element of the linear operator `ham` at
-address `add`.
-"""
 function diagME(ham::BoseHubbardReal1D2C{T,HA,HB,V}, address::BoseFS2C) where {T,HA,HB,V}
   return ham.ha.u * bosehubbardinteraction(address.bsa) / 2 + ham.hb.u * bosehubbardinteraction(address.bsb) / 2 + V * bosehubbard2Cinteraction(address)
 end
