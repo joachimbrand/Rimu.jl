@@ -14,8 +14,9 @@ Implements a one-dimensional Bose Hubbard chain in real space.
 """
 struct HubbardReal1D{TT,U,T} <: AbstractHamiltonian{TT} end
 
-function HubbardReal1D(; u=1.0, t=1.0)
-    U, T = promote(u, t)
+# addr for compatibility.
+function HubbardReal1D(addr=nothing; u=1.0, t=1.0)
+    U, T = promote(u, t) # should always be Float64?
     return HubbardReal1D{typeof(U),U,T}()
 end
 
