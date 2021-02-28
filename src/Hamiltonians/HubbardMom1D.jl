@@ -91,9 +91,10 @@ end
         onrep::StaticVector) where {TT,U,T,N,M,AD<:BoseFS}
     # now compute diagonal interaction energy
     onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
-    for p = 1:M
-        @inbounds onproduct += onrep[p] * (onrep[p] - 1)
-        @inbounds @simd for k = 1:p-1
+    # Not having @inbounds here is faster?
+    for p in 1:M
+        onproduct += onrep[p] * (onrep[p] - 1)
+        for k in 1:p-1
             onproduct += 4*onrep[k]*onrep[p]
         end
     end
