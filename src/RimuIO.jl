@@ -17,7 +17,7 @@ ArrowTypes.toarrow(a::Complex) = (a.re, a.im)
 ArrowTypes.fromarrow(::Type{Complex{T}}, t::Tuple{T,T}) where {T} = Complex{T}(t...)
 
 """
-    RimuIO.save(filename, df::DataFrame)
+    RimuIO.save_df(filename, df::DataFrame)
 Save dataframe in Arrow format.
 """
 save_df(filename, df::DataFrame) = Arrow.write(filename, df)

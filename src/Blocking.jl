@@ -9,6 +9,7 @@ implemented based on Jonsson (Phys. Rev. E 98, 043304, (2018)).
 module Blocking
 
 using DataFrames, Statistics
+using StructArrays, Parameters
 import Measurements
 
 export autocovariance, covariance
@@ -16,6 +17,7 @@ export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
 export growthWitness, gW, smoothen
 export block_and_test, mean_and_se, mean_pm_se
+export crosscov_FP, cov_bare
 
 # """
 # Calculate the variance of the dataset v
@@ -43,7 +45,7 @@ Calculate the standard error of the dataset `v`. If `corrected` is `true`
 (the default) then the sum in `std` is scaled with `n-1`, whereas the sum
 is scaled with `n` if corrected is `false` where `n = length(v)`.
 """
-se(v::Vector;corrected::Bool=true) = std(v;corrected=corrected)/sqrt(length(v))
+se(v; corrected::Bool=true) = std(v;corrected=corrected)/sqrt(length(v))
 
 """
     blocker(v::Vector) -> new_v::Vector
@@ -52,10 +54,18 @@ form a new vector with a half of the `length(v)`. The last data point will be
 discarded if `length(v)` is odd.
 """
 function blocker(v::AbstractVector{T}) where T
-    P = promote_type(T, Float64)
+    P = typeof(zero(T)/1)
     new_v = Array{P}(undef,(length(v)÷2))
     for i  in 1:length(v)÷2
-        new_v[i] = 0.5*(v[2i-1]+v[2i])
+        new_v[i] = (v[2i-1]+v[2i])/2
+    end
+    return new_v
+end
+function blocker(v::AbstractVector{T}) where T <: Complex
+    P = typeof(zero(T)/1)
+    new_v = StructArray{P}(undef,(length(v)÷2))
+    for i  in 1:length(v)÷2
+        new_v[i] = (v[2i-1]+v[2i])/2
     end
     return new_v
 end
@@ -111,14 +121,13 @@ Calculate the autocovariance of dataset `v` with a delay `h`. If `corrected` is 
 (the default) then the sum is scaled with `n-h`, whereas the sum
 is scaled with `n` if corrected is `false` where `n = length(v)`.
 """
-function autocovariance(v::AbstractVector,h::Int; corrected::Bool=true)
+function autocovariance(v::AbstractVector,h::Int; corrected::Bool=true, mean = mean(v))
     n = length(v)
-    mean_v = mean(v)
-    covsum = zero(mean_v)
+    covsum = zero(mean)
     for i in 1:n-h
-        covsum += (v[i]-mean_v)*conj(v[i+h]-mean_v)
+        @inbounds covsum += (v[i]-mean)*conj(v[i+h]-mean)
     end
-    gamma = covsum/ifelse(corrected, (n-h), n)
+    gamma = covsum/(n - Int(corrected))
     return gamma
 end
 
@@ -153,6 +162,12 @@ function blocking(v::AbstractVector{T}; corrected::Bool=true) where T
     return df
 end
 
+get_real(v) = real(v)
+get_real(v::StructArray{<:Complex}) = v.re
+
+get_imag(v) = imag(v)
+get_imag(v::StructArray{<:Complex}) = v.im
+
 """
     blocks_with_m(v; corrected = true) -> (;blocks, mean, std_err, std_err_err, mj)
 Perform the blocking algorithm from Flyvberg and Peterson
@@ -175,7 +190,8 @@ Returns named tuple with the results from all blocking steps.
         mean_v = mean(v)
         mean_arr[i] = mean_v
         variance = var(v; corrected=corrected, mean=mean_v) # variance
-        gamma = autocovariance(v,1; corrected=corrected) # sample covariance ŷ(1) Eq. (6) [Jonsson]
+        # sample covariance ŷ(1) Eq. (6) [Jonsson]
+        gamma = autocovariance(v,1; corrected=corrected, mean=mean_v)
         mj[i] = n*((n-1)*variance/(n^2)+gamma)^2/(variance^2) # the M value Eq. (12) [Jonsson]
         stderr_v = sqrt(variance/n)# standard error
         std_err[i] = stderr_v
@@ -186,7 +202,41 @@ Returns named tuple with the results from all blocking steps.
     return (;blocks, mean=mean_arr, std_err, std_err_err, mj)
 end
 
-struct BlockingResult
+@inline function blocks_with_m(v::AbstractVector{T}; corrected::Bool=true) where T<:Complex
+    n_steps = floor(Int,log2(length(v)))
+    C = typeof(zero(T)/1)
+
+    # initialise arrays to be returned
+    blocks = Vector{Int}(undef,n_steps)
+    mean_arr = Vector{C}(undef,n_steps)
+    std_err = Vector{C}(undef,n_steps)
+    std_err_err = Vector{C}(undef,n_steps)
+    mj = StructArray{C}(undef,n_steps)
+
+    for i in 1:n_steps
+        n = length(v)
+        blocks[i] = n
+        mean_v = mean(v)
+        mean_arr[i] = mean_v
+        var_re = var(get_real(v); corrected=corrected, mean=real(mean_v)) # variance
+        var_im = var(get_imag(v); corrected=corrected, mean=imag(mean_v)) # variance
+        # sample covariance ŷ(1) Eq. (6) [Jonsson]
+        gamma_re = autocovariance(get_real(v),1; corrected=corrected, mean=real(mean_v))
+        gamma_im = autocovariance(get_imag(v),1; corrected=corrected, mean=imag(mean_v))
+        # the M value Eq. (12) [Jonsson]
+        mj[i] =
+            n * ((n - 1) * var_re / (n^2) + gamma_re)^2 / (var_re^2) +
+            im * n * ((n - 1) * var_im / (n^2) + gamma_im)^2 / (var_im^2)
+        stderr_v = sqrt(var_re/n) + im*sqrt(var_im/n) # standard error
+        std_err[i] = stderr_v
+        std_err_err[i] = stderr_v/sqrt(2*(n-1)) # error on standard error Eq. (28) [F&P]
+        v = blocker(v) # re-blocking the dataset
+    end
+    (length(v)≤ 0 || length(v)>2) && @error "Something went wrong in `blocks_with_m`."
+    return (;blocks, mean=mean_arr, std_err, std_err_err, mj)
+end
+
+@with_kw struct BlockingResult
     mean::Float64
     err::Float64
     err_err::Float64
@@ -235,6 +285,44 @@ function block_and_test(v::AbstractVector{<:Real}; corrected::Bool=true)
     return BlockingResult(0.0, NaN, NaN, -1)
 end
 
+function block_and_test(v::AbstractVector{<:Complex}; corrected::Bool=true)
+    if length(v) == 0
+        @error "Attempted blocking on an empty vector"
+    elseif length(v) == 1 # treat like failed M test
+        return (
+            BlockingResult(get_real(v[1]), NaN, NaN, -1),
+            BlockingResult(get_imag(v[1]), NaN, NaN, -1),
+        )
+    else
+        nt = blocks_with_m(v; corrected)
+        k_re = mtest(get_real(nt.mj); warn=false)
+        if k_re > 0
+            err_re = real(nt.std_err[k_re])
+            err_err_re = imag(nt.std_err_err[k_re])
+        else
+            err_re = NaN
+            err_err_re = NaN
+        end
+        k_im = mtest(get_imag(nt.mj); warn=false)
+        if k_im > 0
+            err_im = imag(nt.std_err[k_im])
+            err_err_im = imag(nt.std_err_err[k_im])
+        else
+            err_im = NaN
+            err_err_im = NaN
+        end
+        mean = nt.mean[1]
+        return (
+            BlockingResult(real(mean), err_re, err_err_re, k_re),
+            BlockingResult(imag(mean), err_im, err_err_im, k_im),
+        )
+    end
+    return (
+        BlockingResult(0.0, NaN, NaN, -1),
+        BlockingResult(0.0, NaN, NaN, -1),
+    )
+end
+
 """
     mean_and_se(v; corrected = true) -> (mean, err)
 Return the mean and estimated standard error from an automated blocking analysis as a tuple.
@@ -246,6 +334,10 @@ function mean_and_se(v::AbstractVector{<:Real}; corrected::Bool=true)
     br = block_and_test(v; corrected)
     return (br.mean, br.err)
 end
+function mean_and_se(v::AbstractVector{<:Complex}; corrected::Bool=true)
+    t = block_and_test(v; corrected) # returns tuple with real and complex results
+    return (t[1].mean + im*t[2].mean, t[1].err, t[2].err)
+end
 
 """
     mean_pm_se(v; corrected = true) -> mean ± err
@@ -256,6 +348,10 @@ bias correction for variances is used.
 """
 function mean_pm_se(v::AbstractVector{<:Real}; corrected::Bool=true)
     return Measurements.measurement(block_and_test(v; corrected))
+end
+function mean_pm_se(v::AbstractVector{<:Complex}; corrected::Bool=true)
+    t = block_and_test(v; corrected) # returns tuple with real and complex results
+    return complex(Measurements.measurement(t[1]), Measurements.measurement(t[2]))
 end
 
 """
@@ -281,7 +377,7 @@ function covariance(vi::AbstractVector,vj::AbstractVector; corrected::Bool=true)
     for i in 1:n
         covsum += (vi[i]-meani)*conj(vj[i]-meanj)
     end
-    cov = covsum/ifelse(corrected, (n-1), n)
+    cov = covsum/(n - Int(corrected))
     return cov
 end
 
@@ -294,7 +390,7 @@ If `corrected` is `true` (the default) then the sums in both variance and covari
 are scaled with `n-1`, whereas the sums are scaled with `n` if corrected is `false`
  where `n = length(x) = length(y)`.
 """
-function combination_division(vi::Vector,vj::Vector; corrected::Bool=true)
+function combination_division(vi::AbstractVector,vj::AbstractVector; corrected::Bool=true)
     # if length(vi) != length(vj)
     #     @warn "Two data sets with non-equal length! Truncating the longer one."
     #     if length(vi) > length(vj)
@@ -649,6 +745,29 @@ end
 gW(df::DataFrame) = gW(df.norm, df.shift, df.dτ[1])
 gW(df::DataFrame, b; pad = :true) = gW(df.norm, df.shift, df.dτ[1], b; pad=pad)
 
+
+@doc raw"""
+    cov_bare(x, y; xmean = mean(x), ymean = mean(y))
+Compute the bare covariance between collections `x` and `y` returning a scalar:
+```math
+\frac{1}{n}\sum_{i=1}^{n} (x_i - \bar{x})(y_{i} - \bar{y})
+```
+Optionally,
+precomputed means can be passed as keyword arguments. `cov_bare(x,y)` is functionally
+equivalent to `Statistics.cov(x, conj(y); corrected = false)` but it is found to be
+significantly faster and avoids allocations.
+"""
+@inline function cov_bare(x, y; xmean = mean(x), ymean = mean(y))
+    n = length(x)
+    @assert length(y) == n
+    res = zero(promote_type(eltype(x), eltype(y))) / 1
+    for i = 1:n
+        @inbounds res += (x[i] - xmean) * (y[i] - ymean)
+    end
+    return res / n
+end
+
+
 @doc raw"""
     crosscov_FP(x,y; [maxlag])
 Variant of a cross-covariance function inspired by estimator for a correlation function
@@ -657,27 +776,22 @@ keyword argument `maxlag` determines the length of the returned array as `maxlag
 The function accepts complex-valued vectors for `x` and `y`, which must have the same
 length ``n``. The returned vector the contains the values of
 ```math
-\begin{aligned}
 \tilde{\gamma}(h) = \frac{1}{n-h}\sum_{i=1}^{n-h} (x_i - \bar{x})(y_{i+h} - \bar{y})
-\end{aligned}
 ```
 for lags of `h = 0:maxlag`.
 """
-function crosscov_FP(x,y; maxlag = min(length(x), 10*floor(Int,log10(length(x)))))
-    @assert length(x) == length(y)
+function crosscov_FP(x, y; maxlag = min(length(x), 10 * floor(Int, log10(length(x)))))
     n = length(x)
+    @assert length(y) == n
     lags = 0:maxlag # possible values of h
-    xm = x .- mean(x) # subtract mean now, copies vector
-    ym = y .- mean(y)
-    T = typeof(zero(promote_type(eltype(x),eltype(y)))/1)
-    ccv = zeros(T,length(lags))
-    for (ih,h) in enumerate(lags)
-        γ = zero(T)
-        for i in 1:(n-h)
-            γ += xm[i] * ym[i+h]
-        end
-        ccv[ih] = γ/(n-h)
+    xmean = mean(x)
+    ymean = mean(y)
+    T = typeof(zero(promote_type(eltype(x), eltype(y))) / 1)
+    ccv = zeros(T, length(lags))
+    for (ih, h) in enumerate(lags)
+        ccv[ih] = cov_bare(@view(x[1:n-h]), @view(y[1+h:n]); xmean, ymean)
     end
     return ccv
 end
+
 end # module Blocking
