@@ -4,7 +4,7 @@
   u::T = 1.0    # on-site interaction strength
   v::T = 1.0    # on-site interaction strength
   t::T = 1.0    # hopping strength
-  AT::Type = BSAdd64 # address type
+  AT::Type = BoseFS{6,6} # address type
 end
 @doc """
     ham = ExtendedBHReal1D(n=6, m=6, u=1.0, v=1.0, t=1.0, AT=BSAdd64)
