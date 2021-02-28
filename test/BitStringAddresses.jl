@@ -103,7 +103,7 @@ using Test
             return remove_ghost_bits(BitString{B,N}(s))
         end
 
-        for B in (32, 65, 120, 200, 250)
+        for B in (32, 65, 120, 200, 256)
             a = rand_bitstring(B)
             b = rand_bitstring(B)
             one = ~zero(a)
@@ -131,6 +131,9 @@ using Test
             @test !has_ghost_bits(a ⊻ b)
             @test !has_ghost_bits(a & b)
             @test !has_ghost_bits(a >> 2)
+
+            # This test checks that the result of show can be pasted into the REPL
+            @test eval(Meta.parse(repr(a))) == a
         end
     end
 end
@@ -246,6 +249,9 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction, hopnextnei
                         hopnextneighbour2(bose, i) == hopnextneighbour(bose, i)
                         for i in 1:numberoccupiedsites(bose) * 2
                     )
+
+                    # This test checks that the result of show can be pasted into the REPL
+                    @test eval(Meta.parse(repr(bose))) == bose
                 end
             end
         end

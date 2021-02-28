@@ -243,26 +243,20 @@ Base.leading_zeros(s::BitString) = _leading(leading_zeros, s)
     N = num_chunks(S)
     quote
         $(Expr(:meta, :inline))
-        if k < 0
-            return s << k
-        elseif k == 0
-            return s
-        else
-            # equivalent to d, r = divrem(k, 64)
-            d = k >>> 0x6
-            r = k & 63
-            ri = 64 - r
-            mask = ~zero(UInt64) >>> ri # 2^r-1 # 0b0...01...1 with `r` 1s
-            c = chunks(s)
+        # equivalent to d, r = divrem(k, 64)
+        d = k >>> 0x6
+        r = k & 63
+        ri = 64 - r
+        mask = ~zero(UInt64) >>> ri # 2^r-1 # 0b0...01...1 with `r` 1s
+        c = chunks(s)
 
-            @nif $(N + 1) l -> (d < l) l -> (
-                S(SVector((@ntuple l - 1 k -> zero(UInt64))... ,c[1] >>> r,
-                          (@ntuple $N-l q -> (c[q + 1] >>> r | ((c[q] & mask) << ri)))...
-                          ))
-            ) l -> (
-                return zero(S)
-            )
-        end
+        @nif $(N + 1) l -> (d < l) l -> (
+            S(SVector((@ntuple l - 1 k -> zero(UInt64))... ,c[1] >>> r,
+                      (@ntuple $N-l q -> (c[q + 1] >>> r | ((c[q] & mask) << ri)))...
+                      ))
+        ) l -> (
+            return zero(S)
+        )
     end
 end
 
