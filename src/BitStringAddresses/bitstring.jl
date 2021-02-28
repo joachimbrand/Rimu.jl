@@ -184,7 +184,9 @@ end
 Base.zero(s::BitString) = zero(typeof(s))
 
 function Base.show(io::IO, s::BitString{B,N}) where {B,N}
-    print(io, "BitString{$B,$N}(", join(map(i -> repr(i)[3:end], s.chunks), '|'), ')')
+    str = join(map(i -> repr(i)[3:end], s.chunks), '_')
+
+    print(io, "BitString{$B}(big\"0x", str, "\")")
 end
 Base.bitstring(s::BitString{B}) where {B} = join(bitstring.(s.chunks))[(end - B + 1):end]
 
