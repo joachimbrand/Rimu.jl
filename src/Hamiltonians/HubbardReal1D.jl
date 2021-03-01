@@ -12,15 +12,17 @@ Implements a one-dimensional Bose Hubbard chain in real space.
 - `t`: the hopping strength
 
 """
-struct HubbardReal1D{TT,U,T} <: AbstractHamiltonian{TT} end
-
-# addr for compatibility.
-function HubbardReal1D(addr=nothing; u=1.0, t=1.0)
-    U, T = promote(u, t) # should always be Float64?
-    return HubbardReal1D{typeof(U),U,T}()
+struct HubbardReal1D{TT,U,T,A} <: AbstractHamiltonian{TT}
+    add::A
 end
 
-LOStructure(::Type{<:HubbardReal1D}) = HermitianLO()
+# addr for compatibility.
+function HubbardReal1D(addr; u=1.0, t=1.0)
+    U, T = promote(u, t)
+    return HubbardReal1D{typeof(U),U,T,typeof(addr)}(addr)
+end
+
+LOStructure(::Type{<:HubbardReal1D{<:Real}}) = HermitianLO()
 
 Base.getproperty(h::HubbardReal1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::HubbardReal1D{<:Any,U}, ::Val{:u}) where U = U
