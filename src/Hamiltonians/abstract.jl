@@ -112,18 +112,18 @@ h_adjoint(::HermitianLO, op) = op # adjoint is known
 Evaluate `x⋅LO(v)` minimizing memory allocations.
 """
 function LinearAlgebra.dot(x::AbstractDVec, LO::AbstractHamiltonian, v::AbstractDVec)
-  return dot_w_trait(LOStructure(LO), x, LO, v)
+    return dot_w_trait(LOStructure(LO), x, LO, v)
 end
 # specialised method for UniformProjector
 function LinearAlgebra.dot(::UniformProjector, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
-  result = zero(promote_type(T,T2))
-  for (key,val) in pairs(v)
-      result += diagME(LO, key) * val
-      for (add,elem) in Hops(LO, key)
-          result += elem * val
-      end
-  end
-  return result
+    result = zero(promote_type(T,T2))
+    for (key,val) in pairs(v)
+        result += diagME(LO, key) * val
+        for (add,elem) in Hops(LO, key)
+            result += elem * val
+        end
+    end
+    return result
 end
 
 """
@@ -207,43 +207,43 @@ the Hamiltonian matrix represented by `ham`. Alternatively, pass as
 argument an iterator over the accessible matrix elements.
 """
 function generateRandHop(ham::AbstractHamiltonian, add)
-  # generic implementation of a random excitation generator drawing from
-  # a uniform distribution
-  # draws a random linked site and returns the site's address and generation
-  # probability
-  nl = numOfHops(ham, add) # check how many sites we could hop to
-  chosen = cRand(1:nl) # choose one of them
-  #chosen = _nearlydivisionless(nl) + 1 # choose one of them
-  # using a faster random number algorithm
-  naddress, melem = hop(ham, add, chosen)
-  return naddress, 1 ./nl, melem
-  # return new address, generation probability, and matrix element
+    # generic implementation of a random excitation generator drawing from
+    # a uniform distribution
+    # draws a random linked site and returns the site's address and generation
+    # probability
+    nl = numOfHops(ham, add) # check how many sites we could hop to
+    chosen = cRand(1:nl) # choose one of them
+    #chosen = _nearlydivisionless(nl) + 1 # choose one of them
+    # using a faster random number algorithm
+    naddress, melem = hop(ham, add, chosen)
+    return naddress, 1 ./nl, melem
+    # return new address, generation probability, and matrix element
 end
 
 function generateRandHop(hops::Hops)
-  # method using the Hops-type iterator
-  # generic implementation of a random excitation generator drawing from
-  # a uniform distribution
-  nl = length(hops) # check how many sites we could hop to
-  chosen = cRand(1:nl) # choose one of them
-  #chosen = _nearlydivisionless(nl) + 1 # choose one of them
-  # using a faster random number algorithm
-  naddress, melem = hops[chosen]
-  return naddress, 1.0/nl, melem
-  # return new address, generation probability, and matrix element
+    # method using the Hops-type iterator
+    # generic implementation of a random excitation generator drawing from
+    # a uniform distribution
+    nl = length(hops) # check how many sites we could hop to
+    chosen = cRand(1:nl) # choose one of them
+    #chosen = _nearlydivisionless(nl) + 1 # choose one of them
+    # using a faster random number algorithm
+    naddress, melem = hops[chosen]
+    return naddress, 1.0/nl, melem
+    # return new address, generation probability, and matrix element
 end
 
 function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
-  # calculate the matrix element when only two bitstring addresses are given
-  # this is NOT used for the QMC algorithm and is currenlty not used either
-  # for building the matrix for conventional diagonalisation.
-  # Only used for verifying matrix.
-  # This will be slow and inefficient. Avoid using for larger Hamiltonians!
-  address1 == address2 && return diagME(ham, address1) # diagonal
-  for (add,val) in Hops(ham, address2) # off-diag column as iterator
-      add == address1 && return val # found address1
-  end
-  return zero(T) # address1 not found
+    # calculate the matrix element when only two bitstring addresses are given
+    # this is NOT used for the QMC algorithm and is currenlty not used either
+    # for building the matrix for conventional diagonalisation.
+    # Only used for verifying matrix.
+    # This will be slow and inefficient. Avoid using for larger Hamiltonians!
+    address1 == address2 && return diagME(ham, address1) # diagonal
+    for (add,val) in Hops(ham, address2) # off-diag column as iterator
+        add == address1 && return val # found address1
+    end
+    return zero(T) # address1 not found
 end # getindex(ham)
 
 # A handy function that helps make use of the `AbstractHamiltonian` technology.
@@ -269,9 +269,9 @@ function build_sparse_matrix_from_LO(ham::AbstractHamiltonian, fs; nnzs = 0)
     J = Vector{Int}(undef,0) # column indices, length nnz
     V = Vector{eltype(ham)}(undef,0) # values, length nnz
     if nnzs > 0
-      sizehint!(I, nnzs)
-      sizehint!(J, nnzs)
-      sizehint!(V, nnzs)
+        sizehint!(I, nnzs)
+        sizehint!(J, nnzs)
+        sizehint!(V, nnzs)
     end
 
     k = 0 # 1:nnz, in principle, but possibly more as several contributions to a matrix element may occur
@@ -352,12 +352,12 @@ If `true`, `dimensionLO(h)` will be successful and return an `Int`. The method
 `fDimensionLO(h)` should be useful in other cases.
 """
 function hasIntDimension(h)
-  try
-    dimensionLO(h)
-    return true
-  catch
-    false
-  end
+    try
+        dimensionLO(h)
+        return true
+    catch
+        false
+    end
 end
 
 """
@@ -376,8 +376,8 @@ returned if the value is smaller than 2^53. Otherwise, an improved Stirling form
 is used.
 """
 function fDimensionLO(h::BosonicHamiltonian)
-  fbinomial(h.n + h.m - 1, h.n) # formula for boson Hilbert spaces
-  # NB: returns a Float64
+    fbinomial(h.n + h.m - 1, h.n) # formula for boson Hilbert spaces
+    # NB: returns a Float64
 end #dimHS
 
 """
@@ -385,10 +385,10 @@ Compute binomial coefficient and return Float64. Stirlings formula
 is used to return approximate value if integer arithmetic is insufficient.
 """
 fbinomial(n,k) = try
-  Float64(binomial(Int128(n), Int128(k)))
+    Float64(binomial(Int128(n), Int128(k)))
 catch # if we get integer overflow
-  exp(logbinomialapprox(n,k))
-  # this should work unless the number is larger than 10^308
+    exp(logbinomialapprox(n,k))
+    # this should work unless the number is larger than 10^308
 end # fbinomial
 
 """
@@ -396,7 +396,7 @@ Approximate formula for log of binomial coefficient. Source:
   <https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas>
 """
 logbinomialapprox(n,k) =
-  (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2*pi*k)
+    (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2*pi*k)
 
 """
     nearUniform(ham)
@@ -478,10 +478,10 @@ fDimensionLO(h::TwoComponentBosonicHamiltonian) = fDimensionLO(h.ha::AbstractHam
 
 # functor definitions need to be done separately for each concrete type
 function (h::TwoComponentBosonicHamiltonian)(s::Symbol)
-  if s == :dim # attempt to compute dimension as `Int`
-      return hasIntDimension(h) ? dimensionLO(h) : nothing
-  elseif s == :fdim
-      return fDimensionLO(h) # return dimension as floating point
-  end
-  return nothing
+    if s == :dim # attempt to compute dimension as `Int`
+        return hasIntDimension(h) ? dimensionLO(h) : nothing
+    elseif s == :fdim
+        return fDimensionLO(h) # return dimension as floating point
+    end
+    return nothing
 end

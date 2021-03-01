@@ -1,10 +1,10 @@
 @with_kw struct BoseHubbardMom1D{T, AD} <: BosonicHamiltonian{T}
-  n::Int = 6    # number of bosons
-  m::Int = 6    # number of lattice sites
-  u::T = 1.0    # interaction strength
-  t::T = 1.0    # hopping strength
-  # AT::Type = BSAdd64 # address type
-  add::AD       # starting address
+    n::Int = 6    # number of bosons
+    m::Int = 6    # number of lattice sites
+    u::T = 1.0    # interaction strength
+    t::T = 1.0    # hopping strength
+    # AT::Type = BSAdd64 # address type
+    add::AD       # starting address
 end
 
 @doc """
@@ -49,99 +49,99 @@ Set up the `BoseHubbardMom1D` with the correct particle and mode number and
 address type. Parameters `u` and `t` can be passed as keyword arguments.
 """
 function BoseHubbardMom1D(add::BSA; u=1.0, t=1.0) where BSA <: AbstractFockAddress
-  n = num_particles(add)
-  m = num_modes(add)
-  return BoseHubbardMom1D(n,m,u,t,add)
+    n = num_particles(add)
+    m = num_modes(add)
+    return BoseHubbardMom1D(n,m,u,t,add)
 end
 
 # functor definitions need to be done separately for each concrete type
 function (h::BoseHubbardMom1D)(s::Symbol)
-  if s == :dim # attempt to compute dimension as `Int`
-      return hasIntDimension(h) ? dimensionLO(h) : nothing
-  elseif s == :fdim
-      return fDimensionLO(h) # return dimension as floating point
-  end
-  return nothing
+    if s == :dim # attempt to compute dimension as `Int`
+        return hasIntDimension(h) ? dimensionLO(h) : nothing
+    elseif s == :fdim
+        return fDimensionLO(h) # return dimension as floating point
+    end
+    return nothing
 end
 # should be all that is needed to make the Hamiltonian a linear map:
 (h::BoseHubbardMom1D)(v) = h*v
 
 function numOfHops(ham::BoseHubbardMom1D, add)
-  singlies, doublies = numSandDoccupiedsites(add)
-  return singlies*(singlies-1)*(ham.m - 2) + doublies*(ham.m - 1)
-  # number of excitations that can be made
+    singlies, doublies = numSandDoccupiedsites(add)
+    return singlies*(singlies-1)*(ham.m - 2) + doublies*(ham.m - 1)
+    # number of excitations that can be made
 end
 
 function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
-  onr = BitStringAddresses.m_onr(add) # get occupation number representation as a mutable array
-  singlies, doublies = numSandDoccupiedsites(add)
-  onproduct = 1
-  k = p = q = 0
-  double = chosen - singlies*(singlies-1)*(ham.m - 2)
-  # start by making holes as the action of two annihilation operators
-  if double > 0 # need to choose doubly occupied site for double hole
-    # c_p c_p
-    double, q = fldmod1(double, ham.m-1)
-    # double is location of double
-    # q is momentum transfer
-    for (i, occ) in enumerate(onr)
-      if occ > 1
-        double -= 1
-        if double == 0
-          onproduct *= occ*(occ-1)
-          onr[i] = occ-2 # annihilate two particles in onr
-          p = k = i # remember where we make the holes
-          break # should break out of the for loop
+    onr = BitStringAddresses.m_onr(add) # get occupation number representation as a mutable array
+    singlies, doublies = numSandDoccupiedsites(add)
+    onproduct = 1
+    k = p = q = 0
+    double = chosen - singlies*(singlies-1)*(ham.m - 2)
+    # start by making holes as the action of two annihilation operators
+    if double > 0 # need to choose doubly occupied site for double hole
+        # c_p c_p
+        double, q = fldmod1(double, ham.m-1)
+        # double is location of double
+        # q is momentum transfer
+        for (i, occ) in enumerate(onr)
+            if occ > 1
+                double -= 1
+                if double == 0
+                    onproduct *= occ*(occ-1)
+                    onr[i] = occ-2 # annihilate two particles in onr
+                    p = k = i # remember where we make the holes
+                    break # should break out of the for loop
+                end
+            end
         end
-      end
-    end
-  else # need to punch two single holes
-    # c_k c_p
-    pair, q = fldmod1(chosen, ham.m-2) # floored integer division and modulus in ranges 1:(m-1)
-    first, second = fldmod1(pair, singlies-1) # where the holes are to be made
-    if second < first # put them in ascending order
-      f_hole = second
-      s_hole = first
-    else
-      f_hole = first
-      s_hole = second + 1 # as we are counting through all singlies
-    end
-    counter = 0
-    for (i, occ) in enumerate(onr)
-      if occ > 0
-        counter += 1
-        if counter == f_hole
-          onproduct *= occ
-          onr[i] = occ -1 # punch first hole
-          p = i # location of first hole
-        elseif counter == s_hole
-          onproduct *= occ
-          onr[i] = occ -1 # punch second hole
-          k = i # location of second hole
-          break
+    else # need to punch two single holes
+        # c_k c_p
+        pair, q = fldmod1(chosen, ham.m-2) # floored integer division and modulus in ranges 1:(m-1)
+        first, second = fldmod1(pair, singlies-1) # where the holes are to be made
+        if second < first # put them in ascending order
+            f_hole = second
+            s_hole = first
+        else
+            f_hole = first
+            s_hole = second + 1 # as we are counting through all singlies
         end
-      end
-    end
-    # we have p<k and 1 < q < ham.m - 2
-    if q ≥ k-p
-      q += 1 # to avoid putting particles back into the holes
-    end
-  end # if double > 0 # we're done punching holes
+        counter = 0
+        for (i, occ) in enumerate(onr)
+            if occ > 0
+                counter += 1
+                if counter == f_hole
+                    onproduct *= occ
+                    onr[i] = occ -1 # punch first hole
+                    p = i # location of first hole
+                elseif counter == s_hole
+                    onproduct *= occ
+                    onr[i] = occ -1 # punch second hole
+                    k = i # location of second hole
+                    break
+                end
+            end
+        end
+        # we have p<k and 1 < q < ham.m - 2
+        if q ≥ k-p
+            q += 1 # to avoid putting particles back into the holes
+        end
+    end # if double > 0 # we're done punching holes
 
-  # now it is time to deal with two creation operators
-  # c^†_k-q
-  kmq = mod1(k-q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
-  occ = onr[kmq]
-  onproduct *= occ + 1
-  onr[kmq] = occ + 1
-  # c^†_p+q
-  ppq = mod1(p+q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
-  occ = onr[ppq]
-  onproduct *= occ + 1
-  onr[ppq] = occ + 1
+    # now it is time to deal with two creation operators
+    # c^†_k-q
+    kmq = mod1(k-q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
+    occ = onr[kmq]
+    onproduct *= occ + 1
+    onr[kmq] = occ + 1
+    # c^†_p+q
+    ppq = mod1(p+q, ham.m) # in 1:m # use mod1() to implement periodic boundaries
+    occ = onr[ppq]
+    onproduct *= occ + 1
+    onr[ppq] = occ + 1
 
-  return ADDRESS(onr), ham.u/(2*ham.m)*sqrt(onproduct)
-  # return new address and matrix element
+    return ADDRESS(onr), ham.u/(2*ham.m)*sqrt(onproduct)
+    # return new address and matrix element
 end
 
 
@@ -163,35 +163,35 @@ end # fast! - can be completely resolved by compiler
 
 
 function diagME(h::BoseHubbardMom1D, add)
-  onrep = BitStringAddresses.onr(add) # get occupation number representation
+    onrep = BitStringAddresses.onr(add) # get occupation number representation
 
-  # single particle part of Hubbard momentum space Hamiltonian
-  # ke = -2*h.t.*cos.(ks(h))⋅onrep # works but allocates memory due to broadcasting
-  # ugly but no allocations:
-  ke = 0.0
-  for (k,on) in zip(ks(h),onrep)
-    ke += -2*h.t * cos(k) * on
-  end
+    # single particle part of Hubbard momentum space Hamiltonian
+    # ke = -2*h.t.*cos.(ks(h))⋅onrep # works but allocates memory due to broadcasting
+    # ugly but no allocations:
+    ke = 0.0
+    for (k,on) in zip(ks(h),onrep)
+        ke += -2*h.t * cos(k) * on
+    end
 
-  # now compute diagonal interaction energy
-  onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
-  # for p in 1:h.m
-  #   for k in 1:h.m
-  #     if k==p
-  #       onproduct += onrep[k]*(onrep[k]-1)
-  #     else
-  #       onproduct += 2*onrep[k]*onrep[p] # two terms in sum over creation operators
-  #     end
-  #   end
-  # end
-  for p = 1:h.m
-      # faster triangular loop; 9 μs instead of 33 μs for nearUniform(BoseFS{200,199})
-      @inbounds onproduct += onrep[p] * (onrep[p] - 1)
-      @inbounds @simd for k = 1:p-1
-          onproduct += 4*onrep[k]*onrep[p]
-      end
-  end
-  # @show onproduct
-  pe = h.u/(2*h.m)*onproduct
-  return ke + pe
+    # now compute diagonal interaction energy
+    onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
+    # for p in 1:h.m
+    #   for k in 1:h.m
+    #     if k==p
+    #       onproduct += onrep[k]*(onrep[k]-1)
+    #     else
+    #       onproduct += 2*onrep[k]*onrep[p] # two terms in sum over creation operators
+    #     end
+    #   end
+    # end
+    for p = 1:h.m
+        # faster triangular loop; 9 μs instead of 33 μs for nearUniform(BoseFS{200,199})
+        @inbounds onproduct += onrep[p] * (onrep[p] - 1)
+        @inbounds @simd for k = 1:p-1
+            onproduct += 4*onrep[k]*onrep[p]
+        end
+    end
+    # @show onproduct
+    pe = h.u/(2*h.m)*onproduct
+    return ke + pe
 end

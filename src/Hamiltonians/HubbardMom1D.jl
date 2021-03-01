@@ -64,31 +64,31 @@ LOStructure(::Type{HubbardMom1D{TT,U,T,N,M,AD}}) where {TT<:Real,U,T,N,M,AD} = H
 
 # functor definitions need to be done separately for each concrete type
 function (h::HubbardMom1D)(s::Symbol)
-  if s == :dim # attempt to compute dimension as `Int`
-      return hasIntDimension(h) ? dimensionLO(h) : nothing
-  elseif s == :fdim
-      return fDimensionLO(h) # return dimension as floating point
-  end
-  return nothing
+    if s == :dim # attempt to compute dimension as `Int`
+        return hasIntDimension(h) ? dimensionLO(h) : nothing
+    elseif s == :fdim
+        return fDimensionLO(h) # return dimension as floating point
+    end
+    return nothing
 end
 # should be all that is needed to make the Hamiltonian a linear map:
 ks(h::HubbardMom1D) = h.ks
 
 # standard interface function
 function numOfHops(ham::HubbardMom1D, add)
-  nSandD = numSandDoccupiedsites(add)
-  return numOfHops(ham, add, nSandD)
+    nSandD = numSandDoccupiedsites(add)
+    return numOfHops(ham, add, nSandD)
 end
 
 # 3-argument version
 @inline function numOfHops(ham::HubbardMom1D{TT,U,T,N,M,AD}, add, nSandD) where {TT,U,T,N,M,AD}
-  singlies, doublies = nSandD
-  return singlies*(singlies-1)*(M - 2) + doublies*(M - 1)
-  # number of excitations that can be made
+    singlies, doublies = nSandD
+    return singlies*(singlies-1)*(M - 2) + doublies*(M - 1)
+    # number of excitations that can be made
 end
 
 @inline function interaction_energy_diagonal(h::HubbardMom1D{TT,U,T,N,M,AD},
-        onrep::StaticVector) where {TT,U,T,N,M,AD<:BoseFS}
+                                             onrep::StaticVector) where {TT,U,T,N,M,AD<:BoseFS}
     # now compute diagonal interaction energy
     onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
     # Not having @inbounds here is faster?
@@ -125,162 +125,162 @@ end
 end
 
 @inline function hop_old(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
-  onrep =  BitStringAddresses.m_onr(add)
-  # get occupation number representation as a mutable array
-  singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
-  onproduct = 1
-  k = p = q = 0
-  double = chosen - singlies*(singlies-1)*(M - 2)
-  # start by making holes as the action of two annihilation operators
-  if double > 0 # need to choose doubly occupied site for double hole
-    # c_p c_p
-    double, q = fldmod1(double, M-1)
-    # double is location of double
-    # q is momentum transfer
-    for (i, occ) in enumerate(onrep)
-      if occ > 1
-        double -= 1
-        if double == 0
-          onproduct *= occ*(occ-1)
-          onrep[i] = occ-2 # annihilate two particles in onrep
-          p = k = i # remember where we make the holes
-          break # should break out of the for loop
+    onrep =  BitStringAddresses.m_onr(add)
+    # get occupation number representation as a mutable array
+    singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
+    onproduct = 1
+    k = p = q = 0
+    double = chosen - singlies*(singlies-1)*(M - 2)
+    # start by making holes as the action of two annihilation operators
+    if double > 0 # need to choose doubly occupied site for double hole
+        # c_p c_p
+        double, q = fldmod1(double, M-1)
+        # double is location of double
+        # q is momentum transfer
+        for (i, occ) in enumerate(onrep)
+            if occ > 1
+                double -= 1
+                if double == 0
+                    onproduct *= occ*(occ-1)
+                    onrep[i] = occ-2 # annihilate two particles in onrep
+                    p = k = i # remember where we make the holes
+                    break # should break out of the for loop
+                end
+            end
         end
-      end
-    end
-  else # need to punch two single holes
-    # c_k c_p
-    pair, q = fldmod1(chosen, M-2) # floored integer division and modulus in ranges 1:(m-1)
-    first, second = fldmod1(pair, singlies-1) # where the holes are to be made
-    if second < first # put them in ascending order
-      f_hole = second
-      s_hole = first
-    else
-      f_hole = first
-      s_hole = second + 1 # as we are counting through all singlies
-    end
-    counter = 0
-    for (i, occ) in enumerate(onrep)
-      if occ > 0
-        counter += 1
-        if counter == f_hole
-          onproduct *= occ
-          onrep[i] = occ -1 # punch first hole
-          p = i # location of first hole
-        elseif counter == s_hole
-          onproduct *= occ
-          onrep[i] = occ -1 # punch second hole
-          k = i # location of second hole
-          break
+    else # need to punch two single holes
+        # c_k c_p
+        pair, q = fldmod1(chosen, M-2) # floored integer division and modulus in ranges 1:(m-1)
+        first, second = fldmod1(pair, singlies-1) # where the holes are to be made
+        if second < first # put them in ascending order
+            f_hole = second
+            s_hole = first
+        else
+            f_hole = first
+            s_hole = second + 1 # as we are counting through all singlies
         end
-      end
-    end
-    # we have p<k and 1 < q < ham.m - 2
-    if q ≥ k-p
-      q += 1 # to avoid putting particles back into the holes
-    end
-  end # if double > 0 # we're done punching holes
+        counter = 0
+        for (i, occ) in enumerate(onrep)
+            if occ > 0
+                counter += 1
+                if counter == f_hole
+                    onproduct *= occ
+                    onrep[i] = occ -1 # punch first hole
+                    p = i # location of first hole
+                elseif counter == s_hole
+                    onproduct *= occ
+                    onrep[i] = occ -1 # punch second hole
+                    k = i # location of second hole
+                    break
+                end
+            end
+        end
+        # we have p<k and 1 < q < ham.m - 2
+        if q ≥ k-p
+            q += 1 # to avoid putting particles back into the holes
+        end
+    end # if double > 0 # we're done punching holes
 
-  # now it is time to deal with two creation operators
-  # c^†_k-q
-  kmq = mod1(k-q, M) # in 1:m # use mod1() to implement periodic boundaries
-  occ = onrep[kmq]
-  onproduct *= occ + 1
-  onrep[kmq] = occ + 1
-  # c^†_p+q
-  ppq = mod1(p+q, M) # in 1:m # use mod1() to implement periodic boundaries
-  occ = onrep[ppq]
-  onproduct *= occ + 1
-  onrep[ppq] = occ + 1
+    # now it is time to deal with two creation operators
+    # c^†_k-q
+    kmq = mod1(k-q, M) # in 1:m # use mod1() to implement periodic boundaries
+    occ = onrep[kmq]
+    onproduct *= occ + 1
+    onrep[kmq] = occ + 1
+    # c^†_p+q
+    ppq = mod1(p+q, M) # in 1:m # use mod1() to implement periodic boundaries
+    occ = onrep[ppq]
+    onproduct *= occ + 1
+    onrep[ppq] = occ + 1
 
-  return AD(onrep), U/(2*M)*sqrt(onproduct)
-  # return new address and matrix element
+    return AD(onrep), U/(2*M)*sqrt(onproduct)
+    # return new address and matrix element
 end
 
 # a non-allocating version of hop()
 @inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number, nSD) where {TT,U,T,N,M,AD}
-  onrep = onr(add)
-  # get occupation number representation as a static array
-  singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
-  onproduct = 1
-  k = p = q = 0
-  double = chosen - singlies*(singlies-1)*(M - 2)
-  # start by making holes as the action of two annihilation operators
-  if double > 0 # need to choose doubly occupied site for double hole
-    # c_p c_p
-    double, q = fldmod1(double, M-1)
-    # double is location of double
-    # q is momentum transfer
-    for (i, occ) in enumerate(onrep)
-      if occ > 1
-        double -= 1
-        if double == 0
-          onproduct *= occ*(occ-1)
-          onrep = @set onrep[i] = occ-2
-          # annihilate two particles in onrep
-          p = k = i # remember where we make the holes
-          break # should break out of the for loop
+    onrep = onr(add)
+    # get occupation number representation as a static array
+    singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
+    onproduct = 1
+    k = p = q = 0
+    double = chosen - singlies*(singlies-1)*(M - 2)
+    # start by making holes as the action of two annihilation operators
+    if double > 0 # need to choose doubly occupied site for double hole
+        # c_p c_p
+        double, q = fldmod1(double, M-1)
+        # double is location of double
+        # q is momentum transfer
+        for (i, occ) in enumerate(onrep)
+            if occ > 1
+                double -= 1
+                if double == 0
+                    onproduct *= occ*(occ-1)
+                    onrep = @set onrep[i] = occ-2
+                    # annihilate two particles in onrep
+                    p = k = i # remember where we make the holes
+                    break # should break out of the for loop
+                end
+            end
         end
-      end
-    end
-  else # need to punch two single holes
-    # c_k c_p
-    pair, q = fldmod1(chosen, M-2) # floored integer division and modulus in ranges 1:(m-1)
-    first, second = fldmod1(pair, singlies-1) # where the holes are to be made
-    if second < first # put them in ascending order
-      f_hole = second
-      s_hole = first
-    else
-      f_hole = first
-      s_hole = second + 1 # as we are counting through all singlies
-    end
-    counter = 0
-    for (i, occ) in enumerate(onrep)
-      if occ > 0
-        counter += 1
-        if counter == f_hole
-          onproduct *= occ
-          onrep = @set onrep[i] = occ-1
-          # punch first hole
-          p = i # location of first hole
-        elseif counter == s_hole
-          onproduct *= occ
-          onrep = @set onrep[i] = occ-1
-          # punch second hole
-          k = i # location of second hole
-          break
+    else # need to punch two single holes
+        # c_k c_p
+        pair, q = fldmod1(chosen, M-2) # floored integer division and modulus in ranges 1:(m-1)
+        first, second = fldmod1(pair, singlies-1) # where the holes are to be made
+        if second < first # put them in ascending order
+            f_hole = second
+            s_hole = first
+        else
+            f_hole = first
+            s_hole = second + 1 # as we are counting through all singlies
         end
-      end
-    end
-    # we have p<k and 1 < q < ham.m - 2
-    if q ≥ k-p
-      q += 1 # to avoid putting particles back into the holes
-    end
-  end # if double > 0 # we're done punching holes
+        counter = 0
+        for (i, occ) in enumerate(onrep)
+            if occ > 0
+                counter += 1
+                if counter == f_hole
+                    onproduct *= occ
+                    onrep = @set onrep[i] = occ-1
+                    # punch first hole
+                    p = i # location of first hole
+                elseif counter == s_hole
+                    onproduct *= occ
+                    onrep = @set onrep[i] = occ-1
+                    # punch second hole
+                    k = i # location of second hole
+                    break
+                end
+            end
+        end
+        # we have p<k and 1 < q < ham.m - 2
+        if q ≥ k-p
+            q += 1 # to avoid putting particles back into the holes
+        end
+    end # if double > 0 # we're done punching holes
 
-  # now it is time to deal with two creation operators
-  # c^†_k-q
-  kmq = mod1(k-q, M) # in 1:m # use mod1() to implement periodic boundaries
-  occ = onrep[kmq]
-  onproduct *= occ + 1
-  onrep = @set onrep[kmq] = occ + 1
-  # c^†_p+q
-  ppq = mod1(p+q, M) # in 1:m # use mod1() to implement periodic boundaries
-  occ = onrep[ppq]
-  onproduct *= occ + 1
-  onrep = @set onrep[ppq] = occ + 1
+    # now it is time to deal with two creation operators
+    # c^†_k-q
+    kmq = mod1(k-q, M) # in 1:m # use mod1() to implement periodic boundaries
+    occ = onrep[kmq]
+    onproduct *= occ + 1
+    onrep = @set onrep[kmq] = occ + 1
+    # c^†_p+q
+    ppq = mod1(p+q, M) # in 1:m # use mod1() to implement periodic boundaries
+    occ = onrep[ppq]
+    onproduct *= occ + 1
+    onrep = @set onrep[ppq] = occ + 1
 
-  return AD(onrep), U/(2*M)*sqrt(onproduct)
-  # return new address and matrix element
+    return AD(onrep), U/(2*M)*sqrt(onproduct)
+    # return new address and matrix element
 end
 
 function hasIntDimension(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
-  try
-    binomial(N + M - 1, N)# formula for boson Hilbert spaces
-    return true
-  catch
-    false
-  end
+    try
+        binomial(N + M - 1, N)# formula for boson Hilbert spaces
+        return true
+    catch
+        false
+    end
 end
 
 function dimensionLO(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
@@ -288,8 +288,8 @@ function dimensionLO(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseF
 end
 
 function fDimensionLO(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
-  fbinomial(N + M - 1, N) # formula for boson Hilbert spaces
-  # NB: returns a Float64
+    fbinomial(N + M - 1, N) # formula for boson Hilbert spaces
+    # NB: returns a Float64
 end #dimHS
 
 function Hops(ham::O, add::AD) where {TT,U,T,N,M,AD, O<:HubbardMom1D{TT,U,T,N,M,AD}}

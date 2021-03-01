@@ -1,6 +1,6 @@
 @with_kw struct BoseHubbardMom1D2C{T, HA, HB, V} <: TwoComponentBosonicHamiltonian{T}
-  ha:: HA
-  hb:: HB
+    ha:: HA
+    hb:: HB
 end
 
 @doc """
@@ -38,10 +38,10 @@ function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,t
 end
 
 function numOfHops(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
-  sa = numberoccupiedsites(add.bsa)
-  sb = numberoccupiedsites(add.bsb)
-  return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(M-1)*sb
-  # number of excitations that can be made
+    sa = numberoccupiedsites(add.bsa)
+    sb = numberoccupiedsites(add.bsb)
+    return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(M-1)*sb
+    # number of excitations that can be made
 end
 
 
@@ -92,15 +92,15 @@ end
     p, hole_b = fldmod1(remainder, sb) # hole_b: position for hole_b
     # annihilate an A boson:
     for (i, occ) in enumerate(onrep_a)
-      if occ > 0
-        hole_a -= 1 # searching for the position for hole_a
-        if hole_a == 0 # found the hole_a here
-          onproduct_a *= occ # record the normalisation factor before annihilate
-          onrep_a = @set onrep_a[i] = occ-1 # annihilate an A boson: a_r
-          r = i # remember where we make the hole
-          break # should break out of the for loop
+        if occ > 0
+            hole_a -= 1 # searching for the position for hole_a
+            if hole_a == 0 # found the hole_a here
+                onproduct_a *= occ # record the normalisation factor before annihilate
+                onrep_a = @set onrep_a[i] = occ-1 # annihilate an A boson: a_r
+                r = i # remember where we make the hole
+                break # should break out of the for loop
+            end
         end
-      end
     end
     if p ≥ r
         p += 1 # to skip the hole_a
@@ -112,15 +112,15 @@ end
     onproduct_a *= onrep_a[p] # record the normalisation factor after creation
     # annihilate a B boson:
     for (i, occ) in enumerate(onrep_b)
-      if occ > 0
-        hole_b -= 1 # searching for the position for hole_b
-        if hole_b == 0 # found the hole_b here
-          onproduct_b *= occ # record the normalisation factor before annihilate
-          onrep_b = @set onrep_b[i] = occ-1 # annihilate a B boson: b_q
-          q = i # remember where we make the holes
-          break # should break out of the for loop
+        if occ > 0
+            hole_b -= 1 # searching for the position for hole_b
+            if hole_b == 0 # found the hole_b here
+                onproduct_b *= occ # record the normalisation factor before annihilate
+                onrep_b = @set onrep_b[i] = occ-1 # annihilate a B boson: b_q
+                q = i # remember where we make the holes
+                break # should break out of the for loop
+            end
         end
-      end
     end
     s = mod1(q-ΔP, M) # compute s with periodic boundary condition
     # create a B boson:
@@ -141,7 +141,7 @@ function diagME(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}
     interaction2c = Int32(0)
     for p in 1:M
         for k in 1:M
-          interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
+            interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
     end
     return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + V/M*interaction2c

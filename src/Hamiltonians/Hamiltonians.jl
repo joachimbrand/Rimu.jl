@@ -175,10 +175,10 @@ end
 end
 
 function numberlinkedsites(address)
-  # return the number of other walker addresses that are linked in the
-  # Hamiltonian
-  # here implemented for 1D Bose Hubbard
-  return 2*numberoccupiedsites(address)
+    # return the number of other walker addresses that are linked in the
+    # Hamiltonian
+    # here implemented for 1D Bose Hubbard
+    return 2*numberoccupiedsites(address)
 end
 
 """

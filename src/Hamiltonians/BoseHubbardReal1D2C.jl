@@ -1,6 +1,6 @@
 @with_kw struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentBosonicHamiltonian{T}
-  ha:: HA
-  hb:: HB
+    ha:: HA
+    hb:: HB
 end
 
 @doc """
@@ -36,7 +36,7 @@ end
 
 # number of excitations that can be made
 function numOfHops(ham::BoseHubbardReal1D2C, add)
-  return 2*(numberoccupiedsites(add.bsa)+numberoccupiedsites(add.bsb))
+    return 2*(numberoccupiedsites(add.bsa)+numberoccupiedsites(add.bsb))
 end
 
 function bosehubbard2Cinteraction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
@@ -52,7 +52,7 @@ function bosehubbard2Cinteraction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,A
 end
 
 function diagME(ham::BoseHubbardReal1D2C{T,HA,HB,V}, address::BoseFS2C) where {T,HA,HB,V}
-  return ham.ha.u * bosehubbardinteraction(address.bsa) / 2 + ham.hb.u * bosehubbardinteraction(address.bsb) / 2 + V * bosehubbard2Cinteraction(address)
+    return ham.ha.u * bosehubbardinteraction(address.bsa) / 2 + ham.hb.u * bosehubbardinteraction(address.bsb) / 2 + V * bosehubbard2Cinteraction(address)
 end
 
 function hop(ham::BoseHubbardReal1D2C, add, chosen::Integer)

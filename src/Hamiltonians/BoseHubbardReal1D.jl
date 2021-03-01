@@ -1,9 +1,9 @@
 @with_kw struct BoseHubbardReal1D{T} <: BosonicHamiltonian{T}
-  n::Int = 6    # number of bosons
-  m::Int = 6    # number of lattice sites
-  u::T = 1.0    # interaction strength
-  t::T = 1.0    # hopping strength
-  AT::Type = BSAdd64 # address type
+    n::Int = 6    # number of bosons
+    m::Int = 6    # number of lattice sites
+    u::T = 1.0    # interaction strength
+    t::T = 1.0    # hopping strength
+    AT::Type = BSAdd64 # address type
 end
 
 @doc """
@@ -45,9 +45,9 @@ Set up the `BoseHubbardReal1D` with the correct particle and mode number and
 address type. Parameters `u` and `t` can be passed as keyword arguments.
 """
 function BoseHubbardReal1D(add::BSA; u=1.0, t=1.0) where BSA <: AbstractFockAddress
-  n = num_particles(add)
-  m = num_modes(add)
-  return BoseHubbardReal1D(n,m,u,t,BSA)
+    n = num_particles(add)
+    m = num_modes(add)
+    return BoseHubbardReal1D(n,m,u,t,BSA)
 end
 
 # functor definitions need to be done separately for each concrete type
@@ -91,5 +91,5 @@ Compute the diagonal matrix element of the linear operator `ham` at
 address `add`.
 """
 function diagME(h::BoseHubbardReal1D, address)
-  h.u * bosehubbardinteraction(address) / 2
+    h.u * bosehubbardinteraction(address) / 2
 end

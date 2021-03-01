@@ -13,7 +13,7 @@ rayleigh_quotient(mom, v) # 10.996 - momentum expectation value for state vector
 ```
 """
 struct Momentum{H,T} <: AbstractHamiltonian{T}
-  ham::H
+    ham::H
 end
 LOStructure(::Type{Momentum{H,T}}) where {H,T <: Real} = HermitianLO()
 Momentum(ham::BoseHubbardMom1D{T, AD}) where {T, AD} = Momentum{typeof(ham), T}(ham)
