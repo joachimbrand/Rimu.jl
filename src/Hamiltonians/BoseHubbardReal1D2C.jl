@@ -42,8 +42,8 @@ end
 function bosehubbard2Cinteraction(add::BoseFS2C)
     c1 = onr(add.bsa)
     c2 = onr(add.bsb)
-    interaction = 0::Int
-    for site = 1:M
+    interaction = zero(eltype(c1))
+    for site = 1:length(c1)
         if !iszero(c2[site])
             interaction += c2[site] * c1[site]
         end

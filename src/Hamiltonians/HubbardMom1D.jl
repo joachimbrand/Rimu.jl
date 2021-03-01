@@ -87,18 +87,19 @@ end
     # number of excitations that can be made
 end
 
-@inline function interaction_energy_diagonal(h::HubbardMom1D{TT,U,T,N,M,AD},
-                                             onrep::StaticVector) where {TT,U,T,N,M,AD<:BoseFS}
+@inline function interaction_energy_diagonal(
+    h::HubbardMom1D{<:Any,U,<:Any,<:Any,M,<:BoseFS}, onrep::StaticVector{M,I}
+) where {U,M,I}
     # now compute diagonal interaction energy
-    onproduct = 0 # Σ_kp < c^†_p c^†_k c_k c_p >
+    onproduct = zero(I) # Σ_kp < c^†_p c^†_k c_k c_p >
     # Not having @inbounds here is faster?
     for p in 1:M
-        onproduct += onrep[p] * (onrep[p] - 1)
+        iszero(onrep[p]) && continue
+        onproduct += onrep[p] * (onrep[p] - one(I))
         for k in 1:p-1
-            onproduct += 4*onrep[k]*onrep[p]
+            onproduct += I(4) * onrep[k] * onrep[p]
         end
     end
-    # @show onproduct
     return U / 2M * onproduct
 end
 
