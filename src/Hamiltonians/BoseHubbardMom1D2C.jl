@@ -13,7 +13,7 @@ Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 ```
 
 # Arguments
-- `ha::BoseHubbardMom1D` and `hb::BoseHubbardMom1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardMom1D`](@ref)
+- `ha::BoseHubbardMom1D` and `hb::BoseHubbardMom1D`: standard Hamiltonian for boson A and B, see [`HubbardMom1D`](@ref)
 - `m`: number of modes (needs be the same for `ha` and `hb`!)
 - `v=0.0`: the inter-species interaction parameter, default value: 0.0, i.e. non-interacting
 
@@ -33,8 +33,7 @@ LOStructure(::Type{BoseHubbardMom1D2C{T, HA, HB, V}}) where {T <: Real, HA, HB, 
 function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v::T=1.0) where {NA,NB,M,AA,AB,T}
     ha = HubbardMom1D{NA,M}(add.bsa;u=ua,t=ta)
     hb = HubbardMom1D{NB,M}(add.bsb;u=ub,t=tb)
-    return BoseHubbardMom1D2C{T, typeof(ha), typeof(hb), v}(ha,hb)
-    # return BoseHubbardMom1D2C{TT, HubbardMom1D{TT,ua,ta,NA,M,BoseFS{NA,M,AA}}, HubbardMom1D{TT,ub,tb,NB,M,BoseFS{NB,M,AB}}}(ha,hb,v)
+    return BoseHubbardMom1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
 
 function numOfHops(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
@@ -144,5 +143,5 @@ function diagME(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}
             interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
     end
-    return diagME(ham.ha,add.bsa) + diagME(ham.hb,add.bsb) + V/M*interaction2c
+    return diagME(ham.ha, add.bsa) + diagME(ham.hb, add.bsb) + V/M*interaction2c
 end

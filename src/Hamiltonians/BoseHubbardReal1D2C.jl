@@ -1,6 +1,6 @@
 @with_kw struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentBosonicHamiltonian{T}
-    ha:: HA
-    hb:: HB
+    ha::HA
+    hb::HB
 end
 
 @doc """
@@ -29,33 +29,37 @@ Return the approximate dimension of linear space as `Float64`.
 LOStructure(::Type{BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
 
 function BoseHubbardReal1D2C(add::BoseFS2C; ua::T=1.0,ub::T=1.0,ta::T=1.0,tb::T=1.0,v::T=1.0) where T
-    ha = BoseHubbardReal1D(add.bsa;u=ua,t=ta)
-    hb = BoseHubbardReal1D(add.bsb;u=ub,t=tb)
-    return BoseHubbardReal1D2C{T,BoseHubbardReal1D{T},BoseHubbardReal1D{T},v}(ha,hb)
+    ha = HubbardReal1D(add.bsa; u=ua, t=ta)
+    hb = HubbardReal1D(add.bsb; u=ub, t=tb)
+    return BoseHubbardReal1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
 
 # number of excitations that can be made
 function numOfHops(ham::BoseHubbardReal1D2C, add)
-    return 2*(numberoccupiedsites(add.bsa)+numberoccupiedsites(add.bsb))
+    return 2*(numberoccupiedsites(add.bsa) + numberoccupiedsites(add.bsb))
 end
 
-function bosehubbard2Cinteraction(add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+function bosehubbard2Cinteraction(add::BoseFS2C)
     c1 = onr(add.bsa)
     c2 = onr(add.bsb)
     interaction = 0::Int
     for site = 1:M
         if !iszero(c2[site])
-            interaction += c2[site]*c1[site]
+            interaction += c2[site] * c1[site]
         end
     end
     return interaction
 end
 
 function diagME(ham::BoseHubbardReal1D2C{T,HA,HB,V}, address::BoseFS2C) where {T,HA,HB,V}
-    return ham.ha.u * bosehubbardinteraction(address.bsa) / 2 + ham.hb.u * bosehubbardinteraction(address.bsb) / 2 + V * bosehubbard2Cinteraction(address)
+    return (
+        ham.ha.u * bosehubbardinteraction(address.bsa) / 2 +
+        ham.hb.u * bosehubbardinteraction(address.bsb) / 2 +
+        V * bosehubbard2Cinteraction(address)
+    )
 end
 
-function hop(ham::BoseHubbardReal1D2C, add, chosen::Integer)
+function hop(ham::BoseHubbardReal1D2C, add, chosen)
     nhops = numOfHops(ham,add)
     nhops_a = 2*numberoccupiedsites(add.bsa)
     if chosen in 1:nhops_a
@@ -65,8 +69,10 @@ function hop(ham::BoseHubbardReal1D2C, add, chosen::Integer)
     elseif chosen in nhops_a+1:nhops
         chosen -= nhops_a
         naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen)
-        elem = - ham.hb.t*sqrt(onproduct)
+        elem = -ham.hb.t * sqrt(onproduct)
         return BoseFS2C(add.bsa,naddress_from_bsb), elem
+    else
+        error("invalid hop")
     end
     # return new address and matrix element
 end
