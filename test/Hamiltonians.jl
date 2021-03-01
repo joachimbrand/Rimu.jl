@@ -40,7 +40,7 @@ end
 @testset "Interface tests" begin
     for (H, addr) in (
         (BoseHubbardReal1D(n=5, m=5, AT=BoseFS{5,5}), BoseFS((1, 1, 1, 2, 0))),
-        (HubbardReal1D(), BoseFS((1, 2, 3, 4))),
+        (HubbardReal1D(BoseFS((1, 2, 3, 4))), BoseFS((1, 2, 3, 4))),
 
         (BoseHubbardMom1D(n=15, m=5, add=BoseFS((2, 2, 3, 3, 0))), BoseFS((2, 2, 3, 3, 0))),
         (HubbardMom1D(BoseFS((6, 0, 0, 4))), BoseFS((6, 0, 0, 4))),
@@ -48,6 +48,7 @@ end
         (BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))), BoseFS2C((1,2,3), (1,0,0))),
         (BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))), BoseFS2C((1,2,3), (1,0,0))),
 
+        (ExtendedHubbardReal1D(BoseFS((1,0,0,0,1))), BoseFS((1,0,0,0,1))),
         (ExtendedBHReal1D(), BoseFS((1,0,0,0,1))),
     )
         test_hamiltonian_interface(H, addr)
@@ -73,7 +74,7 @@ end
     @test diagME(ham,aIni) == 0
     os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
     @test Rimu.Hamiltonians.bosehubbardinteraction(os) == 148
-    @test Rimu.Hamiltonians.ebhm(os) == (53, 148)
+    @test Rimu.Hamiltonians.extended_bose_hubbard_interaction(os) == (53, 148)
     @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
     hnnn = Rimu.Hamiltonians.hopnextneighbour(BoseFS{25,16}(BitString{40}(0xf342564fff)),3)
     bs = BoseFS(BitString{40}(0xf342564fff))

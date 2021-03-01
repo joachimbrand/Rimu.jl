@@ -49,54 +49,7 @@ function (h::ExtendedBHReal1D)(s::Symbol)
     return nothing
 end
 
-function diagME(h::ExtendedBHReal1D, address)
-    ebhinteraction, bhinteraction= ebhm(address, h.m)
+function diagME(h::ExtendedBHReal1D, b)
+    ebhinteraction, bhinteraction = extended_bose_hubbard_interaction(b)
     return h.u * bhinteraction / 2 + h.v * ebhinteraction
 end
-
-# The off-diagonal matrix elements of the 1D Hubbard chain are the same for
-# the extended and original Bose-Hubbard model.
-
-"""
-    ebhm(address, m)
-
-Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
-sum_j n_j n_{j+1} with periodic boundary conditions.
-"""
-function ebhm(address, mModes)
-    # compute the diagonal matrix element of the Extended Bose Hubbard Hamiltonian
-    # currently this ammounts to counting occupation numbers of orbitals
-    #println("adress= ", bin(address))
-    #if periodicboundericondition
-    ## only periodic boundary conditions are implemented so far
-    bhmmatrixelementint = 0
-    ebhmmatrixelementint = 0
-    bosonnumber2=0
-    #address >>>= trailing_zeros(address) # proceed to next occupied orbital
-    bosonnumber1 = trailing_ones(address) # count how many bosons inside
-    # surpsingly it is faster to not check whether this is nonzero and do the
-    # following operations anyway
-    bhmmatrixelementint+= bosonnumber1 * (bosonnumber1-1)
-    firstbosonnumber = bosonnumber1 #keap on memory the boson number of the first
-    #to do the calculation with the last boson
-    address >>>= bosonnumber1 # remove the countedorbital
-    address >>>= 1
-    for i=1:mModes-1
-        #println("i mModes= ",i)
-        # proceed to next occupied orbital
-        bosonnumber2 = trailing_ones(address) # count how many bosons inside
-        # surpsingly it is faster to not check whether this is nonzero and do the
-        # following operations anyway
-        address >>>= bosonnumber2 # remove the countedorbital
-        ebhmmatrixelementint += bosonnumber2 * (bosonnumber1)
-        bhmmatrixelementint+= bosonnumber2 * (bosonnumber2-1)
-        bosonnumber1=bosonnumber2
-        address >>>= 1
-    end
-    ebhmmatrixelementint+= bosonnumber2 * firstbosonnumber  #periodic bondary condition
-    #end
-    return ebhmmatrixelementint , bhmmatrixelementint
-end #ebhm
-
-ebhm(b::BoseFS, m) = ebhm(b.bs, m)
-ebhm(b::BoseFS{N,M,A})  where {N,M,A} = ebhm(b, M)

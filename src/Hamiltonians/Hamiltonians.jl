@@ -24,20 +24,23 @@ export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardReal1D2C
 export BoseHubbardMom1D, Momentum, BoseHubbardMom1D2C
 export HubbardMom1D
 export HubbardReal1D
+export ExtendedHubbardReal1D
 
 include("abstract.jl")
 
-include("BoseHubbardReal1D.jl")
+include("HubbardReal1D.jl")
 include("HubbardMom1D.jl")
+include("ExtendedHubbardReal1D.jl")
 
 include("BoseHubbardReal1D2C.jl")
 include("BoseHubbardMom1D2C.jl")
 
+# deprecated:
+include("BoseHubbardReal1D.jl")
 include("BoseHubbardMom1D.jl")
 include("ExtendedBHReal1D.jl")
-include("Momentum.jl")
 
-include("HubbardReal1D.jl")
+include("Momentum.jl")
 
 const BoseHubbardExtOrNot = Union{ExtendedBHReal1D, BoseHubbardReal1D}
 # type alias for convenience

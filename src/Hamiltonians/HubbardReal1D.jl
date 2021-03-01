@@ -7,18 +7,18 @@ Implements a one-dimensional Bose Hubbard chain in real space.
 \\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1)
 ```
 
-# Arguments
+# Parameters
 - `u`: the interaction parameter
 - `t`: the hopping strength
 
 """
-struct HubbardReal1D{TT,U,T,A} <: AbstractHamiltonian{TT}
+struct HubbardReal1D{TT,U,T,A<:AbstractFockAddress} <: AbstractHamiltonian{TT}
     add::A
 end
 
 # addr for compatibility.
 function HubbardReal1D(addr; u=1.0, t=1.0)
-    U, T = promote(u, t)
+    U, T = promote(float(u), float(t))
     return HubbardReal1D{typeof(U),U,T,typeof(addr)}(addr)
 end
 

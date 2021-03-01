@@ -1,10 +1,4 @@
-struct HubbardMom1D{TT,U,T,N,M,AD} <: AbstractHamiltonian{TT}
-    add::AD # default starting address, should have N particles and M modes
-    ks::SVector{M,TT} # values for k
-    kes::SVector{M,TT} # values for kinetic energy
-end
-
-@doc """
+"""
     HubbardMom1D(add::BoseFS; u=1.0, t=1.0)
 Implements a one-dimensional Bose Hubbard chain in momentum space.
 
@@ -13,7 +7,7 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 ϵ_k = - 2 t \\cos(k)
 ```
 
-# Arguments
+# Parameters
 - `add::BoseFS`: bosonic starting address, defines number of particles and sites
 - `u::Float64`: the interaction parameter
 - `t::Float64`: the hopping strength
@@ -30,10 +24,16 @@ return `nothing`.
 
     ham(:fdim)
 Return the approximate dimension of linear space as `Float64`.
-""" HubbardMom1D
+"""
+struct HubbardMom1D{TT,U,T,N,M,AD<:AbstractFockAddress} <: AbstractHamiltonian{TT}
+    add::AD # default starting address, should have N particles and M modes
+    ks::SVector{M,TT} # values for k
+    kes::SVector{M,TT} # values for kinetic energy
+end
 
 # constructors
-function HubbardMom1D(add::BoseFS{N,M,A}; u::TT=1.0, t::TT=1.0) where {N, M, TT, A}
+function HubbardMom1D(add::BoseFS{N,M}; u=1.0, t=1.0) where {N,M}
+    U, T = promote(float(u), float(t))
     step = 2π/M
     if isodd(M)
         start = -π*(1+1/M) + step
@@ -43,10 +43,10 @@ function HubbardMom1D(add::BoseFS{N,M,A}; u::TT=1.0, t::TT=1.0) where {N, M, TT,
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
     kes = SVector{M}(-2*cos.(kr))
-    return HubbardMom1D{TT,u,t,N,M,BoseFS{N,M,A}}(add, ks, kes)
+    return HubbardMom1D{typeof(U),U,T,N,M,typeof(add)}(add, ks, kes)
 end
 # allow passing the N and M parameters for compatibility with show()
-function HubbardMom1D{N,M}(add::BoseFS{N,M,A}; u::TT=1.0, t::TT=1.0) where {N, M, TT, A}
+function HubbardMom1D{N,M}(add::BoseFS{N,M}; u=1.0, t=1.0) where {N,M}
     return HubbardMom1D(add; u=u, t=t)
 end
 
