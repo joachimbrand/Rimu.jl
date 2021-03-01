@@ -33,7 +33,7 @@ abstract type AbstractHamiltonian{T} end
 
 Base.eltype(::AbstractHamiltonian{T}) where {T} = T
 
-function *(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V}
+function Base.:*(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V}
     T = promote_type(E,V) # allow for type promotion
     w = empty(v, T) # allocate new vector; non-mutating version
     for (key,val) in pairs(v)

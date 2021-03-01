@@ -11,9 +11,6 @@ module Hamiltonians
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 using Setfield
 
-import Base: *
-import LinearAlgebra: mul!, dot, adjoint
-
 using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
