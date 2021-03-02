@@ -16,7 +16,6 @@ struct HubbardReal1D{TT,U,T,A<:AbstractFockAddress} <: AbstractHamiltonian{TT}
     add::A
 end
 
-# addr for compatibility.
 function HubbardReal1D(addr; u=1.0, t=1.0)
     U, T = promote(float(u), float(t))
     return HubbardReal1D{typeof(U),U,T,typeof(addr)}(addr)

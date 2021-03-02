@@ -12,7 +12,7 @@ from the module `DictVectors` and work well with addresses of type [`AbstractFoc
 from the module `BitStringAddresses`. The type works well with the external package `KrylovKit.jl`.
 
 Provides:
-* [`Hops`](@ref): iterator over reachable off-diagonal matrix elements
+* [`hops`](@ref): iterator over reachable off-diagonal matrix elements
 * [`generateRandHop`](@ref): function to generate random off-diagonal matrix element
 * `hamiltonian[address1, address2]`: indexing with `getindex()` - mostly for testing purposes
 * `*(LO, v)` deterministic matrix-vector multiply (`== LO(v)`)
@@ -26,7 +26,8 @@ Methods that need to be implemented:
 * [`starting_address(::AbstractHamiltonian)`](@ref)
 Optional:
 * [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
-* [`Hamiltonians.dimension(::Type{T}, ::AbstractHamiltonian)`](@ref)
+* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref)
+* [`hops(::AbstractHamiltonian, ::AbstractFockAddress)`](@ref)
 """
 abstract type AbstractHamiltonian{T} end
 
@@ -37,7 +38,7 @@ function Base.:*(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V
     w = empty(v, T) # allocate new vector; non-mutating version
     for (key,val) in pairs(v)
         w[key] += diagME(h, key)*val
-        for (add,elem) in Hops(h, key)
+        for (add,elem) in hops(h, key)
             w[add] += elem*val
         end
     end
@@ -49,7 +50,7 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::Abstract
     empty!(w)
     for (key,val) in pairs(v)
         w[key] += diagME(h, key)*val
-        for (add,elem) in Hops(h, key)
+        for (add,elem) in hops(h, key)
             w[add] += elem*val
         end
     end
@@ -177,7 +178,7 @@ function LinearAlgebra.dot(::UniformProjector, LO::AbstractHamiltonian{T}, v::Ab
     result = zero(promote_type(T,T2))
     for (key,val) in pairs(v)
         result += diagME(LO, key) * val
-        for (add,elem) in Hops(LO, key)
+        for (add,elem) in hops(LO, key)
             result += elem * val
         end
     end
@@ -209,51 +210,13 @@ function dot_from_right(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::Ab
     result = zero(promote_type(T1,promote_type(T,T2)))
     for (key,val) in pairs(v)
         result += conj(x[key]) * diagME(LO, key) * val
-        for (add,elem) in Hops(LO, key)
+        for (add,elem) in hops(LO, key)
             result += conj(x[add]) * elem * val
         end
     end
     return result
 end
 
-"""
-    Hops(ham, add)
-
-Iterator over new address and matrix element for reachable
-off-diagonal matrix elements of linear operator `ham` from address add.
-Represents an abstract vector containing the possibly non-zero off-diagonal
-matrix elements of the column of ham indexed by add.
-
-### Examples
-```julia
-new_address, matrix_element = Hops(ham, current_address)[i]
-number_of_hops = length(Hops(ham, current_address))
-for (add,elem) in Hops(ham, current_address)
-   # do something with address and elem
-end
-```
-"""
-struct Hops{T,A,O,I}  <: AbstractVector{T}
-    h::O # AbstractHamiltonian
-    add::A # address; usually a AbstractFockAddress
-    num::Int # number of possible hops
-    info::I # reserved for additional info to be stored here
-end
-
-# default constructor
-function Hops(ham::O, add::A) where {T,A,O <: AbstractHamiltonian{T}}
-    return Hops{T,A,O,Nothing}(ham, add, numOfHops(ham, add), nothing)
-end
-
-Base.eltype(::Hops{T}) where {T} = T # apparently this works!
-
-function Base.getindex(s::Hops, i::Int)
-    nadd, melem = hop(s.h, s.add, i)
-    return (nadd, melem)
-end #  returns tuple (newaddress, matrixelement)
-
-Base.size(s::Hops) = (s.num,)
-Base.IndexStyle(::Type{<:Hops}) = IndexLinear()
 
 """
     generateRandHop(ham, add)
@@ -278,19 +241,6 @@ function generateRandHop(ham::AbstractHamiltonian, add)
     # return new address, generation probability, and matrix element
 end
 
-function generateRandHop(hops::Hops)
-    # method using the Hops-type iterator
-    # generic implementation of a random excitation generator drawing from
-    # a uniform distribution
-    nl = length(hops) # check how many sites we could hop to
-    chosen = cRand(1:nl) # choose one of them
-    #chosen = _nearlydivisionless(nl) + 1 # choose one of them
-    # using a faster random number algorithm
-    naddress, melem = hops[chosen]
-    return naddress, 1.0/nl, melem
-    # return new address, generation probability, and matrix element
-end
-
 function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
     # calculate the matrix element when only two bitstring addresses are given
     # this is NOT used for the QMC algorithm and is currenlty not used either
@@ -298,7 +248,7 @@ function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
     # Only used for verifying matrix.
     # This will be slow and inefficient. Avoid using for larger Hamiltonians!
     address1 == address2 && return diagME(ham, address1) # diagonal
-    for (add,val) in Hops(ham, address2) # off-diag column as iterator
+    for (add,val) in hops(ham, address2) # off-diag column as iterator
         add == address1 && return val # found address1
     end
     return zero(T) # address1 not found
@@ -344,7 +294,7 @@ function build_sparse_matrix_from_LO(ham::AbstractHamiltonian, fs; nnzs = 0)
         push!(I, i)
         push!(J, i)
         push!(V, melem)
-        for (nadd, melem) in Hops(ham, add) # loop over rows
+        for (nadd, melem) in hops(ham, add) # loop over rows
             k += 1
             j = findnext(a->a == nadd, adds, 1) # find index of `nadd` in `adds`
             if isnothing(j)

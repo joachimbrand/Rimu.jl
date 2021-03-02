@@ -18,7 +18,7 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 Compute the matrix - vector product `w = ham * v`. The two-argument version is
 mutating for `w`.
 """
-struct HubbardMom1D{TT,U,T,N,M,AD<:AbstractFockAddress} <: AbstractHamiltonian{TT}
+struct HubbardMom1D{N,M,TT,U,T,AD<:AbstractFockAddress} <: AbstractHamiltonian{TT}
     add::AD # default starting address, should have N particles and M modes
     ks::SVector{M,TT} # values for k
     kes::SVector{M,TT} # values for kinetic energy
@@ -36,7 +36,7 @@ function HubbardMom1D(add::BoseFS{N,M}; u=1.0, t=1.0) where {N,M}
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
     kes = SVector{M}(-2*cos.(kr))
-    return HubbardMom1D{typeof(U),U,T,N,M,typeof(add)}(add, ks, kes)
+    return HubbardMom1D{N,M,typeof(U),U,T,typeof(add)}(add, ks, kes)
 end
 # allow passing the N and M parameters for compatibility with show()
 function HubbardMom1D{N,M}(add::BoseFS{N,M}; u=1.0, t=1.0) where {N,M}
@@ -44,39 +44,37 @@ function HubbardMom1D{N,M}(add::BoseFS{N,M}; u=1.0, t=1.0) where {N,M}
 end
 
 # display in a way that can be used as constructor
-function Base.show(io::IO, h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD}
+function Base.show(io::IO, h::HubbardMom1D{N,M,<:Any,U,T}) where {N,M,U,T}
     print(io, "HubbardMom1D{$N,$M}(")
     show(io, h.add)
     print(io, "; u=$U, t=$T)")
 end
-
-Base.eltype(::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD} = TT
 
 function starting_address(h::HubbardMom1D)
     return h.add
 end
 
 # set the `LOStructure` trait
-LOStructure(::Type{HubbardMom1D{TT,U,T,N,M,AD}}) where {TT<:Real,U,T,N,M,AD} = HermitianLO()
+LOStructure(::Type{<:HubbardMom1D{<:Real}}) = HermitianLO()
 
 # should be all that is needed to make the Hamiltonian a linear map:
 ks(h::HubbardMom1D) = h.ks
 
 # standard interface function
-function numOfHops(ham::HubbardMom1D, add)
-    nSandD = numSandDoccupiedsites(add)
-    return numOfHops(ham, add, nSandD)
+function numOfHops(ham::HubbardMom1D, add::BoseFS)
+    singlies, doublies = numSandDoccupiedsites(add)
+    return numOfHops(ham, add, singlies, doublies)
 end
 
 # 3-argument version
-@inline function numOfHops(ham::HubbardMom1D{TT,U,T,N,M,AD}, add, nSandD) where {TT,U,T,N,M,AD}
-    singlies, doublies = nSandD
+@inline function numOfHops(
+    ham::HubbardMom1D{<:Any,M}, add::BoseFS, singlies, doublies
+) where {M}
     return singlies*(singlies-1)*(M - 2) + doublies*(M - 1)
-    # number of excitations that can be made
 end
 
 @inline function interaction_energy_diagonal(
-    h::HubbardMom1D{<:Any,U,<:Any,<:Any,M,<:BoseFS}, onrep::StaticVector{M,I}
+    h::HubbardMom1D{<:Any,M,<:Any,U,<:Any,<:BoseFS}, onrep::StaticVector{M,I}
 ) where {U,M,I}
     # now compute diagonal interaction energy
     onproduct = zero(I) # Σ_kp < c^†_p c^†_k c_k c_p >
@@ -109,19 +107,19 @@ end
     return kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
 end
 
-@inline function hop(ham::HubbardMom1D{TT,U,T,N,M,AD}, add::AD, chosen::Number) where {TT,U,T,N,M,AD}
-    hop(ham, add, chosen, numSandDoccupiedsites(add))
+@inline function hop(ham::HubbardMom1D, add, chosen)
+    hop(ham, add, chosen, numSandDoccupiedsites(add)...)
 end
 
 @inline function hop(
-    ham::HubbardMom1D{<:Any,U,<:Any,<:Any,M,AD},
+    ham::HubbardMom1D{<:Any,M,<:Any,U,<:Any,AD},
     add::AD,
-    chosen::Number,
-    nSD
+    chosen,
+    singlies,
+    doublies,
 ) where {U,M,AD}
     onrep = BitStringAddresses.m_onr(add)
     # get occupation number representation as a static array
-    singlies, doublies = nSD # precomputed `numSandDoccupiedsites(add)`
     onproduct = 1
     k = p = q = 0
     double = chosen - singlies*(singlies-1)*(M - 2)
@@ -194,32 +192,23 @@ end
     # return new address and matrix element
 end
 
-function hasIntDimension(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
-    try
-        binomial(N + M - 1, N)# formula for boson Hilbert spaces
-        return true
-    catch
-        false
-    end
+struct HopsBoseMom1D{A<:BoseFS,T,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
+    hamiltonian::H
+    address::A
+    length::Int
+    singlies::Int
+    doublies::Int
 end
 
-function dimensionLO(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
-    return binomial(N + M - 1, N) # formula for boson Hilbert spaces
+function hops(h::HubbardMom1D, a::BoseFS)
+    singlies, doublies = numSandDoccupiedsites(a)
+    num = numOfHops(h, a, singlies, doublies)
+    return HopsBoseMom1D(h, a, num, singlies, doublies)
 end
 
-function fDimensionLO(h::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD<:BoseFS}
-    fbinomial(N + M - 1, N) # formula for boson Hilbert spaces
-    # NB: returns a Float64
-end #dimHS
-
-function Hops(ham::O, add::AD) where {TT,U,T,N,M,AD, O<:HubbardMom1D{TT,U,T,N,M,AD}}
-    nSandD = numSandDoccupiedsites(add)::Tuple{Int64,Int64}
-    # store this information for reuse
-    nH = numOfHops(ham, add, nSandD)
-    return Hops{TT,AD,O,Tuple{Int64,Int64}}(ham, add, nH, nSandD)
+function Base.getindex(s::HopsBoseMom1D, i)
+    new_address, matrix_element = hop(s.hamiltonian, s.address, i, s.singlies, s.doublies)
+    return (new_address, matrix_element)
 end
 
-function Base.getindex(s::Hops{T,A,O,I}, i::Int) where {T,A,O<:HubbardMom1D,I}
-    nadd, melem = hop(s.h, s.add, i, s.info)
-    return (nadd, melem)
-end #  returns tuple (newaddress, matrixelement)
+Base.size(s::HopsBoseMom1D) = (s.length,)

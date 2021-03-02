@@ -82,7 +82,7 @@ using Rimu.Hamiltonians: MomentumMom1D
     m=MomentumMom1D(ham) # define momentum operator
     mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
-    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in Hops(ham, fs)]) # check that momentum does not change for hops
+    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in hops(ham, fs)]) # check that momentum does not change for hops
     # construct full matrix
     smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
     # compute its eigenvalues
@@ -100,7 +100,7 @@ using Rimu.Hamiltonians: MomentumMom1D
     m=MomentumMom1D(ham) # define momentum operator
     mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
-    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in Hops(ham, fs)]) # check that momentum does not change for hops
+    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in hops(ham, fs)]) # check that momentum does not change for hops
     # construct full matrix
     smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
     # compute its eigenvalues
@@ -648,7 +648,7 @@ end
     @test dimension(Ĥ2cReal) == 1225
     @test dimension(Float64, Ĥ2cReal) == 1225.0
 
-    hp2c = Hops(Ĥ2cReal,aIni2cReal)
+    hp2c = hops(Ĥ2cReal,aIni2cReal)
     @test length(hp2c) == 16
     @test hp2c[1][1] == BoseFS2C(BoseFS((0,2,1,1)), BoseFS((1,1,1,1)))
     @test hp2c[1][2] ≈ -1.4142135623730951
@@ -660,7 +660,7 @@ end
     @test dimension(Ĥ2cMom) == 1225
     @test dimension(Float64, Ĥ2cMom) == 1225.0
 
-    hp2cMom = Hops(Ĥ2cMom,aIni2cMom)
+    hp2cMom = hops(Ĥ2cMom,aIni2cMom)
     @test length(hp2cMom) == 9
     @test hp2cMom[1][1] == BoseFS2C(BoseFS((1,2,1,0)), BoseFS((0,4,0,0)))
     @test hp2cMom[1][2] ≈ 2.598076211353316

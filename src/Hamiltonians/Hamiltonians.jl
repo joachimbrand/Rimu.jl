@@ -15,7 +15,7 @@ using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
 
-export AbstractHamiltonian, TwoComponentBosonicHamiltonian, Hops, generateRandHop
+export AbstractHamiltonian, TwoComponentBosonicHamiltonian, hops, generateRandHop
 export diagME, numOfHops, hop, dimension, starting_address
 export rayleigh_quotient
 
@@ -25,6 +25,7 @@ export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 
 include("abstract.jl")
+include("Hops.jl")
 
 include("HubbardReal1D.jl")
 include("HubbardMom1D.jl")

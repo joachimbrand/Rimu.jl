@@ -1015,7 +1015,7 @@ end
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
     # off-diagonal: spawning psips
-    for (nadd, elem) in Hops(ham, add)
+    for (nadd, elem) in hops(ham, add)
         w[nadd] += -dτ * elem * num
     end
     # diagonal death or clone
@@ -1028,7 +1028,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     # version for single population of integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
-    hops = Hops(ham,add)
+    hops = Hamiltonians.hops(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -1076,7 +1076,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
     # stats reported are complex, for each component separately
-    hops = Hops(ham,add)
+    hops = Hamiltonians.hops(ham,add)
     # real psips first
     num = real(cnum)
     for n in 1:abs(num) # for each psip attempt to spawn once
@@ -1201,7 +1201,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2PopInitiator, w, ham::AbstractHa
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
     # stats reported are complex, for each component separately
-    hops = Hops(ham,add)
+    hops = Hamiltonians.hops(ham,add)
     # real psips first
     num = real(cnum)
     for n in 1:abs(num) # for each psip attempt to spawn once
@@ -1331,7 +1331,7 @@ function fciqmc_col!(nl::DictVectors.IsStochasticNonlinear, w, ham::AbstractHami
     # Nonlinearity in diagonal death step according to Ali's suggestion
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
-    hops = Hops(ham,add)
+    hops = Hamiltonians.hops(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -1382,7 +1382,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
     num = tup[1] # number of psips on configuration
     occ_ratio= tup[2] # ratio of occupied vs total number of neighbours
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
-    hops = Hops(ham,add)
+    hops = Hamiltonians.hops(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -1449,7 +1449,7 @@ function fciqmc_col!(s::DictVectors.IsSemistochastic, w, ham::AbstractHamiltonia
     end
     # off-diagonal: spawning psips
     if deterministic
-        for (nadd, elem) in Hops(ham, add)
+        for (nadd, elem) in hops(ham, add)
             wnapsips, wnaflag = w[nadd]
             if wnaflag & one(F) # new address `nadd` is also in deterministic space
                 w[nadd] = (wnapsips - dτ * elem * val, wnaflag)  # new tuple
@@ -1474,7 +1474,7 @@ function fciqmc_col!(s::DictVectors.IsSemistochastic, w, ham::AbstractHamiltonia
         end
     else
         # TODO: stochastic
-        hops = Hops(ham, add)
+        hops = Hamiltonians.hops(ham, add)
         for n in 1:floor(abs(val)) # abs(val÷s.threshold) # for each psip attempt to spawn once
             naddress, pgen, matelem = generateRandHop(hops)
             pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -1536,7 +1536,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
 
     # off-diagonal: spawning psips stochastically
     # only integers are spawned!!
-    hops = Hops(ham, add)
+    hops = Hamiltonians.hops(ham, add)
     # first deal with integer psips
     for n in 1:floor(abs(val)) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)

@@ -13,7 +13,7 @@ Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 ```
 
 # Arguments
-- `ha::BoseHubbardMom1D` and `hb::BoseHubbardMom1D`: standard Hamiltonian for boson A and B, see [`HubbardMom1D`](@ref)
+- `ha::HubbardMom1D` and `hb::HubbardMom1D`: standard Hamiltonian for boson A and B, see [`HubbardMom1D`](@ref)
 - `m`: number of modes (needs be the same for `ha` and `hb`!)
 - `v=0.0`: the inter-species interaction parameter, default value: 0.0, i.e. non-interacting
 
@@ -47,26 +47,21 @@ function hop(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}, c
     # ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
     nhops_a = numOfHops(ham.ha, add.bsa)
     nhops_b = numOfHops(ham.hb, add.bsb)
-    # println("Hops in A: $nhops_a, Hops in B: $nhops_b,")
     # if chosen > numOfHops(ham,add)
     #     error("Hop is out of range!")
     if chosen ≤ nhops_a
         naddress_from_bsa, elem = hop(ham.ha, add.bsa, chosen)
-        # println("Hop in A, chosen = $chosen") # debug
         return BoseFS2C{NA,NB,M,AA,AB}(naddress_from_bsa,add.bsb), elem
     elseif nhops_a < chosen ≤ nhops_a+nhops_b
         chosen -= nhops_a
         naddress_from_bsb, elem = hop(ham.hb, add.bsb, chosen)
-        # println("Hop in B, chosen = $chosen") # debug
         return BoseFS2C{NA,NB,M,AA,AB}(add.bsa,naddress_from_bsb), elem
     else
         chosen -= (nhops_a+nhops_b)
         sa = numberoccupiedsites(add.bsa)
         sb = numberoccupiedsites(add.bsb)
-        # println("Hops across A and B: $(sa*(ham.m-1)*sb)")
         new_bsa, new_bsb, onproduct_a, onproduct_b = hopacross2adds(add.bsa, add.bsb, chosen)
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
-        # println("Hop A to B, chosen = $chosen") # debug
         # return new_add, elem
         elem = V/M*sqrt(onproduct_a*onproduct_b)
         new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)

@@ -9,7 +9,8 @@ using Rimu.Hamiltonians: LOStructure
 
 The main purpose of this test function is to check that all required methods are defined.
 """
-function test_hamiltonian_interface(H, addr)
+function test_hamiltonian_interface(H)
+    addr = starting_address(H)
     @testset "$(nameof(typeof(H)))" begin
         @testset "*, mul!, and call" begin
             v = DVec2(addr => 2.0, capacity=100)
@@ -25,10 +26,12 @@ function test_hamiltonian_interface(H, addr)
             @test diagME(H, addr) ≥ 0
         end
         @testset "hopping" begin
-            hops = Hops(H, addr)
-            @test length(hops) == numOfHops(H, addr)
-            for i in 1:length(hops)
-                @test hops[i] == hop(H, addr, i)
+            h = hops(H, addr)
+            @test eltype(h) == Tuple{typeof(addr), eltype(H)}
+            @test length(h) == numOfHops(H, addr)
+            for i in 1:length(h)
+                @test h[i] == hop(H, addr, i)
+                @test h[i] isa eltype(h)
             end
         end
         @testset "LOStructure" begin
@@ -43,20 +46,20 @@ function test_hamiltonian_interface(H, addr)
 end
 
 @testset "Interface tests" begin
-    for (H, addr) in (
-        (BoseHubbardReal1D(n=5, m=5, AT=BoseFS{5,5}), BoseFS((1, 1, 1, 2, 0))),
-        (HubbardReal1D(BoseFS((1, 2, 3, 4))), BoseFS((1, 2, 3, 4))),
+    for H in (
+        HubbardReal1D(BoseFS((1, 2, 3, 4))),
+        HubbardMom1D(BoseFS((6, 0, 0, 4))),
+        ExtendedHubbardReal1D(BoseFS((1,0,0,0,1))),
 
-        (BoseHubbardMom1D(n=15, m=5, add=BoseFS((2, 2, 3, 3, 0))), BoseFS((2, 2, 3, 3, 0))),
-        (HubbardMom1D(BoseFS((6, 0, 0, 4))), BoseFS((6, 0, 0, 4))),
+        BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
+        BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))),
 
-        (BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))), BoseFS2C((1,2,3), (1,0,0))),
-        (BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))), BoseFS2C((1,2,3), (1,0,0))),
+        BoseHubbardReal1D(n=5, m=5, AT=BoseFS{5,5}),
+        BoseHubbardMom1D(n=10, m=5, add=BoseFS((2, 2, 3, 3, 0))),
 
-        (ExtendedHubbardReal1D(BoseFS((1,0,0,0,1))), BoseFS((1,0,0,0,1))),
-        (ExtendedBHReal1D(), BoseFS((1,0,0,0,1))),
+        ExtendedBHReal1D(),
     )
-        test_hamiltonian_interface(H, addr)
+        test_hamiltonian_interface(H)
     end
 end
 
@@ -72,7 +75,7 @@ end
     aIni = Rimu.Hamiltonians.nearUniform(ham)
     @test aIni == BoseFS{9,9}((1,1,1,1,1,1,1,1,1))
 
-    hp = Hops(ham,aIni)
+    hp = hops(ham,aIni)
     @test length(hp) == 18
     @test hp[18][1] == BoseFS{9,9}(BitString{17}(0x000000000000d555))
     @test hp[18][2] ≈ -√2
