@@ -22,6 +22,10 @@ function HubbardReal1D(addr; u=1.0, t=1.0)
     return HubbardReal1D{typeof(U),U,T,typeof(addr)}(addr)
 end
 
+function starting_address(h::HubbardReal1D)
+    return getfield(h, :add)
+end
+
 LOStructure(::Type{<:HubbardReal1D{<:Real}}) = HermitianLO()
 
 Base.getproperty(h::HubbardReal1D, s::Symbol) = getproperty(h, Val(s))

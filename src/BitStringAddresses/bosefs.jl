@@ -171,6 +171,7 @@ BoseFS((2,2,1,1,1))
 function nearUniform(::Type{<:BoseFS{N,M}}) where {N,M}
     return BoseFS{N,M}(nearUniformONR(Val(N),Val(M)))
 end
+nearUniform(b::BoseFS) = nearUniform(typeof(b))
 
 """
     onr(bs)

@@ -1,4 +1,4 @@
-@with_kw struct BoseHubbardReal1D{T} <: BosonicHamiltonian{T}
+@with_kw struct BoseHubbardReal1D{T} <: AbstractHamiltonian{T}
     n::Int = 6    # number of bosons
     m::Int = 6    # number of lattice sites
     u::T = 1.0    # interaction strength
@@ -28,12 +28,6 @@ Implements a one-dimensional Bose Hubbard chain in real space.
 Compute the matrix - vector product `w = ham * v`. The two-argument version is
 mutating for `w`.
 
-    ham(:dim)
-Return the dimension of the linear space if representable as `Int`, otherwise
-return `nothing`.
-
-    ham(:fdim)
-Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardReal1D
 
 # set the `LOStructure` trait
@@ -50,46 +44,20 @@ function BoseHubbardReal1D(add::BSA; u=1.0, t=1.0) where BSA <: AbstractFockAddr
     return BoseHubbardReal1D(n,m,u,t,BSA)
 end
 
-# functor definitions need to be done separately for each concrete type
-function (h::BoseHubbardReal1D)(s::Symbol)
-    if s == :dim # attempt to compute dimension as `Int`
-        return hasIntDimension(h) ? dimensionLO(h) : nothing
-    elseif s == :fdim
-        return fDimensionLO(h) # return dimension as floating point
-    end
-    return nothing
+function starting_address(h::BoseHubbardReal1D)
+    return nearUniform(h.AT)
 end
 
-# """
-#     setupBoseHubbardReal1D(; n, m, u, t, [AT = BoseFS, genInitialONR = nearUniform])
-#     -> ham::BoseHubbardReal1D, address::AT
-# Set up the Hamiltonian `ham` and initial address `address` for the Bose Hubbard
-# model with the given parameters as keyword arguments, see
-# [`BoseHubbardReal1D`](@ref). For `AT` pass an address type (or suitable
-# constructor) and for `genInitialONR` a function that takes `n` and `m` as
-# arguments and returns an occupation number representation, see
-# [`nearUniform()`](@ref):
-#
-# `onr = genInitialONR(n,m)`
-# """
-# function setupBoseHubbardReal1D(;n::Int, m::Int, u, t,
-#                     AT = BoseFS, genInitialONR = nearUniform)
-#     address = AT(genInitialONR(n,m))
-#     ham = BoseHubbardReal1D(n = n,
-#                             m = m,
-#                             u = u,
-#                             t = t,
-#                             AT = typeof(address)
-#     )
-#     return ham, address
-# end
-
-"""
-    diagME(ham, add)
-
-Compute the diagonal matrix element of the linear operator `ham` at
-address `add`.
-"""
 function diagME(h::BoseHubbardReal1D, address)
     h.u * bosehubbardinteraction(address) / 2
+end
+
+function numOfHops(ham::BoseHubbardReal1D, add)
+    return numberlinkedsites(add)
+end
+
+function hop(ham::BoseHubbardReal1D, add, chosen::Integer)
+    naddress, onproduct = hopnextneighbour(add, chosen)
+    return naddress, - ham.t*sqrt(onproduct)
+    # return new address and matrix element
 end

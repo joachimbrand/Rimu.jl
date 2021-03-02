@@ -16,15 +16,13 @@ using ..BitStringAddresses
 using ..ConsistentRNG
 
 export AbstractHamiltonian, TwoComponentBosonicHamiltonian, Hops, generateRandHop
-export diagME, numOfHops, hop, hasIntDimension, dimensionLO, fDimensionLO
+export diagME, numOfHops, hop, dimension, starting_address
 export rayleigh_quotient
 
-export BosonicHamiltonian, bit_String_Length
-export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardReal1D2C
-export BoseHubbardMom1D, Momentum, BoseHubbardMom1D2C
-export HubbardMom1D
-export HubbardReal1D
-export ExtendedHubbardReal1D
+export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D
+export BoseHubbardMom1D2C, BoseHubbardReal1D2C
+
+export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 
 include("abstract.jl")
 
@@ -41,31 +39,6 @@ include("BoseHubbardMom1D.jl")
 include("ExtendedBHReal1D.jl")
 
 include("Momentum.jl")
-
-const BoseHubbardExtOrNot = Union{ExtendedBHReal1D, BoseHubbardReal1D}
-# type alias for convenience
-
-"""
-    numOfHops(ham, add)
-
-Compute the number of number of reachable configurations from address `add`.
-"""
-function numOfHops(ham::BoseHubbardExtOrNot, add)
-    return numberlinkedsites(add)
-end
-
-"""
-    newadd, me = hop(ham, add, chosen)
-
-Compute matrix element of `hamiltonian` and new address of a single hop from
-address `add` with integer index `chosen`.
-"""
-function hop(ham::BoseHubbardExtOrNot, add, chosen::Integer)
-    naddress, onproduct = hopnextneighbour(add, chosen)
-    return naddress, - ham.t*sqrt(onproduct)
-    # return new address and matrix element
-end
-
 
 ################################################
 #

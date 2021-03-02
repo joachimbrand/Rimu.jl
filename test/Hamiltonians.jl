@@ -34,6 +34,11 @@ function test_hamiltonian_interface(H, addr)
         @testset "LOStructure" begin
             @test LOStructure(H) isa LOStructure
         end
+        @testset "dimension" begin
+            @test dimension(H) isa Int
+            @test dimension(Float64, H) isa Float64
+            @test dimension(Int, H) === dimension(H)
+        end
     end
 end
 
@@ -62,7 +67,7 @@ end
         u = 6.0,
         t = 1.0,
         AT = BoseFS{9,9})
-    @test ham(:dim) == 24310
+    @test dimension(ham) == 24310
 
     aIni = Rimu.Hamiltonians.nearUniform(ham)
     @test aIni == BoseFS{9,9}((1,1,1,1,1,1,1,1,1))
@@ -81,7 +86,7 @@ end
     hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3)
     @test hnnn == hnnbs
 
-    svec = DVec2(Dict(aIni => 2.0), ham(:dim))
+    svec = DVec2(Dict(aIni => 2.0), dimension(ham))
     v2 = ham(svec)
     v3 = ham*v2
     @test norm(v3,1) ≈ 1482.386824949077

@@ -17,13 +17,6 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
     ham(w, v)
 Compute the matrix - vector product `w = ham * v`. The two-argument version is
 mutating for `w`.
-
-    ham(:dim)
-Return the dimension of the linear space if representable as `Int`, otherwise
-return `nothing`.
-
-    ham(:fdim)
-Return the approximate dimension of linear space as `Float64`.
 """
 struct HubbardMom1D{TT,U,T,N,M,AD<:AbstractFockAddress} <: AbstractHamiltonian{TT}
     add::AD # default starting address, should have N particles and M modes
@@ -59,18 +52,13 @@ end
 
 Base.eltype(::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD} = TT
 
+function starting_address(h::HubbardMom1D)
+    return h.add
+end
+
 # set the `LOStructure` trait
 LOStructure(::Type{HubbardMom1D{TT,U,T,N,M,AD}}) where {TT<:Real,U,T,N,M,AD} = HermitianLO()
 
-# functor definitions need to be done separately for each concrete type
-function (h::HubbardMom1D)(s::Symbol)
-    if s == :dim # attempt to compute dimension as `Int`
-        return hasIntDimension(h) ? dimensionLO(h) : nothing
-    elseif s == :fdim
-        return fDimensionLO(h) # return dimension as floating point
-    end
-    return nothing
-end
 # should be all that is needed to make the Hamiltonian a linear map:
 ks(h::HubbardMom1D) = h.ks
 

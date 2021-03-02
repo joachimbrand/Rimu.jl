@@ -1,4 +1,4 @@
-@with_kw struct BoseHubbardMom1D{T, AD} <: BosonicHamiltonian{T}
+@with_kw struct BoseHubbardMom1D{T, AD} <: AbstractHamiltonian{T}
     n::Int = 6    # number of bosons
     m::Int = 6    # number of lattice sites
     u::T = 1.0    # interaction strength
@@ -25,20 +25,7 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 - `t::Float64`: the hopping strength
 - `AT::Type`: the address type
 
-# Functor use:
-    w = ham(v)
-    ham(w, v)
-Compute the matrix - vector product `w = ham * v`. The two-argument version is
-mutating for `w`.
-
-    ham(:dim)
-Return the dimension of the linear space if representable as `Int`, otherwise
-return `nothing`.
-
-    ham(:fdim)
-Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardMom1D
-
 
 # set the `LOStructure` trait
 LOStructure(::Type{BoseHubbardMom1D{T, AD}}) where {T <: Real, AD} = HermitianLO()
@@ -49,22 +36,13 @@ Set up the `BoseHubbardMom1D` with the correct particle and mode number and
 address type. Parameters `u` and `t` can be passed as keyword arguments.
 """
 function BoseHubbardMom1D(add::BSA; u=1.0, t=1.0) where BSA <: AbstractFockAddress
+    U, T = promote(float(u), float(t))
     n = num_particles(add)
     m = num_modes(add)
-    return BoseHubbardMom1D(n,m,u,t,add)
+    return BoseHubbardMom1D{typeof(T),typeof(add)}(n,m,U,T,add)
 end
 
-# functor definitions need to be done separately for each concrete type
-function (h::BoseHubbardMom1D)(s::Symbol)
-    if s == :dim # attempt to compute dimension as `Int`
-        return hasIntDimension(h) ? dimensionLO(h) : nothing
-    elseif s == :fdim
-        return fDimensionLO(h) # return dimension as floating point
-    end
-    return nothing
-end
-# should be all that is needed to make the Hamiltonian a linear map:
-(h::BoseHubbardMom1D)(v) = h*v
+starting_address(ham::BoseHubbardMom1D) = ham.add
 
 function numOfHops(ham::BoseHubbardMom1D, add)
     singlies, doublies = numSandDoccupiedsites(add)
@@ -151,7 +129,7 @@ Return a range for `k` values in the interval (-π, π] to be `dot()`ed to an `o
 occupation number representation.
 """
 function ks(h::BoseHubbardMom1D)
-    m = num_modes(h)
+    m = num_modes(h.add)
     step = 2π/m
     if isodd(m)
         start = -π*(1+1/m) + step

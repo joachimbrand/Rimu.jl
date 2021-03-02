@@ -1,5 +1,5 @@
 """
-    Momentum(ham::AbstractHamiltonian) <: AbstractHamiltonian
+    MomentumMom1D(ham::AbstractHamiltonian) <: AbstractHamiltonian
 Momentum as a linear operator in Fock space. Pass a Hamiltonian `ham` in order to convey information about the Fock basis.
 
 Example use:
@@ -12,14 +12,12 @@ v = DVec(Dict(add => 10), 1000)
 rayleigh_quotient(mom, v) # 10.996 - momentum expectation value for state vector `v`
 ```
 """
-struct Momentum{H,T} <: AbstractHamiltonian{T}
+struct MomentumMom1D{H,T} <: AbstractHamiltonian{T}
     ham::H
 end
-LOStructure(::Type{Momentum{H,T}}) where {H,T <: Real} = HermitianLO()
-Momentum(ham::BoseHubbardMom1D{T, AD}) where {T, AD} = Momentum{typeof(ham), T}(ham)
-numOfHops(ham::Momentum, add) = 0
-diagME(mom::Momentum, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
-# surpsingly this is all that is needed. We don't even have to define `hop()`, because it is never reached.
-# `rayleigh_quotient(Momentum(ham),v)` is performant!
+LOStructure(::Type{MomentumMom1D{H,T}}) where {H,T <: Real} = HermitianLO()
+numOfHops(ham::MomentumMom1D, add) = 0
+diagME(mom::MomentumMom1D, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
 
-Momentum(ham::HubbardMom1D{TT,U,T,N,M,AD}) where {TT,U,T,N,M,AD} = Momentum{typeof(ham), TT}(ham)
+# TODO
+MomentumMom1D(ham::AbstractHamiltonian{T}) where T = MomentumMom1D{typeof(ham),T}(ham)

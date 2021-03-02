@@ -1,4 +1,4 @@
-@with_kw struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentBosonicHamiltonian{T}
+@with_kw struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentHamiltonian{T}
     ha::HA
     hb::HB
 end
@@ -13,16 +13,10 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 ```
 
 # Arguments
-- `add::BoseFS2C`: the two-component address type, see [`BoseFS2C`](@ref)
-- `h_a::BoseHubbardReal1D` and `h_b::BoseHubbardReal1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardReal1D`](@ref)
-- `v`: the inter-species interaction parameter V
+* `add::BoseFS2C`: the two-component address type, see [`BoseFS2C`](@ref)
+* `h_a::BoseHubbardReal1D` and `h_b::BoseHubbardReal1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardReal1D`](@ref)
+* `v`: the inter-species interaction parameter V
 
-    ham(:dim)
-Return the dimension of the linear space if representable as `Int`, otherwise
-return `nothing`.
-
-    ham(:fdim)
-Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardReal1D2C
 
 # set the `LOStructure` trait
@@ -32,6 +26,10 @@ function BoseHubbardReal1D2C(add::BoseFS2C; ua::T=1.0,ub::T=1.0,ta::T=1.0,tb::T=
     ha = HubbardReal1D(add.bsa; u=ua, t=ta)
     hb = HubbardReal1D(add.bsb; u=ub, t=tb)
     return BoseHubbardReal1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
+end
+
+function starting_address(h::BoseHubbardReal1D2C)
+    return BoseFS2C(starting_address(h.ha), starting_address(h.hb))
 end
 
 # number of excitations that can be made

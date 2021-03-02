@@ -1,4 +1,4 @@
-@with_kw struct ExtendedBHReal1D{T} <: BosonicHamiltonian{T}
+@with_kw struct ExtendedBHReal1D{T} <: AbstractHamiltonian{T}
     n::Int = 6    # number of bosons
     m::Int = 6    # number of lattice sites
     u::T = 1.0    # on-site interaction strength
@@ -39,17 +39,21 @@ function ExtendedBHReal1D(add::BSA; u=1.0, v=1.0, t=1.0) where BSA <: AbstractFo
     return ExtendedBHReal1D(n,m,u,v,t,BSA)
 end
 
-# functor definitions need to be done separately for each concrete type
-function (h::ExtendedBHReal1D)(s::Symbol)
-    if s == :dim # attempt to compute dimension as `Int`
-        return hasIntDimension(h) ? dimensionLO(h) : nothing
-    elseif s == :fdim
-        return fDimensionLO(h) # return dimension as floating point
-    end
-    return nothing
+function starting_address(h::ExtendedBHReal1D)
+    return nearUniform(h.AT)
 end
 
 function diagME(h::ExtendedBHReal1D, b)
     ebhinteraction, bhinteraction = extended_bose_hubbard_interaction(b)
     return h.u * bhinteraction / 2 + h.v * ebhinteraction
+end
+
+function numOfHops(ham::ExtendedBHReal1D, add)
+    return numberlinkedsites(add)
+end
+
+function hop(ham::ExtendedBHReal1D, add, chosen::Integer)
+    naddress, onproduct = hopnextneighbour(add, chosen)
+    return naddress, - ham.t*sqrt(onproduct)
+    # return new address and matrix element
 end

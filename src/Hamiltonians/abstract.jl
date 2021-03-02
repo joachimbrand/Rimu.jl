@@ -20,14 +20,13 @@ Provides:
 * [`dot(x, LO, v)`](@ref) compute `x⋅(LO*v)` minimizing allocations
 
 Methods that need to be implemented:
-* [`numOfHops(lo::AbstractHamiltonian, address)`](@ref)
-* [`hop(lo::AbstractHamiltonian, address, chosen::Integer)`](@ref)
-* [`diagME(lo::AbstractHamiltonian, address)`](@ref)
-* [`hasIntDimension(lo::AbstractHamiltonian)`](@ref)
-* [`dimensionLO(lo::AbstractHamiltonian)`](@ref), if applicable
-* [`fDimensionLO(lo::AbstractHamiltonian)`](@ref)
+* [`numOfHops(::AbstractHamiltonian, address)`](@ref)
+* [`hop(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
+* [`diagME(::AbstractHamiltonian, address)`](@ref)
+* [`starting_address(::AbstractHamiltonian)`](@ref)
 Optional:
 * [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
+* [`Hamiltonians.dimension(::Type{T}, ::AbstractHamiltonian)`](@ref)
 """
 abstract type AbstractHamiltonian{T} end
 
@@ -45,18 +44,6 @@ function Base.:*(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V
     return w
 end
 
-# # five argument version: not doing this now as it will be slower than 3-args
-# function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec, α, β)
-#     rmul!(w, β)
-#     for (key,val) in pairs(v)
-#         w[key] += α * diagME(h, key) * val
-#         for (add,elem) in Hops(h, key)
-#             w[add] += α * elem * val
-#         end
-#     end
-#     return w
-# end
-
 # three argument version
 function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec)
     empty!(w)
@@ -71,6 +58,77 @@ end
 
 (h::AbstractHamiltonian)(v) = h * v
 (h::AbstractHamiltonian)(w, v) = mul!(w, h, v)
+
+"""
+    diagME(ham, add)
+
+Compute the diagonal matrix element of the linear operator `ham` at
+address `add`.
+"""
+diagME
+
+"""
+    numOfHops(ham, add)
+
+Compute the number of number of reachable configurations from address `add`.
+"""
+numOfHops
+
+"""
+    newadd, me = hop(ham, add, chosen)
+
+Compute matrix element of `hamiltonian` and new address of a single hop from
+address `add` with integer index `chosen`.
+"""
+hop
+
+"""
+Approximate formula for log of binomial coefficient. Source:
+  <https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas>
+"""
+logbinomialapprox(n,k) =
+    (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2π*k)
+
+"""
+    dimension(::Type{T<:Integer}, h)
+
+Return the dimension of Hilbert space as `T`. If the result does not fit into `T`, return
+`nothing`
+"""
+function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:Integer}
+    try
+        return T(binomial(T(N + M - 1), T(N)))
+    catch
+        return nothing
+    end
+end
+"""
+    dimension(::Type{T<:AbstractFloat}, h)
+
+Return the dimension of Hilbert space as `T`. The exact result is returned if the value is
+smaller than 2^53. Otherwise, an improved Stirling formula is used.
+"""
+function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
+    n = N + M - 1
+    k = N
+    try
+        T(binomial(Int128(n), Int128(k)))
+    catch
+        T(exp(logbinomialapprox(n, k)))
+    end
+end
+
+dimension(h::AbstractHamiltonian) = dimension(Int, h)
+dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
+
+BitStringAddresses.nearUniform(h::AbstractHamiltonian) = nearUniform(typeof(starting_address(h)))
+
+"""
+    starting_address(h)
+
+Return a starting address for Hamiltonian `h`.
+"""
+starting_address
 
 """
     Hamiltonians.LOStructure(op::AbstractHamiltonian)
@@ -304,17 +362,14 @@ function build_sparse_matrix_from_LO(ham::AbstractHamiltonian, fs; nnzs = 0)
     # when the index pair `(i,j)` occurs mutiple times in `I` and `J` the elements are added.
 end
 
-##########################################
-#
-# Specialising to bosonic model Hamiltonians
-#
 """
-    BosonicHamiltonian{T} <: AbstractHamiltonian{T}
-Abstract type for representing Hamiltonians in a Fock space of fixed number of
-scalar bosons. At least the following fields should be present:
-* `n  # number of particles`
-* `m  # number of modes`
-* `AT # address type`
+    TwoComponentHamiltonian{T} <: AbstractHamiltonian{T}
+
+Abstract type for representing interacting two-component Hamiltonians in a Fock space with
+two different species. At least the following fields should be present:
+
+* `ha` Hamiltonian for species A
+* `hb` Hamiltonian for species B
 
 Methods that need to be implemented:
 * [`numOfHops(lo::AbstractHamiltonian, address)`](@ref) - number of off-diagonal matrix elements
@@ -324,164 +379,11 @@ Optional:
 * [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref) - can speed up deterministic calculations if `HermitianLO`
 
 Provides:
-* [`hasIntDimension(lo::AbstractHamiltonian)`](@ref)
-* [`dimensionLO(lo::AbstractHamiltonian)`](@ref), might fail if linear space too large
-* [`fDimensionLO(lo::AbstractHamiltonian)`](@ref)
-* [`bit_String_Length`](@ref)
-* [`nearUniform`](@ref), default version
-"""
-abstract type BosonicHamiltonian{T} <: AbstractHamiltonian{T} end
-
-BitStringAddresses.num_particles(h::BosonicHamiltonian) = h.n
-BitStringAddresses.num_modes(h::BosonicHamiltonian) = h.m
+* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref)
 
 """
-    bit_String_Length(ham)
+abstract type TwoComponentHamiltonian{T} <: AbstractHamiltonian{T} end
 
-Number of bits needed to represent an address for the linear operator `ham`.
-"""
-bit_String_Length(bh::BosonicHamiltonian) = num_modes(bh) + num_particles(bh) - 1
-
-"""
-    hasIntDimension(ham)
-
-Return `true` if dimension of the linear operator `ham` can be computed as an
-integer and `false` if not.
-
-If `true`, `dimensionLO(h)` will be successful and return an `Int`. The method
-`fDimensionLO(h)` should be useful in other cases.
-"""
-function hasIntDimension(h)
-    try
-        dimensionLO(h)
-        return true
-    catch
-        false
-    end
-end
-
-"""
-    dimensionLO(hamiltonian)
-
-Compute dimension of linear operator as integer.
-"""
-dimensionLO(h::BosonicHamiltonian) = binomial(h.n + h.m - 1, h.n)
-# formula for boson Hilbert spaces
-
-"""
-    fDimensionLO(hamiltonian)
-
-Returns the dimension of Hilbert space as Float64. The exact result is
-returned if the value is smaller than 2^53. Otherwise, an improved Stirling formula
-is used.
-"""
-function fDimensionLO(h::BosonicHamiltonian)
-    fbinomial(h.n + h.m - 1, h.n) # formula for boson Hilbert spaces
-    # NB: returns a Float64
-end #dimHS
-
-"""
-Compute binomial coefficient and return Float64. Stirlings formula
-is used to return approximate value if integer arithmetic is insufficient.
-"""
-fbinomial(n,k) = try
-    Float64(binomial(Int128(n), Int128(k)))
-catch # if we get integer overflow
-    exp(logbinomialapprox(n,k))
-    # this should work unless the number is larger than 10^308
-end # fbinomial
-
-"""
-Approximate formula for log of binomial coefficient. Source:
-  <https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas>
-"""
-logbinomialapprox(n,k) =
-    (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2*pi*k)
-
-"""
-    nearUniform(ham)
-Create bitstring address with near uniform distribution of particles
-across modes for the Hamiltonian `ham`.
-"""
-function BitStringAddresses.nearUniform(h::BosonicHamiltonian)
-    fillingfactor, extras = divrem(h.n, h.m)
-    startonr = fill(fillingfactor, h.m)
-    startonr[1:extras] += ones(Int, extras)
-    return h.AT(startonr)
-end
-
-##########################################################
-#
-# Specialising to two-component bosonic model Hamiltonians
-#
-"""
-    TwoComponentBosonicHamiltonian{T} <: AbstractHamiltonian{T}
-Abstract type for representing interacting two-component Hamiltonians in a Fock space of fixed number of
-bosons with two different species. At least the following fields should be present:
-* `ha::BosonicHamiltonian  # Hamiltonian for boson species A`
-* `hb::BosonicHamiltonian  # Hamiltonian for boson species B`
-* `v  # inter-component interaction`
-* `AT::BoseFS2C # address type`
-
-Methods that need to be implemented:
-* [`numOfHops(lo::AbstractHamiltonian, address)`](@ref) - number of off-diagonal matrix elements
-* [`hop(lo::AbstractHamiltonian, address, chosen::Integer)`](@ref) - access an off-diagonal m.e. by index `chosen`
-* [`diagME(lo::AbstractHamiltonian, address)`](@ref) - diagonal matrix element
-Optional:
-* [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref) - can speed up deterministic calculations if `HermitianLO`
-
-Provides:
-* [`hasIntDimension(lo::AbstractHamiltonian)`](@ref)
-* [`dimensionLO(lo::AbstractHamiltonian)`](@ref), might fail if linear space too large
-* [`fDimensionLO(lo::AbstractHamiltonian)`](@ref)
-
-Provided by [`BosonicHamiltonian`](@ref) to be used on an individual component:
-* [`bit_String_Length(ham.ha::BosonicHamiltonian)`](@ref)
-* [`nearUniform(ham.ha::BosonicHamiltonian)`](@ref), default version
-"""
-abstract type TwoComponentBosonicHamiltonian{T} <: AbstractHamiltonian{T} end
-
-# """
-#     hasIntDimension(ham)
-#
-# Return `true` if dimension of the linear operator `ham` can be computed as an
-# integer and `false` if not.
-#
-# If `true`, `dimensionLO(h)` will be successful and return an `Int`. The method
-# `fDimensionLO(h)` should be useful in other cases.
-# """
-# function hasIntDimension(h)
-#   try
-#     dimensionLO(h)
-#     return true
-#   catch
-#     false
-#   end
-# end
-
-"""
-    dimensionLO(hamiltonian)
-
-Compute dimension of linear operator as integer.
-"""
-dimensionLO(h::TwoComponentBosonicHamiltonian) =  dimensionLO(h.ha::AbstractHamiltonian)*dimensionLO(h.hb::AbstractHamiltonian)
-# formula for boson Hilbert spaces
-
-"""
-    fDimensionLO(hamiltonian)
-
-Returns the dimension of Hilbert space as Float64. The exact result is
-returned if the value is smaller than 2^53. Otherwise, an improved Stirling formula
-is used.
-"""
-fDimensionLO(h::TwoComponentBosonicHamiltonian) = fDimensionLO(h.ha::AbstractHamiltonian)*fDimensionLO(h.hb::AbstractHamiltonian)
-
-# functor definitions need to be done separately for each concrete type
-function (h::TwoComponentBosonicHamiltonian)(s::Symbol)
-    if s == :dim # attempt to compute dimension as `Int`
-        return hasIntDimension(h) ? dimensionLO(h) : nothing
-    elseif s == :fdim
-        return fDimensionLO(h) # return dimension as floating point
-    end
-    return nothing
+function dimension(::Type{T}, h::TwoComponentHamiltonian) where {T}
+    return dimension(T, h.ha) * dimension(T, h.hb)
 end

@@ -1,4 +1,4 @@
-@with_kw struct BoseHubbardMom1D2C{T, HA, HB, V} <: TwoComponentBosonicHamiltonian{T}
+@with_kw struct BoseHubbardMom1D2C{T, HA, HB, V} <: TwoComponentHamiltonian{T}
     ha:: HA
     hb:: HB
 end
@@ -17,12 +17,6 @@ Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 - `m`: number of modes (needs be the same for `ha` and `hb`!)
 - `v=0.0`: the inter-species interaction parameter, default value: 0.0, i.e. non-interacting
 
-    ham(:dim)
-Return the dimension of the linear space if representable as `Int`, otherwise
-return `nothing`.
-
-    ham(:fdim)
-Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardMom1D2C
 
 # set the `LOStructure` trait
@@ -34,6 +28,10 @@ function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,t
     ha = HubbardMom1D{NA,M}(add.bsa;u=ua,t=ta)
     hb = HubbardMom1D{NB,M}(add.bsb;u=ub,t=tb)
     return BoseHubbardMom1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
+end
+
+function starting_address(h::BoseHubbardMom1D2C)
+    return BoseFS2C(starting_address(h.ha), starting_address(h.hb))
 end
 
 function numOfHops(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
