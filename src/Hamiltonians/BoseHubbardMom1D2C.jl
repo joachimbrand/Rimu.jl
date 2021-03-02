@@ -137,6 +137,7 @@ function diagME(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}
     onrep_b = BitStringAddresses.onr(add.bsb)
     interaction2c = Int32(0)
     for p in 1:M
+        iszero(onrep_b[p]) && continue
         for k in 1:M
             interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
