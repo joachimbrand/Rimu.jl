@@ -131,8 +131,6 @@ end
 
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
-Base.bitstring(b::BoseFS) = bitstring(b.bs)
-num_bits(::Type{BoseFS{N,M,S}}) where {N,M,S} = num_bits(S)
 num_particles(::Type{BoseFS{N,M,S}}) where {N,M,S} = N
 num_modes(::Type{BoseFS{N,M,S}}) where {N,M,S} = M
 
