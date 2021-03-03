@@ -62,7 +62,7 @@ Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where {T
 Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,U}, ::Val{:u}) where {U} = U
 
 # set the `LOStructure` trait
-LOStructure(::Type{<:HubbardMom1D{<:Real}}) = HermitianLO()
+LOStructure(::Type{<:HubbardMom1D{<:Any,<:Any,<:Real}}) = HermitianLO()
 
 ks(h::HubbardMom1D) = getfield(h, :ks)
 
@@ -116,13 +116,7 @@ end
     hop(ham, add, chosen, numSandDoccupiedsites(add)...)
 end
 
-@inline function hop(
-    ham::HubbardMom1D,
-    add,
-    chosen,
-    singlies,
-    doublies,
-)
+@inline function hop(ham::HubbardMom1D, add, chosen, singlies, doublies)
     M = num_modes(ham)
     U = ham.u
     onrep = BitStringAddresses.m_onr(add)
