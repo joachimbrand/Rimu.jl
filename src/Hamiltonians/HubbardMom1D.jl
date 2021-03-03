@@ -73,7 +73,7 @@ end
 
 @inline function interaction_energy_diagonal(
     h::HubbardMom1D{<:Any,M,<:BoseFS}, onrep::StaticVector{M,I}
-) where {U,M,I}
+) where {M,I}
     # now compute diagonal interaction energy
     onproduct = zero(I) # Σ_kp < c^†_p c^†_k c_k c_p >
     # Not having @inbounds here is faster?
