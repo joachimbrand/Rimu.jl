@@ -47,18 +47,24 @@ end
 function Base.show(io::IO, h::HubbardMom1D{N,M,<:Any,U,T}) where {N,M,U,T}
     print(io, "HubbardMom1D{$N,$M}(")
     show(io, h.add)
-    print(io, "; u=$U, t=$T)")
+    print(io, "; u=$(h.u), t=$(h.t))")
 end
 
 function starting_address(h::HubbardMom1D)
     return h.add
 end
 
+Base.getproperty(h::HubbardMom1D, s::Symbol) = getproperty(h, Val(s))
+Base.getproperty(h::HubbardMom1D, ::Val{:ks}) = getfield(h, :ks)
+Base.getproperty(h::HubbardMom1D, ::Val{:kes}) = getfield(h, :kes)
+Base.getproperty(h::HubbardMom1D, ::Val{:add}) = getfield(h, :add)
+Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where {T} = T
+Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,U}, ::Val{:u}) where {U} = U
+
 # set the `LOStructure` trait
 LOStructure(::Type{<:HubbardMom1D{<:Real}}) = HermitianLO()
 
-# should be all that is needed to make the Hamiltonian a linear map:
-ks(h::HubbardMom1D) = h.ks
+ks(h::HubbardMom1D) = getfield(h, :ks)
 
 # standard interface function
 function numOfHops(ham::HubbardMom1D, add::BoseFS)
@@ -67,9 +73,8 @@ function numOfHops(ham::HubbardMom1D, add::BoseFS)
 end
 
 # 3-argument version
-@inline function numOfHops(
-    ham::HubbardMom1D{<:Any,M}, add::BoseFS, singlies, doublies
-) where {M}
+@inline function numOfHops(ham::HubbardMom1D, add::BoseFS, singlies, doublies)
+    M = num_modes(ham)
     return singlies*(singlies-1)*(M - 2) + doublies*(M - 1)
 end
 
@@ -112,12 +117,14 @@ end
 end
 
 @inline function hop(
-    ham::HubbardMom1D{<:Any,M,<:Any,U,<:Any,AD},
-    add::AD,
+    ham::HubbardMom1D,
+    add,
     chosen,
     singlies,
     doublies,
-) where {U,M,AD}
+)
+    M = num_modes(ham)
+    U = ham.u
     onrep = BitStringAddresses.m_onr(add)
     # get occupation number representation as a static array
     onproduct = 1
@@ -188,7 +195,7 @@ end
     onproduct *= occ + 1
     @inbounds onrep[ppq] = occ + 1
 
-    return AD(SVector(onrep)), U/(2*M)*sqrt(onproduct)
+    return typeof(starting_address(ham))(SVector(onrep)), U/(2*M)*sqrt(onproduct)
     # return new address and matrix element
 end
 

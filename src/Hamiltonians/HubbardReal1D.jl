@@ -30,6 +30,7 @@ LOStructure(::Type{<:HubbardReal1D{<:Real}}) = HermitianLO()
 Base.getproperty(h::HubbardReal1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::HubbardReal1D{<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::HubbardReal1D{<:Any,<:Any,T}, ::Val{:t}) where T = T
+Base.getproperty(h::HubbardReal1D, ::Val{:add}) = getfield(h, :add)
 
 function diagME(h::HubbardReal1D, address::BoseFS)
     h.u * bosehubbardinteraction(address) / 2

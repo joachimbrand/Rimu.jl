@@ -60,6 +60,8 @@ end
 (h::AbstractHamiltonian)(v) = h * v
 (h::AbstractHamiltonian)(w, v) = mul!(w, h, v)
 
+BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_address(h))
+
 """
     diagME(ham, add)
 

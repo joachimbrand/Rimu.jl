@@ -42,6 +42,9 @@ function test_hamiltonian_interface(H)
             @test dimension(Float64, H) isa Float64
             @test dimension(Int, H) === dimension(H)
         end
+        @testset "starting address" begin
+            @test num_modes(H) == num_modes(addr)
+        end
     end
 end
 

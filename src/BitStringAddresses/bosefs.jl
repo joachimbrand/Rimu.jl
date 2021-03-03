@@ -10,14 +10,14 @@ abstract type AbstractFockAddress end
 
 Number of particles represented by address.
 """
-num_particles(b) = num_particles(typeof(b))
+num_particles(b::AbstractFockAddress) = num_particles(typeof(b))
 
 """
     num_modes(::Type{<:AbstractFockAddress})
 
 Number of modes represented by address.
 """
-num_modes(b) = num_modes(typeof(b))
+num_modes(b::AbstractFockAddress) = num_modes(typeof(b))
 
 """
     BoseFS{N,M,S} <: AbstractFockAddress
@@ -349,3 +349,6 @@ function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     Base.show(io,b.bsb)
     print(io, ")")
 end
+
+num_particles(::Type{<:BoseFS2C{NA,NB}}) where {NA,NB} = NA + NB
+num_modes(::Type{<:BoseFS2C{<:Any,<:Any,M}}) where {M} = M
