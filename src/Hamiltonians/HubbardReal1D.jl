@@ -12,13 +12,17 @@ Implements a one-dimensional Bose Hubbard chain in real space.
 - `t`: the hopping strength
 
 """
-struct HubbardReal1D{TT,U,T,A<:AbstractFockAddress} <: AbstractHamiltonian{TT}
+struct HubbardReal1D{TT,A<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
     add::A
 end
 
 function HubbardReal1D(addr; u=1.0, t=1.0)
     U, T = promote(float(u), float(t))
-    return HubbardReal1D{typeof(U),U,T,typeof(addr)}(addr)
+    return HubbardReal1D{typeof(U),typeof(addr),U,T}(addr)
+end
+
+function Base.show(io::IO, h::HubbardReal1D)
+    print(io, "HubbardReal1D($(h.add); u=$(h.u), t=$(h.t))")
 end
 
 function starting_address(h::HubbardReal1D)
@@ -28,8 +32,8 @@ end
 LOStructure(::Type{<:HubbardReal1D{<:Real}}) = HermitianLO()
 
 Base.getproperty(h::HubbardReal1D, s::Symbol) = getproperty(h, Val(s))
-Base.getproperty(h::HubbardReal1D{<:Any,U}, ::Val{:u}) where U = U
-Base.getproperty(h::HubbardReal1D{<:Any,<:Any,T}, ::Val{:t}) where T = T
+Base.getproperty(h::HubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
+Base.getproperty(h::HubbardReal1D{<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
 Base.getproperty(h::HubbardReal1D, ::Val{:add}) = getfield(h, :add)
 
 function diagME(h::HubbardReal1D, address::BoseFS)

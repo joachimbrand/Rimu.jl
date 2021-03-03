@@ -45,14 +45,20 @@ function test_hamiltonian_interface(H)
         @testset "starting address" begin
             @test num_modes(H) == num_modes(addr)
         end
+        # TODO
+        # These tests will check whether printing works and also whether getters for
+        # parameters are set up right
+        #@testset "show" begin
+        #    @test eval(Meta.parse(repr(H))) == H
+        #end
     end
 end
 
 @testset "Interface tests" begin
     for H in (
-        HubbardReal1D(BoseFS((1, 2, 3, 4))),
-        HubbardMom1D(BoseFS((6, 0, 0, 4))),
-        ExtendedHubbardReal1D(BoseFS((1,0,0,0,1))),
+        HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
+        HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
+        ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
 
         BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
         BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))),

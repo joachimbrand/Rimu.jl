@@ -12,14 +12,18 @@ Implements the extended Hubbard model on a one-dimensional chain in real space.
 - `v`: the next-neighbor interaction
 - `t`: the hopping strength
 """
-struct ExtendedHubbardReal1D{TT,U,V,T,A<:AbstractFockAddress} <: AbstractHamiltonian{TT}
+struct ExtendedHubbardReal1D{TT,A<:AbstractFockAddress,U,V,T} <: AbstractHamiltonian{TT}
     add::A
 end
 
 # addr for compatibility.
 function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0)
     U, V, T = promote(float(u), float(v), float(t))
-    return ExtendedHubbardReal1D{typeof(U),U,V,T,typeof(addr)}(addr)
+    return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T}(addr)
+end
+
+function Base.show(io::IO, h::ExtendedHubbardReal1D)
+    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t))")
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
@@ -29,9 +33,10 @@ end
 LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real}}) = HermitianLO()
 
 Base.getproperty(h::ExtendedHubbardReal1D, s::Symbol) = getproperty(h, Val(s))
-Base.getproperty(h::ExtendedHubbardReal1D{<:Any,U}, ::Val{:u}) where U = U
-Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,V}, ::Val{:v}) where V = V
-Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
+Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:add}) = getfield(h, :add)
+Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
+Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,V}, ::Val{:v}) where V = V
+Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
 
 function diagME(h::ExtendedHubbardReal1D, b::BoseFS)
     ebhinteraction, bhinteraction = extended_bose_hubbard_interaction(b)

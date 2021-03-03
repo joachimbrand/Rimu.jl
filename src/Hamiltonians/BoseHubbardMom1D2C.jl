@@ -25,8 +25,8 @@ LOStructure(::Type{BoseHubbardMom1D2C{T, HA, HB, V}}) where {T <: Real, HA, HB, 
 # function BoseHubbardMom1D2C(ha::HA, hb::HB, v::T) where {M, HA, HB, T} = BoseHubbardMom1D2C{T, HA, HB, M}(ha, hb, v)
 
 function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v::T=1.0) where {NA,NB,M,AA,AB,T}
-    ha = HubbardMom1D{NA,M}(add.bsa;u=ua,t=ta)
-    hb = HubbardMom1D{NB,M}(add.bsb;u=ub,t=tb)
+    ha = HubbardMom1D(add.bsa;u=ua,t=ta)
+    hb = HubbardMom1D(add.bsb;u=ub,t=tb)
     return BoseHubbardMom1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
 
