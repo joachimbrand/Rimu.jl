@@ -1,9 +1,4 @@
-@with_kw struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentHamiltonian{T}
-    ha::HA
-    hb::HB
-end
-
-@doc """
+"""
     ham = BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in real space.
@@ -17,7 +12,11 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 * `h_a::BoseHubbardReal1D` and `h_b::BoseHubbardReal1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardReal1D`](@ref)
 * `v`: the inter-species interaction parameter V
 
-""" BoseHubbardReal1D2C
+"""
+struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentHamiltonian{T}
+    ha::HA
+    hb::HB
+end
 
 # set the `LOStructure` trait
 LOStructure(::Type{<:BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
@@ -27,6 +26,15 @@ function BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
     hb = HubbardReal1D(add.bsb; u=ub, t=tb)
     T = promote_type(eltype(ha), eltype(hb))
     return BoseHubbardReal1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
+end
+
+function Base.show(io::IO, h::BoseHubbardReal1D2C{<:Any,<:Any,<:Any,V}) where V
+    addr = starting_address(h)
+    ua = h.ha.u
+    ub = h.hb.u
+    ta = h.ha.t
+    tb = h.hb.t
+    print(io, "BoseHubbardReal1D2C($addr; ua=$ua, ub=$ub, ta=$ta, tb=$tb, v=$V)")
 end
 
 function starting_address(h::BoseHubbardReal1D2C)

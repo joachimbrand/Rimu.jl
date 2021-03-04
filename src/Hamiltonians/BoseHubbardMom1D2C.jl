@@ -1,9 +1,4 @@
-@with_kw struct BoseHubbardMom1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
-    ha::HA
-    hb::HB
-end
-
-@doc """
+"""
     ham = BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
@@ -17,16 +12,31 @@ Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 - `m`: number of modes (needs be the same for `ha` and `hb`!)
 - `v=0.0`: the inter-species interaction parameter, default value: 0.0, i.e. non-interacting
 
-""" BoseHubbardMom1D2C
+"""
+struct BoseHubbardMom1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
+    ha::HA
+    hb::HB
+end
 
 # set the `LOStructure` trait
 LOStructure(::Type{<:BoseHubbardMom1D2C{<:Real}}) = HermitianLO()
 
-function BoseHubbardMom1D2C(add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0) where {NA,NB,M,AA,AB}
+function BoseHubbardMom1D2C(
+    add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0
+) where {NA,NB,M,AA,AB}
     ha = HubbardMom1D(add.bsa;u=ua,t=ta)
     hb = HubbardMom1D(add.bsb;u=ub,t=tb)
     T = promote_type(eltype(ha), eltype(hb))
     return BoseHubbardMom1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
+end
+
+function Base.show(io::IO, h::BoseHubbardMom1D2C{<:Any,<:Any,<:Any,V}) where V
+    addr = starting_address(h)
+    ua = h.ha.u
+    ub = h.hb.u
+    ta = h.ha.t
+    tb = h.hb.t
+    print(io, "BoseHubbardMom1D2C($addr; ua=$ua, ub=$ub, ta=$ta, tb=$tb, v=$V)")
 end
 
 function starting_address(h::BoseHubbardMom1D2C)

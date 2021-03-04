@@ -105,8 +105,8 @@ end
             @test addrs1 == addrs2
             @test values1 == values2
 
-            # TODO if with_kw could be removed
-            #@test eval(Meta.parse(repr(H))) == H
+            @test eval(Meta.parse(repr(H1))) == H1
+            @test eval(Meta.parse(repr(H2))) == H2
         end
     end
 end
