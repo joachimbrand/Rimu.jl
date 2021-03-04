@@ -20,7 +20,7 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 """ BoseHubbardReal1D2C
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
+LOStructure(::Type{<:BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
 
 function BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
     ha = HubbardReal1D(add.bsa; u=ua, t=ta)

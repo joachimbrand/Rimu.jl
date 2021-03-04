@@ -171,7 +171,7 @@ BoseFS((2,2,1,1,1))
 function nearUniform(::Type{<:BoseFS{N,M}}) where {N,M}
     return BoseFS{N,M}(nearUniformONR(Val(N),Val(M)))
 end
-nearUniform(b::BoseFS) = nearUniform(typeof(b))
+nearUniform(b::AbstractFockAddress) = nearUniform(typeof(b))
 
 """
     onr(bs)
@@ -352,3 +352,8 @@ end
 
 num_particles(::Type{<:BoseFS2C{NA,NB}}) where {NA,NB} = NA + NB
 num_modes(::Type{<:BoseFS2C{<:Any,<:Any,M}}) where {M} = M
+Base.isless(a::BoseFS2C, b::BoseFS2C) = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
+
+function nearUniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
+    return BoseFS2C(nearUniform(BoseFS{NA,M}), nearUniform(BoseFS{NB,M}))
+end

@@ -152,7 +152,7 @@ struct ComplexLO <: LOStructure end
 
 # defaults
 LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))
-LOStructure(::Type{T}) where T <: AbstractHamiltonian = ComplexLO()
+LOStructure(::Type{<:AbstractHamiltonian}) = ComplexLO()
 
 LinearAlgebra.adjoint(op::AbstractHamiltonian) = h_adjoint(LOStructure(op), op)
 

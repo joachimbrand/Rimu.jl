@@ -288,8 +288,8 @@ Base.:<<(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .<<
 # Is this ordering needed?
 function Base.isless(s1::B, s2::B) where {B<:BitString}
     for i in 1:num_chunks(B)
-        if s1[i] ≠ s2[i]
-            return s1[i] < s2[i]
+        if chunks(s1)[i] ≠ chunks(s2)[i]
+            return chunks(s1)[i] < chunks(s2)[i]
         end
     end
     return false

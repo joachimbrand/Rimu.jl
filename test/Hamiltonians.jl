@@ -2,7 +2,7 @@ using LinearAlgebra
 using Rimu
 using Test
 
-using Rimu.Hamiltonians: LOStructure
+using Rimu.Hamiltonians: LOStructure, HermitianLO
 
 """
     test_hamiltonian_interface(H, addr)
@@ -45,12 +45,6 @@ function test_hamiltonian_interface(H)
         @testset "starting address" begin
             @test num_modes(H) == num_modes(addr)
         end
-        # TODO
-        # These tests will check whether printing works and also whether getters for
-        # parameters are set up right
-        #@testset "show" begin
-        #    @test eval(Meta.parse(repr(H))) == H
-        #end
     end
 end
 
@@ -69,6 +63,51 @@ end
         ExtendedBHReal1D(),
     )
         test_hamiltonian_interface(H)
+    end
+end
+
+@testset "1C model properties" begin
+    addr = nearUniform(BoseFS{100,100})
+
+    for Hamiltonian in (HubbardReal1D, HubbardMom1D)
+        @testset "$Hamiltonian" begin
+            H = Hamiltonian(addr; t=1.0, u=2.0)
+            @test H.t == 1.0
+            @test H.u == 2.0
+            @test LOStructure(H) == HermitianLO()
+            @test starting_address(H) == addr
+            @test eval(Meta.parse(repr(H))) == H
+        end
+    end
+end
+
+@testset "2C model properties" begin
+    flip(b) = BoseFS2C(b.bsb, b.bsa)
+    addr1 = nearUniform(BoseFS2C{1,100,20})
+    addr2 = nearUniform(BoseFS2C{100,1,20})
+
+    for Hamiltonian in (BoseHubbardReal1D2C, BoseHubbardMom1D2C)
+        @testset "$Hamiltonian" begin
+            H1 = BoseHubbardReal1D2C(addr1; ta=1.0, tb=2.0, ua=0.5, ub=0.7, v=0.2)
+            H2 = BoseHubbardReal1D2C(addr2; ta=2.0, tb=1.0, ua=0.7, ub=0.5, v=0.2)
+            @test starting_address(H1) == addr1
+            @test LOStructure(H1) == HermitianLO()
+
+            hops1 = collect(hops(H1, addr1))
+            hops2 = collect(hops(H2, addr2))
+            sort!(hops1, by=a -> first(a).bsa)
+            sort!(hops2, by=a -> first(a).bsb)
+
+            addrs1 = first.(hops1)
+            addrs2 = flip.(first.(hops2))
+            values1 = last.(hops1)
+            values2 = last.(hops1)
+            @test addrs1 == addrs2
+            @test values1 == values2
+
+            # TODO if with_kw could be removed
+            #@test eval(Meta.parse(repr(H))) == H
+        end
     end
 end
 
