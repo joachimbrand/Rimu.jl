@@ -211,4 +211,4 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
     return BoseFS{N,M,A}(new_address), prod
 end
 
-end # module Hamiltonians
+end

@@ -22,9 +22,10 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 # set the `LOStructure` trait
 LOStructure(::Type{BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
 
-function BoseHubbardReal1D2C(add::BoseFS2C; ua::T=1.0,ub::T=1.0,ta::T=1.0,tb::T=1.0,v::T=1.0) where T
+function BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
     ha = HubbardReal1D(add.bsa; u=ua, t=ta)
     hb = HubbardReal1D(add.bsb; u=ub, t=tb)
+    T = promote_type(eltype(ha), eltype(hb))
     return BoseHubbardReal1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
 
@@ -51,8 +52,8 @@ end
 
 function diagME(ham::BoseHubbardReal1D2C{T,HA,HB,V}, address::BoseFS2C) where {T,HA,HB,V}
     return (
-        ham.ha.u * bosehubbardinteraction(address.bsa) / 2 +
-        ham.hb.u * bosehubbardinteraction(address.bsb) / 2 +
+        diagME(ham.ha, address.bsa) +
+        diagME(ham.hb, address.bsb) +
         V * bosehubbard2Cinteraction(address)
     )
 end

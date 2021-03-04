@@ -124,10 +124,8 @@ end
 
 
 function diagME(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}) where {T,HA,HB,V,NA,NB,M,AA,AB}
-    # ham_a = BoseHubbardMom1D(ham.na, ham.m, ham.ua, ham.ta, add.bsa)
-    # ham_b = BoseHubbardMom1D(ham.nb, ham.m, ham.ub, ham.tb, add.bsb)
-    onrep_a = BitStringAddresses.onr(add.bsa)
-    onrep_b = BitStringAddresses.onr(add.bsb)
+    onrep_a = onr(add.bsa)
+    onrep_b = onr(add.bsb)
     interaction2c = Int32(0)
     for p in 1:M
         iszero(onrep_b[p]) && continue

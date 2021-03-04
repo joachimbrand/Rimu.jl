@@ -201,6 +201,7 @@ function hops(h::HubbardMom1D, a::BoseFS)
 end
 
 function Base.getindex(s::HopsBoseMom1D, i)
+    @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     new_address, matrix_element = hop(s.hamiltonian, s.address, i, s.singlies, s.doublies)
     return (new_address, matrix_element)
 end
