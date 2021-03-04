@@ -74,3 +74,33 @@ function hop(ham::BoseHubbardReal1D2C, add, chosen)
     end
     # return new address and matrix element
 end
+
+struct HopsBoseReal1D2C{A<:BoseFS2C,T,H<:TwoComponentHamiltonian{T}} <: AbstractHops{A,T}
+    hamiltonian::H
+    address::A
+    length::Int
+    num_hops_a::Int
+end
+
+function hops(h::BoseHubbardReal1D2C, a::BoseFS2C)
+    hops_a = numOfHops(h.ha, a.bsa)
+    hops_b = numOfHops(h.hb, a.bsb)
+    length = hops_a + hops_b
+
+    return HopsBoseReal1D2C(h, a, length, hops_a)
+end
+
+function Base.getindex(s::HopsBoseReal1D2C{A}, i) where {A}
+    @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
+    if i ≤ s.num_hops_a
+        new_a, matrix_element = hop(s.hamiltonian.ha, s.address.bsa, i)
+        new_add = A(new_a, s.address.bsb)
+    else
+        i -= s.num_hops_a
+        new_b, matrix_element = hop(s.hamiltonian.hb, s.address.bsb, i)
+        new_add = A(s.address.bsa, new_b)
+    end
+    return new_add, matrix_element
+end
+
+Base.size(s::HopsBoseReal1D2C) = (s.length,)

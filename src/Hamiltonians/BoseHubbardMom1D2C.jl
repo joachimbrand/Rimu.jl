@@ -163,6 +163,7 @@ function hops(h::BoseHubbardMom1D2C{T,<:Any,<:Any,V}, a::BoseFS2C) where {T,V}
 end
 
 function Base.getindex(s::HopsBoseMom1D2C{A,V}, i) where {A,V}
+    @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     if i ≤ s.num_hops_a
         new_a, matrix_element = hop(s.hamiltonian.ha, s.address.bsa, i)
         new_add = A(new_a, s.address.bsb)

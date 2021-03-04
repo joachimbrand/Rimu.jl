@@ -87,6 +87,7 @@ function Hops(h, a)
 end
 
 function Base.getindex(s::Hops, i)
+    @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     new_address, matrix_element = hop(s.hamiltonian, s.address, i)
     return (new_address, matrix_element)
 end
