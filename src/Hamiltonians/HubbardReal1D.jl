@@ -1,5 +1,5 @@
 """
-    HubbardReal1D(;[u=1.0, t=1.0])
+    HubbardReal1D(address; u=1.0, t=1.0)
 
 Implements a one-dimensional Bose Hubbard chain in real space.
 
@@ -7,9 +7,16 @@ Implements a one-dimensional Bose Hubbard chain in real space.
 \\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1)
 ```
 
-# Parameters
-- `u`: the interaction parameter
-- `t`: the hopping strength
+# Arguments
+
+* `address`: the starting address, defines number of particles and sites.
+* `u`: the interaction parameter.
+* `t`: the hopping strength.
+
+# See also
+
+* [`HubbardMom1D`](@ref)
+* [`ExtendedHubbardReal1D`](@ref)
 
 """
 struct HubbardReal1D{TT,A<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
@@ -36,12 +43,45 @@ Base.getproperty(h::HubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::HubbardReal1D{<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
 Base.getproperty(h::HubbardReal1D, ::Val{:add}) = getfield(h, :add)
 
-function diagME(h::HubbardReal1D, address::BoseFS)
-    h.u * bosehubbardinteraction(address) / 2
+function numOfHops(::HubbardReal1D, address::BoseFS)
+    return 2 * numberoccupiedsites(address)
 end
 
-function numOfHops(::HubbardReal1D, address::BoseFS)
-    return numberlinkedsites(address)
+"""
+    bosehubbardinteraction(address)
+
+Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction
+(without the *U* prefactor.)
+"""
+function bosehubbardinteraction(b::BoseFS{<:Any,<:Any,A}) where A
+    return bosehubbardinteraction(Val(num_chunks(A)), b)
+end
+
+@inline function bosehubbardinteraction(_, b::BoseFS)
+    result = 0
+    for (n, _, _) in occupied_orbitals(b)
+        result += n * (n - 1)
+    end
+    return result
+end
+
+@inline function bosehubbardinteraction(::Val{1}, b::BoseFS)
+    # currently this ammounts to counting occupation numbers of orbitals
+    chunk = chunks(b.bs)[1]
+    matrixelementint = 0
+    while !iszero(chunk)
+        chunk >>>= trailing_zeros(chunk) # proceed to next occupied orbital
+        bosonnumber = trailing_ones(chunk) # count how many bosons inside
+        # surpsingly it is faster to not check whether this is nonzero and do the
+        # following operations anyway
+        chunk >>>= bosonnumber # remove the counted orbital
+        matrixelementint += bosonnumber * (bosonnumber - 1)
+    end
+    return matrixelementint
+end
+
+function diagME(h::HubbardReal1D, address::BoseFS)
+    h.u * bosehubbardinteraction(address) / 2
 end
 
 function hop(h::HubbardReal1D, add::BoseFS, chosen)

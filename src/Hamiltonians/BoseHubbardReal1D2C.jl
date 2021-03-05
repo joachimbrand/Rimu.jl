@@ -1,5 +1,5 @@
 """
-    ham = BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
+    BoseHubbardReal1D2C(address::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
 
 Implements a two-component one-dimensional Bose Hubbard chain in real space.
 
@@ -8,18 +8,24 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 ```
 
 # Arguments
-* `add::BoseFS2C`: the two-component address type, see [`BoseFS2C`](@ref)
-* `h_a::BoseHubbardReal1D` and `h_b::BoseHubbardReal1D`: standard Hamiltonian for boson A and B, see [`BoseHubbardReal1D`](@ref)
-* `v`: the inter-species interaction parameter V
+
+* `address`: the starting address, defines number of particles and sites.
+* `ua`: the on-site interaction parameter parameter for Hamiltonian a.
+* `ub`: the on-site interaction parameter parameter for Hamiltonian b.
+* `ta`: the hopping strength for Hamiltonian a.
+* `tb`: the hopping strength for Hamiltonian b.
+* `v`: the inter-species interaction parameter V.
+
+# See also
+
+* [`HubbardReal1D`](@ref)
+* [`BoseHubbardMom1D2C`](@ref)
 
 """
 struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentHamiltonian{T}
     ha::HA
     hb::HB
 end
-
-# set the `LOStructure` trait
-LOStructure(::Type{<:BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
 
 function BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
     ha = HubbardReal1D(add.bsa; u=ua, t=ta)
@@ -40,6 +46,8 @@ end
 function starting_address(h::BoseHubbardReal1D2C)
     return BoseFS2C(starting_address(h.ha), starting_address(h.hb))
 end
+
+LOStructure(::Type{<:BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
 
 # number of excitations that can be made
 function numOfHops(ham::BoseHubbardReal1D2C, add)

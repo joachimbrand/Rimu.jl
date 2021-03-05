@@ -49,7 +49,7 @@ function diagME(h::ExtendedBHReal1D, b)
 end
 
 function numOfHops(ham::ExtendedBHReal1D, add)
-    return numberlinkedsites(add)
+    return 2 * numberoccupiedsites(add)
 end
 
 function hop(ham::ExtendedBHReal1D, add, chosen::Integer)

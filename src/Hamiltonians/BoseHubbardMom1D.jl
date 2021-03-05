@@ -18,6 +18,9 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 ϵ_k = - 2 t \\cos(k)
 ```
 
+!!! warning
+    This Hamiltonian is deprecated. Please use [`HubbardMom1D`](@ref) instead.
+
 # Arguments
 - `n::Int`: the number of bosons
 - `m::Int`: the number of lattice sites
@@ -43,6 +46,8 @@ function BoseHubbardMom1D(add::BSA; u=1.0, t=1.0) where BSA <: AbstractFockAddre
 end
 
 starting_address(ham::BoseHubbardMom1D) = ham.add
+
+momentum(ham::BoseHubbardMom1D) = MomentumMom1D(ham)
 
 function numOfHops(ham::BoseHubbardMom1D, add)
     singlies, doublies = numSandDoccupiedsites(add)

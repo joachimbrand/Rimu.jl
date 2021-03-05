@@ -52,7 +52,6 @@ end
     include("Hamiltonians.jl")
 end
 
-using Rimu.Hamiltonians: MomentumMom1D
 @testset "BoseHubbardMom1D" begin
     bfs= BoseFS((1,0,2,1,2,1,1,3))
     @test Hamiltonians.numberoccupiedsites(bfs) == 7
@@ -63,23 +62,23 @@ using Rimu.Hamiltonians: MomentumMom1D
     @test numOfHops(ham,bfs) == 273
     @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
     @test diagME(ham,bfs) ≈ 14.296572875253808
-    momentum = MomentumMom1D(ham)
-    @test diagME(momentum,bfs) ≈ -1.5707963267948966
+    m = momentum(ham)
+    @test diagME(m,bfs) ≈ -1.5707963267948966
     v = DVec(Dict(bfs => 10), 1000)
-    @test rayleigh_quotient(momentum, v) ≈ -1.5707963267948966
+    @test rayleigh_quotient(m, v) ≈ -1.5707963267948966
 
     ham = Hamiltonians.HubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 273
     @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
     @test diagME(ham,bfs) ≈ 14.296572875253808
-    momentum = MomentumMom1D(ham)
-    @test diagME(momentum,bfs) ≈ -1.5707963267948966
+    m = momentum(ham)
+    @test diagME(m,bfs) ≈ -1.5707963267948966
     v = DVec(Dict(bfs => 10), 1000)
-    @test rayleigh_quotient(momentum, v) ≈ -1.5707963267948966
+    @test rayleigh_quotient(m, v) ≈ -1.5707963267948966
 
     fs = BoseFS((1,2,1,0)) # should be zero momentum
     ham = BoseHubbardMom1D(fs,t=1.0)
-    m=MomentumMom1D(ham) # define momentum operator
+    m=momentum(ham) # define momentum operator
     mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
     @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in hops(ham, fs)]) # check that momentum does not change for hops
@@ -97,7 +96,7 @@ using Rimu.Hamiltonians: MomentumMom1D
     @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
 
     ham = Hamiltonians.HubbardMom1D(fs,t=1.0)
-    m=MomentumMom1D(ham) # define momentum operator
+    m=momentum(ham) # define momentum operator
     mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
     @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in hops(ham, fs)]) # check that momentum does not change for hops

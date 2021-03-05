@@ -1,5 +1,6 @@
 """
-    HubbardMom1D(add::BoseFS; u=1.0, t=1.0)
+    HubbardMom1D(address; u=1.0, t=1.0)
+
 Implements a one-dimensional Bose Hubbard chain in momentum space.
 
 ```math
@@ -7,16 +8,17 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 ϵ_k = - 2 t \\cos(k)
 ```
 
-# Parameters
-- `add::BoseFS`: bosonic starting address, defines number of particles and sites
-- `u::Float64`: the interaction parameter
-- `t::Float64`: the hopping strength
+# Arguments
 
-# Functor use:
-    w = ham(v)
-    ham(w, v)
-Compute the matrix - vector product `w = ham * v`. The two-argument version is
-mutating for `w`.
+* `address`: the starting address, defines number of particles and sites.
+* `u`: the interaction parameter.
+* `t`: the hopping strength.
+
+# See also
+
+* [`HubbardReal1D`](@ref)
+* [`ExtendedHubbardReal1D`](@ref)
+
 """
 struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
     add::AD # default starting address, should have N particles and M modes
@@ -24,7 +26,6 @@ struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
     kes::SVector{M,TT} # values for kinetic energy
 end
 
-# constructors
 function HubbardMom1D(add::BoseFS{<:Any,M}; u=1.0, t=1.0) where {M}
     U, T = promote(float(u), float(t))
     step = 2π/M
@@ -47,6 +48,8 @@ function starting_address(h::HubbardMom1D)
     return h.add
 end
 
+LOStructure(::Type{<:HubbardMom1D{<:Real}}) = HermitianLO()
+
 Base.getproperty(h::HubbardMom1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::HubbardMom1D, ::Val{:ks}) = getfield(h, :ks)
 Base.getproperty(h::HubbardMom1D, ::Val{:kes}) = getfield(h, :kes)
@@ -54,10 +57,37 @@ Base.getproperty(h::HubbardMom1D, ::Val{:add}) = getfield(h, :add)
 Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,U}, ::Val{:u}) where {U} = U
 Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where {T} = T
 
-# set the `LOStructure` trait
-LOStructure(::Type{<:HubbardMom1D{<:Real}}) = HermitianLO()
-
 ks(h::HubbardMom1D) = getfield(h, :ks)
+
+"""
+    singlies, doublies = numSandDoccupiedsites(address)
+Returns the number of singly and doubly occupied sites for a bosonic bit string address.
+"""
+function numSandDoccupiedsites(b::BoseFS)
+    singlies = 0
+    doublies = 0
+    for (n, _, _) in occupied_orbitals(b)
+        singlies += 1
+        doublies += n > 1
+    end
+    return singlies, doublies
+end
+
+function numSandDoccupiedsites(onrep::AbstractArray)
+    # this one is faster by about a factor of 2 if you already have the onrep
+    # returns number of singly and doubly occupied sites
+    singlies = 0
+    doublies = 0
+    for n in onrep
+        if n > 0
+            singlies += 1
+            if n > 1
+                doublies += 1
+            end
+        end
+    end
+    return singlies, doublies
+end
 
 # standard interface function
 function numOfHops(ham::HubbardMom1D, add::BoseFS)
@@ -186,6 +216,9 @@ end
     # return new address and matrix element
 end
 
+###
+### hops
+###
 struct HopsBoseMom1D{A<:BoseFS,T,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
     hamiltonian::H
     address::A
@@ -207,3 +240,15 @@ function Base.getindex(s::HopsBoseMom1D, i)
 end
 
 Base.size(s::HopsBoseMom1D) = (s.length,)
+
+###
+### momentum
+###
+struct MomentumMom1D{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
+    ham::H
+end
+LOStructure(::Type{MomentumMom1D{H,T}}) where {H,T <: Real} = HermitianLO()
+numOfHops(ham::MomentumMom1D, add) = 0
+diagME(mom::MomentumMom1D, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
+
+momentum(ham::HubbardMom1D) = MomentumMom1D(ham)

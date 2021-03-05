@@ -15,6 +15,9 @@ Implements a one-dimensional Bose Hubbard chain in real space.
 \\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1)
 ```
 
+!!! warning
+    This Hamiltonian is deprecated. Please use [`HubbardReal1D`](@ref) instead.
+
 # Arguments
 - `n::Int`: the number of bosons
 - `m::Int`: the number of lattice sites
@@ -53,7 +56,7 @@ function diagME(h::BoseHubbardReal1D, address)
 end
 
 function numOfHops(ham::BoseHubbardReal1D, add)
-    return numberlinkedsites(add)
+    return 2 * numberoccupiedsites(add)
 end
 
 function hop(ham::BoseHubbardReal1D, add, chosen::Integer)
