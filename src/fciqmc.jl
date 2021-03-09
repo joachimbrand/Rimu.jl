@@ -455,6 +455,16 @@ function prep_shift(::DictVectors.IsStochastic2PopRealShift, shift, pnorm)
         (r = real(shift), i = real(shift))
     end
 end # returns named tuple of real (Float64) numbers
+function prep_shift(iss::DictVectors.IsStochastic2PopRealShiftScaled, shift, pnorm)
+    return if abs(real(pnorm)*imag(pnorm)) > 1
+        (
+        r = real(shift) - imag(shift)*imag(pnorm)/real(pnorm)*iss.scale,
+        i = real(shift) + imag(shift)*real(pnorm)/imag(pnorm)*iss.scale,
+        )
+    else # ignore imaginary part of shift if population is small to avoid division by zero
+        (r = real(shift), i = real(shift))
+    end
+end # returns named tuple of real (Float64) numbers
 
 """
     fciqmc_step!(Ĥ, v, shift, dτ, pnorm, w;
@@ -1219,7 +1229,10 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
 end
 
 function fciqmc_col!(
-    ::DictVectors.IsStochastic2PopRealShift,
+    ::Union{
+        DictVectors.IsStochastic2PopRealShift,
+        DictVectors.IsStochastic2PopRealShiftScaled
+    },
     w,
     ham::AbstractHamiltonian,
     add,
