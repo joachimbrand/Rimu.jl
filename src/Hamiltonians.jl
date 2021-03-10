@@ -1752,7 +1752,7 @@ Return the approximate dimension of linear space as `Float64`.
 """ BoseHubbardReal1D2C
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardReal1D2C{T, V}}) where {T <: Real, V} = HermitianLO()
+LOStructure(::Type{<:BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
 
 function BoseHubbardReal1D2C(add::BoseFS2C; ua::T=1.0,ub::T=1.0,ta::T=1.0,tb::T=1.0,v::T=1.0) where T
     ha = BoseHubbardReal1D(add.bsa;u=ua,t=ta)
