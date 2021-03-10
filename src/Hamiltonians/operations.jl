@@ -12,7 +12,7 @@ function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
         add == address1 && return val # found address1
     end
     return zero(T) # address1 not found
-end # getindex(ham)
+end
 
 function Base.:*(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V}
     T = promote_type(E,V) # allow for type promotion
@@ -39,11 +39,12 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::Abstract
 end
 
 """
-    dot(x, LO::AbstractHamiltonian, v)
-Evaluate `x⋅LO(v)` minimizing memory allocations.
+    dot(x, H::AbstractHamiltonian, v)
+
+Evaluate `x⋅H(v)` minimizing memory allocations.
 """
 function LinearAlgebra.dot(x::AbstractDVec, LO::AbstractHamiltonian, v::AbstractDVec)
-    return dot_w_trait(LOStructure(LO), x, LO, v)
+    return dot(LOStructure(LO), x, LO, v)
 end
 # specialised method for UniformProjector
 function LinearAlgebra.dot(::UniformProjector, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
@@ -57,14 +58,10 @@ function LinearAlgebra.dot(::UniformProjector, LO::AbstractHamiltonian{T}, v::Ab
     return result
 end
 
-"""
-    Hamiltonians.dot_w_trait(::LOStructure, x, LO::AbstractHamiltonian, v)
-Internal function for making use of the `AbstractHamiltonian` trait `LOStructure`.
-"""
-dot_w_trait(::LOStructure, x, LO::AbstractHamiltonian, v) = dot_from_right(x,LO,v)
+LinearAlgebra.dot(::LOStructure, x, LO::AbstractHamiltonian, v) = dot_from_right(x,LO,v)
 # default for LOs without special structure: keep order
 
-function dot_w_trait(::HermitianLO, x, LO::AbstractHamiltonian, v)
+function LinearAlgebra.dot(::HermitianLO, x, LO::AbstractHamiltonian, v)
     if length(x) < length(v)
         return conj(dot_from_right(v,LO,x)) # turn args around to execute faster
     else
@@ -78,7 +75,6 @@ Internal function evaluates the 3-argument `dot()` function in order from right
 to left.
 """
 function dot_from_right(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
-    # function LinearAlgebra.dot(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
     result = zero(promote_type(T1,promote_type(T,T2)))
     for (key,val) in pairs(v)
         result += conj(x[key]) * diagME(LO, key) * val
@@ -89,19 +85,22 @@ function dot_from_right(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::Ab
     return result
 end
 
-LinearAlgebra.adjoint(op::AbstractHamiltonian) = h_adjoint(LOStructure(op), op)
+LinearAlgebra.adjoint(op::AbstractHamiltonian) = adjoint(LOStructure(op), op)
 
 """
-    h_adjoint(los::LOStructure, op::AbstractHamiltonian)
-Represent the adjoint of an `AbstractHamiltonian`. Extend this method to define
-custom adjoints.
+    adjoint(::LOStructure, op::AbstractHamiltonian)
+
+Represent the adjoint of an `AbstractHamiltonian`. Extend this method to define custom
+adjoints.
 """
-function h_adjoint(los::LOStructure, op) # default
-    throw(ErrorException("`adjoint()` not defined for `AbstractHamiltonian`s with `LOStructure` `$(typeof(los))`. Is your Hamiltonian hermitian?"))
-    return op
+function LinearAlgebra.adjoint(::S, op) where {S<:LOStructure}
+    error(
+        "`adjoint()` not defined for `AbstractHamiltonian`s with `LOStructure` `$(S)`. ",
+        " Is your Hamiltonian hermitian?"
+    )
 end
 
-h_adjoint(::HermitianLO, op) = op # adjoint is known
+LinearAlgebra.adjoint(::HermitianLO, op) = op # adjoint is known
 
 """
     sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)
@@ -111,21 +110,21 @@ starting from the address `add`. The vector `basis` contains the addresses of ba
 configurations.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 """
-function build_sparse_matrix_from_LO(ham::AbstractHamiltonian, fs; nnzs = 0)
+function build_sparse_matrix_from_LO(
+    ham::AbstractHamiltonian, fs=starting_address(ham); nnzs = 0
+)
     adds = [fs] # list of addresses of length linear dimension of matrix
-    I = Vector{Int}(undef,0) # row indices, length nnz
-    J = Vector{Int}(undef,0) # column indices, length nnz
-    V = Vector{eltype(ham)}(undef,0) # values, length nnz
+    I = Int[]         # row indices, length nnz
+    J = Int[]         # column indices, length nnz
+    V = eltype(ham)[] # values, length nnz
     if nnzs > 0
         sizehint!(I, nnzs)
         sizehint!(J, nnzs)
         sizehint!(V, nnzs)
     end
 
-    k = 0 # 1:nnz, in principle, but possibly more as several contributions to a matrix element may occur
     i = 0 # 1:dim, column of matrix
     while true # loop over columns of the matrix
-        k += 1
         i += 1 # next column
         i > length(adds) && break
         add = adds[i] # new address from list
@@ -135,8 +134,7 @@ function build_sparse_matrix_from_LO(ham::AbstractHamiltonian, fs; nnzs = 0)
         push!(J, i)
         push!(V, melem)
         for (nadd, melem) in hops(ham, add) # loop over rows
-            k += 1
-            j = findnext(a->a == nadd, adds, 1) # find index of `nadd` in `adds`
+            j = findnext(a -> a == nadd, adds, 1) # find index of `nadd` in `adds`
             if isnothing(j)
                 # new address: increase dimension of matrix by adding a row
                 push!(adds, nadd)
@@ -148,6 +146,6 @@ function build_sparse_matrix_from_LO(ham::AbstractHamiltonian, fs; nnzs = 0)
             push!(V, melem)
         end
     end
-    return sparse(I,J,V), adds
-    # when the index pair `(i,j)` occurs mutiple times in `I` and `J` the elements are added.
+    # when the index `(i,j)` occurs mutiple times in `I` and `J` the elements are added.
+    return sparse(I, J, V), adds
 end

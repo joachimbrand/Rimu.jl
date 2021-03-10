@@ -55,22 +55,18 @@ function extended_bose_hubbard_interaction(b::BoseFS{<:Any,M}) where M
     address = b.bs
     # compute the diagonal matrix element of the Extended Bose Hubbard Hamiltonian
     # currently this ammounts to counting occupation numbers of orbitals
-    #println("adress= ", bin(address))
-    #if periodicboundericondition
-    ## only periodic boundary conditions are implemented so far
     bhmmatrixelementint = 0
     ebhmmatrixelementint = 0
     bosonnumber2=0
-    #address >>>= trailing_zeros(address) # proceed to next occupied orbital
     bosonnumber1 = trailing_ones(address) # count how many bosons inside
     # surpsingly it is faster to not check whether this is nonzero and do the
     # following operations anyway
-    bhmmatrixelementint+= bosonnumber1 * (bosonnumber1-1)
+    bhmmatrixelementint += bosonnumber1 * (bosonnumber1-1)
     firstbosonnumber = bosonnumber1 #keap on memory the boson number of the first
     #to do the calculation with the last boson
     address >>>= bosonnumber1 # remove the countedorbital
     address >>>= 1
-    for i=1:M-1
+    for i in 1:M-1
         # proceed to next occupied orbital
         bosonnumber2 = trailing_ones(address) # count how many bosons inside
         # surpsingly it is faster to not check whether this is nonzero and do the

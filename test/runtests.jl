@@ -55,8 +55,8 @@ end
 @testset "BoseHubbardMom1D" begin
     bfs= BoseFS((1,0,2,1,2,1,1,3))
     @test Hamiltonians.numberoccupiedsites(bfs) == 7
-    @test Hamiltonians.numSandDoccupiedsites(bfs) == (7,3)
-    @test Hamiltonians.numSandDoccupiedsites(onr(bfs)) == Hamiltonians.numSandDoccupiedsites(bfs)
+    @test Hamiltonians.num_singly_doubly_occupied_sites(bfs) == (7,3)
+    @test Hamiltonians.num_singly_doubly_occupied_sites(onr(bfs)) == Hamiltonians.num_singly_doubly_occupied_sites(bfs)
 
     ham = Hamiltonians.BoseHubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 273

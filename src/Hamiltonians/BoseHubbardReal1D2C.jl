@@ -22,7 +22,7 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 * [`BoseHubbardMom1D2C`](@ref)
 
 """
-struct BoseHubbardReal1D2C{T, HA, HB, V} <: TwoComponentHamiltonian{T}
+struct BoseHubbardReal1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
     ha::HA
     hb::HB
 end
@@ -34,13 +34,14 @@ function BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
     return BoseHubbardReal1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
 
-function Base.show(io::IO, h::BoseHubbardReal1D2C{<:Any,<:Any,<:Any,V}) where V
+function Base.show(io::IO, h::BoseHubbardReal1D2C)
     addr = starting_address(h)
     ua = h.ha.u
     ub = h.hb.u
     ta = h.ha.t
     tb = h.hb.t
-    print(io, "BoseHubbardReal1D2C($addr; ua=$ua, ub=$ub, ta=$ta, tb=$tb, v=$V)")
+    v = h.v
+    print(io, "BoseHubbardReal1D2C($addr; ua=$ua, ub=$ub, ta=$ta, tb=$tb, v=$v)")
 end
 
 function starting_address(h::BoseHubbardReal1D2C)
@@ -49,12 +50,22 @@ end
 
 LOStructure(::Type{<:BoseHubbardReal1D2C{<:Real}}) = HermitianLO()
 
+Base.getproperty(h::BoseHubbardReal1D2C, s::Symbol) = getproperty(h, Val(s))
+Base.getproperty(h::BoseHubbardReal1D2C, ::Val{:ha}) = getfield(h, :ha)
+Base.getproperty(h::BoseHubbardReal1D2C, ::Val{:hb}) = getfield(h, :hb)
+Base.getproperty(h::BoseHubbardReal1D2C{<:Any,<:Any,<:Any,V}, ::Val{:v}) where {V} = V
+
 # number of excitations that can be made
 function numOfHops(ham::BoseHubbardReal1D2C, add)
     return 2*(numberoccupiedsites(add.bsa) + numberoccupiedsites(add.bsb))
 end
 
-function bosehubbard2Cinteraction(add::BoseFS2C)
+"""
+    bose_hubbard_2c_interaction(::BoseFS2C)
+
+Compute the interaction between the two components.
+"""
+function bose_hubbard_2c_interaction(add::BoseFS2C)
     c1 = onr(add.bsa)
     c2 = onr(add.bsb)
     interaction = zero(eltype(c1))
@@ -66,28 +77,26 @@ function bosehubbard2Cinteraction(add::BoseFS2C)
     return interaction
 end
 
-function diagME(ham::BoseHubbardReal1D2C{T,HA,HB,V}, address::BoseFS2C) where {T,HA,HB,V}
+function diagME(ham::BoseHubbardReal1D2C, address::BoseFS2C)
     return (
         diagME(ham.ha, address.bsa) +
         diagME(ham.hb, address.bsb) +
-        V * bosehubbard2Cinteraction(address)
+        ham.v * bose_hubbard_2c_interaction(address)
     )
 end
 
 function hop(ham::BoseHubbardReal1D2C, add, chosen)
     nhops = numOfHops(ham,add)
     nhops_a = 2*numberoccupiedsites(add.bsa)
-    if chosen in 1:nhops_a
+    if chosen ≤ nhops_a
         naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen)
         elem = - ham.ha.t*sqrt(onproduct)
         return BoseFS2C(naddress_from_bsa,add.bsb), elem
-    elseif chosen in nhops_a+1:nhops
+    else
         chosen -= nhops_a
         naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen)
         elem = -ham.hb.t * sqrt(onproduct)
         return BoseFS2C(add.bsa,naddress_from_bsb), elem
-    else
-        error("invalid hop")
     end
     # return new address and matrix element
 end

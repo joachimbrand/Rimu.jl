@@ -50,14 +50,14 @@ starting_address(ham::BoseHubbardMom1D) = ham.add
 momentum(ham::BoseHubbardMom1D) = MomentumMom1D(ham)
 
 function numOfHops(ham::BoseHubbardMom1D, add)
-    singlies, doublies = numSandDoccupiedsites(add)
+    singlies, doublies = num_singly_doubly_occupied_sites(add)
     return singlies*(singlies-1)*(ham.m - 2) + doublies*(ham.m - 1)
     # number of excitations that can be made
 end
 
 function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
     onr = BitStringAddresses.m_onr(add) # get occupation number representation as a mutable array
-    singlies, doublies = numSandDoccupiedsites(add)
+    singlies, doublies = num_singly_doubly_occupied_sites(add)
     onproduct = 1
     k = p = q = 0
     double = chosen - singlies*(singlies-1)*(ham.m - 2)

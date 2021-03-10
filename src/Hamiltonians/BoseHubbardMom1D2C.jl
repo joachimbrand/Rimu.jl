@@ -27,22 +27,21 @@ struct BoseHubbardMom1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
     hb::HB
 end
 
-function BoseHubbardMom1D2C(
-    add::BoseFS2C{NA,NB,M,AA,AB}; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0
-) where {NA,NB,M,AA,AB}
+function BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
     ha = HubbardMom1D(add.bsa;u=ua,t=ta)
     hb = HubbardMom1D(add.bsb;u=ub,t=tb)
     T = promote_type(eltype(ha), eltype(hb))
     return BoseHubbardMom1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
 
-function Base.show(io::IO, h::BoseHubbardMom1D2C{<:Any,<:Any,<:Any,V}) where V
+function Base.show(io::IO, h::BoseHubbardMom1D2C)
     addr = starting_address(h)
     ua = h.ha.u
     ub = h.hb.u
     ta = h.ha.t
     tb = h.hb.t
-    print(io, "BoseHubbardMom1D2C($addr; ua=$ua, ub=$ub, ta=$ta, tb=$tb, v=$V)")
+    v = h.v
+    print(io, "BoseHubbardMom1D2C($addr; ua=$ua, ub=$ub, ta=$ta, tb=$tb, v=$v)")
 end
 
 function starting_address(h::BoseHubbardMom1D2C)
@@ -51,14 +50,21 @@ end
 
 LOStructure(::Type{<:BoseHubbardMom1D2C{<:Real}}) = HermitianLO()
 
-function numOfHops(ham::BoseHubbardMom1D2C, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+Base.getproperty(h::BoseHubbardMom1D2C, s::Symbol) = getproperty(h, Val(s))
+Base.getproperty(h::BoseHubbardMom1D2C, ::Val{:ha}) = getfield(h, :ha)
+Base.getproperty(h::BoseHubbardMom1D2C, ::Val{:hb}) = getfield(h, :hb)
+Base.getproperty(h::BoseHubbardMom1D2C{<:Any,<:Any,<:Any,V}, ::Val{:v}) where {V} = V
+
+function numOfHops(ham::BoseHubbardMom1D2C, add::BoseFS2C)
+    M = num_modes(add)
     sa = numberoccupiedsites(add.bsa)
     sb = numberoccupiedsites(add.bsb)
     return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(M-1)*sb
     # number of excitations that can be made
 end
 
-function diagME(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}) where {T,HA,HB,V,NA,NB,M,AA,AB}
+function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C)
+    M = num_modes(add)
     onrep_a = onr(add.bsa)
     onrep_b = onr(add.bsb)
     interaction2c = Int32(0)
@@ -68,20 +74,25 @@ function diagME(ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}
             interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
     end
-    return diagME(ham.ha, add.bsa) + diagME(ham.hb, add.bsb) + V/M*interaction2c
+    return diagME(ham.ha, add.bsa) + diagME(ham.hb, add.bsb) + ham.v/M*interaction2c
 end
 
-# hopacross2adds needed for computing hops across two components
-@inline function hopacross2adds(
-    add_a::BoseFS{NA,M,AA}, add_b::BoseFS{NB,M,AB}, chosen, sa, sb
-) where {NA,NB,M,AA,AB}
+"""
+    hop_across_two_addresses(add_a, add_b, chosen[, sa, sb])
+
+Perform a hop across two addresses (in momentum space). Optional arguments `sa` and `sb`
+should equal the numbers of occupied sites in the respective components.
+"""
+@inline function hop_across_two_addresses(
+    add_a::BoseFS{NA,M}, add_b::BoseFS{NB,M}, chosen, sa, sb
+) where {NA,NB,M}
     onrep_a = BitStringAddresses.m_onr(add_a)
     onrep_b = BitStringAddresses.m_onr(add_b)
     # b†_s b_q a†_p a_r
     s = p = q = r = 0
     onproduct_a = 1
     onproduct_b = 1
-    hole_a, remainder = fldmod1(chosen, (M-1)*sb) # hole_a: position for hole_a
+    hole_a, remainder = fldmod1(chosen, (M - 1) * sb) # hole_a: position for hole_a
     p, hole_b = fldmod1(remainder, sb) # hole_b: position for hole_b
     # annihilate an A boson:
     for (i, occ) in enumerate(onrep_a)
@@ -89,7 +100,7 @@ end
             hole_a -= 1 # searching for the position for hole_a
             if hole_a == 0 # found the hole_a here
                 onproduct_a *= occ # record the normalisation factor before annihilate
-                @inbounds onrep_a[i] = occ-1 # annihilate an A boson: a_r
+                @inbounds onrep_a[i] = occ - 1 # annihilate an A boson: a_r
                 r = i # remember where we make the hole
                 break # should break out of the for loop
             end
@@ -99,7 +110,7 @@ end
         p += 1 # to skip the hole_a
     end
     # create an A boson:
-    ΔP = p-r # change in momentun
+    ΔP = p - r # change in momentun
     p = mod1(p, M) # enforce periodic boundary condition
     @inbounds onrep_a[p] += 1 # create an A boson: a†_p
     @inbounds onproduct_a *= onrep_a[p] # record the normalisation factor after creation
@@ -122,37 +133,42 @@ end
     # if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
     #     error("Momentum is not conserved!")
     # end
-    return BoseFS{NA,M,AA}(onrep_a), BoseFS{NB,M,AB}(onrep_b), onproduct_a, onproduct_b
+    return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b
 end
 
-function hop(
-    ham::BoseHubbardMom1D2C{T,HA,HB,V}, add::BoseFS2C{NA,NB,M,AA,AB}, chosen
-) where {T,HA,HB,V,NA,NB,M,AA,AB}
+function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
+    M = num_modes(add)
     nhops_a = numOfHops(ham.ha, add.bsa)
     nhops_b = numOfHops(ham.hb, add.bsb)
     if chosen ≤ nhops_a
         naddress_from_bsa, elem = hop(ham.ha, add.bsa, chosen)
-        return BoseFS2C{NA,NB,M,AA,AB}(naddress_from_bsa,add.bsb), elem
-    elseif nhops_a < chosen ≤ nhops_a+nhops_b
+        return BoseFS2C(naddress_from_bsa, add.bsb), elem
+    elseif nhops_a < chosen ≤ nhops_a + nhops_b
         chosen -= nhops_a
         naddress_from_bsb, elem = hop(ham.hb, add.bsb, chosen)
-        return BoseFS2C{NA,NB,M,AA,AB}(add.bsa,naddress_from_bsb), elem
+        return BoseFS2C(add.bsa, naddress_from_bsb), elem
     else
-        chosen -= (nhops_a+nhops_b)
+        chosen -= nhops_a + nhops_b
         sa = numberoccupiedsites(add.bsa)
         sb = numberoccupiedsites(add.bsb)
-        new_bsa, new_bsb, onproduct_a, onproduct_b = hopacross2adds(
+        new_bsa, new_bsb, onproduct_a, onproduct_b = hop_across_two_addresses(
             add.bsa, add.bsb, chosen, sa, sb
         )
-        new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
+        new_add = BoseFS2C(new_bsa, new_bsb)
         # return new_add, elem
-        elem = V/M*sqrt(onproduct_a*onproduct_b)
-        new_add = BoseFS2C{NA,NB,M,AA,AB}(new_bsa,new_bsb)
+        elem = ham.v/M * sqrt(onproduct_a * onproduct_b)
+        new_add = BoseFS2C(new_bsa, new_bsb)
         return new_add, elem
     end
     # return new address and matrix element
 end
 
+"""
+    HopsBoseMom1D2C
+
+Specialized [`AbstractHops`](@ref) that keep track of number of hops and number of occupied
+sites in both components of the address.
+"""
 struct HopsBoseMom1D2C{A<:BoseFS2C,V,T,H<:TwoComponentHamiltonian{T}} <: AbstractHops{A,T}
     hamiltonian::H
     address::A
@@ -186,7 +202,7 @@ function Base.getindex(s::HopsBoseMom1D2C{A,V}, i) where {A,V}
         new_add = A(s.address.bsa, new_b)
     else
         i -= s.num_hops_a + s.num_hops_b
-        new_a, new_b, prod_a, prod_b = hopacross2adds(
+        new_a, new_b, prod_a, prod_b = hop_across_two_addresses(
             s.address.bsa, s.address.bsb, i, s.num_occupied_a, s.num_occupied_b
         )
         new_add = A(new_a, new_b)

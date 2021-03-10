@@ -60,10 +60,20 @@ Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where {T
 ks(h::HubbardMom1D) = getfield(h, :ks)
 
 """
-    singlies, doublies = numSandDoccupiedsites(address)
+    num_singly_doubly_occupied_sites(address)
+
 Returns the number of singly and doubly occupied sites for a bosonic bit string address.
+
+# Example
+
+```jldoctest
+julia> Hamiltonians.num_singly_doubly_occupied_sites(BoseFS{3,3}((1, 1, 1)))
+(3, 0)
+julia> Hamiltonians.num_singly_doubly_occupied_sites(BoseFS{3,3}((2, 0, 1)))
+(2, 1)
+```
 """
-function numSandDoccupiedsites(b::BoseFS)
+function num_singly_doubly_occupied_sites(b::BoseFS)
     singlies = 0
     doublies = 0
     for (n, _, _) in occupied_orbitals(b)
@@ -73,34 +83,46 @@ function numSandDoccupiedsites(b::BoseFS)
     return singlies, doublies
 end
 
-function numSandDoccupiedsites(onrep::AbstractArray)
+function num_singly_doubly_occupied_sites(onrep::AbstractArray)
     # this one is faster by about a factor of 2 if you already have the onrep
     # returns number of singly and doubly occupied sites
     singlies = 0
     doublies = 0
     for n in onrep
-        if n > 0
-            singlies += 1
-            if n > 1
-                doublies += 1
-            end
-        end
+        singlies += n > 0
+        doublies += n > 1
     end
     return singlies, doublies
 end
 
 # standard interface function
 function numOfHops(ham::HubbardMom1D, add::BoseFS)
-    singlies, doublies = numSandDoccupiedsites(add)
+    singlies, doublies = num_singly_doubly_occupied_sites(add)
     return numOfHops(ham, add, singlies, doublies)
 end
 
-# 3-argument version
+# 4-argument version
 @inline function numOfHops(ham::HubbardMom1D, add::BoseFS, singlies, doublies)
     M = num_modes(ham)
-    return singlies*(singlies-1)*(M - 2) + doublies*(M - 1)
+    return singlies * (singlies - 1) * (M - 2) + doublies * (M - 1)
 end
 
+"""
+    interaction_energy_diagonal(H, onr)
+
+Compute diagonal interaction energy term.
+
+# Example
+
+```jldoctest
+julia> a = BoseFS{6,5}((1,2,3,0,0))
+
+julia> H = HubbardMom1D(a);
+
+julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
+5.2
+```
+"""
 @inline function interaction_energy_diagonal(
     h::HubbardMom1D{<:Any,M,<:BoseFS}, onrep::StaticVector{M,I}
 ) where {M,I}
@@ -118,7 +140,7 @@ end
 end
 
 function kinetic_energy(h::HubbardMom1D, add::AbstractFockAddress)
-    onrep = BitStringAddresses.m_onr(add) # get occupation number representation
+    onrep = BitStringAddresses.m_onr(add)
     return kinetic_energy(h, onrep)
 end
 
@@ -127,7 +149,7 @@ end
 end
 
 @inline function diagME(h::HubbardMom1D, add)
-    onrep = BitStringAddresses.m_onr(add) # get occupation number representation
+    onrep = BitStringAddresses.m_onr(add)
     return diagME(h, onrep)
 end
 
@@ -136,7 +158,7 @@ end
 end
 
 @inline function hop(ham::HubbardMom1D, add, chosen)
-    hop(ham, add, chosen, numSandDoccupiedsites(add)...)
+    hop(ham, add, chosen, num_singly_doubly_occupied_sites(add)...)
 end
 
 @inline function hop(
@@ -219,6 +241,12 @@ end
 ###
 ### hops
 ###
+"""
+    HopsBoseMom1D
+
+Specialized [`AbstractHops`](@ref) that keeps track of singly and doubly occupied sites in
+current address.
+"""
 struct HopsBoseMom1D{A<:BoseFS,T,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
     hamiltonian::H
     address::A
@@ -228,7 +256,7 @@ struct HopsBoseMom1D{A<:BoseFS,T,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
 end
 
 function hops(h::HubbardMom1D, a::BoseFS)
-    singlies, doublies = numSandDoccupiedsites(a)
+    singlies, doublies = num_singly_doubly_occupied_sites(a)
     num = numOfHops(h, a, singlies, doublies)
     return HopsBoseMom1D(h, a, num, singlies, doublies)
 end

@@ -52,7 +52,7 @@ function starting_address(h::BoseHubbardReal1D)
 end
 
 function diagME(h::BoseHubbardReal1D, address)
-    h.u * bosehubbardinteraction(address) / 2
+    h.u * bose_hubbard_interaction(address) / 2
 end
 
 function numOfHops(ham::BoseHubbardReal1D, add)

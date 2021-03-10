@@ -48,16 +48,25 @@ function numOfHops(::HubbardReal1D, address::BoseFS)
 end
 
 """
-    bosehubbardinteraction(address)
+    bose_hubbard_interaction(address)
 
-Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction
-(without the *U* prefactor.)
+Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction (without the
+*U* prefactor.)
+
+# Example
+
+```jldoctest
+julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((2,1,1,0)))
+2
+julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((3,0,1,0)))
+6
+```
 """
-function bosehubbardinteraction(b::BoseFS{<:Any,<:Any,A}) where A
-    return bosehubbardinteraction(Val(num_chunks(A)), b)
+function bose_hubbard_interaction(b::BoseFS{<:Any,<:Any,A}) where A
+    return bose_hubbard_interaction(Val(num_chunks(A)), b)
 end
 
-@inline function bosehubbardinteraction(_, b::BoseFS)
+@inline function bose_hubbard_interaction(_, b::BoseFS)
     result = 0
     for (n, _, _) in occupied_orbitals(b)
         result += n * (n - 1)
@@ -65,7 +74,7 @@ end
     return result
 end
 
-@inline function bosehubbardinteraction(::Val{1}, b::BoseFS)
+@inline function bose_hubbard_interaction(::Val{1}, b::BoseFS)
     # currently this ammounts to counting occupation numbers of orbitals
     chunk = chunks(b.bs)[1]
     matrixelementint = 0
@@ -81,7 +90,7 @@ end
 end
 
 function diagME(h::HubbardReal1D, address::BoseFS)
-    h.u * bosehubbardinteraction(address) / 2
+    h.u * bose_hubbard_interaction(address) / 2
 end
 
 function hop(h::HubbardReal1D, add::BoseFS, chosen)
