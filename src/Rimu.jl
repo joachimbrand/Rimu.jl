@@ -49,4 +49,8 @@ include("EmbarrassinglyDistributed.jl")
 include("RMPI.jl")
 # @reexport using .RMPI
 
+# This needs to be included at the end
+include("UglyHacks.jl")
+@reexport using .UglyHacks
+
 end # module
