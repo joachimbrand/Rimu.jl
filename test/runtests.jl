@@ -632,7 +632,7 @@ end
     @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
     @test onr(bfs2c.bsa) == [1,2,0,4]
     @test onr(bfs2c.bsb) == [4,0,3,1]
-    @test Hamiltonians.bosehubbard2Cinteraction(bfs2c) == 8 # n_a*n_b over all sites
+    @test Hamiltonians.bose_hubbard_2c_interaction(bfs2c) == 8 # n_a*n_b over all sites
 end
 
 @testset "TwoComponentBosonicHamiltonian" begin
