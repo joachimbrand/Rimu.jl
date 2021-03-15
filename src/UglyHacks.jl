@@ -39,7 +39,7 @@ function UglyHack(
     ham, v::AbstractDVec{K,V};
     params, s_strat, τ_strat, r_strat, p_strat,
     decay_time=500,
-    alpha=1 - 1/decay_time,
+    alpha=exp(-1/decay_time),
     beta=1.0,
     #norm_factor=1,
     threshold=0,
@@ -61,6 +61,10 @@ function UglyHack(
     if mul_with_ham
         df.overlapAHB = Float64[]
     end
+    df.lenA = Int[]
+    df.wnA = Float64[]
+    df.lenB = Int[]
+    df.wnB = Float64[]
     cap = ceil(Int, beta/(1 - alpha) * capacity(v))
 
     return UglyHack(
@@ -132,6 +136,10 @@ function update!(ham, a::UglyHack{K,V,D}, dτ, shift_a, m=1.0, m_strat=NoMemory(
         push!(a.df.overlapAHB, dot(a.A, ham, a.B))
     end
     push!(a.df.shift, a.shift)
+    push!(a.df.lenA, length(a.A))
+    push!(a.df.wnA, Rimu.walkernumber(a.A))
+    push!(a.df.lenB, length(a.B))
+    push!(a.df.wnB, Rimu.walkernumber(a.B))
 
     # Take care of the step
     v = a.cb
@@ -147,7 +155,8 @@ function update!(ham, a::UglyHack{K,V,D}, dτ, shift_a, m=1.0, m_strat=NoMemory(
         ham, v, shift, dτ, pnorm, w, m; m_strat=m_strat
     )
     tnorm = Rimu.norm_project!(p_strat, v, shift, pnorm, dτ) |> Float64
-    v_proj, h_proj = Rimu.compute_proj_observables(v, ham, r_strat)
+    # We don't need to compute projected observables here.
+    # v_proj, h_proj = Rimu.compute_proj_observables(v, ham, r_strat)
 
     # update shift and mode if necessary
     shift, shiftMode, pnorm = Rimu.update_shift(
