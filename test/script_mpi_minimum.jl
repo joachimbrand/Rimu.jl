@@ -1,12 +1,12 @@
 # simple sample script for running FCIQMC in parallel with MPI
 # start on three MPI ranks with two threads each:
 # $ mpirun -np 3 julia -t 2 script_mpi_minimum.jl
+println("hello hello!")
+# using Rimu, Rimu.RMPI
 
-using Rimu, Rimu.RMPI
-
-mpi_barrier() # optional - use for debugging and sanity checks
-@info "after barrier 1" mpi_rank() mpi_size() Threads.nthreads()
-# 
+# mpi_barrier() # optional - use for debugging and sanity checks
+# @info "after barrier 1" mpi_rank() mpi_size() Threads.nthreads()
+#
 # m = 10
 # n= 3
 # aIni = nearUniform(BoseFS{n,m})
