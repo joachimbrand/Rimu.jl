@@ -40,5 +40,6 @@ savefile = "mpi_df.arrow" # using the Arrow data format relying on Arrow.jl
 @mpi_root @info """saving dataframe into file "$savefile" """
 @mpi_root RimuIO.save_df(savefile, nt.df)
 # load the data with
-# > using Rimu 
+# > using Rimu
 # > df = RimuIO.load_df(savefile)
+Rimu.RMPI.free(dv)
