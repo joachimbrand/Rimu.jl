@@ -46,10 +46,11 @@ jobs:
         run: |
           export JULIA_PROJECT=@.
           # export JULIA_MPIEXEC=/tmp/mpiexecwrapper
-          # echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
-          # chmod +x $JULIA_MPIEXEC
+          echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
+          chmod +x $JULIA_MPIEXEC
           export JULIA_NUM_THREADS=1
           mpirun echo "hello"
+          mpirun -np 2 julia --project test/script_mpi_minimum.jl
           export JULIA_MPI_BINARY=system
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
