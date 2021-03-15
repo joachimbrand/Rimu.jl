@@ -53,7 +53,12 @@ function UglyHack(
         overlapAb=Float64[],
         overlapaB=Float64[],
         overlapAB=Float64[],
-        shift=Float64[]
+        shift=Float64[],
+        norm=Float64[],
+        lenA = Int[],
+        wnA = Float64[],
+        lenB = Int[],
+        wnB = Float64[],
     )
     if accumulate_shift
         df.overlapÃB = Float64[]
@@ -61,11 +66,11 @@ function UglyHack(
     if mul_with_ham
         df.overlapAHB = Float64[]
     end
-    df.lenA = Int[]
-    df.wnA = Float64[]
-    df.lenB = Int[]
-    df.wnB = Float64[]
-    cap = ceil(Int, beta/(1 - alpha) * capacity(v))
+    if threshold > 0
+        cap = ceil(Int, beta/(1 - alpha) * capacity(v))
+    else
+        cap = ham(:dim)
+    end
 
     return UglyHack(
         v,
@@ -136,6 +141,7 @@ function update!(ham, a::UglyHack{K,V,D}, dτ, shift_a, m=1.0, m_strat=NoMemory(
         push!(a.df.overlapAHB, dot(a.A, ham, a.B))
     end
     push!(a.df.shift, a.shift)
+    push!(a.df.norm, a.pnorm)
     push!(a.df.lenA, length(a.A))
     push!(a.df.wnA, Rimu.walkernumber(a.A))
     push!(a.df.lenB, length(a.B))
