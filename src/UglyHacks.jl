@@ -9,10 +9,10 @@ using Rimu.DictVectors: @delegate
 export UglyHack
 
 mutable struct UglyHack{K,V,D<:DVec2{K,V},A<:DVec2{K},P,S,T,R,PS} <: AbstractDVec{K,V}
-    ca::D
+    ca::D # configuration vector visible to the outside
 
     # Data needed to keep track of the cb state
-    cb::D
+    cb::D # replica config vector with independent noise
     pnorm::Float64
     shift::Float64
     shiftMode::Bool
@@ -50,11 +50,12 @@ function UglyHack(
     pnorm = Float64(walkernumber(v))
 
     df = DataFrame(
+        overlapCaCb=Float64[],
         overlapAb=Float64[],
         overlapaB=Float64[],
         overlapAB=Float64[],
-        shift=Float64[],
-        norm=Float64[],
+        shiftb=Float64[],
+        normb=Float64[],
         lenA = Int[],
         wnA = Float64[],
         lenB = Int[],
@@ -131,6 +132,7 @@ function update!(ham, a::UglyHack{K,V,D}, dτ, shift_a, m=1.0, m_strat=NoMemory(
     end
 
     # report overlaps
+    push!(a.df.overlapCaCb, dot(a.ca, a.cb))
     push!(a.df.overlapAb, dot(a.A, a.cb))
     push!(a.df.overlapaB, dot(a.ca, a.B))
     push!(a.df.overlapAB, dot(a.A, a.B))
@@ -140,8 +142,8 @@ function update!(ham, a::UglyHack{K,V,D}, dτ, shift_a, m=1.0, m_strat=NoMemory(
     if a.mul_with_ham
         push!(a.df.overlapAHB, dot(a.A, ham, a.B))
     end
-    push!(a.df.shift, a.shift)
-    push!(a.df.norm, a.pnorm)
+    push!(a.df.shiftb, a.shift)
+    push!(a.df.normb, a.pnorm)
     push!(a.df.lenA, length(a.A))
     push!(a.df.wnA, Rimu.walkernumber(a.A))
     push!(a.df.lenB, length(a.B))
