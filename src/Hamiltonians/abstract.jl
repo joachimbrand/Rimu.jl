@@ -148,6 +148,9 @@ function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
         T(exp(logbinomialapprox(n, k)))
     end
 end
+function dimension(::Type{T}, b::BoseFS2C) where T
+    return dimension(T, b.bsa) * dimension(T, b.bsb)
+end
 
 dimension(h::AbstractHamiltonian) = dimension(Int, h)
 dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
