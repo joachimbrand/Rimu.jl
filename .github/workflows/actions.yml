@@ -41,7 +41,7 @@ jobs:
       - name: "Install MPI"
         run: |
           sudo apt-get update
-          sudo apt-get install -y openmpi-bin=2.1.1 libopenmpi-dev=2.1.1
+          sudo apt-get install -y openmpi-bin=2.1.1-8 libopenmpi-dev=2.1.1-8
       - name: "Run tests"
         run: |
           export JULIA_PROJECT=@.
