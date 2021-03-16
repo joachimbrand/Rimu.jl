@@ -194,6 +194,8 @@ abstract type LOStructure end
 
 struct HermitianLO <: LOStructure end
 struct ComplexLO <: LOStructure end
+struct WrapperLO{T} <: LOStructure end
+WrapperLO(T) = WrapperLO{T}()
 
 # defaults
 LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))

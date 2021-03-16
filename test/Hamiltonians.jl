@@ -62,8 +62,8 @@ end
 
         ExtendedBHReal1D(),
 
-        ImportanceSampling(HubbardReal1D(BoseFS((1,2,3)); u=6); g=0.3),
-        ImportanceSampling(BoseHubbardMom1D2C(BoseFS2C((3,2,1), (1,2,3)); ua=6); g=0.3),
+        GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6); g=0.3),
+        GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3,2,1), (1,2,3)); ua=6); g=0.3),
     )
         test_hamiltonian_interface(H)
     end
@@ -128,26 +128,28 @@ end
     end
 end
 
-@testset "importance sampling" begin
+@testset "Gutzwiller sampling" begin
     for H in (
         HubbardMom1D(BoseFS((2,2,2)), u=6),
-        ExtendedHubbardReal1D(BoseFS((2,2,2)), u=6, t=2.0),
+        ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
         BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
     )
-        # ImportanceSampling with parameter zero is exactly equal to the original H
-        I = ImportanceSampling(H, 0.0)
+        # GutzwillerSampling with parameter zero is exactly equal to the original H
+        G = GutzwillerSampling(H, 0.0)
         addr1 = starting_address(H)
-        @test starting_address(I) == addr
-        @test all(x == y for (x, y) in zip(hops(H, addr1), hops(I, addr1)))
+        @test starting_address(G) == addr1
+        @test all(x == y for (x, y) in zip(hops(H, addr1), hops(G, addr1)))
 
-        @test eval(Meta.parse(repr(I))) == I
+        @test eval(Meta.parse(repr(G))) == G
 
         g = rand()
-        J = ImportanceSampling(H, g)
-        for i in 1:numOfHops(J)
-            addr2, me = hop(J, addr1, i)
+        G = GutzwillerSampling(H, g)
+        for i in 1:numOfHops(G, addr1)
+            addr2, me = hop(G, addr1, i)
             w = exp(-g * (diagME(H, addr2) - diagME(H, addr1)))
             @test hop(H, addr1, i)[2] * w == me
+            @test hop(H, addr1, i)[1] == addr2
+            @test diagME(H, addr2) == diagME(G, addr2)
         end
     end
 end
