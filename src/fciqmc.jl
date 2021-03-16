@@ -175,7 +175,7 @@ function refine_r_strat(r_strat::ReportingStrategy{P1,P2}, ham) where
     elseif r_strat.hproj == :auto
         if P1  <: AbstractProjector # for projectors don't compute `df.hproj`
             return @set r_strat.hproj = nothing
-        elseif Hamiltonians.LOAdjoint(ham) == Hamiltonians.AdjointKnown() # eager is possible
+        elseif Hamiltonians.has_adjoint(ham) # eager is possible
             hpv = ham'*r_strat.projector # pre-calculate left vector with adjoint Hamiltonian
             # use smaller container to save memory
             return @set r_strat.hproj = copytight(hpv)

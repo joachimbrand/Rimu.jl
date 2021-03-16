@@ -42,8 +42,9 @@ end
 
 starting_address(h::GutzwillerSampling) = starting_address(h.hamiltonian)
 
-LOStructure(::Type{<:GutzwillerSampling{<:Any,<:Any,H}}) where H = WrapperLO(LOStructure(H))
-LOAdjoint(::Type{<:GutzwillerSampling{<:Any,<:Any,H}}) where H = LOAdjoint(H)
+LOStructure(::Type{<:GutzwillerSampling{<:Any,<:Any,H}}) where {H} = _lo_str(LOStructure(H))
+_lo_str(::LOStructure) = AdjointKnown()
+_lo_str(::AdjointUnknown) = AdjointUnknown()
 
 function LinearAlgebra.adjoint(h::GutzwillerSampling{A,T,<:Any,G}) where {A,T,G}
     h_adj = h.hamiltonian'

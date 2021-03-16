@@ -48,7 +48,7 @@ function starting_address(h::BoseHubbardMom1D2C)
     return BoseFS2C(starting_address(h.ha), starting_address(h.hb))
 end
 
-LOStructure(::Type{<:BoseHubbardMom1D2C{<:Real}}) = HermitianLO()
+LOStructure(::Type{<:BoseHubbardMom1D2C{<:Real}}) = Hermitian()
 
 Base.getproperty(h::BoseHubbardMom1D2C, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::BoseHubbardMom1D2C, ::Val{:ha}) = getfield(h, :ha)
