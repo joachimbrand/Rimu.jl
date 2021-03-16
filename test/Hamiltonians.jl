@@ -2,7 +2,8 @@ using LinearAlgebra
 using Rimu
 using Test
 
-using Rimu.Hamiltonians: LOStructure, HermitianLO
+using Rimu.Hamiltonians: LOStructure, HermitianLO, ComplexLO, WrapperLO
+using Rimu.Hamiltonians: LOAdjoint, AdjointKnown, AdjointUnknown
 
 """
     test_hamiltonian_interface(H, addr)
@@ -139,6 +140,7 @@ end
         addr1 = starting_address(H)
         @test starting_address(G) == addr1
         @test all(x == y for (x, y) in zip(hops(H, addr1), hops(G, addr1)))
+        @test LOStructure(G) isa WrapperLO{HermitianLO()}
 
         @test eval(Meta.parse(repr(G))) == G
 
@@ -151,6 +153,42 @@ end
             @test hop(H, addr1, i)[1] == addr2
             @test diagME(H, addr2) == diagME(G, addr2)
         end
+    end
+
+    @testset "adjoint" begin
+        ###
+        ### Define Hamiltonian from a matrix.
+        ###
+        struct IntAddress <: AbstractFockAddress
+            v::Int
+        end
+
+        struct MatrixHam{T} <: AbstractHamiltonian{T}
+            arr::Matrix{T}
+        end
+
+        Rimu.diagME(m::MatrixHam, i) = m.arr[i.v, i.v]
+        Rimu.numOfHops(m::MatrixHam, i) = size(m.arr, 1) - 1
+        function Rimu.hop(m::MatrixHam, i, j)
+            if j ≥ i.v # skip diagonal
+                j += 1
+            end
+            return IntAddress(j), m.arr[i.v, j]
+        end
+
+        Rimu.starting_address(::MatrixHam) = IntAddress(1)
+
+        LinearAlgebra.adjoint(m::MatrixHam) = MatrixHam(collect(m.arr'))
+        Hamiltonians.LOAdjoint(::Type{<:MatrixHam}) = AdjointKnown()
+
+        dm(h) = Hamiltonians.build_sparse_matrix_from_LO(h)[1] |> Matrix
+
+        M = MatrixHam(rand(Complex{Float64}, (20, 20)))
+        @test dm(M) == M.arr
+        @test dm(M') == M.arr'
+        @test dm(GutzwillerSampling(M, 0.2)') == dm(GutzwillerSampling(M, 0.2))'
+        @test LOAdjoint(GutzwillerSampling(M, 0.2)) isa AdjointKnown
+        @test LOStructure(GutzwillerSampling(M, 0.2)) isa WrapperLO{ComplexLO()}
     end
 end
 

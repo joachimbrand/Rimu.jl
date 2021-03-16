@@ -202,6 +202,29 @@ LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))
 LOStructure(::Type{<:AbstractHamiltonian}) = ComplexLO()
 
 """
+    Hamiltonians.LOAdjoint(op::AbstractHamiltonian)
+    Hamiltonians.LOAdjoint(typeof(op))
+
+`LOAdjoint` speficies whether a linear operator `op` has an `adjoint` method. It defaults to
+`AdjointKnown()` for operators with `HermitianLO` [`LOStructure`](@ref) and `AdjointUnknown()`
+otherwise.
+
+In order to signify an operator has an adjoint defined, define
+`LOAdjoint(::Type{<:MyNewLOType}) = AdjointKnown()`.
+
+"""
+abstract type LOAdjoint end
+
+struct AdjointKnown <: LOAdjoint end
+struct AdjointUnknown <: LOAdjoint end
+
+# defaults
+LOAdjoint(op::AbstractHamiltonian) = LOAdjoint(typeof(op))
+LOAdjoint(::Type{H}) where H = LOAdjoint(LOStructure(H))
+LOAdjoint(::HermitianLO) = AdjointKnown()
+LOAdjoint(_) = AdjointUnknown()
+
+"""
     rayleigh_quotient(H, v)
 
 ```math
