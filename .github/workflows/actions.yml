@@ -40,7 +40,7 @@ jobs:
           arch: ${{ matrix.julia-arch }}
       - name: "Install MPI"
         run: |
-          sudo apt-get update
+          # sudo apt-get update
           sudo apt-cache policy openmpi-bin
           sudo apt-get install -y openmpi-bin libopenmpi-dev
       - name: "Run tests"
