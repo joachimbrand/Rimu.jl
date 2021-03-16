@@ -36,7 +36,7 @@ el = @elapsed nt = lomc!(ham,dv; params, s_strat, r_strat)
 @mpi_root @info "Parallel fciqmc completed in $el seconds."
 @info "final walker number" mpi_rank() walkernumber(localpart(dv)) walkernumber(dv)
 
-savefile = "mpi_df.arrow" # using the Arrow data format relying on Arrow.jl
+savefile = joinpath(@__DIR__,"mpi_df.arrow") # using the Arrow data format relying on Arrow.jl
 @mpi_root @info """saving dataframe into file "$savefile" """
 @mpi_root RimuIO.save_df(savefile, nt.df)
 # load the data with
