@@ -54,7 +54,6 @@ jobs:
           julia --project -e 'ENV["JULIA_MPI_BINARY"]="system"; using Pkg; Pkg.add("MPI"); Pkg.build("MPI"; verbose=true)'
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
-          julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
           mpirun -np 2 julia test/script_mpi_minimum.jl
           OUTPUT_FILE=mpi_df.arrow
           if [ -f "$OUTPUT_FILE" ]; then
@@ -64,6 +63,8 @@ jobs:
           else
               echo "$FILE does not exist."
           fi
+          julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
+
       - uses: julia-actions/julia-processcoverage@latest
       - uses: coverallsapp/github-action@v1.1.2
         with:
