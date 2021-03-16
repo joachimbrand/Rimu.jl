@@ -46,17 +46,17 @@ jobs:
       - name: "Run tests"
         run: |
           export JULIA_PROJECT=@.
-          export JULIA_MPIEXEC=mpirun
-          echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
-          chmod +x $JULIA_MPIEXEC
+          export JULIA_MPIEXEC=mpiexecjl
+          # echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
+          # chmod +x $JULIA_MPIEXEC
           export JULIA_NUM_THREADS=1
-          mpirun echo "hello"
-          export JULIA_MPI_BINARY=system
-          julia --project -e 'ENV["JULIA_MPI_BINARY"]="system"; using Pkg; Pkg.add("MPI"); Pkg.build("MPI"; verbose=true)'
+          # mpirun echo "hello"
+          # export JULIA_MPI_BINARY=system
+          julia --project -e 'ENV["JULIA_MPI_BINARY"]="system"; using Pkg; Pkg.add("MPI"); Pkg.build("MPI"; verbose=true);  MPI.install_mpiexecjl()'
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           julia --project=@. test/script_mpi_minimum.jl
-          mpirun -np 2 julia --project=@. test/script_mpi_minimum.jl
+          mpiexecjl -n 2 julia --project=@. test/script_mpi_minimum.jl
           OUTPUT_FILE=mpi_df.arrow
           if [ -f "$OUTPUT_FILE" ]; then
               echo "$FILE exists."
