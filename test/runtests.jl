@@ -746,6 +746,7 @@ end
         @test isfile(savefile) == true
     end
 
+
     df = RimuIO.load_df(savefile)
     rm(savefile) # clean up
     @test size(df) == (501, 14)
