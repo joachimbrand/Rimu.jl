@@ -737,7 +737,7 @@ end
     # end
     # read name of mpi executable from environment variable if defined
     # necessary for allow-run-as root workaround for Pipelines
-    # mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
+    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
 
     # savefile = "mpi_df.arrow"
     savefile = joinpath(@__DIR__,"mpi_df.arrow")
