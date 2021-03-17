@@ -38,22 +38,29 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
-      - name: "Install MPI"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openmpi-bin libopenmpi-dev
       - name: "Run tests"
         run: |
           export JULIA_PROJECT=@.
-          export JULIA_MPIEXEC=/tmp/mpiexecwrapper
-          echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
-          chmod +x $JULIA_MPIEXEC
+          export JULIA_MPIEXEC=mpiexecjl
+          # echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
+          # chmod +x $JULIA_MPIEXEC
           export JULIA_NUM_THREADS=1
-          mpirun echo "hello"
-          export JULIA_MPI_BINARY=system
+          julia --project -e 'ENV["JULIA_MPI_BINARY"]=""; using Pkg; Pkg.add("MPI"); Pkg.build("MPI"; verbose=true); using MPI; MPI.install_mpiexecjl()'
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
+          julia --project=@. test/script_mpi_minimum.jl
+          export PATH=$PATH:/home/runner/.julia/bin
+          mpiexecjl -n 2 julia --project=@. test/script_mpi_minimum.jl
+          OUTPUT_FILE=mpi_df.arrow
+          if [ -f "$OUTPUT_FILE" ]; then
+              echo "$OUTPUT_FILE exists."
+          elif [ -f "test/$OUTPUT_FILE" ]; then
+              echo "$OUTPUT_FILE exists under /test/."
+          else
+              echo "$OUTPUT_FILE does not exist. Test should fail."
+          fi
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
+
       - uses: julia-actions/julia-processcoverage@latest
       - uses: coverallsapp/github-action@v1.1.2
         with:

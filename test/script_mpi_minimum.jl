@@ -1,7 +1,7 @@
 # simple sample script for running FCIQMC in parallel with MPI
 # start on three MPI ranks with two threads each:
 # $ mpirun -np 3 julia -t 2 script_mpi_minimum.jl
-
+println("hello hello!")
 using Rimu, Rimu.RMPI
 
 mpi_barrier() # optional - use for debugging and sanity checks
@@ -36,9 +36,9 @@ el = @elapsed nt = lomc!(ham,dv; params, s_strat, r_strat)
 @mpi_root @info "Parallel fciqmc completed in $el seconds."
 @info "final walker number" mpi_rank() walkernumber(localpart(dv)) walkernumber(dv)
 
-savefile = "mpi_df.arrow" # using the Arrow data format relying on Arrow.jl
+savefile = joinpath(@__DIR__,"mpi_df.arrow") # using the Arrow data format relying on Arrow.jl
 @mpi_root @info """saving dataframe into file "$savefile" """
 @mpi_root RimuIO.save_df(savefile, nt.df)
 # load the data with
-# > using Rimu 
+# > using Rimu
 # > df = RimuIO.load_df(savefile)
