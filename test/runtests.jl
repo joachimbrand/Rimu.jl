@@ -741,15 +741,15 @@ end
 
     # savefile = "mpi_df.arrow"
     savefile = joinpath(@__DIR__,"mpi_df.arrow")
-    @test isfile(savefile) == true
-    #rm(savefile, force = true) # make sure to remove any old file
+    # @test isfile(savefile) == true
+    rm(savefile, force = true) # make sure to remove any old file
 
-    # rr = run(`$mpiexec -np 2 julia script_mpi_minimum.jl`)
-    # runfile = joinpath(@__DIR__,"script_mpi_minimum.jl")
+    rr = run(`$mpiexec -np 2 julia script_mpi_minimum.jl`)
+    runfile = joinpath(@__DIR__,"script_mpi_minimum.jl")
 
-    # rr = run(`$mpiexec -np 2 julia $runfile`)
-    # println("MPI done with exitcode: ", rr.exitcode)
-    # @test rr.exitcode == 0
+    rr = run(`$mpiexec -np 2 julia $runfile`)
+    println("MPI done with exitcode: ", rr.exitcode)
+    @test rr.exitcode == 0
 
     df = RimuIO.load_df(savefile)
     rm(savefile) # clean up
