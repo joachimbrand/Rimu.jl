@@ -55,11 +55,11 @@ jobs:
           mpiexecjl -n 2 julia --project=@. test/script_mpi_minimum.jl
           OUTPUT_FILE=mpi_df.arrow
           if [ -f "$OUTPUT_FILE" ]; then
-              echo "$FILE exists."
+              echo "$OUTPUT_FILE exists."
           elif [ -f "test/$OUTPUT_FILE" ]; then
-              echo "$FILE exists under /test/."
+              echo "$OUTPUT_FILE exists under /test/."
           else
-              echo "$FILE does not exist."
+              echo "$OUTPUT_FILE does not exist."
           fi
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
 
