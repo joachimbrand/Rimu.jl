@@ -56,7 +56,7 @@ jobs:
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           julia --project=@. test/script_mpi_minimum.jl
-          export PATH = $PATH:/home/runner/.julia/bin
+          export PATH=$PATH:/home/runner/.julia/bin
           mpiexecjl -n 2 julia --project=@. test/script_mpi_minimum.jl
           OUTPUT_FILE=mpi_df.arrow
           if [ -f "$OUTPUT_FILE" ]; then
