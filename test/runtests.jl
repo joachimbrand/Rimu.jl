@@ -731,10 +731,6 @@ end
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
 @testset "MPI" begin
-    # wd = pwd() # move to test/ folder if running from Atom
-    # if wd[end-3:end] ≠ "test"
-    #     cd("test")
-    # end
     # read name of mpi executable from environment variable if defined
     # necessary for allow-run-as root workaround for Pipelines
     # mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
@@ -753,7 +749,6 @@ end
 
     df = RimuIO.load_df(savefile)
     rm(savefile) # clean up
-    # cd(wd)
     @test size(df) == (501, 14)
 end
 

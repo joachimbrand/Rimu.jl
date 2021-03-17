@@ -45,8 +45,6 @@ jobs:
           # echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
           # chmod +x $JULIA_MPIEXEC
           export JULIA_NUM_THREADS=1
-          # mpirun echo "hello"
-          # export JULIA_MPI_BINARY=system
           julia --project -e 'ENV["JULIA_MPI_BINARY"]=""; using Pkg; Pkg.add("MPI"); Pkg.build("MPI"; verbose=true); using MPI; MPI.install_mpiexecjl()'
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
@@ -59,7 +57,7 @@ jobs:
           elif [ -f "test/$OUTPUT_FILE" ]; then
               echo "$OUTPUT_FILE exists under /test/."
           else
-              echo "$OUTPUT_FILE does not exist."
+              echo "$OUTPUT_FILE does not exist. Test should fail."
           fi
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
 
