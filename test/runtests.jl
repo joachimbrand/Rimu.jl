@@ -733,19 +733,18 @@ end
 @testset "MPI" begin
     # read name of mpi executable from environment variable if defined
     # necessary for allow-run-as root workaround for Pipelines
-    # mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
-
-    # savefile = "mpi_df.arrow"
+    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
+    is_local = !haskey(ENV, "CI")
     savefile = joinpath(@__DIR__,"mpi_df.arrow")
-    @test isfile(savefile) == true
-    # rm(savefile, force = true) # make sure to remove any old file
 
-    # rr = run(`$mpiexec -np 2 julia script_mpi_minimum.jl`)
-    # runfile = joinpath(@__DIR__,"script_mpi_minimum.jl")
-
-    # rr = run(`$mpiexec -np 2 julia $runfile`)
-    # println("MPI done with exitcode: ", rr.exitcode)
-    # @test rr.exitcode == 0
+    if is_local
+        rm(savefile, force = true) # make sure to remove any old file
+        runfile = joinpath(@__DIR__,"script_mpi_minimum.jl")
+        rr = run(`$mpiexec -np 2 julia $runfile`)
+        @test rr.exitcode == 0
+    else
+        @test isfile(savefile) == true
+    end
 
     df = RimuIO.load_df(savefile)
     rm(savefile) # clean up
