@@ -59,29 +59,29 @@ end
     @test Hamiltonians.num_singly_doubly_occupied_sites(onr(bfs)) == Hamiltonians.num_singly_doubly_occupied_sites(bfs)
 
     ham = Hamiltonians.BoseHubbardMom1D(bfs)
-    @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
-    @test diagME(ham,bfs) ≈ 14.296572875253808
+    @test num_offdiagonals(ham,bfs) == 273
+    @test get_offdiagonal(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test diagonal_element(ham,bfs) ≈ 14.296572875253808
     m = momentum(ham)
-    @test diagME(m,bfs) ≈ -1.5707963267948966
+    @test diagonal_element(m,bfs) ≈ -1.5707963267948966
     v = DVec(Dict(bfs => 10), 1000)
     @test rayleigh_quotient(m, v) ≈ -1.5707963267948966
 
     ham = Hamiltonians.HubbardMom1D(bfs)
-    @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
-    @test diagME(ham,bfs) ≈ 14.296572875253808
+    @test num_offdiagonals(ham,bfs) == 273
+    @test get_offdiagonal(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test diagonal_element(ham,bfs) ≈ 14.296572875253808
     m = momentum(ham)
-    @test diagME(m,bfs) ≈ -1.5707963267948966
+    @test diagonal_element(m,bfs) ≈ -1.5707963267948966
     v = DVec(Dict(bfs => 10), 1000)
     @test rayleigh_quotient(m, v) ≈ -1.5707963267948966
 
     fs = BoseFS((1,2,1,0)) # should be zero momentum
     ham = BoseHubbardMom1D(fs,t=1.0)
     m=momentum(ham) # define momentum operator
-    mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
+    mom_fs = diagonal_element(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
-    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in hops(ham, fs)]) # check that momentum does not change for hops
+    @test reduce(&,[isapprox(mom_fs, diagonal_element(m,h[1]), atol = sqrt(eps())) for h in offdiagonals(ham, fs)]) # check that momentum does not change for offdiagonals
     # construct full matrix
     smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
     # compute its eigenvalues
@@ -97,9 +97,9 @@ end
 
     ham = Hamiltonians.HubbardMom1D(fs,t=1.0)
     m=momentum(ham) # define momentum operator
-    mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
+    mom_fs = diagonal_element(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
-    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in hops(ham, fs)]) # check that momentum does not change for hops
+    @test reduce(&,[isapprox(mom_fs, diagonal_element(m,h[1]), atol = sqrt(eps())) for h in offdiagonals(ham, fs)]) # check that momentum does not change for offdiagonals
     # construct full matrix
     smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
     # compute its eigenvalues
@@ -205,7 +205,7 @@ end
     m = 200
     aIni = nearUniform(BoseFS{n,m})
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    iShift = diagME(ham, aIni)
+    iShift = diagonal_element(ham, aIni)
 
     # standard fciqmc
     tw = 1_000
@@ -642,24 +642,24 @@ end
     hamB = HubbardReal1D(BoseFS((1,1,1,1)); u=6.0)
     @test hamA == Ĥ2cReal.ha
     @test hamB == Ĥ2cReal.hb
-    @test numOfHops(Ĥ2cReal,aIni2cReal) == 16
-    @test numOfHops(Ĥ2cReal,aIni2cReal) == numOfHops(Ĥ2cReal.ha,aIni2cReal.bsa)+numOfHops(Ĥ2cReal.hb,aIni2cReal.bsb)
+    @test num_offdiagonals(Ĥ2cReal,aIni2cReal) == 16
+    @test num_offdiagonals(Ĥ2cReal,aIni2cReal) == num_offdiagonals(Ĥ2cReal.ha,aIni2cReal.bsa)+num_offdiagonals(Ĥ2cReal.hb,aIni2cReal.bsb)
     @test dimension(Ĥ2cReal) == 1225
     @test dimension(Float64, Ĥ2cReal) == 1225.0
 
-    hp2c = hops(Ĥ2cReal,aIni2cReal)
+    hp2c = offdiagonals(Ĥ2cReal,aIni2cReal)
     @test length(hp2c) == 16
     @test hp2c[1][1] == BoseFS2C(BoseFS((0,2,1,1)), BoseFS((1,1,1,1)))
     @test hp2c[1][2] ≈ -1.4142135623730951
-    @test diagME(Ĥ2cReal,aIni2cReal) ≈ 24.0 # from the V term
+    @test diagonal_element(Ĥ2cReal,aIni2cReal) ≈ 24.0 # from the V term
 
     aIni2cMom = BoseFS2C(BoseFS((0,4,0,0)),BoseFS((0,4,0,0))) # momentum space two-component
     Ĥ2cMom = BoseHubbardMom1D2C(aIni2cMom; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
-    @test numOfHops(Ĥ2cMom,aIni2cMom) == 9
+    @test num_offdiagonals(Ĥ2cMom,aIni2cMom) == 9
     @test dimension(Ĥ2cMom) == 1225
     @test dimension(Float64, Ĥ2cMom) == 1225.0
 
-    hp2cMom = hops(Ĥ2cMom,aIni2cMom)
+    hp2cMom = offdiagonals(Ĥ2cMom,aIni2cMom)
     @test length(hp2cMom) == 9
     @test hp2cMom[1][1] == BoseFS2C(BoseFS((1,2,1,0)), BoseFS((0,4,0,0)))
     @test hp2cMom[1][2] ≈ 2.598076211353316

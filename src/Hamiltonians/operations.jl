@@ -7,8 +7,8 @@ function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
     # for building the matrix for conventional diagonalisation.
     # Only used for verifying matrix.
     # This will be slow and inefficient. Avoid using for larger Hamiltonians!
-    address1 == address2 && return diagME(ham, address1) # diagonal
-    for (add,val) in hops(ham, address2) # off-diag column as iterator
+    address1 == address2 && return diagonal_element(ham, address1) # diagonal
+    for (add,val) in offdiagonals(ham, address2) # off-diag column as iterator
         add == address1 && return val # found address1
     end
     return zero(T) # address1 not found
@@ -18,8 +18,8 @@ function Base.:*(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V
     T = promote_type(E,V) # allow for type promotion
     w = empty(v, T) # allocate new vector; non-mutating version
     for (key,val) in pairs(v)
-        w[key] += diagME(h, key)*val
-        for (add,elem) in hops(h, key)
+        w[key] += diagonal_element(h, key)*val
+        for (add,elem) in offdiagonals(h, key)
             w[add] += elem*val
         end
     end
@@ -30,8 +30,8 @@ end
 function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec)
     empty!(w)
     for (key,val) in pairs(v)
-        w[key] += diagME(h, key)*val
-        for (add,elem) in hops(h, key)
+        w[key] += diagonal_element(h, key)*val
+        for (add,elem) in offdiagonals(h, key)
             w[add] += elem*val
         end
     end
@@ -50,8 +50,8 @@ end
 function LinearAlgebra.dot(::UniformProjector, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T, T2}
     result = zero(promote_type(T,T2))
     for (key,val) in pairs(v)
-        result += diagME(LO, key) * val
-        for (add,elem) in hops(LO, key)
+        result += diagonal_element(LO, key) * val
+        for (add,elem) in offdiagonals(LO, key)
             result += elem * val
         end
     end
@@ -77,8 +77,8 @@ to left.
 function dot_from_right(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
     result = zero(promote_type(T1,promote_type(T,T2)))
     for (key,val) in pairs(v)
-        result += conj(x[key]) * diagME(LO, key) * val
-        for (add,elem) in hops(LO, key)
+        result += conj(x[key]) * diagonal_element(LO, key) * val
+        for (add,elem) in offdiagonals(LO, key)
             result += conj(x[add]) * elem * val
         end
     end
@@ -129,11 +129,11 @@ function build_sparse_matrix_from_LO(
         i > length(adds) && break
         add = adds[i] # new address from list
         # compute and push diagonal matrix element
-        melem = diagME(ham, add)
+        melem = diagonal_element(ham, add)
         push!(I, i)
         push!(J, i)
         push!(V, melem)
-        for (nadd, melem) in hops(ham, add) # loop over rows
+        for (nadd, melem) in offdiagonals(ham, add) # loop over rows
             j = findnext(a -> a == nadd, adds, 1) # find index of `nadd` in `adds`
             if isnothing(j)
                 # new address: increase dimension of matrix by adding a row

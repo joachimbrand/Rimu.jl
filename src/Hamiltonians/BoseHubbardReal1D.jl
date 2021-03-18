@@ -51,15 +51,15 @@ function starting_address(h::BoseHubbardReal1D)
     return nearUniform(h.AT)
 end
 
-function diagME(h::BoseHubbardReal1D, address)
+function diagonal_element(h::BoseHubbardReal1D, address)
     h.u * bose_hubbard_interaction(address) / 2
 end
 
-function numOfHops(ham::BoseHubbardReal1D, add)
+function num_offdiagonals(ham::BoseHubbardReal1D, add)
     return 2 * numberoccupiedsites(add)
 end
 
-function hop(ham::BoseHubbardReal1D, add, chosen::Integer)
+function get_offdiagonal(ham::BoseHubbardReal1D, add, chosen::Integer)
     naddress, onproduct = hopnextneighbour(add, chosen)
     return naddress, - ham.t*sqrt(onproduct)
     # return new address and matrix element

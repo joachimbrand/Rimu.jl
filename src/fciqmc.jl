@@ -1015,11 +1015,11 @@ end
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
     # off-diagonal: spawning psips
-    for (nadd, elem) in hops(ham, add)
+    for (nadd, elem) in offdiagonals(ham, add)
         w[nadd] += -dτ * elem * num
     end
     # diagonal death or clone
-    w[add] += (1 + dτ*(shift - diagME(ham,add)))*num
+    w[add] += (1 + dτ*(shift - diagonal_element(ham,add)))*num
     return (0, 0, 0, 0, 0)
 end
 
@@ -1028,7 +1028,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     # version for single population of integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
-    hops = Hamiltonians.hops(ham,add)
+    hops = offdiagonals(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -1048,7 +1048,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
         end
     end
     # diagonal death / clone
-    dME = diagME(ham,add)
+    dME = diagonal_element(ham,add)
     pd = dτ * (dME - shift)
     newdiagpop = (1-pd)*num
     ndiag = trunc(newdiagpop)
@@ -1076,7 +1076,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
     # stats reported are complex, for each component separately
-    hops = Hamiltonians.hops(ham,add)
+    hops = offdiagonals(ham,add)
     # real psips first
     num = real(cnum)
     for n in 1:abs(num) # for each psip attempt to spawn once
@@ -1120,7 +1120,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
 
     # diagonal death / clone
     shift = real(cshift) # use only real part of shift for now
-    dME = diagME(ham,add)
+    dME = diagonal_element(ham,add)
     pd = dτ * (dME - shift) # real valued so far
     cnewdiagpop = (1-pd)*cnum # now it's complex
     # treat real part
@@ -1201,7 +1201,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2PopInitiator, w, ham::AbstractHa
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
     # stats reported are complex, for each component separately
-    hops = Hamiltonians.hops(ham,add)
+    hops = offdiagonals(ham,add)
     # real psips first
     num = real(cnum)
     for n in 1:abs(num) # for each psip attempt to spawn once
@@ -1245,7 +1245,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2PopInitiator, w, ham::AbstractHa
 
     # diagonal death / clone
     shift = real(cshift) # use only real part of shift for now
-    dME = diagME(ham,add)
+    dME = diagonal_element(ham,add)
     pd = dτ * (dME - shift) # real valued so far
     cnewdiagpop = (1-pd)*cnum # now it's complex
     # treat real part
@@ -1331,7 +1331,7 @@ function fciqmc_col!(nl::DictVectors.IsStochasticNonlinear, w, ham::AbstractHami
     # Nonlinearity in diagonal death step according to Ali's suggestion
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
-    hops = Hamiltonians.hops(ham,add)
+    hops = offdiagonals(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -1351,7 +1351,7 @@ function fciqmc_col!(nl::DictVectors.IsStochasticNonlinear, w, ham::AbstractHami
         end
     end
     # diagonal death / clone
-    dME = diagME(ham,add)
+    dME = diagonal_element(ham,add)
     shifteff = shift*(1 - exp(-num/nl.c))
     pd = dτ * (dME - shifteff)
     newdiagpop = (1-pd)*num
@@ -1382,7 +1382,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
     num = tup[1] # number of psips on configuration
     occ_ratio= tup[2] # ratio of occupied vs total number of neighbours
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
-    hops = Hamiltonians.hops(ham,add)
+    hops = offdiagonals(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -1403,7 +1403,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
         end
     end
     # diagonal death / clone
-    dME = diagME(ham,add)
+    dME = diagonal_element(ham,add)
     # modify shift locally according to occupation ratio of neighbouring configs
     mshift = occ_ratio > 0 ? shift*occ_ratio : shift
     pd = dτ * (dME - mshift) # modified
@@ -1433,7 +1433,7 @@ function fciqmc_col!(s::DictVectors.IsSemistochastic, w, ham::AbstractHamiltonia
     (val, flag) = val_flag_tuple
     deterministic = flag & one(F) # extract deterministic flag
     # diagonal death or clone
-    new_val = w[add][1] + (1 + dτ*(shift - diagME(ham,add)))*val
+    new_val = w[add][1] + (1 + dτ*(shift - diagonal_element(ham,add)))*val
     if deterministic
         w[add] = (new_val, flag) # new tuple
     else
@@ -1449,7 +1449,7 @@ function fciqmc_col!(s::DictVectors.IsSemistochastic, w, ham::AbstractHamiltonia
     end
     # off-diagonal: spawning psips
     if deterministic
-        for (nadd, elem) in hops(ham, add)
+        for (nadd, elem) in offdiagonals(ham, add)
             wnapsips, wnaflag = w[nadd]
             if wnaflag & one(F) # new address `nadd` is also in deterministic space
                 w[nadd] = (wnapsips - dτ * elem * val, wnaflag)  # new tuple
@@ -1474,7 +1474,7 @@ function fciqmc_col!(s::DictVectors.IsSemistochastic, w, ham::AbstractHamiltonia
         end
     else
         # TODO: stochastic
-        hops = Hamiltonians.hops(ham, add)
+        hops = offdiagonals(ham, add)
         for n in 1:floor(abs(val)) # abs(val÷s.threshold) # for each psip attempt to spawn once
             naddress, pgen, matelem = generateRandHop(hops)
             pspawn = dτ * abs(matelem) /pgen # non-negative Float64
@@ -1522,9 +1522,9 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         add, val::N, shift, dτ) where N <: Real
 
     # diagonal death or clone: deterministic fomula
-    # w[add] += (1 + dτ*(shift - diagME(ham,add)))*val
+    # w[add] += (1 + dτ*(shift - diagonal_element(ham,add)))*val
     # projection to threshold should be applied after all colums are evaluated
-    new_val = (1 + dτ*(shift - diagME(ham,add)))*val
+    new_val = (1 + dτ*(shift - diagonal_element(ham,add)))*val
     # apply threshold if necessary
     if abs(new_val) < s.threshold
         # project stochastically to threshold
@@ -1536,7 +1536,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
 
     # off-diagonal: spawning psips stochastically
     # only integers are spawned!!
-    hops = Hamiltonians.hops(ham, add)
+    hops = offdiagonals(ham, add)
     # first deal with integer psips
     for n in 1:floor(abs(val)) # for each psip attempt to spawn once
         naddress, pgen, matelem = generateRandHop(hops)

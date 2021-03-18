@@ -22,15 +22,15 @@ function test_hamiltonian_interface(H)
             mul!(v⁗, H, v)
             @test v′ == v″ == v‴ == v⁗
         end
-        @testset "diagME" begin
-            @test diagME(H, addr) ≥ 0
+        @testset "diagonal_element" begin
+            @test diagonal_element(H, addr) ≥ 0
         end
         @testset "hopping" begin
-            h = hops(H, addr)
+            h = offdiagonals(H, addr)
             @test eltype(h) == Tuple{typeof(addr), eltype(H)}
-            @test length(h) == numOfHops(H, addr)
+            @test length(h) == num_offdiagonals(H, addr)
             for i in 1:length(h)
-                @test h[i] == hop(H, addr, i)
+                @test h[i] == get_offdiagonal(H, addr, i)
                 @test h[i] isa eltype(h)
             end
         end
@@ -93,8 +93,8 @@ end
             @test starting_address(H1) == addr1
             @test LOStructure(H1) == HermitianLO()
 
-            hops1 = collect(hops(H1, addr1))
-            hops2 = collect(hops(H2, addr2))
+            hops1 = collect(offdiagonals(H1, addr1))
+            hops2 = collect(offdiagonals(H2, addr2))
             sort!(hops1, by=a -> first(a).bsa)
             sort!(hops2, by=a -> first(a).bsb)
 
@@ -123,11 +123,11 @@ end
     aIni = Rimu.Hamiltonians.nearUniform(ham)
     @test aIni == BoseFS{9,9}((1,1,1,1,1,1,1,1,1))
 
-    hp = hops(ham,aIni)
+    hp = offdiagonals(ham,aIni)
     @test length(hp) == 18
     @test hp[18][1] == BoseFS{9,9}(BitString{17}(0x000000000000d555))
     @test hp[18][2] ≈ -√2
-    @test diagME(ham,aIni) == 0
+    @test diagonal_element(ham,aIni) == 0
     os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
     @test Rimu.Hamiltonians.bose_hubbard_interaction(os) == 148
     @test Rimu.Hamiltonians.extended_bose_hubbard_interaction(os) == (53, 148)

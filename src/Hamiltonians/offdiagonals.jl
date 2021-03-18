@@ -1,5 +1,5 @@
 ###
-### This file contains the definition of `hops`, as well as some internal functions
+### This file contains the definition of `offdiagonals`, as well as some internal functions
 ### operating on Bosonic addresses.
 ###
 """
@@ -8,14 +8,14 @@
 Iterator over new address and matrix element for reachable off-diagonal matrix elements of a
 linear operator.
 
-See [`Hops`](@ref) for a default implementation.
+See [`Offdiagonals`](@ref) for a default implementation.
 
 # Methods to define
 
-* [`hops(h, a)::AbstractHops`](@ref): This function is used to construct the correct type
-  of hops for a given combination of hamiltonian `h` and fock address `a`.
-* `Base.getindex(::AbstractHops, i)`: should be equivalent to `hop(h, a, i)`.
-* `Base.size(::AbstractHops)`: should be equivalent to `numOfHops(h, a)`.
+* [`offdiagonals(h, a)::AbstractHops`](@ref): This function is used to construct the correct type
+  of offdiagonals for a given combination of hamiltonian `h` and fock address `a`.
+* `Base.getindex(::AbstractHops, i)`: should be equivalent to `get_offdiagonal(h, a, i)`.
+* `Base.size(::AbstractHops)`: should be equivalent to `num_offdiagonals(h, a)`.
 
 """
 abstract type AbstractHops{A<:AbstractFockAddress,T} <: AbstractVector{Tuple{A,T}} end
@@ -23,14 +23,14 @@ abstract type AbstractHops{A<:AbstractFockAddress,T} <: AbstractVector{Tuple{A,T
 Base.IndexStyle(::Type{<:AbstractHops}) = IndexLinear()
 
 """
-    hops(h::AbstractHamiltonian, a::AbstractFockAddress)
+    offdiagonals(h::AbstractHamiltonian, a::AbstractFockAddress)
 
 Return an iterator over reachable off-diagonal matrix elements of type
-`<:AbstractHops`. Defaults to returning `Hops(h, a)`
+`<:AbstractHops`. Defaults to returning `Offdiagonals(h, a)`
 
 # See also
 
-* [`Hops`](@ref)
+* [`Offdiagonals`](@ref)
 * [`AbstractHops`](@ref)
 
 ```jldoctest
@@ -38,8 +38,8 @@ julia> addr = BoseFS((3,2,1));
 
 julia> H = HubbardReal1D(addr);
 
-julia> h = hops(H, addr)
-6-element Rimu.Hamiltonians.Hops{Float64,BoseFS{6,3,BitString{8,1}},HubbardReal1D{Float64,BoseFS{6,3,BitString{8,1}},1.0,1.0}}:
+julia> h = offdiagonals(H, addr)
+6-element Rimu.Hamiltonians.Offdiagonals{Float64,BoseFS{6,3,BitString{8,1}},HubbardReal1D{Float64,BoseFS{6,3,BitString{8,1}},1.0,1.0}}:
  (BoseFS{6,3}((2, 3, 1)), -3.0)
  (BoseFS{6,3}((2, 2, 2)), -2.449489742783178)
  (BoseFS{6,3}((3, 1, 2)), -2.0)
@@ -48,10 +48,10 @@ julia> h = hops(H, addr)
  (BoseFS{6,3}((3, 3, 0)), -1.7320508075688772)
 ```
 """
-hops(h, a) = Hops(h, a)
+offdiagonals(h, a) = Offdiagonals(h, a)
 
 """
-    generateRandHop(hops::AbstractHops)
+    generateRandHop(offdiagonals::AbstractHops)
     generateRandHop(ham::AbstractHamiltonian, add)
 
 Generate a single random excitation, i.e. choose from one of the accessible off-diagonal
@@ -59,49 +59,49 @@ elements in the column corresponding to address `add` of the Hamiltonian matrix 
 by `ham`. Alternatively, pass as argument an iterator over the accessible matrix elements.
 
 """
-function generateRandHop(hops::AbstractHops)
-    nl = length(hops) # check how many sites we could hop to
+function generateRandHop(offdiagonals::AbstractHops)
+    nl = length(offdiagonals) # check how many sites we could get_offdiagonal to
     chosen = cRand(1:nl) # choose one of them
-    naddress, melem = hops[chosen]
+    naddress, melem = offdiagonals[chosen]
     return naddress, 1.0/nl, melem
 end
 
 function generateRandHop(ham::AbstractHamiltonian, add)
-    return generateRandHop(hops(ham, add))
+    return generateRandHop(offdiagonals(ham, add))
 end
 
 """
-    Hops(h, address)
+    Offdiagonals(h, address)
 
 Iterator over new address and matrix element for reachable off-diagonal matrix elements of
 linear operator `h` from address `address`.  Represents an abstract vector containing the
 possibly non-zero off-diagonal matrix elements of the column of ham indexed by add.
 
-This is the default implementation defined in terms of [`numOfHops`](@ref) and [`hop`](@ref).
+This is the default implementation defined in terms of [`num_offdiagonals`](@ref) and [`get_offdiagonal`](@ref).
 
 # See also
 
-* [`hops`](@ref)
+* [`offdiagonals`](@ref)
 
 """
-struct Hops{T,A,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
+struct Offdiagonals{T,A,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
     hamiltonian::H
     address::A
     length::Int
 end
 
 # default constructor
-function Hops(h, a)
-    return Hops(h, a, numOfHops(h, a))
+function Offdiagonals(h, a)
+    return Offdiagonals(h, a, num_offdiagonals(h, a))
 end
 
-function Base.getindex(s::Hops, i)
+function Base.getindex(s::Offdiagonals, i)
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
-    new_address, matrix_element = hop(s.hamiltonian, s.address, i)
+    new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i)
     return (new_address, matrix_element)
 end
 
-Base.size(s::Hops) = (s.length,)
+Base.size(s::Offdiagonals) = (s.length,)
 
 ###
 ### Internal functions common to several different bosonic Hamiltonians
@@ -169,11 +169,11 @@ end
 Compute the new address of a hopping event for the Bose-Hubbard model. Returns the new
 address and the product of occupation numbers of the involved orbitals.
 
-The hops are indexed as follows:
+The off-diagonals are indexed as follows:
 
 * `(chosen + 1) ÷ 2` selects the hopping site.
 * Even `chosen` indicates a hop to the left.
-* Odd `chosen` indicates a hop to the left.
+* Odd `chosen` indicates a hop to the right.
 * Boundary conditions are periodic.
 
 # Example

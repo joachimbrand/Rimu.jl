@@ -56,7 +56,7 @@ Base.getproperty(h::BoseHubbardReal1D2C, ::Val{:hb}) = getfield(h, :hb)
 Base.getproperty(h::BoseHubbardReal1D2C{<:Any,<:Any,<:Any,V}, ::Val{:v}) where {V} = V
 
 # number of excitations that can be made
-function numOfHops(ham::BoseHubbardReal1D2C, add)
+function num_offdiagonals(ham::BoseHubbardReal1D2C, add)
     return 2*(numberoccupiedsites(add.bsa) + numberoccupiedsites(add.bsb))
 end
 
@@ -77,16 +77,16 @@ function bose_hubbard_2c_interaction(add::BoseFS2C)
     return interaction
 end
 
-function diagME(ham::BoseHubbardReal1D2C, address::BoseFS2C)
+function diagonal_element(ham::BoseHubbardReal1D2C, address::BoseFS2C)
     return (
-        diagME(ham.ha, address.bsa) +
-        diagME(ham.hb, address.bsb) +
+        diagonal_element(ham.ha, address.bsa) +
+        diagonal_element(ham.hb, address.bsb) +
         ham.v * bose_hubbard_2c_interaction(address)
     )
 end
 
-function hop(ham::BoseHubbardReal1D2C, add, chosen)
-    nhops = numOfHops(ham,add)
+function get_offdiagonal(ham::BoseHubbardReal1D2C, add, chosen)
+    nhops = num_offdiagonals(ham,add)
     nhops_a = 2*numberoccupiedsites(add.bsa)
     if chosen ≤ nhops_a
         naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen)
@@ -101,32 +101,32 @@ function hop(ham::BoseHubbardReal1D2C, add, chosen)
     # return new address and matrix element
 end
 
-struct HopsBoseReal1D2C{A<:BoseFS2C,T,H<:TwoComponentHamiltonian{T}} <: AbstractHops{A,T}
+struct OffdiagonalsBoseReal1D2C{A<:BoseFS2C,T,H<:TwoComponentHamiltonian{T}} <: AbstractHops{A,T}
     hamiltonian::H
     address::A
     length::Int
     num_hops_a::Int
 end
 
-function hops(h::BoseHubbardReal1D2C, a::BoseFS2C)
-    hops_a = numOfHops(h.ha, a.bsa)
-    hops_b = numOfHops(h.hb, a.bsb)
+function offdiagonals(h::BoseHubbardReal1D2C, a::BoseFS2C)
+    hops_a = num_offdiagonals(h.ha, a.bsa)
+    hops_b = num_offdiagonals(h.hb, a.bsb)
     length = hops_a + hops_b
 
-    return HopsBoseReal1D2C(h, a, length, hops_a)
+    return OffdiagonalsBoseReal1D2C(h, a, length, hops_a)
 end
 
-function Base.getindex(s::HopsBoseReal1D2C{A}, i) where {A}
+function Base.getindex(s::OffdiagonalsBoseReal1D2C{A}, i) where {A}
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     if i ≤ s.num_hops_a
-        new_a, matrix_element = hop(s.hamiltonian.ha, s.address.bsa, i)
+        new_a, matrix_element = get_offdiagonal(s.hamiltonian.ha, s.address.bsa, i)
         new_add = A(new_a, s.address.bsb)
     else
         i -= s.num_hops_a
-        new_b, matrix_element = hop(s.hamiltonian.hb, s.address.bsb, i)
+        new_b, matrix_element = get_offdiagonal(s.hamiltonian.hb, s.address.bsb, i)
         new_add = A(s.address.bsa, new_b)
     end
     return new_add, matrix_element
 end
 
-Base.size(s::HopsBoseReal1D2C) = (s.length,)
+Base.size(s::OffdiagonalsBoseReal1D2C) = (s.length,)

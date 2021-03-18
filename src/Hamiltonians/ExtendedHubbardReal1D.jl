@@ -41,7 +41,7 @@ Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,V}, ::Val{:v}) where V = V
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
 
-function numOfHops(::ExtendedHubbardReal1D, address::BoseFS)
+function num_offdiagonals(::ExtendedHubbardReal1D, address::BoseFS)
     return 2 * numberoccupiedsites(address)
 end
 
@@ -81,12 +81,12 @@ function extended_bose_hubbard_interaction(b::BoseFS{<:Any,M}) where M
     return ebhmmatrixelementint , bhmmatrixelementint
 end
 
-function diagME(h::ExtendedHubbardReal1D, b::BoseFS)
+function diagonal_element(h::ExtendedHubbardReal1D, b::BoseFS)
     ebhinteraction, bhinteraction = extended_bose_hubbard_interaction(b)
     return h.u * bhinteraction / 2 + h.v * ebhinteraction
 end
 
-function hop(h::ExtendedHubbardReal1D, add::BoseFS, chosen)
+function get_offdiagonal(h::ExtendedHubbardReal1D, add::BoseFS, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
     return naddress, - h.t * sqrt(onproduct)
 end

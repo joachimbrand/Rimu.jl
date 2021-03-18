@@ -18,7 +18,7 @@ the module `BitStringAddresses`. The type works well with the external package
 
 Provides:
 
-* [`hops`](@ref): iterator over reachable off-diagonal matrix elements
+* [`offdiagonals`](@ref): iterator over reachable off-diagonal matrix elements
 * [`generateRandHop`](@ref): function to generate random off-diagonal matrix element
 * [`dimension`](@ref): get the dimension of the address space.
 * `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes
@@ -29,16 +29,16 @@ Provides:
 
 Methods that need to be implemented:
 
-* [`numOfHops(::AbstractHamiltonian, address)`](@ref)
-* [`hop(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
-* [`diagME(::AbstractHamiltonian, address)`](@ref)
+* [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
+* [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
+* [`diagonal_element(::AbstractHamiltonian, address)`](@ref)
 * [`starting_address(::AbstractHamiltonian)`](@ref)
 
 Optional methods to implement:
 
 * [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
 * [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref)
-* [`hops(::AbstractHamiltonian, ::AbstractFockAddress)`](@ref)
+* [`offdiagonals(::AbstractHamiltonian, ::AbstractFockAddress)`](@ref)
 * [`momentum(::AbstractHamiltonian)`](@ref)
 """
 abstract type AbstractHamiltonian{T} end
@@ -51,7 +51,7 @@ Base.eltype(::AbstractHamiltonian{T}) where {T} = T
 BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_address(h))
 
 """
-    diagME(ham, add)
+    diagonal_element(ham, add)
 
 Compute the diagonal matrix element of the linear operator `ham` at
 address `add`.
@@ -63,14 +63,14 @@ julia> addr = BoseFS((3, 2, 1));
 
 julia> H = HubbardMom1D(addr);
 
-julia> diagME(H, addr)
+julia> diagonal_element(H, addr)
 8.666666666666664
 ```
 """
-diagME
+diagonal_element
 
 """
-    numOfHops(ham, add)
+    num_offdiagonals(ham, add)
 
 Compute the number of number of reachable configurations from address `add`.
 
@@ -81,16 +81,16 @@ julia> addr = BoseFS((3, 2, 1));
 
 julia> H = HubbardMom1D(addr);
 
-julia> numOfHops(H, addr)
+julia> num_offdiagonals(H, addr)
 10
 ```
 """
-numOfHops
+num_offdiagonals
 
 """
-    newadd, me = hop(ham, add, chosen)
+    newadd, me = get_offdiagonal(ham, add, chosen)
 
-Compute matrix element of `hamiltonian` and new address of a single hop from
+Compute matrix element of `hamiltonian` and new address of a single get_offdiagonal from
 address `add` with integer index `chosen`.
 
 # Example
@@ -100,11 +100,11 @@ julia> addr = BoseFS((3, 2, 1));
 
 julia> H = HubbardMom1D(addr);
 
-julia> hop(H, addr, 3)
+julia> get_offdiagonal(H, addr, 3)
 (BoseFS{6,3}((2, 1, 3)), 1.0)
 ```
 """
-hop
+get_offdiagonal
 
 """
 Approximate formula for log of binomial coefficient. [Source](https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas)
@@ -245,7 +245,7 @@ julia> ham = HubbardMom1D(add; u = 2.0, t = 1.0);
 
 julia> mom = momentum(ham);
 
-julia> diagME(mom, add) # calculate the momentum of a single configuration
+julia> diagonal_element(mom, add) # calculate the momentum of a single configuration
 -1.5707963267948966
 
 julia> v = DVec(add => 10; capacity=1000);

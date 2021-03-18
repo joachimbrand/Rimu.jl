@@ -49,13 +49,13 @@ starting_address(ham::BoseHubbardMom1D) = ham.add
 
 momentum(ham::BoseHubbardMom1D) = MomentumMom1D(ham)
 
-function numOfHops(ham::BoseHubbardMom1D, add)
+function num_offdiagonals(ham::BoseHubbardMom1D, add)
     singlies, doublies = num_singly_doubly_occupied_sites(add)
     return singlies*(singlies-1)*(ham.m - 2) + doublies*(ham.m - 1)
     # number of excitations that can be made
 end
 
-function hop(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
+function get_offdiagonal(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDRESS
     onr = BitStringAddresses.m_onr(add) # get occupation number representation as a mutable array
     singlies, doublies = num_singly_doubly_occupied_sites(add)
     onproduct = 1
@@ -145,7 +145,7 @@ function ks(h::BoseHubbardMom1D)
 end # fast! - can be completely resolved by compiler
 
 
-function diagME(h::BoseHubbardMom1D, add)
+function diagonal_element(h::BoseHubbardMom1D, add)
     onrep = BitStringAddresses.onr(add) # get occupation number representation
 
     # single particle part of Hubbard momentum space Hamiltonian

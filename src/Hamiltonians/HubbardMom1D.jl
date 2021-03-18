@@ -96,13 +96,13 @@ function num_singly_doubly_occupied_sites(onrep::AbstractArray)
 end
 
 # standard interface function
-function numOfHops(ham::HubbardMom1D, add::BoseFS)
+function num_offdiagonals(ham::HubbardMom1D, add::BoseFS)
     singlies, doublies = num_singly_doubly_occupied_sites(add)
-    return numOfHops(ham, add, singlies, doublies)
+    return num_offdiagonals(ham, add, singlies, doublies)
 end
 
 # 4-argument version
-@inline function numOfHops(ham::HubbardMom1D, add::BoseFS, singlies, doublies)
+@inline function num_offdiagonals(ham::HubbardMom1D, add::BoseFS, singlies, doublies)
     M = num_modes(ham)
     return singlies * (singlies - 1) * (M - 2) + doublies * (M - 1)
 end
@@ -148,20 +148,20 @@ end
     return h.kes⋅onrep # safe as onrep is Real
 end
 
-@inline function diagME(h::HubbardMom1D, add)
+@inline function diagonal_element(h::HubbardMom1D, add)
     onrep = BitStringAddresses.m_onr(add)
-    return diagME(h, onrep)
+    return diagonal_element(h, onrep)
 end
 
-@inline function diagME(h::HubbardMom1D, onrep::StaticVector)
+@inline function diagonal_element(h::HubbardMom1D, onrep::StaticVector)
     return kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
 end
 
-@inline function hop(ham::HubbardMom1D, add, chosen)
-    hop(ham, add, chosen, num_singly_doubly_occupied_sites(add)...)
+@inline function get_offdiagonal(ham::HubbardMom1D, add, chosen)
+    get_offdiagonal(ham, add, chosen, num_singly_doubly_occupied_sites(add)...)
 end
 
-@inline function hop(
+@inline function get_offdiagonal(
     ham::HubbardMom1D{<:Any,M,A}, add, chosen, singlies, doublies
 ) where {M,A}
     onrep = BitStringAddresses.m_onr(add)
@@ -239,15 +239,15 @@ end
 end
 
 ###
-### hops
+### offdiagonals
 ###
 """
-    HopsBoseMom1D
+    OffdiagonalsBoseMom1D
 
 Specialized [`AbstractHops`](@ref) that keeps track of singly and doubly occupied sites in
 current address.
 """
-struct HopsBoseMom1D{A<:BoseFS,T,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
+struct OffdiagonalsBoseMom1D{A<:BoseFS,T,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
     hamiltonian::H
     address::A
     length::Int
@@ -255,19 +255,19 @@ struct HopsBoseMom1D{A<:BoseFS,T,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
     doublies::Int
 end
 
-function hops(h::HubbardMom1D, a::BoseFS)
+function offdiagonals(h::HubbardMom1D, a::BoseFS)
     singlies, doublies = num_singly_doubly_occupied_sites(a)
-    num = numOfHops(h, a, singlies, doublies)
-    return HopsBoseMom1D(h, a, num, singlies, doublies)
+    num = num_offdiagonals(h, a, singlies, doublies)
+    return OffdiagonalsBoseMom1D(h, a, num, singlies, doublies)
 end
 
-function Base.getindex(s::HopsBoseMom1D, i)
+function Base.getindex(s::OffdiagonalsBoseMom1D, i)
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
-    new_address, matrix_element = hop(s.hamiltonian, s.address, i, s.singlies, s.doublies)
+    new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i, s.singlies, s.doublies)
     return (new_address, matrix_element)
 end
 
-Base.size(s::HopsBoseMom1D) = (s.length,)
+Base.size(s::OffdiagonalsBoseMom1D) = (s.length,)
 
 ###
 ### momentum
@@ -276,7 +276,7 @@ struct MomentumMom1D{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     ham::H
 end
 LOStructure(::Type{MomentumMom1D{H,T}}) where {H,T <: Real} = HermitianLO()
-numOfHops(ham::MomentumMom1D, add) = 0
-diagME(mom::MomentumMom1D, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
+num_offdiagonals(ham::MomentumMom1D, add) = 0
+diagonal_element(mom::MomentumMom1D, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
 
 momentum(ham::HubbardMom1D) = MomentumMom1D(ham)

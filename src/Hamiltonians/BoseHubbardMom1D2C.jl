@@ -55,15 +55,15 @@ Base.getproperty(h::BoseHubbardMom1D2C, ::Val{:ha}) = getfield(h, :ha)
 Base.getproperty(h::BoseHubbardMom1D2C, ::Val{:hb}) = getfield(h, :hb)
 Base.getproperty(h::BoseHubbardMom1D2C{<:Any,<:Any,<:Any,V}, ::Val{:v}) where {V} = V
 
-function numOfHops(ham::BoseHubbardMom1D2C, add::BoseFS2C)
+function num_offdiagonals(ham::BoseHubbardMom1D2C, add::BoseFS2C)
     M = num_modes(add)
     sa = numberoccupiedsites(add.bsa)
     sb = numberoccupiedsites(add.bsb)
-    return numOfHops(ham.ha, add.bsa) + numOfHops(ham.hb, add.bsb) + sa*(M-1)*sb
+    return num_offdiagonals(ham.ha, add.bsa) + num_offdiagonals(ham.hb, add.bsb) + sa*(M-1)*sb
     # number of excitations that can be made
 end
 
-function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C)
+function diagonal_element(ham::BoseHubbardMom1D2C, add::BoseFS2C)
     M = num_modes(add)
     onrep_a = onr(add.bsa)
     onrep_b = onr(add.bsb)
@@ -74,7 +74,11 @@ function diagME(ham::BoseHubbardMom1D2C, add::BoseFS2C)
             interaction2c += onrep_a[k]*onrep_b[p] # b†_p b_p a†_k a_k
         end
     end
-    return diagME(ham.ha, add.bsa) + diagME(ham.hb, add.bsb) + ham.v/M*interaction2c
+    return (
+        diagonal_element(ham.ha, add.bsa) +
+        diagonal_element(ham.hb, add.bsb) +
+        ham.v/M*interaction2c
+    )
 end
 
 """
@@ -136,16 +140,16 @@ should equal the numbers of occupied sites in the respective components.
     return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b
 end
 
-function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
+function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
     M = num_modes(add)
-    nhops_a = numOfHops(ham.ha, add.bsa)
-    nhops_b = numOfHops(ham.hb, add.bsb)
+    nhops_a = num_offdiagonals(ham.ha, add.bsa)
+    nhops_b = num_offdiagonals(ham.hb, add.bsb)
     if chosen ≤ nhops_a
-        naddress_from_bsa, elem = hop(ham.ha, add.bsa, chosen)
+        naddress_from_bsa, elem = get_offdiagonal(ham.ha, add.bsa, chosen)
         return BoseFS2C(naddress_from_bsa, add.bsb), elem
     elseif nhops_a < chosen ≤ nhops_a + nhops_b
         chosen -= nhops_a
-        naddress_from_bsb, elem = hop(ham.hb, add.bsb, chosen)
+        naddress_from_bsb, elem = get_offdiagonal(ham.hb, add.bsb, chosen)
         return BoseFS2C(add.bsa, naddress_from_bsb), elem
     else
         chosen -= nhops_a + nhops_b
@@ -164,12 +168,12 @@ function hop(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
 end
 
 """
-    HopsBoseMom1D2C
+    OffdiagonalsBoseMom1D2C
 
-Specialized [`AbstractHops`](@ref) that keep track of number of hops and number of occupied
-sites in both components of the address.
+Specialized [`AbstractHops`](@ref) that keep track of number of off-diagonals and number of
+occupied sites in both components of the address.
 """
-struct HopsBoseMom1D2C{A<:BoseFS2C,V,T,H<:TwoComponentHamiltonian{T}} <: AbstractHops{A,T}
+struct OffdiagonalsBoseMom1D2C{A<:BoseFS2C,V,T,H<:TwoComponentHamiltonian{T}} <: AbstractHops{A,T}
     hamiltonian::H
     address::A
     length::Int
@@ -179,26 +183,26 @@ struct HopsBoseMom1D2C{A<:BoseFS2C,V,T,H<:TwoComponentHamiltonian{T}} <: Abstrac
     num_occupied_b::Int
 end
 
-function hops(h::BoseHubbardMom1D2C{T,<:Any,<:Any,V}, a::BoseFS2C) where {T,V}
-    hops_a = numOfHops(h.ha, a.bsa)
-    hops_b = numOfHops(h.hb, a.bsb)
+function offdiagonals(h::BoseHubbardMom1D2C{T,<:Any,<:Any,V}, a::BoseFS2C) where {T,V}
+    hops_a = num_offdiagonals(h.ha, a.bsa)
+    hops_b = num_offdiagonals(h.hb, a.bsb)
     occ_a = numberoccupiedsites(a.bsa)
     occ_b = numberoccupiedsites(a.bsb)
     length = hops_a + hops_b + occ_a * (num_modes(a) - 1) * occ_b
 
-    return HopsBoseMom1D2C{typeof(a),V,T,typeof(h)}(
+    return OffdiagonalsBoseMom1D2C{typeof(a),V,T,typeof(h)}(
         h, a, length, hops_a, hops_b, occ_a, occ_b
     )
 end
 
-function Base.getindex(s::HopsBoseMom1D2C{A,V}, i) where {A,V}
+function Base.getindex(s::OffdiagonalsBoseMom1D2C{A,V}, i) where {A,V}
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     if i ≤ s.num_hops_a
-        new_a, matrix_element = hop(s.hamiltonian.ha, s.address.bsa, i)
+        new_a, matrix_element = get_offdiagonal(s.hamiltonian.ha, s.address.bsa, i)
         new_add = A(new_a, s.address.bsb)
     elseif i ≤ s.num_hops_a + s.num_hops_b
         i -= s.num_hops_a
-        new_b, matrix_element = hop(s.hamiltonian.hb, s.address.bsb, i)
+        new_b, matrix_element = get_offdiagonal(s.hamiltonian.hb, s.address.bsb, i)
         new_add = A(s.address.bsa, new_b)
     else
         i -= s.num_hops_a + s.num_hops_b
@@ -211,4 +215,4 @@ function Base.getindex(s::HopsBoseMom1D2C{A,V}, i) where {A,V}
     return new_add, matrix_element
 end
 
-Base.size(s::HopsBoseMom1D2C) = (s.length,)
+Base.size(s::OffdiagonalsBoseMom1D2C) = (s.length,)

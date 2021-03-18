@@ -13,8 +13,8 @@ using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
 
-export AbstractHamiltonian, TwoComponentBosonicHamiltonian, hops, generateRandHop
-export diagME, numOfHops, hop, dimension, starting_address
+export AbstractHamiltonian, TwoComponentBosonicHamiltonian, offdiagonals, generateRandHop
+export diagonal_element, num_offdiagonals, get_offdiagonal, dimension, starting_address
 export rayleigh_quotient, momentum
 
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D
@@ -23,7 +23,7 @@ export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 
 include("abstract.jl")
-include("hops.jl")
+include("offdiagonals.jl")
 include("operations.jl")
 
 include("HubbardReal1D.jl")
