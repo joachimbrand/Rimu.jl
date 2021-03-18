@@ -283,6 +283,7 @@ Base.:>>>(s::BitString, k) = s >> k
 
 # remove ghost bits must be applied to both because k might be negative.
 Base.:>>(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .>> k))
+Base.:>>(s::S, k::Unsigned) where S<:BitString{<:Any,1} = S(s.chunks .>> k)
 Base.:<<(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .<< k))
 
 # Is this ordering needed?
