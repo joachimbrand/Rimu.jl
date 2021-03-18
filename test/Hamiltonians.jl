@@ -159,12 +159,12 @@ end
 
         g = rand()
         G = GutzwillerSampling(H, g)
-        for i in 1:numOfHops(G, addr1)
-            addr2, me = hop(G, addr1, i)
-            w = exp(-g * (diagME(H, addr2) - diagME(H, addr1)))
-            @test hop(H, addr1, i)[2] * w == me
-            @test hop(H, addr1, i)[1] == addr2
-            @test diagME(H, addr2) == diagME(G, addr2)
+        for i in 1:num_offdiagonals(G, addr1)
+            addr2, me = get_offdiagonal(G, addr1, i)
+            w = exp(-g * (diagonal_element(H, addr2) - diagonal_element(H, addr1)))
+            @test get_offdiagonal(H, addr1, i)[2] * w == me
+            @test get_offdiagonal(H, addr1, i)[1] == addr2
+            @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
         end
     end
 
@@ -180,9 +180,9 @@ end
             arr::Matrix{T}
         end
 
-        Rimu.diagME(m::MatrixHam, i) = m.arr[i.v, i.v]
-        Rimu.numOfHops(m::MatrixHam, i) = size(m.arr, 1) - 1
-        function Rimu.hop(m::MatrixHam, i, j)
+        Rimu.diagonal_element(m::MatrixHam, i) = m.arr[i.v, i.v]
+        Rimu.num_offdiagonals(m::MatrixHam, i) = size(m.arr, 1) - 1
+        function Rimu.get_offdiagonal(m::MatrixHam, i, j)
             if j ≥ i.v # skip diagonal
                 j += 1
             end
