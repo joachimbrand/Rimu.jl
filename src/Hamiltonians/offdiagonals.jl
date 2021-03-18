@@ -134,8 +134,8 @@ end
     chunk = b.bs.chunks[1]
     result = 0
     while true
-        chunk >>= trailing_zeros(chunk)
-        chunk >>= trailing_ones(chunk)
+        chunk >>= (trailing_zeros(chunk) % UInt)
+        chunk >>= (trailing_ones(chunk) % UInt)
         result += 1
         iszero(chunk) && break
     end
@@ -192,7 +192,7 @@ julia> hopnextneighbour(BoseFS((1, 0, 1)), 4)
 """
 function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
     address = b.bs
-    site = (chosen + 1) >>> 1
+    site = (chosen + 1) >>> 0x1
     if isodd(chosen) # Hopping to the right
         next = 0
         curr = 0
@@ -208,17 +208,17 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
             sc = sn
         end
         if sc == M
-            new_address = ((address ⊻ (A(UInt64(1)) << (offset-1))) << 1) | A(UInt64(1))
+            new_address = (address << 0x1) | A(UInt64(1))
             prod = curr * (trailing_ones(address) + 1) # mul occupation num of first obital
         else
             next *= reached_end
-            new_address = address ⊻ A(UInt64(3)) << (offset - 1)
+            new_address = address ⊻ A(UInt64(3)) << ((offset - 1) % UInt)
             prod = curr * (next + 1)
         end
     else # Hopping to the left
         if site == 1 && isodd(address)
             # For leftmost site, we shift the whole address circularly by one bit.
-            new_address = (address >>> 1) | A(UInt64(1)) << (N + M - 2)
+            new_address = (address >>> 0x1) | A(UInt64(1)) << ((N + M - 2) % UInt)
             prod = trailing_ones(address) * leading_ones(new_address)
         else
             prev = 0
@@ -232,7 +232,7 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
                 i == site && break
                 sp = sc
             end
-            new_address = address ⊻ A(UInt64(3)) << (offset - 1)
+            new_address = address ⊻ A(UInt64(3)) << ((offset - 1) % UInt)
             prod = curr * (prev + 1)
         end
     end

@@ -253,14 +253,17 @@ struct OccupiedOrbitalIterator{C,S}
     address::S
 end
 
-function occupied_orbitals(b::BoseFS{N,M,S}) where {N,M,S}
+function occupied_orbitals(b::BoseFS{<:Any,<:Any,S}) where {S}
     return OccupiedOrbitalIterator{num_chunks(S),S}(b.bs)
 end
 
 # Single chunk versions are simpler.
 @inline function Base.iterate(osi::OccupiedOrbitalIterator{1})
-    empty_orbitals = trailing_zeros(osi.address)
-    return iterate(osi, (osi.address >> empty_orbitals, empty_orbitals, 1 + empty_orbitals))
+    chunk = osi.address.chunks[1]
+    empty_orbitals = trailing_zeros(chunk)
+    return iterate(
+        osi, (chunk >> (empty_orbitals % UInt), empty_orbitals, 1 + empty_orbitals)
+    )
 end
 @inline function Base.iterate(osi::OccupiedOrbitalIterator{1}, (chunk, bit, orbital))
     if iszero(chunk)

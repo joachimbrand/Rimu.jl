@@ -212,7 +212,7 @@ function _trailing(f, s::BitString)
         r == chunk_bits(s, i) || break
     end
     # If top chunk occupies the whole integer, result will always be smaller or equal to B.
-    if top_chunk_bits(s) ≠ 64
+    if f ≢ trailing_ones && top_chunk_bits(s) ≠ 64
         return min(num_bits(s), result)
     else
         return result
