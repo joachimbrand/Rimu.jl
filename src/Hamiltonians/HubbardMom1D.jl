@@ -244,10 +244,12 @@ end
 """
     OffdiagonalsBoseMom1D
 
-Specialized [`AbstractHops`](@ref) that keeps track of singly and doubly occupied sites in
-current address.
+Specialized [`AbstractOffdiagonals`](@ref) that keeps track of singly and doubly occupied
+sites in current address.
 """
-struct OffdiagonalsBoseMom1D{A<:BoseFS,T,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
+struct OffdiagonalsBoseMom1D{
+    A<:BoseFS,T,H<:AbstractHamiltonian{T}
+} <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int

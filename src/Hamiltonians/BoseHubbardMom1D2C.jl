@@ -170,10 +170,12 @@ end
 """
     OffdiagonalsBoseMom1D2C
 
-Specialized [`AbstractHops`](@ref) that keep track of number of off-diagonals and number of
-occupied sites in both components of the address.
+Specialized [`AbstractOffdiagonals`](@ref) that keep track of number of off-diagonals and
+number of occupied sites in both components of the address.
 """
-struct OffdiagonalsBoseMom1D2C{A<:BoseFS2C,V,T,H<:TwoComponentHamiltonian{T}} <: AbstractHops{A,T}
+struct OffdiagonalsBoseMom1D2C{
+    A<:BoseFS2C,V,T,H<:TwoComponentHamiltonian{T}
+} <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int

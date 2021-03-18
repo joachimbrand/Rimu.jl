@@ -101,7 +101,9 @@ function get_offdiagonal(ham::BoseHubbardReal1D2C, add, chosen)
     # return new address and matrix element
 end
 
-struct OffdiagonalsBoseReal1D2C{A<:BoseFS2C,T,H<:TwoComponentHamiltonian{T}} <: AbstractHops{A,T}
+struct OffdiagonalsBoseReal1D2C{
+    A<:BoseFS2C,T,H<:TwoComponentHamiltonian{T}
+} <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int

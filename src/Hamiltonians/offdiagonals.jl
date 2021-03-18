@@ -3,7 +3,7 @@
 ### operating on Bosonic addresses.
 ###
 """
-    AbstractHops{A<:AbstractFockAddress,T}<:AbstractVector{Tuple{A,T}}
+    AbstractOffdiagonals{A<:AbstractFockAddress,T}<:AbstractVector{Tuple{A,T}}
 
 Iterator over new address and matrix element for reachable off-diagonal matrix elements of a
 linear operator.
@@ -12,26 +12,28 @@ See [`Offdiagonals`](@ref) for a default implementation.
 
 # Methods to define
 
-* [`offdiagonals(h, a)::AbstractHops`](@ref): This function is used to construct the correct type
-  of offdiagonals for a given combination of hamiltonian `h` and fock address `a`.
-* `Base.getindex(::AbstractHops, i)`: should be equivalent to `get_offdiagonal(h, a, i)`.
-* `Base.size(::AbstractHops)`: should be equivalent to `num_offdiagonals(h, a)`.
+* [`offdiagonals(h, a)::AbstractOffdiagonals`](@ref): This function is used to construct the
+  correct type of offdiagonals for a given combination of hamiltonian `h` and fock address
+  `a`.
+* `Base.getindex(::AbstractOffdiagonals, i)`: should be equivalent to
+  `get_offdiagonal(h, a, i)`.
+* `Base.size(::AbstractOffdiagonals)`: should be equivalent to `num_offdiagonals(h, a)`.
 
 """
-abstract type AbstractHops{A<:AbstractFockAddress,T} <: AbstractVector{Tuple{A,T}} end
+abstract type AbstractOffdiagonals{A<:AbstractFockAddress,T} <: AbstractVector{Tuple{A,T}} end
 
-Base.IndexStyle(::Type{<:AbstractHops}) = IndexLinear()
+Base.IndexStyle(::Type{<:AbstractOffdiagonals}) = IndexLinear()
 
 """
     offdiagonals(h::AbstractHamiltonian, a::AbstractFockAddress)
 
 Return an iterator over reachable off-diagonal matrix elements of type
-`<:AbstractHops`. Defaults to returning `Offdiagonals(h, a)`
+`<:AbstractOffdiagonals`. Defaults to returning `Offdiagonals(h, a)`
 
 # See also
 
 * [`Offdiagonals`](@ref)
-* [`AbstractHops`](@ref)
+* [`AbstractOffdiagonals`](@ref)
 
 ```jldoctest
 julia> addr = BoseFS((3,2,1));
@@ -51,7 +53,7 @@ julia> h = offdiagonals(H, addr)
 offdiagonals(h, a) = Offdiagonals(h, a)
 
 """
-    generateRandHop(offdiagonals::AbstractHops)
+    generateRandHop(offdiagonals::AbstractOffdiagonals)
     generateRandHop(ham::AbstractHamiltonian, add)
 
 Generate a single random excitation, i.e. choose from one of the accessible off-diagonal
@@ -59,7 +61,7 @@ elements in the column corresponding to address `add` of the Hamiltonian matrix 
 by `ham`. Alternatively, pass as argument an iterator over the accessible matrix elements.
 
 """
-function generateRandHop(offdiagonals::AbstractHops)
+function generateRandHop(offdiagonals::AbstractOffdiagonals)
     nl = length(offdiagonals) # check how many sites we could get_offdiagonal to
     chosen = cRand(1:nl) # choose one of them
     naddress, melem = offdiagonals[chosen]
@@ -77,14 +79,15 @@ Iterator over new address and matrix element for reachable off-diagonal matrix e
 linear operator `h` from address `address`.  Represents an abstract vector containing the
 possibly non-zero off-diagonal matrix elements of the column of ham indexed by add.
 
-This is the default implementation defined in terms of [`num_offdiagonals`](@ref) and [`get_offdiagonal`](@ref).
+This is the default implementation defined in terms of [`num_offdiagonals`](@ref) and
+[`get_offdiagonal`](@ref).
 
 # See also
 
 * [`offdiagonals`](@ref)
 
 """
-struct Offdiagonals{T,A,H<:AbstractHamiltonian{T}} <: AbstractHops{A,T}
+struct Offdiagonals{T,A,H<:AbstractHamiltonian{T}} <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int
