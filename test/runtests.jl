@@ -10,113 +10,8 @@ using SafeTestsets
 # for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
 @assert VERSION ≥ v"1.5"
 
-@testset "Rimu.jl" begin
-    # Write your own tests here.
-    @test 3==3
-end
-
-@testset "Blocking.jl" begin
-    n=10
-    a = rand(n)
-    m = mean(a)
-    @test m == sum(a)/n
-    myvar(a,m) = sum((a .- m).^2)/n
-    @test var(a) == sum((a .- m).^2)/(n-1)
-    @test var(a, corrected=false) == sum((a .- m).^2)/n == myvar(a,m)
-    @test var(a, corrected=false) == var(a, corrected=false, mean = m)
-    # @benchmark myvar($a, $m)
-    # @benchmark var($a, corrected=false, mean = $m)
-    # evaluating the above shows that the library function is faster and avoids
-    # memory allocations completely
-
-    # test se
-    a = collect(1:10)
-    @test Rimu.Blocking.se(a) ≈ 0.9574271077563381
-    @test Rimu.Blocking.se(a;corrected=false) ≈ 0.9082951062292475
-    # test autocovariance
-    @test autocovariance(a,1) ≈ 6.416666666666667
-    @test autocovariance(a,1;corrected=false) ≈ 5.775
-    # test covariance
-    b = collect(2:11)
-    @test covariance(a,b) ≈ 9.166666666666666
-    @test covariance(a,b;corrected=false) ≈ 8.25
-    c = collect(2:20) # should be truncated
-    @test covariance(a,b) == covariance(a,c)
-    @test covariance(a,b;corrected=false) == covariance(a,c;corrected=false)
-
-    # Define the initial Fock state with n particles and m modes
-    n = m = 9
-    aIni = nearUniform(BoseFS{n,m})
-    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    pa = RunTillLastStep(laststep = 1000)
-
-    # standard fciqmc
-    s = DoubleLogUpdate(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
-    StochasticStyle(svec)
-    vs = copy(svec)
-    r_strat = EveryTimeStep(projector = copytight(svec))
-    τ_strat = ConstantTimeStep()
-
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat = r_strat,
-        τ_strat = τ_strat, wm = similar(vs)
-    ).df
-    r = autoblock(rdfs, start=101)
-    @test all(Tuple(r).≈(-5.459498724286854, 0.19512207462981085, -6.474791532530609, 0.5301321595206501, 6))
-
-    g = growthWitness(rdfs, b=50)
-    # @test sum(g) ≈ -5725.3936298329545
-    @test length(g) == nrow(rdfs)
-    g = growthWitness(rdfs, b=50, pad = :false)
-    @test length(g) == nrow(rdfs) - 50
-    @test_throws AssertionError growthWitness(rdfs.norm, rdfs.shift[1:end-1],rdfs.dτ[1])
-end
-
-using Rimu.BitStringAddresses
-import Rimu.BitStringAddresses: check_consistency, remove_ghost_bits
-@testset "BitStringAddresses.jl" begin
-    # BitAdd
-    bs = BitAdd{40}(0xf342564fff)
-    bs1 = BitAdd{40}(0xf342564ffd)
-    bs2 = BitAdd{144}(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf")
-    bs3 = BitAdd{44}(0xf342564fff)
-    @test bs > bs1
-    @test !(bs == bs1)
-    @test !(bs < bs1)
-    @test bs2 > bs1
-    @test bs3 > bs
-    @test bs & bs1 == bs1
-    @test bs | bs1 == bs
-    @test bs ⊻ bs1 == BitAdd{40}(2)
-    @test count_ones(bs2) == 105
-    @test count_zeros(bs2) == 39
-    w = BitAdd{65}((UInt(31),UInt(15)))
-    @test_throws ErrorException check_consistency(w)
-    @test_throws ErrorException BitAdd((UInt(31),UInt(15)),65)
-    wl = BitAdd((UInt(31),UInt(15)),85)
-    @test bs2 == BitAdd(big"0xf342564ffdf00dfdfdfdfdfdfdfdfdfdfdf",144)
-    fa = BitAdd{133}()
-    @test trailing_zeros(bs<<3) == 3
-    @test trailing_ones(fa) == 133
-    @test trailing_ones(fa>>100) == 33
-    @test trailing_zeros(fa<<100) == 100
-    @test leading_zeros(fa>>130) == 130
-    @test leading_ones(fa<<130) == 3
-    @test bitstring(bs2) == "000011110011010000100101011001001111111111011111000000001101111111011111110111111101111111011111110111111101111111011111110111111101111111011111"
-    @test repr(BoseFS(bs2)) == "BoseFS{BitAdd}((5,7,7,7,7,7,7,7,7,7,7,2,0,0,0,0,0,0,0,5,10,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4,0,0,0,0))"
-    @test onr(BoseFS(bs)) == [12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4]
-    os = BoseFS{BitAdd}([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
-    @test os == BoseFS(bs)
-    @test hash(os) == hash(BoseFS(bs))
-    @test os.bs == bs
-    bfs= BoseFS((1,0,2,1,2,1,1,3))
-    onrep = onr(bfs)
-    @test typeof(bfs)(onrep) == bfs
-    ba=BoseFS{BStringAdd}((2,4,0,5,3))
-    @test BitStringAddresses.i_onr(ba) == onr(ba) == onr(ba.bs, numModes(ba))
-    @test BitStringAddresses.i_onr(os) == onr(os)
+@safetestset "BitStringAddresses" begin
+    include("BitStringAddresses.jl")
 end
 
 using Rimu.FastBufs
@@ -159,27 +54,27 @@ end
         m = 9,
         u = 6.0,
         t = 1.0,
-        AT = BSAdd64)
+        AT = BoseFS{9,9})
     @test ham(:dim) == 24310
 
     aIni = Rimu.Hamiltonians.nearUniform(ham)
-    @test aIni == BSAdd64(0x15555)
+    @test aIni == BoseFS{9,9}((1,1,1,1,1,1,1,1,1))
 
     hp = Hops(ham,aIni)
     @test length(hp) == 18
-    @test hp[18][1] == BSAdd64(0x000000000000d555)
+    @test hp[18][1] == BoseFS{9,9}(BitString{17}(0x000000000000d555))
     @test hp[18][2] ≈ -1.4142135623730951
     @test diagME(ham,aIni) == 0
     os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
     @test Rimu.Hamiltonians.bosehubbardinteraction(os) == 148
     @test Rimu.Hamiltonians.ebhm(os) == (53, 148)
     @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
-    hnnn = Rimu.Hamiltonians.hopnextneighbour(0xf342564fff,3,16,25)
-    bs = BitAdd{40}(0xf342564fff)
-    hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3,16,25)
-    @test BitAdd{40}(hnnn[1]) == hnnbs[1]
+    hnnn = Rimu.Hamiltonians.hopnextneighbour(BoseFS{25,16}(BitString{40}(0xf342564fff)),3)
+    bs = BoseFS(BitString{40}(0xf342564fff))
+    hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3)
+    @test hnnn == hnnbs
 
-    svec = DVec(Dict(aIni => 2.0), ham(:dim))
+    svec = DVec2(Dict(aIni => 2.0), ham(:dim))
     v2 = ham(svec)
     v3 = ham*v2
     @test norm(v3,1) ≈ 1482.386824949077
@@ -212,7 +107,7 @@ end
 
     ham = Hamiltonians.BoseHubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS{BSAdd64}((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
     @test diagME(ham,bfs) ≈ 14.296572875253808
     momentum = Momentum(ham)
     @test diagME(momentum,bfs) ≈ -1.5707963267948966
@@ -221,7 +116,7 @@ end
 
     ham = Hamiltonians.HubbardMom1D(bfs)
     @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS{BSAdd64}((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
     @test diagME(ham,bfs) ≈ 14.296572875253808
     momentum = Momentum(ham)
     @test diagME(momentum,bfs) ≈ -1.5707963267948966
@@ -268,7 +163,7 @@ end
         m = 9,
         u = 6.0,
         t = 1.0,
-        AT = BSAdd64)
+        AT = BoseFS{9,9})
     aIni = nearUniform(ham)
     pa = RunTillLastStep(laststep = 100)
 
@@ -697,6 +592,66 @@ end
 
 end
 
+@testset "Blocking.jl" begin
+    n=10
+    a = rand(n)
+    m = mean(a)
+    @test m == sum(a)/n
+    myvar(a,m) = sum((a .- m).^2)/n
+    @test var(a) == sum((a .- m).^2)/(n-1)
+    @test var(a, corrected=false) == sum((a .- m).^2)/n == myvar(a,m)
+    @test var(a, corrected=false) == var(a, corrected=false, mean = m)
+    # @benchmark myvar($a, $m)
+    # @benchmark var($a, corrected=false, mean = $m)
+    # evaluating the above shows that the library function is faster and avoids
+    # memory allocations completely
+
+    # test se
+    a = collect(1:10)
+    @test Rimu.Blocking.se(a) ≈ 0.9574271077563381
+    @test Rimu.Blocking.se(a;corrected=false) ≈ 0.9082951062292475
+    # test autocovariance
+    @test autocovariance(a,1) ≈ 6.416666666666667
+    @test autocovariance(a,1;corrected=false) ≈ 5.775
+    # test covariance
+    b = collect(2:11)
+    @test covariance(a,b) ≈ 9.166666666666666
+    @test covariance(a,b;corrected=false) ≈ 8.25
+    c = collect(2:20) # should be truncated
+    @test covariance(a,b) == covariance(a,c)
+    @test covariance(a,b;corrected=false) == covariance(a,c;corrected=false)
+
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    aIni = nearUniform(BoseFS{n,m})
+    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    pa = RunTillLastStep(laststep = 1000)
+
+    # standard fciqmc
+    s = DoubleLogUpdate(targetwalkers = 100)
+    svec = DVec(Dict(aIni => 2), ham(:dim))
+    StochasticStyle(svec)
+    vs = copy(svec)
+    r_strat = EveryTimeStep(projector = copytight(svec))
+    τ_strat = ConstantTimeStep()
+
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
+    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat = r_strat,
+        τ_strat = τ_strat, wm = similar(vs)
+    ).df
+    r = autoblock(rdfs, start=101)
+    @test all(Tuple(r).≈(-5.459498724286854, 0.19512207462981085, -6.474791532530609, 0.5301321595206501, 6))
+
+    g = growthWitness(rdfs, b=50)
+    # @test sum(g) ≈ -5725.3936298329545
+    @test length(g) == nrow(rdfs)
+    g = growthWitness(rdfs, b=50, pad = :false)
+    @test length(g) == nrow(rdfs) - 50
+    @test_throws AssertionError growthWitness(rdfs.norm, rdfs.shift[1:end-1],rdfs.dτ[1])
+end
+
+
 using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
 @testset "EmbarrassinglyDistributed" begin
     add = BoseFS((1,1,0,1))
@@ -715,6 +670,56 @@ using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
     # golden master test on results because qmc evolution is deterministic
     @test energies.s̄ ≈ -4.110595062715203
     @test energies.σs ≈ 0.005418295257748296
+end
+
+@testset "BoseFS2C" begin
+    bfs2c = BoseFS2C(BoseFS((1,2,0,4)),BoseFS((4,0,3,1)))
+    @test typeof(bfs2c) <: BoseFS2C{7,8,4}
+    @test Hamiltonians.numberoccupiedsites(bfs2c.bsa) == 3
+    @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
+    @test onr(bfs2c.bsa) == [1,2,0,4]
+    @test onr(bfs2c.bsb) == [4,0,3,1]
+    @test Hamiltonians.bosehubbard2Cinteraction(bfs2c) == 8 # n_a*n_b over all sites
+end
+
+@testset "TwoComponentBosonicHamiltonian" begin
+    aIni2cReal = BoseFS2C(BoseFS((1,1,1,1)),BoseFS((1,1,1,1))) # real space two-component
+    Ĥ2cReal = BoseHubbardReal1D2C(aIni2cReal; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
+    hamA = BoseHubbardReal1D(n=4,m=4,u=6.0,t=1.0,AT=BoseFS{4,4,BitString{7,1}})
+    hamB = BoseHubbardReal1D(BoseFS((1,1,1,1));u=6.0)
+    @test hamA == Ĥ2cReal.ha
+    @test hamB == Ĥ2cReal.hb
+    @test numOfHops(Ĥ2cReal,aIni2cReal) == 16
+    @test numOfHops(Ĥ2cReal,aIni2cReal) == numOfHops(Ĥ2cReal.ha,aIni2cReal.bsa)+numOfHops(Ĥ2cReal.hb,aIni2cReal.bsb)
+    @test Ĥ2cReal(:dim) == 1225
+    @test Ĥ2cReal(:fdim) == 1225.0
+
+    hp2c = Hops(Ĥ2cReal,aIni2cReal)
+    @test length(hp2c) == 16
+    @test hp2c[1][1] == BoseFS2C(BoseFS((0,2,1,1)), BoseFS((1,1,1,1)))
+    @test hp2c[1][2] ≈ -1.4142135623730951
+    @test diagME(Ĥ2cReal,aIni2cReal) ≈ 24.0 # from the V term
+
+    aIni2cMom = BoseFS2C(BoseFS((0,4,0,0)),BoseFS((0,4,0,0))) # momentum space two-component
+    Ĥ2cMom = BoseHubbardMom1D2C(aIni2cMom; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
+    @test numOfHops(Ĥ2cMom,aIni2cMom) == 9
+    @test Ĥ2cMom(:dim) == 1225
+    @test Ĥ2cMom(:fdim) == 1225.0
+
+    hp2cMom = Hops(Ĥ2cMom,aIni2cMom)
+    @test length(hp2cMom) == 9
+    @test hp2cMom[1][1] == BoseFS2C(BoseFS((1,2,1,0)), BoseFS((0,4,0,0)))
+    @test hp2cMom[1][2] ≈ 2.598076211353316
+
+    smat2cReal, adds2cReal = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cReal,aIni2cReal)
+    eig2cReal = eigen(Matrix(smat2cReal))
+    smat2cMom, adds2cMom = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cMom,aIni2cMom)
+    eig2cMom = eigen(Matrix(smat2cMom))
+    @test eig2cReal.values[1] ≈ eig2cMom.values[1]
+end
+
+@safetestset "KrylovKit" begin
+    include("KrylovKit.jl")
 end
 
 using Rimu.RMPI
@@ -750,54 +755,4 @@ end
     df = RimuIO.load_df(savefile)
     rm(savefile) # clean up
     @test size(df) == (501, 14)
-end
-
-@testset "BoseFS2C" begin
-    bfs2c = BoseFS2C(BoseFS((1,2,0,4)),BoseFS((4,0,3,1)))
-    @test typeof(bfs2c) == BoseFS2C{7,8,4,BSAdd64,BSAdd64}
-    @test Hamiltonians.numberoccupiedsites(bfs2c.bsa) == 3
-    @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
-    @test onr(bfs2c.bsa) == [1,2,0,4]
-    @test onr(bfs2c.bsb) == [4,0,3,1]
-    @test Hamiltonians.bosehubbard2Cinteraction(bfs2c) == 8 # n_a*n_b over all sites
-end
-
-@testset "TwoComponentBosonicHamiltonian" begin
-    aIni2cReal = BoseFS2C(BoseFS((1,1,1,1)),BoseFS((1,1,1,1))) # real space two-component
-    Ĥ2cReal = BoseHubbardReal1D2C(aIni2cReal; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
-    hamA = BoseHubbardReal1D(n=4,m=4,u=6.0,t=1.0,AT=BoseFS{4,4,BSAdd64})
-    hamB = BoseHubbardReal1D(BoseFS((1,1,1,1));u=6.0)
-    @test hamA == Ĥ2cReal.ha
-    @test hamB == Ĥ2cReal.hb
-    @test numOfHops(Ĥ2cReal,aIni2cReal) == 16
-    @test numOfHops(Ĥ2cReal,aIni2cReal) == numOfHops(Ĥ2cReal.ha,aIni2cReal.bsa)+numOfHops(Ĥ2cReal.hb,aIni2cReal.bsb)
-    @test Ĥ2cReal(:dim) == 1225
-    @test Ĥ2cReal(:fdim) == 1225.0
-
-    hp2c = Hops(Ĥ2cReal,aIni2cReal)
-    @test length(hp2c) == 16
-    @test hp2c[1][1] == BoseFS2C{4,4,4,BSAdd64,BSAdd64}(BoseFS{BSAdd64}((0,2,1,1)), BoseFS{BSAdd64}((1,1,1,1)))
-    @test hp2c[1][2] ≈ -1.4142135623730951
-    @test diagME(Ĥ2cReal,aIni2cReal) ≈ 24.0 # from the V term
-
-    aIni2cMom = BoseFS2C(BoseFS((0,4,0,0)),BoseFS((0,4,0,0))) # momentum space two-component
-    Ĥ2cMom = BoseHubbardMom1D2C(aIni2cMom; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
-    @test numOfHops(Ĥ2cMom,aIni2cMom) == 9
-    @test Ĥ2cMom(:dim) == 1225
-    @test Ĥ2cMom(:fdim) == 1225.0
-
-    hp2cMom = Hops(Ĥ2cMom,aIni2cMom)
-    @test length(hp2cMom) == 9
-    @test hp2cMom[1][1] == BoseFS2C{4,4,4,BSAdd64,BSAdd64}(BoseFS{BSAdd64}((1,2,1,0)), BoseFS{BSAdd64}((0,4,0,0)))
-    @test hp2cMom[1][2] ≈ 2.598076211353316
-
-    smat2cReal, adds2cReal = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cReal,aIni2cReal)
-    eig2cReal = eigen(Matrix(smat2cReal))
-    smat2cMom, adds2cMom = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cMom,aIni2cMom)
-    eig2cMom = eigen(Matrix(smat2cMom))
-    @test eig2cReal.values[1] ≈ eig2cMom.values[1]
-end
-
-@safetestset "KrylovKit" begin
-    include("KrylovKit.jl")
 end
