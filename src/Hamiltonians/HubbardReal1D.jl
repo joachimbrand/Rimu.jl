@@ -94,6 +94,38 @@ function diagonal_element(h::HubbardReal1D, address::BoseFS)
 end
 
 function get_offdiagonal(h::HubbardReal1D, add::BoseFS, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen)
-    return naddress, - h.t * sqrt(onproduct)
+    new_address, on_product = hopnextneighbour(add, chosen)
+    return new_address, -h.t * √on_product
 end
+
+###
+### 2D Model
+###
+function num_offdiagonals(::HubbardReal1D, address::BoseFS2D)
+    return 4 * numberoccupiedsites(address.bosefs)
+end
+
+function diagonal_element(h::HubbardReal1D, address::BoseFS2D)
+    h.u * bose_hubbard_interaction(address.bosefs) / 2
+end
+function get_offdiagonal(h::HubbardReal1D, add::BoseFS2D, chosen, onrep=onr(add))
+    new_address, on_product = hopnextneighbour(add, chosen, onrep)
+    return new_address, -h.t * √on_product
+end
+
+struct BoseHubbard2DOffdiagonals{T,H<:AbstractHamiltonian{T},A,O} <: AbstractOffdiagonals{A,T}
+    hamiltonian::H
+    address::A
+    onr::O
+    length::Int
+end
+
+function offdiagonals(h::HubbardReal1D, a::BoseFS2D)
+    return BoseHubbard2DOffdiagonals(h, a, onr(a), num_offdiagonals(h, a))
+end
+
+function Base.getindex(s::BoseHubbard2DOffdiagonals, i)
+    @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
+    return get_offdiagonal(s.hamiltonian, s.address, i, s.onr)
+end
+Base.size(s::BoseHubbard2DOffdiagonals) = (s.length,)

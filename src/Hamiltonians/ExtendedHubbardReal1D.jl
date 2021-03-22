@@ -87,6 +87,40 @@ function diagonal_element(h::ExtendedHubbardReal1D, b::BoseFS)
 end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, add::BoseFS, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen)
-    return naddress, - h.t * sqrt(onproduct)
+    new_address, on_product = hopnextneighbour(add, chosen)
+    return new_address, - h.t * sqrt(on_product)
+end
+
+###
+### 2D Model
+###
+function num_offdiagonals(::ExtendedHubbardReal1D, address::BoseFS2D)
+    return 4 * numberoccupiedsites(address.bosefs)
+end
+
+function extended_bose_hubbard_interaction(address::BoseFS2D{<:Any,MY,MX}) where {MY,MX}
+    onrep = onr(address)
+    ebh_result, bh_result = 0, 0
+    for idx in CartesianIndices(onrep)
+        val = onrep[idx]
+        val == 0 && continue
+        bh_result += val * (val - 1)
+        i, j = Tuple(idx)
+        ebh_result += onrep[mod1(i + 1, MY), j] * val
+        ebh_result += onrep[i, mod1(j + 1, MX)] * val
+    end
+    return ebh_result, bh_result
+end
+
+function diagonal_element(h::ExtendedHubbardReal1D, address::BoseFS2D)
+    ebhinteraction, bhinteraction = extended_bose_hubbard_interaction(address)
+    return h.u * bhinteraction / 2 + h.v * ebhinteraction
+end
+function get_offdiagonal(h::ExtendedHubbardReal1D, add::BoseFS2D, chosen, onrep=onr(add))
+    new_address, onproduct = hopnextneighbour(add, chosen, onrep)
+    return new_address, -h.t * √onproduct
+end
+
+function offdiagonals(h::ExtendedHubbardReal1D, a::BoseFS2D)
+    return BoseHubbard2DOffdiagonals(h, a, onr(a), num_offdiagonals(h, a))
 end

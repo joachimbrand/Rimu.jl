@@ -238,3 +238,35 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
     end
     return BoseFS{N,M,A}(new_address), prod
 end
+
+function hopnextneighbour(b::BoseFS2D, chosen)
+    return hopnextneighbour(b, chosen, onr(b))
+end
+
+function hopnextneighbour(b::BoseFS2D{N,MY,MX}, chosen, onrep) where {N,MY,MX}
+    directions = ((-1, 0), (1, 0), (0, -1), (0, 1))
+    # Note: using divrem makes indexing zero-based, hence chosen - 1
+    site, direction = divrem(chosen - 1, 4)
+    m_onrep = MMatrix(onrep)
+
+    # Find location and occupation number of the site we're hopping from.
+    i, j, val = 0, 0, 0
+    for k in eachindex(m_onrep)
+        @inbounds v = m_onrep[k]
+        site -= (v ≠ 0)
+        if site == -1
+            @inbounds i, j = Tuple(CartesianIndices(m_onrep)[k])
+            val = v
+            break
+        end
+    end
+    # Get offset and compute neighbour position.
+    o_i, o_j = directions[direction + 1]
+    n_i, n_j = mod1(i + o_i, MY), mod1(j + o_j, MX)
+
+    @inbounds m_onrep[i, j] -= 1
+    newval = @inbounds m_onrep[n_i, n_j] += 1
+
+    # Note: the follwing is the most time-consuming part.
+    return @inbounds BoseFS2D{N,MY,MX}(m_onrep.data), newval * val
+end

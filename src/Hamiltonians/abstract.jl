@@ -149,12 +149,12 @@ function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
         T(exp(logbinomialapprox(n, k)))
     end
 end
-function dimension(::Type{T}, b::BoseFS2C) where T
-    return dimension(T, b.bsa) * dimension(T, b.bsb)
-end
+dimension(::Type{T}, b::BoseFS2C) where {T} = dimension(T, b.bsa) * dimension(T, b.bsb)
+dimension(::Type{T}, b::BoseFS2D) where {T} = dimension(T, b.bosefs)
 
 dimension(h::AbstractHamiltonian) = dimension(Int, h)
 dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
+
 
 BitStringAddresses.nearUniform(h::AbstractHamiltonian) = nearUniform(typeof(starting_address(h)))
 

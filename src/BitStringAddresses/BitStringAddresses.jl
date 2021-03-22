@@ -12,7 +12,7 @@ using Base.Cartesian
 export BitString
 export num_bits, num_chunks, chunks, chunk_bits, top_chunk_bits
 
-export AbstractFockAddress, BoseFS, BoseFS2C, num_particles, num_modes
+export AbstractFockAddress, BoseFS, BoseFS2C, BoseFS2D, num_particles, num_modes
 export onr, nearUniform, nearUniformONR, occupied_orbitals
 
 include("bitstring.jl")

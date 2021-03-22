@@ -64,7 +64,7 @@ function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString
     @boundscheck sum(onr) == N || error("invalid ONR")
     result = zero(UInt64)
     for i in M:-1:1
-        curr_occnum = onr[i]
+        @inbounds curr_occnum = onr[i] % UInt32
         result <<= curr_occnum + 1
         result |= one(UInt64) << curr_occnum - 1
     end
@@ -84,7 +84,7 @@ function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString
         curr_occnum = onr[i]
         while curr_occnum > 0
             x = min(curr_occnum, bits_left)
-            mask = (one(UInt64) << x - 1) << offset
+            mask = (one(UInt64) << (x % UInt) - 1) << (offset % UInt)
             @inbounds result[j] |= mask
             bits_left -= x
             offset += x
@@ -109,17 +109,20 @@ function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString
     end
     return BoseFS{N,M}(S(SVector(result)))
 end
-function BoseFS{N,M,S}(onr::AbstractVector) where {N,M,S}
+function BoseFS{N,M,S}(onr::AbstractArray) where {N,M,S}
     return BoseFS{N,M,S}(SVector{M}(onr))
 end
-function BoseFS{N,M}(onr::Union{AbstractVector,Tuple}) where {N,M}
+function BoseFS{N,M}(onr::Union{AbstractArray,Tuple}) where {N,M}
     S = typeof(BitString{N + M - 1}(0))
     return BoseFS{N,M,S}(SVector{M}(onr))
 end
 function BoseFS{N}(onr::Union{SVector{M},NTuple{M}}) where {N,M}
     return BoseFS{N,M}(onr)
 end
-function BoseFS(onr::Union{AbstractVector,Tuple})
+function BoseFS{N}(onr::AbstractArray) where {N}
+    return BoseFS{N,length(onr)}(onr)
+end
+function BoseFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)
     N = sum(onr)
     return BoseFS{N,M}(onr)
@@ -360,3 +363,42 @@ Base.isless(a::BoseFS2C, b::BoseFS2C) = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
 function nearUniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return BoseFS2C(nearUniform(BoseFS{NA,M}), nearUniform(BoseFS{NB,M}))
 end
+
+struct BoseFS2D{N,MY,MX,B<:BoseFS{N}} <: AbstractFockAddress
+    bosefs::B
+
+    function BoseFS2D{N,MY,MX}(bosefs::BoseFS{N,M}) where {N,M,MY,MX}
+        M == MY * MX ||
+            error("underlying address $bosefs incompatible with lattice size ($MY, $MX)")
+        return new{N,MY,MX,typeof(bosefs)}(bosefs)
+    end
+end
+
+function Base.show(io::IO, fs::BoseFS2D{N,MY,MX}) where {N,MY,MX}
+    print(io, "BoseFS2D{$N,$MY,$MX}($(onr(fs)))")
+end
+
+BoseFS2D{N,MY,MX}(onr) where {N,MY,MX} = BoseFS2D{N,MY,MX}(BoseFS{N,MY * MX}(SVector(onr)))
+function BoseFS2D{N,MY,MX}(onr::AbstractArray) where {N,MY,MX}
+    @boundscheck sum(onr) == N || error("invalid ONR")
+    return @inbounds BoseFS2D{N,MY,MX}(BoseFS{N,MY * MX}(onr))
+end
+function BoseFS2D{N}(onr::AbstractMatrix) where {N}
+    MY, MX = size(onr)
+    return BoseFS2D{N,MY,MX}(onr)
+end
+function BoseFS2D(onr::AbstractMatrix)
+    MY, MX = size(onr)
+    N = sum(onr)
+    return BoseFS2D{N,MY,MX}(onr)
+end
+
+num_particles(::BoseFS2D{N}) where {N} = N
+num_modes(::BoseFS2D{<:Any,MY,MX}) where {MY,MX} = MY * MX
+onr(l::BoseFS2D{<:Any,MY,MX}) where {MY,MX} = SMatrix{MY,MX}(onr(l.bosefs))
+m_onr(l::BoseFS2D{<:Any,MY,MX}) where {MY,MX} = MMatrix{MY,MX}(m_onr(l.bosefs))
+
+function nearUniform(::Type{<:BoseFS2D{N,MY,MX}}) where {N,MY,MX}
+    return @inbounds BoseFS2D{N,MY,MX}(nearUniform(BoseFS{N, MY * MX}))
+end
+Base.isless(a::BoseFS2D, b::BoseFS2D) = isless((a.bosefs, a.bosefs), (b.bosefs, b.bosefs))

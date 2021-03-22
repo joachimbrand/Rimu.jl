@@ -257,3 +257,32 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
         end
     end
 end
+
+@testset "BoseFS2D" begin
+    @testset "Constructors" begin
+        b1 = nearUniform(BoseFS2D{11,5,2})
+        b2 = BoseFS2D{11,5,2}((2,1,1,1,1,1,1,1,1,1))
+        b3 = BoseFS2D{11,5,2}([2 1 1 1 1; 1 1 1 1 1])
+        b4 = BoseFS2D{11}(SMatrix{5,2}(2,1,1,1,1,1,1,1,1,1))
+        b5 = BoseFS2D(SMatrix{5,2}(2,1,1,1,1,1,1,1,1,1))
+
+        @test b1 == b2 == b3 == b4 == b5
+    end
+
+    for (N, MY, MX) in ((1, 2, 2), (20, 3, 2), (1, 15, 25))
+        @testset "Basic operations on `BoseFS2D{$N,$MY,$MX}`" begin
+            b = nearUniform(BoseFS2D{N,MY,MX})
+            @test b isa BoseFS2D{N,MY,MX}
+            @test num_particles(b) == N
+            @test num_modes(b) == MY * MX
+            @test size(onr(b)) == (MY, MX)
+            @test sum(onr(b)) == N
+            @test all(≥(0), onr(b))
+            @test eval(Meta.parse(repr(b))) == b
+        end
+    end
+
+    @testset "hopnextneighbour" begin
+
+    end
+end

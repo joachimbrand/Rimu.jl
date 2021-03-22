@@ -61,6 +61,9 @@ end
         BoseHubbardMom1D(n=10, m=5, add=BoseFS((2, 2, 3, 3, 0))),
 
         ExtendedBHReal1D(),
+
+        HubbardReal1D(nearUniform(BoseFS2D{10,2,5})),
+        ExtendedHubbardReal1D(BoseFS2D{3}([1 0 0; 0 1 0; 0 0 1])),
     )
         test_hamiltonian_interface(H)
     end
