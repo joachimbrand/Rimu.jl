@@ -151,7 +151,7 @@ end
         G = GutzwillerSampling(H, 0.0)
         addr1 = starting_address(H)
         @test starting_address(G) == addr1
-        @test all(x == y for (x, y) in zip(hops(H, addr1), hops(G, addr1)))
+        @test all(x == y for (x, y) in zip(offdiagonals(H, addr1), offdiagonals(G, addr1)))
         @test LOStructure(G) isa AdjointKnown
 
         @test eval(Meta.parse(repr(G))) == G
