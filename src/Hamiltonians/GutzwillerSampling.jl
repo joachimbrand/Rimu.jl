@@ -60,11 +60,11 @@ num_offdiagonals(h::GutzwillerSampling, add) = num_offdiagonals(h.hamiltonian, a
 diagonal_element(h::GutzwillerSampling, add) = diagonal_element(h.hamiltonian, add)
 
 function get_offdiagonal(h::GutzwillerSampling, add, chosen)
-    return get_offdiagonal(h, add, chosen, diagME(h, add))
+    return get_offdiagonal(h, add, chosen, diagonal_element(h, add))
 end
 function get_offdiagonal(h::GutzwillerSampling{A}, add1, chosen, diag1) where A
     add2, matrix_element = get_offdiagonal(h.hamiltonian, add1, chosen)
-    diag2 = diagME(h, add2)
+    diag2 = diagonal_element(h, add2)
 
     if A # adjoint simply switches sign in exp term. Conj was already done in inner H
         return add2, matrix_element * exp(-h.g * (diag1 - diag2))
@@ -83,7 +83,7 @@ end
 
 function offdiagonals(ham::GutzwillerSampling{A,<:Any,<:Any,G}, a) where {A,G}
     hps = offdiagonals(ham.hamiltonian, a)
-    diag = diagME(ham, a)
+    diag = diagonal_element(ham, a)
     return GutzwillerOffdiagonals{A,G,typeof(a),eltype(ham),typeof(ham),typeof(hps)}(
         ham, diag, hps
     )
@@ -91,7 +91,7 @@ end
 
 function Base.getindex(h::GutzwillerOffdiagonals{A,G}, i) where {A,G}
     add2, matrix_element = h.offdiagonals[i]
-    diag2 = diagME(h.hamiltonian, add2)
+    diag2 = diagonal_element(h.hamiltonian, add2)
     if A # adjoint simply switches sign in exp term. Conj was already done in inner H
         return add2, matrix_element * exp(-G * (h.diag - diag2))
     else
