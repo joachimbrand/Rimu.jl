@@ -141,30 +141,74 @@ end
     end
 end
 
-@testset "Gutzwiller sampling" begin
-    for H in (
-        HubbardMom1D(BoseFS((2,2,2)), u=6),
-        ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
-        BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
-    )
-        # GutzwillerSampling with parameter zero is exactly equal to the original H
-        G = GutzwillerSampling(H, 0.0)
-        addr1 = starting_address(H)
-        @test starting_address(G) == addr1
-        @test all(x == y for (x, y) in zip(offdiagonals(H, addr1), offdiagonals(G, addr1)))
-        @test LOStructure(G) isa AdjointKnown
+@testset "Importance sampling" begin
+    @testset "Gutzwiller" begin
+        for H in (
+            HubbardMom1D(BoseFS((2,2,2)), u=6),
+            ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+            BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
+        )
+            # GutzwillerSampling with parameter zero is exactly equal to the original H
+            G = GutzwillerSampling(H, 0.0)
+            addr = starting_address(H)
+            @test starting_address(G) == addr
+            @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
+            @test LOStructure(G) isa AdjointKnown
 
-        @test eval(Meta.parse(repr(G))) == G
-        @test eval(Meta.parse(repr(G'))) == G'
+            @test eval(Meta.parse(repr(G))) == G
+            @test eval(Meta.parse(repr(G'))) == G'
 
-        g = rand()
-        G = GutzwillerSampling(H, g)
-        for i in 1:num_offdiagonals(G, addr1)
-            addr2, me = get_offdiagonal(G, addr1, i)
-            w = exp(-g * (diagonal_element(H, addr2) - diagonal_element(H, addr1)))
-            @test get_offdiagonal(H, addr1, i)[2] * w == me
-            @test get_offdiagonal(H, addr1, i)[1] == addr2
-            @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+            g = rand()
+            G = GutzwillerSampling(H, g)
+            for i in 1:num_offdiagonals(G, addr)
+                addr2, me = get_offdiagonal(G, addr, i)
+                w = exp(-g * (diagonal_element(H, addr2) - diagonal_element(H, addr)))
+                @test get_offdiagonal(H, addr, i)[2] * w == me
+                @test get_offdiagonal(H, addr, i)[1] == addr2
+                @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+            end
+        end
+    end
+
+    @testset "GuidingVector" begin
+        H = HubbardMom1D(BoseFS((2,2,2)), u=6)
+        v = DVec2(
+            BoseFS{6,3}((0, 0, 6)) => 0.0770580680636451,
+            BoseFS{6,3}((6, 0, 0)) => 0.0770580680636451,
+            BoseFS{6,3}((1, 1, 4)) => 0.3825802976327182,
+            BoseFS{6,3}((4, 1, 1)) => 0.3825802976327182,
+            BoseFS{6,3}((0, 6, 0)) => 0.04322440994245527,
+            BoseFS{6,3}((3, 3, 0)) => 0.2565124277520772,
+            BoseFS{6,3}((3, 0, 3)) => 0.3460652270329457,
+            BoseFS{6,3}((0, 3, 3)) => 0.2565124277520772,
+            BoseFS{6,3}((1, 4, 1)) => 0.28562685053740633,
+            BoseFS{6,3}((2, 2, 2)) => 0.6004825560434165;
+            capacity=100,
+        )
+        @testset "With empty vector" begin
+            G = GuidingVectorSampling(H, empty(v), 0.2)
+
+            addr = starting_address(H)
+            @test starting_address(G) == addr
+            @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
+            @test LOStructure(G) isa AdjointKnown
+        end
+
+        @testset "With non-empty vector" begin
+            G = GuidingVectorSampling(H, v, 0.2)
+            addr = starting_address(H)
+            @test starting_address(G) == addr
+            @test LOStructure(G) isa AdjointKnown
+
+            for i in 1:num_offdiagonals(G, addr)
+                addr2, me = get_offdiagonal(G, addr, i)
+                top = ifelse(v[addr] < 0.2, 0.2, v[addr])
+                bot = ifelse(v[addr2] < 0.2, 0.2, v[addr2])
+                w = top / bot
+                @test get_offdiagonal(H, addr, i)[2] * w ≈ me
+                @test get_offdiagonal(H, addr, i)[1] == addr2
+                @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+            end
         end
     end
 
