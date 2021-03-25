@@ -19,13 +19,13 @@ the module `BitStringAddresses`. The type works well with the external package
 Provides:
 
 * [`offdiagonals`](@ref): iterator over reachable off-diagonal matrix elements
-* [`generateRandHop`](@ref): function to generate random off-diagonal matrix element
+* [`random_offdiagonal`](@ref): function to generate random off-diagonal matrix element
 * [`dimension`](@ref): get the dimension of the address space.
 * `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes
 * `*(H, v)`: deterministic matrix-vector multiply.
-* `H(v)`: equivalent to `LO * v`.
+* `H(v)`: equivalent to `H * v`.
 * `mul!(w, H, v)`: mutating matrix-vector multiply.
-* [`dot(x, H, v)`](@ref): compute `x⋅(LO*v)` minimizing allocations.
+* [`dot(x, H, v)`](@ref): compute `x⋅(H*v)` minimizing allocations.
 
 Methods that need to be implemented:
 
@@ -90,8 +90,9 @@ num_offdiagonals
 """
     newadd, me = get_offdiagonal(ham, add, chosen)
 
-Compute matrix element of `hamiltonian` and new address of a single get_offdiagonal from
-address `add` with integer index `chosen`.
+Compute value `me` and new address `newadd` of a single (off-diagonal) matrix element in a
+Hamiltonian `ham`. The off-diagonal element is in the same column as address `add` and is
+indexed by integer index `chosen`.
 
 # Example
 
@@ -237,8 +238,6 @@ Note: `momentum` is currently only defined on [`HubbardMom1D`](@ref).
 # Example
 
 ```jldoctest
-julia> using Rimu.Hamiltonians: MomentumMom1D # MomentumMom1D is unexported
-
 julia> add = BoseFS((1, 0, 2, 1, 2, 1, 1, 3));
 
 julia> ham = HubbardMom1D(add; u = 2.0, t = 1.0);

@@ -13,7 +13,7 @@ using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
 
-export AbstractHamiltonian, TwoComponentBosonicHamiltonian, offdiagonals, generateRandHop
+export AbstractHamiltonian, TwoComponentBosonicHamiltonian, offdiagonals, random_offdiagonal
 export diagonal_element, num_offdiagonals, get_offdiagonal, dimension, starting_address
 export rayleigh_quotient, momentum
 

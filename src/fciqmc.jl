@@ -1030,7 +1030,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
     hops = offdiagonals(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1080,7 +1080,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     # real psips first
     num = real(cnum)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1100,7 +1100,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     # now imaginary psips
     num = imag(cnum)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1205,7 +1205,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2PopInitiator, w, ham::AbstractHa
     # real psips first
     num = real(cnum)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1225,7 +1225,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2PopInitiator, w, ham::AbstractHa
     # now imaginary psips
     num = imag(cnum)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1333,7 +1333,7 @@ function fciqmc_col!(nl::DictVectors.IsStochasticNonlinear, w, ham::AbstractHami
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
     hops = offdiagonals(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1384,7 +1384,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add,
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
     hops = offdiagonals(ham,add)
     for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1476,7 +1476,7 @@ function fciqmc_col!(s::DictVectors.IsSemistochastic, w, ham::AbstractHamiltonia
         # TODO: stochastic
         hops = offdiagonals(ham, add)
         for n in 1:floor(abs(val)) # abs(val÷s.threshold) # for each psip attempt to spawn once
-            naddress, pgen, matelem = generateRandHop(hops)
+            naddress, pgen, matelem = random_offdiagonal(hops)
             pspawn = dτ * abs(matelem) /pgen # non-negative Float64
             nspawn = floor(pspawn) # deal with integer part separately
             cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1496,7 +1496,7 @@ function fciqmc_col!(s::DictVectors.IsSemistochastic, w, ham::AbstractHamiltonia
         end
         # deal with non-integer remainder
         rval =  abs(val%1) # abs(val%threshold)
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1539,7 +1539,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     hops = offdiagonals(ham, add)
     # first deal with integer psips
     for n in 1:floor(abs(val)) # for each psip attempt to spawn once
-        naddress, pgen, matelem = generateRandHop(hops)
+        naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
         nspawn = floor(pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
@@ -1554,7 +1554,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     end
     # deal with non-integer remainder: attempt to spawn
     rval =  abs(val%1) # non-integer part reduces probability for spawning
-    naddress, pgen, matelem = generateRandHop(hops)
+    naddress, pgen, matelem = random_offdiagonal(hops)
     pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64
     nspawn = floor(pspawn) # deal with integer part separately
     cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn

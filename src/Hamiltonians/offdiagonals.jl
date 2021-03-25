@@ -53,23 +53,23 @@ julia> h = offdiagonals(H, addr)
 offdiagonals(h, a) = Offdiagonals(h, a)
 
 """
-    generateRandHop(offdiagonals::AbstractOffdiagonals)
-    generateRandHop(ham::AbstractHamiltonian, add)
+    random_offdiagonal(offdiagonals::AbstractOffdiagonals)
+    random_offdiagonal(ham::AbstractHamiltonian, add)
 
 Generate a single random excitation, i.e. choose from one of the accessible off-diagonal
 elements in the column corresponding to address `add` of the Hamiltonian matrix represented
 by `ham`. Alternatively, pass as argument an iterator over the accessible matrix elements.
 
 """
-function generateRandHop(offdiagonals::AbstractOffdiagonals)
+function random_offdiagonal(offdiagonals::AbstractOffdiagonals)
     nl = length(offdiagonals) # check how many sites we could get_offdiagonal to
     chosen = cRand(1:nl) # choose one of them
     naddress, melem = offdiagonals[chosen]
     return naddress, 1.0/nl, melem
 end
 
-function generateRandHop(ham::AbstractHamiltonian, add)
-    return generateRandHop(offdiagonals(ham, add))
+function random_offdiagonal(ham::AbstractHamiltonian, add)
+    return random_offdiagonal(offdiagonals(ham, add))
 end
 
 """
