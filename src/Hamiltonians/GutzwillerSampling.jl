@@ -1,11 +1,11 @@
 """
     GutzwillerSampling(::AbstractHamiltonian; g)
 
-Wrapper over any `AbstractHamiltonian` that makes it use importance sampling. In importance
-sampling, a get_offdiagonal from address `i` to `j` is weighted by weight `w`, where
+Wrapper over any `AbstractHamiltonian` that implements Gutzwiller sampling. In this
+importance sampling scheme the Hamiltonian is modified as follows.
 
 ```math
-w = exp[-g(H_{jj} - H_{ii})]
+\tilde{H}_{ij} = H_{ij} e^{-g(H_{jj} - H_{ii})}
 ```
 
 # Example
