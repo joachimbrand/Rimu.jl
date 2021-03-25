@@ -168,7 +168,7 @@ end
         end
     end
 
-    @testset "adjoint" begin
+    @testset "adjoints" begin
         ###
         ### Define Hamiltonian from a matrix.
         ###
@@ -193,16 +193,29 @@ end
 
         LinearAlgebra.adjoint(m::MatrixHam) = MatrixHam(collect(m.arr'))
         Hamiltonians.LOStructure(::Type{<:MatrixHam}) = AdjointKnown()
-
         dm(h) = Hamiltonians.build_sparse_matrix_from_LO(h)[1] |> Matrix
-
         M = MatrixHam(rand(Complex{Float64}, (20, 20)))
         @test dm(M) == M.arr
         @test dm(M') == M.arr'
-        @test dm(GutzwillerSampling(M, 0.2)') == dm(GutzwillerSampling(M, 0.2))'
-        @test LOStructure(GutzwillerSampling(M, 0.2)) isa AdjointKnown
-        @test LOStructure(GutzwillerSampling(HubbardReal1D(BoseFS((1,2)),t=0+2im), 0.2)) isa
-            AdjointUnknown
+
+        @testset "Gutzwiller adjoint" begin
+            @test dm(GutzwillerSampling(M, 0.2)') == dm(GutzwillerSampling(M, 0.2))'
+            @test LOStructure(GutzwillerSampling(M, 0.2)) isa AdjointKnown
+            @test LOStructure(
+                GutzwillerSampling(HubbardReal1D(BoseFS((1,2)),t=0+2im), 0.2)
+            ) isa AdjointUnknown
+        end
+        @testset "GuidingVector adjoint" begin
+            v = DVec2(starting_address(M) => 10; capacity=10)
+            @test dm(GuidingVectorSampling(M, v, 0.2)') ≈
+                dm(GuidingVectorSampling(M, v, 0.2))'
+            @test LOStructure(GuidingVectorSampling(M, v, 0.2)) isa AdjointKnown
+            @test LOStructure(GuidingVectorSampling(
+                HubbardReal1D(BoseFS((1,2)),t=0+2im),
+                DVec2(BoseFS((1,2)) => 1.1; capacity=10),
+                0.2,
+            )) isa AdjointUnknown
+        end
     end
 end
 
