@@ -337,7 +337,7 @@ end
     df2 = DFVec(Dict(3=>(3.5,true)), 200)
     @test capacity(df2) == 341
     df3 = DFVec{Int,Float64,Int}(30)
-    @test capacity(df3) == 42
+    @test capacity(df3) ≥ 30
     df4 = DFVec([1,2,3,4])
 
     dv = DVec([1,2,3,4])

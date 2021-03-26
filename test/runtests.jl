@@ -38,13 +38,13 @@ end
 using Rimu.ConsistentRNG
 @testset "ConsistentRNG.jl" begin
     seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
-    @test cRand(UInt128) == 0xad2acf8f66080104f395d0b7ed4713d9
+    @test cRand(UInt128) == 0x31b845fb73fcb6aa392bdbbeabf3ce50
 
-    @test rand(ConsistentRNG.CRNGs[][1],UInt128) == 0x0b0c30478c16f78daa91bcc785895269
+    @test rand(ConsistentRNG.CRNGs[][1],UInt128) == 0xad825b6d8cdd554f3deee102bf4d5704
     # Only looks at first element of the `NTuple`. This should be reproducible
     # regardless of `numthreads()`.
-    @test rand(trng(),UInt16) == 0x4c52
-    @test rand(newChildRNG(),UInt16) == 0xc4f1
+    @test rand(trng(),UInt16) == 0xcd4d
+    @test rand(newChildRNG(),UInt16) == 0x6e4c
     @test ConsistentRNG.check_crng_independence(0) == Threads.nthreads()
 end
 
@@ -130,7 +130,7 @@ end
     τ_strat = ConstantTimeStep()
 
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @test sum(rdfs[:,:spawns]) == 3263 #(OV ? 2603 : 3263)
+    @test sum(rdfs[:,:spawns]) == 2503
 
     # fciqmc with delayed shift update
     pa = RunTillLastStep(laststep = 100)
@@ -140,7 +140,7 @@ end
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @test sum(rdfs[:,:spawns]) == 9932 #(OV ? 7233 : 9932)
+    @test sum(rdfs[:,:spawns]) == 9283
 
     # replica fciqmc
     vv = [copy(svec),copy(svec)]
@@ -148,7 +148,7 @@ end
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
-    @test sum(rr[1][:,:xHy]) ≈ -45891.01102371609 #(OV ? -40751.45601645894 : -45891.01102371609)
+    @test sum(rr[1][:,:xHy]) ≈ -54240.91783350558
 end
 
 @testset "fciqmc with BoseFS" begin
@@ -171,7 +171,7 @@ end
 
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @test sum(rdfs[:,:spawns]) == 3263 #(OV ? 2603 : 3263)
+    @test sum(rdfs[:,:spawns]) == 2503
 
     # fciqmc with delayed shift update
     pa = RunTillLastStep(laststep = 100)
@@ -181,7 +181,7 @@ end
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @test sum(rdfs[:,:spawns]) == 9932 #(OV ? 7233 : 9932)
+    @test sum(rdfs[:,:spawns]) == 9283
 
     # replica fciqmc
     vv = [copy(svec),copy(svec)]
@@ -189,7 +189,7 @@ end
     pb = RunTillLastStep(laststep = 300)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
-    @test sum(rr[1][:,:xHy]) ≈ -7.69252569645882e6 #(OV ? -8.356031508027215e6 : -7.69252569645882e6)
+    @test sum(rr[1][:,:xHy]) ≈ -8.652488812369037e6
 
     # replica fciqmc with multithreading
     tup1 = [copy(svec),copy(svec)]
@@ -220,15 +220,15 @@ end
     @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
     pa.laststep = 100
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, similar(vs))
-    @test sum(rdfs[:,:spawns]) == 116658 # (OV ? 117364 : 116658)
+    @test sum(rdfs[:,:spawns]) == 114982
 
     # single step
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, 1.0, similar(vs))
     if Threads.nthreads() == 1 # I'm not sure why this is necessary, but there
         # seems to be a difference
-        @test sum(stats) == 479 #(OV ? 436 : 479)
+        @test sum(stats) == 403
     elseif Threads.nthreads() == 4
-        @test sum(stats) == 479 #(OV ? 643 : 479)
+        @test sum(stats) == 403
     end
 
     # single step multi threading
@@ -237,14 +237,14 @@ end
     ṽ, w̃, stats = Rimu.fciqmc_step!(ham, copy(vs), pa.shift, pa.dτ, 1.0, ws;
                     batchsize = length(vs)÷4+1)
     if Threads.nthreads() == 1
-        @test sum(stats) == 475 #(OV ? 428 : 475) # test assuming nthreads() == 1
+        @test sum(stats) == 417
     end
 
     # run 100 steps with multi
     pa.laststep = 200
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == 134595 # (OV ? 136992 : 136905) # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 135450
     end
 
     # threaded version of standard fciqmc!
@@ -261,7 +261,7 @@ end
     pa.laststep = 100
     @time rdfs = fciqmc!(vs, pa, rdfs, ham, s, r_strat, τ_strat, ws)
     if Threads.nthreads() == 1
-        @test sum(rdfs[:,:spawns]) == 119005 #(OV ? 118650 : 119854) # test assuming nthreads() == 1
+        @test sum(rdfs[:,:spawns]) == 117920
     end
 end
 
@@ -298,42 +298,42 @@ end
     pa = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ 3012.564012011806 # (OV ? 3250.375173192328 : 3012.564012011806)
+    @test sum(rdfs[:,:norm]) ≈ 3406.7600919992333
 
     # NoProjectionTwoNorm
     vs = copy(svec)
     pa = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), p_strat = NoProjectionTwoNorm())
-    @test sum(rdfs[:,:norm]) ≈ 3467.388948546654 # (OV ? 3518.9649297547053 : 3467.388948546654)
+    @test sum(rdfs[:,:norm]) ≈ 3179.853053449826
 
     # NoMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = NoMemory(), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ 3012.564012011806 # (OV ? 3250.3751731923294 : 3012.564012011806)
+    @test sum(rdfs[:,:norm]) ≈ 3406.7600919992333
 
     # DeltaMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(1), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ 3012.564012011806 # (OV ? 3250.3751731923294 : 3012.564012011806)
+    @test sum(rdfs[:,:norm]) ≈ 3406.7600919992333
 
     # DeltaMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ 2683.334567725324 #(OV ? 2841.683858917014 : 2683.334567725324)
-    @test sum(rdfs.shiftnoise) ≈ 0.282574064213998 # (OV ? 0.456062023263646 : 0.282574064213998)
+    @test sum(rdfs[:,:norm]) ≈ 2900.9694828393235
+    @test sum(rdfs.shiftnoise) ≈ 0.6112845404214162
     # DeltaMemory2
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), p_strat = p)
-    @test sum(rdfs[:,:norm]) ≈ 3114.518739252482 #(OV ? 3407.75528796349 : 3114.518739252482)
+    @test sum(rdfs[:,:norm]) ≈ 3278.6762216638435
 
     # ScaledThresholdProject
     vs = copy(svec)
@@ -341,7 +341,7 @@ end
     pa = RunTillLastStep(laststep = 100)
     p_strat = ScaledThresholdProject(1.0)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ 3122.817384314045 # (OV ? 3174.5195839788425 : 3122.817384314045)
+    @test sum(rdfs[:,:norm]) ≈ 3183.082734638954
 
     # ProjectedMemory
     vs = copy(svec)
@@ -350,7 +350,7 @@ end
     p_strat = NoProjection() # ScaledThresholdProject(1.0)
     m_strat = Rimu.ProjectedMemory(5,UniformProjector(), vs)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = m_strat, p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ 3054.5448859688427 # (OV ? 3256.8110011126214 : 3054.5448859688427)
+    @test sum(rdfs[:,:norm]) ≈ 3277.0961919775414
 
     # ShiftMemory
     vs = copy(svec)
@@ -358,7 +358,7 @@ end
     pa = RunTillLastStep(laststep = 100)
     p_strat = NoProjection() #ScaledThresholdProject(1.0)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10), p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ 3298.7124102559173 # (OV ? 3231.4229026099574 : 3298.7124102559173)
+    @test sum(rdfs[:,:norm]) ≈ 2453.1503317118295
 
     # applyMemoryNoise
     v2=DVec(Dict(aIni => 2))
@@ -377,7 +377,7 @@ end
     pa = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs))
-    @test sum(rdfs[:,:norm]) ≈ 3687.674720780682 #(OV ? 3939.3835802371677 : 3687.674720780682)
+    @test sum(rdfs[:,:norm]) ≈ 4096.345600973328
 end
 
 @testset "deterministic and multithreading" begin
@@ -451,7 +451,7 @@ end
     svec = DVec(Dict(aIni => 2), 2000)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     nt = lomc!(ham, svec, laststep = 100, threading = false) # run for 100 time steps
-    @test sum(nt.df.spawns) == 3488
+    @test sum(nt.df.spawns) == 3169
 
     aIni2 = BoseFS((0,0,0,0,9,0,0,0,0))
     ham2 = BoseHubbardMom1D(aIni2; u = 1.0, t=1.0)
@@ -483,7 +483,7 @@ end
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     tnorm = Rimu.norm_project!(Rimu.ComplexNoiseCancellation(), v, 4.0+2im, 5.0+1im, 0.6)
     @test real(tnorm) ≈ norm(v)
-    @test tnorm ≈ 1.6216896894892896 + 2.2915515525535524im
+    @test tnorm ≈ 0.004250179379897467 + 10.378749103100512im # TODO: is this ok
 
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
     svec = DVec(aIni => 2; capacity = 200)
@@ -594,7 +594,7 @@ end
         τ_strat = τ_strat, wm = similar(vs)
     ).df
     r = autoblock(rdfs, start=101)
-    @test all(Tuple(r).≈(-5.459498724286854, 0.19512207462981085, -6.474791532530609, 0.5301321595206501, 6))
+    @test all(Tuple(r).≈ (-5.292298156435396, 0.2694478924893601, -5.570298942943498, 0.3477388235691241, 6))
 
     g = growthWitness(rdfs, b=50)
     # @test sum(g) ≈ -5725.3936298329545
@@ -621,8 +621,8 @@ using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
     # energies = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000) |> combine_dfs |> autoblock
     @test ismissing(energies.ē) && ismissing(energies.σe)
     # golden master test on results because qmc evolution is deterministic
-    @test energies.s̄ ≈ -4.110595062715203
-    @test energies.σs ≈ 0.005418295257748296
+    @test energies.s̄ ≈ -4.1140373437304625
+    @test energies.σs ≈ 0.005200600608840792
 end
 
 @testset "BoseFS2C" begin
