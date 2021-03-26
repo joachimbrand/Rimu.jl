@@ -212,7 +212,7 @@ function _trailing(f, s::BitString)
         r == chunk_bits(s, i) || break
     end
     # If top chunk occupies the whole integer, result will always be smaller or equal to B.
-    if top_chunk_bits(s) ≠ 64
+    if f ≢ trailing_ones && top_chunk_bits(s) ≠ 64
         return min(num_bits(s), result)
     else
         return result
@@ -283,13 +283,14 @@ Base.:>>>(s::BitString, k) = s >> k
 
 # remove ghost bits must be applied to both because k might be negative.
 Base.:>>(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .>> k))
+Base.:>>(s::S, k::Unsigned) where S<:BitString{<:Any,1} = S(s.chunks .>> k)
 Base.:<<(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .<< k))
 
 # Is this ordering needed?
 function Base.isless(s1::B, s2::B) where {B<:BitString}
     for i in 1:num_chunks(B)
-        if s1[i] ≠ s2[i]
-            return s1[i] < s2[i]
+        if chunks(s1)[i] ≠ chunks(s2)[i]
+            return chunks(s1)[i] < chunks(s2)[i]
         end
     end
     return false

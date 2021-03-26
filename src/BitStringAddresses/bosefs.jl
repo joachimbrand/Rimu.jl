@@ -10,14 +10,14 @@ abstract type AbstractFockAddress end
 
 Number of particles represented by address.
 """
-num_particles(b) = num_particles(typeof(b))
+num_particles(b::AbstractFockAddress) = num_particles(typeof(b))
 
 """
     num_modes(::Type{<:AbstractFockAddress})
 
 Number of modes represented by address.
 """
-num_modes(b) = num_modes(typeof(b))
+num_modes(b::AbstractFockAddress) = num_modes(typeof(b))
 
 """
     BoseFS{N,M,S} <: AbstractFockAddress
@@ -171,6 +171,7 @@ BoseFS((2,2,1,1,1))
 function nearUniform(::Type{<:BoseFS{N,M}}) where {N,M}
     return BoseFS{N,M}(nearUniformONR(Val(N),Val(M)))
 end
+nearUniform(b::AbstractFockAddress) = nearUniform(typeof(b))
 
 """
     onr(bs)
@@ -252,14 +253,17 @@ struct OccupiedOrbitalIterator{C,S}
     address::S
 end
 
-function occupied_orbitals(b::BoseFS{N,M,S}) where {N,M,S}
+function occupied_orbitals(b::BoseFS{<:Any,<:Any,S}) where {S}
     return OccupiedOrbitalIterator{num_chunks(S),S}(b.bs)
 end
 
 # Single chunk versions are simpler.
 @inline function Base.iterate(osi::OccupiedOrbitalIterator{1})
-    empty_orbitals = trailing_zeros(osi.address)
-    return iterate(osi, (osi.address >> empty_orbitals, empty_orbitals, 1 + empty_orbitals))
+    chunk = osi.address.chunks[1]
+    empty_orbitals = trailing_zeros(chunk)
+    return iterate(
+        osi, (chunk >> (empty_orbitals % UInt), empty_orbitals, 1 + empty_orbitals)
+    )
 end
 @inline function Base.iterate(osi::OccupiedOrbitalIterator{1}, (chunk, bit, orbital))
     if iszero(chunk)
@@ -347,4 +351,12 @@ function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     print(io, ",")
     Base.show(io,b.bsb)
     print(io, ")")
+end
+
+num_particles(::Type{<:BoseFS2C{NA,NB}}) where {NA,NB} = NA + NB
+num_modes(::Type{<:BoseFS2C{<:Any,<:Any,M}}) where {M} = M
+Base.isless(a::BoseFS2C, b::BoseFS2C) = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
+
+function nearUniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
+    return BoseFS2C(nearUniform(BoseFS{NA,M}), nearUniform(BoseFS{NB,M}))
 end

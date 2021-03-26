@@ -138,7 +138,7 @@ using Test
     end
 end
 
-using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction, hopnextneighbour
+using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextneighbour
 
 @testset "BoseFS" begin
     middle_full = BoseFS{67,100}(
@@ -174,10 +174,10 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction, hopnextnei
         @test numberoccupiedsites(middle_empty) == 2
         @test numberoccupiedsites(two_full) == 1
     end
-    @testset "bosehubbardinteraction" begin
-        @test bosehubbardinteraction(middle_full) == 66 * 65
-        @test bosehubbardinteraction(middle_empty) == 8 * 7 + 2
-        @test bosehubbardinteraction(two_full) == 136 * 135
+    @testset "bose_hubbard_interaction" begin
+        @test bose_hubbard_interaction(middle_full) == 66 * 65
+        @test bose_hubbard_interaction(middle_empty) == 8 * 7 + 2
+        @test bose_hubbard_interaction(two_full) == 136 * 135
     end
     @testset "occupied_orbitals" begin
         (bosons, orbital, bit), st = iterate(occupied_orbitals(middle_full))
@@ -238,10 +238,10 @@ using Rimu.Hamiltonians: numberoccupiedsites, bosehubbardinteraction, hopnextnei
                     @test num_modes(bose) == M
                     @test onr(bose) == input
                     @test numberoccupiedsites(bose) == count(!iszero, input)
-                    if bosehubbardinteraction(bose) != sum(input .* (input .- 1))
+                    if bose_hubbard_interaction(bose) != sum(input .* (input .- 1))
                         @show input
                     end
-                    @test bosehubbardinteraction(bose) == sum(input .* (input .- 1))
+                    @test bose_hubbard_interaction(bose) == sum(input .* (input .- 1))
 
                     @test onr2(bose) == input
 

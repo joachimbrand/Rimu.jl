@@ -7,7 +7,7 @@ for dvec_type in (DVec, DVec2)
         ham = BoseHubbardReal1D(nearUniform(BoseFS{6,6}); u=6.0, t=1.0)
 
         a_init = nearUniform(ham)
-        c_init = dvec_type(a_init => 1.0; capacity=ham(:dim))
+        c_init = dvec_type(a_init => 1.0; capacity=dimension(ham))
 
         all_results = eigsolve(ham, c_init, 1, :SR; issymmetric = true)
         energy = all_results[1][1]

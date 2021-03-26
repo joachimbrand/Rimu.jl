@@ -49,86 +49,39 @@ using Rimu.ConsistentRNG
 end
 
 @testset "Hamiltonians.jl" begin
-    ham = BoseHubbardReal1D(
-        n = 9,
-        m = 9,
-        u = 6.0,
-        t = 1.0,
-        AT = BoseFS{9,9})
-    @test ham(:dim) == 24310
-
-    aIni = Rimu.Hamiltonians.nearUniform(ham)
-    @test aIni == BoseFS{9,9}((1,1,1,1,1,1,1,1,1))
-
-    hp = Hops(ham,aIni)
-    @test length(hp) == 18
-    @test hp[18][1] == BoseFS{9,9}(BitString{17}(0x000000000000d555))
-    @test hp[18][2] ≈ -1.4142135623730951
-    @test diagME(ham,aIni) == 0
-    os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
-    @test Rimu.Hamiltonians.bosehubbardinteraction(os) == 148
-    @test Rimu.Hamiltonians.ebhm(os) == (53, 148)
-    @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
-    hnnn = Rimu.Hamiltonians.hopnextneighbour(BoseFS{25,16}(BitString{40}(0xf342564fff)),3)
-    bs = BoseFS(BitString{40}(0xf342564fff))
-    hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3)
-    @test hnnn == hnnbs
-
-    svec = DVec2(Dict(aIni => 2.0), ham(:dim))
-    v2 = ham(svec)
-    v3 = ham*v2
-    @test norm(v3,1) ≈ 1482.386824949077
-    @test v2 == mul!(similar(svec), ham, svec)
-    @test norm(v2) ≈ 12
-    @test v2 == ham*svec
-    @test dot(v2,ham,svec) == v2⋅(ham*svec) ≈ 144
-    @test -⋅(UniformProjector(),ham,svec)≈⋅(NormProjector(),ham,svec)≈norm(v2,1)
-    @test dot(Norm2Projector(),v2) ≈ norm(v2,2)
-    @test Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO()
-    aIni2 = nearUniform(BoseFS{9,9})
-    hamc = BoseHubbardReal1D(aIni2, u=6.0+0im, t=1.0+0im) # formally a complex operator
-    @test Hamiltonians.LOStructure(hamc) == Hamiltonians.ComplexLO()
-    @test dot(v3,ham,svec) ≈ dot(v3,hamc,svec) ≈ dot(svec,ham,v3) ≈ dot(svec,hamc,v3) ≈ 864
-    hamcc = BoseHubbardReal1D(aIni2, u=6.0+0.1im, t=1.0+2im) # a complex operator
-    vc2 = hamcc*svec
-    @test isreal(dot(vc2,hamcc,svec))
-    @test dot(vc2,hamc,svec) ≉ dot(svec,hamc,vc2)
-
-    @test adjoint(ham) == ham' == ham
-    @test Rimu.Hamiltonians.LOStructure(hamcc) == Rimu.Hamiltonians.ComplexLO()
-    @test_throws ErrorException hamcc'
+    include("Hamiltonians.jl")
 end
 
 @testset "BoseHubbardMom1D" begin
     bfs= BoseFS((1,0,2,1,2,1,1,3))
     @test Hamiltonians.numberoccupiedsites(bfs) == 7
-    @test Hamiltonians.numSandDoccupiedsites(bfs) == (7,3)
-    @test Hamiltonians.numSandDoccupiedsites(onr(bfs)) == Hamiltonians.numSandDoccupiedsites(bfs)
+    @test Hamiltonians.num_singly_doubly_occupied_sites(bfs) == (7,3)
+    @test Hamiltonians.num_singly_doubly_occupied_sites(onr(bfs)) == Hamiltonians.num_singly_doubly_occupied_sites(bfs)
 
     ham = Hamiltonians.BoseHubbardMom1D(bfs)
-    @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
-    @test diagME(ham,bfs) ≈ 14.296572875253808
-    momentum = Momentum(ham)
-    @test diagME(momentum,bfs) ≈ -1.5707963267948966
+    @test num_offdiagonals(ham,bfs) == 273
+    @test get_offdiagonal(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test diagonal_element(ham,bfs) ≈ 14.296572875253808
+    m = momentum(ham)
+    @test diagonal_element(m,bfs) ≈ -1.5707963267948966
     v = DVec(Dict(bfs => 10), 1000)
-    @test rayleigh_quotient(momentum, v) ≈ -1.5707963267948966
+    @test rayleigh_quotient(m, v) ≈ -1.5707963267948966
 
     ham = Hamiltonians.HubbardMom1D(bfs)
-    @test numOfHops(ham,bfs) == 273
-    @test hop(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
-    @test diagME(ham,bfs) ≈ 14.296572875253808
-    momentum = Momentum(ham)
-    @test diagME(momentum,bfs) ≈ -1.5707963267948966
+    @test num_offdiagonals(ham,bfs) == 273
+    @test get_offdiagonal(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
+    @test diagonal_element(ham,bfs) ≈ 14.296572875253808
+    m = momentum(ham)
+    @test diagonal_element(m,bfs) ≈ -1.5707963267948966
     v = DVec(Dict(bfs => 10), 1000)
-    @test rayleigh_quotient(momentum, v) ≈ -1.5707963267948966
+    @test rayleigh_quotient(m, v) ≈ -1.5707963267948966
 
     fs = BoseFS((1,2,1,0)) # should be zero momentum
     ham = BoseHubbardMom1D(fs,t=1.0)
-    m=Momentum(ham) # define momentum operator
-    mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
+    m=momentum(ham) # define momentum operator
+    mom_fs = diagonal_element(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
-    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in Hops(ham, fs)]) # check that momentum does not change for hops
+    @test reduce(&,[isapprox(mom_fs, diagonal_element(m,h[1]), atol = sqrt(eps())) for h in offdiagonals(ham, fs)]) # check that momentum does not change for offdiagonals
     # construct full matrix
     smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
     # compute its eigenvalues
@@ -143,10 +96,10 @@ end
     @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
 
     ham = Hamiltonians.HubbardMom1D(fs,t=1.0)
-    m=Momentum(ham) # define momentum operator
-    mom_fs = diagME(m, fs) # get momentum value as diagonal matrix element of operator
+    m=momentum(ham) # define momentum operator
+    mom_fs = diagonal_element(m, fs) # get momentum value as diagonal matrix element of operator
     @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
-    @test reduce(&,[isapprox(mom_fs, diagME(m,h[1]), atol = sqrt(eps())) for h in Hops(ham, fs)]) # check that momentum does not change for hops
+    @test reduce(&,[isapprox(mom_fs, diagonal_element(m,h[1]), atol = sqrt(eps())) for h in offdiagonals(ham, fs)]) # check that momentum does not change for offdiagonals
     # construct full matrix
     smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
     # compute its eigenvalues
@@ -169,7 +122,7 @@ end
 
     # standard fciqmc
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
+    svec = DVec(Dict(aIni => 2), dimension(ham))
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
@@ -182,7 +135,7 @@ end
     # fciqmc with delayed shift update
     pa = RunTillLastStep(laststep = 100)
     s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
+    svec = DVec(Dict(aIni => 2), dimension(ham))
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
@@ -208,7 +161,7 @@ end
 
     # standard fciqmc
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
+    svec = DVec(Dict(aIni => 2), dimension(ham))
     StochasticStyle(svec)
     vs = copy(svec)
 
@@ -223,7 +176,7 @@ end
     # fciqmc with delayed shift update
     pa = RunTillLastStep(laststep = 100)
     s = DelayedLogUpdateAfterTargetWalkers(targetwalkers = 100, a = 5)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
+    svec = DVec(Dict(aIni => 2), dimension(ham))
     StochasticStyle(svec)
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
@@ -252,7 +205,7 @@ end
     m = 200
     aIni = nearUniform(BoseFS{n,m})
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    iShift = diagME(ham, aIni)
+    iShift = diagonal_element(ham, aIni)
 
     # standard fciqmc
     tw = 1_000
@@ -333,7 +286,7 @@ end
 
     # IsStochasticWithThreshold
     s = DoubleLogUpdate(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2.0), ham(:dim))
+    svec = DVec(Dict(aIni => 2.0), dimension(ham))
     # Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
     @setThreshold svec 0.621
     @test StochasticStyle(svec) == IsStochasticWithThreshold(0.621)
@@ -417,7 +370,7 @@ end
     aIni = BoseFS((0,0,6,0,0,0))
     ham = BoseHubbardMom1D(aIni, u=6.0)
     s = DoubleLogUpdate(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2.0), ham(:dim))
+    svec = DVec(Dict(aIni => 2.0), dimension(ham))
     Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
     StochasticStyle(svec)
     vs = copy(svec)
@@ -438,7 +391,7 @@ end
     aIni = nearUniform(BoseFS{n,m})
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
     # ### Deterministic FCIQMC
-    svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
+    svec2 = DVec(Dict(aIni => 2.0), dimension(ham))
     Rimu.StochasticStyle(::Type{typeof(svec2)}) = IsDeterministic()
     StochasticStyle(svec2)
 
@@ -449,7 +402,7 @@ end
     @time rdf = fciqmc!(svec2, pa, ham, s_strat, r_strat, τ_strat, similar(svec2))
     @test rdf.:shift[101] ≈ -1.5985012281209916
     # Multi-threading
-    svec2 = DVec(Dict(aIni => 2.0), ham(:dim))
+    svec2 = DVec(Dict(aIni => 2.0), dimension(ham))
     pa = RunTillLastStep(laststep = steps,  dτ = dτ)
     cws = capacity(svec2)÷Threads.nthreads()+1
     ws = Tuple(similar(svec2,cws) for i=1:Threads.nthreads())
@@ -629,7 +582,7 @@ end
 
     # standard fciqmc
     s = DoubleLogUpdate(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2), ham(:dim))
+    svec = DVec(Dict(aIni => 2), dimension(ham))
     StochasticStyle(svec)
     vs = copy(svec)
     r_strat = EveryTimeStep(projector = copytight(svec))
@@ -679,34 +632,34 @@ end
     @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
     @test onr(bfs2c.bsa) == [1,2,0,4]
     @test onr(bfs2c.bsb) == [4,0,3,1]
-    @test Hamiltonians.bosehubbard2Cinteraction(bfs2c) == 8 # n_a*n_b over all sites
+    @test Hamiltonians.bose_hubbard_2c_interaction(bfs2c) == 8 # n_a*n_b over all sites
 end
 
 @testset "TwoComponentBosonicHamiltonian" begin
     aIni2cReal = BoseFS2C(BoseFS((1,1,1,1)),BoseFS((1,1,1,1))) # real space two-component
     Ĥ2cReal = BoseHubbardReal1D2C(aIni2cReal; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
-    hamA = BoseHubbardReal1D(n=4,m=4,u=6.0,t=1.0,AT=BoseFS{4,4,BitString{7,1}})
-    hamB = BoseHubbardReal1D(BoseFS((1,1,1,1));u=6.0)
+    hamA = HubbardReal1D(BoseFS((1,1,1,1)); u=6.0, t=1.0)
+    hamB = HubbardReal1D(BoseFS((1,1,1,1)); u=6.0)
     @test hamA == Ĥ2cReal.ha
     @test hamB == Ĥ2cReal.hb
-    @test numOfHops(Ĥ2cReal,aIni2cReal) == 16
-    @test numOfHops(Ĥ2cReal,aIni2cReal) == numOfHops(Ĥ2cReal.ha,aIni2cReal.bsa)+numOfHops(Ĥ2cReal.hb,aIni2cReal.bsb)
-    @test Ĥ2cReal(:dim) == 1225
-    @test Ĥ2cReal(:fdim) == 1225.0
+    @test num_offdiagonals(Ĥ2cReal,aIni2cReal) == 16
+    @test num_offdiagonals(Ĥ2cReal,aIni2cReal) == num_offdiagonals(Ĥ2cReal.ha,aIni2cReal.bsa)+num_offdiagonals(Ĥ2cReal.hb,aIni2cReal.bsb)
+    @test dimension(Ĥ2cReal) == 1225
+    @test dimension(Float64, Ĥ2cReal) == 1225.0
 
-    hp2c = Hops(Ĥ2cReal,aIni2cReal)
+    hp2c = offdiagonals(Ĥ2cReal,aIni2cReal)
     @test length(hp2c) == 16
     @test hp2c[1][1] == BoseFS2C(BoseFS((0,2,1,1)), BoseFS((1,1,1,1)))
     @test hp2c[1][2] ≈ -1.4142135623730951
-    @test diagME(Ĥ2cReal,aIni2cReal) ≈ 24.0 # from the V term
+    @test diagonal_element(Ĥ2cReal,aIni2cReal) ≈ 24.0 # from the V term
 
     aIni2cMom = BoseFS2C(BoseFS((0,4,0,0)),BoseFS((0,4,0,0))) # momentum space two-component
     Ĥ2cMom = BoseHubbardMom1D2C(aIni2cMom; ua = 6.0, ub = 6.0, ta = 1.0, tb = 1.0, v= 6.0)
-    @test numOfHops(Ĥ2cMom,aIni2cMom) == 9
-    @test Ĥ2cMom(:dim) == 1225
-    @test Ĥ2cMom(:fdim) == 1225.0
+    @test num_offdiagonals(Ĥ2cMom,aIni2cMom) == 9
+    @test dimension(Ĥ2cMom) == 1225
+    @test dimension(Float64, Ĥ2cMom) == 1225.0
 
-    hp2cMom = Hops(Ĥ2cMom,aIni2cMom)
+    hp2cMom = offdiagonals(Ĥ2cMom,aIni2cMom)
     @test length(hp2cMom) == 9
     @test hp2cMom[1][1] == BoseFS2C(BoseFS((1,2,1,0)), BoseFS((0,4,0,0)))
     @test hp2cMom[1][2] ≈ 2.598076211353316
@@ -750,7 +703,6 @@ end
     else
         @test isfile(savefile) == true
     end
-
 
     df = RimuIO.load_df(savefile)
     rm(savefile) # clean up
