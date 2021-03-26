@@ -38,6 +38,15 @@ walkers.
 struct IsStochastic2Pop <: StochasticStyle end
 
 """
+    IsStochastic2PopStoquastic()
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of integer
+walkers. Assuming both real and imaginary walkers are dominantly positive, as expected
+for a stoquastic Hamiltonian, the walkernumber will be calculated by a simple sum.
+"""
+struct IsStochastic2PopStoquastic <: StochasticStyle end
+
+"""
     IsStochastic2PopInitiator()
 Trait for generalised vector of configurations indicating stochastic
 propagation with complex walker numbers representing two populations of integer

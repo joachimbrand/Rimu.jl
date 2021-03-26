@@ -43,16 +43,18 @@ it reports the one norm
 separately for the real and the imaginary part as a `ComplexF64`.
 """
 walkernumber(w) = norm(w,1) # generic fallback
-# # use StochasticStyle trait for dispatch
-# walkernumber(w::AbstractDVec) = walkernumber(StochasticStyle(w), w)
-# walkernumber(::StochasticStyle, w) = norm(w,1)
-# # for AbstractDVec with complex walkers
-# function walkernumber(::T, w) where T <: Union{IsStochastic2Pop,
-#                                                IsStochastic2PopInitiator,
-#                                                IsStochastic2PopWithThreshold
-#                                                }
-#     return isempty(w) ? 0.0+0.0im : sum(p->abs(real(p)) + abs(imag(p))*im, w)|>ComplexF64
-# end
-function walkernumber(w::AbstractDVec{K,V}) where {K, V<:Complex}
+walkernumber(w::AbstractDVec) = walkernumber(StochasticStyle(w), w)
+# use StochasticStyle trait for dispatch
+walkernumber(::StochasticStyle, w) = norm(w,1)
+walkernumber(::DictVectors.IsStochastic2PopStoquastic, w) = float(sum(w))
+# for AbstractDVec with complex walkers
+function walkernumber(::T, w) where T <: Union{DictVectors.IsStochastic2Pop,
+                                               DictVectors.IsStochastic2PopInitiator,
+                                               DictVectors.IsStochastic2PopWithThreshold,
+                                               DictVectors.IsStochastic2PopRealShift
+                                               }
     return isempty(w) ? 0.0+0.0im : sum(p->abs(real(p)) + abs(imag(p))*im, w)|>ComplexF64
 end
+# function walkernumber(w::AbstractDVec{K,V}) where {K, V<:Complex}
+#     return isempty(w) ? 0.0+0.0im : sum(p->abs(real(p)) + abs(imag(p))*im, w)|>ComplexF64
+# end
