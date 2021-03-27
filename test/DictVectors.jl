@@ -50,6 +50,14 @@ function test_dvec_interface(type, keys, values, cap)
                 @test dvec7[k] == v
             end
         end
+        @testset "empty, similar" begin
+            dvec1 = type(pairs...; capacity=cap)
+            dvec2 = empty(empty(empty(empty(dvec1))))
+            @test capacity(dvec1) == capacity(dvec2)
+
+            dvec3 = similar(similar(similar(similar(dvec1))))
+            @test capacity(dvec1) == capacity(dvec3)
+        end
         @testset "setindex, delete" begin
             dvec = type(pairs...; capacity=cap)
             @test length(dvec) == length(pairs)
