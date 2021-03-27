@@ -236,6 +236,7 @@ function test_dvec_interface(type, keys, values, cap)
             @test UniformProjector() ⋅ dvec == sum(dvec)
             @test NormProjector() ⋅ dvec == norm(dvec, 1)
             @test Norm2Projector() ⋅ dvec == norm(dvec, 2)
+            @test Norm1ProjectorPPop() ⋅ dvec == norm(real.(dvec),1)+im*norm(imag.(dvec),1)
         end
         @testset "show" begin
             h, _ = displaysize()

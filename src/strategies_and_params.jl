@@ -63,9 +63,10 @@ reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
 respectively. Possible values for `projector` are
 * `nothing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copytight`](@ref) to conserve memory)
-* [`UniformProjector()`](@ref) - projection onto vector of all ones
-* [`NormProjector()`](@ref) - compute 1-norm instead of projection
-* [`Norm2Projector()`](@ref) - compute 2-norm instead of projection
+* [`UniformProjector()`](@ref) - projection onto vector of all ones (i.e. sum of elements)
+* [`NormProjector()`](@ref) - compute 1-norm (instead of projection)
+* [`Norm1ProjectorPPop()`](@ref) - compute 1-norm per population
+* [`Norm2Projector()`](@ref) - compute 2-norm
 
 In order to help set up the calculation of the projected energy,
 where `df.hproj` should report `dot(projector, ham, v)`, the keyword `hproj`

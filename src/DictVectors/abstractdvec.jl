@@ -350,7 +350,7 @@ LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(y)
 Results in computing the one-norm when used in `dot()`. E.g.
 ```julia
 dot(NormProjector(),x)
--> norm(x,1) # with type valtype(x)
+-> norm(x,1)
 ```
 `NormProjector()` thus represents the vector `sign.(conj.(x))`.
 
@@ -380,3 +380,25 @@ struct Norm2Projector <: AbstractProjector end
 LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y,2)
 # NOTE that this returns a `Float64` opposite to the convention for
 # dot to return the promote_type of the arguments.
+
+"""
+    Norm1ProjectorPPop()
+Results in computing the one-norm per population when used in `dot()`. E.g.
+```julia
+dot(Norm1ProjectorPPop(),x)
+-> norm(real.(x),1) + im*norm(imag.(x),1)
+```
+
+See also [`ReportingStrategy`](@ref) for use
+of projectors in FCIQMC.
+"""
+struct Norm1ProjectorPPop <: AbstractProjector end
+
+function LinearAlgebra.dot(::Norm1ProjectorPPop, y::DVecOrVec)
+    T = float(valtype(y))
+    return isempty(y) ? zero(T) : sum(p->abs(real(p)) + im*abs(imag(p)), y)|>T
+end
+
+# NOTE that this returns a `Float64` opposite to the convention for
+# dot to return the promote_type of the arguments.
+# NOTE: This operation should work for `MPIData` and is MPI synchronizing

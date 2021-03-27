@@ -34,6 +34,7 @@ using ..FastBufs
 
 export AbstractDVec, capacity, zero!, kvpairs, pairtype, add!, copytight
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector
+export Norm1ProjectorPPop
 export DVec, DVec2
 export DFVec, tuples, gettuple, flagtype, flags
 export FastDVec
