@@ -52,7 +52,7 @@ end
 function DVec2(
     dict::AbstractDict{K,V}, capacity, style::StochasticStyle=default_style(valtype(dict))
 ) where {K,V}
-    sizehint!(dict, (3 * capacity) ÷ 2 + 1)
+    sizehint!(dict, capacity)
     return DVec2{K,V,style,typeof(dict)}(dict)
 end
 function DVec2{K,V}(capacity::Int, style::StochasticStyle=default_style(V)) where {K,V}

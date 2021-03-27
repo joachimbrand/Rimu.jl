@@ -25,12 +25,7 @@ end
 DVec(args...; capacity) = DVec(Dict(args...), capacity)
 
 function DVec(dict::D, capacity::Int) where D <: Dict
-    if capacity*3 ≥ length(dict.keys)*2
-        # requested capacity ≥ 2/3 of allocated memory to avoid rehashing
-        # be triggered by `setindex!`
-        sizehint!(dict, (capacity*3)>>1+1)
-        # ensures memory allocation > 3/2 rquested capacity
-    end # does nothing if dict is large enough (shrinking is not implemented)
+    sizehint!(dict, capacity)
     return DVec(dict)
 end
 
