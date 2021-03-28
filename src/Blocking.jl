@@ -17,7 +17,7 @@ export blocker, blocking, blockingErrorEstimation, mtest
 export autoblock, blockAndMTest
 export growthWitness, gW, smoothen
 export block_and_test, mean_and_se, mean_pm_se
-export crosscov_FP, cov_bare
+export crosscov_FP, cov_bare, fidelity_and_se
 
 # """
 # Calculate the variance of the dataset v
@@ -243,6 +243,9 @@ end
     k::Int
 end
 
+get_ks(br::BlockingResult) = (br.k,)
+get_ks(t::Tuple) = (br.k for br in t)
+
 """
     measurement(r::BlockingResult)
     ±(r::BlockingResult)
@@ -352,6 +355,44 @@ end
 function mean_pm_se(v::AbstractVector{<:Complex}; corrected::Bool=true)
     t = block_and_test(v; corrected) # returns tuple with real and complex results
     return complex(Measurements.measurement(t[1]), Measurements.measurement(t[2]))
+end
+
+"""
+    fidelity_and_se(rr::Tuple; p_field = :hproj, steps_equilibrate = 0) -> (;fid, fid_err)
+Compute the fidelity of the average coefficient vector and the projector defined in
+`p_field` and its standard error obtained from blocking analysis with mtest.
+Expects the result of a replica run of [`fciqmc!()`](@ref) passed as argument `rr` (a
+tuple of DataFrames). The fidelity of states `|ψ⟩` and `|ϕ⟩` is defined as
+```math
+F(ψ,ϕ) = \\frac{|⟨ψ|ϕ⟩|^2}{⟨ψ|ψ⟩⟨ϕ|ϕ⟩} .
+```
+Specifically, `fidelity_and_se` computes
+```math
+F(v,⟨c⟩) = \\frac{⟨(c₁⋅v)(v⋅c₂)⟩}{⟨c₁⋅c₂⟩} ,
+```
+where `v` is the projector specified by `p_field`, which is assumed to be normalised to
+unity with the two-norm (i.e. `v⋅v == 1`), and `c₁` and `c₂` are two replica coefficient
+vectors.
+"""
+function fidelity_and_se(rr::Tuple; p_field = :hproj, steps_equilibrate = 0)
+    df1 = rr[2][1] :: DataFrame # first replica DataFrame
+    df2 = rr[2][2] :: DataFrame # second replica DataFrame
+    dfr = rr[1] :: DataFrame # joint results DataFrame
+    # numerator for fidelity calculation as time series (array)
+    fid_num = conj(getproperty(df1, p_field)) .* getproperty(df2, p_field)
+    fid_num = fid_num[steps_equilibrate+1:end]
+    # denominator
+    fid_den = dfr.xdoty[steps_equilibrate+1:end]
+    bt_num = block_and_test(fid_num)
+    bt_den = block_and_test(fid_den)
+    # choose largst k from mtest on blocking analyses on numerator and denominator
+    ks = (get_ks(bt_num)..., get_ks(bt_den)...)
+    any(k->k<0, ks) && @warn "m-test failed at least once for fidelity" ks
+    k = max(ks...)
+    qblocks = blocking(fid_num, fid_den)
+    fid = qblocks.mean_x[1]/qblocks.mean_y[1]
+    fid_err = k>0 ? qblocks.SE_f[k] : missing
+    return (;fid, fid_err)
 end
 
 """

@@ -144,11 +144,15 @@ end
 
     # replica fciqmc
     vv = [copy(svec),copy(svec)]
+    r_strat = EveryTimeStep(projector = copytight(svec), hproj = nothing)
+
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv); report_xHy = true)
     @test sum(rr[1][:,:xHy]) ≈ -52734.63455801873
+    fse = Blocking.fidelity_and_se(rr; p_field = :vproj)
+    @test 0.4 < fse.fid / norm(svec)^2 < 0.6
 end
 
 @testset "fciqmc with BoseFS" begin
@@ -188,7 +192,7 @@ end
     s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
     pb = RunTillLastStep(laststep = 300)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv); report_xHy = true)
     @test sum(rr[1][:,:xHy]) ≈ -9.998205101102287e6
 
     # replica fciqmc with multithreading
