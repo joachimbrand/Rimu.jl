@@ -5,7 +5,7 @@ Wrapper over any `AbstractHamiltonian` that implements guided vector a.k.a. guid
 function sampling. In this importance sampling scheme the Hamiltonian is modified as follows.
 
 ```math
-\tilde{H}_{ij} = v_i^{-1} H_{ij} v_j
+\\tilde{H}_{ij} = v_i^{-1} H_{ij} v_j
 ```
 
 and where `v` is the guiding vector. `v_i` and `v_j` are also thresholded to avoid dividing

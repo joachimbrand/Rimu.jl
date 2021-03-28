@@ -5,7 +5,7 @@ Wrapper over any `AbstractHamiltonian` that implements Gutzwiller sampling. In t
 importance sampling scheme the Hamiltonian is modified as follows.
 
 ```math
-\tilde{H}_{ij} = H_{ij} e^{-g(H_{jj} - H_{ii})}
+\\tilde{H}_{ij} = H_{ij} e^{-g(H_{jj} - H_{ii})}
 ```
 
 # Example
