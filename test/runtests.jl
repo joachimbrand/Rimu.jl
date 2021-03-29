@@ -439,11 +439,6 @@ end
     nt = lomc!(nt, nt.params.laststep + 100) # run for another 100 steps
     @test size(nt.df)[1] == 201 # initial state + 200 steps
 
-    tnorm = norm(nt.v, 1)
-    m_strat = Rimu.ConstrainedNoise(0.3)
-    Rimu.applyMemoryNoise!(nt.v,0,0,0,0, m_strat)
-    @test tnorm == norm(nt.v, 1)
-
     # fciqmc with complex shift and norm
     svec = DVec(Dict(aIni => 2), 2000)
     pa = RunTillLastStep(shift = 0.0 + 0im) # makes shift and norm type ComplexF64
