@@ -274,6 +274,14 @@ Purge all negative sign walkers.
 struct PurgeNegatives <: MemoryStrategy end
 
 """
+    ConstrainedNoise(α) <: MemoryStrategy
+Apply noise in the form of `{0,-1,+1}` at level `0 ≤ α ≤ 1` per walker in each time step.
+"""
+struct ConstrainedNoise  <: MemoryStrategy
+    α::Float64
+end
+
+"""
     DeltaMemory(Δ::Int) <: MemoryStrategy
 Before updating the shift, memory noise with a memory length of `Δ` is applied,
 where `Δ = 1` means no memory noise.

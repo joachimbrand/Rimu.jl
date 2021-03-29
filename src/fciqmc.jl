@@ -749,6 +749,36 @@ function applyMemoryNoise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::Memor
     return 0.0 # default prints an error message
 end
 
+function applyMemoryNoise!(s::StochasticStyle, w, _, _, _, _, m::ConstrainedNoise)
+    # current norm of `w` after FCIQMC step
+    tnorm = norm(w, 1) # MPIsync
+    # define three counters
+    n_pool = Int(tnorm) # pool of remaining random psips
+    n_m = trunc(Int, m.α/2*n_pool) # number of remaining `-1` random psips
+    m.α/2*n_pool > cRand() && (n_m += 1) # stochastic rounding to Int
+    n_mp = 2*n_m # number of remaining `+1` or `-1` random psips
+    # making sure that we get the exact same number of `+1` random psips
+    # @show n_m, n_mp, n_pool
+
+    for (add, num) in pairs(w)
+        noise = 0
+        for i in 1:abs(num)
+            r = cRand(1:n_pool)
+            if r ≤ n_m
+                noise -= 1
+                n_m -= 1 # one `-1` psip is used up
+                n_mp -= 1 # all counters need to be reduced
+            elseif r ≤ n_mp
+                noise += 1
+                n_mp -= 1 # one `+1` psip is used up
+            end
+            n_pool -= 1 # one psip from the pool was used
+        end
+        w[add] = num + sign(num) * noise
+    end
+    return 0.0
+end
+
 function applyMemoryNoise!(s::IsStochasticWithThreshold,
                            w, v, shift, dτ, pnorm, m::DeltaMemory)
     tnorm = norm(w, 1) # MPIsync
