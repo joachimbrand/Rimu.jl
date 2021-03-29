@@ -14,8 +14,8 @@ end
 Implements a one-dimensional Bose Hubbard chain in momentum space.
 
 ```math
-\\hat{H} = -t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
-ϵ_k = - 2 t \\cos(k)
+\\hat{H} = -2t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
+ϵ_k = \\cos(k)
 ```
 
 !!! warning

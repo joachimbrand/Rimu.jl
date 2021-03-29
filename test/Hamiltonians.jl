@@ -66,6 +66,20 @@ end
     end
 end
 
+@testset "Hubbard models with [t|u] = 0" begin
+    bs1 = BoseFS((0,1,0))
+    bs2 = BoseFS((3,3,3))
+    HMt0 = HubbardMom1D(bs1; t=0)
+    HMu0 = HubbardMom1D(bs1; u=0)
+    HRt0 = HubbardReal1D(bs2; t=0)
+    HRu0 = HubbardReal1D(bs2; u=0)
+
+    @test diagonal_element(HMt0, bs1) == 0
+    @test diagonal_element(HRu0, bs2) == 0
+    @test all(iszero, e for (_, e) in offdiagonals(HMu0, bs1))
+    @test all(iszero, e for (_, e) in offdiagonals(HRt0, bs2))
+end
+
 @testset "1C model properties" begin
     addr = nearUniform(BoseFS{100,100})
 
