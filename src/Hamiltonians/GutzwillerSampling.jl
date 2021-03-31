@@ -69,18 +69,19 @@ Base.getproperty(h::GutzwillerSampling, ::Val{:hamiltonian}) = getfield(h, :hami
 num_offdiagonals(h::GutzwillerSampling, add) = num_offdiagonals(h.hamiltonian, add)
 diagonal_element(h::GutzwillerSampling, add) = diagonal_element(h.hamiltonian, add)
 
-function get_offdiagonal(h::GutzwillerSampling, add, chosen)
-    return get_offdiagonal(h, add, chosen, diagonal_element(h, add))
-end
-function get_offdiagonal(h::GutzwillerSampling{A}, add1, chosen, diag1) where A
-    add2, matrix_element = get_offdiagonal(h.hamiltonian, add1, chosen)
-    diag2 = diagonal_element(h, add2)
-
-    if A # adjoint simply switches sign in exp term. Conj was already done in inner H
-        return add2, matrix_element * exp(-h.g * (diag1 - diag2))
+function gutzwiller_modify(matrix_element, is_adjoint, g, diag1, diag2)
+    if is_adjoint
+        return matrix_element * exp(-g * (diag1 - diag2))
     else
-        return add2, matrix_element * exp(-h.g * (diag2 - diag1))
+        return matrix_element * exp(-g * (diag2 - diag1))
     end
+end
+
+function get_offdiagonal(h::GutzwillerSampling{A}, add1, chosen) where A
+    add2, matrix_element = get_offdiagonal(h.hamiltonian, add1, chosen)
+    diag1 = diagonal_element(h, add1)
+    diag2 = diagonal_element(h, add2)
+    return add2, gutzwiller_modify(matrix_element, A, h.g, diag1, diag2)
 end
 
 struct GutzwillerOffdiagonals{
@@ -102,11 +103,7 @@ end
 function Base.getindex(h::GutzwillerOffdiagonals{A,G}, i) where {A,G}
     add2, matrix_element = h.offdiagonals[i]
     diag2 = diagonal_element(h.hamiltonian, add2)
-    if A # adjoint simply switches sign in exp term. Conj was already done in inner H
-        return add2, matrix_element * exp(-G * (h.diag - diag2))
-    else
-        return add2, matrix_element * exp(-G * (diag2 - h.diag))
-    end
+    return add2, gutzwiller_modify(matrix_element, A, G, h.diag, diag2)
 end
 
 Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)

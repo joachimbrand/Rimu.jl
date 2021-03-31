@@ -72,28 +72,25 @@ diagonal_element(h::GuidingVectorSampling, add) = diagonal_element(h.hamiltonian
 
 _apply_eps(x, eps) = ifelse(iszero(x), eps, ifelse(abs(x) < eps, sign(x) * eps, x))
 
-function guided_modify_element(value, guide1, guide2, eps)
+function guided_vector_modify(value, is_adjoint, eps, guide1, guide2)
     if iszero(guide1) && iszero(guide2)
         return value
     else
         guide1 = _apply_eps(guide1, eps)
         guide2 = _apply_eps(guide2, eps)
-        return value * (guide2 / guide1)
+        if is_adjoint
+            return value * (guide1 / guide2)
+        else
+            return value * (guide2 / guide1)
+        end
     end
 end
 
-function get_offdiagonal(h::GuidingVectorSampling, add, chosen)
-    return get_offdiagonal(h, add, chosen, h.vector[add])
-end
-function get_offdiagonal(h::GuidingVectorSampling{A}, add1, chosen, guide1) where A
+function get_offdiagonal(h::GuidingVectorSampling{A}, add1, chosen) where A
     add2, matrix_element = get_offdiagonal(h.hamiltonian, add1, chosen)
+    guide1 = h.vector[add1]
     guide2 = h.vector[add2]
-
-    if A # adjoint
-        return add2, guided_modify_element(matrix_element, guide2, guide1, h.eps)
-    else
-        return add2, guided_modify_element(matrix_element, guide1, guide2, h.eps)
-    end
+    return add2, guided_vector_modify(matrix_element, A, h.eps, guide1, guide2)
 end
 
 struct GuidingVectorOffdiagonals{
@@ -117,12 +114,7 @@ function Base.getindex(h::GuidingVectorOffdiagonals{A,E}, i) where {A,E}
     add2, matrix_element = h.offdiagonals[i]
     guide1 = h.guide
     guide2 = h.vector[add2]
-
-    if A # adjoint
-        return add2, guided_modify_element(matrix_element, guide2, guide1, E)
-    else
-        return add2, guided_modify_element(matrix_element, guide1, guide2, E)
-    end
+    return add2, guided_vector_modify(matrix_element, A, E, guide1, guide2)
 end
 
 Base.size(h::GuidingVectorOffdiagonals) = size(h.offdiagonals)
