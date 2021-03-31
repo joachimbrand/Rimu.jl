@@ -4,8 +4,8 @@
 Implements a one-dimensional Bose Hubbard chain in momentum space.
 
 ```math
-\\hat{H} = -2t \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
-ϵ_k = \\cos(k)
+\\hat{H} =  \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
+ϵ_k = -2t \\cos(k)
 ```
 
 # Arguments
@@ -36,7 +36,7 @@ function HubbardMom1D(add::BoseFS{<:Any,M}; u=1.0, t=1.0) where {M}
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    kes = SVector{M}(cos.(kr))
+    kes = SVector{M}(-2T*cos.(kr))
     return HubbardMom1D{typeof(U),M,typeof(add),U,T}(add, ks, kes)
 end
 
@@ -145,7 +145,7 @@ function kinetic_energy(h::HubbardMom1D, add::AbstractFockAddress)
 end
 
 @inline function kinetic_energy(h::HubbardMom1D, onrep::StaticVector)
-    return h.kes⋅onrep # safe as onrep is Real
+    return onrep ⋅ h.kes # safe as onrep is Real
 end
 
 @inline function diagonal_element(h::HubbardMom1D, add)
@@ -154,7 +154,7 @@ end
 end
 
 @inline function diagonal_element(h::HubbardMom1D, onrep::StaticVector)
-    return -2h.t * kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
+    return kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
 end
 
 @inline function get_offdiagonal(ham::HubbardMom1D, add, chosen)
