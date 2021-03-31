@@ -5,7 +5,7 @@ Wrapper over any `AbstractHamiltonian` that implements guided vector a.k.a. guid
 function sampling. In this importance sampling scheme the Hamiltonian is modified as follows.
 
 ```math
-\\tilde{H}_{ij} = v_i^{-1} H_{ij} v_j
+\\tilde{H}_{ij} = v_i H_{ij} v_j^{-1}
 ```
 
 and where `v` is the guiding vector. `v_i` and `v_j` are also thresholded to avoid dividing
@@ -19,6 +19,9 @@ by zero (see below).
 `eps` is a thresholding parameter used to avoid dividing by zero; all values below `eps` are
 set to `eps`. It is recommended that `eps` is in the same value range as the guiding
 vector. The default value is set to `eps=norm(v, Inf) * 1e-2`
+
+After construction, we can access the underlying hamiltonian with `G.hamiltonian`, the
+`eps` parameter with `G.eps`, and the guiding vector with `G.vector`.
 
 # Example
 
@@ -37,6 +40,8 @@ julia> get_offdiagonal(G, starting_address(G), 4)
 ```
 """
 struct GuidingVectorSampling{A,T,H<:AbstractHamiltonian{T},D,E} <: AbstractHamiltonian{T}
+    # The A parameter sets whether this is an adjoint or not.
+    # The E parameter is the epsilon value.
     hamiltonian::H
     vector::D
 end
@@ -73,7 +78,7 @@ function guided_modify_element(value, guide1, guide2, eps)
     else
         guide1 = _apply_eps(guide1, eps)
         guide2 = _apply_eps(guide2, eps)
-        return value * (guide1 / guide2)
+        return value * (guide2 / guide1)
     end
 end
 

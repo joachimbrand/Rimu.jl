@@ -202,8 +202,8 @@ end
 
             for i in 1:num_offdiagonals(G, addr)
                 addr2, me = get_offdiagonal(G, addr, i)
-                top = ifelse(v[addr] < 0.2, 0.2, v[addr])
-                bot = ifelse(v[addr2] < 0.2, 0.2, v[addr2])
+                top = ifelse(v[addr2] < 0.2, 0.2, v[addr2])
+                bot = ifelse(v[addr] < 0.2, 0.2, v[addr])
                 w = top / bot
                 @test get_offdiagonal(H, addr, i)[2] * w ≈ me
                 @test get_offdiagonal(H, addr, i)[1] == addr2

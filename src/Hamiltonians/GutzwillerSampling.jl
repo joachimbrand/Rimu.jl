@@ -8,6 +8,14 @@ importance sampling scheme the Hamiltonian is modified as follows.
 \\tilde{H}_{ij} = H_{ij} e^{-g(H_{jj} - H_{ii})}
 ```
 
+# Constructor
+
+* `GutzwillerSampling(::AbstractHamiltonian, g)`
+* `GutzwillerSampling(::AbstractHamiltonian; g)`
+
+After construction, we can access the underlying hamiltonian with `G.hamiltonian` and the
+`g` parameter with `G.g`.
+
 # Example
 
 ```jldoctest
@@ -25,6 +33,8 @@ julia> get_offdiagonal(I, BoseFS((2, 1, 0)), 1)
 ```
 """
 struct GutzwillerSampling{A,T,H<:AbstractHamiltonian{T},G} <: AbstractHamiltonian{T}
+    # The A parameter sets whether this is an adjoint or not.
+    # The G parameter is g parameter value.
     hamiltonian::H
 end
 
