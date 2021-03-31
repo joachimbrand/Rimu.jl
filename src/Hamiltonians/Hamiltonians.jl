@@ -19,6 +19,7 @@ export rayleigh_quotient, momentum
 
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
+export GutzwillerSampling, GuidingVectorSampling
 
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 
@@ -32,6 +33,9 @@ include("ExtendedHubbardReal1D.jl")
 
 include("BoseHubbardReal1D2C.jl")
 include("BoseHubbardMom1D2C.jl")
+
+include("GutzwillerSampling.jl")
+include("GuidingVectorSampling.jl")
 
 # deprecated:
 include("BoseHubbardReal1D.jl")

@@ -48,7 +48,7 @@ function starting_address(h::HubbardMom1D)
     return h.add
 end
 
-LOStructure(::Type{<:HubbardMom1D{<:Real}}) = HermitianLO()
+LOStructure(::Type{<:HubbardMom1D{<:Real}}) = Hermitian()
 
 Base.getproperty(h::HubbardMom1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::HubbardMom1D, ::Val{:ks}) = getfield(h, :ks)
@@ -277,7 +277,7 @@ Base.size(s::OffdiagonalsBoseMom1D) = (s.length,)
 struct MomentumMom1D{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     ham::H
 end
-LOStructure(::Type{MomentumMom1D{H,T}}) where {H,T <: Real} = HermitianLO()
+LOStructure(::Type{MomentumMom1D{H,T}}) where {H,T <: Real} = Hermitian()
 num_offdiagonals(ham::MomentumMom1D, add) = 0
 diagonal_element(mom::MomentumMom1D, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
 

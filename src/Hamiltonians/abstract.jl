@@ -183,8 +183,10 @@ starting_address
 `LOStructure` speficies properties of the linear operator `op`. If a special structure is
 known this can speed up calculations. Implemented structures are:
 
-* `Hamiltonians.HermitianLO` The operator is complex and hermitian or real and symmetric.
-* `Hamiltonians.ComplexLO` The operator has no known specific structure.
+* `Hamiltonians.Hermitian`: The operator is complex and Hermitian or real and symmetric.
+* `Hamiltonians.AdjointKnown`: The operator is not Hermitian, but its [`adjoint`](@ref) is
+  implemented.
+* `Hamiltonians.AdjointUnknown`: [`adjoint`](@ref) for this operator is not implemented.
 
 In order to define this trait for a new linear operator type, define a method for
 `LOStructure(::Type{<:MyNewLOType}) = …`.
@@ -192,12 +194,22 @@ In order to define this trait for a new linear operator type, define a method fo
 """
 abstract type LOStructure end
 
-struct HermitianLO <: LOStructure end
-struct ComplexLO <: LOStructure end
+struct Hermitian <: LOStructure end
+struct AdjointKnown <: LOStructure end
+struct AdjointUnknown <: LOStructure end
 
 # defaults
 LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))
-LOStructure(::Type{<:AbstractHamiltonian}) = ComplexLO()
+LOStructure(::Type{<:AbstractHamiltonian}) = AdjointUnknown()
+
+"""
+    has_adjoint(op)
+
+Return true if `adjoint` is defined on `op`.
+"""
+has_adjoint(op::AbstractHamiltonian) = has_adjoint(LOStructure(op))
+has_adjoint(::AdjointUnknown) = false
+has_adjoint(::LOStructure) = true
 
 """
     rayleigh_quotient(H, v)

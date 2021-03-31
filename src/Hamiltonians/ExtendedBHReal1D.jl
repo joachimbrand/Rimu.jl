@@ -26,7 +26,7 @@ in real space.
 """ ExtendedBHReal1D
 
 # set the `LOStructure` trait
-LOStructure(::Type{ExtendedBHReal1D{T}}) where T <: Real = HermitianLO()
+LOStructure(::Type{ExtendedBHReal1D{T}}) where T <: Real = Hermitian()
 
 """
     ExtendedBHReal1D(add::AbstractFockAddress; u=1.0, v=1.0 t=1.0)

@@ -34,7 +34,7 @@ mutating for `w`.
 """ BoseHubbardReal1D
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardReal1D{T}}) where T <: Real = HermitianLO()
+LOStructure(::Type{BoseHubbardReal1D{T}}) where T <: Real = Hermitian()
 
 """
     BoseHubbardReal1D(add::AbstractFockAddress; u=1.0, t=1.0)

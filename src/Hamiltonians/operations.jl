@@ -58,12 +58,12 @@ function LinearAlgebra.dot(::UniformProjector, LO::AbstractHamiltonian{T}, v::Ab
     return result
 end
 
-LinearAlgebra.dot(::LOStructure, x, LO::AbstractHamiltonian, v) = dot_from_right(x,LO,v)
+LinearAlgebra.dot(::AdjointUnknown, x, LO::AbstractHamiltonian, v) = dot_from_right(x,LO,v)
 # default for LOs without special structure: keep order
 
-function LinearAlgebra.dot(::HermitianLO, x, LO::AbstractHamiltonian, v)
+function LinearAlgebra.dot(::LOStructure, x, LO::AbstractHamiltonian, v)
     if length(x) < length(v)
-        return conj(dot_from_right(v,LO,x)) # turn args around to execute faster
+        return conj(dot_from_right(v, LO', x)) # turn args around to execute faster
     else
         return dot_from_right(x,LO,v) # original order
     end
@@ -100,7 +100,7 @@ function LinearAlgebra.adjoint(::S, op) where {S<:LOStructure}
     )
 end
 
-LinearAlgebra.adjoint(::HermitianLO, op) = op # adjoint is known
+LinearAlgebra.adjoint(::Hermitian, op) = op # adjoint is known
 
 """
     sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)

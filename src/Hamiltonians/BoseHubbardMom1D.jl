@@ -31,7 +31,7 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 """ BoseHubbardMom1D
 
 # set the `LOStructure` trait
-LOStructure(::Type{BoseHubbardMom1D{T, AD}}) where {T <: Real, AD} = HermitianLO()
+LOStructure(::Type{BoseHubbardMom1D{T, AD}}) where {T <: Real, AD} = Hermitian()
 
 """
     BoseHubbardMom1D(add::AbstractFockAddress; u=1.0, t=1.0)
