@@ -465,7 +465,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, w, m = 1.0;
     empty!(w) # clear working memory
     # call fciqmc_col!() on every entry of `v` and add the stats returned by
     # this function:
-    stats = SVector(0, 0, 0, 0, 0)
+    stats = allocate_statss(v, nothing)
     for (k, v) in pairs(v)
         stats += SVector(fciqmc_col!(w, Ĥ, k, v, shift, dτ))
     end
@@ -500,6 +500,13 @@ function allocate_statss(::SS, v, nt) where SS <: Union{DictVectors.IsStochastic
     DictVectors.IsStochastic2PopInitiator,DictVectors.IsStochastic2PopWithThreshold
 }
     return [zeros(Complex{Int},5) for i=1:nt]
+end
+# Nothing signals no threading is used
+allocate_statss(::StochasticStyle, _, ::Nothing) = SVector(0, 0, 0, 0, 0)
+function allocate_statss(::SS, v, ::Nothing) where SS <: Union{DictVectors.IsStochastic2Pop,
+    DictVectors.IsStochastic2PopInitiator,DictVectors.IsStochastic2PopWithThreshold
+}
+    return zeros(SVector{5,Complex{Int}})
 end
 
 # Below follow multiple implementations of `fciqmc_step!` using multithreading.
