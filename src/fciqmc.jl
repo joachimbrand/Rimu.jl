@@ -465,8 +465,10 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, w, m = 1.0;
     empty!(w) # clear working memory
     # call fciqmc_col!() on every entry of `v` and add the stats returned by
     # this function:
-    stats = sum(p-> SVector(fciqmc_col!(w, Ĥ, p.first, p.second, shift, dτ)),
-      pairs(v))
+    stats = SVector(0, 0, 0, 0, 0)
+    for (k, v) in pairs(v)
+        stats += SVector(fciqmc_col!(w, Ĥ, k, v, shift, dτ))
+    end
     r = applyMemoryNoise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     return (sort_into_targets!(dv, w, stats)... , r) # MPI syncronizing
     # stats == [spawns, deaths, clones, antiparticles, annihilations]

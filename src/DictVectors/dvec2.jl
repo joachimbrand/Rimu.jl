@@ -125,11 +125,15 @@ end
 
 # several times faster than regular sum
 function Base.sum(f::F, dvec::DVec2{<:Any,V,<:Any,<:Dict}) where {F,V}
-    vals = dvec.dict.vals
-    slots = dvec.dict.slots
-    result = f(vals[1] * (slots[1] == 0x1))
-    @inbounds @simd for i in 2:length(vals)
-        result += f(vals[i] * (slots[i] == 0x1))
+    if isempty(dvec)
+        return f(zero(V))
+    else
+        vals = dvec.dict.vals
+        slots = dvec.dict.slots
+        result = f(vals[1] * (slots[1] == 0x1))
+        @inbounds @simd for i in 2:length(vals)
+            result += f(vals[i] * (slots[i] == 0x1))
+        end
+        return result
     end
-    return result
 end
