@@ -185,6 +185,90 @@ end
 Base.eltype(::MPIOSWin{T}) where T = T
 
 """
+    MPIDefaultInplace{N,A}
+Like [`MPIDefault`](@ref), but uses preallocated buffers.
+"""
+struct MPIDefaultInplace{P,N,D} <: DistributeStrategy
+    np::Int32
+    id::Int32
+    comm::MPI.Comm
+    datatype::D
+    buffers::NTuple{N,Vector{P}}
+end
+function MPIDefaultInplace(::AbstractDVec{K,V}, np, id, comm) where {K,V}
+    P = Pair{K,V}
+    datatype = MPI.Datatype(P)
+    return MPIDefaultInplace{P,np,typeof(datatype)}(np, id, comm, datatype, ntuple(_ -> P[], np))
+end
+"""
+    rcvbuff(s::MPIDefaultInplace)
+Get the receive buffer.
+"""
+function rcvbuff(s::MPIDefaultInplace)
+    return s.buffers[s.id + 1]
+end
+"""
+    sendbuff(s::MPIDefaultInplace, id)
+Get the send buffer associated with `id`.
+"""
+function sendbuff(s::MPIDefaultInplace, id)
+    return s.buffers[id + 1]
+end
+"""
+    receive!(target, s::MPIDefaultInplace, id)
+Recieve from rank with `id` and move recieved values to `target`.
+"""
+function receive!(target, s::MPIDefaultInplace{P}, id) where P
+    status = MPI.Probe(id, 0, s.comm)
+    count = MPI.Get_count(status, s.datatype)
+    resize!(rcvbuff(s), count)
+    rb = rcvbuff(s)
+    MPI.Recv!(MPI.Buffer(rb, length(rb), s.datatype), id, 0, s.comm)
+    for (key, val) in rcvbuff(s)
+        target[key] += val
+    end
+    return target
+end
+"""
+    send!(s::MPIDefaultInplace{P})
+Send the contents of the send buffers to all other ranks.
+"""
+function send!(s::MPIDefaultInplace{<:Any,N}) where {N}
+    for id in 0:N-1
+        id == s.id && continue
+        sb = sendbuff(s, id)
+        MPI.Send(MPI.Buffer(sb, length(sb), s.datatype), id, 0, s.comm)
+    end
+end
+function Rimu.sort_into_targets!(
+    target, source, ::Type{P}, s::MPIDefaultInplace{P,N}
+) where {P,N}
+    foreach(empty!, s.buffers)
+
+    # Sort source into send buffers, put appropriate values into target.
+    for (key, val) in pairs(source)
+        tr = targetrank(key, s.np)
+        if tr == s.id
+            target[key] += val
+        else
+            push!(sendbuff(s, tr), key => val)
+        end
+    end
+    # Receive from lower ranks.
+    for id in 0:(s.id - 1)
+        receive!(target, s, id)
+    end
+    # Send to all ranks.
+    send!(s)
+    # Receive from higher ranks.
+    for id in (s.id + 1):(N - 1)
+        receive!(target, s, id)
+    end
+    MPI.Barrier(s.comm)
+    return target
+end
+
+"""
     length(md::MPIData)
 Compute the length of the distributed data on every MPI rank with
 `MPI.Allreduce`. MPI syncronizing.
@@ -265,6 +349,14 @@ function mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
     cap = capacity(data) ÷ np + 1
     # id == root && println("on rank $id, capacity = ",cap)
     s = MPIOSWin(np, id, comm, P, Int32(cap))
+    return MPIData(data, comm, root, s)
+end
+
+function mpi_default_inplace(data, comm = mpi_comm(), root = mpi_root)
+    MPI.Initialized() || error("MPI needs to be initialised first.")
+    np = MPI.Comm_size(comm)
+    id = MPI.Comm_rank(comm)
+    s = MPIDefaultInplace(localpart(data), np, id, comm)
     return MPIData(data, comm, root, s)
 end
 
