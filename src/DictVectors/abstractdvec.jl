@@ -402,3 +402,22 @@ end
 # NOTE that this returns a `Float64` opposite to the convention for
 # dot to return the promote_type of the arguments.
 # NOTE: This operation should work for `MPIData` and is MPI synchronizing
+
+"""
+    PopsProjector()
+Results in computing the projection of one population on the other
+when used in `dot()`. E.g.
+```julia
+dot(PopsProjector(),x)
+-> real(x) ⋅ imag(x)
+```
+
+See also [`ReportingStrategy`](@ref) for use
+of projectors in FCIQMC.
+"""
+struct PopsProjector <: AbstractProjector end
+
+function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
+    T = float(real(valtype(y)))
+    return isempty(y) ? zero(T) : sum(z -> real(z) * imag(z), y)|>T
+end

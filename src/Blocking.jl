@@ -394,6 +394,29 @@ function fidelity_and_se(rr::Tuple; p_field = :hproj, steps_equilibrate = 0)
     fid_err = k>0 ? qblocks.SE_f[k] : missing
     return (;fid, fid_err)
 end
+function fidelity_and_se(
+    df::DataFrame;
+    v_field = :hproj, # v ⋅ c with complex coefficients
+    s_field = :vproj, # real(c) ⋅ imag(c)
+    steps_equilibrate = 0,
+)
+    complex_v_dot_cn = getproperty(df, v_field)[steps_equilibrate+1:end]
+
+    # numerator for fidelity calculation as time series (array)
+    fid_num = real(complex_v_dot_cn) .* imag(complex_v_dot_cn)
+    # denominator
+    fid_den = getproperty(df, s_field)[steps_equilibrate+1:end]
+    bt_num = block_and_test(fid_num)
+    bt_den = block_and_test(fid_den)
+    # choose largst k from mtest on blocking analyses on numerator and denominator
+    ks = (get_ks(bt_num)..., get_ks(bt_den)...)
+    any(k->k<0, ks) && @warn "m-test failed at least once for fidelity" ks
+    k = max(ks...)
+    qblocks = blocking(fid_num, fid_den)
+    fid = qblocks.mean_x[1]/qblocks.mean_y[1]
+    fid_err = k>0 ? qblocks.SE_f[k] : missing
+    return (;fid, fid_err)
+end
 
 """
     covariance(x::Vector,y::Vector; corrected::Bool=true)
