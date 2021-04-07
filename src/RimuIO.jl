@@ -9,10 +9,12 @@ module RimuIO
 
 using Arrow, DataFrames
 
-function __init__()
-    Arrow.ArrowTypes.registertype!(Complex{Int},Complex{Int})
-    Arrow.ArrowTypes.registertype!(Complex{Float64},Complex{Float64})
-end
+const COMPLEX = Symbol("JuliaLang.Complex")
+ArrowTypes.arrowname(::Type{<:Complex}) = COMPLEX
+ArrowTypes.ArrowType(::Type{Complex{T}}) where {T} = Tuple{T,T}
+ArrowTypes.JuliaType(::Val{COMPLEX}, ::Type{Tuple{T,T}}) where {T} = Complex{T}
+ArrowTypes.toarrow(a::Complex) = (a.re, a.im)
+ArrowTypes.fromarrow(::Type{Complex{T}}, t::Tuple{T,T}) where {T} = Complex{T}(t...)
 
 """
     RimuIO.save(filename, df::DataFrame)
