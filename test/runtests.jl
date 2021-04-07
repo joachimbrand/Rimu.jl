@@ -455,7 +455,7 @@ end
     # test ConstrainedNoise for real walkers
     tnorm = norm(nt.v, 1)
     m_strat = Rimu.ConstrainedNoise(0.3)
-    Rimu.applyMemoryNoise!(nt.v,0,0,0,0, m_strat)
+    Rimu.apply_memory_noise!(nt.v,0,0,0,0, m_strat)
     @test tnorm == norm(nt.v, 1)
 
     # fciqmc with complex shift and norm
@@ -470,12 +470,12 @@ end
     tnorm = Norm1ProjectorPPop()⋅nt.v
     tnorm2 = norm(nt.v,2)
     m_strat = Rimu.ConstrainedNoise(0.3)
-    Rimu.applyMemoryNoise!(nt.v,0,0,0,0, m_strat)
+    Rimu.apply_memory_noise!(nt.v,0,0,0,0, m_strat)
     @test tnorm == Norm1ProjectorPPop()⋅nt.v
     @test tnorm2 ≠ norm(nt.v,2)
 
     # test ConstrainedNoise for float walkers
-    @test_throws ErrorException Rimu.applyMemoryNoise!(DVec2(:a=>1.1; capacity = 10),
+    @test_throws ErrorException Rimu.apply_memory_noise!(DVec2(:a=>1.1; capacity = 10),
         0,0,0,0, m_strat
     )
 
