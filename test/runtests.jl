@@ -604,6 +604,14 @@ end
     @test_throws AssertionError growthWitness(rdfs.norm, rdfs.shift[1:end-1],rdfs.dτ[1])
 end
 
+@testset "RimuIO" begin
+    file = joinpath(@__DIR__, "tmp.arrow")
+    df = DataFrame(a=[1, 2, 3], b=Complex{Float64}[1, 2, 3+im], d=rand(Complex{Int}, 3))
+    RimuIO.save_df(file, df)
+    df2 = RimuIO.load_df(file)
+    @test df == df2
+    rm(file)
+end
 
 using Rimu.EmbarrassinglyDistributed # bring relevant function into namespace
 @testset "EmbarrassinglyDistributed" begin
