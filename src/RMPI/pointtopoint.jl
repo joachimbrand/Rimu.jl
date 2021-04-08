@@ -2,14 +2,20 @@ function mpi_point_to_point(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    s = MPIPointToPoint(localpart(data), np, id, comm)
+    s = MPIPointToPoint(pairtype(localpart(data)), np, id, comm)
     return MPIData(data, comm, root, s)
 end
 
 """
     MPIPointToPoint{N,A}
 
-Point to point communication strategy.
+Point to point communication strategy. Uses blocking commu
+
+# Constructor
+
+* `MPIPointToPoint(::Type{P}, np, id, comm)`: Construct an instance with pair type `P` on
+  `np` processes with current rank `id`.
+
 """
 struct MPIPointToPoint{P,N,D} <: DistributeStrategy
     np::Int32
@@ -24,11 +30,11 @@ function MPIPointToPoint(::Type{Pair{K,V}}, np, id, comm) where {K,V}
     return MPIPointToPoint{P,np,typeof(datatype)}(np, id, comm, datatype, ntuple(_ -> P[], np))
 end
 """
-    rcvbuff(s::MPIPointToPoint)
+    recvbuff(s::MPIPointToPoint)
 
 Get the receive buffer.
 """
-function rcvbuff(s::MPIPointToPoint)
+function recvbuff(s::MPIPointToPoint)
     return s.buffers[s.id + 1]
 end
 """
@@ -47,10 +53,10 @@ Recieve from rank with `id` and move recieved values to `target`.
 function receive!(target, s::MPIPointToPoint{P}, id) where P
     status = MPI.Probe(id, 0, s.comm)
     count = MPI.Get_count(status, s.datatype)
-    resize!(rcvbuff(s), count)
-    rb = rcvbuff(s)
+    resize!(recvbuff(s), count)
+    rb = recvbuff(s)
     MPI.Recv!(MPI.Buffer(rb, length(rb), s.datatype), id, 0, s.comm)
-    for (key, val) in rcvbuff(s)
+    for (key, val) in recvbuff(s)
         target[key] += val
     end
     return target
@@ -73,7 +79,7 @@ function Rimu.sort_into_targets!(
 ) where {P,N}
     foreach(empty!, s.buffers)
 
-    # Sort source into send buffers, put appropriate values into target.
+    # sort source into send buffers, put appropriate values into target.
     for (key, val) in pairs(source)
         tr = targetrank(key, s.np)
         if tr == s.id

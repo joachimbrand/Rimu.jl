@@ -6,6 +6,8 @@ module RMPI
 import MPI
 using Rimu, LinearAlgebra, Rimu.ConsistentRNG, Random
 
+import Rimu: sort_into_targets!
+
 export MPIData
 export mpi_rank, is_mpi_root, @mpi_root, mpi_barrier
 export mpi_comm, mpi_root, mpi_size, mpi_seed_CRNGs!
@@ -27,5 +29,6 @@ include("helpers.jl")
 include("noexchange.jl")
 include("pointtopoint.jl")
 include("onesided.jl")
+include("async.jl")
 
 end # module RMPI
