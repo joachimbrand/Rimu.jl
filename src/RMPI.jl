@@ -248,6 +248,16 @@ function mpi_no_exchange(data, comm = mpi_comm(), root = mpi_root)
 end
 
 """
+    register_MPI_Datatype(T)
+Register the type `T` for use as a data type with the `MPI` module. This is a workaround
+for a bug in `MPI.jl`.
+"""
+function register_MPI_Datatype(::Type{T}) where T
+      DT = MPI.Datatype(T)
+      @eval MPI.Datatype(::Type{$T}) = $DT
+end
+
+"""
     mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
 Declare `data` as mpi-distributed and set communication strategy to one-sided
 with remote memory access (RMA).
@@ -259,6 +269,8 @@ function mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
     P = pairtype(data)
+
+    register_MPI_Datatype(P)
 
     # compute the required capacity for the communication buffer as a
     # fraction of the capacity of `data`
