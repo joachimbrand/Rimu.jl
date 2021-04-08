@@ -52,6 +52,10 @@ macro mpi_root(args...)
     :(is_mpi_root() && $(esc(args...)))
 end
 
+macro mpi_on(p, args...)
+    :(mpi_rank() == $p && $(esc(args...)))
+end
+
 """
     mpi_barrier(comm = mpi_comm())
 The MPI barrier with optional argument. MPI syncronizing.

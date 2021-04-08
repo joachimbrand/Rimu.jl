@@ -17,17 +17,17 @@ Point to point communication strategy. Uses blocking commu
   `np` processes with current rank `id`.
 
 """
-struct MPIPointToPoint{P,N,D} <: DistributeStrategy
+struct MPIPointToPoint{P,N} <: DistributeStrategy
     np::Int32
     id::Int32
     comm::MPI.Comm
-    datatype::D
+    datatype::MPI.Datatype
     buffers::NTuple{N,Vector{P}}
 end
 function MPIPointToPoint(::Type{Pair{K,V}}, np, id, comm) where {K,V}
     P = Pair{K,V}
     datatype = MPI.Datatype(P)
-    return MPIPointToPoint{P,np,typeof(datatype)}(np, id, comm, datatype, ntuple(_ -> P[], np))
+    return MPIPointToPoint{P,np}(np, id, comm, datatype, ntuple(_ -> P[], np))
 end
 """
     recvbuff(s::MPIPointToPoint)
