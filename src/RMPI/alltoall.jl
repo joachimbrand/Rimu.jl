@@ -1,11 +1,31 @@
+"""
+    mpi_all_to_all(data, comm = mpi_comm(), root = mpi_root)
+
+Declare `data` as mpi-distributed and set communication strategy to all-to-all.
+
+Sets up the [`MPIData`](@ref) structure with [`MPIAllToAll`](@ref) strategy.
+"""
 function mpi_all_to_all(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    s = MPIAllToAll(data, np, id, comm)
+    s = MPIAllToAll(pairtype(data), np, id, comm)
     return MPIData(data, comm, root, s)
 end
 
+"""
+     MPIAllToAll
+
+All-to-all communication strategy. The communication works in two steps: first
+`MPI.Alltoall!` is used to communicate the number of walkers each rank wants to send to
+other ranks, then `MPI.Alltoallv!` is used to send the walkers around.
+
+# Constructor
+
+* `MPIAllToAll(Type{P}, np, id, comm)`: Construct an instance with pair type `P` on
+  `np` processes with current rank `id`.
+
+"""
 struct MPIAllToAll{P} <: DistributeStrategy
     np::Int32
     id::Int32
@@ -16,7 +36,7 @@ struct MPIAllToAll{P} <: DistributeStrategy
     recvbuffer::MPI.VBuffer{Vector{P}}   # for receiving chunks
 end
 
-function MPIAllToAll(data::AbstractDVec{K,V}, np, id, comm) where {K,V}
+function MPIAllToAll(::Type{Pair{K,V}}, np, id, comm) where {K,V}
     P = Pair{K,V}
     datatype = MPI.Datatype(P)
     lenbuf = MPI.UBuffer(zeros(Cint, np), 1, np, MPI.Datatype(Cint))
@@ -26,8 +46,37 @@ function MPIAllToAll(data::AbstractDVec{K,V}, np, id, comm) where {K,V}
     return MPIAllToAll{P}(np, id, comm, lenbuf, sendbuf, recvbuf)
 end
 
+"""
+    sort_by_rank!(arr, s)
+
+In-place sort a-la insertion sort, but for a small number of unique elements. Much faster than
+`sort!`.
+"""
+function sort_by_rank!(arr, s)
+    i = 1
+    len = length(arr)
+    @inbounds for r in 0:(s.np - 1)
+        while i ≤ len && targetrank(arr[i], s.np) == r
+            i += 1
+        end
+        j = i + 1
+        while true
+            while j ≤ len && targetrank(arr[j], s.np) ≠ r
+                j += 1
+            end
+            j > len && break
+            tmp = arr[j]
+            arr[j] = arr[i]
+            arr[i] = tmp
+            i += 1
+            j += 1
+        end
+    end
+    @assert issorted(arr, by=Base.Fix2(targetrank, s.np))
+    return arr
+end
+
 function prepare_send!(s::MPIAllToAll, source)
-    tr = Base.Fix2(targetrank, s.np) # partially applied targetrank for convenience
     buffer = s.sendbuffer.data
     counts = s.sendbuffer.counts
     displs = s.sendbuffer.displs
@@ -38,7 +87,7 @@ function prepare_send!(s::MPIAllToAll, source)
     for (i, p) in enumerate(pairs(source))
         buffer[i] = p
     end
-    sort!(buffer, by=tr)
+    sort_by_rank!(buffer, s)
 
     # Prepare send buffer counts and displs
     counts .= zero(Cint)
@@ -47,7 +96,7 @@ function prepare_send!(s::MPIAllToAll, source)
     for r in 0:s.np - 1
         c = 0
         displs[r + 1] = i - 1
-        while i ≤ len && tr(buffer[i]) == r
+        while i ≤ len && targetrank(buffer[i], s.np) == r
             c += 1
             i += 1
         end

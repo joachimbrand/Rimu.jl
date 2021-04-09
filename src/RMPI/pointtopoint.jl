@@ -1,15 +1,23 @@
+"""
+    mpi_point_to_point(data, comm = mpi_comm(), root = mpi_root)
+
+Declare `data` as mpi-distributed and set communication strategy to point-to-point.
+
+Sets up the [`MPIData`](@ref) structure with [`MPIPointToPoint`](@ref) strategy.
+"""
 function mpi_point_to_point(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    s = MPIPointToPoint(pairtype(localpart(data)), np, id, comm)
+    s = MPIPointToPoint(pairtype(data), np, id, comm)
     return MPIData(data, comm, root, s)
 end
 
 """
     MPIPointToPoint{N,A}
 
-Point to point communication strategy. Uses blocking commu
+Point-to-point communication strategy. Uses circular communication using `MPI.Send` and
+`MPI.Recv!`.
 
 # Constructor
 
