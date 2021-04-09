@@ -72,7 +72,7 @@ function sort_by_rank!(arr, s)
             j += 1
         end
     end
-    @assert issorted(arr, by=Base.Fix2(targetrank, s.np))
+    # @assert issorted(arr, by=Base.Fix2(targetrank, s.np))
     return arr
 end
 
@@ -121,6 +121,7 @@ end
 
 function Rimu.sort_into_targets!(target, source, ::Type{P}, s::MPIAllToAll{P}) where {P}
     prepare_send!(s, source)
+    MPI.Barrier(s.comm)
     MPI.Alltoall!(MPI.IN_PLACE, s.lenbuffer, s.comm)
     prepare_recv!(s)
     MPI.Alltoallv!(s.sendbuffer, s.recvbuffer, s.comm)
