@@ -33,21 +33,24 @@ mutable struct MPIOneSided{T}  <: DistributeStrategy
     np::Int32 # number of MPI processes
     id::Int32 # number of this rank
     comm::MPI.Comm # MPI communicator
+    DT_b::MPI.Datatype # datatype for data
     b_win::MPI.Win # window for data buffer
+    DT_l::MPI.Datatype # datatype for lengths of buffered data
     l_win::MPI.Win # window for length of buffered data
     capacity::Int32 # capacity of buffer
-    buf::Vector{T} # local array for MPI window b_win
-    n_elem::Vector{Int32} # local array for MPI window l_win
+    b_vec::Vector{T} # local array for MPI window b_win
+    l_vec::Vector{Int32} # local array for MPI window l_win
 
     function MPIOneSided(nprocs, myrank, comm, ::Type{T}, capacity) where T
         @assert isbitstype(T) "Buffer type for MPIOneSided needs to be isbitstype; found $T"
-        buf = Vector{T}(undef, capacity)
-        n_elem = zeros(Int32,1)
-        b_win = MPI.Win_create(buf, comm) # separate windows for buffer and length
-        l_win = MPI.Win_create(n_elem, comm)
+        b_vec = Vector{T}(undef, capacity)
+        l_vec = zeros(Int32,1)
+        DT_b = MPI.Datatype(T)
+        b_win = MPI.Win_create(b_vec, comm) # separate windows for buffer and length
+        DT_l = MPI.Datatype(Int32)
+        l_win = MPI.Win_create(l_vec, comm)
         mpiid = next_mpiID()
-        obj = new{T}(mpiid, nprocs, myrank, comm, b_win, l_win, capacity, buf, n_elem)
-        # MPI.refcount_inc() # ref counting was removed in MPI.jl v0.16.0
+        obj = new{T}(mpiid,nprocs,myrank,comm, DT_b,b_win, DT_l,l_win,capacity,b_vec,l_vec)
         mpi_registry[mpiid] = Ref(obj) # register the object to avoid
         # arbitrary garbage collection
         # ccall(:jl_, Cvoid, (Any,), "installing finalizer on MPIOneSided")
@@ -63,7 +66,7 @@ function Base.show(io::IO, s::MPIOneSided{T}) where T
     println(io, "  np: ",s.np)
     println(io, "  id: ",s.id)
     println(io, "  comm: ",s.comm)
-    println(io, "  MPI.Win and buf::Vector{$T} with capacity ",s.capacity)
+    println(io, "  MPI.Win and b_vec::Vector{$T} with capacity ",s.capacity)
     println(io, "  MPI.Win for number of elements in buffer")
 end
 
@@ -103,36 +106,32 @@ end
 
 """
     put(buf::Vector{T}, [len,] targetrank, s::MPIOneSided{T})
-    put(obj::T, targetrank, s::MPIOneSided{T})
 
-Deposit a single `obj` or vector `buf` into the MPI window `s` on rank `targetrank`. If
+Deposit a vector `buf` into the MPI window `s` on rank `targetrank`. If
 `len` is given, only the first `len` elements are transmitted.
 """
 @inline function put(buf::Vector{T}, len, targetrank, s::MPIOneSided{T}) where T
     @boundscheck len ≤ length(buf) && len ≤ s.capacity ||
         error("Not enough space left in buffer")
-    MPI.Put(buf, len, targetrank, 0, s.b_win)
-    MPI.Put(Ref(len), 1, targetrank, 0, s.l_win)
+    b_buffer = MPI.Buffer(buf, len, s.DT_b)
+    MPI.Put(b_buffer, targetrank, 0, s.b_win)
+    l_buffer = MPI.Buffer([len,], 1, s.DT_l)
+    MPI.Put(l_buffer, targetrank, 0, s.l_win)
 end
 @inline function put(buf::Vector{T}, targetrank, s::MPIOneSided{T}) where T
     len = length(buf)
     put(buf, len, targetrank, s)
 end
-@inline function put(obj::T, targetrank, s::MPIOneSided{T}) where T
-    @boundscheck s.capacity ≥ 1 || error("Not enough space left in buffer")
-    MPI.Put(Ref(obj), 1, targetrank, 0, s.b_win)
-    MPI.Put(Ref(1), 1, targetrank, 0, s.l_win)
-end
 
 function sbuffer!(s::MPIOneSided) # unsafe version - avoids allocations
-    # println("from sbuffer $(s.buf), $(s.n_elem), $(s.n_elem[1])")
-    # return s.buf[1:s.n_elem[1]]
-    return view(s.buf, 1 : s.n_elem[1])
+    # println("from sbuffer $(s.b_vec), $(s.l_vec), $(s.l_vec[1])")
+    # return s.b_vec[1:s.l_vec[1]]
+    return view(s.b_vec, 1 : s.l_vec[1])
 end
 function sbuffer(s::MPIOneSided) # safe version for reading shared buffer - returns local array
     MPI.Win_lock(MPI.LOCK_SHARED, s.id, 0, s.b_win)
     MPI.Win_lock(MPI.LOCK_SHARED, s.id, 0, s.l_win)
-    res = s.buf[1 : s.n_elem[1]]
+    res = s.b_vec[1 : s.l_vec[1]]
     MPI.Win_unlock(s.id,s.l_win)
     MPI.Win_unlock(s.id,s.b_win)
     return res
