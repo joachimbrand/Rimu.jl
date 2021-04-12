@@ -31,6 +31,7 @@ struct MPIAllToAll{P} <: DistributeStrategy
     id::Int32
     comm::MPI.Comm
 
+    targets::Vector{UInt}
     lenbuffer::MPI.UBuffer{Vector{Cint}} # for communicating numbers of elements
     sendbuffer::MPI.VBuffer{Vector{P}}   # for sending chunks
     recvbuffer::MPI.VBuffer{Vector{P}}   # for receiving chunks
@@ -43,7 +44,21 @@ function MPIAllToAll(::Type{Pair{K,V}}, np, id, comm) where {K,V}
     sendbuf = MPI.VBuffer(P[], zeros(Cint, np), zeros(Cint, np), datatype)
     recvbuf = MPI.VBuffer(P[], zeros(Cint, np), zeros(Cint, np), datatype)
 
-    return MPIAllToAll{P}(np, id, comm, lenbuf, sendbuf, recvbuf)
+    return MPIAllToAll{P}(np, id, comm, UInt[], lenbuf, sendbuf, recvbuf)
+end
+
+"""
+    @swap! arr i j
+
+Swap the `i`-th and `j`-th indices in `arr`.
+"""
+macro swap!(arr, i, j)
+    return quote
+        tmp = $(esc(arr))[$(esc(j))]
+        $(esc(arr))[$(esc(j))] = $(esc(arr))[$(esc(i))]
+        $(esc(arr))[$(esc(i))] = tmp
+        $(esc(arr))
+    end
 end
 
 """
@@ -51,28 +66,35 @@ end
 
 In-place sort a-la insertion sort, but for a small number of unique elements. Much faster than
 `sort!`.
+
+TODO: this should also construct `counts` and `displs`. targetranks should be precomputed.
 """
 function sort_by_rank!(arr, s)
+    # Precompute targets for efficiency.
+    targets = s.targets
+    resize!(targets, length(arr))
+    targets .= targetrank.(arr, s.np)
+
     i = 1
     len = length(arr)
     @inbounds for r in 0:(s.np - 1)
-        while i ≤ len && targetrank(arr[i], s.np) == r
-            i += 1
-        end
-        j = i + 1
         while true
-            while j ≤ len && targetrank(arr[j], s.np) ≠ r
+            # Find the first non-`r` index.
+            while i ≤ len && targets[i] == r
+                i += 1
+            end
+            j = i + 1
+            # Find the first `r` to swap into `i`
+            while j ≤ len && targets[j] ≠ r
                 j += 1
             end
             j > len && break
-            tmp = arr[j]
-            arr[j] = arr[i]
-            arr[i] = tmp
+            @swap! arr i j
+            @swap! targets i j
             i += 1
             j += 1
         end
     end
-    # @assert issorted(arr, by=Base.Fix2(targetrank, s.np))
     return arr
 end
 
@@ -96,7 +118,7 @@ function prepare_send!(s::MPIAllToAll, source)
     for r in 0:s.np - 1
         c = 0
         displs[r + 1] = i - 1
-        while i ≤ len && targetrank(buffer[i], s.np) == r
+        while i ≤ len && s.targets[i] == r
             c += 1
             i += 1
         end
