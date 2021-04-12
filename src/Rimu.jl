@@ -46,7 +46,7 @@ include("fciqmc.jl")
 
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
-include("RMPI.jl")
+include("RMPI/RMPI.jl")
 # @reexport using .RMPI
 
 end # module
