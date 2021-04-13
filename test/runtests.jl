@@ -727,18 +727,24 @@ end
     # necessary for allow-run-as root workaround for Pipelines
     mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
     is_local = !haskey(ENV, "CI")
-    savefile = joinpath(@__DIR__,"mpi_df.arrow")
+    juliaexec = "julia"
+    run(`which $mpiexec`)
 
     if is_local
-        rm(savefile, force = true) # make sure to remove any old file
-        runfile = joinpath(@__DIR__,"script_mpi_minimum.jl")
-        rr = run(`$mpiexec -np 2 julia $runfile`)
-        @test rr.exitcode == 0
-    else
-        @test isfile(savefile) == true
-    end
+        flavours = ["os", "ptp"]
+        for f in flavours
+            savefile = joinpath(@__DIR__,"mpi_df_$f.arrow")
 
-    df = RimuIO.load_df(savefile)
-    rm(savefile) # clean up
-    @test size(df) == (501, 14)
+            rm(savefile, force = true) # make sure to remove any old file
+            runfile = joinpath(@__DIR__,"script_mpi_minimum_$f.jl")
+            rr = run(`$mpiexec -np 2 $juliaexec -t 1 $runfile`)
+            @test rr.exitcode == 0
+        end
+        savefiles = [joinpath(@__DIR__,"mpi_df_$f.arrow") for f in flavours]
+        dfs = [RimuIO.load_df(sf) for sf in savefiles]
+        @test reduce(==, dfs) # require equal DataFrames from seeded qmc
+        map(rm, savefiles)# clean up
+    else
+        @info "not testing MPI on CI"
+    end
 end
