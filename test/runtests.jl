@@ -684,12 +684,38 @@ end
 end
 
 using Rimu.RMPI
+using Rimu.RMPI: sort_and_count!
 @testset "RMPI" begin
     m = n = 6
     aIni = nearUniform(BoseFS{n,m})
     svec = DVec(aIni => 2, capacity = 10)
     dv = MPIData(svec)
     @test ConsistentRNG.check_crng_independence(dv) == mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)
+
+    @testset "sort_and_count!" begin
+        for l in (1, 2, 30, 1000)
+            for k in (2, 10, 100)
+                @testset "k=$k, l=$l" begin
+                    ordfun(x) = hash(x) % k
+                    vals = rand(Int, l)
+                    counts = zeros(Int, k)
+                    displs = zeros(Int, k)
+
+                    sort_and_count!(counts, displs, vals, ordfun.(vals), (0, k-1))
+                    @test issorted(vals, by=ordfun)
+                    @test sum(counts) == l
+
+                    for i in 0:(k - 1)
+                        c = counts[i + 1]
+                        d = displs[i + 1]
+                        r = (1:c) .+ d
+                        ords = ordfun.(vals)
+                        @test all(ords[r] .== i)
+                    end
+                end
+            end
+        end
+    end
 end
 
 

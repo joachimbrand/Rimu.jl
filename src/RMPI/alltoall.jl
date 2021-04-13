@@ -62,69 +62,87 @@ macro swap!(arr, i, j)
 end
 
 """
-    sort_by_rank!(arr, s)
+    sort_and_count!(counts, displs, vec, order, (lo, hi), i_start, j_start)
 
-In-place sort a-la insertion sort, but for a small number of unique elements. Much faster than
-`sort!`.
+Sort new spawns by target rank. While this is done, also count the values and calculate the
+offsets needed for `MPI.Alltoallv!`.
 
-TODO: this should also construct `counts` and `displs`. targetranks should be precomputed.
+`counts`, `displs`, `vec`, and `order` are modified in-place. `order` should contain the
+values you want to sort vec by. (i.e. `targetrank.(vec, s.np)`)
+
+    sort_and_count!(s::MPIAllToAll)
+
+As above, but operating on the internal buffers of `s`. Note that `s.targets` is expected to
+contain the correct values to sort by.
 """
-function sort_by_rank!(arr, s)
-    # Precompute targets for efficiency.
-    targets = s.targets
-    resize!(targets, length(arr))
-    targets .= targetrank.(arr, s.np)
-
-    i = 1
-    len = length(arr)
-    @inbounds for r in 0:(s.np - 1)
-        while true
-            # Find the first non-`r` index.
-            while i ≤ len && targets[i] == r
+function sort_and_count!(
+    counts, displs, vec, ord, (lo, hi), i_start=firstindex(ord), j_start=lastindex(ord)
+)
+    if i_start == j_start
+        # Only one value left. We can stop recursing.
+        counts[ord[i_start] + 1] = 1
+        displs[ord[i_start] + 1] = i_start - 1
+    elseif i_start < j_start
+        if lo == hi
+            # At this point, the recursion is finished and all values have the same
+            # target rank.
+            counts[lo + 1] = j_start - i_start + 1
+            displs[lo + 1] = i_start - 1
+        else
+            # Idea:
+            # Move from left (i) and right (j). Swap values so that the left part
+            # will contain the values that are ≤ mid, while the right part will contain
+            # those that are greater.
+            # This is essentially equivalent to quicksort, but in this case, we know how
+            # to pick a good pivot.
+            mid = fld(lo + hi, 2)
+            i = i_start
+            j = j_start
+            @inbounds while i < j
+                if ord[i] ≤ mid
+                    i += 1
+                elseif ord[j] > mid
+                    j -= 1
+                else
+                    @swap! ord i j
+                    @swap! vec i j
+                end
+            end
+            # This correction is needed if all values ≤ mid
+            if ord[j] ≤ mid
                 i += 1
             end
-            j = i + 1
-            # Find the first `r` to swap into `i`
-            while j ≤ len && targets[j] ≠ r
-                j += 1
-            end
-            j > len && break
-            @swap! arr i j
-            @swap! targets i j
-            i += 1
-            j += 1
+            # Recursively sort subarrays.
+            sort_and_count!(counts, displs, vec, ord, (mid + 1, hi), j, j_start)
+            sort_and_count!(counts, displs, vec, ord, (lo, mid), i_start, i - 1)
         end
     end
-    return arr
+    return nothing
+end
+
+function sort_and_count!(s::MPIAllToAll)
+    sb = s.sendbuffer
+    sb.counts .= 0
+    sb.displs .= 0
+    sort_and_count!(sb.counts, sb.displs, sb.data, s.targets, (0, s.np - 1))
 end
 
 function prepare_send!(s::MPIAllToAll, source)
     buffer = s.sendbuffer.data
-    counts = s.sendbuffer.counts
-    displs = s.sendbuffer.displs
+    targets = s.targets
 
     # Copy pairs to send buffer and sort by target rank
     len = length(source)
-    resize!(buffer, len)
-    for (i, p) in enumerate(pairs(source))
-        buffer[i] = p
-    end
-    sort_by_rank!(buffer, s)
-
-    # Prepare send buffer counts and displs
-    counts .= zero(Cint)
-    displs .= zero(Cint)
-    i = 1
-    for r in 0:s.np - 1
-        c = 0
-        displs[r + 1] = i - 1
-        while i ≤ len && s.targets[i] == r
-            c += 1
-            i += 1
+    if len > 0
+        resize!(buffer, len)
+        resize!(targets, len)
+        @inbounds for (i, p) in enumerate(pairs(source))
+            buffer[i] = p
+            targets[i] = targetrank(p, s.np)
         end
-        counts[r + 1] = c
+        sort_and_count!(s)
     end
-    copyto!(s.lenbuffer.data, counts)
+    copyto!(s.lenbuffer.data, s.sendbuffer.counts)
     return s
 end
 
