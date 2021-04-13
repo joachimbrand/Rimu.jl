@@ -5,9 +5,10 @@ Wrapper used for signaling that this data is part of a distributed
 data structure and communication should happen with MPI.
 
 Keyword arguments:
-* `setup = mpi_one_sided` - controls the communication stratgy
+* `setup = mpi_point_to_point` - controls the communication stratgy
   * [`mpi_one_sided`](@ref) uses one-sided communication with remote memory access (RMA), sets [`MPIOneSided`](@ref) strategy.
   * [`mpi_point_to_point`](@ref) uses [`MPIPointTOPoint`](@ref) strategy.
+  * [`mpi_all_to_all`](@ref) uses [`MPIAllToAll`](@ref) strategy.
   * [`mpi_no_exchange`](@ref) sets [`MPINoWalkerExchange`](@ref) strategy. Experimental. Use with caution!
 * `comm = mpi_comm()`
 * `root = mpi_root`
@@ -24,7 +25,7 @@ struct MPIData{D,S}
     end
 end
 # convenient constructor with setup function
-function MPIData(data; setup=mpi_one_sided, comm=mpi_comm(), root=mpi_root)
+function MPIData(data; setup=mpi_point_to_point, comm=mpi_comm(), root=mpi_root)
     return setup(data, comm, root)
 end
 
