@@ -20,7 +20,7 @@ s_strat = DoubleLogUpdate(ζ = ζ, ξ = ζ^2/4, targetwalkers = N)
 # the important step is to wrap the `DVec` in an `MPIData` type to enable
 # exchanging walkers between MPI ranks
 v = DVec2(aIni => 2; capacity = (s_strat.targetwalkers*2÷mpi_size()+100))
-dv = MPIData(v; setup = RMPI.mpi_default)
+dv = MPIData(v; setup = RMPI.mpi_point_to_point)
 @mpi_root @show dv.s
 
 params = RunTillLastStep(dτ = 0.001, laststep = 500)
