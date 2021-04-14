@@ -29,5 +29,6 @@ include("helpers.jl")
 include("noexchange.jl")
 include("pointtopoint.jl")
 include("onesided.jl")
+include("alltoall.jl")
 
 end # module RMPI
