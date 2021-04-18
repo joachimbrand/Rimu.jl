@@ -5,3 +5,4 @@
 /docs/src/generated
 /tmp/
 *Manifest.toml
+.vscode
