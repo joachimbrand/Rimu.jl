@@ -55,8 +55,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
-        nspawn = floor(pspawn) # deal with integer part separately
-        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        nspawn = floor(pspawn + 1 - cRand()) # project to integer
         # at this point, nspawn is non-negative
         # now converted to correct type and compute sign
         nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
@@ -73,10 +72,8 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     # diagonal death / clone
     dME = diagonal_element(ham,add)
     pd = dτ * (dME - shift)
-    newdiagpop = (1-pd)*num
-    ndiag = trunc(newdiagpop)
-    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
-    # only treat non-integer part stochastically
+    newdiagpop = (1-pd)*num # new diag population but not yet integer
+    ndiag = floor(newdiagpop + 1 - cRand()) # project to integer
     ndiags = convert(typeof(num),ndiag) # now integer type
     if sign(w[add]) ≠ sign(ndiags) # record annihilations
         annihilations += min(abs(w[add]),abs(ndiags))
