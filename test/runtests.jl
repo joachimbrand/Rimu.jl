@@ -363,8 +363,8 @@ end
     # applyMemoryNoise
     v2=DVec(Dict(aIni => 2))
     StochasticStyle(v2) # IsStochastic() is not suitable for DeltaMemory()
-    @test_throws ErrorException Rimu.applyMemoryNoise!(v2, v2, 0.0, 0.1, 20, DeltaMemory(3))
-    @test 0 == Rimu.applyMemoryNoise!(svec, copy(svec), 0.0, 0.1, 20, DeltaMemory(3))
+    @test_throws ErrorException Rimu.apply_memory_noise!(v2, v2, 0.0, 0.1, 20, DeltaMemory(3))
+    @test 0 == Rimu.apply_memory_noise!(svec, copy(svec), 0.0, 0.1, 20, DeltaMemory(3))
 
     # momentum space - tests annihilation
     aIni = BoseFS((0,0,6,0,0,0))
@@ -727,7 +727,13 @@ end
     # necessary for allow-run-as root workaround for Pipelines
     mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
     is_local = !haskey(ENV, "CI")
-    juliaexec = "julia"
+
+    # use user installed julia executable if available
+    if isfile(joinpath(homedir(),"bin/julia"))
+        juliaexec = joinpath(homedir(),"bin/julia")
+    else
+        juliaexec = "julia"
+    end
     run(`which $mpiexec`)
 
     if is_local
