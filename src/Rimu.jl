@@ -40,9 +40,13 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
 export RimuIO
 
-include("strategies_and_params.jl")
-include("helpers.jl")
-include("fciqmc.jl")
+include("strategies_and_params.jl") # type defs and helpers
+include("helpers.jl")               # non MPI-dependent helper functions
+include("fciqmc_col.jl")            # third level
+include("apply_memory_noise.jl") 
+include("fciqmc_step.jl")           # second level
+include("norm_project.jl")
+include("lomc.jl")                  # top level
 
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
