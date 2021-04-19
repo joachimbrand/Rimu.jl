@@ -873,6 +873,17 @@ abstract type ProjectStrategy end
 struct NoProjection <: ProjectStrategy end
 
 """
+    NoProjectionAccumulator(accumulator::AbstractDVec)  <: ProjectStrategy
+Do not project the walker amplitudes. Maintain a running sum of the coefficient vector
+at each time step in `accumulator`. Take care as accumulator may overflow!
+See [`norm_project`](@ref).
+"""
+struct NoProjectionAccumulator{DV} <: ProjectStrategy
+    accu::DV
+    NoProjectionAccumulator(dv::DV) where (DV<:AbstractDVec) = new{DV}(dv)
+end
+
+"""
 Do not project the walker amplitudes. Use two-norm to
 calculate walker numbers. This affects reported "norm" but also the shift update procedures.
 See [`norm_project`](@ref).
