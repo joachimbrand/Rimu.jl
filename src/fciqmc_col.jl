@@ -592,3 +592,52 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     # done with stochastic spawning
     return (0, 0, 0, 0, 0)
 end
+
+function fciqmc_col!(
+    s::IsStochasticWithThresholdAndInitiator,
+    w, ham::AbstractHamiltonian, add, val, shift, dτ,
+)
+    # Diagonal step:
+    new_val = (1 + dτ*(shift - diagonal_element(ham,add))) * val
+    w[add] += new_val
+
+    # Initiator:
+    if val > s.beta
+        hops = offdiagonals(ham, add)
+        if s.alpha * val ≥ length(hops)
+            # Exact multiplication
+            factor = dτ * val
+            for (new_add, mat_elem) in hops
+                w[new_add] -= factor * mat_elem
+            end
+            return (1, 0, 0, 0, 0)
+        else
+            # Stochastic - do the integer part first
+            for n in 1:floor(Int, abs(val))
+                new_add, gen_prob, mat_elem = random_offdiagonal(hops)
+                # if pspawn > 1, do exactly, otherwise round to 1
+                pspawn = dτ * abs(mat_elem) / gen_prob
+                sg = sign(val) * sign(mat_elem)
+                if pspawn ≥ 1
+                    w[new_add] -= pspawn * sg
+                elseif cRand() < pspawn
+                    w[new_add] -= sg
+                end
+            end
+            # Take care of the leftovers
+            rem_val = abs(val % 1)
+            new_add, gen_prob, mat_elem = random_offdiagonal(hops)
+            pspawn = rem_val * dτ * abs(mat_elem) / gen_prob
+            sg = sign(val) * sign(mat_elem)
+            if pspawn ≥ 1
+                w[new_add] -= pspawn * sg
+            elseif cRand() < pspawn
+                w[new_add] -= sg
+            end
+            return (0, 1, 0, 0, 0)
+        end
+    end
+    @assert false
+
+    return (0, 0, 0, 0, 0)
+end

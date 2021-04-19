@@ -210,3 +210,9 @@ macro setDeterministic(dv)
         DictVectors.StochasticStyle($dv)
     end)
 end
+
+Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
+    alpha::Float64 = 1.0
+    beta::Float64 = 0.0
+    threshold::Float64 = 1.0
+end
