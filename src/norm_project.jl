@@ -17,6 +17,13 @@ norm_project!(::StochasticStyle, p, w, args...) = walkernumber(w) # MPIsync
 # default, compute 1-norm
 # e.g. triggered with the `NoProjection` strategy
 
+function norm_project!(p::NoProjectionAccumulator, w, args...)
+    for (add, val) in pairs(w)
+        p.accu[add] += val
+    end
+    return walkernumber(w)
+end
+
 norm_project!(::StochasticStyle, p::NoProjectionTwoNorm, w, args...) = norm(w, 2) # MPIsync
 # compute 2-norm but do not perform projection
 
