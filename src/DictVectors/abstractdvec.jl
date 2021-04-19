@@ -352,16 +352,16 @@ Results in computing the one-norm when used in `dot()`. E.g.
 dot(NormProjector(),x)
 -> norm(x,1) # with type valtype(x)
 ```
-`NormProjector()` thus represents the vector `sign.(x)`.
+`NormProjector()` thus represents the vector `sign.(conj.(x))`.
 
 See also [`ReportingStrategy`](@ref) for use
 of projectors in FCIQMC.
 """
 struct NormProjector <: AbstractProjector end
 
-LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y),norm(y,1))
-# dot returns the promote_type of the arguments.
-# NOTE that this can be different from the return type of norm()->Float64
+LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = norm(y,1)
+# NOTE that this returns a `Float64` opposite to the convention for
+# dot to return the promote_type of the arguments.
 # NOTE: This operation should work for `MPIData` and is MPI synchronizing
 
 """

@@ -63,6 +63,17 @@ walkers. Separate, real-valued shifts for each population will be used.
 struct IsStochastic2PopRealShift <: StochasticStyle end
 
 """
+    IsStochastic2PopRealShiftScaled(scale)
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of integer
+walkers. Separate, real-valued shifts for each population will be used, adjusted with
+scaling factor `scale`.
+"""
+struct IsStochastic2PopRealShiftScaled <: StochasticStyle
+    scale::Float64
+end
+
+"""
     IsStochastic2PopWithThreshold(threshold::Float32)
 Trait for generalised vector of configurations indicating stochastic
 propagation with complex walker numbers representing two populations of real
@@ -70,7 +81,7 @@ walkers and cutoff `threshold`.
 ```
 > StochasticStyle(V) = IsStochastic2PopWithThreshold(threshold)
 ```
-During stochastic propagation, walker numbers small than `threshold` will be
+During stochastic propagation, walker numbers smaller than `threshold` will be
 stochastically projected to either zero or `threshold`.
 
 The trait can be conveniently defined on an instance of a generalised vector

@@ -51,7 +51,8 @@ walkernumber(::DictVectors.IsStochastic2PopStoquastic, w) = float(sum(w))
 function walkernumber(::T, w) where T <: Union{DictVectors.IsStochastic2Pop,
                                                DictVectors.IsStochastic2PopInitiator,
                                                DictVectors.IsStochastic2PopWithThreshold,
-                                               DictVectors.IsStochastic2PopRealShift
+                                               DictVectors.IsStochastic2PopRealShift,
+                                               DictVectors.IsStochastic2PopRealShiftScaled
                                                }
     return isempty(w) ? 0.0+0.0im : sum(p->abs(real(p)) + abs(imag(p))*im, w)|>ComplexF64
 end
