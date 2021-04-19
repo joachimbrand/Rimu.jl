@@ -540,4 +540,35 @@ end
 gW(df::DataFrame) = gW(df.norm, df.shift, df.dτ[1])
 gW(df::DataFrame, b; pad = :true) = gW(df.norm, df.shift, df.dτ[1], b; pad=pad)
 
+@doc raw"""
+    crosscov_FP(x,y; [maxlag])
+Variant of a cross-covariance function inspired by estimator for a correlation function
+in [Flyvberg & Petersen (1989)](http://aip.scitation.org/doi/10.1063/1.457480). The optional
+keyword argument `maxlag` determines the length of the returned array as `maxlag+1`.
+The function accepts complex-valued vectors for `x` and `y`, which must have the same
+length ``n``. The returned vector the contains the values of
+```math
+\begin{aligned}
+\tilde{\gamma}(h) = \frac{1}{n-h}\sum_{i=1}^{n-h} (x_i - \bar{x})(y_{i+h} - \bar{y})
+\end{aligned}
+```
+for lags of `h = 0:maxlag`.
+"""
+function crosscov_FP(x,y; maxlag = min(length(x), 10*floor(Int,log10(length(x)))))
+    @assert length(x) == length(y)
+    n = length(x)
+    lags = 0:maxlag # possible values of h
+    xm = x .- mean(x) # subtract mean now, copies vector
+    ym = y .- mean(y)
+    T = typeof(zero(promote_type(eltype(x),eltype(y)))/1)
+    ccv = zeros(T,length(lags))
+    for (ih,h) in enumerate(lags)
+        γ = zero(T)
+        for i in 1:(n-h)
+            γ += xm[i] * ym[i+h]
+        end
+        ccv[ih] = γ/(n-h)
+    end
+    return ccv
+end
 end # module Blocking
