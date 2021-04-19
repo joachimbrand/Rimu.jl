@@ -38,6 +38,85 @@ function apply_memory_noise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::Mem
     return 0.0 # default prints an error message
 end
 
+function apply_memory_noise!(::StochasticStyle, w, _, _, _, _, m::ConstrainedNoise)
+    lw = localpart(w) # just to make sure - normally `w` would be a local DVec anyway
+    # current norm of `w` per population after FCIQMC step
+    return apply_constrained_noise!(lw, Norm1ProjectorPPop()⋅lw, m)
+end
+
+function apply_constrained_noise!(w::AbstractDVec{<:Any,V}, _, _) where V
+    throw(ErrorException("`ConstrainedNoise` on walkers with type $V is not implemented."))
+end
+
+function apply_constrained_noise!(w::AbstractDVec{<:Any,<:Integer}, nwalkers, m)
+    # define three integer counters
+    n_pool = Int(nwalkers) # pool of remaining random psips
+    n_m = trunc(Int, m.α/2*n_pool) # number of remaining `-1` random psips
+    m.α/2*n_pool-n_m > cRand() && (n_m += 1) # stochastic rounding to Int
+    n_mp = 2*n_m # number of remaining `+1` or `-1` random psips
+    # making sure that we get the exact same number of `+1` random psips
+    # @show n_m, n_mp, n_pool
+
+    for (add, num) in pairs(w)
+        noise = 0
+        for i in 1:abs(num)
+            r = cRand(1:n_pool)
+            if r ≤ n_m
+                noise -= 1
+                n_m -= 1 # one `-1` psip is used up
+                n_mp -= 1 # all counters need to be reduced
+            elseif r ≤ n_mp
+                noise += 1
+                n_mp -= 1 # one `+1` psip is used up
+            end
+            n_pool -= 1 # one psip from the pool was used
+        end
+        w[add] = num + sign(num) * noise
+    end
+    return 0.0
+end
+
+function apply_constrained_noise!(w::AbstractDVec{<:Any,<:Complex{<:Integer}}, nwalkers, m)
+    # define three complex-valued counters
+    n_pool = nwalkers
+    n_m_approx = m.α/2*n_pool
+    n_m = round(n_m_approx, RoundToZero)
+    real(n_m_approx) - real(n_m) > cRand() && (n_m += 1) # stochastic rounding to Int
+    imag(n_m_approx) - imag(n_m) > cRand() && (n_m += im) # stochastic rounding to Int
+    n_mp = 2*n_m # number of remaining `+1` or `-1` random psips
+    # @show n_m, n_mp, n_pool # should all have complex non-negative integer values
+
+    for (add, num) in pairs(w)
+        noise = 0 + 0im
+        for i in 1:abs(real(num))
+            r = cRand(1:real(n_pool))
+            if r ≤ real(n_m)
+                noise -= 1
+                n_m -= 1 # one `-1` psip is used up
+                n_mp -= 1 # all counters need to be reduced
+            elseif r ≤ real(n_mp)
+                noise += 1
+                n_mp -= 1 # one `+1` psip is used up
+            end
+            n_pool -= 1 # one psip from the pool was used
+        end
+        for i in 1:abs(imag(num))
+            r = cRand(1:imag(n_pool))
+            if r ≤ imag(n_m)
+                noise -= im
+                n_m -= im # one `-1` psip is used up
+                n_mp -= im # all counters need to be reduced
+            elseif r ≤ imag(n_mp)
+                noise += im
+                n_mp -= im # one `+1` psip is used up
+            end
+            n_pool -= im # one psip from the pool was used
+        end
+        w[add] = num + sign(real(num)) * real(noise) + im * sign(imag(num)) * imag(noise)
+    end
+    return 0.0
+end
+
 function apply_memory_noise!(s::IsStochasticWithThreshold,
                            w, v, shift, dτ, pnorm, m::DeltaMemory)
     tnorm = norm(w, 1) # MPIsync
