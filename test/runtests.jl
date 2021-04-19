@@ -147,7 +147,7 @@ end
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv); report_xHy = true)
     @test sum(rr[1][:,:xHy]) ≈ -52734.63455801873
 end
 
