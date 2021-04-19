@@ -1,4 +1,33 @@
 # second level: `fciqmc_step!()`
+# `prep_shift()` - helper function for `fciqmc_step!()`
+
+"""
+    prep_shift(::StochasticStyle, shift, pnorm)
+Prepare shift according to `StochasticStyle`. Passes through `shift` except for
+`IsStochastic2PopRealShift` where a named tuple of suitable values for each walker
+population is computed from a complex shift argument.
+"""
+prep_shift(::StochasticStyle, shift, pnorm) = shift # default
+function prep_shift(::DictVectors.IsStochastic2PopRealShift, shift, pnorm)
+    return if abs(real(pnorm)*imag(pnorm)) > 1
+        (
+        r = real(shift) - imag(shift)*imag(pnorm)/real(pnorm),
+        i = real(shift) + imag(shift)*real(pnorm)/imag(pnorm),
+        )
+    else # ignore imaginary part of shift if population is small to avoid division by zero
+        (r = real(shift), i = real(shift))
+    end
+end # returns named tuple of real (Float64) numbers
+function prep_shift(iss::DictVectors.IsStochastic2PopRealShiftScaled, shift, pnorm)
+    return if abs(real(pnorm)*imag(pnorm)) > 1
+        (
+        r = real(shift) - imag(shift)*imag(pnorm)/real(pnorm)*iss.scale,
+        i = real(shift) + imag(shift)*real(pnorm)/imag(pnorm)*iss.scale,
+        )
+    else # ignore imaginary part of shift if population is small to avoid division by zero
+        (r = real(shift), i = real(shift))
+    end
+end # returns named tuple of real (Float64) numbers
 
 
 """
@@ -26,6 +55,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, w, m = 1.0;
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
     empty!(w) # clear working memory
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
     # call fciqmc_col!() on every entry of `v` and add the stats returned by
     # this function:
     stats = allocate_statss(v, nothing)
@@ -89,6 +119,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
     statss = allocate_statss(v, NT) # [zeros(Int,5) for i=1:NT]
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
     @sync for btr in Iterators.partition(pairs(v), batchsize)
         Threads.@spawn for (add, num) in btr
             statss[Threads.threadid()] .+= fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
@@ -111,6 +142,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
     statss = allocate_statss(v, NT)
 
     batchsize = max(100.0, min(amount(pairs(v))/NT, sqrt(amount(pairs(v)))*10))
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
 
     # define recursive dispatch function that loops two halves in parallel
     function loop_configs!(ps) # recursively spawn threads
@@ -161,6 +193,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Bool;
     # statss = [zeros(Int,5) for i=1:NT]
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
     # stats = mapreduce(p-> SVector(fciqmc_col!(ws[Threads.threadid()], Ĥ, p.first, p.second, shift, dτ)), +,
     #   pairs(v))
 
@@ -180,6 +213,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Int;
 
     statss = allocate_statss(v, NT)
     zero!.(ws) # clear working memory
+    shift = prep_shift(StochasticStyle(v), shift, pnorm)
 
     function col!(p) # take a pair address -> value and run `fciqmc_col!()` on it
         statss[threadid()] .+= fciqmc_col!(ws[threadid()], Ĥ, p.first, p.second, shift, dτ)
@@ -215,4 +249,3 @@ end # fciqmc_step!
 #     # result `dv` and cumulative `stats` as an array on all ranks
 #     # stats == (spawns, deaths, clones, antiparticles, annihilations)
 # end # fciqmc_step!
-
