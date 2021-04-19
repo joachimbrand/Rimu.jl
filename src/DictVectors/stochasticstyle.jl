@@ -46,6 +46,14 @@ walkers. Initiator algorithm will be used.
 struct IsStochastic2PopInitiator <: StochasticStyle end
 
 """
+    IsStochastic2PopRealShift()
+Trait for generalised vector of configurations indicating stochastic
+propagation with complex walker numbers representing two populations of integer
+walkers. Separate, real-valued shifts for each population will be used.
+"""
+struct IsStochastic2PopRealShift <: StochasticStyle end
+
+"""
     IsStochastic2PopWithThreshold(threshold::Float32)
 Trait for generalised vector of configurations indicating stochastic
 propagation with complex walker numbers representing two populations of real
