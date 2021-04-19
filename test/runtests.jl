@@ -336,6 +336,15 @@ end
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p_strat)
     @test sum(rdfs[:,:norm]) ≈ 3546.7449141934667
 
+    # NoProjectionAccumulator
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    pa = RunTillLastStep(laststep = 100)
+    accu = similar(svec)
+    p_strat = Rimu.NoProjectionAccumulator(accu)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs); p_strat)
+    @test length(accu) == 514
+
     # ProjectedMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
