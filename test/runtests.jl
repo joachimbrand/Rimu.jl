@@ -443,13 +443,33 @@ end
     nt = lomc!(nt, nt.params.laststep + 100) # run for another 100 steps
     @test size(nt.df)[1] == 201 # initial state + 200 steps
 
+    # test ConstrainedNoise for real walkers
+    tnorm = norm(nt.v, 1)
+    m_strat = Rimu.ConstrainedNoise(0.3)
+    Rimu.applyMemoryNoise!(nt.v,0,0,0,0, m_strat)
+    @test tnorm == norm(nt.v, 1)
+
     # fciqmc with complex shift and norm
-    svec = DVec(Dict(aIni => 2), 2000)
+    svec = DVec(Dict(aIni => 2+2im), 2000)
     pa = RunTillLastStep(shift = 0.0 + 0im) # makes shift and norm type ComplexF64
     nt = lomc!(ham, svec, params=pa, laststep = 100) # run for 100 time steps
     # continuation run
     nt = lomc!(nt, nt.params.laststep + 100) # run for another 100 steps
     @test size(nt.df)[1] == 201 # initial state + 200 steps
+
+    # test ConstrainedNoise for complex walkers
+    tnorm = Norm1ProjectorPPop()⋅nt.v
+    tnorm2 = norm(nt.v,2)
+    m_strat = Rimu.ConstrainedNoise(0.3)
+    Rimu.applyMemoryNoise!(nt.v,0,0,0,0, m_strat)
+    @test tnorm == Norm1ProjectorPPop()⋅nt.v
+    @test tnorm2 ≠ norm(nt.v,2)
+
+    # test ConstrainedNoise for float walkers
+    @test_throws ErrorException Rimu.applyMemoryNoise!(DVec2(:a=>1.1; capacity = 10),
+        0,0,0,0, m_strat
+    )
+
 
     # fciqmc with deterministic outcome by seeding the rng and turning off multithreading
     svec = DVec(Dict(aIni => 2), 2000)
@@ -517,6 +537,10 @@ end
     @test StochasticStyle(dvi) == DictVectors.IsStochastic2Pop()
     dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
     @test walkernumber(dvr) == norm(dvr,1)
+    v =  DVec2(BoseFS{10,10}((1, 1, 1, 1, 1, 1, 1, 1, 1, 1)) => 2 + 2im, capacity=10,
+        style = DictVectors.IsStochastic2PopStoquastic()
+    )
+    @test walkernumber(v) == UniformProjector() ⋅ v
 end
 
 @testset "complex walkers" begin

@@ -50,5 +50,7 @@ walkernumber(w) = walkernumber(StochasticStyle(w), w)
 # use StochasticStyle trait for dispatch
 # the following default is fast and generic enough to be good for real walkers and
 # complex walkers as two populations
+# For `MPIData` the dot product returns a reduction from all ranks # MPI sync
 walkernumber(::StochasticStyle, w) = Norm1ProjectorPPop() ⋅ w
-walkernumber(::DictVectors.IsStochastic2PopStoquastic, w) = float(sum(w))
+# Here just sum the numbers
+walkernumber(::DictVectors.IsStochastic2PopStoquastic, w) = float(UniformProjector() ⋅ w)
