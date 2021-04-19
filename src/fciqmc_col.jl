@@ -90,8 +90,9 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     # note that w is not returned
 end
 
-function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian, add,
-                        cnum::Complex, cshift, dτ)
+function fciqmc_col!(::S2P, w, ham::AbstractHamiltonian, add,
+                        cnum::Complex, cshift, dτ
+) where S2P<:Union{DictVectors.IsStochastic2Pop, DictVectors.IsStochastic2PopStoquastic}
     # version for complex integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
@@ -129,7 +130,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
         nspawns = im*convert(typeof(num), -nspawn * sign(num) * sign(matelem))
         # - because Hamiltonian appears with - sign in iteration equation
         if sign(imag(w[naddress])) * sign(imag(nspawns)) < 0 # record annihilations
-            annihilations += min(abs(imag(w[naddress])),abs(nspawns))
+            annihilations += min(abs(imag(w[naddress])),abs(imag(nspawns)))
         end
         if !iszero(nspawns)
             w[naddress] += nspawns
@@ -149,7 +150,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     ndiag = trunc(newdiagpop)
     abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
-    ndiags = convert(typeof(num),ndiag) # now complex integer type
+    ndiags = convert(typeof(num),ndiag) # now real integer type
     if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
         annihilations += min(abs(real(w[add])),abs(real(ndiags)))
     end
@@ -168,7 +169,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
     ndiags = im*convert(typeof(num),ndiag) # now complex integer type
-    if sign(imag(w[add])) ≠ sign(ndiag) # record annihilations
+    if sign(imag(w[add])) ≠ sign(imag(ndiag)) # record annihilations
         annihilations += min(abs(imag(w[add])),abs(imag(ndiags)))
     end
     w[add] += ndiags # should carry the correct sign
@@ -210,6 +211,112 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     w[add] += cnspawn
     # perform spawn (if nonzero): add walkers with correct sign
     spawns += abs(nspawn)
+
+    return (spawns, deaths, clones, antiparticles, annihilations)
+    # note that w is not returned
+end
+
+function fciqmc_col!(
+    ::Union{
+        DictVectors.IsStochastic2PopRealShift,
+        DictVectors.IsStochastic2PopRealShiftScaled
+    },
+    w,
+    ham::AbstractHamiltonian,
+    add,
+    cnum::Complex,
+    shift_tuple,
+    dτ,
+)
+    # version for complex integer psips with separate values of the shift for real
+    # and imaginary walkers
+    # off-diagonal: spawning psips
+    # stats reported are complex, for each component separately
+    spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
+    hops = Hops(ham,add)
+    # real psips first
+    num = real(cnum)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(real(w[naddress])) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(real(w[naddress])),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(nspawns)
+        end
+    end
+    # now imaginary psips
+    num = imag(cnum)
+    for n in 1:abs(num) # for each psip attempt to spawn once
+        naddress, pgen, matelem = generateRandHop(hops)
+        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
+        nspawn = floor(pspawn) # deal with integer part separately
+        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
+        # at this point, nspawn is non-negative
+        # now converted to correct type and compute sign
+        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem)) # real number
+        # - because Hamiltonian appears with - sign in iteration equation
+        if sign(imag(w[naddress])) * sign(nspawns) < 0 # record annihilations
+            annihilations += min(abs(imag(w[naddress])),abs(nspawns))
+        end
+        if !iszero(nspawns)
+            w[naddress] += im*nspawns
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += im*abs(nspawns)
+        end
+    end
+
+    # diagonal death / clone
+    dME = diagME(ham,add)
+    # treat real part
+    shift = shift_tuple.r # use shift for real propulation
+    pd = dτ * (dME - shift) # real valued so far
+    num = real(cnum)
+    newdiagpop = (1-pd)*num
+    ndiag = trunc(newdiagpop)
+    # only treat non-integer part stochastically
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    ndiags = convert(typeof(num),ndiag) # now (real) integer type
+    if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
+        annihilations += min(abs(real(w[add])),abs(ndiags))
+    end
+    w[add] += ndiags # should carry the correct sign
+    if  pd < 0 # record event statistics
+        clones += abs(ndiags - num)
+    elseif pd < 1
+        deaths += abs(ndiags - num)
+    else
+        antiparticles += abs(ndiags)
+    end
+    # treat imaginary part
+    shift = shift_tuple.i # use shift for imag population
+    pd = dτ * (dME - shift) # real valued so far
+    num = imag(cnum)
+    newdiagpop = (1-pd)*num
+    ndiag = trunc(newdiagpop)
+    # only treat non-integer part stochastically
+    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
+    ndiags = convert(typeof(num), ndiag) # now (real) integer type
+    if sign(imag(w[add])) ≠ sign(ndiag) # record annihilations
+        annihilations += min(abs(imag(w[add])), abs(ndiags))
+    end
+    w[add] += im*ndiags # should carry the correct sign
+    if  pd < 0 # record event statistics
+        clones += im*abs(ndiags - num)
+    elseif pd < 1
+        deaths += im*abs(ndiags - num)
+    else
+        antiparticles += im*abs(ndiags)
+    end
 
     return (spawns, deaths, clones, antiparticles, annihilations)
     # note that w is not returned
