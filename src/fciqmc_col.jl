@@ -600,9 +600,10 @@ function fciqmc_col!(
     # Diagonal step:
     new_val = (1 + dτ*(shift - diagonal_element(ham,add))) * val
     w[add] += new_val
+    absval = abs(val)
 
     # Initiator:
-    if val > s.beta
+    if absval > s.beta
         hops = offdiagonals(ham, add)
         if s.alpha * val ≥ length(hops)
             # Exact multiplication
@@ -613,7 +614,7 @@ function fciqmc_col!(
             return (1, 0, 0, 0, 0)
         else
             # Stochastic - do the integer part first
-            for n in 1:floor(Int, abs(val))
+            for n in 1:floor(Int, absval)
                 new_add, gen_prob, mat_elem = random_offdiagonal(hops)
                 # if pspawn > 1, do exactly, otherwise round to 1
                 pspawn = dτ * abs(mat_elem) / gen_prob
@@ -625,7 +626,7 @@ function fciqmc_col!(
                 end
             end
             # Take care of the leftovers
-            rem_val = abs(val % 1)
+            rem_val = absval % 1
             new_add, gen_prob, mat_elem = random_offdiagonal(hops)
             pspawn = rem_val * dτ * abs(mat_elem) / gen_prob
             sg = sign(val) * sign(mat_elem)
@@ -637,7 +638,6 @@ function fciqmc_col!(
             return (0, 1, 0, 0, 0)
         end
     end
-    @assert false
 
-    return (0, 0, 0, 0, 0)
+    return (0, 0, 1, 0, 0)
 end
