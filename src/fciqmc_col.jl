@@ -598,8 +598,8 @@ function fciqmc_col!(
     w, ham::AbstractHamiltonian, add, val, shift, dτ,
 )
     # Diagonal step:
-    new_val = (1 + dτ*(shift - diagonal_element(ham,add))) * val
-    w[add] += new_val
+    #new_val =
+    w[add] -= dτ*(shift - diagonal_element(ham,add))
     absval = abs(val)
 
     # Initiator:
