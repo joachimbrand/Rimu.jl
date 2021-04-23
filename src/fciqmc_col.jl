@@ -593,6 +593,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     return (0, 0, 0, 0, 0)
 end
 
+# TODO this is here for testing pupropses. Should be deleted.
 function fciqmc_col!(
     s::IsStochasticWithThresholdAndInitiator,
     w, ham::AbstractHamiltonian, add, val, shift, dτ,
@@ -640,4 +641,35 @@ function fciqmc_col!(
     end
 
     return (0, 0, 1, 0, 0)
+end
+
+function fciqmc_col!(
+    s::IsDynamicSemistochastic,
+    w, ham::AbstractHamiltonian, add, val, shift, dτ,
+)
+    # Diagonal step:
+    new_val = (1 + dτ*(shift - diagonal_element(ham, add))) * val
+    w[add] += new_val
+    absval = abs(val)
+
+    hops = offdiagonals(ham, add)
+    if s.rel_threshold * val ≥ length(hops) || val ≥ s.abs_threshold
+        # Exact multiplication
+        factor = dτ * val
+        for (new_add, mat_elem) in hops
+            w[new_add] -= factor * mat_elem
+        end
+        return (1, 0, 0, 0, 0)
+    else
+        # Stochastic without projection. Projection is done later on.
+        remainder = absval % 1
+        for i in 1:ceil(Int, absval)
+            factor = ifelse(i == 1, remainder, 1.0) * dτ * absval
+            new_add, gen_prob, mat_elem = random_offdiagonal(hops)
+            pspawn = factor / gen_prob
+            sg = sign(val) * sign(mat_elem)
+            w[new_add] -= pspawn * sg
+        end
+        return (0, 1, 0, 0, 0)
+    end
 end

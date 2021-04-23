@@ -23,6 +23,9 @@ norm_project!(::StochasticStyle, p::NoProjectionTwoNorm, w, args...) = norm(w, 2
 function norm_project!(s::S, p::ThresholdProject, w, args...) where S<:Union{IsStochasticWithThreshold,IsStochasticWithThresholdAndInitiator}
     return norm_project_threshold!(w, p.threshold) # MPIsync
 end
+function norm_project!(s::IsDynamicSemistochastic, _, w, args...)
+    return norm_project_threshold!(w, s.proj_threshold)
+end
 
 function norm_project_threshold!(w, threshold)
     # MPIsync

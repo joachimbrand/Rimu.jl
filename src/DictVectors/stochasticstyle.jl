@@ -211,6 +211,29 @@ macro setDeterministic(dv)
     end)
 end
 
+"""
+    IsDynamicSemistochastic
+
+Parameters:
+
+* `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
+  is greater than the number of offdiagonals, spawning is done deterministically. Should be
+  set to at most 1 for best performance.
+
+* `abs_threshold = Inf`: If the walker number on a configuration is greater than this value,
+  spawning is done deterministically. Can be set to e.g
+  `abs_threshold = 0.1 * target_walkers`.
+
+* `proj_threshold = 1.0`: Values below this number are stochastically projected to this
+  value or zero. See also [`IsStochasticWithThreshold`](@ref).
+"""
+Base.@kwdef struct IsDynamicSemistochastic<:StochasticStyle
+    rel_threshold::Float64 = 1.0
+    abs_threshold::Float64 = Inf
+    proj_threshold::Float64 = 1.0
+end
+
+# TODO this is here for testing purposes. Should be deleted.
 Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
     alpha::Float64 = 1.0
     beta::Float64 = 0.0
