@@ -1,6 +1,7 @@
 # top level functions `lomc!()` and `fciqmc!()`
 # `refine_r_strat`: helper function for `lomc!()`
 
+# I made no change!
 # TODO: deprecate `fciqmc!`
 
 """
