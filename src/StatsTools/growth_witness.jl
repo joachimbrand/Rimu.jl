@@ -31,7 +31,9 @@ function growth_witness(norm::AbstractArray, shift::AbstractArray, dt, b; pad = 
     return smoothen(g_raw, b; pad)
 end
 growth_witness(df::DataFrame) = growth_witness(df.norm, df.shift, df.dτ[1])
-growth_witness(df::DataFrame, b; pad = :true) = growth_witness(df.norm, df.shift, df.dτ[1], b; pad=pad)
+function growth_witness(df::DataFrame, b; pad = :true)
+    return growth_witness(df.norm, df.shift, df.dτ[1], b; pad=pad)
+end
 
 """
     smoothen(noisy::AbstractVector, b; pad = :true)
