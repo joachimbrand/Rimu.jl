@@ -531,7 +531,7 @@ end
     pa = RunTillLastStep(shift = 0.0+0im, dτ=0.001)
     p_strat = Rimu.ComplexNoiseCancellation(κ = 1.0)
     nt = lomc!(ham, svec, params=pa,s_strat= s_strat, p_strat=p_strat, laststep = 10) # run for 100 time steps
-    @test gW(nt.df,4, pad= false) |> length == 7
+    @test Rimu.Blocking.gW(nt.df,4, pad= false) |> length == 7
 end
 
 @testset "helpers" begin
