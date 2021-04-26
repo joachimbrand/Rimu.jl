@@ -4,11 +4,15 @@ using LinearAlgebra
 using Statistics, DataFrames
 using SafeTestsets
 
-# assuming VERSION ≥ v"1.5"
+# assuming VERSION ≥ v"1.6"
 # the following is needed because random numbers of collections are computed
-# differently after version 1.5, and thus the results of many tests change
+# differently after version 1.6, and thus the results of many tests change
 # for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
-@assert VERSION ≥ v"1.5"
+@assert VERSION ≥ v"1.6"
+
+@safetestset "StatsTools" begin
+    include("StatsTools.jl")
+end
 
 @safetestset "BitStringAddresses" begin
     include("BitStringAddresses.jl")
