@@ -151,7 +151,7 @@ end
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv); report_xHy = true)
     @test sum(rr[1][:,:xHy]) ≈ -52734.63455801873
-    fse = Blocking.fidelity_and_se(rr; p_field = :vproj)
+    fse = Rimu.Blocking.fidelity_and_se(rr; p_field = :vproj)
     @test 0.4 < fse.fid / norm(svec)^2 < 0.6
 end
 
