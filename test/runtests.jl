@@ -545,6 +545,7 @@ end
 
 end
 
+using Rimu.Blocking # bring exported functions into name space
 @testset "Blocking.jl" begin
     n=10
     a = rand(n)
