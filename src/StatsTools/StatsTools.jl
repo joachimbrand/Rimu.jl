@@ -3,7 +3,7 @@ Tools for the statistical analysis of Monte Carlo data.
 """
 module StatsTools
 
-using Statistics, MonteCarloMeasurements, Distributions
+using Statistics, MonteCarloMeasurements, Distributions, DataFrames
 
 export growth_witness, smoothen
 export mtest, block_and_test
