@@ -23,35 +23,32 @@ function growth_witness(norm::AbstractArray, shift::AbstractArray, dt)
         g[i] = shift[i] - (norm[i+1] - norm[i])/(dt*norm[i])
     end
     # pad the vector g at the end
-    g[n+1] = g[n]
+    g[n+1] = @views mean(g[1:n])
     return g
 end
-function growth_witness(norm::AbstractArray, shift::AbstractArray, dt, b; pad = :true)
+function growth_witness(norm::AbstractArray, shift::AbstractArray, dt, b)
     g_raw = growth_witness(norm, shift, dt)
-    return smoothen(g_raw, b; pad)
+    return smoothen(g_raw, b)
 end
-growth_witness(df::DataFrame) = growth_witness(df.norm, df.shift, df.dτ[1])
-function growth_witness(df::DataFrame, b; pad = :true)
-    return growth_witness(df.norm, df.shift, df.dτ[1], b; pad=pad)
+growth_witness(df::DataFrame) = growth_witness(df.norm, df.shift, df.dτ[end])
+function growth_witness(df::DataFrame, b)
+    return growth_witness(df.norm, df.shift, df.dτ[1], b)
 end
 
 """
-    smoothen(noisy::AbstractVector, b; pad = :true)
-Smoothen the array `noisy` by averaging over a sliding window of length `b`.
-Pad to `length(noisy)` if `pad == true`. Otherwise, the returned array will have
-the length `length(noisy) - b`.
+    smoothen(noisy::AbstractVector, b)
+Smoothen the array `noisy` by averaging over a sliding window of length `b` and
+wrapping `noisy` periodically. The [`mean(noisy)`](@ref) is preserved.
 """
-function smoothen(noisy::AbstractVector, b; pad = :true)
+function smoothen(noisy::AbstractVector, b::Integer)
     l = length(noisy)
-    n = l - b
-    smooth = Vector{promote_type(eltype(noisy),Float64)}(undef, pad ? l : n)
-    offset = pad ? b÷2 : 0 # use offset only if pad == :true
-    for i in 1:n
-        smooth[i + offset] = 1/b * sum(noisy[i:i+b-1])
-    end
-    if pad # pad the vector g at both ends
-        smooth[1:offset] .= smooth[offset+1]
-        smooth[offset+n+1 : end] .= smooth[offset+n]
+    @assert 1 ≤ b ≤ l
+    smooth = zeros(float(eltype(noisy)), l)
+    offset = b÷2 + 1
+    for i in 1:l
+        for j = 1:b # average over `b` elements of `noisy`
+            smooth[i] += noisy[mod1(i-offset+j, l)]/b
+        end
     end
     return smooth
 end
