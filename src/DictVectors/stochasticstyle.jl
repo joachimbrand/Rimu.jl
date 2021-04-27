@@ -214,6 +214,9 @@ end
 """
     IsDynamicSemistochastic
 
+Similar to [`IsStochasticWithThreshold`](@ref), but does exact spawning when the number of
+walkers in a configuration is high.
+
 Parameters:
 
 * `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
