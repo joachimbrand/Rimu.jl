@@ -1,14 +1,46 @@
 # estimators for ratio of means of two time series (including blocking)
 
 struct RatioBlockingResult{T,P}
-    val::T
-    p::P
-    k::Int
-    success::Bool
+    ratio::P    # ratio with uncertainties propagated by MonteCarloMeasurements
+    f::T        # ratio of means
+    σ_f::T      # std from linear propagation
+    δ_y::T      # coefficient of variation for denominator (≤ 0.1 for normal approx)
+    k::Int      # k-1 blocking steps were used to uncorrelate time series
+    success::Bool # false if any of the blocking steps failed
 end
-# TODO: write nice method for `show()`
+# make it behave like Particles
+# Base.iterate(r::RatioBlockingResult, args...) = iterate(r.ratio, args...)
+# Base.length(r::RatioBlockingResult) = length(r.ratio)
+# Base.eltype(r::RatioBlockingResult) = eltype(r.ratio)
+MacroTools.@forward RatioBlockingResult.ratio Statistics.median, Statistics.quantile
+MacroTools.@forward RatioBlockingResult.ratio Statistics.middle, Base.iterate, Base.extrema
+MacroTools.@forward RatioBlockingResult.ratio Base.minimum, Base.maximum
+MacroTools.@forward RatioBlockingResult.ratio Statistics.mean, Statistics.cov
 
-# TODO: docstring - we want to export this function
+function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T,P}
+    q = quantile(r.ratio, [0.16,0.5,0.84])
+    println(io, "RatioBlockingResult{$T,$P}")
+    println(io, "  ratio = $(q[2]) + $(q[3]-q[2]) - $(q[2]-q[1]) (MC)")
+    println(io, "  95% confidence interval: $(quantile(r.ratio, [0.025,0.975])) (MC)")
+    println(io, "  linear error propagation: $(r.f) ± $(r.σ_f)")
+    println(io, "  δ_y = $(r.δ_y) (≤ 0.1 for normal approx)")
+    println(io, "  blocking success: $success with k = $(r.k)")
+end
+
+"""
+    ratio_of_means(num, denom; corrected = true, mc_samples = 10_000) -> r
+Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
+correlated time series. A blocking analysis with m-test is used to uncorrelate the time
+series, see [`block_and_test()`](@ref). The remaining standard error and correlation of the
+means is propagated using [`MonteCarloMeasurements`](@ref).
+
+Robust estimates for the ratio
+are obtained from [`median(r)`](@ref) and confidence intervals from [`quantile()`](@ref),
+e.g. `quantile(r, [0.025, 0.975])` for the 95% confidence interval.
+
+Estimates from linear uncertainty propagation are returned as `r.f` and `r.σ_f` using
+[`x_by_y_linear()`](@ref).
+"""
 function ratio_of_means(num, denom; corrected = true, mc_samples = 10_000)
     # determine how many blocking steps are needed to uncorrelate data
     bt_num = block_and_test(num)
@@ -18,12 +50,12 @@ function ratio_of_means(num, denom; corrected = true, mc_samples = 10_000)
     success = any(k->k<0, ks) ? false : true
     k = max(ks...)
 
-    # MC error propagation
+    # MC and linear error propagation
     r, f, σ_f, δ_y = ratio_estimators(num, denom, k; corrected, mc_samples)
 
     # use formula from linear error propagation
     value = bt_num.mean/bt_den.mean
-    return RatioBlockingResult(value,r,k,success)
+    return RatioBlockingResult(r, bt_num.mean/bt_den.mean, σ_f, δ_y, k, success)
 end
 
 """
@@ -33,7 +65,7 @@ random variables and assuming the ratio can be approximated as a normal distribu
 See [wikipedia](https://en.wikipedia.org/wiki/Propagation_of_uncertainty) and
 [Díaz-Francés, Rubio (2013)](http://link.springer.com/10.1007/s00362-012-0429-2).
 ```math
-σ_f = \\sqrt{\\frac{σ_x}{μ_y}^2 + \\frac{μ_x*σ_y}{μ_y^2}^2 - \frac{2*ρ*μ_x}{μ_y^3}}
+σ_f = \\sqrt{\\frac{σ_x}{μ_y}^2 + \\frac{μ_x σ_y}{μ_y^2}^2 - \\frac{2 ρ μ_x}{μ_y^3}}
 ```
 """
 function x_by_y_linear(μ_x,μ_y,σ_x,σ_y,ρ)
