@@ -592,3 +592,83 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     # done with stochastic spawning
     return (0, 0, 0, 0, 0)
 end
+
+# TODO this is here for testing pupropses. Should be deleted later on.
+function fciqmc_col!(
+    s::DictVectors.IsStochasticWithThresholdAndInitiator,
+    w, ham::AbstractHamiltonian, add, val, shift, dτ,
+)
+    # Diagonal step:
+    new_val = (1 + dτ*(shift - diagonal_element(ham,add))) * val
+    w[add] += new_val
+    absval = abs(val)
+
+    # Initiator:
+    if absval > s.beta
+        hops = offdiagonals(ham, add)
+        if s.alpha * val ≥ length(hops)
+            # Exact multiplication
+            factor = dτ * val
+            for (new_add, mat_elem) in hops
+                w[new_add] -= factor * mat_elem
+            end
+            return (1, 0, 0, 0, 0)
+        else
+            # Stochastic - do the integer part first
+            for n in 1:floor(Int, absval)
+                new_add, gen_prob, mat_elem = random_offdiagonal(hops)
+                # if pspawn > 1, do exactly, otherwise round to 1
+                pspawn = dτ * abs(mat_elem) / gen_prob
+                sg = sign(val) * sign(mat_elem)
+                if pspawn ≥ 1
+                    w[new_add] -= pspawn * sg
+                elseif cRand() < pspawn
+                    w[new_add] -= sg
+                end
+            end
+            # Take care of the leftovers
+            rem_val = absval % 1
+            new_add, gen_prob, mat_elem = random_offdiagonal(hops)
+            pspawn = rem_val * dτ * abs(mat_elem) / gen_prob
+            sg = sign(val) * sign(mat_elem)
+            if pspawn ≥ 1
+                w[new_add] -= pspawn * sg
+            elseif cRand() < pspawn
+                w[new_add] -= sg
+            end
+            return (0, 1, 0, 0, 0)
+        end
+    end
+
+    return (0, 0, 1, 0, 0)
+end
+
+function fciqmc_col!(
+    s::IsDynamicSemistochastic,
+    w, ham::AbstractHamiltonian, add, val, shift, dτ,
+)
+    absval = abs(val)
+
+    # Diagonal step:
+    new_val = (1 + dτ*(shift - diagonal_element(ham, add))) * val
+    w[add] += new_val
+
+    hops = offdiagonals(ham, add)
+    if s.rel_threshold * val ≥ length(hops) || val ≥ s.abs_threshold
+        # Exact multiplication when conditions are met.
+        factor = dτ * val
+        for (new_add, mat_elem) in hops
+            w[new_add] -= factor * mat_elem
+        end
+        return (1, 0, 0, 0, 0)
+    else
+        # Spawning without projection. It is done later on.
+        remainder = absval % 1
+        for i in 1:ceil(Int, absval)
+            new_add, gen_prob, mat_elem = random_offdiagonal(hops)
+            new_val = sign(val) * ifelse(i == 1, remainder, 1.0) * dτ * mat_elem / gen_prob
+            w[new_add] -= new_val
+        end
+        return (0, 1, 0, 0, 0)
+    end
+end

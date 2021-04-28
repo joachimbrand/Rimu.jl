@@ -20,8 +20,11 @@ norm_project!(::StochasticStyle, p, w, args...) = walkernumber(w) # MPIsync
 norm_project!(::StochasticStyle, p::NoProjectionTwoNorm, w, args...) = norm(w, 2) # MPIsync
 # compute 2-norm but do not perform projection
 
-function norm_project!(s::S, p::ThresholdProject, w, args...) where S<:Union{IsStochasticWithThreshold}
+function norm_project!(s::S, p::ThresholdProject, w, args...) where S<:Union{IsStochasticWithThreshold,DictVectors.IsStochasticWithThresholdAndInitiator}
     return norm_project_threshold!(w, p.threshold) # MPIsync
+end
+function norm_project!(s::IsDynamicSemistochastic, _, w, args...)
+    return norm_project_threshold!(w, s.proj_threshold)
 end
 
 function norm_project_threshold!(w, threshold)
