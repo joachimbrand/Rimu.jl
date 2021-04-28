@@ -20,3 +20,28 @@ end
     df = DataFrame(; norm=nor, shift, dτ)
     @test mean(growth_witness(df, 10)) ≈ mean(growth_witness(nor, shift, dτ[1]))
 end
+
+using Rimu.StatsTools: blocker, blocker!
+@testset "blocking" begin
+    # real
+    v = randn(100)
+    @test blocker(v) ≈ blocker!(v)
+    v = randn(2^10)
+    br = block_and_test(v)
+    @test 0.01 < br.err < 0.04
+    @test br.k ≤ 4 # should be 0+1 (independent random variables)
+    brs = block_and_test(smoothen(v, 2^5)) # introduce correlation
+    @test mean(v) ≈ br.mean ≈ brs.mean
+    @test 0.01 < brs.err < 0.04
+    @test brs.k ≤ 7 # should be 5+1
+
+    # complex
+    w = randn(ComplexF64, 100)
+    @test blocker(w) ≈ blocker!(w)
+    w = randn(ComplexF64, 2^10)
+    bc = block_and_test(w)
+    @test bc[1].k ≤ 4 && bc[2].k ≤ 4  # should be 0+1 (independent random variables)
+    bcs = block_and_test(smoothen(w, 2^5))
+    @test mean(w) ≈ bc[1].mean + im*bc[2].mean ≈ bcs[1].mean + im*bcs[2].mean
+    @test bcs[1].k ≤ 7 && bcs[2].k ≤ 7 # should be 5+1
+end
