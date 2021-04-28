@@ -595,7 +595,7 @@ end
 
 # TODO this is here for testing pupropses. Should be deleted later on.
 function fciqmc_col!(
-    s::IsStochasticWithThresholdAndInitiator,
+    s::DictVectors.IsStochasticWithThresholdAndInitiator,
     w, ham::AbstractHamiltonian, add, val, shift, dτ,
 )
     # Diagonal step:
