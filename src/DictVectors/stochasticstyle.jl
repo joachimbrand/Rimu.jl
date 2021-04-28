@@ -117,6 +117,51 @@ struct IsSemistochastic{T} <: StochasticStyle
 end
 
 """
+    IsDynamicSemistochastic
+
+Similar to [`IsStochasticWithThreshold`](@ref), but does exact spawning when the number of
+walkers in a configuration is high.
+
+Parameters:
+
+* `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
+  is greater than the number of offdiagonals, spawning is done deterministically. Should be
+  set to 1 or more for best performance.
+
+* `abs_threshold = Inf`: If the walker number on a configuration is greater than this value,
+  spawning is done deterministically. Can be set to e.g
+  `abs_threshold = 0.1 * target_walkers`.
+
+* `proj_threshold = 1.0`: Values below this number are stochastically projected to this
+  value or zero. See also [`IsStochasticWithThreshold`](@ref).
+"""
+Base.@kwdef struct IsDynamicSemistochastic<:StochasticStyle
+    rel_threshold::Float64 = 1.0
+    abs_threshold::Float64 = Inf
+    proj_threshold::Float64 = 1.0
+end
+
+"""
+    IsStochasticWithThresholdAndInitiator
+
+Similar to [`IsDynamicSemistochastic`](@ref), but does the projection step earlier. Also
+includes an approximate initiator method.
+
+* `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
+  is greater than the number of offdiagonals, spawning is done deterministically. Should be
+  set to 1 or more for best performance.
+
+* `proj_threshold = 1.0`: Values below this number are stochastically projected to this
+  value or zero. See also [`IsStochasticWithThreshold`](@ref).
+"""
+# TODO this is here for testing purposes. Should be deleted.
+Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
+    rel_threshold::Float64 = 1.0
+    initiator_threshold::Float64 = 0.0
+    proj_threshold::Float64 = 1.0
+end
+
+"""
     setSemistochastic!(dv, threshold::Float16, d_space)
 Set the deterministic space for `dv` with threshold `threshold`, where
 `d_space` is a vector of addresses defining the the stochastic subspace.
@@ -209,36 +254,4 @@ macro setDeterministic(dv)
         DictVectors.StochasticStyle(::Type{typeof($dv)}) = IsDeterministic()
         DictVectors.StochasticStyle($dv)
     end)
-end
-
-"""
-    IsDynamicSemistochastic
-
-Similar to [`IsStochasticWithThreshold`](@ref), but does exact spawning when the number of
-walkers in a configuration is high.
-
-Parameters:
-
-* `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
-  is greater than the number of offdiagonals, spawning is done deterministically. Should be
-  set to at most 1 for best performance.
-
-* `abs_threshold = Inf`: If the walker number on a configuration is greater than this value,
-  spawning is done deterministically. Can be set to e.g
-  `abs_threshold = 0.1 * target_walkers`.
-
-* `proj_threshold = 1.0`: Values below this number are stochastically projected to this
-  value or zero. See also [`IsStochasticWithThreshold`](@ref).
-"""
-Base.@kwdef struct IsDynamicSemistochastic<:StochasticStyle
-    rel_threshold::Float64 = 1.0
-    abs_threshold::Float64 = Inf
-    proj_threshold::Float64 = 1.0
-end
-
-# TODO this is here for testing purposes. Should be deleted.
-Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
-    alpha::Float64 = 1.0
-    beta::Float64 = 0.0
-    threshold::Float64 = 1.0
 end
