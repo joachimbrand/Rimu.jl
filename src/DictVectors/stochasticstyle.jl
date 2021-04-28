@@ -153,6 +153,9 @@ includes an approximate initiator method.
 
 * `proj_threshold = 1.0`: Values below this number are stochastically projected to this
   value or zero. See also [`IsStochasticWithThreshold`](@ref).
+
+* `initiator_threshold = 0.0`: Configurations with walker numbers smaller than this number are
+  not allowed to spawn.
 """
 # TODO this is here for testing purposes. Should be deleted.
 Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
