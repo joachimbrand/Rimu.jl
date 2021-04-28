@@ -117,11 +117,11 @@ function blocker(v::AbstractVector{T}) where T <: Complex
 end
 
 """
-    block_inplace!(v::Vector)
+    blocker!(v::Vector)
 Perform a single blocking step on `v` inplace. The length of `v` will reduce to
 `length(v)÷2`.
 """
-function block_inplace!(v::Vector)
+function blocker!(v::Vector)
     new_len = length(v)÷2
     for i in 1:new_len
         @inbounds v[i]  = (v[2i-1]+v[2i])/2

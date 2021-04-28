@@ -78,15 +78,15 @@ function ratio_estimators(x, y; corrected = true, mc_samples = 10_000)
     δ_y = √var_y/μ_y
     return (; r, f, σ_f, δ_y)
 end
+
 function ratio_estimators(num, denom, k; corrected = true, mc_samples = 10_000)
-    x = float(eltype(num))[] # empty array of correct type
-    copy!(x, num)
-    y = float(eltype(denom))[] # empty array of correct type
-    copy!(y, denom)
+    x = copy!(float(eltype(num))[], num) # copy as vector with correct type
+    y = copy!(float(eltype(denom))[], denom) # copy as vector with correct type
+
     for i in 1:(k-1) # decorrelate time series by `k-1` blocking steps
-        block_inplace!(x)
-        block_inplace!(y)
+        blocker!(x)
+        blocker!(y)
     end
-    nt = ratio_estimators(x, y; corrected, mc_samples)
-    return nt
+
+    return ratio_estimators(x, y; corrected, mc_samples)
 end
