@@ -1,8 +1,6 @@
 # blocking of single time series
 
-# TODO: tests
-
-struct BlockingResult
+@with_kw struct BlockingResult
     mean::Float64
     err::Float64
     err_err::Float64
