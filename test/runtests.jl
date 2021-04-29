@@ -679,6 +679,25 @@ end
     @test eig2cReal.values[1] ≈ eig2cMom.values[1]
 end
 
+using Rimu.DictVectors: IsStochasticWithThresholdAndInitiator
+@testset "IsDynamicSemistochastic" begin
+    add = BoseFS((1, 1, 1))
+    H = HubbardReal1D(add)
+    dv1 = DVec2(add => 1; capacity=100)
+    dv2 = DVec2(add => 1.0; capacity=100, style=IsDynamicSemistochastic())
+    dv3 = DVec2(add => 1.0; capacity=100, style=IsStochasticWithThresholdAndInitiator())
+
+    df1 = lomc!(H, dv1, laststep=10000).df
+    df2 = lomc!(H, dv2, laststep=10000).df
+    df3 = lomc!(H, dv3, laststep=10000).df
+    σ1 = autoblock(df1, start=100).σs
+    σ2 = autoblock(df2, start=100).σs
+    σ3 = autoblock(df3, start=100).σs
+
+    @test σ1 > σ2
+    @test σ1 > σ3
+end
+
 @safetestset "KrylovKit" begin
     include("KrylovKit.jl")
 end
