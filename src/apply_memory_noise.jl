@@ -2,6 +2,11 @@
 # dispatches on `MemoryStrategy` and `StochasticStyle`
 # `purge_negative_walkers!()`: helper function called from `apply_memory_noise!()`
 
+# TODO: this step is currently skipped for WorkingMemory
+function apply_memory_noise!(w::AbstractWorkingMemory, args...)
+    return 0.0
+end
+
 """
     r = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat::MemoryStrategy)
 Apply memory noise to `w`, i.e. `w .+= r.*v`, computing the noise `r` according

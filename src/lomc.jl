@@ -66,15 +66,7 @@ function lomc!(ham, v;
         params.laststep = laststep
     end
     if isnothing(wm)
-        if threading == :auto
-            threading = max(real(s_strat.targetwalkers),imag(s_strat.targetwalkers)) ≥ 500 ? true : false
-        end
-        # now threading is a Bool
-        if threading
-            wm = threadedWorkingMemory(v)
-        else
-            wm = similar(localpart(v))
-        end
+        wm = setup_working_memory(v, threading, s_strat.targetwalkers)
     end
     if isnothing(df)
         # unpack the parameters:

@@ -6,7 +6,7 @@ module RMPI
 import MPI
 using Rimu, LinearAlgebra, Rimu.ConsistentRNG, Random
 
-import Rimu: sort_into_targets!
+import Rimu.WorkingMemory: sort_into_targets!
 
 export MPIData
 export mpi_rank, is_mpi_root, @mpi_root, mpi_barrier

@@ -24,6 +24,8 @@ include("Blocking.jl")
 @reexport using .Blocking
 include("RimuIO.jl")
 using .RimuIO
+include("WorkingMemory/WorkingMemory.jl")
+using .WorkingMemory
 
 export lomc!
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
@@ -43,7 +45,7 @@ export RimuIO
 include("strategies_and_params.jl") # type defs and helpers
 include("helpers.jl")               # non MPI-dependent helper functions
 include("fciqmc_col.jl")            # third level
-include("apply_memory_noise.jl") 
+include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level
 include("norm_project.jl")
 include("lomc.jl")                  # top level
