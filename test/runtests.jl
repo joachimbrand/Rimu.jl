@@ -679,6 +679,7 @@ end
     @test eig2cReal.values[1] ≈ eig2cMom.values[1]
 end
 
+using Rimu.DictVectors: IsStochasticWithThresholdAndInitiator
 @testset "IsDynamicSemistochastic" begin
     add = BoseFS((1, 1, 1))
     H = HubbardReal1D(add)
