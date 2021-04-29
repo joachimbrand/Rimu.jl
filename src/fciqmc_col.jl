@@ -604,9 +604,9 @@ function fciqmc_col!(
     absval = abs(val)
 
     # Initiator:
-    if absval > s.beta
+    if absval > s.initiator_threshold
         hops = offdiagonals(ham, add)
-        if s.alpha * val ≥ length(hops)
+        if s.rel_threshold * val ≥ length(hops)
             # Exact multiplication
             factor = dτ * val
             for (new_add, mat_elem) in hops
