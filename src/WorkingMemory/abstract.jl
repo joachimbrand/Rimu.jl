@@ -8,6 +8,15 @@ Base.keytype(::AbstractWorkingMemory{K}) where {K} = K
 
 spawn!(dv::AbstractDVec, k, v, _) = dv[k] += v
 
+# notes: this is where stats should be produced.
+function sort_into_targets!(target, mem::AbstractWorkingMemory, stats)
+    empty!(target)
+    for (k, v) in pairs(mem)
+        target[k] = v
+    end
+    return target, mem, stats
+end
+
 #=
 Idea:
 

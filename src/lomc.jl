@@ -69,8 +69,6 @@ function lomc!(
     end
     if isnothing(wm)
         wm = setup_working_memory(v, threading, s_strat.targetwalkers, initiator_threshold)
-        @show initiator_threshold
-        @show typeof(wm)
     end
     if isnothing(df)
         # unpack the parameters:

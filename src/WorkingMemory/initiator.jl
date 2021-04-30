@@ -25,30 +25,27 @@ struct InitiatorMemory{
 end
 
 Base.empty!(mem::InitiatorMemory) = empty!(mem.mem)
+Base.pairs(mem::InitiatorMemory) = Iterators.map(p -> p[1] => value(p[2]), pairs(mem.mem))
 DictVectors.capacity(mem::InitiatorMemory) = capacity(mem.mem)
 DictVectors.StochasticStyle(mem::InitiatorMemory) = StochasticStyle(mem.mem)
 
 function spawn!(mem::InitiatorMemory, k, v, (pk, pv))
     V = valtype(mem)
+    #print("spawn ($v) from ($pv): ")
     if k == pk # diagonal spawn
-        if v > mem.threshold # is initiator
+        if abs(v) > mem.threshold # is initiator
+            #println("initiator diagonal")
             val = InitiatorValue{V}(initiator=v)
         else
+            #println("noninitiator diagonal")
             val = InitiatorValue{V}(safe=v)
         end
-    elseif pv > mem.threshold # spawned from initiator
+    elseif abs(pv) > mem.threshold # spawned from initiator
+        #println("initiator offdiagonal")
         val = InitiatorValue{V}(safe=v)
     else # spawned from non-initiator
+        #println("noninitiator offdiagonal")
         val = InitiatorValue{V}(unsafe=v)
     end
     spawn!(mem.mem, k, val, (pk, pv))
-end
-
-# notes: this is where stats should be produced.
-function sort_into_targets!(target, mem::InitiatorMemory, stats)
-    empty!(target)
-    for (k, v) in pairs(mem.mem.dvec) # TODO big oof - add pairs(::mem)
-        target[k] = value(v)
-    end
-    return target, mem, stats
 end
