@@ -1,4 +1,5 @@
 """
+    setup_working_memory(dvec, threading, targetwalkers, initiator=0)
 This function creates a default working memory based on the DVec type, threading, MPI...
 """
 function setup_working_memory(dvec, threading, targetwalkers, initiator=0)

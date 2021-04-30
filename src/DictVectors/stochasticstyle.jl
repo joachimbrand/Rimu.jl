@@ -141,6 +141,7 @@ Base.@kwdef struct IsDynamicSemistochastic<:StochasticStyle
     proj_threshold::Float64 = 1.0
 end
 
+# TODO this is here for testing purposes. Should be deleted.
 """
     IsStochasticWithThresholdAndInitiator
 
@@ -157,7 +158,6 @@ includes an approximate initiator method.
 * `initiator_threshold = 0.0`: Configurations with walker numbers smaller than this number are
   not allowed to spawn.
 """
-# TODO this is here for testing purposes. Should be deleted.
 Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
     rel_threshold::Float64 = 1.0
     initiator_threshold::Float64 = 0.0

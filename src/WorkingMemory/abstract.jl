@@ -1,4 +1,7 @@
 """
+    AbstractWorkingMemory
+Iteration over `mem::AbstractWorkingMemory` produces pairs of `address` and `value`.
+To be used with
 * [`spawn!(::AbstractWorkingMemory, address, value, parent)`](@ref)
 """
 abstract type AbstractWorkingMemory{K,V} end
@@ -6,6 +9,7 @@ abstract type AbstractWorkingMemory{K,V} end
 Base.valtype(::AbstractWorkingMemory{<:Any,V}) where {V} = V
 Base.keytype(::AbstractWorkingMemory{K}) where {K} = K
 
+# Why is this method here in this file? 
 spawn!(dv::AbstractDVec, k, v, _) = dv[k] += v
 
 # notes: this is where stats should be produced.

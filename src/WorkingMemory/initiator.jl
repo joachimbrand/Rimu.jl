@@ -1,3 +1,7 @@
+"""
+    InitiatorValue(; safe, unsafe, initiator)
+Composite "walker" with three fields. For use with [`InitiatorMemory`](@ref).
+"""
 struct InitiatorValue{V}
     safe::V
     unsafe::V
@@ -17,6 +21,12 @@ function value(v::InitiatorValue)
     return v.safe + v.unsafe * !iszero(v.initiator) + v.initiator
 end
 
+"""
+    InitiatorMemory(mem, threshold) <: AbstractWorkingMemory
+Working memory for initiator methods with `threshold` and
+`valtype(mem)::InitiatorValue`. See [`InitiatorValue`](@ref) and
+[`AbstractWorkingMemory`](@ref).
+"""
 struct InitiatorMemory{
     K,V,M<:AbstractWorkingMemory{K,InitiatorValue{V}}
 } <: AbstractWorkingMemory{K,V}

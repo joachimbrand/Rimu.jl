@@ -1,3 +1,7 @@
+"""
+    DVecMemory(dvec::AbstractDVec) <: AbstractWorkingMemory
+Wraps an `AbstractDVec` for use as working memory. See [`AbstractWorkingMemory`](@ref).
+"""
 struct DVecMemory{K,V,D<:AbstractDVec{K,V}} <: AbstractWorkingMemory{K,V}
     dvec::D
 end
