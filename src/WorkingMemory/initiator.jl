@@ -31,20 +31,15 @@ DictVectors.StochasticStyle(mem::InitiatorMemory) = StochasticStyle(mem.mem)
 
 function spawn!(mem::InitiatorMemory, k, v, (pk, pv))
     V = valtype(mem)
-    #print("spawn ($v) from ($pv): ")
     if k == pk # diagonal spawn
-        if abs(v) > mem.threshold # is initiator
-            #println("initiator diagonal")
+        if abs(pv) > mem.threshold # is initiator
             val = InitiatorValue{V}(initiator=v)
         else
-            #println("noninitiator diagonal")
             val = InitiatorValue{V}(safe=v)
         end
     elseif abs(pv) > mem.threshold # spawned from initiator
-        #println("initiator offdiagonal")
         val = InitiatorValue{V}(safe=v)
     else # spawned from non-initiator
-        #println("noninitiator offdiagonal")
         val = InitiatorValue{V}(unsafe=v)
     end
     spawn!(mem.mem, k, val, (pk, pv))
