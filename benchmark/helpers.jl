@@ -1,9 +1,11 @@
+using Rimu
+
 """
     run_lomc(H, addr; n_steps, Ntw, dτ)
 
 Function used to run lomc! benchmarks. Does the necessary setup and runs.
 """
-function run_lomc(H, addr; n_steps, Ntw, dτ)
+function run_lomc(H, addr; n_steps, Ntw, dτ, kwargs...)
     Nw_init = 10
     k = 1
 
@@ -20,6 +22,7 @@ function run_lomc(H, addr; n_steps, Ntw, dτ)
         laststep=n_steps,
         s_strat=s_strat,
         r_strat=r_strat,
-        τ_strat=τ_strat
+        τ_strat=τ_strat,
+        kwargs...
     )
 end

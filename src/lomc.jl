@@ -49,7 +49,8 @@ nt = (
 )
 ```
 """
-function lomc!(ham, v;
+function lomc!(
+    ham, v;
     laststep = nothing,
     threading = :auto,
     df = nothing,
@@ -59,14 +60,17 @@ function lomc!(ham, v;
     r_strat::ReportingStrategy = EveryTimeStep(),
     τ_strat::TimeStepStrategy = ConstantTimeStep(),
     m_strat::MemoryStrategy = NoMemory(),
-    p_strat::ProjectStrategy = NoProjection()
+    p_strat::ProjectStrategy = NoProjection(),
+    initiator_threshold=zero(valtype(v)),
 ) where T # type for shift and walkernumber
     r_strat = refine_r_strat(r_strat, ham)
     if !isnothing(laststep)
         params.laststep = laststep
     end
     if isnothing(wm)
-        wm = setup_working_memory(v, threading, s_strat.targetwalkers)
+        wm = setup_working_memory(v, threading, s_strat.targetwalkers, initiator_threshold)
+        @show initiator_threshold
+        @show typeof(wm)
     end
     if isnothing(df)
         # unpack the parameters:
