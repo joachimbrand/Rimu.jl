@@ -1,24 +1,80 @@
 # blocking of single time series
 
-@with_kw struct BlockingResult
-    mean::Float64
+"""
+    BlockingResult(mean, err, err_err, p_cov, k)
+Result of [`block_and_test()`](@ref).
+
+### Fields:
+- `mean`: sample mean
+- `err`: standard error (estimated standard deviation of the mean)
+- `err_err`: estimated uncertainty of `err`
+- `p_cov`: estimated pseudo covariance of `mean`, relevant for complex time series
+- `k::Int`: k-1 blocking steps were used to uncorrelate time series
+"""
+@with_kw struct BlockingResult{T}
+    mean::T
     err::Float64
     err_err::Float64
+    p_cov::T # pseudo covariance for complex normal distribution
     k::Int
 end
+# constructor from NamedTuple of vectors
+function BlockingResult(nt, k)
+    T = eltype(nt.mean)
+    if k < 0 # blocking failed
+        return BlockingResult{T}(nt.mean[1], NaN, NaN, T(NaN), k)
+    end
+    return BlockingResult{T}(nt.mean[1], nt.std_err[k], nt.std_err_err[k], nt.p_cov[k], k)
+end
 
-get_ks(br::BlockingResult) = (br.k,)
-get_ks(t::Tuple) = (br.k for br in t)
+"""
+    cov(r::BlockingResult{<:Complex})
+Return the covariance matrix of the multivariate normal distribution approximating
+the uncertainty of the blocking result `r` of a complex time series.
+"""
+function Statistics.cov(r::BlockingResult{<:Complex})
+    v_xx = real(r.err^2 + r.p_cov)/2
+    v_xy = imag(r.p_cov)/2
+    v_yy = real(r.err^2 - r.p_cov)/2
+    return [v_xx v_xy; v_xy v_yy]
+end
 
 """
     measurement(r::BlockingResult)
-    ±(r::BlockingResult)
-Convert a `BlockingResult` into a `Measurement`.
+    Measurements.±(r::BlockingResult)
+Convert a `BlockingResult` into a `Measurement` for linear error propagation with
+[`Measurements`](@ref).
+
+Limitation: Does not account for covariance in complex `BlockingResult`.
 """
-Measurements.measurement(r::BlockingResult) = Measurements.measurement(r.mean, r.err)
+function Measurements.measurement(r::BlockingResult{<:Real})
+    return measurement(r.mean, r.err)
+end
+function Measurements.measurement(r::BlockingResult{<:Complex})
+    Σ = cov(r) # real valued covariance matrix
+    cm = complex(measurement(real(r.mean), √Σ[1,1]), measurement(imag(r.mean), √Σ[2,2]))
+    return cm
+end
 
 """
-    block_and_test(v; corrected = true) -> BlockingResult(mean, err, err_err, k)
+    Particles(r::BlockingResult; mc_samples = 2000)
+    MonteCarloMeasurements.±(r::BlockingResult; mc_samples = 2000)
+Convert a `BlockingResult` into a `Particles` object for nonlinear error propagation with
+[`MonteCarloMeasurements`](@ref).
+"""
+function MonteCarloMeasurements.Particles(r::BlockingResult{<:Real}; mc_samples = 2000)
+    return Particles(r.mean, r.err)
+end
+function MonteCarloMeasurements.Particles(r::BlockingResult{<:Complex}; mc_samples = 2000)
+    Σ = cov(r) # real valued covariance matrix
+    ps = Particles(mc_samples, MvNormal([real(r.mean), imag(r.mean)], Σ))
+    return complex(ps[1], ps[2])
+end
+
+
+"""
+    block_and_test(v::AbstractVector; corrected = true)
+    -> BlockingResult(mean, err, err_err, p_cov, k)
 Compute the sample mean `mean` and estimate the standard deviation of the mean
 (standard error) `err` of a correlated time series using the blocking algorithm from
 Flyvberg and Peterson [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480)
@@ -31,64 +87,56 @@ for `k`.
 `corrected` controls whether
 bias correction for variances is used.
 """
-function block_and_test(v::AbstractVector{<:Real}; corrected::Bool=true)
+function block_and_test(v::AbstractVector; corrected::Bool=true)
+    T = float(eltype(v))
     if length(v) == 0
         @error "Attempted blocking on an empty vector"
+        return BlockingResult(zero(T), NaN, NaN, T(NaN) -1)
     elseif length(v) == 1 # treat like failed M test
-        return BlockingResult(v[1], NaN, NaN, -1)
-    else
-        nt = blocks_with_m(v; corrected)
-        k = mtest(nt.mj; warn=false)
-        mean = nt.mean[1]
-        if k > 0
-            err = nt.std_err[k]
-            err_err = nt.std_err_err[k]
-        else
-            err = NaN
-            err_err = NaN
-        end
-        return BlockingResult(mean, err, err_err, k)
+        return BlockingResult(T(v[1]), NaN, NaN, T(NaN) -1)
     end
-    return BlockingResult(0.0, NaN, NaN, -1)
+    nt = blocks_with_m(v; corrected)
+    k = mtest(nt.mj; warn=false)
+    return BlockingResult(nt, k)
 end
 
-function block_and_test(v::AbstractVector{<:Complex}; corrected::Bool=true)
-    if length(v) == 0
-        @error "Attempted blocking on an empty vector"
-    elseif length(v) == 1 # treat like failed M test
-        return (
-            BlockingResult(get_real(v[1]), NaN, NaN, -1),
-            BlockingResult(get_imag(v[1]), NaN, NaN, -1),
-        )
-    else
-        nt = blocks_with_m(v; corrected)
-        k_re = mtest(get_real(nt.mj); warn=false)
-        if k_re > 0
-            err_re = real(nt.std_err[k_re])
-            err_err_re = imag(nt.std_err_err[k_re])
-        else
-            err_re = NaN
-            err_err_re = NaN
-        end
-        k_im = mtest(get_imag(nt.mj); warn=false)
-        if k_im > 0
-            err_im = imag(nt.std_err[k_im])
-            err_err_im = imag(nt.std_err_err[k_im])
-        else
-            err_im = NaN
-            err_err_im = NaN
-        end
-        mean = nt.mean[1]
-        return (
-            BlockingResult(real(mean), err_re, err_err_re, k_re),
-            BlockingResult(imag(mean), err_im, err_err_im, k_im),
-        )
-    end
-    return (
-        BlockingResult(0.0, NaN, NaN, -1),
-        BlockingResult(0.0, NaN, NaN, -1),
-    )
-end
+# function block_and_test(v::AbstractVector{<:Complex}; corrected::Bool=true)
+#     if length(v) == 0
+#         @error "Attempted blocking on an empty vector"
+#     elseif length(v) == 1 # treat like failed M test
+#         return (
+#             BlockingResult(get_real(v[1]), NaN, NaN, -1),
+#             BlockingResult(get_imag(v[1]), NaN, NaN, -1),
+#         )
+#     else
+#         nt = blocks_with_m(v; corrected)
+#         k_re = mtest(get_real(nt.mj); warn=false)
+#         if k_re > 0
+#             err_re = real(nt.std_err[k_re])
+#             err_err_re = imag(nt.std_err_err[k_re])
+#         else
+#             err_re = NaN
+#             err_err_re = NaN
+#         end
+#         k_im = mtest(get_imag(nt.mj); warn=false)
+#         if k_im > 0
+#             err_im = imag(nt.std_err[k_im])
+#             err_err_im = imag(nt.std_err_err[k_im])
+#         else
+#             err_im = NaN
+#             err_err_im = NaN
+#         end
+#         mean = nt.mean[1]
+#         return (
+#             BlockingResult(real(mean), err_re, err_err_re, k_re),
+#             BlockingResult(imag(mean), err_im, err_err_im, k_im),
+#         )
+#     end
+#     return (
+#         BlockingResult(0.0, NaN, NaN, -1),
+#         BlockingResult(0.0, NaN, NaN, -1),
+#     )
+# end
 
 # Do we need this?
 """
@@ -114,18 +162,18 @@ function blocker(v::AbstractVector{T}) where T <: Complex
     return new_v
 end
 
-"""
-    blocker!(v::Vector)
-Perform a single blocking step on `v` inplace. The length of `v` will reduce to
-`length(v)÷2`.
-"""
-function blocker!(v::Vector)
-    new_len = length(v)÷2
-    for i in 1:new_len
-        @inbounds v[i]  = (v[2i-1]+v[2i])/2
-    end
-    return resize!(v, new_len)
-end
+# """
+#     blocker!(v::Vector)
+# Perform a single blocking step on `v` inplace. The length of `v` will reduce to
+# `length(v)÷2`.
+# """
+# function blocker!(v::Vector)
+#     new_len = length(v)÷2
+#     for i in 1:new_len
+#         @inbounds v[i]  = (v[2i-1]+v[2i])/2
+#     end
+#     return resize!(v, new_len)
+# end
 
 
 """
@@ -159,77 +207,133 @@ function mtest(mj::AbstractVector; warn = true)
     end
     return -1 # indicating the the M-test has failed
 end
+mtest(table) = mtest(table.mj)
 
-get_real(v) = real(v)
-get_real(v::StructArray{<:Complex}) = v.re
-
-get_imag(v) = imag(v)
-get_imag(v::StructArray{<:Complex}) = v.im
+# get_real(v) = real(v)
+# get_real(v::StructArray{<:Complex}) = v.re
+#
+# get_imag(v) = imag(v)
+# get_imag(v::StructArray{<:Complex}) = v.im
 
 """
-    blocks_with_m(v; corrected = true) -> (;blocks, mean, std_err, std_err_err, mj)
+    blocks_with_m(v; corrected = true) -> (;blocks, mean, std_err, std_err_err, p_cov, mj)
 Perform the blocking algorithm from Flyvberg and Peterson
 [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480).
 Returns named tuple with the results from all blocking steps.
 """
-@inline function blocks_with_m(v::AbstractVector{<:Real}; corrected::Bool=true)
+@inline function blocks_with_m(v; corrected::Bool=true)
+    T = float(eltype(v))
+    R = real(T)
     n_steps = floor(Int,log2(length(v)))
 
     # initialise arrays to be returned
     blocks = Vector{Int}(undef,n_steps)
-    mean_arr = Vector{Float64}(undef,n_steps)
-    std_err = Vector{Float64}(undef,n_steps)
-    std_err_err = Vector{Float64}(undef,n_steps)
-    mj = Vector{Float64}(undef,n_steps)
+    mean_arr = Vector{T}(undef,n_steps)
+    std_err = Vector{R}(undef,n_steps)
+    std_err_err = Vector{R}(undef,n_steps)
+    p_cov = Vector{T}(undef,n_steps)
+    mj = Vector{R}(undef,n_steps)
 
     for i in 1:n_steps
         n = length(v)
         blocks[i] = n
         mean_v = mean(v)
         mean_arr[i] = mean_v
-        variance = var(v; corrected=corrected, mean=mean_v) # variance
+        variance = var(v; corrected, mean=mean_v) # variance
         # sample covariance ŷ(1) Eq. (6) [Jonsson]
-        gamma = autocovariance(v,1; corrected=corrected, mean=mean_v)
-        mj[i] = n*((n-1)*variance/(n^2)+gamma)^2/(variance^2) # the M value Eq. (12) [Jonsson]
-        stderr_v = sqrt(variance/n)# standard error
-        std_err[i] = stderr_v
-        std_err_err[i] = stderr_v/sqrt(2*(n-1)) # error on standard error Eq. (28) [F&P]
-        v = blocker(v) # re-blocking the dataset
-    end
-    (length(v)≤ 0 || length(v)>2) && @error "Something went wrong in `blocks_with_m`."
-    return (;blocks, mean=mean_arr, std_err, std_err_err, mj)
-end
-
-@inline function blocks_with_m(v::AbstractVector{T}; corrected::Bool=true) where T<:Complex
-    n_steps = floor(Int,log2(length(v)))
-    C = typeof(zero(T)/1)
-
-    # initialise arrays to be returned
-    blocks = Vector{Int}(undef,n_steps)
-    mean_arr = Vector{C}(undef,n_steps)
-    std_err = Vector{C}(undef,n_steps)
-    std_err_err = Vector{C}(undef,n_steps)
-    mj = StructArray{C}(undef,n_steps)
-
-    for i in 1:n_steps
-        n = length(v)
-        blocks[i] = n
-        mean_v = mean(v)
-        mean_arr[i] = mean_v
-        var_re = var(get_real(v); corrected=corrected, mean=real(mean_v)) # variance
-        var_im = var(get_imag(v); corrected=corrected, mean=imag(mean_v)) # variance
-        # sample covariance ŷ(1) Eq. (6) [Jonsson]
-        gamma_re = autocovariance(get_real(v),1; corrected=corrected, mean=real(mean_v))
-        gamma_im = autocovariance(get_imag(v),1; corrected=corrected, mean=imag(mean_v))
+        gamma = real(autocovariance(v,1; corrected, mean=mean_v))
         # the M value Eq. (12) [Jonsson]
-        mj[i] =
-            n * ((n - 1) * var_re / (n^2) + gamma_re)^2 / (var_re^2) +
-            im * n * ((n - 1) * var_im / (n^2) + gamma_im)^2 / (var_im^2)
-        stderr_v = sqrt(var_re/n) + im*sqrt(var_im/n) # standard error
+        mj[i] = n*((n-1)*variance/(n^2)+gamma)^2/(variance^2)
+        stderr_v = sqrt(variance/n) # standard error
         std_err[i] = stderr_v
         std_err_err[i] = stderr_v/sqrt(2*(n-1)) # error on standard error Eq. (28) [F&P]
+        p_cov[i] = pseudo_cov(v,v; xmean=mean_v, ymean=mean_v, corrected)/n
         v = blocker(v) # re-blocking the dataset
     end
     (length(v)≤ 0 || length(v)>2) && @error "Something went wrong in `blocks_with_m`."
-    return (;blocks, mean=mean_arr, std_err, std_err_err, mj)
+    return (;blocks, mean=mean_arr, std_err, std_err_err, p_cov, mj)
 end
+
+# @inline function blocks_with_m(v::AbstractVector{<:Real}; corrected::Bool=true)
+#     n_steps = floor(Int,log2(length(v)))
+#
+#     # initialise arrays to be returned
+#     blocks = Vector{Int}(undef,n_steps)
+#     mean_arr = Vector{Float64}(undef,n_steps)
+#     std_err = Vector{Float64}(undef,n_steps)
+#     std_err_err = Vector{Float64}(undef,n_steps)
+#     mj = Vector{Float64}(undef,n_steps)
+#
+#     for i in 1:n_steps
+#         n = length(v)
+#         blocks[i] = n
+#         mean_v = mean(v)
+#         mean_arr[i] = mean_v
+#         variance = var(v; corrected=corrected, mean=mean_v) # variance
+#         # sample covariance ŷ(1) Eq. (6) [Jonsson]
+#         gamma = autocovariance(v,1; corrected=corrected, mean=mean_v)
+#         mj[i] = n*((n-1)*variance/(n^2)+gamma)^2/(variance^2) # the M value Eq. (12) [Jonsson]
+#         stderr_v = sqrt(variance/n)# standard error
+#         std_err[i] = stderr_v
+#         std_err_err[i] = stderr_v/sqrt(2*(n-1)) # error on standard error Eq. (28) [F&P]
+#         v = blocker(v) # re-blocking the dataset
+#     end
+#     (length(v)≤ 0 || length(v)>2) && @error "Something went wrong in `blocks_with_m`."
+#     return (;blocks, mean=mean_arr, std_err, std_err_err, mj)
+# end
+#
+# @inline function blocks_with_m(v::AbstractVector{T}; corrected::Bool=true) where T<:Complex
+#     n_steps = floor(Int,log2(length(v)))
+#     C = typeof(zero(T)/1)
+#
+#     # initialise arrays to be returned
+#     blocks = Vector{Int}(undef,n_steps)
+#     mean_arr = Vector{C}(undef,n_steps)
+#     std_err = Vector{C}(undef,n_steps)
+#     std_err_err = Vector{C}(undef,n_steps)
+#     mj = StructArray{C}(undef,n_steps)
+#
+#     for i in 1:n_steps
+#         n = length(v)
+#         blocks[i] = n
+#         mean_v = mean(v)
+#         mean_arr[i] = mean_v
+#         var_re = var(get_real(v); corrected=corrected, mean=real(mean_v)) # variance
+#         var_im = var(get_imag(v); corrected=corrected, mean=imag(mean_v)) # variance
+#         # sample covariance ŷ(1) Eq. (6) [Jonsson]
+#         gamma_re = autocovariance(get_real(v),1; corrected=corrected, mean=real(mean_v))
+#         gamma_im = autocovariance(get_imag(v),1; corrected=corrected, mean=imag(mean_v))
+#         # the M value Eq. (12) [Jonsson]
+#         mj[i] =
+#             n * ((n - 1) * var_re / (n^2) + gamma_re)^2 / (var_re^2) +
+#             im * n * ((n - 1) * var_im / (n^2) + gamma_im)^2 / (var_im^2)
+#         stderr_v = sqrt(var_re/n) + im*sqrt(var_im/n) # standard error
+#         std_err[i] = stderr_v
+#         std_err_err[i] = stderr_v/sqrt(2*(n-1)) # error on standard error Eq. (28) [F&P]
+#         v = blocker(v) # re-blocking the dataset
+#     end
+#     (length(v)≤ 0 || length(v)>2) && @error "Something went wrong in `blocks_with_m`."
+#     return (;blocks, mean=mean_arr, std_err, std_err_err, mj)
+# end
+#
+# @inline function blocks_with_m!(v; corrected::Bool=true)
+#     table = []
+#     while true
+#         n = length(v)
+#         n < 2 && break
+#         μ = mean(v)
+#         var_v = var(v; corrected, mean=μ) # real
+#         γ = real(autocovariance(v, 1; corrected, mean=μ)) # real
+#         mj = n * ((n - 1) * var_v / (n^2) + γ)^2 / (var_v^2) # real
+#         std_err = √(var_v/n)
+#         std_err_err = std_err/√(2*(n-1))
+#         push!(table, (; blocks=n, mean=μ, std_err, std_err_err, mj))
+#         blocker!(v)
+#     end
+#     return DataFrame(table)
+# end
+# @inline function blocks_with_m_new(vo; corrected::Bool=true)
+#     v = copy!(float(eltype(vo))[], vo) # copy input data to vector as working memory
+#     return blocks_with_m!(v; corrected)
+# end
+#
