@@ -14,3 +14,24 @@ function autocovariance(v::AbstractVector,h::Int; corrected::Bool=true, mean = m
     gamma = covsum/(n - Int(corrected))
     return gamma
 end
+
+@doc raw"""
+    pseudo_cov(x, y; xmean = mean(x), ymean = mean(y), corrected = true)
+Compute the pseudo covariance between collections `x` and `y` returning a scalar:
+```math
+\frac{1}{n}\sum_{i=1}^{n} (x_i - \bar{x})(y_{i} - \bar{y})
+```
+Optionally,
+precomputed means can be passed as keyword arguments. `pseudo_cov(x,y)` is functionally
+equivalent to `Statistics.cov(x, conj(y); corrected = false)` but it is found to be
+significantly faster and avoids allocations.
+"""
+@inline function pseudo_cov(x, y; xmean = mean(x), ymean = mean(y), corrected = true)
+    n = length(x)
+    @assert length(y) == n
+    res = zero(promote_type(eltype(x), eltype(y))) / 1
+    for i = 1:n
+        @inbounds res += (x[i] - xmean) * (y[i] - ymean)
+    end
+    return res / (n - Int(corrected))
+end

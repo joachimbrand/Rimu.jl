@@ -5,9 +5,12 @@ module StatsTools
 
 using Statistics, MonteCarloMeasurements, Distributions, DataFrames
 using Parameters
-using StructArrays # TODO: deprecate
-import Measurements
+# using StructArrays # TODO: deprecate
 import MacroTools
+
+import Statistics: cov
+import Measurements: measurement
+import MonteCarloMeasurements: Particles
 
 export growth_witness, smoothen
 export block_and_test
