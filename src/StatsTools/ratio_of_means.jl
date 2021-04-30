@@ -1,5 +1,17 @@
 # estimators for ratio of means of two time series (including blocking)
 
+"""
+    RatioBlockingResult(ratio, f, σ_f, δ_y, k, success)
+Result of [`ratio_of_means()`](@ref).
+
+### Fields:
+- `ratio::P`: ratio with uncertainties propagated by MonteCarloMeasurements
+- `f::T`: ratio of means
+- `σ_f::T`: std from linear propagation
+- `δ_y::T`: coefficient of variation for denominator (≤ 0.1 for normal approx)
+- `k::Int`: k-1 blocking steps were used to uncorrelate time series
+- `success::Bool`: false if any of the blocking steps failed
+"""
 struct RatioBlockingResult{T,P}
     ratio::P    # ratio with uncertainties propagated by MonteCarloMeasurements
     f::T        # ratio of means
