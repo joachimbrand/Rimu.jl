@@ -5,7 +5,6 @@ module StatsTools
 
 using Statistics, MonteCarloMeasurements, Distributions, DataFrames
 using Parameters
-# using StructArrays # TODO: deprecate
 import MacroTools
 import Measurements
 

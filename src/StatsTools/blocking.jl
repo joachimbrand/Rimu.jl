@@ -91,13 +91,14 @@ end
 
 
 """
-    block_and_test(v::AbstractVector; corrected = true)
+    block_and_test(v::AbstractVector; α = 0.01, corrected = true)
     -> BlockingResult(mean, err, err_err, p_cov, k, blocks)
 Compute the sample mean `mean` and estimate the standard deviation of the mean
 (standard error) `err` of a correlated time series using the blocking algorithm from
 Flyvberg and Peterson [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480)
 and the M test of Jonsson
-[PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304). `k` is the number of
+[PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304) at significance level
+``1-α``. `k` is the number of
 blocking transformations required to pass the hypothesis test for an uncorrelated time
 series and `err_err` the estimated standard error or `err`.
 
@@ -109,7 +110,7 @@ bias correction for variances is used.
 
 See [`BlockingResult`](@ref).
 """
-function block_and_test(v::AbstractVector; corrected::Bool=true)
+function block_and_test(v::AbstractVector; α = 0.01, corrected::Bool=true)
     T = float(eltype(v))
     if length(v) == 0
         @error "Attempted blocking on an empty vector"
@@ -118,7 +119,7 @@ function block_and_test(v::AbstractVector; corrected::Bool=true)
         return BlockingResult(T(v[1]), NaN, NaN, T(NaN) -1)
     end
     nt = blocks_with_m(v; corrected)
-    k = mtest(nt.mj; warn=false)
+    k = mtest(nt.mj; α, warn=false)
     return BlockingResult(nt, k)
 end
 
@@ -141,7 +142,7 @@ end
     mtest(mj::AbstractVector; α = 0.01, warn = true) -> k
     mtest(table; α = 0.01, warn = true) -> k
 Hypothesis test for decorrelation of a time series after blocking transformations
-with significance level `1-α` after Jonson
+with significance level ``1-α`` after Jonson
 [PRE (2018)](https://doi.org/10.1103/PhysRevE.98.043304).
 `mj` or `table.mj` is expected to be a vector with relevant ``M_j`` values from a blocking analysis as
 obtained from [`blocks_with_m()`](@ref).
@@ -149,7 +150,7 @@ Returns the row number `k` where the M-test is passed.
 If the M-test has failed `mtest()` returns the value `-1` and optionally prints
 a warning message.
 """
-function mtest(mj::AbstractVector; warn = true)
+function mtest(mj::AbstractVector; α = 0.01, warn = true)
     m = reverse(cumsum(reverse(mj)))
     k = 1
     while k <= length(m)-1
