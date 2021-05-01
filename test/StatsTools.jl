@@ -34,7 +34,10 @@ using Rimu.StatsTools: blocker
     brs = block_and_test(smoothen(v, 2^5)) # introduce correlation
     @test mean(v) ≈ br.mean ≈ brs.mean
     @test 0.01 < brs.err < 0.04
-    @test brs.k ≤ 7 # should be 5+1
+    @test 5 < brs.k ≤ 7 # should be 5+1
+    bor = block_and_test(ones(2000)) # blocking fails
+    @test bor.k == -1
+    @test isnan(bor.err)
 
     # complex
     # w = randn(ComplexF64, 100)
@@ -44,5 +47,5 @@ using Rimu.StatsTools: blocker
     @test bc.k ≤ 4  # should be 0+1 (independent random variables)
     bcs = block_and_test(smoothen(w, 2^5))
     @test mean(w) ≈ bc.mean ≈ bcs.mean
-    @test bcs.k ≤ 7 # should be 5+1
+    @test 5 < bcs.k ≤ 7 # should be 5+1
 end
