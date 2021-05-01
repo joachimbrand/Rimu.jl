@@ -21,12 +21,9 @@ end
     @test mean(growth_witness(df, 10)) ≈ mean(growth_witness(nor, shift, dτ[1]))
 end
 
-# using Rimu.StatsTools: blocker, blocker!
 using Rimu.StatsTools: blocker
 @testset "blocking" begin
     # real
-    # v = randn(100)
-    # @test blocker(v) ≈ blocker!(v)
     v = randn(2^10)
     br = block_and_test(v)
     @test 0.01 < br.err < 0.04
@@ -40,8 +37,6 @@ using Rimu.StatsTools: blocker
     @test isnan(bor.err)
 
     # complex
-    # w = randn(ComplexF64, 100)
-    # @test blocker(w) ≈ blocker!(w)
     w = randn(ComplexF64, 2^10)
     bc = block_and_test(w)
     @test bc.k ≤ 4  # should be 0+1 (independent random variables)
