@@ -1,7 +1,7 @@
 # blocking of single time series
 
 """
-    BlockingResult(mean, err, err_err, p_cov, k)
+    BlockingResult(mean, err, err_err, p_cov, k, blocks)
 Result of [`block_and_test()`](@ref).
 
 ### Fields:
@@ -114,9 +114,9 @@ function block_and_test(v::AbstractVector; α = 0.01, corrected::Bool=true)
     T = float(eltype(v))
     if length(v) == 0
         @error "Attempted blocking on an empty vector"
-        return BlockingResult(zero(T), NaN, NaN, T(NaN) -1)
+        return BlockingResult(zero(T), NaN, NaN, T(NaN), -1, 0)
     elseif length(v) == 1 # treat like failed M test
-        return BlockingResult(T(v[1]), NaN, NaN, T(NaN) -1)
+        return BlockingResult(T(v[1]), NaN, NaN, T(NaN), -1, 1)
     end
     nt = blocks_with_m(v; corrected)
     k = mtest(nt.mj; α, warn=false)
@@ -154,7 +154,7 @@ function mtest(mj::AbstractVector; α = 0.01, warn = true)
     m = reverse(cumsum(reverse(mj)))
     k = 1
     while k <= length(m)-1
-       if m[k] < cquantile(Chisq(k), α) # compare to χ^2 distribution
+       if m[k] < cquantile(Chisq(k), α) # compare to χ^2 distribution at quantile 1-α
            return k
        else
            k += 1
