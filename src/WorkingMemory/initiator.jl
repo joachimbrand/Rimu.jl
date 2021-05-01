@@ -1,5 +1,5 @@
 """
-    InitiatorValue(; safe, unsafe, initiator)
+    InitiatorValue{V}(; safe::V, unsafe::V, initiator::V) where V
 Composite "walker" with three fields. For use with [`InitiatorMemory`](@ref).
 """
 struct InitiatorValue{V}
@@ -17,6 +17,8 @@ end
 Base.zero(::Type{InitiatorValue{V}}) where {V} = InitiatorValue{V}()
 Base.zero(::InitiatorValue{V}) where {V} = InitiatorValue{V}()
 
+# rule for combining the fields of `InitiatorValue` to a simple number:
+# only add v.unsafe if v.initiator is populated as that indicates an initiator origin
 function value(v::InitiatorValue)
     return v.safe + v.unsafe * !iszero(v.initiator) + v.initiator
 end
@@ -35,10 +37,15 @@ struct InitiatorMemory{
 end
 
 Base.empty!(mem::InitiatorMemory) = empty!(mem.mem)
+# pairs() combines `InitiatorValue`s to numbers with `value()`
 Base.pairs(mem::InitiatorMemory) = Iterators.map(p -> p[1] => value(p[2]), pairs(mem.mem))
 DictVectors.capacity(mem::InitiatorMemory) = capacity(mem.mem)
 DictVectors.StochasticStyle(mem::InitiatorMemory) = StochasticStyle(mem.mem)
 
+# spawning rules for `InitiatorMemory`:
+# populate val.initiator only for diagonal spawn from initiator (remembers inititor status)
+# populate val.unsafe only for off-diagonal spawn from non-initiators
+# everything else goes to val.safe
 function spawn!(mem::InitiatorMemory, k, v, (pk, pv))
     V = valtype(mem)
     is_initiator = abs(pv) > mem.threshold
