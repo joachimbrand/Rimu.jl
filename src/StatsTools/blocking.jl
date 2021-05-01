@@ -12,7 +12,7 @@ Result of [`block_and_test()`](@ref).
 - `k::Int`: k-1 blocking steps were used to uncorrelate time series
 - `blocks::Int`: number of uncorrelated values after blocking
 """
-@with_kw struct BlockingResult{T}
+struct BlockingResult{T}
     mean::T
     err::Float64
     err_err::Float64
