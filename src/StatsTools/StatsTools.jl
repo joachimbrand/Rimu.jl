@@ -4,7 +4,6 @@ Tools for the statistical analysis of Monte Carlo data.
 module StatsTools
 
 using Statistics, MonteCarloMeasurements, Distributions, DataFrames
-using Parameters
 import MacroTools
 import Measurements
 
