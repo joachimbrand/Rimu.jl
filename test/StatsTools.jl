@@ -43,4 +43,12 @@ using Rimu.StatsTools: blocker
     bcs = block_and_test(smoothen(w, 2^5))
     @test mean(w) ≈ bc.mean ≈ bcs.mean
     @test 5 < bcs.k ≤ 7 # should be 5+1
+
+    @test block_and_test([1]).k == -1 == block_and_test(Int[]).k
+end
+
+@testset "ratio_of_means" begin
+    n_samples = 2000
+    br= ratio_of_means(rand(n_samples),rand(n_samples); α=0.05)
+    @test br.blocks * 2^(br.k-1) ≤ n_samples
 end

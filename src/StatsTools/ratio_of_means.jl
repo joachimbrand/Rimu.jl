@@ -10,6 +10,7 @@ Result of [`ratio_of_means()`](@ref).
 - `σ_f::T`: std from linear propagation
 - `δ_y::T`: coefficient of variation for denominator (≤ 0.1 for normal approx)
 - `k::Int`: k-1 blocking steps were used to uncorrelate time series
+- `blocks::Int`: number of data values after blocking
 - `success::Bool`: false if any of the blocking steps failed
 """
 struct RatioBlockingResult{T,P}
@@ -18,6 +19,7 @@ struct RatioBlockingResult{T,P}
     σ_f::T      # std from linear propagation
     δ_y::T      # coefficient of variation for denominator (≤ 0.1 for normal approx)
     k::Int      # k-1 blocking steps were used to uncorrelate time series
+    blocks::Int # number of data values after blocking
     success::Bool # false if any of the blocking steps failed
 end
 # make it behave like Particles
@@ -36,11 +38,15 @@ function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T,P}
     println(io, "  95% confidence interval: $(quantile(r.ratio, [0.025,0.975])) (MC)")
     println(io, "  linear error propagation: $(r.f) ± $(r.σ_f)")
     println(io, "  δ_y = $(r.δ_y) (≤ 0.1 for normal approx)")
-    println(io, "  blocking success: $success with k = $(r.k)")
+    if r.success
+        println(io, "  Blocking successful with $(r.blocks) blocks after $(r.k-1) transformations (k = $(r.k)).")
+    else
+        println(io, "  Blocking unsuccessful.")
+    end
 end
 
 """
-    ratio_of_means(num, denom; corrected = true, mc_samples = 10_000) -> r
+    ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = 10_000) -> r
 Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
 correlated time series. A blocking analysis with m-test is used to uncorrelate the time
 series, see [`block_and_test()`](@ref). The remaining standard error and correlation of the
@@ -53,21 +59,21 @@ e.g. `quantile(r, [0.025, 0.975])` for the 95% confidence interval.
 Estimates from linear uncertainty propagation are returned as `r.f` and `r.σ_f` using
 [`x_by_y_linear()`](@ref).
 """
-function ratio_of_means(num, denom; corrected = true, mc_samples = 10_000)
+function ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = 10_000)
     # determine how many blocking steps are needed to uncorrelate data
-    bt_num = block_and_test(num)
-    bt_den = block_and_test(denom)
+    bt_num = block_and_test(num; α)
+    bt_den = block_and_test(denom; α)
     # choose largst k from mtest on blocking analyses on numerator and denominator
-    ks = (get_ks(bt_num)..., get_ks(bt_den)...)
+    ks = (bt_num.k, bt_den.k)
     success = any(k->k<0, ks) ? false : true
     k = max(ks...)
 
     # MC and linear error propagation
-    r, f, σ_f, δ_y = ratio_estimators(num, denom, k; corrected, mc_samples)
+    r, f, σ_f, δ_y, blocks = ratio_estimators(num, denom, k; corrected, mc_samples)
 
-    # use formula from linear error propagation
-    value = bt_num.mean/bt_den.mean
-    return RatioBlockingResult(r, bt_num.mean/bt_den.mean, σ_f, δ_y, k, success)
+    # more accurately before blocking
+    f = bt_num.mean/bt_den.mean
+    return RatioBlockingResult(r, f, σ_f, δ_y, k, blocks, success)
 end
 
 """
@@ -88,7 +94,7 @@ function x_by_y_linear(μ_x,μ_y,σ_x,σ_y,ρ)
 end
 
 """
-    ratio_estimators(x, y, [k]; corrected=true, mc_samples=10_000) -> (; r, f, σ_f, δ_y)
+    ratio_estimators(x, y, [k]; corrected=true, mc_samples=10_000) -> (; r, f, σ_f, δ_y, n)
 Estimators for the ratio of means `mean(x)/mean(y)`.
 If `k` is given, `k-1` blocking steps are performed to remove internal correlations in
 the time series `x` and `y`. Otherwise these are assumed to be free of internal
@@ -100,6 +106,7 @@ account.
 - `f = mean(x)/mean(y)`
 - `σ_f` standard deviation of `f` from linear error propagation (normal approximation)
 - `δ_y = std(y)/mean(y)` coefficient of variation; < 0.1 for normal approximation to work
+- `n`: number of uncorrelated data used for uncertainty estimation
 """
 function ratio_estimators(x, y; corrected = true, mc_samples = 10_000)
     n = length(x)
@@ -120,17 +127,13 @@ function ratio_estimators(x, y; corrected = true, mc_samples = 10_000)
     # coefficient of variation, should be <0.1 for normal approximation
     # [Kuethe(2000), Diaz-Frances & Rubio (2013)]
     δ_y = √var_y/μ_y
-    return (; r, f, σ_f, δ_y)
+    return (; r, f, σ_f, δ_y, n)
 end
 
 function ratio_estimators(num, denom, k; corrected = true, mc_samples = 10_000)
-    x = copy!(float(eltype(num))[], num) # copy as vector with correct type
-    y = copy!(float(eltype(denom))[], denom) # copy as vector with correct type
-
     for i in 1:(k-1) # decorrelate time series by `k-1` blocking steps
-        blocker!(x)
-        blocker!(y)
+        num = blocker(num)
+        denom = blocker(denom)
     end
-
-    return ratio_estimators(x, y; corrected, mc_samples)
+    return ratio_estimators(num, denom; corrected, mc_samples)
 end
