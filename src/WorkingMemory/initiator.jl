@@ -14,7 +14,7 @@ Base.zero(::Type{InitiatorValue{V}}) where {V} = InitiatorValue{V}()
 Base.zero(::InitiatorValue{V}) where {V} = InitiatorValue{V}()
 
 function value(v::InitiatorValue)
-    return v.safe + v.unsafe * (v.initiator > 0) + v.initiator
+    return v.safe + v.unsafe * !iszero(v.initiator) + v.initiator
 end
 
 struct InitiatorMemory{
@@ -31,16 +31,20 @@ DictVectors.StochasticStyle(mem::InitiatorMemory) = StochasticStyle(mem.mem)
 
 function spawn!(mem::InitiatorMemory, k, v, (pk, pv))
     V = valtype(mem)
+    is_initiator = abs(pv) > mem.threshold
     if k == pk # diagonal spawn
-        if abs(pv) > mem.threshold # is initiator
+        if is_initiator
             val = InitiatorValue{V}(initiator=v)
         else
             val = InitiatorValue{V}(safe=v)
         end
-    elseif abs(pv) > mem.threshold # spawned from initiator
-        val = InitiatorValue{V}(safe=v)
-    else # spawned from non-initiator
-        val = InitiatorValue{V}(unsafe=v)
+    else # offdiagonal spawn
+        if is_initiator
+            val = InitiatorValue{V}(safe=v)
+        else
+            # spawns from non-initiators might be rejected later
+            val = InitiatorValue{V}(unsafe=v)
+        end
     end
     spawn!(mem.mem, k, val, (pk, pv))
 end
