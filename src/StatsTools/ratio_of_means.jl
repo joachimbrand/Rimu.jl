@@ -31,7 +31,7 @@ MacroTools.@forward RatioBlockingResult.ratio Statistics.middle, Base.iterate, B
 MacroTools.@forward RatioBlockingResult.ratio Base.minimum, Base.maximum
 MacroTools.@forward RatioBlockingResult.ratio Statistics.mean, Statistics.cov
 
-function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T,P}
+function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Real, P}
     q = quantile(r.ratio, [0.16,0.5,0.84])
     println(io, "RatioBlockingResult{$T,$P}")
     println(io, "  ratio = $(q[2]) + $(q[3]-q[2]) - $(q[2]-q[1]) (MC)")
@@ -136,4 +136,37 @@ function ratio_estimators(num, denom, k; corrected = true, mc_samples = 10_000)
         denom = blocker(denom)
     end
     return ratio_estimators(num, denom; corrected, mc_samples)
+end
+
+function ratio_estimators(
+    x::AbstractVector{<:Complex}, y::AbstractVector{<:Complex};
+    corrected = true, mc_samples = 10_000
+)
+    n = length(x)
+    @assert n == length(y)
+    μ_x = mean(x)
+    var_x = var(x; corrected)/n # variance of mean
+    μ_y = mean(y)
+    var_y = var(y; corrected)/n # variance of mean
+    ρ = cov(x, y; corrected)/n # estimated correlation of sample means μ_x and μ_y
+
+    Σ = [
+        var(real(x); corrected)          cov(real(x), imag(x); corrected) cov(real(x), real(y); corrected) cov(real(x), imag(y); corrected)
+        cov(imag(x), real(x); corrected) var(imag(x); corrected)          cov(imag(x), real(y); corrected) cov(imag(x), imag(y); corrected)
+        cov(real(y), real(x); corrected) cov(real(y), imag(x); corrected) var(real(y); corrected)          cov(real(y), imag(y); corrected)
+        cov(imag(y), real(x); corrected) cov(imag(y), imag(x); corrected) cov(imag(y), real(y); corrected) var(imag(y); corrected)
+    ]/n
+    # Monte Carlo sampling of correlated normal distribution of sample means for x and y
+    x_y_ps = Particles(
+        mc_samples, MvNormal([real(μ_x), imag(μ_x), real(μ_y), imag(μ_y)], Σ)
+    )
+    r = (x_y_ps[1] + im*x_y_ps[2]) / (x_y_ps[3] + im*x_y_ps[4]) # MC sampled ratio of means
+
+    # linear error propagation
+    f, σ_f = x_by_y_linear(μ_x, μ_y, √var_x, √var_y, ρ)
+
+    # coefficient of variation, should be <0.1 for normal approximation
+    # [Kuethe(2000), Diaz-Frances & Rubio (2013)]
+    δ_y = √var_y/μ_y
+    return (; r, f, σ_f, δ_y, n)
 end
