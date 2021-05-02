@@ -4,12 +4,14 @@ Tools for the statistical analysis of Monte Carlo data.
 module StatsTools
 
 using Statistics, MonteCarloMeasurements, Distributions, DataFrames
+using StrLiterals, StrFormat # for Base.show() methods
 import MacroTools
 import Measurements
 
 import Statistics: cov
 import Measurements: measurement
 import MonteCarloMeasurements: Particles
+import Base: show
 
 export growth_witness, smoothen
 export block_and_test
