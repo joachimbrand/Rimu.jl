@@ -57,6 +57,7 @@ using Rimu.StatsTools: x_by_y_linear
     n_samples = 2000
     br= ratio_of_means(rand(n_samples),rand(n_samples); α=0.05)
     @test br.blocks * 2^(br.k-1) ≤ n_samples
+    @test begin show(br); true; end # does not throw error
 
     # badly behaved example of Cauchy distribution for ratio
     r = ratio_of_means(randn(2000),randn(2000))
@@ -69,6 +70,7 @@ using Rimu.StatsTools: x_by_y_linear
     qi95 = quantile(imag(r.ratio), [0.025,0.975])
     @test qi95[1] < 0 < qi95[2]
     @test_throws ErrorException quantile(r, [0.025,0.975])
+    @test begin show(r); true; end # does not throw error
 
     # well behaved real example
     n_samples = 2000
