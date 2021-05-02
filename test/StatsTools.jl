@@ -1,5 +1,6 @@
 using Rimu, Rimu.StatsTools
 using Statistics, DataFrames, Random
+using MonteCarloMeasurements, Measurements
 using Test
 
 @testset "smoothen" begin
