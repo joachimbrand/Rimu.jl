@@ -1,8 +1,10 @@
-# blocking of single time series
+# blocking analysis of single time series
+# `blocking_analysis()`
+# `mean_and_se()`
 
 """
     BlockingResult(mean, err, err_err, p_cov, k, blocks)
-Result of [`block_and_test()`](@ref).
+Result of [`blocking_analysis()`](@ref).
 
 ### Fields:
 - `mean`: sample mean
@@ -11,6 +13,10 @@ Result of [`block_and_test()`](@ref).
 - `p_cov`: estimated pseudo covariance of `mean`, relevant for complex time series
 - `k::Int`: k-1 blocking steps were used to uncorrelate time series
 - `blocks::Int`: number of uncorrelated values after blocking
+
+Has methods for [`mean_and_se`](@ref), [`Measurements.:±`](@ref),
+`MonteCarloMeasurements.`[`Particles`](@ref), and
+`Statistics.`[`cov`](@ref) for `Complex` data.
 """
 struct BlockingResult{T}
     mean::T
@@ -75,23 +81,23 @@ function Measurements.measurement(r::BlockingResult{<:Complex})
 end
 
 """
-    Particles(r::BlockingResult; mc_samples = 2000)
-    MonteCarloMeasurements.±(r::BlockingResult; mc_samples = 2000)
+    MonteCarloMeasurements.Particles(r::BlockingResult; mc_samples = 2000)
+    MonteCarloMeasurements.±(r::BlockingResult)
 Convert a `BlockingResult` into a `Particles` object for nonlinear error propagation with
 [`MonteCarloMeasurements`](@ref).
 """
 function MonteCarloMeasurements.Particles(r::BlockingResult{<:Real}; mc_samples = 2000)
-    return Particles(r.mean, r.err)
+    return Particles(mc_samples, Normal(r.mean, r.err))
 end
 function MonteCarloMeasurements.Particles(r::BlockingResult{<:Complex}; mc_samples = 2000)
     Σ = cov(r) # real valued covariance matrix
     ps = Particles(mc_samples, MvNormal([real(r.mean), imag(r.mean)], Σ))
     return complex(ps[1], ps[2])
 end
-
+MonteCarloMeasurements.:±(r::BlockingResult) = Particles(r)
 
 """
-    block_and_test(v::AbstractVector; α = 0.01, corrected = true)
+    blocking_analysis(v::AbstractVector; α = 0.01, corrected = true)
     -> BlockingResult(mean, err, err_err, p_cov, k, blocks)
 Compute the sample mean `mean` and estimate the standard deviation of the mean
 (standard error) `err` of a correlated time series using the blocking algorithm from
@@ -110,7 +116,7 @@ bias correction for variances is used.
 
 See [`BlockingResult`](@ref).
 """
-function block_and_test(v::AbstractVector; α = 0.01, corrected::Bool=true)
+function blocking_analysis(v::AbstractVector; α = 0.01, corrected::Bool=true)
     T = float(eltype(v))
     if length(v) == 0
         @error "Attempted blocking on an empty vector"
@@ -121,6 +127,17 @@ function block_and_test(v::AbstractVector; α = 0.01, corrected::Bool=true)
     nt = blocks_with_m(v; corrected)
     k = mtest(nt.mj; α, warn=false)
     return BlockingResult(nt, k)
+end
+
+"""
+    mean_and_se(v::AbstractVector; α = 0.01, corrected::Bool=true) -> mean, err
+    mean_and_se(r::BlockingResult) -> mean, err
+Return the mean and standard error (as a tuple) of a time series obtained from
+[`blocking_analysis`](@ref). See also [`BlockingResult`](@ref).
+"""
+mean_and_se(r::BlockingResult) = r.mean, r.err
+function mean_and_se(v::AbstractVector; α = 0.01, corrected::Bool=true)
+    return mean_and_se(blocking_analysis(v; α, corrected))
 end
 
 """

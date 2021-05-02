@@ -26,26 +26,29 @@ using Rimu.StatsTools: blocker
 @testset "blocking" begin
     # real
     v = randn(2^10)
-    br = block_and_test(v)
+    br = blocking_analysis(v)
+    @test MonteCarloMeasurements.:±(br) ≈ Measurements.:±(br)
     @test 0.01 < br.err < 0.04
     @test br.k ≤ 4 # should be 0+1 (independent random variables)
-    brs = block_and_test(smoothen(v, 2^5)) # introduce correlation
+    brs = blocking_analysis(smoothen(v, 2^5)) # introduce correlation
     @test mean(v) ≈ br.mean ≈ brs.mean
     @test 0.01 < brs.err < 0.04
     @test 5 < brs.k ≤ 7 # should be 5+1
-    bor = block_and_test(ones(2000)) # blocking fails
+    bor = blocking_analysis(ones(2000)) # blocking fails
     @test bor.k == -1
     @test isnan(bor.err)
 
     # complex
     w = randn(ComplexF64, 2^10)
-    bc = block_and_test(w)
+    bc = blocking_analysis(w)
+    @test real(MonteCarloMeasurements.:±(bc)) ≈ real(Measurements.:±(bc))
+    @test imag(MonteCarloMeasurements.:±(bc)) ≈ imag(Measurements.:±(bc))
     @test bc.k ≤ 4  # should be 0+1 (independent random variables)
-    bcs = block_and_test(smoothen(w, 2^5))
+    bcs = blocking_analysis(smoothen(w, 2^5))
     @test mean(w) ≈ bc.mean ≈ bcs.mean
     @test 5 < bcs.k ≤ 7 # should be 5+1
 
-    @test block_and_test([1]).k == -1 == block_and_test(Int[]).k
+    @test blocking_analysis([1]).k == -1 == blocking_analysis(Int[]).k
 end
 
 using Rimu.StatsTools: x_by_y_linear
@@ -65,6 +68,7 @@ using Rimu.StatsTools: x_by_y_linear
     @test qr95[1] < 0 < qr95[2]
     qi95 = quantile(imag(r.ratio), [0.025,0.975])
     @test qi95[1] < 0 < qi95[2]
+    @test_throws ErrorException quantile(r, [0.025,0.975])
 
     # well behaved real example
     n_samples = 2000
@@ -117,7 +121,7 @@ using Rimu.StatsTools: x_by_y_linear
 
     @test r.k < 3 # uncorrelated samples
     @test isapprox(μ_a/μ_b, r.f; atol = abs(2σ_f))
-    @test isapprox(real(μ_a/μ_b), median(real(r.ratio)); atol = abs(2σ_f))
+    @test isapprox(μ_a/μ_b, median(r); atol = abs(2σ_f))
     qr = quantile(real(r.ratio), [0.16,0.5,0.84])
     qi = quantile(imag(r.ratio), [0.16,0.5,0.84])
     # Is this the correct way to test against linear error propagation?

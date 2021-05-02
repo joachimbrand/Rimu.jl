@@ -31,6 +31,17 @@ MacroTools.@forward RatioBlockingResult.ratio Statistics.middle, Base.iterate, B
 MacroTools.@forward RatioBlockingResult.ratio Base.minimum, Base.maximum
 MacroTools.@forward RatioBlockingResult.ratio Statistics.mean, Statistics.cov
 
+function Statistics.median(r::RatioBlockingResult{<:Complex})
+    complex(median(real(r.ratio)), median(imag(r.ratio)))
+end
+function Statistics.quantile(r::RatioBlockingResult{<:Complex}, args...)
+    throw(ErrorException("""
+    `quantile(r, args...)` called with `Complex` data type.
+    Try `quantile(real(r.ratio), args...)` and `quantile(imag(r.ratio), args...)`!
+    """
+    ))
+end
+
 function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Real, P}
     q = quantile(r.ratio, [0.16,0.5,0.84])
     qr95 = quantile(r.ratio, [0.025,0.975])
@@ -68,7 +79,7 @@ end
     ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = 10_000) -> r
 Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
 correlated time series. A blocking analysis with m-test is used to uncorrelate the time
-series, see [`block_and_test()`](@ref). The remaining standard error and correlation of the
+series, see [`blocking_analysis()`](@ref). The remaining standard error and correlation of the
 means is propagated using [`MonteCarloMeasurements`](@ref).
 
 Robust estimates for the ratio
@@ -80,8 +91,8 @@ Estimates from linear uncertainty propagation are returned as `r.f` and `r.σ_f`
 """
 function ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = 10_000)
     # determine how many blocking steps are needed to uncorrelate data
-    bt_num = block_and_test(num; α)
-    bt_den = block_and_test(denom; α)
+    bt_num = blocking_analysis(num; α)
+    bt_den = blocking_analysis(denom; α)
     # choose largst k from mtest on blocking analyses on numerator and denominator
     ks = (bt_num.k, bt_den.k)
     success = any(k->k<0, ks) ? false : true
