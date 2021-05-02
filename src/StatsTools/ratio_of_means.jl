@@ -33,11 +33,30 @@ MacroTools.@forward RatioBlockingResult.ratio Statistics.mean, Statistics.cov
 
 function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Real, P}
     q = quantile(r.ratio, [0.16,0.5,0.84])
+    qr95 = quantile(r.ratio, [0.025,0.975])
     println(io, "RatioBlockingResult{$T,$P}")
-    println(io, "  ratio = $(q[2]) + $(q[3]-q[2]) - $(q[2]-q[1]) (MC)")
-    println(io, "  95% confidence interval: $(quantile(r.ratio, [0.025,0.975])) (MC)")
-    println(io, "  linear error propagation: $(r.f) ± $(r.σ_f)")
-    println(io, "  δ_y = $(r.δ_y) (≤ 0.1 for normal approx)")
+    println(io, f"  ratio = \%g(q[2]) ± (\%g(q[3]-q[2]), \%g(q[2]-q[1])) (MC)")
+    println(io, f"  95% confidence interval: [\%g(qr95[1]), \%g(qr95[2])]) (MC)")
+    println(io, f"  linear error propagation: \%g(r.f) ± \%g(r.σ_f)")
+    println(io, f"  |δ_y| = |\%g(r.δ_y)| (≤ 0.1 for normal approx)")
+    if r.success
+        println(io, "  Blocking successful with $(r.blocks) blocks after $(r.k-1) transformations (k = $(r.k)).")
+    else
+        println(io, "  Blocking unsuccessful.")
+    end
+end
+
+function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Complex, P}
+    qr = quantile(real(r.ratio), [0.16,0.5,0.84])
+    qi = quantile(imag(r.ratio), [0.16,0.5,0.84])
+    println(io, "RatioBlockingResult{$T,$P}")
+    println(io, f"  ratio = \%g(qr[2]) ± (\%g(qr[3]-qr[2]), \%g(qr[2]-qr[1])) + [\%g(qi[2]) ± (\%g(qi[3]-qi[2]), \%g(qi[2]-qi[1]))]*im (MC)")
+    qr95 = quantile(real(r.ratio), [0.025,0.975])
+    qi95 = quantile(imag(r.ratio), [0.025,0.975])
+    println(io, f"  95% confidence interval real: [\%g(qr95[1]), \%g(qr95[2])] (MC)")
+    println(io, f"  95% confidence interval imag: [\%g(qi95[1]), \%g(qi95[2])] (MC)")
+    println(io, "  linear error propagation: ($(r.f)) ± ($(r.σ_f))")
+    println(io, f"  |δ_y| = \%g(abs(r.δ_y)) (≤ 0.1 for normal approx)")
     if r.success
         println(io, "  Blocking successful with $(r.blocks) blocks after $(r.k-1) transformations (k = $(r.k)).")
     else
@@ -86,7 +105,7 @@ See [wikipedia](https://en.wikipedia.org/wiki/Propagation_of_uncertainty) and
 σ_f = \\sqrt{\\frac{σ_x}{μ_y}^2 + \\frac{μ_x σ_y}{μ_y^2}^2 - \\frac{2 ρ μ_x}{μ_y^3}}
 ```
 """
-function x_by_y_linear(μ_x,μ_y,σ_x,σ_y,ρ)
+function x_by_y_linear(μ_x, μ_y, σ_x, σ_y, ρ)
     f = μ_x/μ_y
     # σ_f = abs(f)*sqrt((σ_x/μ_x)^2 + (σ_y/μ_y)^2 - 2*ρ/(μ_x*μ_y))
     σ_f = sqrt((σ_x/μ_y)^2 + (μ_x*σ_y/μ_y^2)^2 - 2*ρ*μ_x/μ_y^3)
