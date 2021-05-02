@@ -1,7 +1,7 @@
 using Rimu, Rimu.StatsTools
-using Statistics, DataFrames, Random
-using MonteCarloMeasurements, Measurements
+using Statistics, DataFrames, Random, Distributions
 using Test
+import MonteCarloMeasurements, Measurements
 
 @testset "smoothen" begin
     noisy = randn(1000)
