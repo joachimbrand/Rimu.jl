@@ -25,8 +25,8 @@ function fciqmc_col!(w, ham, add, num, shift, dτ)
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
-    for val in ham[:, add]
-        spawn!(w, (1 + dτ * (shift - val)) * num, add => num)
+    for (i, val) in enumerate(ham[:, add])
+        spawn!(w, i, (1 + dτ * (shift - val)) * num, add => num)
     end
     # todo: return something sensible
     return (0, 0, 0, 0, 0)
