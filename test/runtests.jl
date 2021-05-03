@@ -425,6 +425,16 @@ end
     # @benchmark DictVectors.myspawndot(svec2, ws) # 651.476 μs
 end
 
+@testset "IsDeterministic with Vector" begin
+    ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
+    sm, basis = Rimu.Hamiltonians.build_sparse_matrix_from_LO(ham, starting_address(ham))
+    seedCRNG!(1337)
+    a = lomc!(sm, ones(35); threading=true).df
+    seedCRNG!(1337)
+    b = lomc!(sm, ones(35); threading=false).df
+    @test a.shift == b.shift
+end
+
 @testset "lomc!" begin
     # Define the initial Fock state with n particles and m modes
     n = m = 9
