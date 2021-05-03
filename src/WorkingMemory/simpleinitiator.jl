@@ -4,7 +4,7 @@ Working memory for a simplified initiator method with `threshold`. See also
 [`InitiatorMemory`](@ref) and [`AbstractWorkingMemory`](@ref).
 """
 struct SimpleInitiatorMemory{
-    K,V,M<:AbstractWorkingMemory{K,SimpleInitiatorValue{V}}
+    K,V,M<:AbstractWorkingMemory{K,V}
 } <: AbstractWorkingMemory{K,V}
     mem::M
     threshold::V

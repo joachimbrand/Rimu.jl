@@ -9,6 +9,7 @@ export sort_into_targets!
 
 include("abstract.jl")
 include("dvecmemory.jl")
+include("simpleinitiator.jl")
 include("initiator.jl")
 include("setup.jl")
 

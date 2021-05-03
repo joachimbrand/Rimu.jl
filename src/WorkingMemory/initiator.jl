@@ -10,12 +10,14 @@ end
 function InitiatorValue{V}(;safe=zero(V), unsafe=zero(V), initiator=zero(V)) where {V}
     return InitiatorValue{V}(V(safe), V(unsafe), V(initiator))
 end
+function InitiatorValue{V}(i::InitiatorValue) where {V}
+    return InitiatorValue{V}(V(i.safe), V(i.unsafe), V(i.initiator))
+end
 
 function Base.:+(v::InitiatorValue, w::InitiatorValue)
     return InitiatorValue(v.safe + w.safe, v.unsafe + w.unsafe, v.initiator + w.initiator)
 end
-Base.zero(::Type{InitiatorValue{V}}) where {V} = InitiatorValue{V}()
-Base.zero(::InitiatorValue{V}) where {V} = InitiatorValue{V}()
+Base.zero(::Union{V,Type{InitiatorValue{V}}}) where {V} = InitiatorValue{V}()
 
 # rule for combining the fields of `InitiatorValue` to a simple number:
 # only add v.unsafe if v.initiator is populated as that indicates an initiator origin
@@ -64,4 +66,17 @@ function spawn!(mem::InitiatorMemory, k, v, (pk, pv))
         end
     end
     spawn!(mem.mem, k, val, (pk, pv))
+end
+
+# Temporary hack to track number of initiators.
+using StaticArrays
+function sort_into_targets!(target, mem::InitiatorMemory, stats)
+    empty!(target)
+    num_initiators = 0
+    for (k, v) in pairs(mem.mem)
+        num_initiators += !iszero(v.initiator)
+        target[k] = value(v)
+    end
+    stats = setindex(stats, num_initiators, 3)
+    return target, mem, stats
 end
