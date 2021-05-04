@@ -1,20 +1,29 @@
 """
-    MatrixHamiltonian(mat::AbstractMatrix{T}, i=1) <: AbstractHamiltonian{T}
+    MatrixHamiltonian(mat::AbstractMatrix{T}; starting_address=1) <: AbstractHamiltonian{T}
 Wrap an abstract matrix `mat` as an `AbstractHamiltonian` object for use with
-stochatic methods of [`lomc!()`](@ref). Optionally, a starting index `i` can be provided.
+regular `Vector`s indexed by integers. Works with stochatic methods of
+[`lomc!()`](@ref). Optionally, a `starting_address` can be provided.
 
 Specialised methods are implemented for sparse matrices of type `AbstractSparseMatrixCSC`.
 """
-struct MatrixHamiltonian{T,AM} <: AbstractHamiltonian{T}
+struct MatrixHamiltonian{T,AM,H} <: AbstractHamiltonian{T}
     m::AM
     starting_index::Int
 end
 
-function MatrixHamiltonian(m::AM, i = axes(m, 2)[1]) where AM <:AbstractMatrix
+function MatrixHamiltonian(m::AM; starting_address=axes(m, 2)[1]) where AM <:AbstractMatrix
     s = length.(axes(m))
     @assert s[1]==s[2] "Matrix needs to be square, got $s."
-    MatrixHamiltonian{eltype(m),AM}(m, Int[i])
+    i = Int(starting_address)
+    @assert minimum(axes(m, 2)) ≤ i ≤ maximum(axes(m, 2)) "Invalid index $starting_address."
+    MatrixHamiltonian{eltype(m), AM, ishermitian(m)}(m, i)
 end
+
+LOStructure(::Type{<:MatrixHamiltonian{<:Any,<:Any,true}}) = Hermitian()
+LOStructure(::Type{<:MatrixHamiltonian}) = AdjointKnown()
+LinearAlgebra.adjoint(mh::MatrixHamiltonian) = MatrixHamiltonian(mh.m')
+LinearAlgebra.adjoint(mh::MatrixHamiltonian{<:Any,<:Any,true}) = mh
+
 
 starting_address(mh::MatrixHamiltonian) = mh.starting_index
 

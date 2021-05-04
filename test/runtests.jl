@@ -425,21 +425,6 @@ end
     # @benchmark DictVectors.myspawndot(svec2, ws) # 651.476 μs
 end
 
-@testset "IsDeterministic with Vector" begin
-    ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
-    dim = dimension(ham)
-    sm, basis = Rimu.Hamiltonians.build_sparse_matrix_from_LO(ham, starting_address(ham))
-    @test dim == length(basis)
-    # run lomc! in deterministic mode with Matrix and Vector
-    a = lomc!(sm, ones(dim); threading=true).df # no actual threading is done, though
-    b = lomc!(sm, ones(dim); threading=false).df
-    @test a.shift ≈ b.shift
-    # run lomc! in deterministic mode with Hamiltonian and DVec
-    v = DVec2(k=>1.0 for k in basis; capacity = dim+10) # corresponds to `ones(dim)`
-    c = lomc!(ham, v).df
-    @test a.shift ≈ c.shift
-end
-
 @testset "lomc!" begin
     # Define the initial Fock state with n particles and m modes
     n = m = 9
