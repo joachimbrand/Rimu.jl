@@ -31,7 +31,8 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
     "first argument: trait not recognised",StochasticStyle,T))
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
-    w .+= (1 .+ dτ.*(shift .- view(ham,:,add))).*num
+    w[add] += (1 + dτ * shift) * num # diagonal without Hamiltonian contribution
+    w .+= -dτ .* ham[:, add] .* num # full matrix column
     # todo: return something sensible
     return (0, 0, 0, 0, 0)
 end
