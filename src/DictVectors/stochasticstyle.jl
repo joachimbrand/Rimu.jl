@@ -124,6 +124,9 @@ walkers in a configuration is high.
 
 Parameters:
 
+* `late_projection = true`: If set to true, threshold projection is done after all spawns are
+  collected, otherwise, values are projected as they are being spawned.
+
 * `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
   is greater than the number of offdiagonals, spawning is done deterministically. Should be
   set to 1 or more for best performance.
@@ -135,33 +138,17 @@ Parameters:
 * `proj_threshold = 1.0`: Values below this number are stochastically projected to this
   value or zero. See also [`IsStochasticWithThreshold`](@ref).
 """
-Base.@kwdef struct IsDynamicSemistochastic<:StochasticStyle
-    rel_threshold::Float64 = 1.0
-    abs_threshold::Float64 = Inf
-    proj_threshold::Float64 = 1.0
+struct IsDynamicSemistochastic{P}<:StochasticStyle
+    rel_threshold::Float64
+    abs_threshold::Float64
+    proj_threshold::Float64
 end
-
-# TODO this is here for testing purposes. Should be deleted.
-"""
-    IsStochasticWithThresholdAndInitiator
-
-Similar to [`IsDynamicSemistochastic`](@ref), but does the projection step earlier. Also
-includes an approximate initiator method.
-
-* `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
-  is greater than the number of offdiagonals, spawning is done deterministically. Should be
-  set to 1 or more for best performance.
-
-* `proj_threshold = 1.0`: Values below this number are stochastically projected to this
-  value or zero. See also [`IsStochasticWithThreshold`](@ref).
-
-* `initiator_threshold = 0.0`: Configurations with walker numbers smaller than this number are
-  not allowed to spawn.
-"""
-Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
-    rel_threshold::Float64 = 1.0
-    initiator_threshold::Float64 = 0.0
-    proj_threshold::Float64 = 1.0
+function IsDynamicSemistochastic(
+    ; late_projection::Bool=true, rel_threshold=1.0, abs_threshold=Inf, proj_threshold=1.0
+)
+    return IsDynamicSemistochastic{late_projection}(
+        Float64(rel_threshold), Float64(abs_threshold), Float64(proj_threshold)
+    )
 end
 
 """

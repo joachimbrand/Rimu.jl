@@ -17,6 +17,12 @@ end
 function Base.:+(v::InitiatorValue, w::InitiatorValue)
     return InitiatorValue(v.safe + w.safe, v.unsafe + w.unsafe, v.initiator + w.initiator)
 end
+function Base.:-(v::InitiatorValue, w::InitiatorValue)
+    return InitiatorValue(v.safe - w.safe, v.unsafe - w.unsafe, v.initiator - w.initiator)
+end
+function Base.:-(v::InitiatorValue{V}) where {V}
+    return InitiatorValue{V}(-v.safe, -v.unsafe, -v.initiator)
+end
 Base.zero(::Union{V,Type{InitiatorValue{V}}}) where {V} = InitiatorValue{V}()
 
 # rule for combining the fields of `InitiatorValue` to a simple number:

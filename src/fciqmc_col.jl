@@ -591,54 +591,25 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     return (0, 0, 0, 0, 0)
 end
 
-# TODO this is here for testing pupropses. Should be deleted later on.
-function fciqmc_col!(
-    s::DictVectors.IsStochasticWithThresholdAndInitiator,
-    w, ham::AbstractHamiltonian, add, val, shift, dτ,
-)
-    # Diagonal step:
-    new_val = (1 + dτ*(shift - diagonal_element(ham,add))) * val
-    spawn!(w, add, new_val, add => val)
+"""
+    threshold_projected_spawn!
+This function performs threshold projection before spawning, but only for
+`IsDynamicSemistochastic` with the `project_later` parameter set to `false`.
+"""
+function threshold_projected_spawn!(s::IsDynamicSemistochastic{false}, w, add, val, p)
+    threshold = s.proj_threshold
     absval = abs(val)
-
-    # Initiator:
-    if absval > s.initiator_threshold
-        hops = offdiagonals(ham, add)
-        if s.rel_threshold * val ≥ length(hops)
-            # Exact multiplication
-            factor = dτ * val
-            for (new_add, mat_elem) in hops
-                spawn!(w, new_add, -factor * mat_elem, add => val)
-            end
-            return (1, 0, 0, 0, 0)
-        else
-            # Stochastic - do the integer part first
-            for n in 1:floor(Int, absval)
-                new_add, gen_prob, mat_elem = random_offdiagonal(hops)
-                # if pspawn > 1, do exactly, otherwise round to 1
-                pspawn = dτ * abs(mat_elem) / gen_prob
-                sg = sign(val) * sign(mat_elem)
-                if pspawn ≥ 1
-                    spawn!(w, new_add, -pspawn * sg, add => val)
-                elseif cRand() < pspawn
-                    spawn!(w, new_add, -sg, add => val)
-                end
-            end
-            # Take care of the leftovers
-            rem_val = absval % 1
-            new_add, gen_prob, mat_elem = random_offdiagonal(hops)
-            pspawn = rem_val * dτ * abs(mat_elem) / gen_prob
-            sg = sign(val) * sign(mat_elem)
-            if pspawn ≥ 1
-                spawn!(w, new_add, -pspawn * sg, add => val)
-            elseif cRand() < pspawn
-                spawn!(w, new_add, -sg, add => val)
-            end
-            return (0, 1, 0, 0, 0)
+    if absval < threshold
+        if cRand() < abs(val) / threshold
+            spawn!(w, add, sign(val) * threshold, p)
         end
+    else
+        spawn!(w, add, val, p)
     end
-
-    return (0, 0, 1, 0, 0)
+    return nothing
+end
+function threshold_projected_spawn!(::IsDynamicSemistochastic{true}, w, add, val, p)
+    spawn!(w, add, val, p)
 end
 
 function fciqmc_col!(
@@ -649,14 +620,14 @@ function fciqmc_col!(
 
     # Diagonal step:
     new_val = (1 + dτ*(shift - diagonal_element(ham, add))) * val
-    spawn!(w, add, new_val, add => val)
+    threshold_projected_spawn!(s, w, add, new_val, add => val)
 
     hops = offdiagonals(ham, add)
     if s.rel_threshold * val ≥ length(hops) || val ≥ s.abs_threshold
         # Exact multiplication when conditions are met.
         factor = dτ * val
         for (new_add, mat_elem) in hops
-            spawn!(w, new_add, -factor * mat_elem, add => val)
+            threshold_projected_spawn!(s, w, new_add, -factor * mat_elem, add => val)
         end
         return (1, 0, 0, 0, 0)
     else
@@ -665,7 +636,7 @@ function fciqmc_col!(
         for i in 1:ceil(Int, absval)
             new_add, gen_prob, mat_elem = random_offdiagonal(hops)
             new_val = sign(val) * ifelse(i == 1, remainder, 1.0) * dτ * mat_elem / gen_prob
-            spawn!(w, new_add, -new_val, add => val)
+            threshold_projected_spawn!(s, w, new_add, -new_val, add => val)
         end
         return (0, 1, 0, 0, 0)
     end
