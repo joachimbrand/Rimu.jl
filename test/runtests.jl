@@ -4,11 +4,15 @@ using LinearAlgebra
 using Statistics, DataFrames
 using SafeTestsets
 
-# assuming VERSION ≥ v"1.5"
+# assuming VERSION ≥ v"1.6"
 # the following is needed because random numbers of collections are computed
-# differently after version 1.5, and thus the results of many tests change
+# differently after version 1.6, and thus the results of many tests change
 # for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
-@assert VERSION ≥ v"1.5"
+@assert VERSION ≥ v"1.6"
+
+@safetestset "StatsTools" begin
+    include("StatsTools.jl")
+end
 
 @safetestset "BitStringAddresses" begin
     include("BitStringAddresses.jl")
@@ -498,7 +502,7 @@ end
     pa = RunTillLastStep(shift = 0.0+0im, dτ=0.001)
     p_strat = Rimu.ComplexNoiseCancellation(κ = 1.0)
     nt = lomc!(ham, svec, params=pa,s_strat= s_strat, p_strat=p_strat, laststep = 10) # run for 100 time steps
-    @test gW(nt.df,4, pad= false) |> length == 7
+    @test Rimu.Blocking.gW(nt.df,4, pad= false) |> length == 7
 end
 
 @testset "helpers" begin
@@ -545,6 +549,7 @@ end
 
 end
 
+using Rimu.Blocking # bring exported functions into name space
 @testset "Blocking.jl" begin
     n=10
     a = rand(n)
