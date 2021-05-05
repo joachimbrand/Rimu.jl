@@ -61,6 +61,8 @@ function LinearAlgebra.adjoint(h::GutzwillerSampling{A,T,<:Any,G}) where {A,T,G}
     return GutzwillerSampling{!A,T,typeof(h_adj),G}(h_adj)
 end
 
+dimension(::Type{T}, h::GutzwillerSampling) where T = dimension(T, h.hamiltonian)
+
 Base.getproperty(h::GutzwillerSampling, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::GutzwillerSampling{<:Any,<:Any,<:Any,G}, ::Val{:g}) where G = G
 Base.getproperty(h::GutzwillerSampling, ::Val{:hamiltonian}) = getfield(h, :hamiltonian)

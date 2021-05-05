@@ -17,6 +17,7 @@ export AbstractHamiltonian, TwoComponentBosonicHamiltonian, offdiagonals, random
 export diagonal_element, num_offdiagonals, get_offdiagonal, dimension, starting_address
 export rayleigh_quotient, momentum
 
+export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
@@ -26,6 +27,8 @@ export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 include("abstract.jl")
 include("offdiagonals.jl")
 include("operations.jl")
+
+include("MatrixHamiltonian.jl")
 
 include("HubbardReal1D.jl")
 include("HubbardMom1D.jl")

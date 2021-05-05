@@ -3,7 +3,7 @@
 ### operating on Bosonic addresses.
 ###
 """
-    AbstractOffdiagonals{A<:AbstractFockAddress,T}<:AbstractVector{Tuple{A,T}}
+    AbstractOffdiagonals{A,T}<:AbstractVector{Tuple{A,T}}
 
 Iterator over new address and matrix element for reachable off-diagonal matrix elements of a
 linear operator.
@@ -20,12 +20,12 @@ See [`Offdiagonals`](@ref) for a default implementation.
 * `Base.size(::AbstractOffdiagonals)`: should be equivalent to `num_offdiagonals(h, a)`.
 
 """
-abstract type AbstractOffdiagonals{A<:AbstractFockAddress,T} <: AbstractVector{Tuple{A,T}} end
+abstract type AbstractOffdiagonals{A,T} <: AbstractVector{Tuple{A,T}} end
 
 Base.IndexStyle(::Type{<:AbstractOffdiagonals}) = IndexLinear()
 
 """
-    offdiagonals(h::AbstractHamiltonian, a::AbstractFockAddress)
+    offdiagonals(h::AbstractHamiltonian, address)
 
 Return an iterator over reachable off-diagonal matrix elements of type
 `<:AbstractOffdiagonals`. Defaults to returning `Offdiagonals(h, a)`
