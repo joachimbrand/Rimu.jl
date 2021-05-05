@@ -28,7 +28,6 @@ include("growth_witness.jl")
 include("variances.jl")
 include("blocking.jl")
 include("ratio_of_means.jl")
-# TODO
-# include("fidelity.jl")
+include("convenience.jl")
 
 end  # module StatsTools
