@@ -631,13 +631,15 @@ function fciqmc_col!(
         end
         return (1, 0, 0, 0, 0)
     else
-        # Spawning without projection. It is done later on.
         remainder = absval % 1
+        hasrem = !iszero(remainder)
         for i in 1:ceil(Int, absval)
             new_add, gen_prob, mat_elem = random_offdiagonal(hops)
-            new_val = sign(val) * ifelse(i == 1, remainder, 1.0) * dτ * mat_elem / gen_prob
+            rem_factor = ifelse(i == 1 & hasrem, remainder, 1.0)
+            new_val = sign(val) * rem_factor * dτ * mat_elem / gen_prob
             threshold_projected_spawn!(s, w, new_add, -new_val, add => val)
         end
+
         return (0, 1, 0, 0, 0)
     end
 end
