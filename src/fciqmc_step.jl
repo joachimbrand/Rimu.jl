@@ -25,7 +25,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, w, m = 1.0;
     # m is an optional dummy argument that can be removed later
     v = localpart(dv)
     @assert w ≢ v "`w` and `v` must not be the same object"
-    empty!(w) # clear working memory
+    zero!(w) # clear working memory
     # call fciqmc_col!() on every entry of `v` and add the stats returned by
     # this function:
     stats = allocate_statss(v, nothing)
@@ -215,4 +215,3 @@ end # fciqmc_step!
 #     # result `dv` and cumulative `stats` as an array on all ranks
 #     # stats == (spawns, deaths, clones, antiparticles, annihilations)
 # end # fciqmc_step!
-
