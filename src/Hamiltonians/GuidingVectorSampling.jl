@@ -61,6 +61,8 @@ function LinearAlgebra.adjoint(h::GuidingVectorSampling{A,T,<:Any,D,E}) where {A
     return GuidingVectorSampling{!A,T,typeof(h_adj),D,E}(h_adj, h.vector)
 end
 
+dimension(::Type{T}, h::GuidingVectorSampling) where T = dimension(T, h.hamiltonian)
+
 Base.getproperty(h::GuidingVectorSampling, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::GuidingVectorSampling{<:Any,<:Any,<:Any,<:Any,E}, ::Val{:eps}) where E = E
 Base.getproperty(h::GuidingVectorSampling, ::Val{:hamiltonian}) = getfield(h, :hamiltonian)
