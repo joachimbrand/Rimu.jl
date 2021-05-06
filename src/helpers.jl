@@ -40,19 +40,17 @@ end
 
 """
     walkernumber(w)
-Compute the number of walkers in `w`. In most cases this is identical to
-`norm(w,1)`. For coefficient vectors with
-`StochasticStyle(w) == IsStochastic2Pop` it reports the one norm
+Compute the number of walkers in `w`. It is used for updating the shift.
+Overload this function for modifying population control.
+
+In most cases `walkernumber(w)` is identical to
+`norm(w,1)`. For `AbstractDVec`s with complex coefficients
+it reports the one norm
 separately for the real and the imaginary part as a `ComplexF64`.
+See [`Norm1ProjectorPPop`](@ref).
 """
-walkernumber(w) = norm(w,1) # generic fallback
+walkernumber(w) = walkernumber(StochasticStyle(w), w)
 # use StochasticStyle trait for dispatch
-walkernumber(w::AbstractDVec) = walkernumber(StochasticStyle(w), w)
-walkernumber(::StochasticStyle, w) = norm(w,1)
-# for AbstractDVec with complex walkers
-function walkernumber(::T, w) where T <: Union{DictVectors.IsStochastic2Pop,
-                                               DictVectors.IsStochastic2PopInitiator,
-                                               DictVectors.IsStochastic2PopWithThreshold
-                                               }
-    return isempty(w) ? 0.0+0.0im : sum(p->abs(real(p)) + abs(imag(p))*im, w)|>ComplexF64
-end
+walkernumber(::StochasticStyle, w) = Norm1ProjectorPPop() ⋅ w
+# complex walkers as two populations
+# the following default is fast and generic enough to be good for real walkers and
