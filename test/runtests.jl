@@ -192,7 +192,7 @@ end
     s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
     pb = RunTillLastStep(laststep = 300)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv); report_xHy = true)
     @test sum(rr[1][:,:xHy]) ≈ -9.998205101102287e6
 
     # replica fciqmc with multithreading
@@ -414,17 +414,6 @@ end
     mytdot2(x, ys) = sum(map(y->x⋅y,ys))
     mytdot(x, ys) = mapreduce(y->x⋅y,+,ys)
     @test dot(svec2, ws) == mytdot(svec2, ws) == mytdot2(svec2, ws)
-    # @benchmark dot(svec2, ws) # 639.977 μs using Threads.@threads on 4 threads
-    # @benchmark mytdot(svec2, ws) # 2.210 ms
-    # @benchmark mytdot2(svec2, ws) # 2.154 ms
-    # function myspawndot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T2}}) where {N, K, T1, T2}
-    #     results = zeros(promote_type(T1,T2), N)
-    #     @sync for i in 1:N
-    #         Threads.@spawn results[i] = x⋅ys[i] # using dynamic scheduler
-    #     end
-    #     return sum(results)
-    # end
-    # @benchmark DictVectors.myspawndot(svec2, ws) # 651.476 μs
 end
 
 @testset "IsDeterministic with Vector" begin

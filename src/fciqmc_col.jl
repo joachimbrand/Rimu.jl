@@ -91,9 +91,9 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     # note that w is not returned
 end
 
-function fciqmc_col!(::S2P, w, ham::AbstractHamiltonian, add,
+function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian, add,
                         cnum::Complex, cshift, dτ
-) where S2P<:Union{DictVectors.IsStochastic2Pop, DictVectors.IsStochastic2PopStoquastic}
+)
     # version for complex integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
