@@ -5,8 +5,11 @@
 determines how simulations are to proceed. This can be fully stochastic (with
 `IsStochastic`), fully deterministic (with `IsDeterministic`), or stochastic with
 floating point walker numbers and threshold (with [`IsStochasticWithThreshold`](@ref)).
+
+When defining a new `StochasticStyle`, subtype it as `MyStyle<:StochasticStyle{T}` where `T`
+is the concrete value type the style is designed to work with.
 """
-abstract type StochasticStyle end
+abstract type StochasticStyle{T} end
 
 # some sensible defaults
 StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
@@ -27,7 +30,7 @@ end
 Trait for generalised vector of configurations indicating stochastic
 propagation as seen in the original FCIQMC algorithm.
 """
-struct IsStochastic <: StochasticStyle end
+struct IsStochastic <: StochasticStyle{Int} end
 
 """
     IsStochastic2Pop()
@@ -35,14 +38,14 @@ Trait for generalised vector of configurations indicating stochastic
 propagation with complex walker numbers representing two populations of integer
 walkers.
 """
-struct IsStochastic2Pop <: StochasticStyle end
+struct IsStochastic2Pop <: StochasticStyle{Complex{Int}} end
 
 
 """
     IsDeterministic()
 Trait for generalised vector of configuration indicating deterministic propagation of walkers.
 """
-struct IsDeterministic <: StochasticStyle end
+struct IsDeterministic <: StochasticStyle{Float32} end
 
 """
     IsStochasticWithThreshold(threshold::Float32)
@@ -63,7 +66,7 @@ julia> StochasticStyle(dv)
 IsStochasticWithThreshold(0.6f0)
 ```
 """
-struct IsStochasticWithThreshold <: StochasticStyle
+struct IsStochasticWithThreshold <: StochasticStyle{Float32}
     threshold::Float32
 end
 
@@ -87,35 +90,11 @@ Parameters:
 * `proj_threshold = 1.0`: Values below this number are stochastically projected to this
   value or zero. See also [`IsStochasticWithThreshold`](@ref).
 """
-Base.@kwdef struct IsDynamicSemistochastic<:StochasticStyle
+Base.@kwdef struct IsDynamicSemistochastic <: StochasticStyle{Float32}
     rel_threshold::Float64 = 1.0
     abs_threshold::Float64 = Inf
     proj_threshold::Float64 = 1.0
 end
-
-"""
-    IsStochasticWithThresholdAndInitiator
-
-Similar to [`IsDynamicSemistochastic`](@ref), but does the projection step earlier. Also
-includes an approximate initiator method.
-
-* `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
-  is greater than the number of offdiagonals, spawning is done deterministically. Should be
-  set to 1 or more for best performance.
-
-* `proj_threshold = 1.0`: Values below this number are stochastically projected to this
-  value or zero. See also [`IsStochasticWithThreshold`](@ref).
-
-* `initiator_threshold = 0.0`: Configurations with walker numbers smaller than this number are
-  not allowed to spawn.
-"""
-# TODO this is here for testing purposes. Should be deleted.
-Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
-    rel_threshold::Float64 = 1.0
-    initiator_threshold::Float64 = 0.0
-    proj_threshold::Float64 = 1.0
-end
-
 
 ###
 ### Style setting Macros

@@ -686,13 +686,12 @@ end
     @test eig2cReal.values[1] ≈ eig2cMom.values[1]
 end
 
-using Rimu.DictVectors: IsStochasticWithThresholdAndInitiator
 @testset "IsDynamicSemistochastic" begin
     add = BoseFS((1, 1, 1))
     H = HubbardReal1D(add)
     dv1 = DVec2(add => 1; capacity=100)
     dv2 = DVec2(add => 1.0; capacity=100, style=IsDynamicSemistochastic())
-    dv3 = DVec2(add => 1.0; capacity=100, style=IsStochasticWithThresholdAndInitiator())
+    dv2 = DVec2(add => 1.0; capacity=100, style=IsDynamicSemistochastic(project_late=false))
 
     df1 = lomc!(H, dv1, laststep=10000).df
     df2 = lomc!(H, dv2, laststep=10000).df
@@ -702,6 +701,7 @@ using Rimu.DictVectors: IsStochasticWithThresholdAndInitiator
     σ3 = autoblock(df3, start=100).σs
 
     @test σ1 > σ2
+    @test σ3 > σ2
     @test σ1 > σ3
 end
 
