@@ -478,6 +478,56 @@ end
 DoubleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4) = DoubleLogUpdate(targetwalkers, ζ, ξ)
 
 """
+    DoubleLogSumUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, α = 1/2) <: ShiftStrategy
+Strategy for updating the shift according to the log formula with damping
+parameters `ζ` and `ξ`.
+
+```math
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{w}^n}\\right)
+- \\frac{ξ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{w}^\\text{target}}\\right),
+```
+where ``N_\\mathrm{w} =`` `(1-α)*walkernumber() + α*UniformProjector()⋅ψ` computed with
+[`walkernumber()`](@ref) and [`UniformProjector()`](@ref).
+When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
+T = 2/ζ.
+"""
+struct DoubleLogSumUpdate{T} <: ShiftStrategy
+    targetwalkers::T
+    ζ::Float64 # damping parameter, best left at value of 0.08
+    ξ::Float64  # restoring force to bring walker number to the target
+    α::Float64  # mixing angle for (1-α)*walkernumber + α*UniformProjector()⋅ψ
+end
+function DoubleLogSumUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4, α = 1/2)
+    DoubleLogSumUpdate(targetwalkers,  ζ, ξ, α)
+end
+
+"""
+    TripleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, η = 0.01) <: ShiftStrategy
+Strategy for updating the shift according to the extended log formula with damping
+parameters `ζ`, `ξ`, and `η`.
+
+```math
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{w}^n}\\right)
+- \\frac{ξ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{w}^\\text{target}}\\right)
+- \\frac{η}{dτ}\\ln\\left(\\frac{\\|ℜ(Ψ^{n+1})\\|_1^2 + \\|ℑ(Ψ^{n+1})\\|_1^2}
+{\\|ℜ(Ψ^{n})\\|_1^2 + \\|ℑ(Ψ^{n})\\|_1^2}\\right),
+```
+where ``N_\\mathrm{w}`` is the [`walkernumber()`](@ref).
+When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
+T = 2/ζ.
+"""
+struct TripleLogUpdate{T} <: ShiftStrategy
+    targetwalkers::T
+    ζ::Float64 # damping parameter
+    ξ::Float64  # restoring force to bring walker number to the target
+    η::Float64
+end
+function TripleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4, η = 0.01)
+    return TripleLogUpdate(targetwalkers, ζ, ξ, η)
+end
+
+
+"""
     DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ` after projecting onto `projector`.
@@ -650,6 +700,33 @@ end
     # return new shift and new shiftMode
     return shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm), true, tnorm
 end
+
+@inline function update_shift(s::TripleLogUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, v_new, v_old
+)
+    tp = abs2(DictVectors.Norm1ProjectorPPop() ⋅ v_new)
+    pp = abs2(DictVectors.Norm1ProjectorPPop() ⋅ v_old)
+    # return new shift and new shiftMode
+    new_shift = shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm)
+    # new_shift -= s.η/dτ * log(tp/pp)
+    new_shift -= s.η/dτ * log(tp/s.targetwalkers)
+    return new_shift, true, tnorm
+end
+
+@inline function update_shift(s::DoubleLogSumUpdate,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, v_new, v_old
+)
+    tp = DictVectors.UniformProjector() ⋅ v_new
+    pp = DictVectors.UniformProjector() ⋅ v_old
+    twn = (1 - s.α) * tnorm + s.α * tp
+    pwn = (1 - s.α) * pnorm + s.α * pp
+    # return new shift and new shiftMode
+    new_shift = shift - s.ξ/dτ * log(twn/s.targetwalkers) - s.ζ/dτ * log(twn/pwn)
+    return new_shift, true, tnorm
+end
+
 
 @inline function update_shift(s::DoubleLogProjected,
                         shift, shiftMode,
