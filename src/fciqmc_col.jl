@@ -91,8 +91,9 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     # note that w is not returned
 end
 
-function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian, add,
-                        cnum::Complex, cshift, dτ)
+function fciqmc_col!(::S2P, w, ham::AbstractHamiltonian, add,
+                        cnum::Complex, cshift, dτ
+) where S2P<:Union{DictVectors.IsStochastic2Pop, DictVectors.IsStochastic2PopStoquastic}
     # version for complex integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
@@ -130,7 +131,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
         nspawns = im*convert(typeof(num), -nspawn * sign(num) * sign(matelem))
         # - because Hamiltonian appears with - sign in iteration equation
         if sign(imag(w[naddress])) * sign(imag(nspawns)) < 0 # record annihilations
-            annihilations += min(abs(imag(w[naddress])),abs(nspawns))
+            annihilations += min(abs(imag(w[naddress])),abs(imag(nspawns)))
         end
         if !iszero(nspawns)
             w[naddress] += nspawns
@@ -150,7 +151,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     ndiag = trunc(newdiagpop)
     abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
-    ndiags = convert(typeof(num),ndiag) # now complex integer type
+    ndiags = convert(typeof(num),ndiag) # now real integer type
     if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
         annihilations += min(abs(real(w[add])),abs(real(ndiags)))
     end
@@ -169,7 +170,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
     ndiags = im*convert(typeof(num),ndiag) # now complex integer type
-    if sign(imag(w[add])) ≠ sign(ndiag) # record annihilations
+    if sign(imag(w[add])) ≠ sign(imag(ndiag)) # record annihilations
         annihilations += min(abs(imag(w[add])),abs(imag(ndiags)))
     end
     w[add] += ndiags # should carry the correct sign
