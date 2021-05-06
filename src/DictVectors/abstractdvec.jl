@@ -356,7 +356,7 @@ LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(y)
 Results in computing the one-norm when used in `dot()`. E.g.
 ```julia
 dot(NormProjector(),x)
--> norm(x,1) # with type valtype(x)
+-> norm(x,1)
 ```
 `NormProjector()` thus represents the vector `sign.(x)`.
 
