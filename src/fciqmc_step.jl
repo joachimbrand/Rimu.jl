@@ -59,16 +59,12 @@ end # fciqmc_step!
 # avoiding race conditions
 allocate_statss(v,nt) = allocate_statss(StochasticStyle(v), v, nt)
 allocate_statss(::StochasticStyle, v, nt) = [zeros(Int,5) for i=1:nt]
-function allocate_statss(::SS, v, nt) where SS <: Union{DictVectors.IsStochastic2Pop,
-    DictVectors.IsStochastic2PopInitiator,DictVectors.IsStochastic2PopWithThreshold
-}
+function allocate_statss(::SS, v, nt) where SS <: DictVectors.IsStochastic2Pop
     return [zeros(Complex{Int},5) for i=1:nt]
 end
 # Nothing signals no threading is used
 allocate_statss(::StochasticStyle, _, ::Nothing) = SVector(0, 0, 0, 0, 0)
-function allocate_statss(::SS, v, ::Nothing) where SS <: Union{DictVectors.IsStochastic2Pop,
-    DictVectors.IsStochastic2PopInitiator,DictVectors.IsStochastic2PopWithThreshold
-}
+function allocate_statss(::SS, v, ::Nothing) where SS <: DictVectors.IsStochastic2Pop
     return zeros(SVector{5,Complex{Int}})
 end
 

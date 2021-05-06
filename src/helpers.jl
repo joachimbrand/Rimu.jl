@@ -50,9 +50,6 @@ walkernumber(w) = norm(w,1) # generic fallback
 walkernumber(w::AbstractDVec) = walkernumber(StochasticStyle(w), w)
 walkernumber(::StochasticStyle, w) = norm(w,1)
 # for AbstractDVec with complex walkers
-function walkernumber(::T, w) where T <: Union{DictVectors.IsStochastic2Pop,
-                                               DictVectors.IsStochastic2PopInitiator,
-                                               DictVectors.IsStochastic2PopWithThreshold
-                                               }
+function walkernumber(::T, w) where T <: DictVectors.IsStochastic2Pop
     return isempty(w) ? 0.0+0.0im : sum(p->abs(real(p)) + abs(imag(p))*im, w)|>ComplexF64
 end
