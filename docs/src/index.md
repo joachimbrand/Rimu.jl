@@ -18,9 +18,9 @@ Depth = 4
 
 ## Installation
 
-### Install `Rimu` for running jobs only
+### Install `Rimu` for usage
 
-`Rimu` can be installed with the package manager directly from the bitbucket
+`Rimu` can be installed with the package manager directly from the github
 repository. Either hit the `]` key at the Julia REPL to get into `Pkg` mode and
 type
 ```julia-repl
