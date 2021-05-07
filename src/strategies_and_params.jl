@@ -82,7 +82,7 @@ r_strat = EveryTimeStep(projector = copytight(svec))
 Record the projected energy components `df.vproj = svec⋅v` and
 `df.hproj = dot(svec,ham,v)` with respect to
 the starting vector (performs fast eager calculation if
-`Hamiltonians.LOStructure(ham) == Hamiltonians.HermitianLO()`),
+`Hamiltonians.LOStructure(ham) ≠ Hamiltonians.AdjointUnknown()`),
 and report every time step.
 
 ```julia

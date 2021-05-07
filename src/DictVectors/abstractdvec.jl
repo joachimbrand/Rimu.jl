@@ -65,6 +65,10 @@ function capacity(d::Dict, s=:effective)
         throw(ArgumentError("Option symbol '$s' not recognized"))
     end
 end
+# There is no limit in the number of walkers to store in a Vector (assuming its length is
+# equal to the number of configurations). If this is set to length(v), lomc! will complain
+# about maxlength being almost reached.
+capacity(v::AbstractVector, s=:effective) = Inf
 
 Base.keytype(::Type{<:AbstractDVec{K}}) where K = K
 Base.keytype(dv::AbstractDVec) = keytype(typeof(dv))
@@ -91,6 +95,7 @@ Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types
 it means removing all non-zero elements.
 """
 zero!(v::AbstractDVec) = empty!(v)
+zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
 
 Base.zero(dv::AbstractDVec) = empty(dv)
 
@@ -208,6 +213,7 @@ Inplace add `x+y` and store result in `x`.
     end
     return x
 end
+add!(x::AbstractVector, y::AbstractVector) = x .+= y
 
 # BLAS-like function: y .+= α*x
 """

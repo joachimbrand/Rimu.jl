@@ -52,7 +52,7 @@ end
 function DVec2(
     dict::AbstractDict{K,V}, capacity, style::StochasticStyle=default_style(valtype(dict))
 ) where {K,V}
-    sizehint!(dict, (3 * capacity) ÷ 2 + 1)
+    sizehint!(dict, capacity)
     return DVec2{K,V,style,typeof(dict)}(dict)
 end
 function DVec2{K,V}(capacity::Int, style::StochasticStyle=default_style(V)) where {K,V}
@@ -122,3 +122,18 @@ end
 
 @delegate DVec2.dict [get, get!, haskey, getkey, pop!, isempty, length, values, keys]
 @delegate_return_parent DVec2.dict [delete!, empty!, sizehint!]
+
+# several times faster than regular sum
+function Base.sum(f::F, dvec::DVec2{<:Any,V,<:Any,<:Dict}) where {F,V}
+    if isempty(dvec)
+        return f(zero(V))
+    else
+        vals = dvec.dict.vals
+        slots = dvec.dict.slots
+        result = f(vals[1] * (slots[1] == 0x1))
+        @inbounds @simd for i in 2:length(vals)
+            result += f(vals[i] * (slots[i] == 0x1))
+        end
+        return result
+    end
+end

@@ -40,6 +40,7 @@ export FastDVec
 
 export StochasticStyle,
     IsStochastic, IsDeterministic, IsStochasticWithThreshold,
+    IsDynamicSemistochastic,
     @setThreshold, @setDeterministic, setThreshold
     # IsStochasticNonlinear, IsStochastic2Pop,
     # IsStochastic2PopInitiator, IsStochastic2PopWithThreshold, IsSemistochastic

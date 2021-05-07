@@ -13,7 +13,7 @@ ham = BoseHubbardReal1D(
     AT = BSAdd64)
 ham(:dim)
 aIni = nearUniform(ham)
-iShift = diagME(ham, aIni)
+iShift = diagonal_element(ham, aIni)
 
 # standard fciqmc
 s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
@@ -56,7 +56,7 @@ ham = BoseHubbardReal1D(
     u = 6.0,
     t = 1.0,
     AT = typeof(aIni))
-iShift = diagME(ham, aIni)
+iShift = diagonal_element(ham, aIni)
 
 # standard fciqmc
 s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
@@ -85,7 +85,7 @@ ham = BoseHubbardReal1D(
     u = 6.0,
     t = 1.0,
     AT = typeof(aIni))
-iShift = diagME(ham, aIni)
+iShift = diagonal_element(ham, aIni)
 
 # standard fciqmc
 tw = 1_000
@@ -117,7 +117,7 @@ ham = BoseHubbardReal1D(
     AT = BStringAdd)
 ham(:dim)
 aIni = nearUniform(ham)
-iShift = diagME(ham, aIni)
+iShift = diagonal_element(ham, aIni)
 
 # standard fciqmc
 s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
@@ -140,7 +140,7 @@ ham = BoseHubbardReal1D(
     AT = BStringAdd)
 ham(:dim)
 aIni = nearUniform(ham)
-iShift = diagME(ham, aIni)
+iShift = diagonal_element(ham, aIni)
 
 # standard fciqmc
 tw = 1_000

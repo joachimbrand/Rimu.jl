@@ -5,10 +5,13 @@ using Base.Threads: nthreads
 
 localpart(dv) = dv # default for local data
 
-function threadedWorkingMemory(dv)
-    v = localpart(dv)
-    cws = capacity(v)÷nthreads()+1
-    return Tuple(similar(v,cws) for i=1:nthreads())
+threadedWorkingMemory(dv) = threadedWorkingMemory(localpart(dv))
+function threadedWorkingMemory(v::AbstractDVec)
+    cws = capacity(v) ÷ nthreads() + 1
+    return Tuple(similar(v, cws) for _ in 1:nthreads())
+end
+function threadedWorkingMemory(v::AbstractVector)
+    return Tuple(similar(v) for _ in 1:nthreads())
 end
 
 # three-argument version
@@ -26,7 +29,7 @@ combine_stats(stats::SArray) = stats # special case for fciqmc_step!() using Thr
 
 function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
     # multi-threaded non-MPI version
-    empty!(target)
+    zero!(target)
     for w in ws # combine new walkers generated from different threads
         add!(target, w)
     end

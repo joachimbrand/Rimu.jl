@@ -14,14 +14,12 @@ include("FastBufs.jl")
 using .FastBufs
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
-include("BitStringAddresses.jl")
+include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("ConsistentRNG.jl")
 @reexport using .ConsistentRNG
-include("Hamiltonians.jl")
+include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
-include("Blocking.jl")
-@reexport using .Blocking
 include("RimuIO.jl")
 using .RimuIO
 
@@ -40,13 +38,21 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
 export RimuIO
 
-include("strategies_and_params.jl")
-include("helpers.jl")
-include("fciqmc.jl")
+include("strategies_and_params.jl") # type defs and helpers
+include("helpers.jl")               # non MPI-dependent helper functions
+include("fciqmc_col.jl")            # third level
+include("apply_memory_noise.jl")
+include("fciqmc_step.jl")           # second level
+include("norm_project.jl")
+include("lomc.jl")                  # top level
 
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
-include("RMPI.jl")
+include("RMPI/RMPI.jl")
 # @reexport using .RMPI
+
+# analysis tools not reexported
+include("Blocking.jl")
+include("StatsTools/StatsTools.jl")
 
 end # module
