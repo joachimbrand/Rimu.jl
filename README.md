@@ -13,7 +13,9 @@ time-dependent Schrödinger equation and Master equations for open system
 time evolution.
 
 **Concept:** Joachim Brand and Elke Pahl.
-**Contributors:** Joachim Brand, Elke Pahl, Mingrui Yang, Matija Cufar
+
+**Contributors:** Joachim Brand, Elke Pahl, Mingrui Yang, Matija Cufar.
+
 Discussions, help, and additional contributions are acknowledged by Ali Alavi, Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
 
 ### Install `Rimu`
