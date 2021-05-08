@@ -17,7 +17,6 @@ The interface is similar to the `AbstractDict` interface.
 Implement what would be needed for the `AbstractDict` interface
 (`setindex!, getindex, delete!, length,
 haskey, empty!, isempty`) and, in addition:
-- `capacity(dv)`: holding capacity
 - `similar(dv [,Type])`
 - `iterate()`: should return values of type `V`
 - `pairs()`: should return an iterator over `key::K => content` pairs. If `content ≠ value::V` then provide `values()` iterator as well!
@@ -36,37 +35,6 @@ function Base.show(io::IO, dvec::AbstractDVec{K,V}) where {K,V}
         end
     end
 end
-
-"""
-    DictVectors.capacity(dv::AbstractDVec, [s = :effective])
-    capacity(dvs::Tuple, [s = :effective])
-gives the effective holding capacity of `dv`. If a tuple of `dvs` is given it
-aggregates the capacities.
-
-Optional argument `s`:
-- `:effective`  the number of elements that
-can be stored savely (default)
-- `:allocated` actual internal memory allocation
-"""
-capacity
-# doc string here only; needs to be defined for each concrete type.
-
-# make capacity aggregate over tuple
-capacity(tup::Tuple, args...) = sum(capacity.(tup, args...))
-
-function capacity(d::Dict, s=:effective)
-    if s == :effective
-        return 2 * length(d.keys) ÷ 3
-    elseif s == :allocated
-        return length(d.keys)
-    else
-        throw(ArgumentError("Option symbol '$s' not recognized"))
-    end
-end
-# There is no limit in the number of walkers to store in a Vector (assuming its length is
-# equal to the number of configurations). If this is set to length(v), lomc! will complain
-# about maxlength being almost reached.
-capacity(v::AbstractVector, s=:effective) = Inf
 
 Base.keytype(::Type{<:AbstractDVec{K}}) where K = K
 Base.keytype(dv::AbstractDVec) = keytype(typeof(dv))

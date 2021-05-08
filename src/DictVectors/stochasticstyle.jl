@@ -10,11 +10,14 @@ is the concrete value type the style is designed to work with.
 """
 abstract type StochasticStyle{T} end
 
+Base.eltype(::Type{<:StochasticStyle{T}}) where {T} = T
+
 """
     NoStyle()
-Trait for value types not (currently) compatible with FCIQMC.
+Trait for value types not (currently) compatible with FCIQMC. This style makes it possible to
+construct dict vectors with unsupported `valtype`s.
 """
-struct IsUnknownStyle{T} <: StochasticStyle{T} end
+struct StyleUnknown{T} <: StochasticStyle{T} end
 
 """
     IsStochastic()
