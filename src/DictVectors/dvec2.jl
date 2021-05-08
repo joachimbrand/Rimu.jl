@@ -30,17 +30,6 @@ struct DVec2{K,V,S,D<:AbstractDict{K,V}} <: AbstractDVec{K,V}
     dict::D
 end
 
-"""
-    default_style(::Type)
-
-Pick a [`StochasticStyle`](@ref) based on the type. Throws an error if no known default
-style is known.
-"""
-default_style(::Type{<:Integer}) = IsStochastic()
-default_style(::Type{<:AbstractFloat}) = IsDeterministic()
-default_style(::Type{<:Complex}) = IsStochastic2Pop()
-default_style(::Type{T}) where T = error("Unable to pick default stochastic style for $T")
-
 # Constructors
 function DVec2(args...; capacity, style::Union{Nothing,StochasticStyle}=nothing)
     dict = Dict(args...)
@@ -88,9 +77,7 @@ function Base.summary(io::IO, dvec::DVec2{K,V,S}) where {K,V,S}
     print(io, "DVec2{$K,$V,$S} with $len entries, capacity $cap")
 end
 
-# interface specification and stuff...
-StochasticStyle(::Type{<:DVec2{<:Any,<:Any,S}}) where S = S
-
+StochasticStyle(::DVec2{<:Any,<:Any,S}) where {S} = S
 capacity(dvec::DVec2, args...) = capacity(dvec.dict, args...)
 
 function Base.getindex(dvec::DVec2{<:Any,V}, add) where V

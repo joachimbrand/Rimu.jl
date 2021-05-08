@@ -691,7 +691,9 @@ end
     H = HubbardReal1D(add)
     dv1 = DVec2(add => 1; capacity=100)
     dv2 = DVec2(add => 1.0; capacity=100, style=IsDynamicSemistochastic())
-    dv2 = DVec2(add => 1.0; capacity=100, style=IsDynamicSemistochastic(project_late=false))
+    dv2 = DVec2(
+        add => 1.0; capacity=100, style=IsDynamicSemistochastic(late_projection=false)
+    )
 
     df1 = lomc!(H, dv1, laststep=10000).df
     df2 = lomc!(H, dv2, laststep=10000).df

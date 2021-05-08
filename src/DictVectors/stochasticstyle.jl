@@ -1,6 +1,5 @@
 """
     StochasticStyle(v)
-    StochasticStyle(typeof(v))
 `StochasticStyle` specifies the native style of the generalised vector `v` that
 determines how simulations are to proceed. This can be fully stochastic (with
 `IsStochastic`), fully deterministic (with `IsDeterministic`), or stochastic with
@@ -11,19 +10,11 @@ is the concrete value type the style is designed to work with.
 """
 abstract type StochasticStyle{T} end
 
-# some sensible defaults
-StochasticStyle(A::Union{AbstractArray,AbstractDVec}) = StochasticStyle(typeof(A))
-StochasticStyle(::Type{<:Array}) = IsDeterministic()
-StochasticStyle(::Type{Vector{Int}}) = IsStochastic()
-function StochasticStyle(T::Type{<:AbstractDVec{K,V}}) where {K,V<:AbstractFloat}
-    IsDeterministic()
-end
-function StochasticStyle(T::Type{<:AbstractDVec{K,V}}) where {I<:Integer,K,V<:Complex{I}}
-    IsStochastic2Pop()
-end
-function StochasticStyle(T::Type{<:AbstractDVec})
-    IsStochastic()
-end
+"""
+    NoStyle()
+Trait for value types not (currently) compatible with FCIQMC.
+"""
+struct IsUnknownStyle{T} <: StochasticStyle{T} end
 
 """
     IsStochastic()
@@ -39,7 +30,6 @@ propagation with complex walker numbers representing two populations of integer
 walkers.
 """
 struct IsStochastic2Pop <: StochasticStyle{Complex{Int}} end
-
 
 """
     IsDeterministic()
@@ -70,7 +60,6 @@ struct IsStochasticWithThreshold <: StochasticStyle{Float32}
     threshold::Float32
 end
 
-
 """
     IsDynamicSemistochastic
 
@@ -78,6 +67,9 @@ Similar to [`IsStochasticWithThreshold`](@ref), but does exact spawning when the
 walkers in a configuration is high.
 
 Parameters:
+
+* `late_projection = true`: If set to true, threshold projection is done after all spawns are
+  collected, otherwise, values are projected as they are being spawned.
 
 * `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
   is greater than the number of offdiagonals, spawning is done deterministically. Should be
@@ -90,75 +82,31 @@ Parameters:
 * `proj_threshold = 1.0`: Values below this number are stochastically projected to this
   value or zero. See also [`IsStochasticWithThreshold`](@ref).
 """
-Base.@kwdef struct IsDynamicSemistochastic <: StochasticStyle{Float32}
-    rel_threshold::Float64 = 1.0
-    abs_threshold::Float64 = Inf
-    proj_threshold::Float64 = 1.0
+struct IsDynamicSemistochastic{P}<:StochasticStyle{Float32}
+    rel_threshold::Float32
+    abs_threshold::Float32
+    proj_threshold::Float32
+end
+function IsDynamicSemistochastic(
+    ; late_projection::Bool=true, rel_threshold=1.0, abs_threshold=Inf, proj_threshold=1.0
+)
+    return IsDynamicSemistochastic{late_projection}(
+        Float32(rel_threshold), Float32(abs_threshold), Float32(proj_threshold)
+    )
 end
 
-###
-### Style setting Macros
-###
-"""
-    @setThreshold dv threshold
-A macro to set a threshold for non-integer walker number FCIQMC. Technically, the macro sets the
-trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
-[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating
-point walker numbers. Also available as function, see [`setThreshold`](@ref).
-
-Example usage:
-```julia-repl
-julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
-julia> @setThreshold dv 0.6
-IsStochasticWithThreshold(0.6f0)
-```
-"""
-macro setThreshold(dv, threshold)
-    return esc(quote
-    @assert !(valtype($dv) <:Integer) "`valtype(dv)` must not be integer."
-    function DictVectors.StochasticStyle(::Type{typeof($dv)})
-        IsStochasticWithThreshold($threshold)
-    end
-    DictVectors.StochasticStyle($dv)
-    end)
-end
+# Defaults:
+StochasticStyle(::AbstractArray{AbstractFloat}) = IsDeterministic()
+StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
+StochasticStyle(::AbstractDVec{<:Any,T}) where {T} = default_style(T)
 
 """
-    setThreshold(dv, threshold)
-Set a threshold for non-integer walker number FCIQMC. Technically, the function sets the
-trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
-[`IsStochasticWithThreshold(threshold)`](@ref), where `dv` must be a type that supports floating
-point walker numbers. Also available as macro, see [`@setThreshold`](@ref).
+    default_style(::Type)
 
-Example usage:
-```julia-repl
-julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
-julia> setThreshold(dv, 0.6)
-IsStochasticWithThreshold(0.6f0)
-```
+Pick a [`StochasticStyle`](@ref) based on the value type. Throws an error if no known default
+style is known.
 """
-function setThreshold(dv, threshold)
-    @assert !(valtype(dv) <:Integer) "`valtype(dv)` must not be integer."
-    @eval DictVectors.StochasticStyle(::Type{typeof($dv)}) = IsStochasticWithThreshold($threshold)
-    return DictVectors.StochasticStyle(dv)
-end
-
-function setThreshold(dv::AbstractDVec{K,V}, threshold) where {K,V<:Complex}
-    @assert !(real(valtype(dv)) <:Integer) "`valtype(dv)` must not be integer."
-    @eval DictVectors.StochasticStyle(::Type{typeof($dv)}) = IsStochastic2PopWithThreshold($threshold)
-    return DictVectors.StochasticStyle(dv)
-end
-
-"""
-    @setDeterministic dv
-A macro to undo the effect of [`@setThreshold`] and set the
-trait [`StochasticStyle`](@ref) of the generalised vector `dv` to
-[`IsDeterministic()`](@ref).
-"""
-macro setDeterministic(dv)
-    return esc(quote
-        @assert !(valtype($dv) <:Integer) "`valtype(dv)` must not be integer."
-        DictVectors.StochasticStyle(::Type{typeof($dv)}) = IsDeterministic()
-        DictVectors.StochasticStyle($dv)
-    end)
-end
+default_style(::Type{<:Integer}) = IsStochastic()
+default_style(::Type{<:AbstractFloat}) = IsDeterministic()
+default_style(::Type{<:Complex{<:Integer}}) = IsStochastic2Pop()
+default_style(::Type{T}) where T = NoStyle{T}()

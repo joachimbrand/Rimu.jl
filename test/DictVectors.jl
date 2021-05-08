@@ -2,6 +2,7 @@ using LinearAlgebra
 using Random
 using Rimu
 using Rimu.DictVectors
+using Rimu.DictVectors: IsStochastic2Pop
 using Test
 
 """
@@ -234,7 +235,9 @@ function test_dvec_interface(type, keys, values, cap)
         @testset "projection" begin
             dvec = type(Dict(pairs), cap)
             @test UniformProjector() ⋅ dvec == sum(dvec)
-            @test NormProjector() ⋅ dvec == norm(dvec, 1)
+            if valtype(dvec) isa AbstractFloat
+                @test NormProjector() ⋅ dvec == norm(dvec, 1)
+            end
             @test Norm2Projector() ⋅ dvec == norm(dvec, 2)
             @test Norm1ProjectorPPop() ⋅ dvec == norm(real.(dvec),1)+im*norm(imag.(dvec),1)
             @test DictVectors.PopsProjector()⋅dvec==real(collect(dvec))⋅imag(collect(dvec))
@@ -246,10 +249,10 @@ function test_dvec_interface(type, keys, values, cap)
     end
 
     @testset "StochasticStyle" begin
-        @test StochasticStyle(DVec(:a => 1; capacity=5)) == IsStochastic()
-        @test StochasticStyle(DVec(:a => 1.5; capacity=5)) == IsDeterministic()
-        @test StochasticStyle(DVec(:a => 1 + 2im; capacity=5)) == DictVectors.IsStochastic2Pop()
-        @test StochasticStyle(DVec(:a => :b; capacity=5)) == IsStochastic()
+        @test StochasticStyle(type(:a => 1; capacity=5)) == IsStochastic()
+        @test StochasticStyle(type(:a => 1.5; capacity=5)) == IsDeterministic()
+        @test StochasticStyle(type(:a => 1 + 2im; capacity=5)) == IsStochastic2Pop()
+        @test StochasticStyle(type(:a => :b; capacity=5)) == IsUnknownStyle{Symbol}()
     end
 end
 
@@ -268,7 +271,7 @@ end
     test_dvec_interface(DVec2, keys1, vals1, 100)
 
     keys2 = ['x', 'y', 'z', 'w', 'v']
-    vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
+    vals2 = [1 + 2im, 3 - 4im, 0 - 5im, -2 + 0im, 12 + im]
     test_dvec_interface(DVec2, keys2, vals2, 200)
 
     @testset "StochasticStyle" begin

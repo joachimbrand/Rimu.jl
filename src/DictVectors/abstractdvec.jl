@@ -1,20 +1,18 @@
 """
     DictVectors.AbstractDVec{K,V}
-Abstract type for sparse vectors with `valtype()` `V` based on dictionary-like
-structures.
-They behave like vectors except that indexing is performed with an arbitrary
-`keytype()` `K` (no order required). `getindex()` returns `zero(V)` for any
-unknown key and
-zeroed elements should be deleted with `delete!()`. Thus, iteration typically
-returns only non-zero entries. In variance to `AbstractVector`, `length()` will
-return the number of non-zero elements, while `capacity()` returns the holding
-capacity (assumed fixed) of the object.
-Even though `AbstractDVec` is similar to both `AbstractDict` and
-`AbstractVector`, it is explicitly not subtyped to either.
-The aim is to create data
-structures suitable for FCIQMC and compatible with KrylovKit.jl.
+
+Abstract type for sparse vectors with `valtype()` `V` based on dictionary-like structures.
+They behave like vectors except that indexing is performed with an arbitrary `keytype()` `K`
+(no order required). `getindex()` returns `zero(V)` for any unknown key and zeroed elements
+should be deleted with `delete!()`. Thus, iteration typically returns only non-zero
+entries. In variance to `AbstractVector`, `length()` will return the number of non-zero
+elements, while `capacity()` returns the holding capacity (assumed fixed) of the object.
+Even though `AbstractDVec` is similar to both `AbstractDict` and `AbstractVector`, it is
+explicitly not subtyped to either. The aim is to create data structures suitable for FCIQMC
+and compatible with KrylovKit.jl.
 
 ### Interface
+
 The interface is similar to the `AbstractDict` interface.
 Implement what would be needed for the `AbstractDict` interface
 (`setindex!, getindex, delete!, length,
@@ -86,7 +84,7 @@ Returns the type of stored data, as returned by the `pairs()` iterator.
 pairtype(dv) = pairtype(typeof(dv))
 pairtype(::Type{<:AbstractDVec{K,V}}) where {K,V} = Pair{K,V}
 
-Base.isreal(v::AbstractDVec) = valtype(v) <: Real
+Base.isreal(v::AbstractDVec) = valtype(v)<:Real
 Base.ndims(::AbstractDVec) = 1
 
 """
@@ -138,7 +136,7 @@ function LinearAlgebra.norm(x::AbstractDVec, p::Real)
     elseif p === Inf
         return normInf(x)
     else
-        error("$p-norm of DVec of length $(length(x)) is not implemented.")
+        error("$p-norm of $(typeof(x)) is not implemented.")
     end
 end
 
