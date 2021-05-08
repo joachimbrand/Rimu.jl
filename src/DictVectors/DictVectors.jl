@@ -32,12 +32,10 @@ import Base: length, iterate, getindex, setindex, setindex!, get, get!, haskey,
 # include("FastBufs.jl")
 using ..FastBufs
 
-export AbstractDVec, capacity, zero!, kvpairs, pairtype, add!, copytight
+export AbstractDVec, zero!, pairtype, add!, copytight
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector
 export Norm1ProjectorPPop
-export DVec, DVec2
-export DFVec, tuples, gettuple, flagtype, flags
-export FastDVec
+export DVec
 
 export StochasticStyle,
     IsStochastic, IsDeterministic, IsStochasticWithThreshold,
@@ -76,9 +74,6 @@ include("delegate.jl")
 include("abstractdvec.jl")
 include("stochasticstyle.jl")
 include("dvec.jl")
-include("dvec2.jl")
-include("dfvec.jl")
-include("fastdvec.jl")
 
 
 end # module
