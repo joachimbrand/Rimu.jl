@@ -23,11 +23,14 @@ import Base: show
 export growth_witness, smoothen
 export blocking_analysis, mean_and_se
 export ratio_of_means
+export fidelity, med_and_errs, ratio_with_errs
+export growth_bias, w_lin, w_exp
 
 include("growth_witness.jl")
 include("variances.jl")
 include("blocking.jl")
 include("ratio_of_means.jl")
 include("convenience.jl")
+include("reweighting.jl")
 
 end  # module StatsTools
