@@ -62,7 +62,7 @@ a projection of the instantaneous coefficient vector `projector⋅v` and
 reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
 respectively. Possible values for `projector` are
 * `nothing` - no projections are computed (default)
-* `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copytight`](@ref) to conserve memory)
+* `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copy`](@ref) to conserve memory)
 * [`UniformProjector()`](@ref) - projection onto vector of all ones (i.e. sum of elements)
 * [`NormProjector()`](@ref) - compute 1-norm (instead of projection)
 * [`Norm1ProjectorPPop()`](@ref) - compute 1-norm per population
@@ -78,7 +78,7 @@ accepts the following values (for `ReportingStrategy`s passed to `lomc!()`):
 
 # Examples
 ```julia
-r_strat = EveryTimeStep(projector = copytight(svec))
+r_strat = EveryTimeStep(projector = copy(svec))
 ```
 Record the projected energy components `df.vproj = svec⋅v` and
 `df.hproj = dot(svec,ham,v)` with respect to

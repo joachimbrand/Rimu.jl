@@ -13,7 +13,7 @@ function test_hamiltonian_interface(H)
     addr = starting_address(H)
     @testset "$(nameof(typeof(H)))" begin
         @testset "*, mul!, and call" begin
-            v = DVec2(addr => eltype(H)(2.0), capacity=100)
+            v = DVec(addr => eltype(H)(2.0))
             v′ = H(v)
             v″ = H * v
             v‴ = similar(v)
@@ -53,9 +53,6 @@ function test_hamiltonian_interface(H)
             @test dimension(Float64, H) isa Float64
             @test dimension(Int, H) === dimension(H)
         end
-        # @testset "starting address" begin
-        #     @test num_modes(H) == num_modes(addr)
-        # end
     end
 end
 
@@ -175,7 +172,7 @@ end
 
     @testset "GuidingVector" begin
         H = HubbardMom1D(BoseFS((2,2,2)), u=6)
-        v = DVec2(
+        v = DVec(
             BoseFS{6,3}((0, 0, 6)) => 0.0770580680636451,
             BoseFS{6,3}((6, 0, 0)) => 0.0770580680636451,
             BoseFS{6,3}((1, 1, 4)) => 0.3825802976327182,
@@ -253,13 +250,13 @@ end
             ) isa AdjointUnknown
         end
         @testset "GuidingVector adjoint" begin
-            v = DVec2(starting_address(M) => 10; capacity=10)
+            v = DVec(starting_address(M) => 10; capacity=10)
             @test dm(GuidingVectorSampling(M, v, 0.2)') ≈
                 dm(GuidingVectorSampling(M, v, 0.2))'
             @test LOStructure(GuidingVectorSampling(M, v, 0.2)) isa AdjointKnown
             @test LOStructure(GuidingVectorSampling(
                 HubbardReal1D(BoseFS((1,2)),t=0+2im),
-                DVec2(BoseFS((1,2)) => 1.1; capacity=10),
+                DVec(BoseFS((1,2)) => 1.1; capacity=10),
                 0.2,
             )) isa AdjointUnknown
         end
@@ -277,7 +274,7 @@ end
     b = lomc!(sm, ones(dim); threading=false).df
     @test a.shift ≈ b.shift
     # run lomc! in deterministic mode with Hamiltonian and DVec
-    v = DVec2(k=>1.0 for k in basis; capacity = dim+10) # corresponds to `ones(dim)`
+    v = DVec(k=>1.0 for k in basis; style=IsDeterministic()) # corresponds to `ones(dim)`
     c = lomc!(ham, v).df
     @test a.shift ≈ c.shift
 
@@ -338,7 +335,7 @@ end
     hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3)
     @test hnnn == hnnbs
 
-    svec = DVec2(Dict(aIni => 2.0), dimension(ham))
+    svec = DVec(Dict(aIni => 2.0))
     v2 = ham(svec)
     v3 = ham*v2
     @test norm(v3,1) ≈ 1482.386824949077

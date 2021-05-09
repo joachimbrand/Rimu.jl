@@ -10,11 +10,12 @@ function mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    P = pairtype(data)
+    P = eltype(data)
 
     # compute the required capacity for the communication buffer as a
     # fraction of the capacity of `data`
-    cap = capacity(data) ÷ np + 1
+    # TODO
+    cap = length(data.dict.keys) ÷ np + 1
     # id == root && println("on rank $id, capacity = ",cap)
     s = MPIOneSided(np, id, comm, P, Int32(cap))
     return MPIData(data, comm, root, s)

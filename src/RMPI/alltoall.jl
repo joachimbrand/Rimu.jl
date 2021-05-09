@@ -9,7 +9,7 @@ function mpi_all_to_all(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    s = MPIAllToAll(pairtype(data), np, id, comm)
+    s = MPIAllToAll(eltype(data), np, id, comm)
     return MPIData(data, comm, root, s)
 end
 

@@ -9,7 +9,7 @@ FCIQMC algorithm.
 
 See also: [`AbstractDVec`](@ref).
 
-## Constructors
+# Constructors
 
 * `DVec(dict::AbstractDict[, style, capacity])`: create a `DVec` with `dict` for storage.
   Note that the data may or may not be copied.
@@ -28,7 +28,7 @@ The default `style` is selected based on the `DVec`'s `valtype` (see
 
 The capacity argument is optional and sets the initial size of the `DVec` via `sizehint!`.
 
-## Examples
+# Examples
 
 ```jldoctest
 julia> dv = DVec(:a => 1)
@@ -55,45 +55,52 @@ function DVec(args::Vararg{Pair{K,V}}; style=default_style(V), capacity=0) where
     for (k, v) in args
         dict[k] = convert(eltype(style), v)
     end
-    return DVec(dict, style)
+    return DVec(dict; style)
 end
 # In this constructor, the style matches the dict's valtype.
 function DVec(
-    dict::AbstractDict{K,V}, style::StochasticStyle{V}=default_style(V), capacity=0
+    dict::AbstractDict{K,V}; style::StochasticStyle{V}=default_style(V), capacity=0
 ) where {K,V}
     capacity > 0 && sizehint!(dict, capacity)
     return DVec{K,V,typeof(style),typeof(dict)}(dict, style)
 end
 # In this constructor, the dict has to be converted to the appropriate valtype.
 function DVec(
-    dict::Dict{K}, style::StochasticStyle{V}=default_style(V), capacity=0
+    dict::Dict{K}; style::StochasticStyle{V}=default_style(valtype(dict)), capacity=0
 ) where {K,V}
     dict = convert(Dict{K,V}, dict)
     return DVec{K,V,typeof(style),typeof(dict)}(dict, style)
 end
+# Constructor from arbitrary iterator
+function DVec(itr; style=nothing, capacity=0)
+    dict = Dict(itr)
+    if isnothing(style)
+        return DVec(dict; capacity)
+    else
+        return DVec(dict; style, capacity)
+    end
+end
 # Empty constructor.
-function DVec{K,V}(style::StochasticStyle=default_style(V), capacity=0) where {K,V}
-    return DVec(Dict{K,V}(), style, capacity)
+function DVec{K,V}(; style::StochasticStyle=default_style(V), capacity=0) where {K,V}
+    return DVec(Dict{K,V}(); style, capacity)
 end
 # From another DVec
-function DVec(dv::AbstractDVec{K,V}, style=StochasticStyle(adv), capacity=0) where {K,V}
-    dvec = DVec{K,V}(style, max(capacity, length(dv)))
+function DVec(dv::AbstractDVec{K,V}, style=StochasticStyle(dv), capacity=0) where {K,V}
+    dvec = DVec{K,V}(; style, capacity=max(capacity, length(dv)))
     return copyto!(dvec, dv)
 end
 
 function Base.empty(dvec::DVec{K,V}) where {K,V}
-    return DVec{K,V}(StochasticStyle(dvec))
+    return DVec{K,V}(; style=StochasticStyle(dvec))
 end
-# TODO: is this needed? Perhaps with also changing the style?
 function Base.empty(dvec::DVec{K}, ::Type{V}) where {K,V}
-    return DVec{K,V}(StochasticStyle(dvec))
+    return DVec{K,V}()
 end
 function Base.empty(dvec::DVec, ::Type{K}, ::Type{V}) where {K,V}
-    return DVec{K,V}(StochasticStyle(dvec))
+    return DVec{K,V}()
 end
 
-# TODO: style?
-Base.similar(dvec::DVec, args...) = empty(dvec, args...)
+Base.similar(dvec::DVec, args...; kwargs...) = empty(dvec, args...; kwargs...)
 
 ###
 ### Show
@@ -106,7 +113,7 @@ end
 ###
 ### Interface
 ###
-StochasticStyle(::DVec{<:Any,<:Any,S}) where {S} = S
+StochasticStyle(dv::DVec) = dv.style
 
 function Base.getindex(dvec::DVec{<:Any,V}, add) where V
     return get(dvec.dict, add, zero(V))
@@ -135,6 +142,8 @@ function LinearAlgebra.rmul!(dvec::DVec, α::Number)
     return dvec
 end
 
+import Base:
+    get, get!, haskey, getkey, pop!, isempty, length, values, keys, delete!, empty!, sizehint!
 @delegate DVec.dict [get, get!, haskey, getkey, pop!, isempty, length, values, keys]
 @delegate_return_parent DVec.dict [delete!, empty!, sizehint!]
 

@@ -31,24 +31,27 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
     "first argument: trait not recognised",StochasticStyle,T))
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
-    w[add] += (1 + dτ * shift) * num # diagonal without Hamiltonian contribution
-    w .+= -dτ .* ham[:, add] .* num # full matrix column
-    # todo: return something sensible
+    # diagonal without Hamiltonian contribution
+    for i in axes(ham, 1)
+        i == add && continue
+        deposit!(w, i, -dτ * ham[i, add] * num, add => num)
+    end
+    deposit!(w, add, (1 + dτ * (shift - ham[add, add])) * num, add => num)
+    # TODO: return something sensible
     return (0, 0, 0, 0, 0)
 end
 
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
     # off-diagonal: spawning psips
     for (nadd, elem) in offdiagonals(ham, add)
-        w[nadd] += -dτ * elem * num
+        deposit!(w, nadd, -dτ * elem * num, add => num)
     end
     # diagonal death or clone
-    w[add] += (1 + dτ*(shift - diagonal_element(ham,add)))*num
+    deposit!(w, add, (1 + dτ * (shift - diagonal_element(ham,add))) * num, add => num)
     return (0, 0, 0, 0, 0)
 end
 
-function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real,
-                        shift, dτ)
+function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real, shift, dτ)
     # version for single population of integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)
@@ -65,7 +68,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
             annihilations += min(abs(w[naddress]),abs(nspawns))
         end
         if !iszero(nspawns)
-            w[naddress] += nspawns
+            deposit!(w, naddress, nspawns, add => num)
             # perform spawn (if nonzero): add walkers with correct sign
             spawns += abs(nspawns)
         end
@@ -79,7 +82,7 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     if sign(w[add]) ≠ sign(ndiags) # record annihilations
         annihilations += min(abs(w[add]),abs(ndiags))
     end
-    w[add] += ndiags # should carry to correct sign
+    deposit!(w, add, ndiags, add => num) # should carry to correct sign
     if  pd < 0 # record event statistics
         clones += abs(ndiags - num)
     elseif pd < 1
@@ -114,7 +117,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
             annihilations += min(abs(real(w[naddress])),abs(nspawns))
         end
         if !iszero(nspawns)
-            w[naddress] += nspawns
+            deposit!(w, naddress, nspawns, add => cnum)
             # perform spawn (if nonzero): add walkers with correct sign
             spawns += abs(nspawns)
         end
@@ -134,7 +137,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
             annihilations += min(abs(imag(w[naddress])),abs(imag(nspawns)))
         end
         if !iszero(nspawns)
-            w[naddress] += nspawns
+            deposit!(w, naddress, nspawns, add => cnum)
             # perform spawn (if nonzero): add walkers with correct sign
             spawns += im*abs(nspawns)
         end
@@ -155,7 +158,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
         annihilations += min(abs(real(w[add])),abs(real(ndiags)))
     end
-    w[add] += ndiags # should carry the correct sign
+    deposit!(w, add, ndiags, add => num) # should carry the correct sign
     if  pd < 0 # record event statistics
         clones += abs(real(ndiags) - num)
     elseif pd < 1
@@ -173,7 +176,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     if sign(imag(w[add])) ≠ sign(imag(ndiag)) # record annihilations
         annihilations += min(abs(imag(w[add])),abs(imag(ndiags)))
     end
-    w[add] += ndiags # should carry the correct sign
+    deposit!(w, add, ndiags, add => cnum)
     if  pd < 0 # record event statistics
         clones += im*abs(imag(ndiags) - num)
     elseif pd < 1
@@ -195,7 +198,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     if sign(real(w[add])) * sign(nspawn) < 0 # record annihilations
         annihilations += min(abs(real(w[add])),abs(nspawn))
     end
-    w[add] += cnspawn
+    deposit!(w, add, cnspawn, add => cnum)
     # perform spawn (if nonzero): add walkers with correct sign
     spawns += abs(nspawn)
 
@@ -209,7 +212,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     if sign(imag(w[add])) * sign(nspawn) < 0 # record annihilations
         annihilations += min(abs(imag(w[add])),abs(nspawn))
     end
-    w[add] += cnspawn
+    deposit!(w, add, cnspawn, add => cnum)
     # perform spawn (if nonzero): add walkers with correct sign
     spawns += abs(nspawn)
 
@@ -228,9 +231,10 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     if abs(new_val) < s.threshold
         # project stochastically to threshold
         # w[add] += (abs(new_val)/s.threshold > cRand()) ? sign(new_val)*s.threshold : 0
-        w[add] += ifelse(cRand() < abs(new_val)/s.threshold, sign(new_val)*s.threshold, 0)
+        new_val = ifelse(cRand() < abs(new_val)/s.threshold, sign(new_val)*s.threshold, 0)
+        deposit!(w, add, new_val, add => val)
     else
-        w[add] += new_val
+        deposit!(w, add, new_val, add => val)
     end
 
     # off-diagonal: spawning psips stochastically
@@ -247,7 +251,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
         # - because Hamiltonian appears with - sign in iteration equation
         if !iszero(nspawns)
-            w[naddress] += nspawns
+            deposit!(w, naddress, nspawns, add => val)
             # perform spawn (if nonzero): add walkers with correct sign
         end
     end
@@ -262,7 +266,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     nspawns = convert(N, -nspawn * sign(val) * sign(matelem))
     # - because Hamiltonian appears with - sign in iteration equation
     if !iszero(nspawns)
-        w[naddress] += nspawns
+        deposit!(w, naddress, nspawns, add => val)
         # perform spawn (if nonzero): add walkers with correct sign
     end
     # done with stochastic spawning
@@ -274,20 +278,20 @@ end
 This function performs threshold projection before spawning, but only for
 `IsDynamicSemistochastic` with the `project_later` parameter set to `false`.
 """
-function threshold_projected_spawn!(s::IsDynamicSemistochastic{false}, w, add, val, p)
+function threshold_projected_deposit!(s::IsDynamicSemistochastic{false}, w, add, val, p)
     threshold = s.proj_threshold
     absval = abs(val)
     if absval < threshold
         if cRand() < abs(val) / threshold
-            spawn!(w, add, sign(val) * threshold, p)
+            deposit!(w, add, sign(val) * threshold, p)
         end
     else
-        spawn!(w, add, val, p)
+        deposit!(w, add, val, p)
     end
     return nothing
 end
-function threshold_projected_spawn!(::IsDynamicSemistochastic{true}, w, add, val, p)
-    spawn!(w, add, val, p)
+function threshold_projected_deposit!(::IsDynamicSemistochastic{true}, w, add, val, p)
+    deposit!(w, add, val, p)
 end
 
 function fciqmc_col!(
@@ -299,14 +303,14 @@ function fciqmc_col!(
 
     # Diagonal step:
     new_val = (1 + dτ*(shift - diagonal_element(ham, add))) * val
-    threshold_projected_spawn!(s, w, add, new_val, add => val)
+    threshold_projected_deposit!(s, w, add, new_val, add => val)
 
     hops = offdiagonals(ham, add)
     if s.rel_threshold * val ≥ length(hops) || val ≥ s.abs_threshold
         # Exact multiplication when conditions are met.
         factor = dτ * val
         for (new_add, mat_elem) in hops
-            threshold_projected_spawn!(s, w, new_add, -factor * mat_elem, add => val)
+            threshold_projected_deposit!(s, w, new_add, -factor * mat_elem, add => val)
         end
         return (1, 0, spawns, 0, 0)
     else
@@ -316,7 +320,7 @@ function fciqmc_col!(
             new_add, gen_prob, mat_elem = random_offdiagonal(hops)
             rem_factor = ifelse(i == 1 & hasrem, remainder, 1.0)
             new_val = sign(val) * rem_factor * dτ * mat_elem / gen_prob
-            threshold_projected_spawn!(s, w, new_add, -new_val, add => val)
+            threshold_projected_deposit!(s, w, new_add, -new_val, add => val)
         end
 
         return (0, 1, 0, 0, 0)

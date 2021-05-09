@@ -38,7 +38,7 @@ function norm_project_threshold!(w, threshold)
     # MPIsync
     # perform projection if below threshold preserving the sign
     lw = localpart(w)
-    for (add, val) in kvpairs(lw)
+    for (add, val) in pairs(lw)
         pprob = abs(val)/threshold
         if pprob < 1 # projection is only necessary if abs(val) < s.threshold
             lw[add] = (pprob > cRand()) ? threshold*sign(val) : zero(val)

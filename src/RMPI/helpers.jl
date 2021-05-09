@@ -79,8 +79,8 @@ function Rimu.sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
     ltarget = localpart(dtarget)
     empty!(ltarget) # start with empty slate
     strategy = dtarget.s
-    P = pairtype(source) # compute pairtype
-    # println("pairtype = ",P)
+    P = eltype(source) # compute pairtype
+    # println("eltype = ",P)
     sort_into_targets!(ltarget, source, P, strategy)
 end
 

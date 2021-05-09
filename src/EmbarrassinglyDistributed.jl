@@ -83,12 +83,10 @@ function d_lomc!(ham, v;
     psteps = laststep - step - eqsteps # steps to be run after equilibration
     stepseach = psteps ÷ nw # to be run on each worker after equilibration
 
-    vc = capacity(v)
-
     # @everywhere do_it() = Rimu.lomc!($ham, sizehint!($v,($vc*3)>>1); $kwargs..., laststep = $step+$stepseach, params = $params, threading = false).df
     # start shorter jobs in parallel
     # futures = [@spawnat(p, Main.do_it()) for p in workers()]
-    futures = [@spawnat(p, Rimu.lomc!(ham, sizehint!(v,(vc*3)>>1); kwargs..., laststep = step+eqsteps+stepseach, params = params, threading = false).df) for p in workers()]
+    futures = [@spawnat(p, Rimu.lomc!(ham, v; kwargs..., laststep = step+eqsteps+stepseach, params = params, threading = false).df) for p in workers()]
     # futures = [@spawnat(p, Rimu.lomc!(ham, v; kwargs..., laststep = step+stepseach, params = params, threading = false).df) for p in workers()]
     dfs = fetch.(futures) # will now be an array of dataframes
     return (; dfs, eqsteps) # returns NamedTuple

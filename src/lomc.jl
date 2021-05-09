@@ -84,7 +84,7 @@ function lomc!(ham, v;
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
         # just for getting the type of step_statsd do a step with zero time:
-        vd, wd, step_statsd, rd = fciqmc_step!(ham, copytight(localpart(v)),
+        vd, wd, step_statsd, rd = fciqmc_step!(ham, copy(localpart(v)),
                                             shift, 0.0, nor,
                                             wm; m_strat=m_strat)
         TS = eltype(step_statsd)
@@ -174,14 +174,14 @@ function refine_r_strat(r_strat::ReportingStrategy{P1,P2}, ham) where
     elseif r_strat.hproj == :not
         return @set r_strat.hproj = nothing
     elseif r_strat.hproj == :eager
-        return @set r_strat.hproj = copytight(ham'*r_strat.projector)
+        return @set r_strat.hproj = copy(ham'*r_strat.projector)
     elseif r_strat.hproj == :auto
         if P1  <: AbstractProjector # for projectors don't compute `df.hproj`
             return @set r_strat.hproj = nothing
         elseif Hamiltonians.has_adjoint(ham) # eager is possible
             hpv = ham'*r_strat.projector # pre-calculate left vector with adjoint Hamiltonian
             # use smaller container to save memory
-            return @set r_strat.hproj = copytight(hpv)
+            return @set r_strat.hproj = copy(hpv)
         else # lazy is default
             return @set r_strat.hproj = missing
         end
@@ -269,7 +269,8 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  w = threadedWorkingMemory(v)
                  ; m_strat::MemoryStrategy = NoMemory(),
-                 p_strat::ProjectStrategy = NoProjection()
+                 p_strat::ProjectStrategy = NoProjection(),
+                 maxlength = 0,
                  ) where T # type for shift and walkernumber
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -286,8 +287,9 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
 
     svec = v # keep around a reference to the starting data container
     pnorm = tnorm = T(walkernumber(v)) # norm of "previous" vector
-    maxlength = capacity(localpart(v))
-    @assert maxlength ≤ capacity(w) "`w` needs to have at least `capacity(v)`"
+    if iszero(maxlength)
+        maxlength = 2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers))
+    end
 
     while step < laststep
         step += 1
@@ -322,7 +324,7 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
             @error "`maxlength` exceeded" len_local maxlength
             break
         else
-            @warn "`maxlength` nearly reached" len_local maxlength
+            @warn "`maxlength` nearly reached" len_local maxlength once=true
         end
     end
     # make sure that `svec` contains the current population:
@@ -344,7 +346,9 @@ function fciqmc!(vv::AbstractVector, pa::RunTillLastStep{T}, ham::AbstractHamilt
                  wv = threadedWorkingMemory.(vv) # wv = similar.(localpart.(vv))
                  ; m_strat::MemoryStrategy = NoMemory(),
                  p_strat = NoProjection(), # ::ProjectStrategy or Tuple/Vector thereof
-                 report_xHy = false) where T
+                 report_xHy = false,
+                 maxlength = 0,
+                 ) where T
     # τ_strat is currently ignored in the replica version
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -361,8 +365,9 @@ function fciqmc!(vv::AbstractVector, pa::RunTillLastStep{T}, ham::AbstractHamilt
     # should not be necessary if we do all calls from lomc!()
     r_strat = refine_r_strat(r_strat, ham)
 
-    maxlength = minimum(capacity.(vv))
-    reduce(&, capacity.(wv) .≥ maxlength) || error("replica containers `wv` have insufficient capacity")
+    if iszero(maxlength)
+        maxlength = 2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers))
+    end
 
     shifts = [shift for i = 1:N] # Vector because it needs to be mutable
     vShiftModes = [shiftMode for i = 1:N] # separate for each replica

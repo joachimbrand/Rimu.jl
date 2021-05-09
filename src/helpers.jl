@@ -7,8 +7,7 @@ localpart(dv) = dv # default for local data
 
 threadedWorkingMemory(dv) = threadedWorkingMemory(localpart(dv))
 function threadedWorkingMemory(v::AbstractDVec)
-    cws = capacity(v) ÷ nthreads() + 1
-    return Tuple(similar(v, cws) for _ in 1:nthreads())
+    return Tuple(similar(v) for _ in 1:nthreads())
 end
 function threadedWorkingMemory(v::AbstractVector)
     return Tuple(similar(v) for _ in 1:nthreads())

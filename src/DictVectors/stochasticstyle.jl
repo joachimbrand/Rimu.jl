@@ -13,7 +13,7 @@ abstract type StochasticStyle{T} end
 Base.eltype(::Type{<:StochasticStyle{T}}) where {T} = T
 
 """
-    NoStyle()
+    StyleUnknown()
 Trait for value types not (currently) compatible with FCIQMC. This style makes it possible to
 construct dict vectors with unsupported `valtype`s.
 """
@@ -38,10 +38,10 @@ struct IsStochastic2Pop <: StochasticStyle{Complex{Int}} end
     IsDeterministic()
 Trait for generalised vector of configuration indicating deterministic propagation of walkers.
 """
-struct IsDeterministic <: StochasticStyle{Float32} end
+struct IsDeterministic <: StochasticStyle{Float64} end
 
 """
-    IsStochasticWithThreshold(threshold::Float32)
+    IsStochasticWithThreshold(threshold::Float64)
 Trait for generalised vector of configurations indicating stochastic
 propagation with real walker numbers and cutoff `threshold`.
 ```
@@ -59,8 +59,8 @@ julia> StochasticStyle(dv)
 IsStochasticWithThreshold(0.6f0)
 ```
 """
-struct IsStochasticWithThreshold <: StochasticStyle{Float32}
-    threshold::Float32
+struct IsStochasticWithThreshold <: StochasticStyle{Float64}
+    threshold::Float64
 end
 
 """
@@ -85,23 +85,22 @@ Parameters:
 * `proj_threshold = 1.0`: Values below this number are stochastically projected to this
   value or zero. See also [`IsStochasticWithThreshold`](@ref).
 """
-struct IsDynamicSemistochastic{P}<:StochasticStyle{Float32}
-    rel_threshold::Float32
-    abs_threshold::Float32
-    proj_threshold::Float32
+struct IsDynamicSemistochastic{P}<:StochasticStyle{Float64}
+    rel_threshold::Float64
+    abs_threshold::Float64
+    proj_threshold::Float64
 end
 function IsDynamicSemistochastic(
     ; late_projection::Bool=true, rel_threshold=1.0, abs_threshold=Inf, proj_threshold=1.0
 )
     return IsDynamicSemistochastic{late_projection}(
-        Float32(rel_threshold), Float32(abs_threshold), Float32(proj_threshold)
+        Float64(rel_threshold), Float64(abs_threshold), Float64(proj_threshold)
     )
 end
 
-# Defaults:
+# Defaults for arrays.
 StochasticStyle(::AbstractArray{AbstractFloat}) = IsDeterministic()
 StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
-StochasticStyle(::AbstractDVec{<:Any,T}) where {T} = default_style(T)
 
 """
     default_style(::Type)
@@ -112,4 +111,4 @@ style is known.
 default_style(::Type{<:Integer}) = IsStochastic()
 default_style(::Type{<:AbstractFloat}) = IsDeterministic()
 default_style(::Type{<:Complex{<:Integer}}) = IsStochastic2Pop()
-default_style(::Type{T}) where T = NoStyle{T}()
+default_style(::Type{T}) where T = StyleUnknown{T}()

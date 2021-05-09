@@ -10,8 +10,6 @@ using SplittablesBase, ThreadsX
 @reexport using Distributed
 import MPI, DataStructures
 
-include("FastBufs.jl")
-using .FastBufs
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
 include("BitStringAddresses/BitStringAddresses.jl")

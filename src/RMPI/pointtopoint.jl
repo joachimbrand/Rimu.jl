@@ -9,7 +9,7 @@ function mpi_point_to_point(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    s = MPIPointToPoint(pairtype(data), np, id, comm)
+    s = MPIPointToPoint(eltype(data), np, id, comm)
     return MPIData(data, comm, root, s)
 end
 
