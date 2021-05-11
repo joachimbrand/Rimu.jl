@@ -24,7 +24,8 @@ export growth_witness, smoothen
 export blocking_analysis, mean_and_se
 export ratio_of_means
 export fidelity, med_and_errs, ratio_with_errs
-export growth_bias, w_lin, w_exp
+export growth_estimator, mixed_estimator, w_lin, w_exp
+export growth_bias # to be deprecated
 
 include("growth_witness.jl")
 include("variances.jl")
