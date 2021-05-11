@@ -23,119 +23,6 @@ where `q = skip`.
     end
     return accu
 end
-function w_exp_naive(shift, h, dτ; E_r = mean(shift), skip = 0)
-    T = eltype(shift)
-    len = length(shift)-skip
-    accu = ones(T, len)
-    for n in 1:len
-        for j in 1:h
-            accu[n] *= skip+n-j > 0 ? exp(-dτ*(shift[skip+n-j] - E_r)) : T(1)
-        end
-    end
-    return accu
-end
-
-function w_exp2(shift, h, dτ; E_r = mean(shift), skip = 0)
-    T = eltype(shift)
-    len = length(shift)-skip
-    @assert len>0 "Cannot `skip` more than `length(shift)`."
-    accu = ones(T, len)
-    for n in 1:len
-        a = zero(T)
-        for j in 1:h
-            if skip+n-j > 0
-                @inbounds a += shift[skip+n-j] - E_r
-            end
-        end
-        @inbounds accu[n] = exp(-dτ*a)
-    end
-    return accu
-end
-function w_exp3(shift, h, dτ; E_r = mean(shift), skip = 0)
-    T = eltype(shift)
-    len = length(shift)-skip
-    accu = ones(T, len)
-    @inbounds for n in 1:len
-        a = zero(T)
-        look_back = min(h,skip+n-1)
-        for j in 1:look_back
-            a += shift[skip+n-j] - E_r
-        end
-        accu[n] = exp(-dτ*a)
-    end
-    return accu
-end
-
-function w_exp_mul(shift, vec, h, dτ; E_r = mean(shift), skip = 0)
-    T = promote_type(eltype(shift),typeof(E_r))
-    len = length(shift)-skip
-    @assert len == length(vec)
-    accu = Vector{T}(undef,len)
-    @inbounds for n in 1:len
-        a = zero(T)
-        look_back = min(h,skip+n-1)
-        for j in 1:look_back
-            @inbounds a += shift[skip+n-j] - E_r
-        end
-        @inbounds accu[n] = exp(-dτ*a)*vec[n]
-    end
-    return accu
-end
-function w_exp_mul_simd(shift, vec, h, dτ; E_r = mean(shift), skip = 0)
-    T = promote_type(eltype(shift),typeof(E_r))
-    len = length(shift)-skip
-    @assert len == length(vec)
-    accu = Vector{T}(undef,len)
-    @inbounds for n in 1:len
-        a = zero(T)
-        look_back = min(h,skip+n-1)
-        @simd ivdep for j in 1:look_back
-            a += shift[skip+n-j] - E_r
-        end
-        accu[n] = exp(-dτ*a)*vec[n]
-    end
-    return accu
-end
-function w_lin_mul_simd(shift, vec, h, dτ; E_r = mean(shift), skip = 0)
-    T = promote_type(eltype(shift),typeof(E_r))
-    len = length(shift)-skip
-    @assert len == length(vec)
-    accu = Vector{T}(undef,len)
-    @inbounds for n in 1:len
-        a = one(T)
-        look_back = min(h,skip+n-1)
-        @simd ivdep for j in 1:look_back
-            a *= 1 - dτ*(shift[skip+n-j] - E_r)
-        end
-        accu[n] = a*vec[n]
-    end
-    return accu
-end
-function mul_w(shift, vec, h, dτ; E_r = mean(shift), skip = 0, weights = w_exp)
-    return weights(shift, h, dτ; E_r, skip) .* vec
-end
-
-function mul_w2(shift, vec, h, dτ; E_r = mean(shift), skip = 0, weights = w_exp)
-    res = weights(shift, h, dτ; E_r, skip)
-    res .*= vec
-    return  res
-end
-
-Base.@propagate_inbounds function w_l(shift,n,skip,look_back,dτ,E_r)
-    a = one(T)
-    @simd ivdep for j in 1:look_back
-        a *= 1 - dτ*(shift[skip+n-j] - E_r)
-    end
-    return a
-end
-Base.@propagate_inbounds function w_e(shift,n,skip,look_back,dτ,E_r)
-    a = zero(T)
-    @simd ivdep for j in 1:look_back
-        a += shift[skip+n-j] - E_r
-    end
-    return exp(-dτ*a)
-end
-
 
 """
     w_lin(shift, h, dτ; E_r = mean(shift), skip = 0)
@@ -157,18 +44,6 @@ where `q = skip`.
             a *= 1 - dτ*(shift[skip+n-j] - E_r)
         end
         accu[n] = a
-    end
-    return accu
-end
-# the same but much slower
-function w_lin_naive(shift, h, dτ; E_r = mean(shift), skip = 0)
-    T = eltype(shift)
-    len = length(shift)-skip
-    accu = ones(T, len)
-    for n in 1:len
-        for j in 1:h
-            accu[n] *= skip+n-j > 0 ? 1-dτ*(shift[skip+n-j] - E_r) : T(1)
-        end
     end
     return accu
 end
