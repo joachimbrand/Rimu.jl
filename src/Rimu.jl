@@ -24,7 +24,6 @@ using .RimuIO
 export lomc!
 export fciqmc!, FciqmcRunStrategy, RunTillLastStep
 export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
-export ProjectStrategy, NoProjection, NoProjectionTwoNorm, ThresholdProject, ScaledThresholdProject
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
 export DoubleLogUpdate, DelayedDoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers

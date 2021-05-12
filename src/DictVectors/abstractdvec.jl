@@ -40,14 +40,12 @@ function Base.show(io::IO, dvec::AbstractDVec{K,V}) where {K,V}
 end
 
 """
-    deposit!
+    deposit!(w::AbstractDVec, add, val, parent::Pair)
 
-TODO write this out.
+Put the `add => val` pair into `w`. `parent` contains the address, value pair from which the
+pair was created. [`InitiatorDVec`](@ref) can intercept this and add its own funcitonality.
 """
-function deposit!(w, add, val, parent)
-    return deposit!(StochasticStyle(w), w, add, val, parent)
-end
-function deposit!(::StochasticStyle, w, add, val, _)
+function deposit!(w, add, val, _)
     w[add] += convert(valtype(w), val)
 end
 
@@ -94,6 +92,10 @@ Base.copy(v::AbstractDVec) = copyto!(empty(v), v)
 ###
 ### Linear algebra
 ###
+function Base.sum(f, x::AbstractDVec)
+    return sum(f, values(x))
+end
+
 function LinearAlgebra.norm(x::AbstractDVec, p::Real=2)
     if p === 1
         return float(sum(abs, values(x)))
@@ -145,9 +147,9 @@ end
 
 function LinearAlgebra.rmul!(x::AbstractDVec, α)
     for (k, v) in pairs(x)
-        w[k] = v * α
+        x[k] = v * α
     end
-    return w
+    return x
 end
 
 # BLAS-like function: y = α*x + β*y
@@ -306,31 +308,3 @@ function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
     T = float(real(valtype(y)))
     return isempty(y) ? zero(T) : sum(z -> real(z) * imag(z), y)|>T
 end
-
-
-# TODO: keep?
-#=
-# multithreaded version
-@inline function LinearAlgebra.axpy!(α::Number,x::AbstractDVec,ys::NTuple{NT,W};
-        batchsize = batchsize = max(20, min(length(x)÷NT, round(Int,sqrt(length(x))*10)))
-    ) where {NT, W<:AbstractDVec}
-    @boundscheck @assert NT == Threads.nthreads()
-    if length(x) < NT*20 # just use main thread and copy into ys[1]
-        axpy!(α, x, ys[1])
-        return ys
-    end
-    return threaded_axpy!(α, x, ys, batchsize)
-end
-# unsafe version: we know that multithreaded is applicable
-@inline function threaded_axpy!(α, x, ys, batchsize)
-    @sync for btr in Iterators.partition(pairs(x), batchsize)
-        Threads.@spawn for (k,v) in btr
-            y = ys[Threads.threadid()]
-            y[k] += α*v
-        end
-    end # all threads have returned; now running on single thread again
-    return ys
-end
-# NOTE: the multithreaded version is allocating memory of quite considerable
-# size, apparently due to the `Iterators.partition()` iterator.
-=#

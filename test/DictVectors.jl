@@ -3,6 +3,7 @@ using Random
 using Rimu
 using Rimu.DictVectors
 using Rimu.DictVectors: IsStochastic2Pop
+using StaticArrays
 using Test
 
 function test_dvec_interface(type, keys, vals, cap)
@@ -201,7 +202,7 @@ function test_dvec_interface(type, keys, vals, cap)
         @test StochasticStyle(type(:a => 1)) == IsStochastic()
         @test StochasticStyle(type(:a => 1.5; capacity=5)) == IsDeterministic()
         @test StochasticStyle(type(:a => 1 + 2im; capacity=5)) == IsStochastic2Pop()
-        @test StochasticStyle(type(:a => :b; capacity=5)) == StyleUnknown{Symbol}()
+        @test StochasticStyle(type(:a => SA[1 1; 1 1]; capacity=5)) isa StyleUnknown
     end
 end
 
@@ -229,7 +230,32 @@ end
 
         dvec4 = DVec(:a => 1.0, style=IsStochastic2Pop())
         @test !isreal(dvec4)
+    end
+end
 
-        # TODO: initiators
+@testset "InitiatorDVec" begin
+    @testset "interface tests" begin
+        keys1 = shuffle(1:20)
+        vals1 = shuffle(1:20)
+        test_dvec_interface(InitiatorDVec, keys1, vals1, 100)
+
+        keys2 = ['x', 'y', 'z', 'w', 'v']
+        vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
+        test_dvec_interface(InitiatorDVec, keys2, vals2, 200)
+    end
+
+    @testset "Stochastic styles convert eltype" begin
+        dvec1 = InitiatorDVec(:a => 0f0)
+        @test valtype(dvec1) === Float64
+        @test StochasticStyle(dvec1) == IsDeterministic() # Should be DynamicSemistochastic
+
+        dvec2 = InitiatorDVec(:a => 1, style=IsDynamicSemistochastic())
+        @test dvec2[:a] isa Float64
+
+        dvec3 = InitiatorDVec(:a => 1.0, style=IsStochastic())
+        @test dvec3 isa InitiatorDVec{Symbol,Int}
+
+        dvec4 = InitiatorDVec(:a => 1.0, style=IsStochastic2Pop())
+        @test !isreal(dvec4)
     end
 end

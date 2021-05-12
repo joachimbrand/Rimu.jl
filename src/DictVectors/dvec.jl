@@ -122,15 +122,7 @@ function Base.setindex!(dvec::DVec, v, k)
     if iszero(v)
         delete!(dvec, k)
     else
-        dvec.dict[k] = v
-    end
-    return v
-end
-function Base.setindex!(dvec::DVec, v::AbstractFloat, k)
-    if abs(v) ≤ eps(typeof(v))
-        delete!(dvec, k)
-    else
-        dvec.dict[k] = v
+        dvec.dict[k] = convert(valtype(dvec), v)
     end
     return v
 end

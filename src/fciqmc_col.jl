@@ -274,7 +274,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
 end
 
 """
-    threshold_projected_spawn!
+    threshold_projected_deposit!
 This function performs threshold projection before spawning, but only for
 `IsDynamicSemistochastic` with the `project_later` parameter set to `false`.
 """

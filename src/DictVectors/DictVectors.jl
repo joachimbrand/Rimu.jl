@@ -11,7 +11,7 @@ module DictVectors
 
 using Random, LinearAlgebra
 export AbstractDVec, zero!, add!, deposit!
-export DVec
+export DVec, InitiatorDVec
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 
 export StochasticStyle,
@@ -46,6 +46,7 @@ include("delegate.jl")
 include("stochasticstyle.jl")
 include("abstractdvec.jl")
 include("dvec.jl")
+include("initiators.jl")
 
 
 end # module
