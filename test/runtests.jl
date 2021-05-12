@@ -256,7 +256,6 @@ end
     n = m = 9
     aIni = nearUniform(BoseFS{n,m})
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    p = NoProjection() # ThresholdProject(1.0)
 
     # IsStochasticWithThreshold
     s = DoubleLogUpdate(targetwalkers = 100)
@@ -270,76 +269,42 @@ end
     vs = copy(svec)
     pa = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), p_strat = p, maxlength=2 * dimension(ham))
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), maxlength=2 * dimension(ham))
     @test sum(rdfs[:,:norm]) ≈ 3134 atol=1
-
-    # NoProjectionTwoNorm
-    vs = copy(svec)
-    pa = RunTillLastStep(laststep = 100)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), p_strat = NoProjectionTwoNorm(), maxlength=2 * dimension(ham))
-    @test sum(rdfs[:,:norm]) ≈ 3077 atol=1
 
     # NoMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = NoMemory(), p_strat = p, maxlength=2 * dimension(ham))
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = NoMemory(), maxlength=2 * dimension(ham))
     @test sum(rdfs[:,:norm]) ≈ 3134 atol=1
 
     # DeltaMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(1), p_strat = p, maxlength=2 * dimension(ham))
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(1), maxlength=2 * dimension(ham))
     @test sum(rdfs[:,:norm]) ≈ 3134 atol=1
 
     # DeltaMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p, maxlength=2 * dimension(ham))
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), maxlength=2 * dimension(ham))
     @test sum(rdfs[:,:norm]) ≈ 2365 atol=1
     @test sum(rdfs.shiftnoise) ≈ 0.454 atol=1e-3
     # DeltaMemory2
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), p_strat = p, maxlength=2 * dimension(ham))
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), maxlength=2 * dimension(ham))
     @test sum(rdfs[:,:norm]) ≈ 3552 atol=1
-
-    # ScaledThresholdProject
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 100)
-    p_strat = ScaledThresholdProject(1.0)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ 3182 atol=1
-
-    # NoProjectionAccumulator
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 100)
-    accu = similar(svec)
-    p_strat = Rimu.NoProjectionAccumulator(accu)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs); p_strat)
-    @test length(accu) == 473
-
-    # ProjectedMemory
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 100)
-    p_strat = NoProjection() # ScaledThresholdProject(1.0)
-    m_strat = Rimu.ProjectedMemory(5,UniformProjector(), vs)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = m_strat, p_strat = p_strat)
-    @test sum(rdfs[:,:norm]) ≈ 3307 atol=1
 
     # ShiftMemory
     vs = copy(svec)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     pa = RunTillLastStep(laststep = 100)
-    p_strat = NoProjection() #ScaledThresholdProject(1.0)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10), p_strat = p_strat)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10))
     @test sum(rdfs[:,:norm]) ≈ 3088 atol=1
 
     # applyMemoryNoise
@@ -455,30 +420,6 @@ end
     rr = Rimu.refine_r_strat(r, ham)
     @test rr.hproj⋅v == dot(v, ham, v)
     @test Rimu.compute_proj_observables(v, ham, rr) == (v⋅v, dot(v, ham, v))
-end
-
-@testset "ComplexNoiseCancellation" begin
-    aIni = BoseFS((2,4,0,0,1))
-    v = DVec(aIni => 2.0, style=IsStochasticWithThreshold(0.4))
-    @test_throws ErrorException Rimu.norm_project!(Rimu.ComplexNoiseCancellation(), v,4.0,5.0,0.6)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    tnorm = Rimu.norm_project!(Rimu.ComplexNoiseCancellation(), v, 4.0+2im, 5.0+1im, 0.6)
-    @test real(tnorm) ≈ norm(v)
-    @test tnorm ≈ 0.004250179379897467 + 10.378749103100512im
-
-    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
-    svec = DVec(aIni => 2)
-    p_strat = Rimu.ComplexNoiseCancellation(κ = 0.0)
-    # fciqmc with default parameters
-    pa = RunTillLastStep(shift = 0.0, dτ=0.001)
-    s_strat = DoubleLogUpdate(targetwalkers = 100)
-    # nt = lomc!(ham, svec, params=pa, s_strat= s_strat, laststep = 1000)
-    @test_throws ErrorException nt = lomc!(ham, svec, params=pa, p_strat=p_strat, laststep = 1001) # run for 100 time steps
-    svec = DVec(aIni => 2.0; style=IsStochasticWithThreshold(0.4))
-    pa = RunTillLastStep(shift = 0.0+0im, dτ=0.001)
-    p_strat = Rimu.ComplexNoiseCancellation(κ = 1.0)
-    nt = lomc!(ham, svec, params=pa,s_strat= s_strat, p_strat=p_strat, laststep = 10) # run for 100 time steps
-    @test Rimu.Blocking.gW(nt.df,4, pad= false) |> length == 7
 end
 
 @testset "helpers" begin

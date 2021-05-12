@@ -1,9 +1,8 @@
 # small functions supporting fciqmc!()
 # versions without dependence on MPI.jl
+localpart(dv) = dv # default for local data
 
 using Base.Threads: nthreads
-
-localpart(dv) = dv # default for local data
 
 threadedWorkingMemory(dv) = threadedWorkingMemory(localpart(dv))
 function threadedWorkingMemory(v::AbstractDVec)

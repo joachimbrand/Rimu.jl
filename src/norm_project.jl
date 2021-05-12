@@ -11,9 +11,7 @@ This may include stochastic projection of the coefficients
 to `s.threshold` preserving the sign depending on [`StochasticStyle(w)`](@ref)
 and `p_strat`. See [`ProjectStrategy`](@ref).
 """
-norm_project!(p::ProjectStrategy, w, args...) = norm_project!(StochasticStyle(w), p, w, args...)
-
-norm_project!(::StochasticStyle, p, w, args...) = walkernumber(w) # MPIsync
+norm_project!(p::ProjectStrategy, w, args...) = walkernumber(w)
 # default, compute 1-norm
 # e.g. triggered with the `NoProjection` strategy
 
@@ -24,45 +22,31 @@ function norm_project!(p::NoProjectionAccumulator, w, args...)
     return walkernumber(w)
 end
 
-norm_project!(::StochasticStyle, p::NoProjectionTwoNorm, w, args...) = norm(w, 2) # MPIsync
+norm_project!(p::NoProjectionTwoNorm, w, args...) = norm(w, 2) # MPIsync
 # compute 2-norm but do not perform projection
 
-function norm_project!(s::S, p::ThresholdProject, w, args...) where S<:Union{IsStochasticWithThreshold}
-    return norm_project_threshold!(w, p.threshold) # MPIsync
-end
-function norm_project!(s::IsDynamicSemistochastic, _, w, args...)
-    return norm_project_threshold!(w, s.proj_threshold)
+function norm_project!(p::ThresholdProject, w, args...)
+    project_threshold!(w, p.threshold) # MPIsync
+    return walkernumber(w)
 end
 
-function norm_project_threshold!(w, threshold)
-    # MPIsync
-    # perform projection if below threshold preserving the sign
-    lw = localpart(w)
-    for (add, val) in pairs(lw)
-        pprob = abs(val)/threshold
-        if pprob < 1 # projection is only necessary if abs(val) < s.threshold
-            lw[add] = (pprob > cRand()) ? threshold*sign(val) : zero(val)
-        end
-    end
-    return walkernumber(w) # MPIsync
+
+function project_threshold!(
+    w::AbstractDVec{<:Any,V}, threshold
+) where {K,V<:Union{Integer,Complex{<:Integer}}}
+    error("Trying to scale integer based walker vector. Use float walkers!")
 end
 
-function norm_project_threshold!(w::AbstractDVec{K,V}, threshold) where {K,V<:Union{Integer,Complex{Int}}}
-    @error "Trying to scale integer based walker vector. Use float walkers!"
-end
-
-function norm_project!(s::S, p::ScaledThresholdProject, w, args...) where S<:Union{IsStochasticWithThreshold}
+function norm_project!(p::ScaledThresholdProject, w, args...)
     f_norm = norm(w, 1) # MPIsync
-    proj_norm = norm_project_threshold!(w, p.threshold)
+    project_threshold!(w, p.threshold)
+    proj_norm = walkernumber(w)
     # MPI sycncronising
     rmul!(localpart(w), f_norm/proj_norm) # scale in order to remedy projection noise
     return f_norm
 end
 
-function norm_project!(s::IsStochasticWithThreshold,
-                        p::ComplexNoiseCancellation, w,
-                        shift::T, pnorm::T, dτ
-    ) where T <: Complex
+function norm_project!(p::ComplexNoiseCancellation, w, shift::Complex, pnorm::Complex, dτ)
     f_norm = norm(w, 1)::Real # MPIsync
     im_factor = dτ*imag(shift) + p.κ*√dτ*sync_cRandn(w) # MPIsync
     # Wiener increment
@@ -74,8 +58,26 @@ function norm_project!(s::IsStochasticWithThreshold,
     return complex(f_norm*scale_factor, c_im) |> T # return complex norm
 end
 
-function norm_project!(s::StochasticStyle,
-                        p::ComplexNoiseCancellation, args...
-    )
-    throw(ErrorException("`ComplexNoiseCancellation` requires complex shift in `FciqmcRunStrategy` and  `IsStochasticWithThreshold`."))
+function norm_project!(p::ComplexNoiseCancellation, args...)
+    error("`ComplexNoiseCancellation` requires complex shift in `FciqmcRunStrategy`.")
+end
+
+"""
+    update_dvec!(v, pnorm, dτ, step)
+    update_dvec!(::StochasticStyle, v, pnorm, dτ, step)
+
+Optional function to used to update the vector every step. Called after `fciqmc_step!`, but
+before `norm_project!`.
+"""
+update_dvec!(v, args...) = update_dvec!(StochasticStyle(v), args...)
+update_dvec!(::StochasticStyle, v, _, _, _) = v
+
+function update_dvec!(s::IsDynamicSemistochastic{true}, v, _, _, _)
+    project_threshold!(v, s.proj_threshold)
+    return v
+end
+
+function update_dvec!(s::IsStochasticWithThreshold, v, _, _, _)
+    project_threshold!(w, s.threshold)
+    return v
 end

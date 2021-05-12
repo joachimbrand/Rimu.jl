@@ -41,13 +41,14 @@ include("helpers.jl")               # non MPI-dependent helper functions
 include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level
-include("norm_project.jl")
+include("update_dvec.jl")
 include("lomc.jl")                  # top level
+
+include("RMPI/RMPI.jl")
+using .RMPI
 
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
-include("RMPI/RMPI.jl")
-# @reexport using .RMPI
 
 # analysis tools not reexported
 include("Blocking.jl")

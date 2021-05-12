@@ -27,7 +27,6 @@ tuple of `DataFrame`s for a replica run.
 * `r_strat::ReportingStrategy = EveryTimeStep()` - see [`ReportingStrategy`](@ref)
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
 * `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
-* `p_strat::ProjectStrategy = NoProjection()` - see [`ProjectStrategy`](@ref)
 
 ### Return values
 ```julia
@@ -45,7 +44,6 @@ nt = (
     r_strat = r_strat, # from input
     τ_strat = τ_strat, # from input
     m_strat = m_strat, # from input
-    p_strat = p_strat, # from input
 )
 ```
 """
@@ -59,7 +57,6 @@ function lomc!(ham, v;
     r_strat::ReportingStrategy = EveryTimeStep(),
     τ_strat::TimeStepStrategy = ConstantTimeStep(),
     m_strat::MemoryStrategy = NoMemory(),
-    p_strat::ProjectStrategy = NoProjection()
 ) where T # type for shift and walkernumber
     r_strat = refine_r_strat(r_strat, ham)
     if !isnothing(laststep)
@@ -84,7 +81,7 @@ function lomc!(ham, v;
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
 
         # just for getting the type of step_statsd do a step with zero time:
-        vd, wd, step_statsd, rd = fciqmc_step!(ham, copy(localpart(v)),
+        _, _, step_statsd, _ = fciqmc_step!(ham, copy(localpart(v)),
                                             shift, 0.0, nor,
                                             wm; m_strat=m_strat)
         TS = eltype(step_statsd)
@@ -108,7 +105,7 @@ function lomc!(ham, v;
                     0, 0, 0, 0, 0, 0.0))
     end
     # set up the named tuple of lomc!() return values
-    # nt = (;ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat)
+    # nt = (;ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat)
     nt = (
         ham = ham,
         v = v,
@@ -119,7 +116,6 @@ function lomc!(ham, v;
         r_strat = r_strat,
         τ_strat = τ_strat,
         m_strat = m_strat,
-        p_strat = p_strat,
     )
     return lomc!(nt) # call lomc!() with prepared arguments parameters
 end
@@ -135,13 +131,13 @@ If `laststep > nt.params.step`, additional time steps will be computed and
 the statistics in the `DataFrame` `nt.df` will be appended.
 """
 function lomc!(a::NamedTuple) # should be type stable
-    @unpack ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat, p_strat = a
+    @unpack ham, v, params, df, wm, s_strat, r_strat, τ_strat, m_strat = a
     ConsistentRNG.check_crng_independence(v) # sanity check of RNGs
 
     rr_strat = refine_r_strat(r_strat, ham) # set up r_strat for fciqmc!()
 
     fciqmc!(v, params, df, ham, s_strat, rr_strat, τ_strat, wm;
-        m_strat = m_strat, p_strat = p_strat
+        m_strat = m_strat
     )
     nt = (a..., r_strat = rr_strat)
     return nt
@@ -269,7 +265,6 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  w = threadedWorkingMemory(v)
                  ; m_strat::MemoryStrategy = NoMemory(),
-                 p_strat::ProjectStrategy = NoProjection(),
                  maxlength = 0,
                  ) where T # type for shift and walkernumber
     # unpack the parameters:
@@ -298,7 +293,8 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
         v, w, step_stats, r = fciqmc_step!(ham, v, shift, dτ, pnorm, w
                                             , 1.0 # for selecting multithreaded version
                                             ; m_strat=m_strat)
-        tnorm = norm_project!(p_strat, v, shift, pnorm, dτ) |> T  # MPIsync
+        v = update_dvec!(v, shift)
+        tnorm = walkernumber(v)
         # project coefficients of `w` to threshold
 
         v_proj, h_proj = compute_proj_observables(v, ham, r_strat)  # MPIsync
@@ -345,7 +341,6 @@ function fciqmc!(vv::AbstractVector, pa::RunTillLastStep{T}, ham::AbstractHamilt
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  wv = threadedWorkingMemory.(vv) # wv = similar.(localpart.(vv))
                  ; m_strat::MemoryStrategy = NoMemory(),
-                 p_strat = NoProjection(), # ::ProjectStrategy or Tuple/Vector thereof
                  report_xHy = false,
                  maxlength = 0,
                  ) where T
@@ -357,10 +352,6 @@ function fciqmc!(vv::AbstractVector, pa::RunTillLastStep{T}, ham::AbstractHamilt
     # keep references to the passed data vectors around
     vv_orig = similar(vv) # empty vector
     vv_orig .= vv # fill it with references to the coefficient DVecs
-
-    # Replicate p_strat if a single ProjectStrategy was passed. Otherwise assume it is
-    # already an Tuple or AbstractArray
-    p_strats = p_strat isa ProjectStrategy ? Tuple(p_strat for i in 1:N) : p_strat
 
     # should not be necessary if we do all calls from lomc!()
     r_strat = refine_r_strat(r_strat, ham)
@@ -412,7 +403,8 @@ function fciqmc!(vv::AbstractVector, pa::RunTillLastStep{T}, ham::AbstractHamilt
                 dτ, pnorms[i], wv[i]; m_strat = m_strat
             )
             mstats[i] .= stats
-            norms[i] = norm_project!(p_strats[i], vv[i], shifts[i], pnorms[i], dτ) |> T # MPIsync
+            vv[i] = update_dvec!(vv[i], shifts[i])
+            norms[i] = walkernumber(vv[i])
             shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                 s_strat, shifts[i], vShiftModes[i],
                 norms[i], pnorms[i], dτ, step, dfs[i], vv[i], wv[i]
