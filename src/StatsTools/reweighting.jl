@@ -3,11 +3,14 @@
 """
     w_exp(shift, h, dτ; E_r = mean(shift), skip = 0)
 Compute the weights for reweighting over `h` time steps with reference energy `E_r` from
-the exponetial formula
+the exponential formula
 ```math
 w_h^{(n)} = \\prod_{j=1}^h \\exp[-dτ(S^{(q+n-j)}-E_r)] ,
 ```
 where `q = skip`.
+
+See also [`w_lin()`](@ref), [`growth_estimator()`](@ref),
+[`mixed_estimator()`](@ref).
 """
 @inline function w_exp(shift, h, dτ; E_r = mean(shift), skip = 0)
     T = promote_type(eltype(shift),typeof(E_r))
@@ -32,6 +35,9 @@ the linearised formula
 w_h^{(n)} = \\prod_{j=1}^h [1-dτ(S^{(q+n-j)}-E_r)] ,
 ```
 where `q = skip`.
+
+See also [`w_exp()`](@ref), [`growth_estimator()`](@ref),
+[`mixed_estimator()`](@ref).
 """
 @inline function w_lin(shift, h, dτ; E_r = mean(shift), skip = 0)
     T = promote_type(eltype(shift),typeof(E_r))

@@ -134,3 +134,38 @@ using Rimu.StatsTools: x_by_y_linear
     @test qi[2]-qi[1] < 2abs(σ_f)
     @test isapprox(r.σ_f, σ_f; rtol = 4/√n_samples)
 end
+
+@testset "Reweighting" begin
+    ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
+    # using KrylovKit
+    # fv = DVec2(starting_address(ham)=>1.0; capacity=dimension(ham))
+    # kkresults = eigsolve(ham, fv, 1, :SR; issymmetric = true)
+    # exact_energy = kkresults[1][1]
+    exact_energy = -2.869739978337469
+    # run integer walker FCIQMC to get significant bias
+    v = DVec2(starting_address(ham)=>2; capacity=dimension(ham))
+    steps_equi = 200
+    steps_meas = 2^10
+    p = RunTillLastStep(laststep = steps_equi+steps_meas)
+    r_strat = EveryTimeStep(projector = copytight(v))
+    s_strat = DoubleLogUpdate(targetwalkers=10)
+    seedCRNG!(17)
+    @time df = lomc!(ham, v; params=p, r_strat, s_strat).df
+    bs = blocking_analysis(df.shift[steps_equi+1:end])
+    pcb = bs.mean - exact_energy
+    @test pcb > 1.0 # the shift has a large population control bias
+    # test growth_estimator
+    h = 2^(bs.k-1) # approximate number of steps to decorrelate the shift
+    E_r = bs.mean # set up reference energy
+    ge = growth_estimator(df, h; E_r, skip=steps_equi)
+    pcb_est = E_r - ge.E_gr # estimated PCB in the shift from reweighting
+    @test 0.2 < median(pcb_est) < pcb
+    # test w_lin()
+    @test ge.E_gr ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights = w_lin).E_gr
+    # projected energy
+    bp = ratio_of_means(df.hproj[steps_equi+1:end],df.vproj[steps_equi+1:end])
+    bp_intervals = ratio_with_errs(bp)
+    @test median(bp) ≈ bp_intervals.ratio
+    me = mixed_estimator(df, h; skip=steps_equi, E_r)
+    @test me.ratio≈bp.ratio # reweighting has not significantly improved the projected energy
+end
