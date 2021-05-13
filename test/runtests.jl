@@ -151,7 +151,7 @@ end
     s = LogUpdateAfterTargetWalkers(targetwalkers = 100)
     pb = RunTillLastStep(laststep = 100)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv); report_xHy = true)
     @test sum(rr[1][:,:xHy]) ≈ -52734.63455801873
 end
 
@@ -192,7 +192,7 @@ end
     s = LogUpdateAfterTargetWalkers(targetwalkers = 1_000)
     pb = RunTillLastStep(laststep = 300)
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv))
+    @time rr = fciqmc!(vv, pb, ham, s, r_strat, τ_strat, similar.(vv); report_xHy = true)
     @test sum(rr[1][:,:xHy]) ≈ -9.998205101102287e6
 
     # replica fciqmc with multithreading
@@ -269,17 +269,6 @@ end
     end
 end
 
-@testset "IsStochastic2PopWithThreshold" begin
-    # Define the initial Fock state with n particles and m modes
-    n = m = 9
-    aIni = nearUniform(BoseFS{n,m})
-
-    dvc = DVec(aIni => 2+3im; capacity = 10)
-    @test_throws AssertionError setThreshold(dvc,1.0)
-    dvcf = DVec(aIni => 2.0+3.0im; capacity = 10)
-    setThreshold(dvcf, 1.3)
-    @test StochasticStyle(dvcf) == DictVectors.IsStochastic2PopWithThreshold(1.3)
-end
 
 @testset "IsStochasticWithThreshold" begin
     # Define the initial Fock state with n particles and m modes
@@ -346,6 +335,15 @@ end
     p_strat = ScaledThresholdProject(1.0)
     @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), p_strat = p_strat)
     @test sum(rdfs[:,:norm]) ≈ 3546.7449141934667
+
+    # NoProjectionAccumulator
+    vs = copy(svec)
+    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
+    pa = RunTillLastStep(laststep = 100)
+    accu = similar(svec)
+    p_strat = Rimu.NoProjectionAccumulator(accu)
+    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs); p_strat)
+    @test length(accu) == 514
 
     # ProjectedMemory
     vs = copy(svec)
@@ -416,17 +414,6 @@ end
     mytdot2(x, ys) = sum(map(y->x⋅y,ys))
     mytdot(x, ys) = mapreduce(y->x⋅y,+,ys)
     @test dot(svec2, ws) == mytdot(svec2, ws) == mytdot2(svec2, ws)
-    # @benchmark dot(svec2, ws) # 639.977 μs using Threads.@threads on 4 threads
-    # @benchmark mytdot(svec2, ws) # 2.210 ms
-    # @benchmark mytdot2(svec2, ws) # 2.154 ms
-    # function myspawndot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T2}}) where {N, K, T1, T2}
-    #     results = zeros(promote_type(T1,T2), N)
-    #     @sync for i in 1:N
-    #         Threads.@spawn results[i] = x⋅ys[i] # using dynamic scheduler
-    #     end
-    #     return sum(results)
-    # end
-    # @benchmark DictVectors.myspawndot(svec2, ws) # 651.476 μs
 end
 
 @testset "IsDeterministic with Vector" begin

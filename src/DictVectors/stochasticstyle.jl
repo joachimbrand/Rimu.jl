@@ -37,41 +37,6 @@ walkers.
 """
 struct IsStochastic2Pop <: StochasticStyle end
 
-"""
-    IsStochastic2PopInitiator()
-Trait for generalised vector of configurations indicating stochastic
-propagation with complex walker numbers representing two populations of integer
-walkers. Initiator algorithm will be used.
-"""
-struct IsStochastic2PopInitiator <: StochasticStyle end
-
-"""
-    IsStochastic2PopWithThreshold(threshold::Float32)
-Trait for generalised vector of configurations indicating stochastic
-propagation with complex walker numbers representing two populations of real
-walkers and cutoff `threshold`.
-```
-> StochasticStyle(V) = IsStochastic2PopWithThreshold(threshold)
-```
-During stochastic propagation, walker numbers small than `threshold` will be
-stochastically projected to either zero or `threshold`.
-
-The trait can be conveniently defined on an instance of a generalised vector
-with the function [`setThreshold`](@ref). Example:
-```julia-repl
-julia> dv = DVec(nearUniform(BoseFS{3,3}) => 2.0+3.0im; capacity = 10)
-julia> setThreshold(dv, 0.6)
-julia> StochasticStyle(dv)
-IsStochastic2PopWithThreshold(0.6f0)
-```
-"""
-struct IsStochastic2PopWithThreshold <: StochasticStyle
-    threshold::Float32
-end
-
-struct IsStochasticNonlinear <: StochasticStyle
-    c::Float64 # parameter of nonlinear correction applied to local shift
-end
 
 """
     IsDeterministic()
@@ -102,19 +67,6 @@ struct IsStochasticWithThreshold <: StochasticStyle
     threshold::Float32
 end
 
-"""
-    IsSemistochastic(threshold::Float16, d_space)
-Trait for generalised vector of configurations indicating semistochastic
-propagation. Set with [`setSemistochastic!`](@ref).
-```
-> StochasticStyle(V) = IsSemistochastic(threshold, d_space)
-```
-where `d_space` is a vector of addresses defining the the stochastic subspace.
-"""
-struct IsSemistochastic{T} <: StochasticStyle
-    threshold::Float16
-    d_space::Vector{T} # list of addresses in deterministic space
-end
 
 """
     IsDynamicSemistochastic
@@ -162,33 +114,6 @@ Base.@kwdef struct IsStochasticWithThresholdAndInitiator<:StochasticStyle
     rel_threshold::Float64 = 1.0
     initiator_threshold::Float64 = 0.0
     proj_threshold::Float64 = 1.0
-end
-
-"""
-    setSemistochastic!(dv, threshold::Float16, d_space)
-Set the deterministic space for `dv` with threshold `threshold`, where
-`d_space` is a vector of addresses defining the the stochastic subspace.
-"""
-function setSemistochastic!(dv, threshold::Float16, d_space)
-    clearDSpace!(dv)
-    for add in d_space
-        (val, flag) = dv[add]
-        dv[add] = (val, flag | one(typeof(flag)))
-    end
-    StochasticStyle(dv) = IsSemistochastic(threshold, d_space)
-    dv
-end
-
-"""
-    clearDFlags!(dv)
-Clear all flags in `dv` of the deterministic bit (rightmost bit).
-"""
-function clearDFlags!(dv)
-    for (add, (val, flag)) in pairs(dv)
-        # delete deterministic bit (rightmost) in `flag`
-        dv[add] = (val, flag ⊻ one(typeof(flag)))
-    end
-    dv
 end
 
 

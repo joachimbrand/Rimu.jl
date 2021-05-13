@@ -337,13 +337,14 @@ function fciqmc!(v, pa::RunTillLastStep{T}, df::DataFrame,
 end # fciqmc
 
 # replica version
-function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
+function fciqmc!(vv::AbstractVector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
                  s_strat::ShiftStrategy,
                  r_strat::ReportingStrategy = EveryTimeStep(),
                  τ_strat::TimeStepStrategy = ConstantTimeStep(),
                  wv = threadedWorkingMemory.(vv) # wv = similar.(localpart.(vv))
                  ; m_strat::MemoryStrategy = NoMemory(),
-                 p_strat::ProjectStrategy = NoProjection()) where T
+                 p_strat = NoProjection(), # ::ProjectStrategy or Tuple/Vector thereof
+                 report_xHy = false) where T
     # τ_strat is currently ignored in the replica version
     # unpack the parameters:
     @unpack step, laststep, shiftMode, shift, dτ = pa
@@ -352,6 +353,10 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
     # keep references to the passed data vectors around
     vv_orig = similar(vv) # empty vector
     vv_orig .= vv # fill it with references to the coefficient DVecs
+
+    # Replicate p_strat if a single ProjectStrategy was passed. Otherwise assume it is
+    # already an Tuple or AbstractArray
+    p_strats = p_strat isa ProjectStrategy ? Tuple(p_strat for i in 1:N) : p_strat
 
     # should not be necessary if we do all calls from lomc!()
     r_strat = refine_r_strat(r_strat, ham)
@@ -363,29 +368,36 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
     vShiftModes = [shiftMode for i = 1:N] # separate for each replica
     pnorms = zeros(T, N) # initialise as vector
     pnorms .= walkernumber.(vv) # 1-norm i.e. number of psips as Tuple (of previous step)
+    v_proj, h_proj = compute_proj_observables(vv[1], ham, r_strat)
 
     # initalise df for storing results of each replica separately
     dfs = Tuple(DataFrame(steps=Int[], shift=T[], shiftMode=Bool[],
-                         len=Int[], norm=T[], spawns=V[], deaths=V[],
-                         clones=V[], antiparticles=V[],
-                         annihilations=V[], shiftnoise=Float64[]) for i in 1:N)
+        len=Int[], norm=T[],
+        vproj=typeof(v_proj)[], hproj=typeof(h_proj)[],
+        spawns=V[], deaths=V[],
+        clones=V[], antiparticles=V[],
+        annihilations=V[], shiftnoise=Float64[]) for i in 1:N
+    )
     # dfs is thus an NTuple of DataFrames
     for i in 1:N
+        v_proj, h_proj = compute_proj_observables(vv[i], ham, r_strat)
         push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vv[i]),
-                      pnorms[i], 0, 0, 0, 0, 0, 0.0))
+            pnorms[i], v_proj, h_proj, 0, 0, 0, 0, 0, 0.0)
+        )
     end
 
     # prepare `DataFrame` for variational ground state estimator
     # we are assuming that N ≥ 2, otherwise this will fail
-    PType = promote_type(V,eltype(ham)) # type of scalar product
-    RType = promote_type(PType,Float64) # for division
+    PType = Union{Missing, promote_type(V,eltype(ham))} # type of scalar product
+    RType = Union{Missing, promote_type(PType,Float64)} # for division
     mixed_df= DataFrame(steps =Int[], xdoty =V[], xHy =PType[], aveH =RType[])
     dp = vv[1]⋅vv[2] # <v_1 | v_2>
-    expval = dot(vv[1], ham, vv[2]) # vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
+    # vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
+    expval = report_xHy ? dot(vv[1], ham, vv[2]) : missing
     push!(mixed_df,(step, dp, expval, expval/dp))
 
     norms = zeros(T, N)
-    mstats = [zeros(Int,5) for i=1:N]
+    mstats = [zeros(Complex{Int},5) for i=1:N]
     rs = zeros(N)
     while step < laststep
         step += 1
@@ -395,27 +407,34 @@ function fciqmc!(vv::Vector, pa::RunTillLastStep{T}, ham::AbstractHamiltonian,
                 dτ, pnorms[i], wv[i]; m_strat = m_strat
             )
             mstats[i] .= stats
-            norms[i] = norm_project!(p_strat, vv[i], shifts[i], pnorms[i], dτ) |> T # MPIsync
+            norms[i] = norm_project!(p_strats[i], vv[i], shifts[i], pnorms[i], dτ) |> T # MPIsync
             shifts[i], vShiftModes[i], pnorms[i] = update_shift(
                 s_strat, shifts[i], vShiftModes[i],
                 norms[i], pnorms[i], dτ, step, dfs[i], vv[i], wv[i]
             )
+            v_proj, h_proj = compute_proj_observables(v, ham, r_strat) # MPIsync
+
+            # record results
+            push!(dfs[i], (step, shifts[i], vShiftModes[i], length(vv[i]),
+                  norms[i], v_proj, h_proj, mstats[i]..., rs[i]))
         end #loop over replicas
-        lengths = length.(vv)
+        # lengths = length.(vv)
         # update time step
         dτ = update_dτ(τ_strat, dτ) # will need to pass more information
         # later when we add different stratgies
-        # record results
-        for i = 1:N
-            push!(dfs[i], (step, shifts[i], vShiftModes[i], lengths[i],
-                  norms[i], mstats[i]..., rs[i]))
-        end
+        # # record results
+        # for i = 1:N
+        #     push!(dfs[i], (step, shifts[i], vShiftModes[i], lengths[i],
+        #           norms[i], mstats[i]..., rs[i]))
+        # end
         v1Dv2 = vv[1]⋅vv[2] # <v_1 | v_2> overlap
-        v2Dhv2 =  vv[1]⋅ham(vv[2]) # <v_1 | ham | v_2>
+        # <v_1 | ham | v_2>
+        v2Dhv2 =  report_xHy ? vv[1]⋅ham(vv[2]) : missing
         push!(mixed_df,(step, v1Dv2, v2Dhv2, v2Dhv2/v1Dv2))
 
         # prepare for next step:
         # pnorms .= norms # remember norm of this step for next step (previous norm)
+        lengths = [dfs[i].len[end] for i in 1:N]
         llength = maximum(lengths)
         llength > 0.8*maxlength && if llength > maxlength
             @error "`maxlength` exceeded" llength maxlength
