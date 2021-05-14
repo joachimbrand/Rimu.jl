@@ -23,7 +23,7 @@ end
 function Base.:-(v::InitiatorValue{V}) where {V}
     return InitiatorValue{V}(-v.safe, -v.unsafe, -v.initiator)
 end
-Base.zero(::Union{V,Type{InitiatorValue{V}}}) where {V} = InitiatorValue{V}()
+Base.zero(::Union{I,Type{I}}) where {V,I<:InitiatorValue{V}} = InitiatorValue{V}()
 
 Base.convert(::Type{<:InitiatorValue{V}}, x::InitiatorValue{V}) where {V} = x
 function Base.convert(::Type{<:InitiatorValue{U}}, x::InitiatorValue{V}) where {U,V}

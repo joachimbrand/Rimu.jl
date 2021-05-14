@@ -1,4 +1,4 @@
-function threshold_project!(v::AbstractDVec, threshold)
+function threshold_project!(v, threshold)
     w = localpart(v)
     for (add, val) in pairs(w)
         prob = abs(val) / threshold

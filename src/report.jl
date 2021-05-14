@@ -16,26 +16,31 @@ function Base.show(io::IO, report::Report)
     end
 end
 
-function report!(report, key::Symbol, value)
+function report!(report, key, value, postfix)
+    report!(report, Symbol(key, postfix), value)
+end
+function report!(report, key, value)
     data = report.data
     if haskey(data, key)
-        column = data[key]
-        while length(column) < report.nrow[] - 1
-            push!(column, zero(value))
-        end
-        push!(column, value)
-        report.nrow[] = max(report.nrow[], length(column))
+        #column = data[key]
+        #while length(column) < report.nrow[] - 1
+        #    push!(column, zero(value))
+        #end
+        #push!(column, value)
+        #report.nrow[] = max(report.nrow[], length(column))
+        push!(data[key], value)
     else
-        column = fill(zero(value), max(report.nrow[] - 1, 0))
-        push!(column, value)
-        data[key] = column
+        #column = fill(zero(value), max(report.nrow[] - 1, 0))
+        #push!(column, value)
+        #data[key] = column
+        data[key] = [value]
     end
     return report
 end
 
-function report!(report, keys, vals)
+function report!(report, keys::Tuple, vals, postfix="")
     for (k, v) in zip(keys, vals)
-        report!(report, k, v)
+        report!(report, k, v, postfix)
     end
     return report
 end

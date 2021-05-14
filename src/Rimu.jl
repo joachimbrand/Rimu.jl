@@ -43,6 +43,8 @@ include("fciqmc_step.jl")           # second level
 include("update_dvec.jl")
 include("report.jl")
 include("lomc.jl")                  # top level
+include("QMCState.jl")                  # top level
+export lomc2!
 
 include("RMPI/RMPI.jl")
 using .RMPI
