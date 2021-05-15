@@ -6,3 +6,5 @@
 /tmp/
 *Manifest.toml
 .vscode
+/.benchmarkci
+/benchmark/*.json
