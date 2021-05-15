@@ -1,6 +1,8 @@
 using Rimu, Rimu.StatsTools
 using Statistics, DataFrames, Random, Distributions
 using Test
+using KrylovKit, LinearAlgebra
+
 import MonteCarloMeasurements, Measurements
 
 @testset "smoothen" begin
@@ -168,4 +170,47 @@ end
     @test median(bp) ≈ bp_intervals.ratio
     me = mixed_estimator(df, h; skip=steps_equi, E_r)
     @test me.ratio≈bp.ratio # reweighting has not significantly improved the projected energy
+end
+
+@testset "Fidelity" begin
+    ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
+
+    # get exact eigenvectors with KrylovKit
+    fv = DVec2(starting_address(ham)=>1.0; capacity=dimension(ham))
+    kkresults = eigsolve(ham, fv, 2, :SR; issymmetric = true)
+    gs = kkresults[2][1] # ground state; norm(gs) ≈ 1
+    es = kkresults[2][2] # 1st excited state; norm(es) ≈ 1
+    @test norm(gs) ≈ 1 ≈ norm(es) # they are normalised
+    @test isapprox(gs⋅es, 0; atol = √eps(Float64)) # and orthogonal
+
+    # Set up oblique vector at angle to ground state
+    α = π/3 # 60° angle
+    os = add!(cos(α)*gs, sin(α)*es)
+    @test norm(os) ≈ 1
+
+    # set up replica MC
+    v = DVec2(starting_address(ham)=>2; capacity=dimension(ham))
+    steps_equi = 200
+    steps_meas = 2^10
+    p = RunTillLastStep(laststep = steps_equi+steps_meas)
+    r_strat = EveryTimeStep(projector = gs, hproj = os)
+    s_strat = DoubleLogUpdate(targetwalkers=10)
+
+    # run replica fciqmc
+    seedCRNG!(17)
+    @time rr = fciqmc!([v, copy(v)], p, ham, s_strat, r_strat, ConstantTimeStep();
+        report_xHy=false
+    )
+
+    # check fidelity with ground state
+    fid_gs = StatsTools.replica_fidelity(rr; p_field=:vproj, skip=steps_equi)
+    @test fid_gs.ratio ≈ 1
+    re = ratio_with_errs(fid_gs) # extract errors from quantiles
+    @test re.err1_l < 0.03 && re.err1_u < 0.03 # errors are small
+
+    # check fidelity with oblique state
+    fid_os = StatsTools.replica_fidelity(rr; p_field=:hproj, skip=steps_equi)
+    @test fid_os.ratio ≈ cos(α)^2
+    γ = acos(√fid_os.ratio) # quantum angle or Fubini-Study metric
+    @test γ ≈ α
 end
