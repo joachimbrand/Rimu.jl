@@ -55,53 +55,6 @@ See also [`w_exp()`](@ref), [`growth_estimator()`](@ref),
 end
 
 """
-    growth_bias(
-        shift, wn, h, dτ;
-        skip = 0,
-        E_r = mean(shift[skip+1:end]),
-        weights = w_exp,
-        kwargs...,
-    ) -> (; Δ::Particles, k, blocks, success)
-Compute an estimator for the bias `Δ` of the growth estimator `E_r` by the reweighting
-technique described in [Umirgar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195).
-`shift` and `wn` are equal length
-vectors containing the shift and walker number time series, respectively.
-Reweighting is done over `h`
-time steps and `length(shift) - skip` time steps are used for the blocking analysis done
-with [`ratio_of_means()`](@ref). `dτ` is the time step and `weights` a function that
-calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).
-```math
-E_r - E_0 ≈ Δ = \\frac{1}{dτ}\\ln
-    \\frac{\\sum_n w_{h+1}^{(n+1)} N_\\mathrm{w}^{(n+1)}}
-        {\\sum_m w_{h}^{(m)} N_\\mathrm{w}^{(m)}}
-```
-When `h` is greater than the autocorrelation time scale of the `shift`,
-then `E_r - Δ` is an unbiased but approximate estimator for the ground state energy
-``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased confidence intervals.
-Error propagation is done with [`MonteCarloMeasurements`](@ref). If `success==true` the
-blocking analysis was successful in `k-1` steps, using `blocks` uncorrelated data points.
-"""
-function growth_bias(
-    shift, wn, h, dτ;
-    skip = 0,
-    E_r = mean(shift[skip+1:end]),
-    weights = w_exp,
-    kwargs...,
-)
-    @warn """
-    `b = growth_bias(...)` will be deprecated soon. Use `g = growth_estimator(...)` instead.
-    `b.Δ == E_r - g.E_gr`
-    """ maxlog=2
-    # W_{t+1}^{(n+1)} .* wn^{(n+1)}
-    numerator = weights(shift[2:end], h+1, dτ; E_r, skip) .* wn[skip+2:end]
-    # W_{t}^{(n)} .* wn^{(n)}
-    denominator = weights(shift[1:end-1], h, dτ; E_r, skip) .* wn[skip+1:end-1]
-    nt = ratio_of_means(numerator, denominator; kwargs...)
-    Δ = log(nt.ratio)/dτ
-    return (; Δ, k=nt.k, blocks = nt.blocks, success = nt.success)
-end
-
-"""
     growth_estimator(
         shift, wn, h, dτ;
         skip = 0,
