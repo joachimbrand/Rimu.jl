@@ -2,17 +2,15 @@
 # smoothen()
 
 """
-    growth_witness(norm::AbstractArray, shift::AbstractArray, dt, [b]; pad = :true) -> g
-    growth_witness(df::DataFrame, [b]; pad = :true) -> g
+    growth_witness(norm::AbstractArray, shift::AbstractArray, dt, [b]) -> g
+    growth_witness(df::DataFrame, [b]) -> g
 Compute the growth witness
 ```math
 G^{(n)} = S^{(n)} - \\frac{\\vert\\mathbf{c}^{(n+1)}\\vert - \\vert\\mathbf{c}^{(n)}\\vert}{\\vert\\mathbf{c}^{(n)}\\vert d\\tau},
 ```
 where `S` is the `shift` and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n, 1]`.
-Setting `b ≥ 1` a sliding average over `b` time steps is computed.
-
-If `pad` is set to `:false` then the returned array `g` has the length `length(norm) - b`.
-If set to `:true` then `g` will be padded up to the same length as `norm` and `shift`.
+Setting `b ≥ 1` a sliding average over `b` time steps is computed using
+[`smoothen()`](@ref).
 """
 function growth_witness(norm::AbstractArray, shift::AbstractArray, dt)
     l = length(norm)
