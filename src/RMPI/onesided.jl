@@ -14,8 +14,8 @@ function mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
 
     # compute the required capacity for the communication buffer as a
     # fraction of the capacity of `data`
-    # TODO
-    cap = length(data.dict.keys) ÷ np + 1
+    # TODO: ugly hack
+    cap = length(storage(data).keys) ÷ np + 1
     # id == root && println("on rank $id, capacity = ",cap)
     s = MPIOneSided(np, id, comm, P, Int32(cap))
     return MPIData(data, comm, root, s)
@@ -138,7 +138,24 @@ function sbuffer(s::MPIOneSided) # safe version for reading shared buffer - retu
     return res
 end
 
-function Rimu.sort_into_targets!(target, bufs::Vector{Vector{P}}, lens, ::Type{P}, s::MPIOneSided) where P
+function Rimu.sort_into_targets!(target, source, s::MPIOneSided{P}) where P
+    # now target is just a local data structure, e.g. DVec
+    # allocate local buffers for sorting
+    bufs = [Vector{P}(undef,length(source)) for i in 1:(s.np-1)] # type-stable
+    lens = zeros(Int,(s.np-1))
+    # sort source into send buffers
+    @inbounds for (key,val) in pairs(source)
+        tr = targetrank(key, s.np)
+        if tr < s.id
+            lens[tr+1] +=1
+            bufs[tr+1][lens[tr+1]] = key => val
+        elseif tr > s.id
+            lens[tr] +=1
+            bufs[tr][lens[tr]] = key => val
+        else # tr == s.id
+            target[key] += val # local: just copy to target
+        end
+    end
     # send data with RMA communications to higher rank by `offset`
     for offset in 1 : s.np-1
         # println("$(s.id) before first fence")

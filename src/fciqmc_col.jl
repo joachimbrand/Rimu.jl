@@ -1,5 +1,15 @@
 # third level: `fciqmc_col!()`
 
+step_stats(v, n) = step_stats(StochasticStyle(v), n)
+function step_stats(s::StochasticStyle, ::Val{N}) where N
+    if N == 1
+        return step_stats(s)
+    else
+        names, stats = step_stats(s)
+        return names, MVector(ntuple(_ -> stats, Val(N)))
+    end
+end
+
 """
     fciqmc_col!(w, ham, add, num, shift, dτ)
     fciqmc_col!(::Type{T}, args...)
@@ -30,6 +40,13 @@ fciqmc_col!(w::Union{AbstractArray,AbstractDVec}, args...) = fciqmc_col!(Stochas
 fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
     "first argument: trait not recognised",StochasticStyle,T))
 
+###
+### Concrete implementations
+###
+
+function step_stats(::IsDeterministic)
+    return (:exact_steps,), SVector(0,)
+end
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     # diagonal without Hamiltonian contribution
     for i in axes(ham, 1)
@@ -37,10 +54,8 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift,
         deposit!(w, i, -dτ * ham[i, add] * num, add => num)
     end
     deposit!(w, add, (1 + dτ * (shift - ham[add, add])) * num, add => num)
-    # TODO: return something sensible
-    return (0, 0, 0, 0, 0)
+    return (1,)
 end
-
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
     # off-diagonal: spawning psips
     for (nadd, elem) in offdiagonals(ham, add)
@@ -48,9 +63,15 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, s
     end
     # diagonal death or clone
     deposit!(w, add, (1 + dτ * (shift - diagonal_element(ham,add))) * num, add => num)
-    return (0, 0, 0, 0, 0)
+    return (1,)
 end
 
+function step_stats(::IsStochastic)
+    return (
+        (:spawns, :deaths, :clones, :antiparticles, :annihilations),
+        SVector(0, 0, 0, 0, 0),
+    )
+end
 function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real, shift, dτ)
     # version for single population of integer psips
     # off-diagonal: spawning psips
@@ -94,6 +115,12 @@ function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real
     # note that w is not returned
 end
 
+function step_stats(::DictVectors.IsStochastic2Pop)
+    return (
+        (:spawns, :deaths, :clones, :antiparticles, :annihilations),
+        SVector{5,Complex{Int}}(0, 0, 0, 0, 0),
+    )
+end
 function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian, add,
                         cnum::Complex, cshift, dτ
 )
@@ -220,8 +247,13 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     # note that w is not returned
 end
 
+function step_stats(::IsStochasticWithThreshold)
+    return (:spawns, :deaths), SVector(0, 0)
+end
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         add, val::N, shift, dτ) where N <: Real
+    deaths = 0
+    spawns = 0
 
     # diagonal death or clone: deterministic fomula
     # w[add] += (1 + dτ*(shift - diagonal_element(ham,add)))*val
@@ -231,8 +263,14 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     if abs(new_val) < s.threshold
         # project stochastically to threshold
         # w[add] += (abs(new_val)/s.threshold > cRand()) ? sign(new_val)*s.threshold : 0
-        new_val = ifelse(cRand() < abs(new_val)/s.threshold, sign(new_val)*s.threshold, 0)
-        deposit!(w, add, new_val, add => val)
+        new_val = ifelse(
+            cRand() < abs(new_val)/s.threshold, sign(new_val) * s.threshold, zero(new_val)
+        )
+        if iszero(new_val)
+            deaths += 1
+        else
+            deposit!(w, add, new_val, add => val)
+        end
     else
         deposit!(w, add, new_val, add => val)
     end
@@ -252,7 +290,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         # - because Hamiltonian appears with - sign in iteration equation
         if !iszero(nspawns)
             deposit!(w, naddress, nspawns, add => val)
-            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += 1
         end
     end
     # deal with non-integer remainder: attempt to spawn
@@ -267,10 +305,10 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     # - because Hamiltonian appears with - sign in iteration equation
     if !iszero(nspawns)
         deposit!(w, naddress, nspawns, add => val)
-        # perform spawn (if nonzero): add walkers with correct sign
+        spawns += 1
     end
     # done with stochastic spawning
-    return (0, 0, 0, 0, 0)
+    return (spawns, deaths)
 end
 
 """
@@ -294,6 +332,9 @@ function threshold_projected_deposit!(::IsDynamicSemistochastic{true}, w, add, v
     deposit!(w, add, val, p)
 end
 
+function step_stats(::IsDynamicSemistochastic)
+    return (:exact_steps, :inexact_steps, :spawns), SVector(0, 0, 0)
+end
 function fciqmc_col!(
     s::IsDynamicSemistochastic,
     w, ham::AbstractHamiltonian, add, val, shift, dτ,
@@ -311,8 +352,9 @@ function fciqmc_col!(
         factor = dτ * val
         for (new_add, mat_elem) in hops
             threshold_projected_deposit!(s, w, new_add, -factor * mat_elem, add => val)
+            spawns += 1
         end
-        return (1, 0, spawns, 0, 0)
+        return (1, 0, spawns)
     else
         remainder = absval % 1
         hasrem = !iszero(remainder)
@@ -321,8 +363,9 @@ function fciqmc_col!(
             rem_factor = ifelse(i == 1 & hasrem, remainder, 1.0)
             new_val = sign(val) * rem_factor * dτ * mat_elem / gen_prob
             threshold_projected_deposit!(s, w, new_add, -new_val, add => val)
+            spawns += 1
         end
 
-        return (0, 1, 0, 0, 0)
+        return (0, 1, spawns)
     end
 end

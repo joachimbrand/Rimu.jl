@@ -27,7 +27,7 @@ Holds all inforamtion needed to run FCIQMC, except the data frame. Holds a `NTup
 `ReplicaState`s and various strategies that control the algorithm.
 """
 struct QMCState{
-    H<:AbstractHamiltonian,
+    H,
     N,
     R<:ReplicaState,
     MS<:MemoryStrategy,
@@ -110,12 +110,12 @@ function Base.show(io::IO, st::QMCState)
     println(io, "\n  H:    ", st.hamiltonian)
 end
 
-function lomc2!(ham, v; df=DataFrame(), kwargs...)
+function lomc!(ham, v; df=DataFrame(), kwargs...)
     state = QMCState(ham, v; kwargs...)
-    return lomc2!(state, df)
+    return lomc!(state, df)
 end
 # For continuation, you can pass a QMCState and a DataFrame
-function lomc2!(state::QMCState, df=DataFrame())
+function lomc!(state::QMCState, df=DataFrame())
     report = Report()
 
     # Sanity checks.
@@ -168,10 +168,10 @@ function advance!(
     @unpack step, laststep, shiftMode, shift, dτ = params
     step += 1
 
-    v, w, step_stats, shift_noise = fciqmc_step!(
+    v, w, step_stats, stat_names, shift_noise = fciqmc_step!(
         hamiltonian, v, shift, dτ, pnorm, w, 1.0; m_strat
     )
-    v = update_dvec!(v, shift)
+    v, update_stats = update_dvec!(v, shift)
     tnorm = walkernumber(v)
     len = length(v)
 
@@ -188,12 +188,13 @@ function advance!(
     colnames = (
         "steps", "dτ", "shift", "shiftMode",
         "len", "norm", "vproj", "hproj",
-        "spawns", "deaths", "clones", "antiparticles", "annihilations", "shiftnoise"
+        stat_names..., "shiftnoise"
     )
     values = (
         step, dτ, shift, shiftMode, len, tnorm, v_proj, h_proj,
         step_stats..., shift_noise,
     )
     report!(report, colnames, values, id)
+    report!(report, update_stats, id)
     # TODO add maxlength and check if it was reached.
 end

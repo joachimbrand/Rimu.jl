@@ -9,7 +9,7 @@ function mpi_point_to_point(data, comm = mpi_comm(), root = mpi_root)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    s = MPIPointToPoint(eltype(data), np, id, comm)
+    s = MPIPointToPoint(eltype(storage(data)), np, id, comm)
     return MPIData(data, comm, root, s)
 end
 
@@ -64,8 +64,10 @@ function receive!(target, s::MPIPointToPoint{P}, id) where P
     resize!(recvbuff(s), count)
     rb = recvbuff(s)
     MPI.Recv!(MPI.Buffer(rb, length(rb), s.datatype), id, 0, s.comm)
+    dict = storage(target)
     for (key, val) in recvbuff(s)
-        target[key] += val
+        prev_val = get(dict, key, zero(valtype(dict)))
+        dict[key] = prev_val + val
     end
     return target
 end
@@ -82,9 +84,8 @@ function send!(s::MPIPointToPoint{<:Any,N}) where {N}
     end
 end
 
-function Rimu.sort_into_targets!(
-    target, source, ::Type{P}, s::MPIPointToPoint{P,N}
-) where {P,N}
+# TODO: the type is unused, but without it, everything breaks.
+function Rimu.sort_into_targets!(target, source, s::MPIPointToPoint{<:Any,N}) where {N}
     foreach(empty!, s.buffers)
 
     # sort source into send buffers, put appropriate values into target.

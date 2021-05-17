@@ -79,11 +79,13 @@ function Rimu.sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
     ltarget = localpart(dtarget)
     empty!(ltarget) # start with empty slate
     strategy = dtarget.s
-    P = eltype(source) # compute pairtype
-    # println("eltype = ",P)
-    sort_into_targets!(ltarget, source, P, strategy)
+    sort_into_targets!(ltarget, source, strategy)
 end
 
+# This function is just a wrapper that makes allreduce treat a SVector as a scalar
+function _communicate_stats(stats, comm)
+    return invoke(MPI.Allreduce, Tuple{Any, typeof(+), MPI.Comm}, stats, +, comm)
+end
 # three-argument version
 function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
     # multi-threaded MPI version
@@ -95,37 +97,14 @@ function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) whe
     end
     sort_into_targets!(dtarget,lwm) # combine walkers from different MPI ranks
     stats = sum(statss) # combine stats from all threads
-    MPI.Allreduce!(stats, +, dtarget.comm) # add stats from all MPI ranks
-    return dtarget, ws, stats
+    res_stats = _communicate_stats(stats, dtarget.comm) # add stats from all MPI ranks
+    return dtarget, ws, res_stats
 end
 function Rimu.sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
     # single threaded MPI version
     sort_into_targets!(dtarget,w) # combine walkers from different MPI ranks
-    vstats = convert(Vector,stats) # necessary for MPI.Allreduce
-    MPI.Allreduce!(vstats, +, dtarget.comm) # add stats from all MPI ranks
-    return dtarget, w, vstats
-end
-
-function Rimu.sort_into_targets!(target, source, ::Type{P}, s::DistributeStrategy) where P
-    # now target is just a local data structure, e.g. DVec
-    # allocate local buffers for sorting
-    bufs = [Vector{P}(undef,length(source)) for i in 1:(s.np-1)] # type-stable
-    lens = zeros(Int,(s.np-1))
-    # sort source into send buffers
-    @inbounds for (key,val) in pairs(source)
-        tr = targetrank(key, s.np)
-        if tr < s.id
-            lens[tr+1] +=1
-            bufs[tr+1][lens[tr+1]] = key => val
-        elseif tr > s.id
-            lens[tr] +=1
-            bufs[tr][lens[tr]] = key => val
-        else # tr == s.id
-            target[key] += val # local: just copy to target
-        end
-    end
-    # call strategy-specific method (with 5 arguments):
-    return sort_into_targets!(target, bufs, lens, P, s)
+    res_stats = _communicate_stats(stats, dtarget.comm) # add stats from all MPI ranks
+    return dtarget, w, res_stats
 end
 
 """

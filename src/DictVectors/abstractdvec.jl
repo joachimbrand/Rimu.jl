@@ -49,6 +49,13 @@ function deposit!(w, add, val, _)
     w[add] += convert(valtype(w), val)
 end
 
+"""
+    storage(dvec)
+
+Return the raw storage (probably a `Dict`) associated with `dvec`. Used in MPI communication.
+"""
+storage
+
 ###
 ### Types
 ###

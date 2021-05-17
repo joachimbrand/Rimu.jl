@@ -11,8 +11,9 @@ function threshold_project!(v, threshold)
 end
 
 update_dvec!(v, shift) = update_dvec!(StochasticStyle(v), v, shift)
-update_dvec!(::StochasticStyle, v, _) = v
+update_dvec!(::StochasticStyle, v, _) = v, NamedTuple()
 
 function update_dvec!(s::IsDynamicSemistochastic{true}, v, _)
-    return threshold_project!(v, s.proj_threshold)
+    len_before = length(v)
+    return threshold_project!(v, s.proj_threshold), (; len_before)
 end

@@ -164,6 +164,7 @@ end
 ### Interface
 ###
 StochasticStyle(dv::InitiatorDVec) = dv.style
+storage(dv::InitiatorDVec) = dv.storage
 
 function Base.getindex(dvec::InitiatorDVec{<:Any,V}, add) where {V}
     return value(dvec.initiator, get(dvec.storage, add, zero(InitiatorValue{V})))

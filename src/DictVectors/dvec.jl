@@ -42,7 +42,7 @@ DVec{Symbol,Float32,IsDynamicSemistochastic{true}} with 2 entries
 ```
 """
 struct DVec{K,V,S<:StochasticStyle{V},D<:AbstractDict{K,V}} <: AbstractDVec{K,V}
-    dict::D
+    storage::D
     style::S
 end
 
@@ -114,38 +114,39 @@ end
 ### Interface
 ###
 StochasticStyle(dv::DVec) = dv.style
+storage(dv::DVec) = dv.storage
 
 function Base.getindex(dvec::DVec{<:Any,V}, add) where V
-    return get(dvec.dict, add, zero(V))
+    return get(dvec.storage, add, zero(V))
 end
 function Base.setindex!(dvec::DVec, v, k)
     if iszero(v)
         delete!(dvec, k)
     else
-        dvec.dict[k] = convert(valtype(dvec), v)
+        dvec.storage[k] = convert(valtype(dvec), v)
     end
     return v
 end
 
-Base.pairs(dvec::DVec) = dvec.dict
+Base.pairs(dvec::DVec) = dvec.storage
 
 function LinearAlgebra.rmul!(dvec::DVec, α::Number)
-    rmul!(dvec.dict.vals, α)
+    rmul!(dvec.storage.vals, α)
     return dvec
 end
 
 import Base:
     get, get!, haskey, getkey, pop!, isempty, length, values, keys, delete!, empty!, sizehint!
-@delegate DVec.dict [get, get!, haskey, getkey, pop!, isempty, length, values, keys]
-@delegate_return_parent DVec.dict [delete!, empty!, sizehint!]
+@delegate DVec.storage [get, get!, haskey, getkey, pop!, isempty, length, values, keys]
+@delegate_return_parent DVec.storage [delete!, empty!, sizehint!]
 
 # simd sum for Dict
 function Base.sum(f::F, dvec::DVec{<:Any,V,<:Any,<:Dict}) where {F,V}
     if isempty(dvec)
         return f(zero(V))
     else
-        vals = dvec.dict.vals
-        slots = dvec.dict.slots
+        vals = dvec.storage.vals
+        slots = dvec.storage.slots
         result = f(vals[1] * (slots[1] == 0x1))
         @inbounds @simd for i in 2:length(vals)
             result += f(vals[i] * (slots[i] == 0x1))

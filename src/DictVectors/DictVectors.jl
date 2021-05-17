@@ -10,7 +10,7 @@ concrete implementation of [`DVec`](@ref)
 module DictVectors
 
 using Random, LinearAlgebra
-export AbstractDVec, zero!, add!, deposit!
+export AbstractDVec, zero!, add!, deposit!, storage
 export DVec, InitiatorDVec
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 

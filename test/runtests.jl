@@ -97,6 +97,7 @@ end
 end
 
 
+#=
 @testset "fciqmc.jl" begin
     ham = BoseHubbardReal1D(
         n = 9,
@@ -250,7 +251,6 @@ end
     end
 end
 
-
 @testset "IsStochasticWithThreshold" begin
     # Define the initial Fock state with n particles and m modes
     n = m = 9
@@ -356,6 +356,7 @@ end
     mytdot(x, ys) = mapreduce(y->x⋅y,+,ys)
     @test dot(svec2, ws) == mytdot(svec2, ws) == mytdot2(svec2, ws)
 end
+=#
 
 @testset "IsDeterministic with Vector" begin
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
@@ -383,7 +384,7 @@ end
     pa = RunTillLastStep(shift = 0.0)
     nt = lomc!(ham, svec, params=pa, laststep = 100) # run for 100 time steps
     # continuation run
-    nt = lomc!(nt, nt.params.laststep + 100) # run for another 100 steps
+    nt = lomc!(nt.state, nt.df; laststep=200) # run for another 100 steps
     @test size(nt.df)[1] == 201 # initial state + 200 steps
 
     # fciqmc with complex shift and norm
@@ -391,7 +392,7 @@ end
     pa = RunTillLastStep(shift = 0.0 + 0im) # makes shift and norm type ComplexF64
     nt = lomc!(ham, svec, params=pa, laststep = 100) # run for 100 time steps
     # continuation run
-    nt = lomc!(nt, nt.params.laststep + 100) # run for another 100 steps
+    nt = lomc!(nt, nt.state.params.laststep + 100) # run for another 100 steps
     @test size(nt.df)[1] == 201 # initial state + 200 steps
 
     # fciqmc with deterministic outcome by seeding the rng and turning off multithreading

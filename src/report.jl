@@ -45,6 +45,13 @@ function report!(report, keys::Tuple, vals, postfix="")
     return report
 end
 
+function report!(report, kvpairs::NamedTuple, postfix="")
+    for (k, v) in pairs(kvpairs)
+        report!(report, k, v, postfix)
+    end
+    return report
+end
+
 function DataFrame(report::Report)
     DataFrame(report.data)
 end
