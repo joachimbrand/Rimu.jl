@@ -324,6 +324,7 @@ function fciqmc_col!(
     w, ham::AbstractHamiltonian, add, val, shift, dτ,
 )
     absval = abs(val)
+    spawns = 0
 
     # Diagonal step:
     new_val = (1 + dτ*(shift - diagonal_element(ham, add))) * val
@@ -335,16 +336,20 @@ function fciqmc_col!(
         factor = dτ * val
         for (new_add, mat_elem) in hops
             w[new_add] -= factor * mat_elem
+            spawns += 1
         end
-        return (1, 0, 0, 0, 0)
+        return (1, 0, spawns, 0, 0)
     else
-        # Spawning without projection. It is done later on.
         remainder = absval % 1
+        hasrem = !iszero(remainder)
         for i in 1:ceil(Int, absval)
             new_add, gen_prob, mat_elem = random_offdiagonal(hops)
-            new_val = sign(val) * ifelse(i == 1, remainder, 1.0) * dτ * mat_elem / gen_prob
+            rem_factor = ifelse(i == 1 & hasrem, remainder, 1.0)
+            new_val = sign(val) * rem_factor * dτ * mat_elem / gen_prob
             w[new_add] -= new_val
+            spawns += 1
         end
-        return (0, 1, 0, 0, 0)
+
+        return (0, 1, spawns, 0, 0)
     end
 end
