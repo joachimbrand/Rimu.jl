@@ -47,7 +47,7 @@ include("QMCState.jl")                  # top level
 export lomc!
 
 include("RMPI/RMPI.jl")
-using .RMPI
+#using .RMPI
 
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
