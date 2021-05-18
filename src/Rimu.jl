@@ -42,12 +42,11 @@ include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level
 include("update_dvec.jl")
 include("report.jl")
-#include("lomc.jl")                  # top level
-include("QMCState.jl")                  # top level
+#include("lomc.jl")                 # top level
+include("QMCState.jl")              # top level
 export lomc!
 
 include("RMPI/RMPI.jl")
-#using .RMPI
 
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")

@@ -52,6 +52,7 @@ end
 function QMCState(
     hamiltonian, v;
     laststep=nothing,
+    dτ=nothing,
     threading=:auto,
     wm=nothing,
     params::FciqmcRunStrategy=RunTillLastStep(),
@@ -76,6 +77,9 @@ function QMCState(
     r_strat = refine_r_strat(r_strat, hamiltonian)
     if !isnothing(laststep)
         params.laststep = laststep
+    end
+    if !isnothing(dτ)
+        params.dτ = dτ
     end
     wm = default_working_memory(threading, v, s_strat)
 
