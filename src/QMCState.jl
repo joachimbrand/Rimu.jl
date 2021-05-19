@@ -103,7 +103,7 @@ function default_working_memory(threading, v, s_strat)
     if threading == :auto
         threading = max(real(s_strat.targetwalkers),imag(s_strat.targetwalkers)) ≥ 500
     end
-    if threading
+    if threading && Threads.nthreads() > 1
         return threadedWorkingMemory(v)
     else
         return similar(localpart(v))

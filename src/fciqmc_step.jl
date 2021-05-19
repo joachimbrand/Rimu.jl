@@ -86,6 +86,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
     ) where {NT,W}
     # multithreaded version; should also work with MPI
     @assert NT == nthreads() "`nthreads()` not matching dimension of `ws`"
+    @assert NT > 1 "attempted to run threaded code with one thread"
     v = localpart(dv)
     stat_names, stats = step_stats(v, Val(NT))
 
