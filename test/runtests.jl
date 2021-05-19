@@ -96,6 +96,9 @@ end
     @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
 end
 
+@safetestset "QMCState tests" begin
+    include("QMCState.jl")
+end
 
 #=
 @testset "fciqmc.jl" begin

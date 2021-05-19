@@ -38,6 +38,7 @@ struct QMCState{
 }
     hamiltonian::H
     replicas::NTuple{N,R}
+    maxlength::Int
 
     m_strat::MS
     r_strat::RS
@@ -55,11 +56,12 @@ function QMCState(
     dτ=nothing,
     threading=:auto,
     wm=nothing,
-    params::FciqmcRunStrategy=RunTillLastStep(),
+    params::FciqmcRunStrategy=RunTillLastStep{float(valtype(v))}(),
     s_strat::ShiftStrategy=DoubleLogUpdate(),
     r_strat::ReportingStrategy=EveryTimeStep(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     m_strat::MemoryStrategy=NoMemory(),
+    maxlength=2 * s_strat.targetwalkers,
     num_replicas=1,
     report_xHy=false,
     operator=report_xHy ? hamiltonian : nothing,
@@ -92,7 +94,9 @@ function QMCState(
         replicas = (ReplicaState(v, wm, params, ""),)
     end
 
-    return QMCState(hamiltonian, replicas, m_strat, r_strat, s_strat, τ_strat, operator)
+    return QMCState(
+        hamiltonian, replicas, maxlength, m_strat, r_strat, s_strat, τ_strat, operator
+    )
 end
 
 function default_working_memory(threading, v, s_strat)
@@ -134,8 +138,9 @@ function lomc!(state::QMCState, df=DataFrame())
         step += 1
         # This loop could be threaded if num_threads() == num_replicas? MPIData would need
         # to be aware of the replica's id and use that in communication.
+        success = true
         for replica in state.replicas
-            advance!(report, state, replica)
+            success &= advance!(report, state, replica)
         end
         # The following should probably be replaced with some kind of ReplicaStrategy.
         # Right now it is designed to work similarly to the old implementation.
@@ -149,6 +154,7 @@ function lomc!(state::QMCState, df=DataFrame())
                 report!(report, :xHy, xHy)
             end
         end
+        !success && break
     end
 
     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
@@ -200,5 +206,22 @@ function advance!(
     )
     report!(report, colnames, values, id)
     report!(report, update_stats, id)
-    # TODO add maxlength and check if it was reached.
+
+    if len == 0
+        if length(state.replicas) > 1
+            @error "population in replica$(replica.id) is dead. Aborting."
+        else
+            @error "population is dead. Aborting."
+        end
+        return false
+    end
+    if len > state.maxlength
+        if length(state.replicas) > 1
+            @error "`maxlength` reached in replica$(replica.id). Aborting."
+        else
+            @error "`maxlength` reached. Aborting."
+        end
+        return false
+    end
+    return true
 end

@@ -44,7 +44,6 @@ Abstract type for defining initiator rules. Concrete implementations:
 """
 abstract type AbstractInitiator{V} end
 
-
 """
     Initiator
 
