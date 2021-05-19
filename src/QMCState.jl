@@ -148,12 +148,13 @@ function lomc!(state::QMCState, df=DataFrame())
             c1 = state.replicas[1].v
             c2 = state.replicas[2].v
             xdoty = c1 ⋅ c2
-            report!(report, :xdoty, xdoty)
+            report!(state.r_strat, step, report, :xdoty, xdoty)
             if !isnothing(state.operator)
                 xHy = dot(c1, state.operator, c2)
-                report!(report, :xHy, xHy)
+                report!(state.r_strat, step, report, :xHy, xHy)
             end
         end
+        print_report(state.r_strat, step, report, state)
         !success && break
     end
 
@@ -204,8 +205,8 @@ function advance!(
         step, dτ, shift, shiftMode, len, tnorm, v_proj, h_proj,
         step_stats..., shift_noise,
     )
-    report!(report, colnames, values, id)
-    report!(report, update_stats, id)
+    report!(r_strat, step, report, colnames, values, id)
+    report!(r_strat, step, report, update_stats, id)
 
     if len == 0
         if length(state.replicas) > 1

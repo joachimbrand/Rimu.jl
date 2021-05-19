@@ -35,13 +35,13 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
 export RimuIO
 
+include("report.jl")
 include("strategies_and_params.jl") # type defs and helpers
 include("helpers.jl")               # non MPI-dependent helper functions
 include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level
 include("update_dvec.jl")
-include("report.jl")
 #include("lomc.jl")                 # top level
 include("QMCState.jl")              # top level
 export lomc!

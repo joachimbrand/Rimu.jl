@@ -1,3 +1,8 @@
+"""
+    Report
+
+Internal structure that hold the temporary reported values. See [`report`](@ref).
+"""
 struct Report
     data::Dict{Symbol,Vector}
     nrow::Ref{Int}
@@ -16,42 +21,31 @@ function Base.show(io::IO, report::Report)
     end
 end
 
-function report!(report, key, value, postfix)
-    report!(report, Symbol(key, postfix), value)
-end
-function report!(report, key, value)
+function report!(_::Integer, report, key, value)
     data = report.data
+    # TODO: take care of adding stuff to the report after a few steps were already taken?
     if haskey(data, key)
-        #column = data[key]
-        #while length(column) < report.nrow[] - 1
-        #    push!(column, zero(value))
-        #end
-        #push!(column, value)
-        #report.nrow[] = max(report.nrow[], length(column))
         push!(data[key], value)
     else
-        #column = fill(zero(value), max(report.nrow[] - 1, 0))
-        #push!(column, value)
-        #data[key] = column
         data[key] = [value]
     end
     return report
 end
-
-function report!(report, keys::Tuple, vals, postfix="")
+function report!(step::Integer, report, key, value, postfix)
+    report!(step, report, Symbol(key, postfix), value)
+end
+function report!(step::Integer, report, keys::Tuple, vals, postfix="")
     for (k, v) in zip(keys, vals)
-        report!(report, k, v, postfix)
+        report!(step, report, k, v, postfix)
     end
     return report
 end
-
-function report!(report, kvpairs::NamedTuple, postfix="")
+function report!(step::Integer, report, kvpairs::NamedTuple, postfix="")
     for (k, v) in pairs(kvpairs)
-        report!(report, k, v, postfix)
+        report!(step, report, k, v, postfix)
     end
     return report
 end
-
-function DataFrame(report::Report)
+function DataFrames.DataFrame(report::Report)
     DataFrame(report.data)
 end

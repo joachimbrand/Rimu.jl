@@ -187,30 +187,45 @@ end
 #     return r.projector⋅v, missing
 # end
 # # The dot products work across MPI when `v::MPIData`; MPI sync
-
 """
-    report!(df::DataFrame, t::Tuple, s<:ReportingStrategy)
-Record results in `df` and write informational messages according to strategy
-`s`. See [`ReportingStrategy`](@ref).
-"""
-report!(df::DataFrame,t::Tuple,s::EveryTimeStep) = push!(df,t)
-# report!(df::DataFrame,t::Tuple,s::Union{EveryTimeStep, ReportPEnergy}) = push!(df,t)
+     report!(::ReportingStrategy, step, report::Report, args...)
 
-function report!(df::DataFrame,t::Tuple,s::EveryKthStep)
-    step = t[1]
-    step % s.k == 0 && push!(df,t) # only push to df if step is multiple of s.k
-    return df
+Write values from `args...` to `report` that will be converted to a `DataFrame` later.
+`args...` can be:
+
+* a name and a value.
+* a tuple of names followed by a tuple of values.
+* a named tuple.
+"""
+function report!(::EveryTimeStep, args...)
+    report!(args...)
+    return nothing
+end
+function report!(s::EveryKthStep, step, args...)
+    step % s.k == 0 && report!(step, args...)
+    return nothing
+end
+function report!(s::ReportDFAndInfo, step, args...)
+    step % s.k == 0 && report!(step, args...)
+    return nothing
 end
 
-function report!(df::DataFrame,t::Tuple,s::ReportDFAndInfo)
-    step = t[1]
-    step % s.k == 0 && push!(df,t) # only push to df if step is multiple of s.k
+"""
+    print_report(::ReportingStrategy, step, report, state)
+
+This function is called at the very end of a step. It can let the `ReportingStrategy`
+print some info to output.
+"""
+function print_report(::ReportingStrategy, args...)
+    return nothing
+end
+function print_report(s::ReportDFAndInfo, step, args...)
     if s.writeinfo && step % s.i == 0
         println(s.io, "Step ", step)
         flush(s.io)
     end
-    return df
 end
+
 
 """
 Abstract type for strategies for updating the time step with

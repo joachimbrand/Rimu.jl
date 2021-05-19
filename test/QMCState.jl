@@ -110,6 +110,29 @@ using Statistics
         @test df1.shift ≈ df2.shift
     end
 
+    @testset "Reporting" begin
+        add = BoseFS((1,2,1,1))
+        H = HubbardReal1D(add; u=2)
+        dv = DVec(add => 1, style=IsDeterministic())
+
+        @testset "EveryKthStep" begin
+            r_strat = EveryKthStep(k=5)
+            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test size(df, 1) == 20
+        end
+        @testset "ReportDFAndInfo" begin
+            r_strat = ReportDFAndInfo(k=5, i=20, io=devnull)
+            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test size(df, 1) == 20
+
+            out = @capture_out begin
+                r_strat = ReportDFAndInfo(k=5, i=20, io=stdout)
+                lomc!(H, copy(dv); r_strat, laststep=100)
+            end
+            @test length(split(out, '\n')) == 6 # (last line is empty)
+        end
+    end
+
     @testset "Errors" begin
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=20)
@@ -126,7 +149,7 @@ end
         BoseHubbardReal1D2C(BoseFS2C((1,2,2), (0,1,0))),
         BoseHubbardMom1D2C(BoseFS2C((0,1), (1,0))),
     )
-        @testset "$H, $style" begin
+        @testset "$H" begin
             dv = DVec(starting_address(H) => 2; style=IsDynamicSemistochastic())
             r_strat = EveryTimeStep(projector=copy(dv))
 
