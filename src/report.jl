@@ -1,10 +1,12 @@
+using OrderedCollections # for LittleDict
+
 """
     Report
 
 Internal structure that hold the temporary reported values. See [`report`](@ref).
 """
 struct Report
-    data::Dict{Symbol,Vector}
+    data::LittleDict{Symbol,Vector}
     nrow::Ref{Int}
 
     Report() = new(Dict{Symbol,Vector}(), Ref(0))
@@ -24,8 +26,10 @@ end
 function report!(_::Integer, report, key, value)
     data = report.data
     # TODO: take care of adding stuff to the report after a few steps were already taken?
+    # Needed if we want 0-th step.
     if haskey(data, key)
-        push!(data[key], value)
+        column = data[key]::Vector{typeof(value)}
+        push!(column, value)
     else
         data[key] = [value]
     end
@@ -44,6 +48,9 @@ function report!(step::Integer, report, kvpairs::NamedTuple, postfix="")
     for (k, v) in pairs(kvpairs)
         report!(step, report, k, v, postfix)
     end
+    return report
+end
+function report!(::Integer, report, ::NamedTuple{(),Tuple{}}, args...)
     return report
 end
 function DataFrames.DataFrame(report::Report)

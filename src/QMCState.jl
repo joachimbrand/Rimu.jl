@@ -191,7 +191,7 @@ function advance!(
     tnorm = walkernumber(v)
     len = length(v)
 
-    v_proj, h_proj = compute_proj_observables(v, hamiltonian, r_strat)
+    proj_observables = compute_proj_observables(v, hamiltonian, r_strat)
 
     shift, shiftMode, pnorm = update_shift(
         s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
@@ -201,17 +201,14 @@ function advance!(
     @pack! params = step, laststep, shiftMode, shift, dτ
     @pack! replica = v, w, pnorm, params
 
-    colnames = (
-        "steps", "dτ", "shift", "shiftMode",
-        "len", "norm", "vproj", "hproj",
-        stat_names..., "shiftnoise"
+    report!(
+        r_strat, step, report,
+        (steps=step, dτ, shift, shiftMode, len, norm=tnorm), id,
     )
-    values = (
-        step, dτ, shift, shiftMode, len, tnorm, v_proj, h_proj,
-        step_stats..., shift_noise,
-    )
-    report!(r_strat, step, report, colnames, values, id)
+    report!(r_strat, step, report, proj_observables, id)
+    report!(r_strat, step, report, stat_names, step_stats, id)
     report!(r_strat, step, report, update_stats, id)
+    report!(r_strat, step, report, (;shift_noise), id)
 
     if len == 0
         if length(state.replicas) > 1

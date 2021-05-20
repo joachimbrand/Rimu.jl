@@ -144,39 +144,30 @@ Compute the projection of `r.projector⋅v` and `r.hproj⋅v` or
 `r.projector⋅ham*v` according to
 the [`ReportingStrategy`](@ref) `r`.
 """
-function compute_proj_observables(v, ham, ::RS) where
-                        {P1 <: Nothing, P2 <: Nothing,
-                         RS<:ReportingStrategy{P1,P2}}
-    return missing, missing # nothing to do
+function compute_proj_observables(v, ham, ::ReportingStrategy{Nothing,Nothing})
+    return (;)
 end
 
 # catch an error
-function compute_proj_observables(v, ham, ::RS) where
-                        {P1, P2 <: Symbol,
-                         RS<:ReportingStrategy{P1,P2}}
-    throw(ErrorException("`Symbol` is not a valid type for `hproj`. Use `refine_r_strat()`!"))
-    return missing, missing
+function compute_proj_observables(v, ham, ::ReportingStrategy{<:Any,Symbol})
+    error("`Symbol` is not a valid type for `hproj`. Use `refine_r_strat`!")
 end
 
 #  single projector, e.g. for norm calculation
-function compute_proj_observables(v, ham, r::RS) where
-                        {P1, P2 <: Nothing,
-                         RS<:ReportingStrategy{P1,P2}}
-    return r.projector⋅v, missing
+function compute_proj_observables(v, ham, r::ReportingStrategy{<:Any,Nothing})
+    return (; vproj=r.projector⋅v)
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
 # (slow) generic version with single projector, e.g. for computing projected energy
-function compute_proj_observables(v, ham, r::RS) where
-                        {P1, P2 <: Missing,
-                         RS<:ReportingStrategy{P1,P2}}
-    return r.projector⋅v, dot(r.projector, ham, v)
+function compute_proj_observables(v, ham, r::ReportingStrategy{<:Any,Missing})
+    return (; vproj=r.projector⋅v, hproj=dot(r.projector, ham, v))
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
 # fast version with 2 projectors, e.g. for computing projected energy
 function compute_proj_observables(v, ham, r::ReportingStrategy)
-    return r.projector⋅v, r.hproj⋅v
+    return (; vproj=r.projector⋅v, hproj=r.hproj⋅v)
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 

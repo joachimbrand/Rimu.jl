@@ -100,81 +100,71 @@ end
     include("QMCState.jl")
 end
 
-#=
-@testset "IsStochasticWithThreshold" begin
+@testset "MemoryStrategy" begin
     # Define the initial Fock state with n particles and m modes
     n = m = 9
-    aIni = nearUniform(BoseFS{n,m})
-    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    add = nearUniform(BoseFS{n,m})
+    H = BoseHubbardReal1D(add; u = 6.0, t = 1.0)
+    dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
+    s_strat = DoubleLogUpdate(targetwalkers=100)
 
-    # IsStochasticWithThreshold
-    s = DoubleLogUpdate(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2.0), style=IsStochasticWithThreshold(0.621))
-    # Rimu.StochasticStyle(::Type{typeof(svec)}) = IsStochasticWithThreshold(1.0)
-    @test StochasticStyle(svec) == IsStochasticWithThreshold(0.621)
-    svec = DVec(Dict(aIni => 2.0), style=IsDeterministic())
-    @test StochasticStyle(svec) == IsDeterministic()
-    svec = DVec(Dict(aIni => 2.0), style=IsStochasticWithThreshold(1.0))
-    @test StochasticStyle(svec) == IsStochasticWithThreshold(1.0)
-    vs = copy(svec)
-    pa = RunTillLastStep(laststep = 100)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), maxlength=2 * dimension(ham))
-    @test sum(rdfs[:,:norm]) ≈ 3134 atol=1
+    @testset "NoMemory" begin
+        seedCRNG!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2610 atol=1
+    end
 
-    # NoMemory
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = NoMemory(), maxlength=2 * dimension(ham))
-    @test sum(rdfs[:,:norm]) ≈ 3134 atol=1
+    @testset "DeltaMemory" begin
+        seedCRNG!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2610 atol=1
 
-    # DeltaMemory
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(1), maxlength=2 * dimension(ham))
-    @test sum(rdfs[:,:norm]) ≈ 3134 atol=1
+        seedCRNG!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2236 atol=1
+    end
 
-    # DeltaMemory
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = DeltaMemory(10), maxlength=2 * dimension(ham))
-    @test sum(rdfs[:,:norm]) ≈ 2365 atol=1
-    @test sum(rdfs.shiftnoise) ≈ 0.454 atol=1e-3
-    # DeltaMemory2
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = Rimu.DeltaMemory2(10), maxlength=2 * dimension(ham))
-    @test sum(rdfs[:,:norm]) ≈ 3552 atol=1
+    @testset "DeltaMemory2" begin
+        seedCRNG!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2610 atol=1
 
-    # ShiftMemory
-    vs = copy(svec)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    pa = RunTillLastStep(laststep = 100)
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs), m_strat = ShiftMemory(10))
-    @test sum(rdfs[:,:norm]) ≈ 3088 atol=1
+        seedCRNG!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2038 atol=1
+    end
 
-    # applyMemoryNoise
-    v2=DVec(Dict(aIni => 2))
-    StochasticStyle(v2) # IsStochastic() is not suitable for DeltaMemory()
-    @test_throws ErrorException Rimu.apply_memory_noise!(v2, v2, 0.0, 0.1, 20, DeltaMemory(3))
-    @test 0 == Rimu.apply_memory_noise!(svec, copy(svec), 0.0, 0.1, 20, DeltaMemory(3))
+    @testset "ShiftMemory" begin
+        seedCRNG!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2610 atol=1
 
-    # momentum space - tests annihilation
-    aIni = BoseFS((0,0,6,0,0,0))
-    ham = BoseHubbardMom1D(aIni, u=6.0)
-    s = DoubleLogUpdate(targetwalkers = 100)
-    svec = DVec(Dict(aIni => 2.0), style=IsStochasticWithThreshold(1.0))
-    vs = copy(svec)
-    pa = RunTillLastStep(laststep = 100)
-    seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
-    @time rdfs = fciqmc!(vs, pa, ham, s, EveryTimeStep(), ConstantTimeStep(), copy(vs))
-    @test sum(rdfs[:,:norm]) ≈ 4031 atol=1
+        seedCRNG!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 3135 atol=1
+    end
 end
-=#
 
 @testset "IsDeterministic with Vector" begin
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
@@ -200,7 +190,7 @@ end
     @test_throws ErrorException Rimu.compute_proj_observables(v, ham, r)
     rr = Rimu.refine_r_strat(r, ham)
     @test rr.hproj⋅v == dot(v, ham, v)
-    @test Rimu.compute_proj_observables(v, ham, rr) == (v⋅v, dot(v, ham, v))
+    @test Rimu.compute_proj_observables(v, ham, rr) == (; vproj=v⋅v, hproj=dot(v, ham, v))
 end
 
 @testset "helpers" begin
