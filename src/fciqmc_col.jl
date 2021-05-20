@@ -66,13 +66,15 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, s
     return (1,)
 end
 
-function step_stats(::IsStochastic)
+function step_stats(::IsStochasticInteger)
     return (
         (:spawns, :deaths, :clones, :antiparticles, :annihilations),
         SVector(0, 0, 0, 0, 0),
     )
 end
-function fciqmc_col!(::IsStochastic, w, ham::AbstractHamiltonian, add, num::Real, shift, dτ)
+function fciqmc_col!(
+    ::IsStochasticInteger, w, ham::AbstractHamiltonian, add, num::Real, shift, dτ
+)
     # version for single population of integer psips
     # off-diagonal: spawning psips
     spawns = deaths = clones = antiparticles = annihilations = zero(num)

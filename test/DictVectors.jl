@@ -4,6 +4,7 @@ using Rimu
 using Rimu.DictVectors
 using Rimu.DictVectors: IsStochastic2Pop
 using StaticArrays
+using Suppressor
 using Test
 
 function test_dvec_interface(type, keys, vals, cap)
@@ -258,4 +259,25 @@ end
         dvec4 = InitiatorDVec(:a => 1.0, style=IsStochastic2Pop())
         @test !isreal(dvec4)
     end
+end
+
+@testset "deprecations" begin
+    warn1 = @capture_err copytight(DVec(:a => 1))
+    warn2 = @capture_err copytight(DVec(:a => 1))
+    @test warn1 ≠ ""
+    @test warn2 == ""
+
+    warn1 = @capture_err DVec2(:a => 1)
+    warn2 = @capture_err DVec2(:a => 1)
+    @test warn1 ≠ ""
+    @test warn2 == ""
+    @test DVec2(:a => 1) isa DVec{Symbol,Int}
+
+    @test_throws ErrorException capacity(DVec(:a => 1))
+
+    warn1 = @capture_err IsStochastic()
+    warn2 = @capture_err IsStochastic()
+    @test warn1 ≠ ""
+    @test warn2 == ""
+    @test IsStochastic() === IsStochasticInteger()
 end
