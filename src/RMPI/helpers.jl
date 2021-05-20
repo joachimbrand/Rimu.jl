@@ -83,8 +83,8 @@ function Rimu.sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
 end
 
 # This function is just a wrapper that makes allreduce treat a SVector as a scalar
-function _communicate_stats(stats::T, comm) where {T}
-    return MPI.Allreduce(Scalar{T}(stats), +, comm)[]
+function _communicate_stats(stats, comm)
+    return invoke(MPI.Allreduce, Tuple{Any, typeof(+), MPI.Comm}, stats, +, comm)
 end
 # three-argument version
 function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
