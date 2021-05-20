@@ -84,7 +84,6 @@ function QMCState(
         params.dτ = dτ
     end
     wm = default_working_memory(threading, v, s_strat)
-
     # Set up replicas
     if num_replicas > 1
         replicas = ntuple(num_replicas) do i
@@ -118,6 +117,59 @@ function Base.show(io::IO, st::QMCState)
     println(io, "\n  H:    ", st.hamiltonian)
 end
 
+"""
+    lomc!(ham, v; kwargs...)
+
+Linear operator Monte Carlo: Perform the FCIQMC algorithm for determining the lowest
+eigenvalue of `ham`. `v` can be a single starting vector of (wrapped) type
+`:<AbstractDVec`.
+
+Returns a `DataFrame` with various statistics and a `QMCState` containing all information
+required for continuation runs.
+
+# Keyword arguments, defaults, and precedence:
+
+* `laststep` - can be used to override information otherwise contained in `params`
+* `threading = :auto` - can be used to control the use of multithreading (overridden by `wm`)
+  * `:auto` - use multithreading if `s_strat.targetwalkers ≥ 500`
+  * `true` - use multithreading if available (set shell variable `JULIA_NUM_THREADS`!)
+  * `false` - run on single thread
+* `wm` - working memory; if set, it controls the use of multithreading and overrides `threading`; is mutated
+* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100)` - contains basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
+* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000)` - see [`ShiftStrategy`](@ref)
+* `r_strat::ReportingStrategy = EveryTimeStep()` - see [`ReportingStrategy`](@ref)
+* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
+* `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
+* `num_replicas` - set the number of replica runs to run.
+* `operator` - set an operator to use with replicas.
+
+# Return values
+
+`lomc!` returns a named tuple with the following fields:
+
+* `df`: a `DataFrame` with all statistics being reported.
+* `state`: a `QMCState` that can be used for continuations.
+
+# Example
+
+```jldoctest
+julia> add = BoseFS((1,2,3));
+
+julia> H = HubbardReal1D(add);
+
+julia> dv = DVec(add => 1);
+
+julia> df1, state = lomc!(H, dv);
+
+julia> df2, _ = lomc!(state, df1; laststep=200); # Contuniation run
+
+julia> size(df1)
+(100, 12)
+
+julia> size(df2)
+(200, 12)
+```
+"""
 function lomc!(ham, v; df=DataFrame(), kwargs...)
     state = QMCState(ham, v; kwargs...)
     return lomc!(state, df)
@@ -175,6 +227,8 @@ end
 
 Advance the `replica` by one step. The `state` is used only to access the various strategies
 involved. Steps, stats, and computed quantities are written to the `report`.
+
+Returns `true` if the step was successful.
 """
 function advance!(
     report, state::QMCState, replica::ReplicaState{T}
