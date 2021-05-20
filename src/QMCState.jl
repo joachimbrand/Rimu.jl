@@ -46,7 +46,7 @@ struct QMCState{
     τ_strat::TS
 
     # Report x†⋅operator⋅y
-    # In the future, this should be replaced with a strict a la ReplicaStrategy.
+    # In the future, this should be replaced with a struct a la ReplicaStrategy.
     operator::O
 end
 
@@ -61,7 +61,7 @@ function QMCState(
     r_strat::ReportingStrategy=EveryTimeStep(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     m_strat::MemoryStrategy=NoMemory(),
-    maxlength=2 * s_strat.targetwalkers,
+    maxlength=2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers)),
     num_replicas=1,
     report_xHy=false,
     operator=report_xHy ? hamiltonian : nothing,
@@ -123,8 +123,13 @@ function lomc!(ham, v; df=DataFrame(), kwargs...)
     return lomc!(state, df)
 end
 # For continuation, you can pass a QMCState and a DataFrame
-function lomc!(state::QMCState, df=DataFrame())
+function lomc!(state::QMCState, df=DataFrame(); laststep=0)
     report = Report()
+    if !iszero(laststep)
+        for replica in state.replicas
+            replica.params.laststep = laststep
+        end
+    end
 
     # Sanity checks.
     for replica in state.replicas

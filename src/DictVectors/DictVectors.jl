@@ -47,6 +47,7 @@ include("stochasticstyle.jl")
 include("abstractdvec.jl")
 include("dvec.jl")
 include("initiators.jl")
+include("deprecated.jl")
 
 
 end # module

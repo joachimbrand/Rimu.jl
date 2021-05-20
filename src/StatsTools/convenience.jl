@@ -37,6 +37,17 @@ function replica_fidelity(rr::Tuple; p_field = :hproj, skip = 0, args...)
 
     return ratio_of_means(fid_num, fid_den; args...)
 end
+# New way of doing replica.
+function replica_fidelity(df::DataFrame; p_field = :hproj, skip = 0, args...)
+    p_field_1 = Symbol(p_field, :_1)
+    p_field_2 = Symbol(p_field, :_2)
+    fid_num = conj(getproperty(df, p_field_1)) .* getproperty(df, p_field_2)
+    fid_num = fid_num[skip+1:end]
+    # denominator
+    fid_den = df.xdoty[skip+1:end]
+
+    return ratio_of_means(fid_num, fid_den; args...)
+end
 
 """
     med_and_errs(p) -> (; med, err1_l, err1_u, err2_l, err2_u)
