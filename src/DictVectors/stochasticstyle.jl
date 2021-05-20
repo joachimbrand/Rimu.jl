@@ -1,9 +1,9 @@
 """
     StochasticStyle(v)
-`StochasticStyle` specifies the native style of the generalised vector `v` that
-determines how simulations are to proceed. This can be fully stochastic (with
-`IsStochastic`), fully deterministic (with `IsDeterministic`), or stochastic with
-floating point walker numbers and threshold (with [`IsStochasticWithThreshold`](@ref)).
+`StochasticStyle` specifies the native style of the generalised vector `v` that determines
+how simulations are to proceed. This can be fully stochastic (with `IsStochasticInteger`),
+fully deterministic (with `IsDeterministic`), or stochastic with floating point walker
+numbers and threshold (with [`IsStochasticWithThreshold`](@ref)).
 
 When defining a new `StochasticStyle`, subtype it as `MyStyle<:StochasticStyle{T}` where `T`
 is the concrete value type the style is designed to work with.
@@ -20,11 +20,11 @@ construct dict vectors with unsupported `valtype`s.
 struct StyleUnknown{T} <: StochasticStyle{T} end
 
 """
-    IsStochastic()
+    IsStochasticInteger()
 Trait for generalised vector of configurations indicating stochastic
 propagation as seen in the original FCIQMC algorithm.
 """
-struct IsStochastic <: StochasticStyle{Int} end
+struct IsStochasticInteger <: StochasticStyle{Int} end
 
 """
     IsStochastic2Pop()
@@ -44,20 +44,9 @@ struct IsDeterministic <: StochasticStyle{Float64} end
     IsStochasticWithThreshold(threshold::Float64)
 Trait for generalised vector of configurations indicating stochastic
 propagation with real walker numbers and cutoff `threshold`.
-```
-> StochasticStyle(V) = IsStochasticWithThreshold(threshold)
-```
+
 During stochastic propagation, walker numbers small than `threshold` will be
 stochastically projected to either zero or `threshold`.
-
-The trait can be conveniently defined on an instance of a generalised vector with the macro
-[`@setThreshold`](@ref). Example:
-```julia-repl
-julia> dv = DVec(Dict(nearUniform(BoseFS{3,3})=>3.0))
-julia> @setThreshold dv 0.6
-julia> StochasticStyle(dv)
-IsStochasticWithThreshold(0.6f0)
-```
 """
 struct IsStochasticWithThreshold <: StochasticStyle{Float64}
     threshold::Float64
@@ -108,7 +97,7 @@ StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
 Pick a [`StochasticStyle`](@ref) based on the value type. Throws an error if no known default
 style is known.
 """
-default_style(::Type{<:Integer}) = IsStochastic()
+default_style(::Type{<:Integer}) = IsStochasticInteger()
 default_style(::Type{<:AbstractFloat}) = IsDeterministic()
 default_style(::Type{<:Complex{<:Integer}}) = IsStochastic2Pop()
 default_style(::Type{T}) where T = StyleUnknown{T}()

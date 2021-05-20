@@ -12,10 +12,12 @@ module DictVectors
 using Random, LinearAlgebra
 export AbstractDVec, zero!, add!, deposit!, storage
 export DVec, InitiatorDVec
-export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 
-export StochasticStyle,
-    IsStochastic, IsDeterministic, IsStochasticWithThreshold, IsDynamicSemistochastic, StyleUnknown
+export
+    AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
+export
+    StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
+    IsDynamicSemistochastic, StyleUnknown
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.

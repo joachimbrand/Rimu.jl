@@ -32,7 +32,7 @@ The capacity argument is optional and sets the initial size of the `DVec` via `s
 
 ```jldoctest
 julia> dv = DVec(:a => 1)
-DVec{Symbol,Int64,IsStochastic} with 1 entries
+DVec{Symbol,Int64,IsStochasticInteger} with 1 entries
   :a => 1
 
 julia> dv = DVec(:a => 2, :b => 3; style=IsDynamicSemistochastic())

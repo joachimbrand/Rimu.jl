@@ -11,7 +11,7 @@ using Statistics
     @testset "Setting laststep" begin
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=0.1)
-        dv = DVec(add => 1; style=IsStochastic())
+        dv = DVec(add => 1; style=IsStochasticInteger())
 
         df, state = lomc!(H, copy(dv); laststep=100)
         @test size(df, 1) == 100
@@ -62,7 +62,7 @@ using Statistics
     @testset "Dead population" begin
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=20)
-        dv = DVec(add => 1; style=IsStochastic())
+        dv = DVec(add => 1; style=IsStochasticInteger())
 
         # Only population is dead.
         df = @suppress_err lomc!(H, copy(dv); laststep=100).df
@@ -136,7 +136,7 @@ using Statistics
     @testset "Errors" begin
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=20)
-        dv = DVec(add => 1; style=IsStochastic())
+        dv = DVec(add => 1; style=IsStochasticInteger())
 
         @test_throws ErrorException lomc!(H, dv; num_replicas=1, operator=H)
         @test_throws ErrorException lomc!(H, dv; num_replicas=-1)
@@ -175,7 +175,7 @@ end
         E0 = -8.280991746582686
 
         seedCRNG!(1234)
-        dv_st = DVec(add => 1; style=IsStochastic())
+        dv_st = DVec(add => 1; style=IsStochasticInteger())
         dv_th = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
         dv_cx = DVec(add => 1; style=IsStochastic2Pop())
         dv_dy = DVec(add => 1; style=IsDynamicSemistochastic())

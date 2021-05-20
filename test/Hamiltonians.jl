@@ -299,7 +299,7 @@ end
     # float walkernumber triggers IsDeterministic algorithm
     d = lomc!(mh, ones(dim)).df
     @test d.shift ≈ a.shift
-    # integer walkernumber triggers IsStochastic algorithm
+    # integer walkernumber triggers IsStochasticInteger algorithm
     seedCRNG!(41)
     e = lomc!(mh, ones(Int,dim)).df
     @test ≈(e.shift[end], a.shift[end], atol=0.3)
