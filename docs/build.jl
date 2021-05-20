@@ -1,6 +1,5 @@
 using Documenter, Rimu
 using Rimu.ConsistentRNG, Rimu.BitStringAddresses
-using Rimu.FastBufs
 
 # using Literate
 #
