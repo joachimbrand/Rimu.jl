@@ -21,8 +21,10 @@ The interface is similar to the `AbstractDict` interface.
 
 Implement what would be needed for the `AbstractDict` interface (`pairs`, `keys`, `values`,
 `setindex!, getindex, delete!, length, haskey, empty!, isempty`) and, in addition:
-* `similar(dv [,ValType])` # TODO?
+* `similar(dv [,ValType])`
 * [`StochasticStyle`](@ref)
+* [`storage(dv)`](@ref) returns an `AbstractDict` storing the raw data with possibly
+  different `valtype` than `V`.
 """
 abstract type AbstractDVec{K,V} end
 
@@ -51,9 +53,10 @@ function deposit!(w, add, val, _)
 end
 
 """
-    storage(dvec)
+    storage(dvec) -> AbstractDict
 
-Return the raw storage (probably a `Dict`) associated with `dvec`. Used in MPI communication.
+Return the raw storage associated with `dvec` as an `AbstractDict`. Used in MPI
+communication.
 """
 storage
 
@@ -129,9 +132,7 @@ end
 function Base.:*(α::T, x::AbstractDVec{<:Any,V}) where {T,V}
     return mul!(similar(x, promote_type(T, V)), x, α)
 end
-function Base.:*(x::AbstractDVec{<:Any,V}, α::T) where {V,T}
-    return mul!(similar(x, promote_type(T, V)), x, α)
-end
+Base.:*(x::AbstractDVec, α) = α * x
 
 """
     add!(x::AbstractDVec,y::AbstactDVec)
@@ -203,15 +204,6 @@ function Base.isequal(x::AbstractDVec{K}, y::AbstractDVec{K}) where {K}
 end
 
 Base.:(==)(x::AbstractDVec, y::AbstractDVec) = isequal(x, y)
-
-# TODO: use these for initiators
-"""
-    kvpairs(collection)
-Return an iterator over `key => value` pairs ignoring any flags. If no flags
-are present, eg. for generic `AbstractDVec`, this falls back to
-[`Base.pairs`](@ref).
-"""
-kvpairs(v) = pairs(v)
 
 # Define this type union for local (non-MPI) data
 const DVecOrVec = Union{AbstractDVec,AbstractVector}

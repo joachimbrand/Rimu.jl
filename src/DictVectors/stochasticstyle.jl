@@ -13,47 +13,57 @@ abstract type StochasticStyle{T} end
 Base.eltype(::Type{<:StochasticStyle{T}}) where {T} = T
 
 """
-    StyleUnknown()
+    StyleUnknown{T}() <: StochasticStyle
 Trait for value types not (currently) compatible with FCIQMC. This style makes it possible to
 construct dict vectors with unsupported `valtype`s.
+
+See also [`StochasticStyle`](@ref).
 """
 struct StyleUnknown{T} <: StochasticStyle{T} end
 
 """
-    IsStochasticInteger()
+    IsStochasticInteger() <: StochasticStyle
 Trait for generalised vector of configurations indicating stochastic
 propagation as seen in the original FCIQMC algorithm.
+
+See also [`StochasticStyle`](@ref).
 """
 struct IsStochasticInteger <: StochasticStyle{Int} end
 
 """
-    IsStochastic2Pop()
+    IsStochastic2Pop() <: StochasticStyle
 Trait for generalised vector of configurations indicating stochastic
 propagation with complex walker numbers representing two populations of integer
 walkers.
+
+See also [`StochasticStyle`](@ref).
 """
 struct IsStochastic2Pop <: StochasticStyle{Complex{Int}} end
 
 """
-    IsDeterministic()
+    IsDeterministic() <: StochasticStyle
 Trait for generalised vector of configuration indicating deterministic propagation of walkers.
+
+See also [`StochasticStyle`](@ref).
 """
 struct IsDeterministic <: StochasticStyle{Float64} end
 
 """
-    IsStochasticWithThreshold(threshold::Float64)
+    IsStochasticWithThreshold(threshold::Float64) <: StochasticStyle
 Trait for generalised vector of configurations indicating stochastic
 propagation with real walker numbers and cutoff `threshold`.
 
 During stochastic propagation, walker numbers small than `threshold` will be
 stochastically projected to either zero or `threshold`.
+
+See also [`StochasticStyle`](@ref).
 """
 struct IsStochasticWithThreshold <: StochasticStyle{Float64}
     threshold::Float64
 end
 
 """
-    IsDynamicSemistochastic
+    IsDynamicSemistochastic(rel_threshold=1, abs_threshold=Inf, proj_threshold=1) <: StochasticStyle
 
 Similar to [`IsStochasticWithThreshold`](@ref), but does exact spawning when the number of
 walkers in a configuration is high.
@@ -73,6 +83,8 @@ Parameters:
 
 * `proj_threshold = 1.0`: Values below this number are stochastically projected to this
   value or zero. See also [`IsStochasticWithThreshold`](@ref).
+
+See also [`StochasticStyle`](@ref).
 """
 struct IsDynamicSemistochastic{P}<:StochasticStyle{Float64}
     rel_threshold::Float64

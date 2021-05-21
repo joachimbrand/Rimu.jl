@@ -34,7 +34,7 @@ function Base.convert(::Type{<:InitiatorValue{V}}, x) where {V}
 end
 
 """
-    AbstractInitiator
+    InitiatorRule
 
 Abstract type for defining initiator rules. Concrete implementations:
 
@@ -42,7 +42,7 @@ Abstract type for defining initiator rules. Concrete implementations:
 * [`SimpleInitiator`](@ref)
 * [`CoherentInitiator`](@ref)
 """
-abstract type AbstractInitiator{V} end
+abstract type InitiatorRule{V} end
 
 """
     Initiator
@@ -52,7 +52,7 @@ Initiator to be passed to [`InitiatorDVec`](@ref). Initiator rules:
 * Initiators can spawn anywhere.
 * Non-initiators can spawn to initiators.
 """
-struct Initiator{V} <: AbstractInitiator{V}
+struct Initiator{V} <: InitiatorRule{V}
     threshold::V
 end
 
@@ -68,7 +68,7 @@ Simplified initiator to be passed to [`InitiatorDVec`](@ref). Initiator rules:
 * Initiators can spawn anywhere.
 * Non-initiators cannot spawn.
 """
-struct SimpleInitiator{V} <: AbstractInitiator{V}
+struct SimpleInitiator{V} <: InitiatorRule{V}
     threshold::V
 end
 
@@ -86,7 +86,7 @@ Initiator to be passed to [`InitiatorDVec`](@ref). Initiator rules:
 * Multiple non-initiators can spawn to a single non-initiator if their contributions add up
   to a value greater than the initiator threshold.
 """
-struct CoherentInitiator{V} <: AbstractInitiator{V}
+struct CoherentInitiator{V} <: InitiatorRule{V}
     threshold::V
 end
 
@@ -101,10 +101,33 @@ end
 """
     InitiatorDVec
 
-Functionally identical to [`DVec`](@ref), but contains [`InitiatorValue`]s
+Functionally identical to [`DVec`](@ref), but contains [`InitiatorValue`]s internally. How
+the initiators are handled is controlled by the [`InitiatorRule`](@ref)
+
+# Constructors
+
+* `InitiatorDVec(dict::AbstractDict[, style, initiator, capacity])`: create a
+  `InitiatorDVec` with `dict` for storage.  Note that the data may or may not be copied.
+
+* `InitiatorDVec(args...[; style, initiator, capacity])`: `args...` are passed to the `Dict`
+  constructor. The `Dict` is used for storage.
+
+* `InitiatorDVec{K,V}([style, initiator, capacity])`: create an empty `InitiatorDVec{K,V}`.
+
+* `InitiatorDVec(dv::AbstractDVec[, style, initiator, capacity])`: create a `InitiatorDVec`
+   with the same contents as `adv`. The `style` is inherited from `dv` by default.
+
+The default `style` is selected based on the `DVec`'s `valtype` (see
+[`default_style`](@ref)). If a style is given and the `valtype` does not match the `style`'s
+`eltype`, the values are converted to an appropriate type.
+
+The capacity argument is optional and sets the initial size of the `DVec` via `sizehint!`.
+
+The initiator argument sets the initiator rule (see [`InitiatorRule`](@ref)). It defaults to
+[`Initiator`](@ref).
 """
 struct InitiatorDVec{
-    K,V,D<:Dict{K,InitiatorValue{V}},S<:StochasticStyle{V},I<:AbstractInitiator
+    K,V,D<:AbstractDict{K,InitiatorValue{V}},S<:StochasticStyle{V},I<:InitiatorRule
 } <: AbstractDVec{K,V}
     storage::D
     style::S
@@ -115,13 +138,30 @@ end
 ### Constructors
 ###
 function InitiatorDVec(
-    dict::Dict{K,V}; style=default_style(V), initiator=Initiator(one(V)), capacity=0
+    dict::AbstractDict{K,V}; style=default_style(V), initiator=Initiator(one(V)), capacity=0
 ) where {K,V}
     T = eltype(style)
     storage = Dict{K,InitiatorValue{T}}()
     sizehint!(storage, capacity)
     for (k, v) in pairs(dict)
         storage[k] = InitiatorValue{T}(safe=v)
+    end
+    return InitiatorDVec(storage, style, initiator)
+end
+function InitiatorDVec(
+    dict::AbstractDict{K,InitiatorValue{V}};
+    style=default_style(V), initiator=Initiator(one(V)), capacity=0
+) where {K,V}
+    T = eltype(style)
+    if T === V
+        storage = dict
+        sizehint!(storage, capacity)
+    else
+        storage = Dict{K,InitiatorValue{T}}()
+        sizehint!(storage, capacity)
+        for (k, v) in pairs(dict)
+            storage[k] = InitiatorValue{T}(v.safe, v.unsafe, v.initiator)
+        end
     end
     return InitiatorDVec(storage, style, initiator)
 end
@@ -132,12 +172,7 @@ end
 function InitiatorDVec(
     dv::AbstractDVec{K,V}; style=StochasticStyle(dv), initiator=Initiator(one(V)), capacity=0
 ) where {K,V}
-    storage = Dict{K,InitiatorValue{V}}()
-    sizehint!(storage, max(capacity, length(dv)))
-    for (k, v) in pairs(dv)
-        storage[k] = InitiatorValue{V}(safe=v)
-    end
-    return InitiatorDVec(storage, style, initiator)
+    return InitiatorDVec(storage(dv), style, initiator)
 end
 function InitiatorDVec{K,V}(; kwargs...) where {K,V}
     return InitiatorDVec(Dict{K,V}(); kwargs...)

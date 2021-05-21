@@ -84,7 +84,6 @@ function send!(s::MPIPointToPoint{<:Any,N}) where {N}
     end
 end
 
-# TODO: the type is unused, but without it, everything breaks.
 function Rimu.sort_into_targets!(target, source, s::MPIPointToPoint{<:Any,N}) where {N}
     foreach(empty!, s.buffers)
 

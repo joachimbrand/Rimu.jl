@@ -107,7 +107,7 @@ Base.similar(dvec::DVec, args...; kwargs...) = empty(dvec, args...; kwargs...)
 ###
 function Base.summary(io::IO, dvec::DVec{K,V,S}) where {K,V,S}
     len = length(dvec)
-    print(io, "DVec{$K,$V,$S} with $len entries")
+    print(io, "DVec{$K,$V} with $len entries, style = $(dvec.style)")
 end
 
 ###
