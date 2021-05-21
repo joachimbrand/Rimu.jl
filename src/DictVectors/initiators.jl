@@ -235,6 +235,10 @@ end
 @delegate InitiatorDVec.storage [haskey, getkey, pop!, isempty, length, keys]
 @delegate_return_parent InitiatorDVec.storage [delete!, empty!, sizehint!]
 
+"""
+    deposit!(w::InitiatorDVec, add, val, p_add=>p_val)
+Add `val` into `w` at address `add` as an [`InitiatorValue`](@ref). 
+"""
 function deposit!(w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)) where {V}
     i = w.initiator
     if p_add == add # diagonal death
