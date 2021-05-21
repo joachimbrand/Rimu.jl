@@ -262,22 +262,16 @@ end
 end
 
 @testset "deprecations" begin
-    warn1 = @capture_err copytight(DVec(:a => 1))
-    warn2 = @capture_err copytight(DVec(:a => 1))
-    @test warn1 ≠ ""
-    @test warn2 == ""
+    warning = @capture_err copytight(DVec(:a => 1))
+    @test warning ≠ ""
 
-    warn1 = @capture_err DVec2(:a => 1)
-    warn2 = @capture_err DVec2(:a => 1)
-    @test warn1 ≠ ""
-    @test warn2 == ""
+    warning = @capture_err DVec2(:a => 1)
+    @test warning ≠ ""
     @test DVec2(:a => 1) isa DVec{Symbol,Int}
 
     @test_throws ErrorException capacity(DVec(:a => 1))
 
-    warn1 = @capture_err IsStochastic()
-    warn2 = @capture_err IsStochastic()
-    @test warn1 ≠ ""
-    @test warn2 == ""
+    warning = @capture_err IsStochastic()
+    @test warning ≠ ""
     @test IsStochastic() === IsStochasticInteger()
 end
