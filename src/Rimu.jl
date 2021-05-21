@@ -22,7 +22,7 @@ include("RimuIO.jl")
 using .RimuIO
 
 export lomc!
-export fciqmc!, FciqmcRunStrategy, RunTillLastStep
+export FciqmcRunStrategy, RunTillLastStep
 export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
@@ -42,9 +42,7 @@ include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level
 include("update_dvec.jl")
-#include("lomc.jl")                 # top level
 include("QMCState.jl")              # top level
-export lomc!
 
 include("RMPI/RMPI.jl")
 

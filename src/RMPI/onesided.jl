@@ -1,23 +1,21 @@
 """
-    mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
+    mpi_one_sided(data, comm = mpi_comm(), root = mpi_root; capacity)
 
 Declare `data` as mpi-distributed and set communication strategy to one-sided with remote
-memory access (RMA).
+memory access (RMA). `capacity` sets the capacity of the RMA windows.
 
 Sets up the [`MPIData`](@ref) structure with [`MPIOneSided`](@ref) strategy.
 """
-function mpi_one_sided(data, comm = mpi_comm(), root = mpi_root)
+function mpi_one_sided(data, comm = mpi_comm(), root = mpi_root; capacity)
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    P = eltype(data)
+    P = eltype(storage(data))
 
     # compute the required capacity for the communication buffer as a
     # fraction of the capacity of `data`
-    # TODO: ugly hack
-    cap = length(storage(data).keys) ÷ np + 1
     # id == root && println("on rank $id, capacity = ",cap)
-    s = MPIOneSided(np, id, comm, P, Int32(cap))
+    s = MPIOneSided(np, id, comm, P, Int32(capacity))
     return MPIData(data, comm, root, s)
 end
 
@@ -114,10 +112,11 @@ Deposit a vector `buf` into the MPI window `s` on rank `targetrank`. If
 @inline function put(buf::Vector{T}, len, targetrank, s::MPIOneSided{T}) where T
     @boundscheck len ≤ length(buf) && len ≤ s.capacity ||
         error("Not enough space left in buffer")
-    b_buffer = MPI.Buffer(buf, len, s.DT_b)
-    MPI.Put(b_buffer, targetrank, 0, s.b_win)
-    l_buffer = MPI.Buffer([len,], 1, s.DT_l)
-    MPI.Put(l_buffer, targetrank, 0, s.l_win)
+    # TODO: using Buffers onlt works on master MPI.jl
+    #b_buffer = MPI.Buffer(buf, len, s.DT_b)
+    MPI.Put(buf, targetrank, s.b_win)
+    #l_buffer = MPI.Buffer([len,], 1, s.DT_l)
+    MPI.Put([len], targetrank, s.l_win)
 end
 @inline function put(buf::Vector{T}, targetrank, s::MPIOneSided{T}) where T
     len = length(buf)
@@ -153,7 +152,7 @@ function Rimu.sort_into_targets!(target, source, s::MPIOneSided{P}) where P
             lens[tr] +=1
             bufs[tr][lens[tr]] = key => val
         else # tr == s.id
-            target[key] += val # local: just copy to target
+            deposit!(target, key, val, nothing)
         end
     end
     # send data with RMA communications to higher rank by `offset`
@@ -172,7 +171,7 @@ function Rimu.sort_into_targets!(target, source, s::MPIOneSided{P}) where P
         fence(s)
         # println("jumped the fence on $(s.id)")
         for (key, val) in sbuffer(s)
-            target[key] += val
+            deposit!(target, key, val, nothing)
         end
     end
     fence(s)

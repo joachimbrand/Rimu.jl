@@ -74,12 +74,14 @@ Distribute the entries of `source` to the `target` data structure such that all
 entries in the `target` dictionaries are on the process with the correct rank
 as controlled by [`targetrank()`](@ref). Combine `stats` if appropriate.
 MPI syncronizing.
+
+Note: the [`storage`](@ref) of the `source` is communicated rather than the `source` itself.
 """
 function Rimu.sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
     ltarget = localpart(dtarget)
     empty!(ltarget) # start with empty slate
     strategy = dtarget.s
-    sort_into_targets!(ltarget, source, strategy)
+    sort_into_targets!(ltarget, storage(source), strategy)
 end
 
 # This function is just a wrapper that makes allreduce treat a SVector as a scalar

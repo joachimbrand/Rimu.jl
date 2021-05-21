@@ -64,10 +64,8 @@ function receive!(target, s::MPIPointToPoint{P}, id) where P
     resize!(recvbuff(s), count)
     rb = recvbuff(s)
     MPI.Recv!(MPI.Buffer(rb, length(rb), s.datatype), id, 0, s.comm)
-    dict = storage(target)
     for (key, val) in recvbuff(s)
-        prev_val = get(dict, key, zero(valtype(dict)))
-        dict[key] = prev_val + val
+        deposit!(target, key, val, nothing)
     end
     return target
 end
@@ -91,7 +89,7 @@ function Rimu.sort_into_targets!(target, source, s::MPIPointToPoint{<:Any,N}) wh
     for (key, val) in pairs(source)
         tr = targetrank(key, s.np)
         if tr == s.id
-            target[key] += val
+            deposit!(target, key, val, nothing)
         else
             push!(sendbuff(s, tr), key => val)
         end

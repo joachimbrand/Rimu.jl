@@ -252,3 +252,9 @@ function deposit!(w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)) where {V}
     end
     w.storage[add] = get(w.storage, add, zero(InitiatorValue{V})) + new_val
 end
+
+function deposit!(w::InitiatorDVec{<:Any,V}, add, val::InitiatorValue{V}, _) where {V}
+    dict = storage(w)
+    prev_val = get(dict, add, zero(valtype(dict)))
+    dict[add] = prev_val + val
+end

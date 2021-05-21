@@ -6,10 +6,11 @@ Declare `data` as mpi-distributed and set communication strategy to all-to-all.
 Sets up the [`MPIData`](@ref) structure with [`MPIAllToAll`](@ref) strategy.
 """
 function mpi_all_to_all(data, comm = mpi_comm(), root = mpi_root)
+    @warn "mpi_all_to_all appears to be buggy."
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
-    s = MPIAllToAll(eltype(data), np, id, comm)
+    s = MPIAllToAll(eltype(storage(data)), np, id, comm)
     return MPIData(data, comm, root, s)
 end
 
@@ -167,7 +168,7 @@ function Rimu.sort_into_targets!(target, source, s::MPIAllToAll)
     MPI.Alltoallv!(s.sendbuffer, s.recvbuffer, s.comm)
 
     for (k, v) in s.recvbuffer.data
-        target[k] += v
+        deposit!(target, k, v, nothing)
     end
     return target
 end

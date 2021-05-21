@@ -12,6 +12,7 @@ Keyword arguments:
   * [`mpi_no_exchange`](@ref) sets [`MPINoWalkerExchange`](@ref) strategy. Experimental. Use with caution!
 * `comm = mpi_comm()`
 * `root = mpi_root`
+* The rest of the keyword arguments are passed to `setup`.
 """
 struct MPIData{D,S}
     data::D # local data, e.g. a DVec
@@ -25,8 +26,8 @@ struct MPIData{D,S}
     end
 end
 # convenient constructor with setup function
-function MPIData(data; setup=mpi_point_to_point, comm=mpi_comm(), root=mpi_root)
-    return setup(data, comm, root)
+function MPIData(data; setup=mpi_point_to_point, comm=mpi_comm(), root=mpi_root, kwargs...)
+    return setup(data, comm, root; kwargs...)
 end
 
 Base.valtype(md::MPIData{D,S}) where {D,S} = valtype(D)
