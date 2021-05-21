@@ -154,9 +154,9 @@ Base.similar(dvec::InitiatorDVec, args...; kwargs...) = empty(dvec, args...; kwa
 ###
 ### Show
 ###
-function Base.summary(io::IO, dvec::InitiatorDVec{K,V,S}) where {K,V,S}
+function Base.summary(io::IO, dvec::InitiatorDVec{K,V}) where {K,V}
     len = length(dvec)
-    print(io, "InitiatorDVec{$K,$V,$S} with $len entries")
+    print(io, "InitiatorDVec{$K,$V} with $len entries, style = $(dvec.style), initiator = $(dvec.initiator)")
 end
 
 ###
@@ -188,7 +188,7 @@ function Base.values(dvec::InitiatorDVec)
     end
 end
 function Base.get(dvec::InitiatorDVec, args...)
-    return(value(dvec.initiator, get(dvec.storage, args...)))
+    return value(dvec.initiator, get(dvec.storage, args...))
 end
 function Base.get!(dvec::InitiatorDVec{<:Any,V}, key, default) where {V}
     return(value(dvec.initiator, get!(dvec.storage, key, InitiatorValue{V}(safe=default))))

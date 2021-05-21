@@ -42,8 +42,9 @@ end
 """
     deposit!(w::AbstractDVec, add, val, parent::Pair)
 
-Put the `add => val` pair into `w`. `parent` contains the address, value pair from which the
-pair was created. [`InitiatorDVec`](@ref) can intercept this and add its own funcitonality.
+Add `val` into `w` at address `add`, taking into account initiator rules if applicable.
+`parent` contains the `address => value` pair from which the pair `add => val`
+was created. [`InitiatorDVec`](@ref) can intercept this and add its own functionality.
 """
 function deposit!(w, add, val, _)
     w[add] += convert(valtype(w), val)
