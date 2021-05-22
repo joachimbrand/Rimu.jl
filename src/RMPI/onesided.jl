@@ -137,7 +137,7 @@ function sbuffer(s::MPIOneSided) # safe version for reading shared buffer - retu
     return res
 end
 
-function Rimu.sort_into_targets!(target, source, s::MPIOneSided{P}) where P
+function mpi_combine_walkers!(target, source, s::MPIOneSided{P}) where P
     # now target is just a local data structure, e.g. DVec
     # allocate local buffers for sorting
     bufs = [Vector{P}(undef,length(source)) for i in 1:(s.np-1)] # type-stable

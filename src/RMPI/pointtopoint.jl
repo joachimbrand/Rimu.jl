@@ -82,7 +82,7 @@ function send!(s::MPIPointToPoint{<:Any,N}) where {N}
     end
 end
 
-function Rimu.sort_into_targets!(target, source, s::MPIPointToPoint{<:Any,N}) where {N}
+function mpi_combine_walkers!(target, source, s::MPIPointToPoint{<:Any,N}) where {N}
     foreach(empty!, s.buffers)
 
     # sort source into send buffers, put appropriate values into target.

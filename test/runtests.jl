@@ -360,6 +360,13 @@ using Rimu.RMPI: sort_and_count!
     @test ConsistentRNG.check_crng_independence(dv) ==
         mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)
 
+    # MPINoWalkerExchange
+    ham = HubbardReal1D(BoseFS((1,2,3)))
+    dv = DVec(starting_address(ham)=>10; style=IsDynamicSemistochastic())
+    v = MPIData(dv, setup=RMPI.mpi_no_exchange)
+    df, state = lomc!(ham,v)
+    @test size(df) == (100, 11)
+
     @testset "sort_and_count!" begin
         for l in (1, 2, 30, 1000)
             for k in (2, 10, 100)
