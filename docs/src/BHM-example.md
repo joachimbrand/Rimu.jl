@@ -150,7 +150,7 @@ qmcdata = last(df,steps_measure)
 using Rimu.StatsTools
 ```
 
-For the shift it's easy `mean_and_se` from `Rimu.StatsTools`
+For the shift, it's easy to use `mean_and_se` from `Rimu.StatsTools`
 
 ```@example BHM-example
 (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)

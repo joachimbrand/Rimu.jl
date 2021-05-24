@@ -83,7 +83,7 @@ save_df("fciqmcdata.arrow", df)
 # Loading the equilibrated data:
 qmcdata = last(df,steps_measure)
 using Rimu.StatsTools
-# For the shift it's easy `mean_and_se` from `Rimu.StatsTools`
+# For the shift, it's easy to use `mean_and_se` from `Rimu.StatsTools`
 (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
 # For the projected energy, it a bit more complicated as it's a ratio of two means:
 r = ratio_of_means(qmcdata.hproj,qmcdata.vproj)
