@@ -68,6 +68,15 @@ jobs:
           else
               echo "$OUTPUT_FILE does not exist. Test should fail."
           fi
+          mpiexecjl -n 2 julia --project=@. test/script_mpi_minimum_ata.jl
+          OUTPUT_FILE=mpi_df_ata.arrow
+          if [ -f "$OUTPUT_FILE" ]; then
+              echo "$OUTPUT_FILE exists."
+          elif [ -f "test/$OUTPUT_FILE" ]; then
+              echo "$OUTPUT_FILE exists under /test/."
+          else
+              echo "$OUTPUT_FILE does not exist. Test should fail."
+          fi
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
 
       - uses: julia-actions/julia-processcoverage@latest

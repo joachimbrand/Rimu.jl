@@ -418,7 +418,7 @@ end
     run(`which $mpiexec`)
 
     if is_local
-        flavours = ["os", "ptp"]
+        flavours = ["os", "ptp", "ata"]
         for f in flavours
             savefile = joinpath(@__DIR__,"mpi_df_$f.arrow")
 
