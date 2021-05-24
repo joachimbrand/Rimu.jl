@@ -151,7 +151,7 @@ end
     p = RunTillLastStep(laststep = steps_equi+steps_meas)
     r_strat = EveryTimeStep(projector = copy(v))
     s_strat = DoubleLogUpdate(targetwalkers=10)
-    seedCRNG!(17)
+    seedCRNG!(173)
     @time df = lomc!(ham, v; params=p, r_strat, s_strat).df
     bs = blocking_analysis(df.shift[steps_equi+1:end])
     pcb = bs.mean - exact_energy

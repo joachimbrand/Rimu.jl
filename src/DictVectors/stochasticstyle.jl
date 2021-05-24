@@ -7,6 +7,14 @@ numbers and threshold (with [`IsStochasticWithThreshold`](@ref)).
 
 When defining a new `StochasticStyle`, subtype it as `MyStyle<:StochasticStyle{T}` where `T`
 is the concrete value type the style is designed to work with.
+
+For it to work with FCIQMC, a `StochasticStyle` must define the following:
+
+* [`fciqmc_col!(::StochasticStyle, w, H, address, value, shift, dτ)`](@ref)
+* [`step_stats(::StochasticStyle)`](@ref)
+
+Optionally, it can also define [`update_dvec!`](@ref), which can be used to perform arbitrary
+transformations on the `dvec` after the spawning step is complete.
 """
 abstract type StochasticStyle{T} end
 
@@ -23,22 +31,23 @@ struct StyleUnknown{T} <: StochasticStyle{T} end
 
 """
     IsStochasticInteger() <: StochasticStyle
-Trait for generalised vector of configurations indicating stochastic
-propagation as seen in the original FCIQMC algorithm.
+Trait for generalised vector of configurations indicating stochastic propagation as seen in
+the original FCIQMC algorithm.
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsStochasticInteger <: StochasticStyle{Int} end
+struct IsStochasticInteger{T<:Integer} <: StochasticStyle{T} end
+IsStochasticInteger() = IsStochasticInteger{Int}()
 
 """
     IsStochastic2Pop() <: StochasticStyle
-Trait for generalised vector of configurations indicating stochastic
-propagation with complex walker numbers representing two populations of integer
-walkers.
+Trait for generalised vector of configurations indicating stochastic propagation with
+complex walker numbers representing two populations of integer walkers.
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsStochastic2Pop <: StochasticStyle{Complex{Int}} end
+struct IsStochastic2Pop{T<:Complex{<:Integer}} <: StochasticStyle{T} end
+IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 
 """
     IsDeterministic() <: StochasticStyle
@@ -46,10 +55,11 @@ Trait for generalised vector of configuration indicating deterministic propagati
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsDeterministic <: StochasticStyle{Float64} end
+struct IsDeterministic{T<:AbstractFloat} <: StochasticStyle{T} end
+IsDeterministic() = IsDeterministic{Float64}()
 
 """
-    IsStochasticWithThreshold(threshold::Float64) <: StochasticStyle
+    IsStochasticWithThreshold(threshold=1.0) <: StochasticStyle
 Trait for generalised vector of configurations indicating stochastic
 propagation with real walker numbers and cutoff `threshold`.
 
@@ -58,9 +68,10 @@ stochastically projected to either zero or `threshold`.
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsStochasticWithThreshold <: StochasticStyle{Float64}
-    threshold::Float64
+struct IsStochasticWithThreshold{T<:AbstractFloat} <: StochasticStyle{T}
+    threshold::T
 end
+IsStochasticWithThreshold(t=1.0) = IsStochasticWithThreshold{Float64}(Float64(t))
 
 """
     IsDynamicSemistochastic(rel_threshold=1, abs_threshold=Inf, proj_threshold=1) <: StochasticStyle
@@ -68,7 +79,10 @@ end
 Similar to [`IsStochasticWithThreshold`](@ref), but does exact spawning when the number of
 walkers in a configuration is high.
 
-Parameters:
+Unlike with [`IsStochasticWithThreshold`](@ref), when `late_projection` is set to `true`,
+walker annihilation is done before the stochastic projection.
+
+## Parameters:
 
 * `late_projection = true`: If set to true, threshold projection is done after all spawns are
   collected, otherwise, values are projected as they are being spawned.
@@ -86,18 +100,19 @@ Parameters:
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsDynamicSemistochastic{P}<:StochasticStyle{Float64}
-    rel_threshold::Float64
-    abs_threshold::Float64
-    proj_threshold::Float64
+struct IsDynamicSemistochastic{T<:AbstractFloat,P}<:StochasticStyle{T}
+    rel_threshold::T
+    abs_threshold::T
+    proj_threshold::T
 end
-function IsDynamicSemistochastic(
+function IsDynamicSemistochastic{T}(
     ; late_projection::Bool=true, rel_threshold=1.0, abs_threshold=Inf, proj_threshold=1.0
-)
-    return IsDynamicSemistochastic{late_projection}(
-        Float64(rel_threshold), Float64(abs_threshold), Float64(proj_threshold)
+) where {T}
+    return IsDynamicSemistochastic{T,late_projection}(
+        T(rel_threshold), T(abs_threshold), T(proj_threshold)
     )
 end
+IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(kwargs...)
 
 # Defaults for arrays.
 StochasticStyle(::AbstractArray{AbstractFloat}) = IsDeterministic()
@@ -109,7 +124,7 @@ StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
 Pick a [`StochasticStyle`](@ref) based on the value type. Throws an error if no known default
 style is known.
 """
-default_style(::Type{<:Integer}) = IsStochasticInteger()
-default_style(::Type{<:AbstractFloat}) = IsDeterministic()
-default_style(::Type{<:Complex{<:Integer}}) = IsStochastic2Pop()
+default_style(::Type{T}) where {T<:Integer} = IsStochasticInteger{T}()
+default_style(::Type{T}) where {T<:AbstractFloat} = IsDeterministic{T}()
+default_style(::Type{T}) where {T<:Complex{<:Integer}} = IsStochastic2Pop{T}()
 default_style(::Type{T}) where T = StyleUnknown{T}()

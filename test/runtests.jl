@@ -197,12 +197,12 @@ end
     v = [1,2,3]
     @test walkernumber(v) == norm(v,1)
     dvc= DVec(:a=>2-5im)
-    @test StochasticStyle(dvc) == DictVectors.IsStochastic2Pop()
+    @test StochasticStyle(dvc) isa DictVectors.IsStochastic2Pop
     @test walkernumber(dvc) == 2.0 + 5.0im
     Rimu.purge_negative_walkers!(dvc)
     @test walkernumber(dvc) == 2.0 + 0.0im
     dvi= DVec(:a=>Complex{Int32}(2-5im))
-    @test StochasticStyle(dvi) == DictVectors.IsStochastic2Pop()
+    @test StochasticStyle(dvi) isa DictVectors.IsStochastic2Pop
     dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
     @test walkernumber(dvr) ≈ norm(dvr,1)
 end

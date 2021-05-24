@@ -112,11 +112,10 @@ Deposit a vector `buf` into the MPI window `s` on rank `targetrank`. If
 @inline function put(buf::Vector{T}, len, targetrank, s::MPIOneSided{T}) where T
     @boundscheck len ≤ length(buf) && len ≤ s.capacity ||
         error("Not enough space left in buffer")
-    # TODO: using Buffers onlt works on master MPI.jl
-    #b_buffer = MPI.Buffer(buf, len, s.DT_b)
-    MPI.Put(buf, targetrank, s.b_win)
-    #l_buffer = MPI.Buffer([len,], 1, s.DT_l)
-    MPI.Put([len], targetrank, s.l_win)
+    b_buffer = MPI.Buffer(buf, len, s.DT_b)
+    MPI.Put(b_buffer, targetrank, s.b_win)
+    l_buffer = MPI.Buffer([len,], 1, s.DT_l)
+    MPI.Put(l_buffer, targetrank, s.l_win)
 end
 @inline function put(buf::Vector{T}, targetrank, s::MPIOneSided{T}) where T
     len = length(buf)

@@ -42,7 +42,7 @@ include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level
 include("update_dvec.jl")
-include("QMCState.jl")              # top level
+include("lomc.jl")                  # top level
 
 include("RMPI/RMPI.jl")
 

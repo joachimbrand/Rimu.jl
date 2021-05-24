@@ -9,17 +9,17 @@ FCIQMC algorithm.
 
 See also: [`AbstractDVec`](@ref).
 
-# Constructors
+## Constructors
 
-* `DVec(dict::AbstractDict[, style, capacity])`: create a `DVec` with `dict` for storage.
+* `DVec(dict::AbstractDict[; style, capacity])`: create a `DVec` with `dict` for storage.
   Note that the data may or may not be copied.
 
 * `DVec(args...[; style, capacity])`: `args...` are passed to the `Dict` constructor. The
   `Dict` is used for storage.
 
-* `DVec{K,V}([style, capacity])`: create an empty `DVec{K,V}`.
+* `DVec{K,V}([; style, capacity])`: create an empty `DVec{K,V}`.
 
-* `DVec(dv::AbstractDVec[, style, capacity])`: create a `DVec` with the same contents as
+* `DVec(dv::AbstractDVec[; style, capacity])`: create a `DVec` with the same contents as
    `adv`. The `style` is inherited from `dv` by default.
 
 The default `style` is selected based on the `DVec`'s `valtype` (see
@@ -28,17 +28,17 @@ The default `style` is selected based on the `DVec`'s `valtype` (see
 
 The capacity argument is optional and sets the initial size of the `DVec` via `sizehint!`.
 
-# Examples
+## Examples
 
 ```jldoctest
 julia> dv = DVec(:a => 1)
-DVec{Symbol,Int64,IsStochasticInteger} with 1 entries
+DVec{Symbol,Int64} with 1 entries, style = IsStochasticInteger{Int64}()
   :a => 1
 
 julia> dv = DVec(:a => 2, :b => 3; style=IsDynamicSemistochastic())
-DVec{Symbol,Float32,IsDynamicSemistochastic{true}} with 2 entries
-  :a => 2.0f0
-  :b => 3.0f0
+DVec{Symbol,Float32} with 2 entries, style = IsDynamicSemistochastic{Float64, true}(1.0, Inf, 1.0)
+  :a => 2.0
+  :b => 3.0
 ```
 """
 struct DVec{K,V,S<:StochasticStyle{V},D<:AbstractDict{K,V}} <: AbstractDVec{K,V}
@@ -49,36 +49,24 @@ end
 ###
 ### Constructors
 ###
-function DVec(args::Vararg{Pair{K,V}}; style=default_style(V), capacity=0) where {K,V}
-    dict = Dict{K,V}()
-    sizehint!(dict, max(length(args), capacity))
-    for (k, v) in args
-        dict[k] = convert(eltype(style), v)
-    end
-    return DVec(dict; style)
+# Vararg
+function DVec(args...; kwargs...)
+    storage = Dict(args...)
+    return DVec(storage; kwargs...)
 end
 # In this constructor, the style matches the dict's valtype.
 function DVec(
     dict::AbstractDict{K,V}; style::StochasticStyle{V}=default_style(V), capacity=0
 ) where {K,V}
     capacity > 0 && sizehint!(dict, capacity)
-    return DVec{K,V,typeof(style),typeof(dict)}(dict, style)
+    return DVec(dict, style)
 end
 # In this constructor, the dict has to be converted to the appropriate valtype.
 function DVec(
     dict::Dict{K}; style::StochasticStyle{V}=default_style(valtype(dict)), capacity=0
 ) where {K,V}
-    dict = convert(Dict{K,V}, dict)
-    return DVec{K,V,typeof(style),typeof(dict)}(dict, style)
-end
-# Constructor from arbitrary iterator
-function DVec(itr; style=nothing, capacity=0)
-    dict = Dict(itr)
-    if isnothing(style)
-        return DVec(dict; capacity)
-    else
-        return DVec(dict; style, capacity)
-    end
+    storage = convert(Dict{K,V}, dict)
+    return DVec(storage, style)
 end
 # Empty constructor.
 function DVec{K,V}(; style::StochasticStyle=default_style(V), capacity=0) where {K,V}
@@ -99,8 +87,6 @@ end
 function Base.empty(dvec::DVec, ::Type{K}, ::Type{V}) where {K,V}
     return DVec{K,V}()
 end
-
-Base.similar(dvec::DVec, args...; kwargs...) = empty(dvec, args...; kwargs...)
 
 ###
 ### Show

@@ -95,11 +95,11 @@ using Statistics
         add = BoseFS{5,5}((1,1,1,1,1))
         H = HubbardReal1D(add; u=0.5)
         # Using Deterministic to get exact same result
-        dv = DVec(add => 1, style=IsDeterministic())
+        dv = DVec(add => 1.0, style=IsDeterministic())
 
         # Run lomc!, then change laststep and continue.
         df, state = lomc!(H, copy(dv); threading=false)
-        state.replicas[1].params.laststep = 200
+        state.laststep = 200
         df1 = lomc!(state, df).df
 
         # Run lomc! with laststep already set.

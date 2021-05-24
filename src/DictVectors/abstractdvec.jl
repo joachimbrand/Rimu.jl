@@ -21,7 +21,6 @@ The interface is similar to the `AbstractDict` interface.
 
 Implement what would be needed for the `AbstractDict` interface (`pairs`, `keys`, `values`,
 `setindex!, getindex, delete!, length, haskey, empty!, isempty`) and, in addition:
-* `similar(dv [,ValType])`
 * [`StochasticStyle`](@ref)
 * [`storage(dv)`](@ref) returns an `AbstractDict` storing the raw data with possibly
   different `valtype` than `V`.
@@ -86,6 +85,10 @@ zero!(v::AbstractDVec) = empty!(v)
 zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
 
 Base.zero(dv::AbstractDVec) = empty(dv)
+
+function Base.similar(dvec::AbstractDVec, args...; kwargs...)
+    return sizehint!(empty(dvec, args...; kwargs...), length(dvec))
+end
 
 @inline function Base.copyto!(w::AbstractDVec, v)
     sizehint!(w, length(v))

@@ -200,9 +200,9 @@ function test_dvec_interface(type, keys, vals, cap)
     end
 
     @testset "StochasticStyle" begin
-        @test StochasticStyle(type(:a => 1)) == IsStochasticInteger()
-        @test StochasticStyle(type(:a => 1.5; capacity=5)) == IsDeterministic()
-        @test StochasticStyle(type(:a => 1 + 2im; capacity=5)) == IsStochastic2Pop()
+        @test StochasticStyle(type(:a => 1)) isa IsStochasticInteger{Int}
+        @test StochasticStyle(type(:a => 1.5; capacity=5)) isa IsDeterministic
+        @test StochasticStyle(type(:a => 1 + 2im; capacity=5)) isa IsStochastic2Pop
         @test StochasticStyle(type(:a => SA[1 1; 1 1]; capacity=5)) isa StyleUnknown
     end
 end
@@ -220,8 +220,8 @@ end
 
     @testset "Stochastic styles convert eltype" begin
         dvec1 = DVec(:a => 0f0)
-        @test valtype(dvec1) === Float64
-        @test StochasticStyle(dvec1) == IsDeterministic() # Should be DynamicSemistochastic
+        @test valtype(dvec1) === Float32
+        @test StochasticStyle(dvec1) == IsDeterministic{Float32}()
 
         dvec2 = DVec(:a => 1, style=IsDynamicSemistochastic())
         @test dvec2[:a] isa Float64
@@ -247,8 +247,8 @@ end
 
     @testset "Stochastic styles convert eltype" begin
         dvec1 = InitiatorDVec(:a => 0f0)
-        @test valtype(dvec1) === Float64
-        @test StochasticStyle(dvec1) == IsDeterministic() # Should be DynamicSemistochastic
+        @test valtype(dvec1) === Float32
+        @test StochasticStyle(dvec1) == IsDeterministic{Float32}()
 
         dvec2 = InitiatorDVec(:a => 1, style=IsDynamicSemistochastic())
         @test dvec2[:a] isa Float64

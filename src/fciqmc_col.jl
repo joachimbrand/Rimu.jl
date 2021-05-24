@@ -1,5 +1,13 @@
 # third level: `fciqmc_col!()`
 
+"""
+    step_stats(::StochasticStyle)
+
+Return a tuple of names (`Symbol` or `String`) and a zeros of values of the same length.
+These will be reported as columns in the `DataFrame` returned by [`lomc!`](@ref).
+"""
+step_stats(::StochasticStyle)
+
 step_stats(v, n) = step_stats(StochasticStyle(v), n)
 function step_stats(s::StochasticStyle, ::Val{N}) where N
     if N == 1
@@ -48,12 +56,11 @@ function step_stats(::IsDeterministic)
     return (:exact_steps,), SVector(0,)
 end
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
-    # diagonal without Hamiltonian contribution
-    for i in axes(ham, 1)
+    for i in axes(ham, 1) # iterate through off-diagonal rows of `ham`
         i == add && continue
         deposit!(w, i, -dτ * ham[i, add] * num, add => num)
     end
-    deposit!(w, add, (1 + dτ * (shift - ham[add, add])) * num, add => num)
+    deposit!(w, add, (1 + dτ * (shift - ham[add, add])) * num, add => num) # diagonal
     return (1,)
 end
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractHamiltonian, add, num, shift, dτ)
@@ -318,7 +325,7 @@ end
 This function performs threshold projection before spawning, but only for
 `IsDynamicSemistochastic` with the `project_later` parameter set to `false`.
 """
-function threshold_projected_deposit!(s::IsDynamicSemistochastic{false}, w, add, val, p)
+function threshold_projected_deposit!(s::IsDynamicSemistochastic{<:Any,false}, w, add, val, p)
     threshold = s.proj_threshold
     absval = abs(val)
     if absval < threshold
@@ -330,7 +337,7 @@ function threshold_projected_deposit!(s::IsDynamicSemistochastic{false}, w, add,
     end
     return nothing
 end
-function threshold_projected_deposit!(::IsDynamicSemistochastic{true}, w, add, val, p)
+function threshold_projected_deposit!(::IsDynamicSemistochastic{<:Any,true}, w, add, val, p)
     deposit!(w, add, val, p)
 end
 
@@ -354,18 +361,18 @@ function fciqmc_col!(
         factor = dτ * val
         for (new_add, mat_elem) in hops
             threshold_projected_deposit!(s, w, new_add, -factor * mat_elem, add => val)
-            spawns += 1
         end
+        spawns = length(hops)
         return (1, 0, spawns)
     else
         remainder = absval % 1
         hasrem = !iszero(remainder)
-        for i in 1:ceil(Int, absval)
+        spawns = ceil(Int, absval)
+        for i in 1:spawns
             new_add, gen_prob, mat_elem = random_offdiagonal(hops)
             rem_factor = ifelse(i == 1 & hasrem, remainder, 1.0)
             new_val = sign(val) * rem_factor * dτ * mat_elem / gen_prob
             threshold_projected_deposit!(s, w, new_add, -new_val, add => val)
-            spawns += 1
         end
 
         return (0, 1, spawns)

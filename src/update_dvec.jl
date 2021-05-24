@@ -10,10 +10,19 @@ function threshold_project!(v, threshold)
     return v
 end
 
-update_dvec!(v, shift) = update_dvec!(StochasticStyle(v), v, shift)
-update_dvec!(::StochasticStyle, v, _) = v, NamedTuple()
+"""
+    update_dvec!(::StochasticStyle, `dvec`)
 
-function update_dvec!(s::IsDynamicSemistochastic{true}, v, _)
+Perform an arbitrary transformation on `dvec` after the spawning step is completed and
+report statistics to the `DataFrame`.
+
+Should return the new `dvec` and a `NamedTuple` of statistics to be reported.
+"""
+update_dvec!(::StochasticStyle, v) = v, NamedTuple()
+
+update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
+
+function update_dvec!(s::IsDynamicSemistochastic{<:Any,true}, v)
     len_before = length(v)
     return threshold_project!(v, s.proj_threshold), (; len_before)
 end

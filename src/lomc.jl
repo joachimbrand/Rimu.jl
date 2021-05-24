@@ -20,6 +20,10 @@ function ReplicaState(v, w, params, id="")
     return ReplicaState(v, w, walkernumber(v), params, id)
 end
 
+function Base.show(io::IO, r::ReplicaState)
+    print(io, "ReplicaState(v::", nameof(typeof(r.v)), ", w::", nameof(typeof(r.w)), ")")
+end
+
 """
     QMCState
 
@@ -98,6 +102,35 @@ function QMCState(
     )
 end
 
+# Allow setting step and laststep from QMCState.
+function Base.getproperty(state::QMCState, key::Symbol)
+    if key == :step
+        step = state.replicas[1].params.step
+        return step
+    elseif key == :laststep
+        laststep = state.replicas[1].params.laststep
+        return laststep
+    else
+        return getfield(state, key)
+    end
+end
+function Base.setproperty!(state::QMCState, key::Symbol, value)
+    if key == :step
+        for r in state.replicas
+            r.params.step = value
+        end
+        return value
+    elseif key == :laststep
+        for r in state.replicas
+            r.params.laststep = value
+        end
+        return value
+    else
+        # This will error
+        return setfield!(state, key, value)
+    end
+end
+
 function default_working_memory(threading, v, s_strat)
     if threading == :auto
         threading = max(real(s_strat.targetwalkers),imag(s_strat.targetwalkers)) ≥ 500
@@ -114,7 +147,12 @@ function Base.show(io::IO, st::QMCState)
     if length(st.replicas) > 1
         print(io, " with ", length(st.replicas), " replicas")
     end
-    println(io, "\n  H:    ", st.hamiltonian)
+    print(io, "\n  H:    ", st.hamiltonian)
+    print(io, "\n  step: ", st.step, " / ", st.laststep)
+    print(io, "\n  replicas: ")
+    for r in st.replicas
+        print(io, "\n  ⋅ ", r)
+    end
 end
 
 """
@@ -184,13 +222,14 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
     end
 
     # Sanity checks.
+    step, laststep = state.step, state.laststep
     for replica in state.replicas
         ConsistentRNG.check_crng_independence(replica.v)
+        @assert replica.params.step == step
+        @assert replica.params.laststep == laststep
     end
     # Get we will use the first replica's step to keep track of the step. Perhaps step should
     # be moved to QMCState?
-    first_replica = first(state.replicas)
-    step, laststep = first_replica.params.step, first_replica.params.laststep
     while step < laststep
         step += 1
         # This loop could be threaded if num_threads() == num_replicas? MPIData would need
@@ -241,7 +280,7 @@ function advance!(
     v, w, step_stats, stat_names, shift_noise = fciqmc_step!(
         hamiltonian, v, shift, dτ, pnorm, w, 1.0; m_strat
     )
-    v, update_stats = update_dvec!(v, shift)
+    v, update_stats = update_dvec!(v)
     tnorm = walkernumber(v)
     len = length(v)
 
