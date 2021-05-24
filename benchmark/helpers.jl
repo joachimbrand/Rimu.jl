@@ -1,3 +1,5 @@
+using Rimu
+
 """
     run_lomc(H, addr; n_steps, Ntw, dτ)
 
@@ -7,11 +9,11 @@ function run_lomc(H, addr; n_steps, Ntw, dτ)
     Nw_init = 10
     k = 1
 
-    c = DVec2(Dict(addr => Nw_init), Ntw)
+    c = DVec(Dict(addr => Nw_init))
     params = RunTillLastStep(; step=0, dτ=dτ, laststep=n_steps)
     s_strat = DoubleLogUpdate(targetwalkers=Ntw, ζ=0.08)
     τ_strat = ConstantTimeStep()
-    r_strat = EveryTimeStep(; projector=copytight(c))
+    r_strat = EveryTimeStep(; projector=copy(c))
     Rimu.ConsistentRNG.seedCRNG!(17)
 
     return lomc!(

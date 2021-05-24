@@ -62,7 +62,7 @@ a projection of the instantaneous coefficient vector `projector⋅v` and
 reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
 respectively. Possible values for `projector` are
 * `nothing` - no projections are computed (default)
-* `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copytight`](@ref) to conserve memory)
+* `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copy`](@ref) to conserve memory)
 * [`UniformProjector()`](@ref) - projection onto vector of all ones (i.e. sum of elements)
 * [`NormProjector()`](@ref) - compute 1-norm (instead of projection)
 * [`Norm1ProjectorPPop()`](@ref) - compute 1-norm per population
@@ -78,7 +78,7 @@ accepts the following values (for `ReportingStrategy`s passed to `lomc!()`):
 
 # Examples
 ```julia
-r_strat = EveryTimeStep(projector = copytight(svec))
+r_strat = EveryTimeStep(projector = copy(svec))
 ```
 Record the projected energy components `df.vproj = svec⋅v` and
 `df.hproj = dot(svec,ham,v)` with respect to
@@ -144,39 +144,30 @@ Compute the projection of `r.projector⋅v` and `r.hproj⋅v` or
 `r.projector⋅ham*v` according to
 the [`ReportingStrategy`](@ref) `r`.
 """
-function compute_proj_observables(v, ham, ::RS) where
-                        {P1 <: Nothing, P2 <: Nothing,
-                         RS<:ReportingStrategy{P1,P2}}
-    return missing, missing # nothing to do
+function compute_proj_observables(v, ham, ::ReportingStrategy{Nothing,Nothing})
+    return (;)
 end
 
 # catch an error
-function compute_proj_observables(v, ham, ::RS) where
-                        {P1, P2 <: Symbol,
-                         RS<:ReportingStrategy{P1,P2}}
-    throw(ErrorException("`Symbol` is not a valid type for `hproj`. Use `refine_r_strat()`!"))
-    return missing, missing
+function compute_proj_observables(v, ham, ::ReportingStrategy{<:Any,Symbol})
+    error("`Symbol` is not a valid type for `hproj`. Use `refine_r_strat`!")
 end
 
 #  single projector, e.g. for norm calculation
-function compute_proj_observables(v, ham, r::RS) where
-                        {P1, P2 <: Nothing,
-                         RS<:ReportingStrategy{P1,P2}}
-    return r.projector⋅v, missing
+function compute_proj_observables(v, ham, r::ReportingStrategy{<:Any,Nothing})
+    return (; vproj=r.projector⋅v)
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
 # (slow) generic version with single projector, e.g. for computing projected energy
-function compute_proj_observables(v, ham, r::RS) where
-                        {P1, P2 <: Missing,
-                         RS<:ReportingStrategy{P1,P2}}
-    return r.projector⋅v, dot(r.projector, ham, v)
+function compute_proj_observables(v, ham, r::ReportingStrategy{<:Any,Missing})
+    return (; vproj=r.projector⋅v, hproj=dot(r.projector, ham, v))
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
 # fast version with 2 projectors, e.g. for computing projected energy
 function compute_proj_observables(v, ham, r::ReportingStrategy)
-    return r.projector⋅v, r.hproj⋅v
+    return (; vproj=r.projector⋅v, hproj=r.hproj⋅v)
 end
 # The dot products work across MPI when `v::MPIData`; MPI sync
 
@@ -187,30 +178,45 @@ end
 #     return r.projector⋅v, missing
 # end
 # # The dot products work across MPI when `v::MPIData`; MPI sync
-
 """
-    report!(df::DataFrame, t::Tuple, s<:ReportingStrategy)
-Record results in `df` and write informational messages according to strategy
-`s`. See [`ReportingStrategy`](@ref).
-"""
-report!(df::DataFrame,t::Tuple,s::EveryTimeStep) = push!(df,t)
-# report!(df::DataFrame,t::Tuple,s::Union{EveryTimeStep, ReportPEnergy}) = push!(df,t)
+     report!(::ReportingStrategy, step, report::Report, args...)
 
-function report!(df::DataFrame,t::Tuple,s::EveryKthStep)
-    step = t[1]
-    step % s.k == 0 && push!(df,t) # only push to df if step is multiple of s.k
-    return df
+Write values from `args...` to `report` that will be converted to a `DataFrame` later.
+`args...` can be:
+
+* a name and a value.
+* a tuple of names followed by a tuple of values.
+* a named tuple.
+"""
+function report!(::EveryTimeStep, args...)
+    report!(args...)
+    return nothing
+end
+function report!(s::EveryKthStep, step, args...)
+    step % s.k == 0 && report!(step, args...)
+    return nothing
+end
+function report!(s::ReportDFAndInfo, step, args...)
+    step % s.k == 0 && report!(step, args...)
+    return nothing
 end
 
-function report!(df::DataFrame,t::Tuple,s::ReportDFAndInfo)
-    step = t[1]
-    step % s.k == 0 && push!(df,t) # only push to df if step is multiple of s.k
+"""
+    print_report(::ReportingStrategy, step, report, state)
+
+This function is called at the very end of a step. It can let the `ReportingStrategy`
+print some info to output.
+"""
+function print_report(::ReportingStrategy, args...)
+    return nothing
+end
+function print_report(s::ReportDFAndInfo, step, args...)
     if s.writeinfo && step % s.i == 0
         println(s.io, "Step ", step)
         flush(s.io)
     end
-    return df
 end
+
 
 """
 Abstract type for strategies for updating the time step with
@@ -814,99 +820,3 @@ end
 end
 
 @inline update_shift(::DontUpdate, shift, tnorm, args...) = (shift, false, tnorm)
-
-# """
-#     tnorm = apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ)
-# Apply memory noise to `v` according to the shift update strategy `s_strat`
-# returning the updated norm.
-# If the strategy does not require updating the norm, it does nothing and returns
-# `tnorm`.
-# """
-# apply_memory_noise!(v, w, s_strat, pnorm, tnorm, shift, dτ) = tnorm
-#
-# # maybe it would be better to apply this before projecting to threshold
-# function apply_memory_noise!(v, w, s_strat::DoubleLogUpdateMemoryNoise,
-#                              pnorm, tnorm, shift, dτ)
-#     if StochasticStyle(v) ∉ [IsStochasticWithThreshold, IsSemistochastic]
-#         @error "Memory noise not defined for $(StochasticStyle(v)). Use `IsStochasticWithThreshold` or `IsSemistochastic` instead."
-#     end
-#     @unpack noisebuffer = s_strat # extract noisebuffer from shift strategy
-#     r̃ = (pnorm - tnorm)/(dτ*pnorm) + shift # instantaneous noisy correction
-#     push!(noisebuffer, r̃) # add to noisebuffer
-#     r_noise = r̃ - sum(noisebuffer)/length(noisebuffer) # subtract Δ average
-#     lv = localpart(v)
-#     for (add, val) in kvpairs(w)
-#         c̃ = lv[add]
-#         c = c̃ + dτ*r_noise*val
-#         if sign(c̃) == sign(c)
-#             lv[add] = c
-#             # !!! Careful! This could lead to a sign change!!!!
-#         end
-#     end
-#     return norm(v, 1) # MPI sycncronising: total number of psips
-# end
-
-"""
-Abstract type for defining the strategy of projection for fciqmc with
-floating point walker number with [`norm_project`](@ref).
-Implemented strategies:
-
-   * [`NoProjection`](@ref)
-   * [`NoProjectionTwoNorm`](@ref)
-   * [`ThresholdProject`](@ref)
-   * [`ScaledThresholdProject`](@ref)
-"""
-abstract type ProjectStrategy end
-
-"Do not project the walker amplitudes. See [`norm_project`](@ref)."
-struct NoProjection <: ProjectStrategy end
-
-"""
-    NoProjectionAccumulator(accumulator::AbstractDVec)  <: ProjectStrategy
-Do not project the walker amplitudes. Maintain a running sum of the coefficient vector
-at each time step in `accumulator`. Take care as accumulator may overflow!
-See [`norm_project`](@ref).
-"""
-struct NoProjectionAccumulator{DV} <: ProjectStrategy
-    accu::DV
-    NoProjectionAccumulator(dv::DV) where (DV<:AbstractDVec) = new{DV}(dv)
-end
-
-"""
-Do not project the walker amplitudes. Use two-norm to
-calculate walker numbers. This affects reported "norm" but also the shift update procedures.
-See [`norm_project`](@ref).
-"""
-struct NoProjectionTwoNorm <: ProjectStrategy end
-
-
-@with_kw struct ThresholdProject <: ProjectStrategy
-    threshold::Float32 = 1.0f0
-end
-@doc """
-    ThresholdProject(threshold = 1.0) <: ProjectStrategy
-Project stochastically for walker amplitudes below `threshold`.
-See [`norm_project`](@ref).
-""" ThresholdProject
-
-
-@with_kw struct ScaledThresholdProject <: ProjectStrategy
-    threshold::Float32 = 1.0f0
-end
-@doc """
-    ScaledThresholdProject(threshold = 1.0) <: ProjectStrategy
-Project stochastically for walker amplitudes below `threshold` and scale
-configuration array as to keep the norm constant. As a consequence, the
-final configuration amplitudes may be smaller than `threshold`.
-See [`norm_project`](@ref).
-""" ScaledThresholdProject
-
-@with_kw struct ComplexNoiseCancellation <: ProjectStrategy
-    κ::Float32 = 1.0f0
-end
-@doc """
-    ComplexNoiseCancellation(κ = 1.0) <: ProjectStrategy
-Use complex noise cancellation strategy with imaginary noise injected at
-level `κ`.
-See [`norm_project`](@ref).
-""" ComplexNoiseCancellation

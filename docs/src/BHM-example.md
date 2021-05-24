@@ -5,13 +5,10 @@ a 1D Bose-Hubbard chain with 6 particles in 6 lattice site.
 The Julia run-able script is in [`scripts/BHM-example.jl`](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example.jl).
 
 Firstly, we load all needed modules.
-`Rimu` for FCIQMC calculation (obviously);
-[`Feather`](https://github.com/JuliaData/Feather.jl) for saving output data in a `DataFrame` using [`DataFrames`](https://github.com/JuliaData/DataFrames.jl):
+`Rimu` for FCIQMC calculation;
 
 ```@example BHM-example
 using Rimu
-using Feather
-using DataFrames
 ```
 
 Now we define the physical problem:
@@ -28,12 +25,13 @@ Generating a configuration that particles are evenly distributed:
 aIni = nearUniform(BoseFS{n,m})
 ```
 
+where `BoseFS` is used to create a bosonic system.
 The Hamiltonian is defined based on the configuration `aIni`,
 with additional onsite interaction strength `u = 6.0`
 and the hopping strength `t = 1.0`:
 
 ```@example BHM-example
-Ĥ = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+Ĥ = HubbardReal1D(aIni; u = 6.0, t = 1.0)
 ```
 
 Now let's setup the Monte Carlo settings.
@@ -78,11 +76,10 @@ Define the initial number of walkers per rank:
 nIni = 1
 ```
 
-Putting the `nIni` number of walkers into the initial address `aIni`,
-and set the DVec size to be targetwalkers*10:
+Putting the `nIni` number of walkers into the initial address `aIni`
 
 ```@example BHM-example
-svec = DVec(Dict(aIni => nIni), targetwalkers*10)
+svec = DVec(aIni => nIni)
 ```
 
 Let's plant a seed for the random number generator to get consistent result:
@@ -108,7 +105,7 @@ s_strat = DoubleLogUpdate(targetwalkers = targetwalkers, ζ = 0.08)
 Strategy for reporting info and setting projectors:
 
 ```@example BHM-example
-r_strat = ReportDFAndInfo(k = k, i = 100, projector = UniformProjector())
+r_strat = ReportDFAndInfo(k = k, i = 100, projector = copy(svec))
 ```
 
 Strategy for updating dτ:
@@ -130,29 +127,50 @@ println(t_strat)
 Finally, we can start the main FCIQMC loop:
 
 ```@example BHM-example
-r_strat = ReportDFAndInfo(k = k, projector = UniformProjector(), writeinfo = false) # hide
-df = lomc!(Ĥ,svec;
+df, state = lomc!(Ĥ,svec;
             params = params,
             laststep = steps_equilibrate + steps_measure,
             s_strat = s_strat,
             r_strat = r_strat,
-            τ_strat = t_strat)
+            τ_strat = t_strat);
 println("Writing data to disk...")
 ```
 
-Saving output data stored in `df.df` into a `.feather` file which can be read in later:
+Saving output data stored in `df` into a `.arrow` file which can be read in later:
 
 ```@example BHM-example
-Feather.write("fciqmcdata.feather", df.df)
+save_df("fciqmcdata.arrow", df)
 ```
 
-Now do some quick statistics:
+Now let's look at the calculated energy from the shift:
+Loading the equilibrated data:
 
 ```@example BHM-example
-(qmcShift,qmcShiftErr,qmcEnergy,qmcEnergyErr) = autoblock(df.df,start=steps_equilibrate)
+qmcdata = last(df,steps_measure)
+using Rimu.StatsTools
+```
+
+For the shift, it's easy to use `mean_and_se` from `Rimu.StatsTools`
+
+```@example BHM-example
+(qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
+```
+
+For the projected energy, it a bit more complicated as it's a ratio of two means:
+
+```@example BHM-example
+r = ratio_of_means(qmcdata.hproj,qmcdata.vproj)
+rwe = ratio_with_errs(r)
+```
+
+Here we use the 95% CI for the lower and upper error bars:
+
+```@example BHM-example
+(eProj,eProjErrLower,eProjErrUpper) = (rwe.ratio, rwe.err2_l, rwe.err2_u)
+
 println("Energy from $steps_measure steps with $targetwalkers walkers:
-Shift: $qmcShift ± $qmcShiftErr
-E_proj:$qmcEnergy ± $qmcEnergyErr")
+         Shift: $qmcShift ± $qmcShiftErr;
+         Projected Energy: $eProj ± ($eProjErrLower, $eProjErrUpper)")
 ```
 
 Finished !

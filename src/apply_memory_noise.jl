@@ -24,8 +24,8 @@ function apply_memory_noise!(w::Union{AbstractArray,AbstractDVec}, args...)
     apply_memory_noise!(StochasticStyle(w), w, args...)
 end
 
-function apply_memory_noise!(ws::NTuple{NT,W}, args...) where {NT,W}
-    apply_memory_noise!(StochasticStyle(W), ws, args...)
+function apply_memory_noise!(ws::NTuple, args...)
+    apply_memory_noise!(StochasticStyle(first(ws)), ws, args...)
 end
 
 function apply_memory_noise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::NoMemory)

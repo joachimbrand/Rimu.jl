@@ -10,8 +10,6 @@ using SplittablesBase, ThreadsX
 @reexport using Distributed
 import MPI, DataStructures
 
-include("FastBufs.jl")
-using .FastBufs
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
 include("BitStringAddresses/BitStringAddresses.jl")
@@ -21,12 +19,11 @@ include("ConsistentRNG.jl")
 include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("RimuIO.jl")
-using .RimuIO
+@reexport using .RimuIO
 
 export lomc!
-export fciqmc!, FciqmcRunStrategy, RunTillLastStep
+export FciqmcRunStrategy, RunTillLastStep
 export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
-export ProjectStrategy, NoProjection, NoProjectionTwoNorm, ThresholdProject, ScaledThresholdProject
 export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
 export DoubleLogUpdate, DelayedDoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
@@ -36,20 +33,20 @@ export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
-export RimuIO
 
+include("report.jl")
 include("strategies_and_params.jl") # type defs and helpers
 include("helpers.jl")               # non MPI-dependent helper functions
 include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level
-include("norm_project.jl")
+include("update_dvec.jl")
 include("lomc.jl")                  # top level
+
+include("RMPI/RMPI.jl")
 
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
-include("RMPI/RMPI.jl")
-# @reexport using .RMPI
 
 # analysis tools not reexported
 include("Blocking.jl")

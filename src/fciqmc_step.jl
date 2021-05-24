@@ -28,12 +28,12 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, w, m = 1.0;
     zero!(w) # clear working memory
     # call fciqmc_col!() on every entry of `v` and add the stats returned by
     # this function:
-    stats = allocate_statss(v, nothing)
+    stat_names, stats = step_stats(v, Val(1))
     for (k, v) in pairs(v)
         stats += SVector(fciqmc_col!(w, Ĥ, k, v, shift, dτ))
     end
     r = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
-    return (sort_into_targets!(dv, w, stats)... , r) # MPI syncronizing
+    return (sort_into_targets!(dv, w, stats)..., stat_names, r) # MPI syncronizing
     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 end # fciqmc_step!
 
@@ -51,23 +51,6 @@ end # fciqmc_step!
 #     # stats == [spawns, deaths, clones, antiparticles, annihilations]
 # end # fciqmc_step!
 
-# Provide allocation of `statss` array for multithreading as a separate function in order to
-# achive type stability.
-# `statss` is a Vector with `nt` slots, each collecting the `stats` returned
-# by `fciqmc_col`.
-# `nt` is the number of threads such that each thread can accummulate data
-# avoiding race conditions
-allocate_statss(v,nt) = allocate_statss(StochasticStyle(v), v, nt)
-allocate_statss(::StochasticStyle, v, nt) = [zeros(Int,5) for i=1:nt]
-function allocate_statss(::SS, v, nt) where SS <: DictVectors.IsStochastic2Pop
-    return [zeros(Complex{Int},5) for i=1:nt]
-end
-# Nothing signals no threading is used
-allocate_statss(::StochasticStyle, _, ::Nothing) = SVector(0, 0, 0, 0, 0)
-function allocate_statss(::SS, v, ::Nothing) where SS <: DictVectors.IsStochastic2Pop
-    return zeros(SVector{5,Complex{Int}})
-end
-
 # Below follow multiple implementations of `fciqmc_step!` using multithreading.
 # This is for testing purposes only and eventually all but one should be removed.
 # The active version is selected by dispatch on the 7th positional argument
@@ -82,16 +65,16 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W};
     # multithreaded version; should also work with MPI
     @assert NT == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
     v = localpart(dv)
-    statss = allocate_statss(v, NT) # [zeros(Int,5) for i=1:NT]
+    stat_names, stats = step_stats(v, Val(NT))
     # [zeros(valtype(v), 5), for i=1:NT] # pre-allocate array for stats
     zero!.(ws) # clear working memory
     @sync for btr in Iterators.partition(pairs(v), batchsize)
         Threads.@spawn for (add, num) in btr
-            statss[Threads.threadid()] .+= fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
+            stats[Threads.threadid()] .+= fciqmc_col!(ws[Threads.threadid()], Ĥ, add, num, shift, dτ)
         end
     end # all threads have returned; now running on single thread again
     r = apply_memory_noise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
-    return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
+    return (sort_into_targets!(dv, ws, stats)..., stat_names, r) # MPI syncronizing
 end # fciqmc_step!
 
 import SplittablesBase.halve, SplittablesBase.amount
@@ -103,8 +86,9 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
     ) where {NT,W}
     # multithreaded version; should also work with MPI
     @assert NT == nthreads() "`nthreads()` not matching dimension of `ws`"
+    @assert NT > 1 "attempted to run threaded code with one thread"
     v = localpart(dv)
-    statss = allocate_statss(v, NT)
+    stat_names, stats = step_stats(v, Val(NT))
 
     batchsize = max(100.0, min(amount(pairs(v))/NT, sqrt(amount(pairs(v)))*10))
 
@@ -120,8 +104,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
             # serial_loop_configs!(ps, ws[id], statss[id], trng())
             for (add, num) in ps
                 ss = fciqmc_col!(ws[threadid()], Ĥ, add, num, shift, dτ)
-                # @show threadid(), ss
-                statss[threadid()] .+= ss
+                stats[threadid()] += SVector(ss)
             end
         end
         return nothing
@@ -140,9 +123,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
     loop_configs!(pairs(v))
 
     r = apply_memory_noise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
-    return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
-    #
-    # return statss
+    return (sort_into_targets!(dv, ws, stats)... , stat_names, r) # MPI syncronizing
 end
 
 # using ThreadsX

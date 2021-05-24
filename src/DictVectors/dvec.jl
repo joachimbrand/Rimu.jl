@@ -1,113 +1,142 @@
 """
-    DVec{K,V}(capacity) <: AbstractDVec{K,V}
-    DVec(key => value; capacity)
-    DVec(args...; capacity)
-    DVec(d::Dict [, capacity])
-    DVec(v::Vector{V} [, capacity])
-Dictionary-based vector-like data structure with minimum capacity `capacity`
-for storing values with keys.
-The type of the values is `eltype(dv) == V`.
-Indexing is done with an
-arbitrary (in general non-integer) key with `keytype(dv) == K`.
-If the keyword argument `capacity` is passed then args are parsed as for `Dict`.
-When constructed from a `Vector`,
-the keys will be integers ∈ `[1, length(v)]`. See [`AbstractDVec`](@ref). The
-method [`capacity()`](@ref) is defined but not a strict upper limit as `Dict`
-objects can expand.
+    DVec{K,V,D<:AbstractDict{K,V},S}
+
+Dictionary-based vector-like data structure for use with FCIQMC and
+[KrylovKit](https://github.com/Jutho/KrylovKit.jl). While mostly behaving like a `Dict`, it
+supports various linear algebra operations such as `norm` and `dot`. It has a
+[`StochasticStyle`](@ref) that is used to select an appropriate spawning strategy in the
+FCIQMC algorithm.
+
+See also: [`AbstractDVec`](@ref).
+
+## Constructors
+
+* `DVec(dict::AbstractDict[; style, capacity])`: create a `DVec` with `dict` for storage.
+  Note that the data may or may not be copied.
+
+* `DVec(args...[; style, capacity])`: `args...` are passed to the `Dict` constructor. The
+  `Dict` is used for storage.
+
+* `DVec{K,V}([; style, capacity])`: create an empty `DVec{K,V}`.
+
+* `DVec(dv::AbstractDVec[; style, capacity])`: create a `DVec` with the same contents as
+   `adv`. The `style` is inherited from `dv` by default.
+
+The default `style` is selected based on the `DVec`'s `valtype` (see
+[`default_style`](@ref)). If a style is given and the `valtype` does not match the `style`'s
+`eltype`, the values are converted to an appropriate type.
+
+The capacity argument is optional and sets the initial size of the `DVec` via `sizehint!`.
+
+## Examples
+
+```jldoctest
+julia> dv = DVec(:a => 1)
+DVec{Symbol,Int64} with 1 entries, style = IsStochasticInteger{Int64}()
+  :a => 1
+
+julia> dv = DVec(:a => 2, :b => 3; style=IsDynamicSemistochastic())
+DVec{Symbol,Float32} with 2 entries, style = IsDynamicSemistochastic{Float64, true}(1.0, Inf, 1.0)
+  :a => 2.0
+  :b => 3.0
+```
 """
-struct DVec{A,T} <: AbstractDVec{A,T}
-    d::Dict{A,T}
-end
-# default constructor from `Dict` just wraps the dict, no copying or allocation:
-# dv = DVec(Dict(k => v, ...))
-
-# constructor like Dict with mandatory keyword capacity
-DVec(args...; capacity) = DVec(Dict(args...), capacity)
-
-function DVec(dict::D, capacity::Int) where D <: Dict
-    sizehint!(dict, capacity)
-    return DVec(dict)
+struct DVec{K,V,S<:StochasticStyle{V},D<:AbstractDict{K,V}} <: AbstractDVec{K,V}
+    storage::D
+    style::S
 end
 
-# by specifying keytype, eltype, and capacity
-DVec{K,V}(capacity::Int) where V where K = DVec(Dict{K,V}(), capacity)
-
-# from Vector
-function DVec(v::AbstractVector{T}, capacity = length(v)) where T
-    indices = 1:length(v) # will be keys of dictionary
-    ps = map(tuple,indices,v) # create iterator over pairs
-    return DVec(Dict(ps), capacity)
+###
+### Constructors
+###
+# Vararg
+function DVec(args...; kwargs...)
+    storage = Dict(args...)
+    return DVec(storage; kwargs...)
+end
+# In this constructor, the style matches the dict's valtype.
+function DVec(
+    dict::AbstractDict{K,V}; style::StochasticStyle{V}=default_style(V), capacity=0
+) where {K,V}
+    capacity > 0 && sizehint!(dict, capacity)
+    return DVec(dict, style)
+end
+# In this constructor, the dict has to be converted to the appropriate valtype.
+function DVec(
+    dict::Dict{K}; style::StochasticStyle{V}=default_style(valtype(dict)), capacity=0
+) where {K,V}
+    storage = convert(Dict{K,V}, dict)
+    return DVec(storage, style)
+end
+# Empty constructor.
+function DVec{K,V}(; style::StochasticStyle=default_style(V), capacity=0) where {K,V}
+    return DVec(Dict{K,V}(); style, capacity)
+end
+# From another DVec
+function DVec(dv::AbstractDVec{K,V}, style=StochasticStyle(dv), capacity=0) where {K,V}
+    dvec = DVec{K,V}(; style, capacity=max(capacity, length(dv)))
+    return copyto!(dvec, dv)
 end
 
-# from AbstractDict; note that a new dict is constructed and data is copied
-function DVec(d::AbstractDict{K,V},
-              capacity = length(d)) where K where V
-    dv = DVec{K,V}(capacity)
-    for (k,v) in d
-        dv[k] = v
-    end
-    return dv
+function Base.empty(dvec::DVec{K,V}) where {K,V}
+    return DVec{K,V}(; style=StochasticStyle(dvec))
+end
+function Base.empty(dvec::DVec{K}, ::Type{V}) where {K,V}
+    return DVec{K,V}()
+end
+function Base.empty(dvec::DVec, ::Type{K}, ::Type{V}) where {K,V}
+    return DVec{K,V}()
 end
 
-# from AbstractDVec
-function DVec(adv::AbstractDVec{K,V}, capacity = capacity(adv)) where K where V
-    dv = DVec{K,V}(capacity) # allocate new DVec
-    return copyto!(dv,adv) # generic for AbstractDVec
-end
-
-# the following also create and allocated new DVec objects
-Base.empty(dv::DVec{K,V}, c::Integer = capacity(dv) ) where {K,V} = DVec{K,V}(c)
-Base.empty(dv::DVec, ::Type{V}) where {V} = empty(dv,keytype(dv),V)
-Base.empty(dv::DVec, ::Type{K}, ::Type{V}) where {K,V} = DVec{K,V}(capacity(dv))
-Base.similar(dv::DVec, args...) = empty(dv, args...)
-
-function Base.summary(io::IO, dvec::DVec{K,V}) where {K,V}
-    cap = capacity(dvec)
+###
+### Show
+###
+function Base.summary(io::IO, dvec::DVec{K,V,S}) where {K,V,S}
     len = length(dvec)
-    print(io, "DVec{$K,$V} with $len entries, capacity $cap")
+    print(io, "DVec{$K,$V} with $len entries, style = $(dvec.style)")
 end
 
-capacity(dv::DVec, args...) = capacity(dv.d, args...)
+###
+### Interface
+###
+StochasticStyle(dv::DVec) = dv.style
+storage(dv::DVec) = dv.storage
 
-# getindex returns the default value without adding it to dict
-function Base.getindex(dv::DVec{K,V}, add) where {K,V}
-    get(dv.d, add, zero(V))
+function Base.getindex(dvec::DVec{<:Any,V}, add) where V
+    return get(dvec.storage, add, zero(V))
 end
-function Base.getindex(dv::DVec{K,Tuple{V,F}}, add) where {K,V<:Number,F}
-    get(dv.d, add, tuple(zero(V),zero(F)))
-end
-
-# iterator over pairs
-Base.pairs(dv::DVec) = dv.d # just return the contained dictionary
-
-# most functions are simply delegated to the wrapped dictionary
-@delegate DVec.d [get, get!, haskey, getkey, pop!, isempty, length, values, keys]
-
-# Some functions are delegated, but then need to return the main dictionary
-# NOTE: push! is not included below, because the fallback version just
-#       calls setindex!
-@delegate_return_parent DVec.d [ delete!, empty!, sizehint! ]
-
-function Base.setindex!(dv::DVec{K,V}, v::V, key::K) where K where V
-    if v == zero(V)
-        delete!(dv, key)
+function Base.setindex!(dvec::DVec, v, k)
+    if iszero(v)
+        delete!(dvec, k)
     else
-        setindex!(dv.d, v, key)
+        dvec.storage[k] = convert(valtype(dvec), v)
     end
-    return dv
+    return v
 end
 
-function Base.setindex!(dv::DVec{K,V}, v::V, key::K) where {K, V<:AbstractFloat}
-    if abs(v) ≤ eps(V)
-        delete!(dv, key)
+Base.pairs(dvec::DVec) = dvec.storage
+
+function LinearAlgebra.rmul!(dvec::DVec, α::Number)
+    rmul!(dvec.storage.vals, α)
+    return dvec
+end
+
+import Base:
+    get, get!, haskey, getkey, pop!, isempty, length, values, keys, delete!, empty!, sizehint!
+@delegate DVec.storage [get, get!, haskey, getkey, pop!, isempty, length, values, keys]
+@delegate_return_parent DVec.storage [delete!, empty!, sizehint!]
+
+# simd sum for Dict
+function Base.sum(f::F, dvec::DVec{<:Any,V,<:Any,<:Dict}) where {F,V}
+    if isempty(dvec)
+        return f(zero(V))
     else
-        setindex!(dv.d, v, key)
+        vals = dvec.storage.vals
+        slots = dvec.storage.slots
+        result = f(vals[1] * (slots[1] == 0x1))
+        @inbounds @simd for i in 2:length(vals)
+            result += f(vals[i] * (slots[i] == 0x1))
+        end
+        return result
     end
-    return dv
 end
-
-# should be much faster than generic version from AbstractDVec
-function LinearAlgebra.rmul!(w::DVec, α::Number)
-    rmul!(w.d.vals,α)
-    return w
-end # rmul!

@@ -4,7 +4,11 @@ Module for providing MPI functionality for `Rimu`.
 module RMPI
 
 import MPI
-using Rimu, LinearAlgebra, Rimu.ConsistentRNG, Random
+using Rimu
+using LinearAlgebra
+using Rimu.ConsistentRNG
+using Random
+using StaticArrays
 
 import Rimu: sort_into_targets!
 

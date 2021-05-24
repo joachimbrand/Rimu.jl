@@ -19,21 +19,19 @@ Modules = [BitStringAddresses]
 Modules = [DictVectors]
 ```
 
+### StatsTools
+```@autodocs
+Modules = [StatsTools]
+```
+
 ### Blocking
 ```@autodocs
 Modules = [Blocking]
 ```
 
-## Unexported Submodules
-### FastBufs
-```@autodocs
-Modules = [FastBufs]
-```
-
 ### ConsistentRNG
 
 Link to [Module `ConsistentRNG.jl`](@ref)
-
 
 # Index
 
