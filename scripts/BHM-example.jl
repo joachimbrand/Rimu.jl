@@ -5,9 +5,9 @@
 # The Julia run-able script is in [`scripts/BHM-example.jl`](../../scripts/BHM-example.jl).
 
 # Firstly, we load all needed modules.
-# `Rimu` for FCIQMC calculation; `RimuIO` for saving/loading data;
+# `Rimu` for FCIQMC calculation;
 
-using Rimu, Rimu.RimuIO
+using Rimu
 
 
 # Now we define the physical problem:
@@ -76,7 +76,7 @@ df, state = lomc!(Ĥ,svec;
             r_strat = r_strat,
             τ_strat = t_strat);
 println("Writing data to disk...")
-# Saving output data stored in `df.df` into a `.arrow` file which can be read in later:
+# Saving output data stored in `df` into a `.arrow` file which can be read in later:
 save_df("fciqmcdata.arrow", df)
 
 # Now let's look at the calculated energy from the shift:
