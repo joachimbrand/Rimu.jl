@@ -30,7 +30,7 @@ See also [`StochasticStyle`](@ref).
 struct StyleUnknown{T} <: StochasticStyle{T} end
 
 """
-    IsStochasticInteger(T=Int) <: StochasticStyle{T}
+    IsStochasticInteger{T=Int}() <: StochasticStyle{T}
 Trait for generalised vector of configurations indicating stochastic propagation as seen in
 the original FCIQMC algorithm.
 
@@ -40,7 +40,7 @@ struct IsStochasticInteger{T<:Integer} <: StochasticStyle{T} end
 IsStochasticInteger() = IsStochasticInteger{Int}()
 
 """
-    IsStochastic2Pop(T=Complex{Int}) <: StochasticStyle{T}
+    IsStochastic2Pop{T=Complex{Int}}() <: StochasticStyle{T}
 Trait for generalised vector of configurations indicating stochastic propagation with
 complex walker numbers representing two populations of integer walkers.
 
@@ -50,7 +50,7 @@ struct IsStochastic2Pop{T<:Complex{<:Integer}} <: StochasticStyle{T} end
 IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 
 """
-    IsDeterministic(T=Float64) <: StochasticStyle{T}
+    IsDeterministic{T=Float64}() <: StochasticStyle{T}
 Trait for generalised vector of configuration indicating deterministic propagation of walkers.
 
 See also [`StochasticStyle`](@ref).
@@ -76,8 +76,8 @@ IsStochasticWithThreshold(t=1.0) = IsStochasticWithThreshold{typeof(float(t))}(f
 """
     IsDynamicSemistochastic{T=Float64}(rel_threshold=1, abs_threshold=Inf, proj_threshold=1) <: StochasticStyle{T}
 
-QMC propagation with non-integer walker numbers and reduced noise. All possible spawns are performed 
-deterministically when number of walkers in a configuration is high. Stochastic vector compression with 
+QMC propagation with non-integer walker numbers and reduced noise. All possible spawns are performed
+deterministically when number of walkers in a configuration is high. Stochastic vector compression with
 threshold `proj_threshold` is applied after spawning and diagonal death steps.
 
 Unlike with [`IsStochasticWithThreshold`](@ref), when `late_projection` is set to `true`,
