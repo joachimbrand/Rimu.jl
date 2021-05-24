@@ -19,7 +19,7 @@ include("ConsistentRNG.jl")
 include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("RimuIO.jl")
-using .RimuIO
+@reexport using .RimuIO
 
 export lomc!
 export FciqmcRunStrategy, RunTillLastStep
@@ -33,7 +33,6 @@ export HistoryLogUpdate
 export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
-export RimuIO
 
 include("report.jl")
 include("strategies_and_params.jl") # type defs and helpers
