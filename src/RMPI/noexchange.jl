@@ -23,7 +23,7 @@ struct MPINoWalkerExchange <: DistributeStrategy
     comm::MPI.Comm
 end
 
-function Rimu.sort_into_targets!(target, source, _, ::MPINoWalkerExchange)
+function mpi_combine_walkers!(target, source, ::MPINoWalkerExchange)
     # specific for `MPINoWalkerExchange`: copy without communicating with
     # other ranks.
     return copyto!(target, source)

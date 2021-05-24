@@ -160,7 +160,7 @@ function prepare_recv!(s::MPIAllToAll)
     return s
 end
 
-function Rimu.sort_into_targets!(target, source, s::MPIAllToAll)
+function mpi_combine_walkers!(target, source, s::MPIAllToAll)
     prepare_send!(s, source)
     MPI.Barrier(s.comm)
     MPI.Alltoall!(MPI.IN_PLACE, s.lenbuffer, s.comm)

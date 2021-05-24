@@ -69,26 +69,26 @@ Compute the rank where the `key` belongs.
 targetrank(key, np, hash = hash(key)) = hash%np
 
 """
-    sort_into_targets!(target::MPIData, source, stats)
+    mpi_combine_walkers!(target, source, [strategy])
 Distribute the entries of `source` to the `target` data structure such that all
-entries in the `target` dictionaries are on the process with the correct rank
-as controlled by [`targetrank()`](@ref). Combine `stats` if appropriate.
+entries in the `target` are on the process with the correct mpi rank
+as controlled by [`targetrank()`](@ref).
 MPI syncronizing.
 
 Note: the [`storage`](@ref) of the `source` is communicated rather than the `source` itself.
 """
-function Rimu.sort_into_targets!(dtarget::MPIData, source::AbstractDVec)
+function mpi_combine_walkers!(dtarget::MPIData, source::AbstractDVec)
     ltarget = localpart(dtarget)
     empty!(ltarget) # start with empty slate
     strategy = dtarget.s
-    sort_into_targets!(ltarget, storage(source), strategy)
+    mpi_combine_walkers!(ltarget, storage(source), strategy)
 end
 
 # This function is just a wrapper that makes allreduce treat a SVector as a scalar
 function _communicate_stats(stats, comm)
     return invoke(MPI.Allreduce, Tuple{Any, typeof(+), MPI.Comm}, stats, +, comm)
 end
-# three-argument version
+
 function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
     # multi-threaded MPI version
     # should only ever run on thread 1
@@ -97,14 +97,14 @@ function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) whe
     for i in 2:NT # combine new walkers generated from different threads
         add!(lwm, ws[i])
     end
-    sort_into_targets!(dtarget,lwm) # combine walkers from different MPI ranks
+    mpi_combine_walkers!(dtarget,lwm) # combine walkers from different MPI ranks
     stats = sum(statss) # combine stats from all threads
     res_stats = _communicate_stats(stats, dtarget.comm) # add stats from all MPI ranks
     return dtarget, ws, res_stats
 end
 function Rimu.sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
     # single threaded MPI version
-    sort_into_targets!(dtarget,w) # combine walkers from different MPI ranks
+    mpi_combine_walkers!(dtarget,w) # combine walkers from different MPI ranks
     res_stats = _communicate_stats(stats, dtarget.comm) # add stats from all MPI ranks
     return dtarget, w, res_stats
 end
