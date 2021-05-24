@@ -2,15 +2,13 @@
 
 This is an example calculation finding the ground state of
 a 1D Bose-Hubbard chain with 6 particles in 6 lattice site.
-The Julia run-able script is in [`scripts/BHM-example.jl`](../../scripts/BHM-example.jl).
+The Julia run-able script is in [`scripts/BHM-example.jl`](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example.jl).
 
 Firstly, we load all needed modules.
-`Rimu` for FCIQMC calculation;
-`Arrow` for saving output data:
+`Rimu` for FCIQMC calculation; `RimuIO` for saving/loading data;
 
 ```@example BHM-example
-using Rimu
-using Arrow
+using Rimu, Rimu.RimuIO
 ```
 
 Now we define the physical problem:
@@ -129,7 +127,7 @@ println(t_strat)
 Finally, we can start the main FCIQMC loop:
 
 ```@example BHM-example
-df = lomc!(Ĥ,svec;
+df, state = lomc!(Ĥ,svec;
             params = params,
             laststep = steps_equilibrate + steps_measure,
             s_strat = s_strat,
@@ -141,14 +139,14 @@ println("Writing data to disk...")
 Saving output data stored in `df.df` into a `.arrow` file which can be read in later:
 
 ```@example BHM-example
-Arrow.write("fciqmcdata.arrow", df.df)
+save_df("fciqmcdata.arrow", df)
 ```
 
 Now let's look at the calculated energy from the shift:
 Loading the equilibrated data:
 
 ```@example BHM-example
-qmcdata = last(df.df,steps_measure)
+qmcdata = last(df,steps_measure)
 using Rimu.StatsTools
 ```
 
