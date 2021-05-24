@@ -24,7 +24,8 @@ function Base.show(io::IO, r::ReplicaState)
     print(
         io,
         "ReplicaState(v: ", length(r.v), "-element ", nameof(typeof(r.v)),
-        ", w: ", length(r.w), "-element ", nameof(typeof(r.w)), ")")
+        ", w: ", length(r.w), "-element ", nameof(typeof(r.w)), ")"
+    )
 end
 
 """
@@ -224,9 +225,7 @@ end
 function lomc!(state::QMCState, df=DataFrame(); laststep=0)
     report = Report()
     if !iszero(laststep)
-        for replica in state.replicas
-            replica.params.laststep = laststep
-        end
+        state.laststep = laststep
     end
 
     # Sanity checks.
