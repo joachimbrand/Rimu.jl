@@ -21,7 +21,10 @@ function ReplicaState(v, w, params, id="")
 end
 
 function Base.show(io::IO, r::ReplicaState)
-    print(io, "ReplicaState(v::", nameof(typeof(r.v)), ", w::", nameof(typeof(r.w)), ")")
+    print(
+        io,
+        "ReplicaState(v: ", length(r.v), "-element ", nameof(typeof(r.v)),
+        ", w: ", length(r.w), "-element ", nameof(typeof(r.w)), ")")
 end
 
 """
@@ -42,7 +45,7 @@ struct QMCState{
 }
     hamiltonian::H
     replicas::NTuple{N,R}
-    maxlength::Int
+    maxlength::Ref{Int}
 
     m_strat::MS
     r_strat::RS
@@ -98,7 +101,7 @@ function QMCState(
     end
 
     return QMCState(
-        hamiltonian, replicas, maxlength, m_strat, r_strat, s_strat, τ_strat, operator
+        hamiltonian, replicas, Ref(maxlength), m_strat, r_strat, s_strat, τ_strat, operator
     )
 end
 
@@ -110,6 +113,8 @@ function Base.getproperty(state::QMCState, key::Symbol)
     elseif key == :laststep
         laststep = state.replicas[1].params.laststep
         return laststep
+    elseif key == :maxlength
+        return getfield(state, :maxlength)[]
     else
         return getfield(state, key)
     end
@@ -124,6 +129,9 @@ function Base.setproperty!(state::QMCState, key::Symbol, value)
         for r in state.replicas
             r.params.laststep = value
         end
+        return value
+    elseif key == :maxlength
+        getfield(state, :maxlength)[] = value
         return value
     else
         # This will error
@@ -150,8 +158,8 @@ function Base.show(io::IO, st::QMCState)
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step, " / ", st.laststep)
     print(io, "\n  replicas: ")
-    for r in st.replicas
-        print(io, "\n  ⋅ ", r)
+    for (i, r) in enumerate(st.replicas)
+        print(io, "\n    $i: ", r)
     end
 end
 
@@ -311,7 +319,7 @@ function advance!(
         end
         return false
     end
-    if len > state.maxlength
+    if len > state.maxlength[]
         if length(state.replicas) > 1
             @error "`maxlength` reached in replica$(replica.id). Aborting."
         else

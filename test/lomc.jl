@@ -24,6 +24,15 @@ using Statistics
         df, state = lomc!(H, copy(dv); laststep=13)
         @test size(df, 1) == 13
         @test state.replicas[1].params.step == 13
+
+        state.laststep = 100
+        df = lomc!(state, df).df
+        @test size(df, 1) == 100
+
+        state.step = 0
+        df = lomc!(state, df).df
+        @test size(df, 1) == 200
+        @test df.steps == [1:100; 1:100]
     end
 
     @testset "Setting walkernumber" begin
@@ -82,13 +91,17 @@ using Statistics
         @test all(df.len[1:end-1] .≤ 10)
         @test df.len[end] > 10
 
-        df = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4, num_replicas=6).df
+        df, state = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4, num_replicas=6)
         @test all(df.len_1[1:end-1] .≤ 10)
         @test all(df.len_2[1:end-1] .≤ 10)
         @test all(df.len_3[1:end-1] .≤ 10)
         @test all(df.len_4[1:end-1] .≤ 10)
         @test all(df.len_5[1:end-1] .≤ 10)
         @test all(df.len_6[1:end-1] .≤ 10)
+
+        state.maxlength += 1000
+        df_cont = lomc!(state).df
+        @test size(df_cont, 1) == 100 - size(df, 1)
     end
 
     @testset "Continuations" begin
