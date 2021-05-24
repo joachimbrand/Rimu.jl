@@ -11,12 +11,15 @@ function threshold_project!(v, threshold)
 end
 
 """
-    update_dvec!(::StochasticStyle, `dvec`)
+    update_dvec!([::StochasticStyle,] dvec) -> dvec, nt
 
 Perform an arbitrary transformation on `dvec` after the spawning step is completed and
 report statistics to the `DataFrame`.
 
-Should return the new `dvec` and a `NamedTuple` of statistics to be reported.
+Returns the new `dvec` and a `NamedTuple` `nt` of statistics to be reported.
+
+When extending this function for a custom [`StochasticStyle`](@ref), define a method 
+for the two-argument call signature!
 """
 update_dvec!(::StochasticStyle, v) = v, NamedTuple()
 

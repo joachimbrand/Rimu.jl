@@ -109,7 +109,7 @@ the `initiator` keyword argument (see below).
 
 ## Constructors
 
-* `InitiatorDVec(dict::AbstractDict[; style, initiator, capacity])`: create a
+* `InitiatorDVec(dict::AbstractDict[; style, initiator, capacity])`: create an
   `InitiatorDVec` with `dict` for storage.  Note that the data may or may not be copied.
 
 * `InitiatorDVec(args...[; style, initiator, capacity])`: `args...` are passed to the `Dict`
@@ -117,8 +117,8 @@ the `initiator` keyword argument (see below).
 
 * `InitiatorDVec{K,V}([; style, initiator, capacity])`: create an empty `InitiatorDVec{K,V}`.
 
-* `InitiatorDVec(dv::AbstractDVec[; style, initiator, capacity])`: create a `InitiatorDVec`
-   with the same contents as `adv`. The `style` is inherited from `dv` by default.
+* `InitiatorDVec(dv::AbstractDVec[; style, initiator, capacity])`: create an `InitiatorDVec`
+   with the same contents as `dv`. The `style` is inherited from `dv` by default.
 
 ## Keyword  arguments
 
