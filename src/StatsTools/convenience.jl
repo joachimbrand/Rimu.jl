@@ -44,7 +44,7 @@ function replica_fidelity(df::DataFrame; p_field = :hproj, skip = 0, args...)
     fid_num = conj(getproperty(df, p_field_1)) .* getproperty(df, p_field_2)
     fid_num = fid_num[skip+1:end]
     # denominator
-    fid_den = df.xdoty[skip+1:end]
+    fid_den = df.c1_dot_c2[skip+1:end]
 
     return ratio_of_means(fid_num, fid_den; args...)
 end

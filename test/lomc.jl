@@ -100,7 +100,7 @@ using Statistics
         @test size(df, 1) < 100
 
         # Populations in replicas are dead.
-        df = @suppress_err lomc!(H, copy(dv); laststep=100, num_replicas=5).df
+        df = @suppress_err lomc!(H, copy(dv); laststep=100, replica=NoStats(5)).df
         @test size(df, 1) < 100
     end
 
@@ -113,7 +113,7 @@ using Statistics
         @test all(df.len[1:end-1] .≤ 10)
         @test df.len[end] > 10
 
-        df, state = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4, num_replicas=6)
+        df, state = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4, replica=NoStats(6))
         @test all(df.len_1[1:end-1] .≤ 10)
         @test all(df.len_2[1:end-1] .≤ 10)
         @test all(df.len_3[1:end-1] .≤ 10)
@@ -166,15 +166,6 @@ using Statistics
             end
             @test length(split(out, '\n')) == 6 # (last line is empty)
         end
-    end
-
-    @testset "Errors" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=20)
-        dv = DVec(add => 1; style=IsStochasticInteger())
-
-        @test_throws ErrorException lomc!(H, dv; num_replicas=1, operator=H)
-        @test_throws ErrorException lomc!(H, dv; num_replicas=-1)
     end
 end
 

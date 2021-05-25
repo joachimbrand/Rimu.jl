@@ -831,6 +831,11 @@ An abstract type that controles how [`lomc!`](@ref) uses replicas. A subtype of
   of `String`s or `Symbols` of replica statistic names and a tuple of the values.  These
   will be reported to the `DataFrame` returned by [`lomc!`](@ref)
 
+See also:
+
+* [`NoStats`](@ref): run (possibly one) replica(s), but don't report any additional info.
+* [`AllOverlaps`](@ref): report overlaps between all pairs of replica vectors.
+
 """
 abstract type ReplicaStrategy{N} end
 
@@ -850,7 +855,7 @@ replica_stats
 The default [`ReplicaStrategy`](@ref). `N` replicas are run, but no statistics are collected.
 """
 struct NoStats{N} <: ReplicaStrategy{N} end
-NoStats(N) = NoStats{N}()
+NoStats(N=1) = NoStats{N}()
 
 replica_stats(::NoStats, _) = (), ()
 
