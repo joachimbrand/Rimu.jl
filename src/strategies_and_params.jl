@@ -831,7 +831,7 @@ An abstract type that controles how [`lomc!`](@ref) uses replicas. A subtype of
   of `String`s or `Symbols` of replica statistic names and a tuple of the values.  These
   will be reported to the `DataFrame` returned by [`lomc!`](@ref)
 
-See also:
+Concrete implementations:
 
 * [`NoStats`](@ref): run (possibly one) replica(s), but don't report any additional info.
 * [`AllOverlaps`](@ref): report overlaps between all pairs of replica vectors.
@@ -868,6 +868,8 @@ not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well.
 Column names in the report are of the form c{i}_dot_c{j} for vector-vector overlaps, and
 c{i}_Op_c{j} for operator overlaps.
 
+See [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an interface for
+implementing operators).
 """
 struct AllOverlaps{N,O} <: ReplicaStrategy{N}
     operator::O

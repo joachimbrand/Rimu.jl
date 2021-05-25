@@ -59,15 +59,21 @@ using Statistics
         dv = DVec(add => 1, style=IsDynamicSemistochastic())
 
         @testset "NoStats" begin
-            _, state = lomc!(H, dv; replica=NoStats(3))
-            state.replica == NoStats(1)
+            df, state = lomc!(H, dv; replica=NoStats(1))
+            @test state.replica == NoStats(1)
+            @test length(state.replicas) == 1
+            @test "shift" ∈ names(df)
+            @test "shift_1" ∉ names(df)
 
-            df, _ = lomc!(H, dv; replica=NoStats(3))
+            df, state = lomc!(H, dv; replica=NoStats(3))
+            @test state.replica == NoStats(3)
+            @test length(state.replicas) == 3
             @test df.shift_1 ≠ df.shift_2 && df.shift_2 ≠ df.shift_3
+            @test "shift_4" ∉ names(df)
         end
 
         @testset "AllOverlaps" begin
-            # column names are of the for c{i}_dot_c{j} and c{i}_Op_c{j}.
+            # column names are of the form c{i}_dot_c{j} and c{i}_Op_c{j}.
             num_stats(df) = length(filter(startswith('c'), names(df)))
 
             # No operator: N choose 2 reports.

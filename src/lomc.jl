@@ -174,7 +174,7 @@ required for continuation runs.
 * `r_strat::ReportingStrategy = EveryTimeStep()` - see [`ReportingStrategy`](@ref)
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
 * `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
-* `replica::ReplicaStrategy = NoReplica()` - see [`ReplicaStrategy`](@ref).
+* `replica::ReplicaStrategy = NoStats(1)` - see [`ReplicaStrategy`](@ref).
 
 # Return values
 
