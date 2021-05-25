@@ -58,14 +58,36 @@ using Statistics
         H = HubbardReal1D(add)
         dv = DVec(add => 1, style=IsDynamicSemistochastic())
 
-        df, state = lomc!(H, dv; num_replicas=2, operator=H)
-        @test ("xHy", "xdoty") ⊆ names(df)
-        @test any(!iszero, df.xdoty)
-        @test any(!iszero, df.xHy)
-        @test length(state.replicas) == 2
-        @test state.replicas[1].params.step == state.replicas[2].params.step
-        @test state.replicas[1].v ≠ state.replicas[2].v
-        @test df.shift_1 ≠ df.shift_2
+        @testset "NoStats" begin
+            _, state = lomc!(H, dv; replica=NoStats(3))
+            state.replica == NoStats(1)
+
+            df, _ = lomc!(H, dv; replica=NoStats(3))
+            @test df.shift_1 ≠ df.shift_2 && df.shift_2 ≠ df.shift_3
+        end
+
+        @testset "AllOverlaps" begin
+            # column names are of the for c{i}_dot_c{j} and c{i}_Op_c{j}.
+            num_stats(df) = length(filter(startswith('c'), names(df)))
+
+            # No operator: N choose 2 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(4))
+            @test num_stats(df) == binomial(4, 2)
+            df, _ = lomc!(H, dv; replica=AllOverlaps(5))
+            @test num_stats(df) == binomial(5, 2)
+
+            # Hermitian operator: 2 * N choose 2 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(4, H))
+            @test num_stats(df) == 2 * binomial(4, 2)
+            df, _ = lomc!(H, dv; replica=AllOverlaps(5, H))
+            @test num_stats(df) == 2 * binomial(5, 2)
+
+            # Non-hermitian operator: 3 * N choose 2 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(2, GutzwillerSampling(H, 1)))
+            @test num_stats(df) == 3 * binomial(2, 2)
+            df, _ = lomc!(H, dv; replica=AllOverlaps(7, GutzwillerSampling(H, 1)))
+            @test num_stats(df) == 3 * binomial(7, 2)
+        end
     end
 
     @testset "Dead population" begin

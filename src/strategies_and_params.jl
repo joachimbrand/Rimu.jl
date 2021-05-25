@@ -820,3 +820,86 @@ end
 end
 
 @inline update_shift(::DontUpdate, shift, tnorm, args...) = (shift, false, tnorm)
+
+"""
+    ReplicaStrategy{N}
+
+An abstract type that controles how [`lomc!`](@ref) uses replicas. A subtype of
+`ReplicaStrategy{N}` operates on `N` replicas and must implement the following function:
+
+* [`replica_stats(::ReplicaStrategy{N}, ::NTuple{N,ReplicaState})`](@ref) - return a tuple
+  of `String`s or `Symbols` of replica statistic names and a tuple of the values.  These
+  will be reported to the `DataFrame` returned by [`lomc!`](@ref)
+
+"""
+abstract type ReplicaStrategy{N} end
+
+num_replicas(::ReplicaStrategy{N}) where {N} = N
+
+"""
+    replica_stats(::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
+
+Return the names and values of statistics reported by `ReplicaStrategy`. `names` should be
+a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same length.
+"""
+replica_stats
+
+"""
+    NoStats(N=1) <: ReplicaStrategy{N}
+
+The default [`ReplicaStrategy`](@ref). `N` replicas are run, but no statistics are collected.
+"""
+struct NoStats{N} <: ReplicaStrategy{N} end
+NoStats(N) = NoStats{N}()
+
+replica_stats(::NoStats, _) = (), ()
+
+"""
+    AllOverlaps(n=2, operator=nothing) <: ReplicaStrategy{n}
+
+Run `n` replicas and report overlaps between all pairs of replica vectors. If operator is
+not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well.
+
+Column names in the report are of the form c{i}_dot_c{j} for vector-vector overlaps, and
+c{i}_Op_c{j} for operator overlaps.
+
+"""
+struct AllOverlaps{N,O} <: ReplicaStrategy{N}
+    operator::O
+end
+
+function AllOverlaps(num_replicas=2, operator=nothing)
+    return AllOverlaps{num_replicas, typeof(operator)}(operator)
+end
+
+function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
+    T = float(valtype(replicas[1].v))
+    hermitian = isnothing(rs.operator) ||
+        Hamiltonians.LOStructure(rs.operator) ≡ Hamiltonians.Hermitian()
+
+    names = String[]
+    values = T[]
+
+    for i in 1:N, j in i+1:N
+        push!(names, "c$(i)_dot_c$(j)")
+        push!(values, dot(replicas[i].v, replicas[j].v))
+        if !isnothing(rs.operator)
+            push!(names, "c$(i)_Op_c$(j)")
+            push!(values, dot(replicas[i].v, rs.operator, replicas[j].v))
+        end
+        if !hermitian
+            push!(names, "c$(j)_Op_c$(i)")
+            push!(values, dot(replicas[j].v, rs.operator, replicas[i].v))
+        end
+    end
+
+    # Note: this if-else chain is evaulated at compile time and makes the function type-stable
+    if isnothing(rs.operator)
+        num_reports = N * (N - 1) ÷ 2
+    elseif hermitian
+        num_reports = N * (N - 1)
+    else
+        num_reports = 3N * (N - 1) ÷ 2
+    end
+    return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
+end
