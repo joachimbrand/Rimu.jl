@@ -137,7 +137,7 @@ should equal the numbers of occupied sites in the respective components.
     # if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
     #     error("Momentum is not conserved!")
     # end
-    return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b
+    return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b, p, q
 end
 
 function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
@@ -155,7 +155,7 @@ function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
         chosen -= nhops_a + nhops_b
         sa = numberoccupiedsites(add.bsa)
         sb = numberoccupiedsites(add.bsb)
-        new_bsa, new_bsb, onproduct_a, onproduct_b = hop_across_two_addresses(
+        new_bsa, new_bsb, onproduct_a, onproduct_b, _, _ = hop_across_two_addresses(
             add.bsa, add.bsb, chosen, sa, sb
         )
         new_add = BoseFS2C(new_bsa, new_bsb)

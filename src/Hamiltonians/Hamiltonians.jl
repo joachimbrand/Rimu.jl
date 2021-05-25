@@ -40,6 +40,8 @@ include("BoseHubbardMom1D2C.jl")
 include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
 
+include("TwoBodyCorrelation.jl")
+
 # deprecated:
 include("BoseHubbardReal1D.jl")
 include("BoseHubbardMom1D.jl")
