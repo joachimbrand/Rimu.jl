@@ -225,6 +225,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
     # be moved to QMCState?
     while step < laststep
         step += 1
+        report!(state.r_strat, step, report, :steps, step)
         # This loop could be threaded if num_threads() == num_replicas? MPIData would need
         # to be aware of the replica's id and use that in communication.
         success = true
@@ -279,7 +280,7 @@ function advance!(
 
     report!(
         r_strat, step, report,
-        (steps=step, dτ, shift, shiftMode, len, norm=tnorm), id,
+        (dτ, shift, shiftMode, len, norm=tnorm), id,
     )
     report!(r_strat, step, report, proj_observables, id)
     report!(r_strat, step, report, stat_names, step_stats, id)
