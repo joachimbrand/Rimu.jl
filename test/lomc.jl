@@ -93,6 +93,14 @@ using Statistics
             @test num_stats(df) == 3 * binomial(2, 2)
             df, _ = lomc!(H, dv; replica=AllOverlaps(7, GutzwillerSampling(H, 1)))
             @test num_stats(df) == 3 * binomial(7, 2)
+
+            # Complex operator
+            v = DVec(1 => 1)
+            G = MatrixHamiltonian(rand(5, 5))
+            O = MatrixHamiltonian(rand(ComplexF64, 5, 5))
+            df, _ = lomc!(G, v, replica=AllOverlaps(2, O))
+            @test df.c1_dot_c2 isa Vector{ComplexF64}
+            @test df.c1_Op_c2 isa Vector{ComplexF64}
         end
     end
 

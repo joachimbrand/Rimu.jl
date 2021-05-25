@@ -880,9 +880,13 @@ function AllOverlaps(num_replicas=2, operator=nothing)
 end
 
 function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
-    T = float(valtype(replicas[1].v))
-    hermitian = isnothing(rs.operator) ||
-        Hamiltonians.LOStructure(rs.operator) ≡ Hamiltonians.Hermitian()
+    if isnothing(rs.operator)
+        T = float(valtype(replicas[1].v))
+        hermitian = true
+    else
+        T = float(promote_type(valtype(replicas[1].v), eltype(rs.operator)))
+        hermitian = Hamiltonians.LOStructure(rs.operator) ≡ Hamiltonians.Hermitian()
+    end
 
     names = String[]
     values = T[]
