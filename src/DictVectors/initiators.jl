@@ -34,23 +34,38 @@ function Base.convert(::Type{<:InitiatorValue{V}}, x) where {V}
 end
 
 """
-    InitiatorRule
+    InitiatorRule{V}
 
-Abstract type for defining initiator rules. Concrete implementations:
+Abstract type for defining initiator rules for [`InitiatorDVec`](@ref).
+Concrete implementations:
 
 * [`Initiator`](@ref)
 * [`SimpleInitiator`](@ref)
 * [`CoherentInitiator`](@ref)
+
+When defining a new `InitiatorRule`, also define a corresponding method for [`value`](@ref)!
 """
 abstract type InitiatorRule{V} end
 
 """
-    Initiator
+    value(i::InitiatorRule, v::InitiatorValue)
+Convert the [`InitiatorValue`](@ref) `v` into a scalar value according to the
+[`InitiatorRule`](@ref) `i`.
 
-Initiator to be passed to [`InitiatorDVec`](@ref). Initiator rules:
+Internal function that implements functionality of [`InitiatorDVec`](@ref).
+"""
+value
+
+"""
+    Initiator(threshold) <: InitiatorRule
+
+Initiator rule to be passed to [`InitiatorDVec`](@ref). An initiator is a configuration
+`add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
 
 * Initiators can spawn anywhere.
 * Non-initiators can spawn to initiators.
+
+See [`InitiatorRule`](@ref).
 """
 struct Initiator{V} <: InitiatorRule{V}
     threshold::V
@@ -61,12 +76,16 @@ function value(i::Initiator, v::InitiatorValue)
 end
 
 """
-    SimpleInitiator
+    SimpleInitiator(threshold) <: InitiatorRule
 
-Simplified initiator to be passed to [`InitiatorDVec`](@ref). Initiator rules:
+Simplified initiator rule to be passed to [`InitiatorDVec`](@ref).
+An initiator is a configuration `add` with a coefficient with magnitude
+`abs(v[add]) > threshold`. Rules:
 
 * Initiators can spawn anywhere.
 * Non-initiators cannot spawn.
+
+See [`InitiatorRule`](@ref).
 """
 struct SimpleInitiator{V} <: InitiatorRule{V}
     threshold::V
@@ -77,14 +96,19 @@ function value(i::SimpleInitiator, v::InitiatorValue)
 end
 
 """
-    CoherentInitiator
+    CoherentInitiator(threshold) <: InitiatorRule
 
-Initiator to be passed to [`InitiatorDVec`](@ref). Initiator rules:
+Initiator rule to be passed to [`InitiatorDVec`](@ref).
+An initiator is a configuration `add` with a coefficient with magnitude
+`abs(v[add]) > threshold`. Rules:
+
 
 * Initiators can spawn anywhere.
 * Non-initiators can spawn to initiators.
 * Multiple non-initiators can spawn to a single non-initiator if their contributions add up
   to a value greater than the initiator threshold.
+
+  See [`InitiatorRule`](@ref).
 """
 struct CoherentInitiator{V} <: InitiatorRule{V}
     threshold::V
@@ -251,7 +275,7 @@ end
 
 """
     deposit!(w::InitiatorDVec, add, val, p_add=>p_val)
-Add `val` into `w` at address `add` as an [`InitiatorValue`](@ref). 
+Add `val` into `w` at address `add` as an [`InitiatorValue`](@ref).
 """
 function deposit!(w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)) where {V}
     i = w.initiator
