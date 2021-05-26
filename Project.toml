@@ -29,8 +29,8 @@ StrLiterals = "68059f60-971f-57ff-a2d0-18e7de9ccc84"
 ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 
 [compat]
-julia = "1.6"
 MPI = "0.18"
+julia = "1.6"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"

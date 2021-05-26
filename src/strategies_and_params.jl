@@ -46,21 +46,20 @@ For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 
 """
     ReportingStrategy
-Abstract type for strategies for reporting data in a DataFrame with
-[`report!()`](@ref). It also affects the calculation and reporting of
-projected quantities in the DataFrame.
+Abstract type for strategies for reporting data in a DataFrame with [`report!()`](@ref). It
+also affects the calculation and reporting of projected quantities in the DataFrame.
 
 # Implemented strategies:
-   * [`EveryTimeStep`](@ref)
-   * [`EveryKthStep`](@ref)
-   * [`ReportDFAndInfo`](@ref)
 
-Every strategy accepts the keyword arguments `projector` and `hproj`
-according to which
-a projection of the instantaneous coefficient vector `projector⋅v` and
-`hproj⋅v` are
-reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
-respectively. Possible values for `projector` are
+* [`EveryTimeStep`](@ref)
+* [`EveryKthStep`](@ref)
+* [`ReportDFAndInfo`](@ref)
+
+Every strategy accepts the keyword arguments `projector` and `hproj` according to which a
+projection of the instantaneous coefficient vector `projector⋅v` and `hproj⋅v` are reported
+to the DataFrame in the fields `df.vproj` and `df.hproj`, respectively. Possible values for
+`projector` are
+
 * `nothing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copy`](@ref) to conserve memory)
 * [`UniformProjector()`](@ref) - projection onto vector of all ones (i.e. sum of elements)
@@ -68,15 +67,24 @@ respectively. Possible values for `projector` are
 * [`Norm1ProjectorPPop()`](@ref) - compute 1-norm per population
 * [`Norm2Projector()`](@ref) - compute 2-norm
 
-In order to help set up the calculation of the projected energy,
-where `df.hproj` should report `dot(projector, ham, v)`, the keyword `hproj`
-accepts the following values (for `ReportingStrategy`s passed to `lomc!()`):
+In order to help set up the calculation of the projected energy, where `df.hproj` should
+report `dot(projector, ham, v)`, the keyword `hproj` accepts the following values (for
+`ReportingStrategy`s passed to `lomc!()`):
+
 * `:auto` - choose method depending on `projector` and `ham` (default)
 * `:lazy` - compute `dot(projector, ham, v)` every time (slow)
 * `:eager` -  precompute `hproj` as `ham'*v` (fast, requires `adjoint(ham)`)
 * `:not` - don't compute second projector (equivalent to `nothing`)
 
+# Interface
+
+A `ReportingStrategy` must define the following:
+
+* [`report!`](@ref)
+* [`print_report`](@ref) (optional)
+
 # Examples
+
 ```julia
 r_strat = EveryTimeStep(projector = copy(svec))
 ```
@@ -179,25 +187,28 @@ end
 # end
 # # The dot products work across MPI when `v::MPIData`; MPI sync
 """
-     report!(::ReportingStrategy, step, report::Report, args...)
+     report!(::ReportingStrategy, step, report::Report, keys, values, id="")
+     report!(::ReportingStrategy, step, report::Report, nt, id="")
 
-Write values from `args...` to `report` that will be converted to a `DataFrame` later.
-`args...` can be:
+Report `keys` and `values` to `report`, which will be converted to a `DataFrame` before
+[`lomc!`](@ref) exits. Alternatively, a `nt::NamedTuple` can be passed in place of `keys`
+and `values`. If `id` is specified, it is appended to all `keys`. This is used to
+differentiate between values reported by different replicas.
 
-* a name and a value.
-* a tuple of names followed by a tuple of values.
-* a named tuple.
+To overload this function for a new `ReportingStrategy`, overload
+`report!(::ReportingStrategy, step, args...)` and apply the report by calling
+`report!(args...)`.
 """
-function report!(::EveryTimeStep, args...)
+function report!(::EveryTimeStep, _, args...)
     report!(args...)
     return nothing
 end
 function report!(s::EveryKthStep, step, args...)
-    step % s.k == 0 && report!(step, args...)
+    step % s.k == 0 && report!(args...)
     return nothing
 end
 function report!(s::ReportDFAndInfo, step, args...)
-    step % s.k == 0 && report!(step, args...)
+    step % s.k == 0 && report!(args...)
     return nothing
 end
 
@@ -205,7 +216,7 @@ end
     print_report(::ReportingStrategy, step, report, state)
 
 This function is called at the very end of a step. It can let the `ReportingStrategy`
-print some info to output.
+print some information to output.
 """
 function print_report(::ReportingStrategy, args...)
     return nothing
