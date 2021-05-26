@@ -22,7 +22,17 @@ function Base.show(io::IO, report::Report)
     end
 end
 
-function report!(_::Integer, report, key, value)
+"""
+    report!(report, keys, values, id="")
+    report!(report, nt, id="")
+
+Write `keys`, `values` pairs to `report` that will be converted to a `DataFrame` later.
+Alternatively, a named tuple can be passed instead of `keys` and `values`.
+
+The value of `id` is appended to the name of the column, e.g.
+`report!(report, :key, value, :_1)` will report `value` to a column named `:key_1`.
+"""
+function report!(report, key, value)
     data = report.data
     if haskey(data, key)
         column = data[key]::Vector{typeof(value)}
@@ -32,18 +42,18 @@ function report!(_::Integer, report, key, value)
     end
     return report
 end
-function report!(step::Integer, report, key, value, postfix)
-    report!(step, report, Symbol(key, postfix), value)
+function report!(report, key, value, postfix)
+    report!(report, Symbol(key, postfix), value)
 end
-function report!(step::Integer, report, keys::Tuple, vals, postfix="")
+function report!(report, keys::Tuple, vals, postfix="")
     for (k, v) in zip(keys, vals)
-        report!(step, report, k, v, postfix)
+        report!(report, k, v, postfix)
     end
     return report
 end
-function report!(step::Integer, report, kvpairs::NamedTuple, postfix="")
+function report!(report, kvpairs::NamedTuple, postfix="")
     for (k, v) in pairs(kvpairs)
-        report!(step, report, k, v, postfix)
+        report!(report, k, v, postfix)
     end
     return report
 end
