@@ -151,6 +151,19 @@ function value(i::DelayedInitiator, v::InitiatorValue)
     return v.safe + v.initiator + !iszero(v.initiator) * v.unsafe
 end
 
+struct AntiQuarantineInitiator{V} <: InitiatorRule{V}
+    threshold::V
+    factor::V
+end
+
+function value(i::AntiQuarantineInitiator, v::InitiatorValue)
+    if !iszero(v.initiator)
+        return v.initiator + v.safe + v.unsafe
+    else
+        return v.initiator + v.safe + v.factor * v.unsafe
+    end
+end
+
 """
     InitiatorDVec{K,V} <: AbstractDVec{K,V}
 
