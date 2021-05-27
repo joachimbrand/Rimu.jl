@@ -160,7 +160,7 @@ function value(i::AntiQuarantineInitiator, v::InitiatorValue)
     if !iszero(v.initiator)
         return v.initiator + v.safe + v.unsafe
     else
-        return v.initiator + v.safe + v.factor * v.unsafe
+        return v.initiator + v.safe + i.factor * v.unsafe
     end
 end
 
