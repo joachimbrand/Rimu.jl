@@ -143,6 +143,14 @@ function update_initiator(i::QuarantineInitiator, _)
     return QuarantineInitiator(i.threshold, i.factor, i.timer + 1)
 end
 
+struct DelayedInitiator{V} <: InitiatorRule{V}
+    threshold::V
+end
+
+function value(i::DelayedInitiator, v::InitiatorValue)
+    return v.safe + v.initiator + !iszero(v.initiator) * v.unsafe
+end
+
 """
     InitiatorDVec{K,V} <: AbstractDVec{K,V}
 
@@ -298,7 +306,13 @@ end
     deposit!(w::InitiatorDVec, add, val, p_add=>p_val)
 Add `val` into `w` at address `add` as an [`InitiatorValue`](@ref).
 """
-function deposit!(w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)) where {V}
+function deposit!(w::InitiatorDVec, add, val, parent)
+    return deposit!(w.initiator, w, add, val, parent)
+end
+
+function deposit!(
+    ::InitiatorRule, w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)
+) where {V}
     i = w.initiator
     if p_add == add # diagonal death
         if abs(p_val) > i.threshold
@@ -320,4 +334,19 @@ function deposit!(w::InitiatorDVec{<:Any,V}, add, val::InitiatorValue{V}, _) whe
     dict = storage(w)
     prev_val = get(dict, add, zero(valtype(dict)))
     dict[add] = prev_val + val
+end
+
+function deposit!(
+    i::DelayedInitiator{V}, w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)
+) where {V}
+    if p_add == add # diagonal death
+        new_val = InitiatorValue{V}(initiator=val)
+    else # offdiagonal spawn
+        if abs(p_val) > i.threshold
+            new_val = InitiatorValue{V}(safe=val)
+        else
+            new_val = InitiatorValue{V}(unsafe=val)
+        end
+    end
+    w.storage[add] = get(w.storage, add, zero(InitiatorValue{V})) + new_val
 end
