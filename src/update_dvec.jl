@@ -18,7 +18,7 @@ report statistics to the `DataFrame`.
 
 Returns the new `dvec` and a `NamedTuple` `nt` of statistics to be reported.
 
-When extending this function for a custom [`StochasticStyle`](@ref), define a method 
+When extending this function for a custom [`StochasticStyle`](@ref), define a method
 for the two-argument call signature!
 """
 update_dvec!(::StochasticStyle, v) = v, NamedTuple()
@@ -28,4 +28,10 @@ update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
 function update_dvec!(s::IsDynamicSemistochastic{<:Any,true}, v)
     len_before = length(v)
     return threshold_project!(v, s.proj_threshold), (; len_before)
+end
+
+function update_dvec!(v::InitiatorDVec)
+    new_initiator = DictVectors.update_initiator(v.initiator, v)
+    v = InitiatorDVec(v.storage, v.style, new_initiator)
+    return update_dvec!(StochasticStyle(v), v)
 end

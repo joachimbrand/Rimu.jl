@@ -56,6 +56,8 @@ Internal function that implements functionality of [`InitiatorDVec`](@ref).
 """
 value
 
+update_initiator(i::InitiatorRule, _) = i
+
 """
     Initiator(threshold) <: InitiatorRule
 
@@ -120,6 +122,25 @@ function value(i::CoherentInitiator, v::InitiatorValue)
     else
         return v.initiator + v.safe
     end
+end
+
+struct QuarantineInitiator{V} <: InitiatorRule{V}
+    threshold::V
+    factor::Int
+    timer::Int
+end
+
+function value(i::QuarantineInitiator, v::InitiatorValue)
+    if !iszero(v.initiator)
+        return v.initiator + v.safe + v.unsafe
+    else
+        factor = i.factor * (i.timer % i.factor == 0)
+        return v.initiator + v.safe + factor * v.unsafe
+    end
+end
+
+function update_initiator(i::QuarantineInitiator, _)
+    return QuarantineInitiator(i.threshold, i.factor, i.timer + 1)
 end
 
 """
