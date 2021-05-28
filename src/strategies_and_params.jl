@@ -905,7 +905,7 @@ function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
 
     for i in 1:N, j in i+1:N
         push!(names, "c$(i)_dot_c$(j)")
-        push!(values, dot(localpart(replicas[i].v), localpart(replicas[j].v)))
+        push!(values, dot(replicas[i].v, replicas[j].v))
         if !isnothing(rs.operator)
             push!(names, "c$(i)_Op_c$(j)")
             push!(values, dot(replicas[i].v, rs.operator, replicas[j].v))
