@@ -77,8 +77,8 @@ function LinearAlgebra.dot(x, lop, md::MPIData)
     return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
 end
 function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
-    temp_1 = dot(localpart(md_left), lop)
-    temp_2 = similar(temp_1)
-    mpi_combine_walkers!(temp_2, temp_1, md_right.s)
-    return MPI.Allreduce(dot(temp_2, lop, localpart(md_right)), +, md_right.comm)
+    temp_1 = lop * localpart(md_right)
+    temp_2 = deepcopy(md_left)
+    mpi_combine_walkers!(temp_2, temp_1)
+    return dot(localpart(md_left), temp_2)
 end
