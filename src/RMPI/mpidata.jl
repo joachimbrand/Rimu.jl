@@ -71,8 +71,8 @@ function Rimu.walkernumber(md::MPIData)
 end
 
 function LinearAlgebra.dot(x, md::MPIData)
-    return MPI.Allreduce(x⋅localpart(md), +, md.comm)
+    return MPI.Allreduce(localpart(x)⋅localpart(md), +, md.comm)
 end
 function LinearAlgebra.dot(x, lop, md::MPIData)
-    return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
+    return MPI.Allreduce(dot(localpart(x), lop, localpart(md)), +, md.comm)
 end
