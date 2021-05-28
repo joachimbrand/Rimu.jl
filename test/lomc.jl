@@ -3,6 +3,7 @@ using Test
 using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, IsStochastic2Pop
 using Rimu.StatsTools
 using Rimu.ConsistentRNG: seedCRNG!
+using Rimu.RMPI
 using KrylovKit
 using Suppressor
 using Statistics
@@ -101,6 +102,12 @@ using Statistics
             df, _ = lomc!(G, v, replica=AllOverlaps(2, O))
             @test df.c1_dot_c2 isa Vector{ComplexF64}
             @test df.c1_Op_c2 isa Vector{ComplexF64}
+
+            # MPIData
+            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4, H))
+            @test num_stats(df) == 2 * binomial(4, 2)
+            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5, H))
+            @test num_stats(df) == 2 * binomial(5, 2)
         end
     end
 

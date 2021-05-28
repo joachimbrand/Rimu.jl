@@ -891,11 +891,12 @@ function AllOverlaps(num_replicas=2, operator=nothing)
 end
 
 function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
+    first_replica_v = localpart(replicas[1].v)
     if isnothing(rs.operator)
-        T = float(valtype(replicas[1].v))
+        T = float(valtype(first_replica_v))
         hermitian = true
     else
-        T = float(promote_type(valtype(replicas[1].v), eltype(rs.operator)))
+        T = float(promote_type(valtype(first_replica_v), eltype(rs.operator)))
         hermitian = Hamiltonians.LOStructure(rs.operator) ≡ Hamiltonians.Hermitian()
     end
 
@@ -904,14 +905,14 @@ function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
 
     for i in 1:N, j in i+1:N
         push!(names, "c$(i)_dot_c$(j)")
-        push!(values, dot(replicas[i].v, replicas[j].v))
+        push!(values, dot(localpart(replicas[i].v), localpart(replicas[j].v)))
         if !isnothing(rs.operator)
             push!(names, "c$(i)_Op_c$(j)")
-            push!(values, dot(replicas[i].v, rs.operator, replicas[j].v))
+            push!(values, dot(localpart(replicas[i].v), rs.operator, localpart(replicas[j].v)))
         end
         if !hermitian
             push!(names, "c$(j)_Op_c$(i)")
-            push!(values, dot(replicas[j].v, rs.operator, replicas[i].v))
+            push!(values, dot(localpart(replicas[j].v), rs.operator, localpart(replicas[i].v)))
         end
     end
 
