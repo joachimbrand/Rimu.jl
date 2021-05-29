@@ -14,7 +14,8 @@ export AbstractDVec, zero!, add!, deposit!, storage
 export DVec, InitiatorDVec
 
 export
-    AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
+    AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop,
+    SignCoherence
 export
     StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
     IsDynamicSemistochastic, StyleUnknown

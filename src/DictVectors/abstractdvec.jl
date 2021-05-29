@@ -311,3 +311,21 @@ function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
     T = float(real(valtype(y)))
     return isempty(y) ? zero(T) : sum(z -> real(z) * imag(z), y)|>T
 end
+
+"""
+    SignCoherence(reference) <: AbstractProjector
+
+Results in computing the number of values that match the sign of `reference`.
+"""
+struct SignCoherence{D} <: AbstractProjector
+    reference::D
+end
+
+function LinearAlgebra.dot(sp::SignProjector, y)
+    ref = sp.reference
+    res = 0
+    for (k, v) in pairs(y)
+        res += sign(v) == sign(ref[k])
+    end
+    return res
+end

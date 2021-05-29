@@ -943,8 +943,14 @@ abstract type AfterStepStrategy end
 """
 after_step
 
-function after_step(t::Tuple, replica)
-    # TODO
+# When startegies are a Tuple, apply all of them.
+function after_step(t::Tuple{T}, replica) where {T}
+    after_step(first(t), replica)
+end
+function after_step((t,ts...), replica)
+    first_names, first_values = after_step(t, replica)
+    last_names, last_values = after_step(ts, replica)
+    return (first_names..., last_names...), (first_values..., last_values...)
 end
 
 """
@@ -956,19 +962,11 @@ struct NoAfterStep end
 
 after_step(::NoAfterStep, _) = (), ()
 
-struct SignStructure{D} <: AfterStepStrategy
-    reference::D
+struct Projector{P}
+    name::Symbol
+    projector::P
 end
 
-function after_step(s::SignStructure, replica)
-    c = replica.v
-    reference = s.reference
-    correct_sign = 0
-    incorrect_sign = 0
-    for (k, v) in pairs(c)
-        ref_v = reference[k]
-        correct_sign += sign(ref_v) == sign(v)
-        incorrect_sign += sign(ref_v) ≠ sign(v)
-    end
-    return (:correct_sign, :incorrect_sign), (correct_sign / length(c), incorrect_sign / length(c))
+function after_step(p::Projector, replica)
+    return (p.name,), (dot(p.projector, replica.v),)
 end
