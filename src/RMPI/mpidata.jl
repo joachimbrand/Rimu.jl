@@ -50,11 +50,11 @@ MPI syncronizing.
 """
 function LinearAlgebra.norm(md::MPIData, p::Real=2)
     if p === 2
-        return sqrt(MPI.Allreduce(Rimu.DictVectors.norm_sqr(md.data), +, md.comm))
+        return sqrt(MPI.Allreduce(sum(abs2, md.data), +, md.comm))
     elseif p === 1
-        return MPI.Allreduce(Rimu.DictVectors.norm1(md.data), +, md.comm)
+        return MPI.Allreduce(norm(md.data, 1), +, md.comm)
     elseif p === Inf
-        return MPI.Allreduce(Rimu.DictVectors.normInf(md.data), max, md.comm)
+        return MPI.Allreduce(norm(md.data, Inf), max, md.comm)
     else
         @error "$p-norm of MPIData is not implemented."
     end

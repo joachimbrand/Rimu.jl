@@ -985,6 +985,7 @@ function after_step(sc::SignCoherence, replica)
         max(zero(v), v * ref)
     end
     coherent_configs = num_correct / length(vector)
+    # TODO think this through
     coherence = sqrt(amt_correct) / norm(vector, 2)
     return (:coherent_configs, :coherence), (coherent_configs, coherence)
 end
