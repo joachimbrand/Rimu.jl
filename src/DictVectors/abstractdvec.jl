@@ -321,7 +321,7 @@ struct SignCoherence{D} <: AbstractProjector
     reference::D
 end
 
-function LinearAlgebra.dot(sp::SignProjector, y)
+function LinearAlgebra.dot(sp::SignCoherence, y)
     ref = sp.reference
     res = 0
     for (k, v) in pairs(y)
