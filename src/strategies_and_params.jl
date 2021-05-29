@@ -980,12 +980,19 @@ function after_step(sc::SignCoherence, replica)
     num_correct = mapreduce(+, vector; init=zero(valtype(vector))) do ((k, v))
         sign(v) == sign(sc.reference[k])
     end
-    amt_correct = mapreduce(+, vector; init=zero(valtype(vector))) do ((k, v))
-        ref = sc.reference[k]
-        max(zero(v), v * ref)
-    end
     coherent_configs = num_correct / length(vector)
-    # TODO think this through
-    coherence = sqrt(amt_correct) / norm(vector, 2)
-    return (:coherent_configs, :coherence), (coherent_configs, coherence)
+    return (:coherent_configs,), (coherent_configs,)
+end
+
+struct Distance{R}
+    reference::R
+end
+
+function after_step(d::Distance, replica)
+    vector = replica.v
+    abs2dist = mapreduce(+, vector; init=zero(valtype(vector))) do ((k, v))
+        ref = d.reference[k]
+        abs2(ref - v)
+    end
+    return (:distance,), (sqrt(abs2dist / length(vector)),)
 end

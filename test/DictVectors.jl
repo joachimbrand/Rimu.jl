@@ -84,6 +84,11 @@ function test_dvec_interface(type, keys, vals, cap)
             end
             @test norm(dvec) == norm(dvec, 2)
             @test_throws ErrorException norm(dvec, 3)
+
+            @test norm(empty(dvec)) == 0.0
+            @test norm(empty(dvec), 1) == 0.0
+            @test norm(empty(dvec), 2) == 0.0
+            @test norm(empty(dvec), Inf) == 0.0
         end
         @testset "copy" begin
             dvec1 = type(Dict(pairs))

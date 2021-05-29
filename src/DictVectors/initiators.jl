@@ -254,7 +254,7 @@ struct InitiatorPairs{K,V,D<:InitiatorDVec{K,V}}
     dvec::D
 end
 Base.pairs(dvec::InitiatorDVec) = InitiatorPairs(dvec)
-Base.length(p::InitiatorPairs) = length(dvec.p)
+Base.length(p::InitiatorPairs) = length(p.dvec)
 Base.IteratorSize(::InitiatorPairs) = Base.HasLength()
 Base.IteratorEltype(::InitiatorPairs) = Base.HasEltype()
 Base.eltype(::InitiatorPairs{K,V}) where {K,V} = Pair{K,V}
@@ -270,7 +270,7 @@ struct InitiatorValues{V,D<:InitiatorDVec{<:Any,V}}
     dvec::D
 end
 Base.values(dvec::InitiatorDVec) = InitiatorValues(dvec)
-Base.length(p::InitiatorValues) = length(dvec.p)
+Base.length(p::InitiatorValues) = length(p.dvec)
 Base.IteratorSize(::InitiatorValues) = Base.HasLength()
 Base.IteratorEltype(::InitiatorValues) = Base.HasEltype()
 Base.eltype(::InitiatorValues{V}) where {V} = V
