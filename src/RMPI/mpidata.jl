@@ -50,7 +50,7 @@ MPI syncronizing.
 """
 function LinearAlgebra.norm(md::MPIData, p::Real=2)
     if p === 2
-        return sqrt(MPI.Allreduce(sum(abs2, md.data), +, md.comm))
+        return sqrt(MPI.Allreduce(sum(abs2, values(md.data)), +, md.comm))
     elseif p === 1
         return MPI.Allreduce(norm(md.data, 1), +, md.comm)
     elseif p === Inf
