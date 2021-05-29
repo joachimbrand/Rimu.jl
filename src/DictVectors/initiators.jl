@@ -250,16 +250,38 @@ function Base.setindex!(dvec::InitiatorDVec{<:Any,V}, v, k) where {V}
     return v
 end
 
-function Base.pairs(dvec::InitiatorDVec)
-    return Iterators.map(pairs(dvec.storage)) do ((k, v))
-        k => value(dvec.initiator, v)
-    end
+struct InitiatorPairs{K,V,D<:InitiatorDVec{K,V}}
+    dvec::D
 end
-function Base.values(dvec::InitiatorDVec)
-    return Iterators.map(values(dvec.storage)) do v
-        value(dvec.initiator, v)
-    end
+Base.pairs(dvec::InitiatorDVec) = InitiatorPairs(dvec)
+Base.length(p::InitiatorPairs) = length(dvec.p)
+Base.IteratorSize(::InitiatorPairs) = Base.HasLength()
+Base.IteratorEltype(::InitiatorPairs) = Base.HasEltype()
+Base.eltype(::InitiatorPairs{K,V}) where {K,V} = Pair{K,V}
+
+function Base.iterate(p::InitiatorPairs, args...)
+    iter = iterate(storage(p.dvec), args...)
+    isnothing(iter) && return nothing
+    (k, v), st = iter
+    return k => value(p.dvec.initiator, v), st
 end
+
+struct InitiatorValues{V,D<:InitiatorDVec{<:Any,V}}
+    dvec::D
+end
+Base.values(dvec::InitiatorDVec) = InitiatorValues(dvec)
+Base.length(p::InitiatorValues) = length(dvec.p)
+Base.IteratorSize(::InitiatorValues) = Base.HasLength()
+Base.IteratorEltype(::InitiatorValues) = Base.HasEltype()
+Base.eltype(::InitiatorValues{V}) where {V} = V
+
+function Base.iterate(p::InitiatorValues, args...)
+    iter = iterate(values(storage(p.dvec)), args...)
+    isnothing(iter) && return nothing
+    v, st = iter
+    return value(p.dvec.initiator, v), st
+end
+
 function Base.get(dvec::InitiatorDVec, args...)
     return value(dvec.initiator, get(dvec.storage, args...))
 end
