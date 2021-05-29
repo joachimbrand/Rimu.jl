@@ -977,10 +977,10 @@ end
 
 function after_step(sc::SignCoherence, replica)
     vector = replica.v
-    num_correct = mapreduce(+, vector) do ((k, v))
+    num_correct = mapreduce(+, vector; init=zero(valtype(vector))) do ((k, v))
         sign(v) == sign(sc.reference[k])
     end
-    amt_correct = mapreduce(+, vector) do ((k, v))
+    amt_correct = mapreduce(+, vector; init=zero(valtype(vector))) do ((k, v))
         ref = sc.reference[k]
         max(zero(v), v * ref)
     end

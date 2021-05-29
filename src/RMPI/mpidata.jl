@@ -83,7 +83,7 @@ function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
     return dot(localpart(md_left), temp_2)
 end
 
-function Base.mapreduce(f, op, md::MPIData)
-    res = mapreduce(f, op, pairs(localpart(md)))
+function Base.mapreduce(f, op, md::MPIData; kwargs...)
+    res = mapreduce(f, op, pairs(localpart(md)); kwargs...)
     return MPI.Allreduce(res, op, md.comm)
 end

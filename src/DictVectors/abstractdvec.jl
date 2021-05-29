@@ -111,8 +111,8 @@ function Base.sum(f, x::AbstractDVec)
 end
 
 # TODO: reintroduce iterate?
-function Base.mapreduce(f::Function, op::Function, x::AbstractDVec)
-    mapreduce(f, op, pairs(x))
+function Base.mapreduce(f::Function, op::Function, x::AbstractDVec; kwargs...)
+    mapreduce(f, op, pairs(x); kwargs...)
 end
 
 function LinearAlgebra.norm(x::AbstractDVec, p::Real=2)
