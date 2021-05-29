@@ -110,6 +110,11 @@ function Base.sum(f, x::AbstractDVec)
     return sum(f, values(x))
 end
 
+# TODO: reintroduce iterate?
+function Base.mapreduce(f::Function, op::Function, x::AbstractDVec)
+    mapreduce(f, op, pairs(x))
+end
+
 function LinearAlgebra.norm(x::AbstractDVec, p::Real=2)
     if p === 1
         return float(sum(abs, values(x)))
@@ -310,22 +315,4 @@ struct PopsProjector <: AbstractProjector end
 function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
     T = float(real(valtype(y)))
     return isempty(y) ? zero(T) : sum(z -> real(z) * imag(z), y)|>T
-end
-
-"""
-    SignCoherence(reference) <: AbstractProjector
-
-Results in computing the number of values that match the sign of `reference`.
-"""
-struct SignCoherence{D} <: AbstractProjector
-    reference::D
-end
-
-function LinearAlgebra.dot(sp::SignCoherence, y::DVecOrVec)
-    ref = sp.reference
-    res = 0
-    for (k, v) in pairs(y)
-        res += sign(v) == sign(ref[k])
-    end
-    return res
 end

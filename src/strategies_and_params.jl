@@ -947,7 +947,7 @@ after_step
 function after_step(t::Tuple{T}, replica) where {T}
     after_step(first(t), replica)
 end
-function after_step((t,ts...), replica)
+function after_step((t,ts...)::Tuple, replica)
     first_names, first_values = after_step(t, replica)
     last_names, last_values = after_step(ts, replica)
     return (first_names..., last_names...), (first_values..., last_values...)
@@ -969,4 +969,22 @@ end
 
 function after_step(p::Projector, replica)
     return (p.name,), (dot(p.projector, replica.v),)
+end
+
+struct SignCoherence{R}
+    reference::R
+end
+
+function after_step(sc::SignCoherence, replica)
+    vector = replica.v
+    num_correct = mapreduce(+, vector) do ((k, v))
+        sign(v) == sign(sc.reference[k])
+    end
+    amt_correct = mapreduce(+, vector) do ((k, v))
+        ref = sc.reference[k]
+        max(zero(v), v * ref)
+    end
+    coherent_configs = num_correct / length(vector)
+    coherence = sqrt(amt_correct) / norm(vector, 2)
+    return (:coherent_configs, :coherence), (coherent_configs, coherence)
 end

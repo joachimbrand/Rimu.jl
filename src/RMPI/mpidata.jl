@@ -82,3 +82,8 @@ function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
     mpi_combine_walkers!(temp_2, temp_1)
     return dot(localpart(md_left), temp_2)
 end
+
+function Base.mapreduce(f, op, md::MPIData)
+    res = mapreduce(f, op, pairs(localpart(md)))
+    return MPI.Allreduce(res, op, md.comm)
+end
