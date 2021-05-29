@@ -926,3 +926,49 @@ function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
     end
     return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
 end
+
+"""
+    AfterStepStrategy
+
+Subtypes of `AfterStepStrategy` can be used to perform arbitrary computation on a replica
+after a FCIQMC step is finished.
+
+A subtype of this type must implement
+[`after_step(::AfterStepStrategy, ::ReplicaState)`](@ref).
+"""
+abstract type AfterStepStrategy end
+
+"""
+    after_step(::AfterStepStrategy, ::ReplicaState) -> names, values
+"""
+after_step
+
+function after_step(t::Tuple, replica)
+    # TODO
+end
+
+"""
+    NoAfterStep <: AfterStepStrategy
+
+Default [`AfterStepStrategy`](@ref). Does nothing.
+"""
+struct NoAfterStep end
+
+after_step(::NoAfterStep, _) = (), ()
+
+struct SignStructure{D} <: AfterStepStrategy
+    reference::D
+end
+
+function after_step(s::SignStructure, replica)
+    c = replica.v
+    reference = s.reference
+    correct_sign = 0
+    incorrect_sign = 0
+    for (k, v) in pairs(c)
+        ref_v = reference[k]
+        correct_sign += sign(ref_v) == sign(v)
+        incorrect_sign += sign(ref_v) ≠ sign(v)
+    end
+    return (:correct_sign, :incorrect_sign), (correct_sign / length(c), incorrect_sign / length(c))
+end

@@ -43,6 +43,7 @@ struct QMCState{
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
     RRS<:ReplicaStrategy,
+    AS,
 }
     hamiltonian::H
     replicas::NTuple{N,R}
@@ -53,6 +54,7 @@ struct QMCState{
     s_strat::SS
     τ_strat::TS
     replica::RRS
+    after_step::AS
 end
 
 function QMCState(
@@ -66,6 +68,7 @@ function QMCState(
     r_strat::ReportingStrategy=EveryTimeStep(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     m_strat::MemoryStrategy=NoMemory(),
+    after_step=NoAfterStep(),
     replica::ReplicaStrategy=NoStats(),
     maxlength=2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers)),
 )
@@ -89,7 +92,7 @@ function QMCState(
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(maxlength), m_strat, r_strat, s_strat, τ_strat, replica
+        hamiltonian, replicas, Ref(maxlength), m_strat, r_strat, s_strat, τ_strat, replica, after_step,
     )
 end
 
@@ -174,6 +177,7 @@ required for continuation runs.
 * `r_strat::ReportingStrategy = EveryTimeStep()` - see [`ReportingStrategy`](@ref)
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
 * `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
+* `after_step::AfterStepStrategy = NoAfterStep()` - see [`AfterStepStrategy`](@ref).
 * `replica::ReplicaStrategy = NoStats(1)` - see [`ReplicaStrategy`](@ref).
 
 # Return values
@@ -234,6 +238,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
         end
         replica_names, replica_values = replica_stats(state.replica, state.replicas)
         report!(state.r_strat, step, report, replica_names, replica_values)
+
         print_report(state.r_strat, step, report, state)
         !success && break
     end
@@ -286,6 +291,9 @@ function advance!(
     report!(r_strat, step, report, stat_names, step_stats, id)
     report!(r_strat, step, report, update_stats, id)
     report!(r_strat, step, report, (;shift_noise), id)
+
+    after_names, after_values = after_step(state.after_step, replica)
+    report!(state.r_strat, step, report, after_names, after_values, id)
 
     if len == 0
         if length(state.replicas) > 1
