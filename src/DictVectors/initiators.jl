@@ -250,38 +250,6 @@ function Base.setindex!(dvec::InitiatorDVec{<:Any,V}, v, k) where {V}
     return v
 end
 
-struct InitiatorPairs{K,V,D<:InitiatorDVec{K,V}}
-    dvec::D
-end
-Base.pairs(dvec::InitiatorDVec) = InitiatorPairs(dvec)
-Base.length(p::InitiatorPairs) = length(p.dvec)
-Base.IteratorSize(::InitiatorPairs) = Base.HasLength()
-Base.IteratorEltype(::InitiatorPairs) = Base.HasEltype()
-Base.eltype(::InitiatorPairs{K,V}) where {K,V} = Pair{K,V}
-
-function Base.iterate(p::InitiatorPairs, args...)
-    iter = iterate(storage(p.dvec), args...)
-    isnothing(iter) && return nothing
-    (k, v), st = iter
-    return k => value(p.dvec.initiator, v), st
-end
-
-struct InitiatorValues{V,D<:InitiatorDVec{<:Any,V}}
-    dvec::D
-end
-Base.values(dvec::InitiatorDVec) = InitiatorValues(dvec)
-Base.length(p::InitiatorValues) = length(p.dvec)
-Base.IteratorSize(::InitiatorValues) = Base.HasLength()
-Base.IteratorEltype(::InitiatorValues) = Base.HasEltype()
-Base.eltype(::InitiatorValues{V}) where {V} = V
-
-function Base.iterate(p::InitiatorValues, args...)
-    iter = iterate(values(storage(p.dvec)), args...)
-    isnothing(iter) && return nothing
-    v, st = iter
-    return value(p.dvec.initiator, v), st
-end
-
 function Base.get(dvec::InitiatorDVec, args...)
     return value(dvec.initiator, get(dvec.storage, args...))
 end
@@ -321,4 +289,75 @@ function deposit!(w::InitiatorDVec{<:Any,V}, add, val::InitiatorValue{V}, _) whe
     dict = storage(w)
     prev_val = get(dict, add, zero(valtype(dict)))
     dict[add] = prev_val + val
+end
+
+###
+### Iterators
+###
+"""
+    InitiatorPairs
+
+Iterator over pairs of an `InitiatorDVec`. Supports the `SplittablesBase` interface.
+"""
+struct InitiatorPairs{K,V,D,I}
+    iter::D
+    initiator::I
+
+    function InitiatorPairs{K,V}(iter::D, initiator::I) where {K,V,D,I}
+        return new{K,V,D,I}(iter, initiator)
+    end
+end
+function Base.pairs(dvec::InitiatorDVec{K,V}) where {K,V}
+    InitiatorPairs{K,V}(pairs(storage(dvec)), dvec.initiator)
+end
+function SplittablesBase.halve(p::InitiatorPairs{K,V}) where {K,V}
+    left, right = SplittablesBase.halve(p.iter)
+    return InitiatorPairs{K,V}(left, p.initiator), InitiatorPairs{K,V}(right, p.initiator)
+end
+SplittablesBase.amount(p::InitiatorPairs) = SplittablesBase.amount(p.iter)
+
+Base.length(p::InitiatorPairs) = length(p.iter)
+Base.IteratorSize(::InitiatorPairs) = Base.HasLength()
+Base.IteratorEltype(::InitiatorPairs) = Base.HasEltype()
+Base.eltype(::InitiatorPairs{K,V}) where {K,V} = Pair{K,V}
+
+function Base.iterate(p::InitiatorPairs, args...)
+    it = iterate(p.iter, args...)
+    isnothing(it) && return nothing
+    (k, v), st = it
+    return k => value(p.initiator, v), st
+end
+
+"""
+    InitiatorValues
+
+Iterator over values of an `InitiatorDVec`. Supports the `SplittablesBase` interface.
+"""
+struct InitiatorValues{V,D,I}
+    iter::D
+    initiator::I
+
+    function InitiatorValues{V}(iter::D, initiator::I) where {V,D,I}
+        return new{V,D,I}(iter, initiator)
+    end
+end
+function Base.values(dvec::InitiatorDVec{<:Any,V}) where {V}
+    return InitiatorValues{V}(values(storage(dvec)), dvec.initiator)
+end
+function SplittablesBase.halve(p::InitiatorValues{V}) where {V}
+    left, right = SplittablesBase.halve(p.iter)
+    return InitiatorValues{V}(left, p.initiator), InitiatorValues{V}(right, p.initiator)
+end
+SplittablesBase.amount(p::InitiatorValues) = SplittablesBase.amount(p.iter)
+
+Base.length(p::InitiatorValues) = length(p.iter)
+Base.IteratorSize(::InitiatorValues) = Base.HasLength()
+Base.IteratorEltype(::InitiatorValues) = Base.HasEltype()
+Base.eltype(::InitiatorValues{V}) where {V} = V
+
+function Base.iterate(p::InitiatorValues, args...)
+    it = iterate(p.iter, args...)
+    isnothing(it) && return nothing
+    v, st = it
+    return value(p.initiator, v), st
 end
