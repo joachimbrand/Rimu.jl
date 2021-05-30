@@ -10,6 +10,7 @@ concrete implementation of [`DVec`](@ref)
 module DictVectors
 
 using Random, LinearAlgebra
+import SplittablesBase
 export AbstractDVec, zero!, add!, deposit!, storage
 export DVec, InitiatorDVec
 

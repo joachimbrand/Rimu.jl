@@ -116,7 +116,7 @@ function LinearAlgebra.norm(x::AbstractDVec, p::Real=2)
     elseif p === 2
         return sqrt(sum(abs2, values(x)))
     elseif p === Inf
-        return float(isempty(x) ? zero(valtype(x)) : maximum(abs, values(x)))
+        return float(mapreduce(abs, max, values(x), init=zero(valtype(x))))
     else
         error("$p-norm of $(typeof(x)) is not implemented.")
     end
@@ -286,7 +286,9 @@ struct Norm1ProjectorPPop <: AbstractProjector end
 
 function LinearAlgebra.dot(::Norm1ProjectorPPop, y::DVecOrVec)
     T = float(valtype(y))
-    return isempty(y) ? zero(T) : sum(p->abs(real(p)) + im*abs(imag(p)), y)|>T
+    return mapreduce(+, values(y); init=zero(T)) do p
+        T(abs(real(p)) + im*abs(imag(p)))
+    end
 end
 
 # NOTE that this returns a `Float64` opposite to the convention for
@@ -309,5 +311,7 @@ struct PopsProjector <: AbstractProjector end
 
 function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
     T = float(real(valtype(y)))
-    return isempty(y) ? zero(T) : sum(z -> real(z) * imag(z), y)|>T
+    return mapreduce(+, values(y); init=zero(T)) do p
+        T(real(p) * imag(p))
+    end
 end

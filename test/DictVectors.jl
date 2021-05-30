@@ -6,6 +6,7 @@ using Rimu.DictVectors: IsStochastic2Pop
 using StaticArrays
 using Suppressor
 using Test
+using ThreadsX
 
 function test_dvec_interface(type, keys, vals, cap)
     K = eltype(keys)
@@ -84,6 +85,11 @@ function test_dvec_interface(type, keys, vals, cap)
             end
             @test norm(dvec) == norm(dvec, 2)
             @test_throws ErrorException norm(dvec, 3)
+
+            @test norm(empty(dvec)) == 0
+            @test norm(empty(dvec), 1) == 0
+            @test norm(empty(dvec), 2) == 0
+            @test norm(empty(dvec), Inf) == 0
         end
         @testset "copy" begin
             dvec1 = type(Dict(pairs))
@@ -119,6 +125,11 @@ function test_dvec_interface(type, keys, vals, cap)
             for (k, v) in pairs
                 @test dvec[k] == 3v
             end
+        end
+        @testset "ThreadsX" begin
+            dvec = type(Dict(pairs))
+            @test ThreadsX.sum(values(dvec)) ≈ sum(values(dvec))
+            @test ThreadsX.sum(last, pairs(dvec)) ≈ sum(last, pairs(dvec))
         end
         @testset "add!" begin
             dvec1 = type(Dict(pairs))
