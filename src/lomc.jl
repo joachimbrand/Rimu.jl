@@ -42,7 +42,7 @@ struct QMCState{
     RS<:ReportingStrategy,
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
-    O,
+    RRS<:ReplicaStrategy,
 }
     hamiltonian::H
     replicas::NTuple{N,R}
@@ -52,10 +52,7 @@ struct QMCState{
     r_strat::RS
     s_strat::SS
     τ_strat::TS
-
-    # Report x†⋅operator⋅y
-    # In the future, this should be replaced with a struct a la ReplicaStrategy.
-    operator::O
+    replica::RRS
 end
 
 function QMCState(
@@ -69,20 +66,9 @@ function QMCState(
     r_strat::ReportingStrategy=EveryTimeStep(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     m_strat::MemoryStrategy=NoMemory(),
+    replica::ReplicaStrategy=NoStats(),
     maxlength=2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers)),
-    num_replicas=1,
-    report_xHy=false,
-    operator=report_xHy ? hamiltonian : nothing,
 )
-    # Checks
-    if num_replicas < 1
-        error("need at least one replica.")
-    elseif !isnothing(operator) && num_replicas < 2
-        error(
-            "operator $operator needs at least two replicas. ",
-            "Set the number of replicas with the `num_replicas` keyowrd argument."
-        )
-    end
     # Set up default arguments
     r_strat = refine_r_strat(r_strat, hamiltonian)
     if !isnothing(laststep)
@@ -93,8 +79,9 @@ function QMCState(
     end
     wm = default_working_memory(threading, v, s_strat)
     # Set up replicas
-    if num_replicas > 1
-        replicas = ntuple(num_replicas) do i
+    nreplicas = num_replicas(replica)
+    if nreplicas > 1
+        replicas = ntuple(nreplicas) do i
             ReplicaState(deepcopy(v), deepcopy(wm), deepcopy(params), "_$i")
         end
     else
@@ -102,7 +89,7 @@ function QMCState(
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(maxlength), m_strat, r_strat, s_strat, τ_strat, operator
+        hamiltonian, replicas, Ref(maxlength), m_strat, r_strat, s_strat, τ_strat, replica
     )
 end
 
@@ -187,8 +174,7 @@ required for continuation runs.
 * `r_strat::ReportingStrategy = EveryTimeStep()` - see [`ReportingStrategy`](@ref)
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
 * `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
-* `num_replicas` - set the number of replica runs to run.
-* `operator` - set an operator to use with replicas.
+* `replica::ReplicaStrategy = NoStats(1)` - see [`ReplicaStrategy`](@ref).
 
 # Return values
 
@@ -239,24 +225,15 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
     # be moved to QMCState?
     while step < laststep
         step += 1
+        report!(state.r_strat, step, report, :steps, step)
         # This loop could be threaded if num_threads() == num_replicas? MPIData would need
         # to be aware of the replica's id and use that in communication.
         success = true
         for replica in state.replicas
             success &= advance!(report, state, replica)
         end
-        # The following should probably be replaced with some kind of ReplicaStrategy.
-        # Right now it is designed to work similarly to the old implementation.
-        if length(state.replicas) ≥ 2
-            c1 = state.replicas[1].v
-            c2 = state.replicas[2].v
-            xdoty = c1 ⋅ c2
-            report!(state.r_strat, step, report, :xdoty, xdoty)
-            if !isnothing(state.operator)
-                xHy = dot(c1, state.operator, c2)
-                report!(state.r_strat, step, report, :xHy, xHy)
-            end
-        end
+        replica_names, replica_values = replica_stats(state.replica, state.replicas)
+        report!(state.r_strat, step, report, replica_names, replica_values)
         print_report(state.r_strat, step, report, state)
         !success && break
     end
@@ -303,7 +280,7 @@ function advance!(
 
     report!(
         r_strat, step, report,
-        (steps=step, dτ, shift, shiftMode, len, norm=tnorm), id,
+        (dτ, shift, shiftMode, len, norm=tnorm), id,
     )
     report!(r_strat, step, report, proj_observables, id)
     report!(r_strat, step, report, stat_names, step_stats, id)

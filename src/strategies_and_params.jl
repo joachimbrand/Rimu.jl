@@ -46,21 +46,20 @@ For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 
 """
     ReportingStrategy
-Abstract type for strategies for reporting data in a DataFrame with
-[`report!()`](@ref). It also affects the calculation and reporting of
-projected quantities in the DataFrame.
+Abstract type for strategies for reporting data in a DataFrame with [`report!()`](@ref). It
+also affects the calculation and reporting of projected quantities in the DataFrame.
 
 # Implemented strategies:
-   * [`EveryTimeStep`](@ref)
-   * [`EveryKthStep`](@ref)
-   * [`ReportDFAndInfo`](@ref)
 
-Every strategy accepts the keyword arguments `projector` and `hproj`
-according to which
-a projection of the instantaneous coefficient vector `projector⋅v` and
-`hproj⋅v` are
-reported to the DataFrame  in the fields `df.vproj` and `df.hproj`,
-respectively. Possible values for `projector` are
+* [`EveryTimeStep`](@ref)
+* [`EveryKthStep`](@ref)
+* [`ReportDFAndInfo`](@ref)
+
+Every strategy accepts the keyword arguments `projector` and `hproj` according to which a
+projection of the instantaneous coefficient vector `projector⋅v` and `hproj⋅v` are reported
+to the DataFrame in the fields `df.vproj` and `df.hproj`, respectively. Possible values for
+`projector` are
+
 * `nothing` - no projections are computed (default)
 * `dv::AbstractDVec` - compute projection onto coefficient vector `dv` (set up with [`copy`](@ref) to conserve memory)
 * [`UniformProjector()`](@ref) - projection onto vector of all ones (i.e. sum of elements)
@@ -68,15 +67,24 @@ respectively. Possible values for `projector` are
 * [`Norm1ProjectorPPop()`](@ref) - compute 1-norm per population
 * [`Norm2Projector()`](@ref) - compute 2-norm
 
-In order to help set up the calculation of the projected energy,
-where `df.hproj` should report `dot(projector, ham, v)`, the keyword `hproj`
-accepts the following values (for `ReportingStrategy`s passed to `lomc!()`):
+In order to help set up the calculation of the projected energy, where `df.hproj` should
+report `dot(projector, ham, v)`, the keyword `hproj` accepts the following values (for
+`ReportingStrategy`s passed to `lomc!()`):
+
 * `:auto` - choose method depending on `projector` and `ham` (default)
 * `:lazy` - compute `dot(projector, ham, v)` every time (slow)
 * `:eager` -  precompute `hproj` as `ham'*v` (fast, requires `adjoint(ham)`)
 * `:not` - don't compute second projector (equivalent to `nothing`)
 
+# Interface
+
+A `ReportingStrategy` must define the following:
+
+* [`report!`](@ref)
+* [`print_report`](@ref) (optional)
+
 # Examples
+
 ```julia
 r_strat = EveryTimeStep(projector = copy(svec))
 ```
@@ -179,25 +187,28 @@ end
 # end
 # # The dot products work across MPI when `v::MPIData`; MPI sync
 """
-     report!(::ReportingStrategy, step, report::Report, args...)
+     report!(::ReportingStrategy, step, report::Report, keys, values, id="")
+     report!(::ReportingStrategy, step, report::Report, nt, id="")
 
-Write values from `args...` to `report` that will be converted to a `DataFrame` later.
-`args...` can be:
+Report `keys` and `values` to `report`, which will be converted to a `DataFrame` before
+[`lomc!`](@ref) exits. Alternatively, a `nt::NamedTuple` can be passed in place of `keys`
+and `values`. If `id` is specified, it is appended to all `keys`. This is used to
+differentiate between values reported by different replicas.
 
-* a name and a value.
-* a tuple of names followed by a tuple of values.
-* a named tuple.
+To overload this function for a new `ReportingStrategy`, overload
+`report!(::ReportingStrategy, step, args...)` and apply the report by calling
+`report!(args...)`.
 """
-function report!(::EveryTimeStep, args...)
+function report!(::EveryTimeStep, _, args...)
     report!(args...)
     return nothing
 end
 function report!(s::EveryKthStep, step, args...)
-    step % s.k == 0 && report!(step, args...)
+    step % s.k == 0 && report!(args...)
     return nothing
 end
 function report!(s::ReportDFAndInfo, step, args...)
-    step % s.k == 0 && report!(step, args...)
+    step % s.k == 0 && report!(args...)
     return nothing
 end
 
@@ -205,7 +216,7 @@ end
     print_report(::ReportingStrategy, step, report, state)
 
 This function is called at the very end of a step. It can let the `ReportingStrategy`
-print some info to output.
+print some information to output.
 """
 function print_report(::ReportingStrategy, args...)
     return nothing
@@ -820,3 +831,98 @@ end
 end
 
 @inline update_shift(::DontUpdate, shift, tnorm, args...) = (shift, false, tnorm)
+
+"""
+    ReplicaStrategy{N}
+
+An abstract type that controles how [`lomc!`](@ref) uses replicas. A subtype of
+`ReplicaStrategy{N}` operates on `N` replicas and must implement the following function:
+
+* [`replica_stats(::ReplicaStrategy{N}, ::NTuple{N,ReplicaState})`](@ref) - return a tuple
+  of `String`s or `Symbols` of replica statistic names and a tuple of the values.  These
+  will be reported to the `DataFrame` returned by [`lomc!`](@ref)
+
+Concrete implementations:
+
+* [`NoStats`](@ref): run (possibly one) replica(s), but don't report any additional info.
+* [`AllOverlaps`](@ref): report overlaps between all pairs of replica vectors.
+
+"""
+abstract type ReplicaStrategy{N} end
+
+num_replicas(::ReplicaStrategy{N}) where {N} = N
+
+"""
+    replica_stats(::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
+
+Return the names and values of statistics reported by `ReplicaStrategy`. `names` should be
+a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same length.
+"""
+replica_stats
+
+"""
+    NoStats(N=1) <: ReplicaStrategy{N}
+
+The default [`ReplicaStrategy`](@ref). `N` replicas are run, but no statistics are collected.
+"""
+struct NoStats{N} <: ReplicaStrategy{N} end
+NoStats(N=1) = NoStats{N}()
+
+replica_stats(::NoStats, _) = (), ()
+
+"""
+    AllOverlaps(n=2, operator=nothing) <: ReplicaStrategy{n}
+
+Run `n` replicas and report overlaps between all pairs of replica vectors. If operator is
+not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well.
+
+Column names in the report are of the form c{i}_dot_c{j} for vector-vector overlaps, and
+c{i}_Op_c{j} for operator overlaps.
+
+See [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an interface for
+implementing operators).
+"""
+struct AllOverlaps{N,O} <: ReplicaStrategy{N}
+    operator::O
+end
+
+function AllOverlaps(num_replicas=2, operator=nothing)
+    return AllOverlaps{num_replicas, typeof(operator)}(operator)
+end
+
+function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
+    first_replica_v = localpart(replicas[1].v)
+    if isnothing(rs.operator)
+        T = float(valtype(first_replica_v))
+        hermitian = true
+    else
+        T = float(promote_type(valtype(first_replica_v), eltype(rs.operator)))
+        hermitian = Hamiltonians.LOStructure(rs.operator) ≡ Hamiltonians.Hermitian()
+    end
+
+    names = String[]
+    values = T[]
+
+    for i in 1:N, j in i+1:N
+        push!(names, "c$(i)_dot_c$(j)")
+        push!(values, dot(localpart(replicas[i].v), localpart(replicas[j].v)))
+        if !isnothing(rs.operator)
+            push!(names, "c$(i)_Op_c$(j)")
+            push!(values, dot(localpart(replicas[i].v), rs.operator, localpart(replicas[j].v)))
+        end
+        if !hermitian
+            push!(names, "c$(j)_Op_c$(i)")
+            push!(values, dot(localpart(replicas[j].v), rs.operator, localpart(replicas[i].v)))
+        end
+    end
+
+    # Note: this if-else chain is evaulated at compile time and makes the function type-stable
+    if isnothing(rs.operator)
+        num_reports = N * (N - 1) ÷ 2
+    elseif hermitian
+        num_reports = N * (N - 1)
+    else
+        num_reports = 3N * (N - 1) ÷ 2
+    end
+    return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
+end

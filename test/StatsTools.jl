@@ -199,7 +199,7 @@ end
 
     # run replica fciqmc
     seedCRNG!(17)
-    @time rr = lomc!(ham, v; params=p, s_strat, r_strat, num_replicas=2).df
+    @time rr = lomc!(ham, v; params=p, s_strat, r_strat, replica=AllOverlaps()).df
 
     # check fidelity with ground state
     fid_gs = StatsTools.replica_fidelity(rr; p_field=:vproj, skip=steps_equi)
