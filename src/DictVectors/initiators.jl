@@ -250,16 +250,6 @@ function Base.setindex!(dvec::InitiatorDVec{<:Any,V}, v, k) where {V}
     return v
 end
 
-function Base.pairs(dvec::InitiatorDVec)
-    return Iterators.map(pairs(dvec.storage)) do ((k, v))
-        k => value(dvec.initiator, v)
-    end
-end
-function Base.values(dvec::InitiatorDVec)
-    return Iterators.map(values(dvec.storage)) do v
-        value(dvec.initiator, v)
-    end
-end
 function Base.get(dvec::InitiatorDVec, args...)
     return value(dvec.initiator, get(dvec.storage, args...))
 end
@@ -299,4 +289,52 @@ function deposit!(w::InitiatorDVec{<:Any,V}, add, val::InitiatorValue{V}, _) whe
     dict = storage(w)
     prev_val = get(dict, add, zero(valtype(dict)))
     dict[add] = prev_val + val
+end
+
+###
+### Iterators
+###
+# These are needed because `Iterators.map` does not infer `eltype` correctly and does not work
+# with SplittablesBase.jl.
+"""
+    InitiatorIterator
+
+Iterator over pairs or values of an `InitiatorDVec`. Supports the `SplittablesBase`
+interface.
+"""
+struct InitiatorIterator{T,D,I}
+    iter::D
+    initiator::I
+
+    InitiatorIterator{T}(iter::D, initiator::I) where {T,D,I} = new{T,D,I}(iter, initiator)
+end
+function SplittablesBase.halve(p::InitiatorIterator{T}) where {T}
+    left, right = SplittablesBase.halve(p.iter)
+    return InitiatorIterator{T}(left, p.initiator), InitiatorIterator{T}(right, p.initiator)
+end
+SplittablesBase.amount(p::InitiatorIterator) = SplittablesBase.amount(p.iter)
+
+Base.length(p::InitiatorIterator) = length(p.iter)
+Base.IteratorSize(::InitiatorIterator) = Base.HasLength()
+Base.IteratorEltype(::InitiatorIterator) = Base.HasEltype()
+Base.eltype(::InitiatorIterator{T}) where {T} = T
+
+function Base.pairs(dvec::InitiatorDVec{K,V}) where {K,V}
+    InitiatorIterator{Pair{K,V}}(pairs(storage(dvec)), dvec.initiator)
+end
+function Base.iterate(p::InitiatorIterator{<:Pair}, args...)
+    it = iterate(p.iter, args...)
+    isnothing(it) && return nothing
+    (k, v), st = it
+    return k => value(p.initiator, v), st
+end
+
+function Base.values(dvec::InitiatorDVec{<:Any,V}) where {V}
+    InitiatorIterator{V}(values(storage(dvec)), dvec.initiator)
+end
+function Base.iterate(p::InitiatorIterator, args...)
+    it = iterate(p.iter, args...)
+    isnothing(it) && return nothing
+    v, st = it
+    return value(p.initiator, v), st
 end

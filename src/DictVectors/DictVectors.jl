@@ -10,7 +10,8 @@ concrete implementation of [`DVec`](@ref)
 module DictVectors
 
 using Random, LinearAlgebra
-export AbstractDVec, zero!, add!, deposit!, storage
+import SplittablesBase
+export AbstractDVec, zero!, add!, deposit!, storage, walkernumber, localpart
 export DVec, InitiatorDVec
 
 export
@@ -50,6 +51,5 @@ include("abstractdvec.jl")
 include("dvec.jl")
 include("initiators.jl")
 include("deprecated.jl")
-
 
 end # module

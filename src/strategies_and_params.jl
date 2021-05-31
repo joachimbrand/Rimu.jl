@@ -2,16 +2,13 @@
 #
 # FciqmcRunStrategy, RunTillLastStep
 #
+# ReportingStrategy
+#
+# MemoryStrategy
+#
 # TimeStepStrategy, update_dτ()
 #
 # ShiftStrategy, update_shift()
-#
-# # We also include traits for state vectors:
-#
-# StochasticStyle(),
-# IsStochastic(), IsStochasticNonlinear(), IsDeterministic(),
-# IsStochasticWithThreshold(), IsSemistochastic()
-#
 
 """
      FciqmcRunStrategy{T}
