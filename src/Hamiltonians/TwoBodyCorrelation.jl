@@ -1,6 +1,27 @@
 # Methods that need to be implemented:
 #   •  starting_address(::AbstractHamiltonian) - not needed
+"""
+    TwoBodyCorrelation(d::Int)
 
+Implements the two-body correlation operator for `BoseFS2C` for computing the correlation function
+between the impurity and a boson from the Bose gas as a function of the distance `d`, which can take
+`Integer` values from `0` to `M` (the number of modes).
+It works on Fock states in momentum space and could return a `Complex` value.
+
+```math
+\\hat{G}_2^{(d)} = \\frac{1}{M}\\sum_{spqr}^M e^{-id(p-q)2π/M} a^†_{s} b^†_{p}  b_q a_r δ_{s+p,q+r}
+```
+
+# Arguments
+
+* `d`: the distance between the impurity and a boson from the Bose gas.
+
+# See also
+
+* [`BoseHubbardMom1D2C`](@ref)
+* [`BoseFS2C`](@ref)
+
+"""
 struct TwoBodyCorrelation <: AbstractHamiltonian{ComplexF64}
     d::Int
 end
@@ -13,6 +34,18 @@ function num_offdiagonals(g::TwoBodyCorrelation, add::BoseFS2C)
     # number of excitations that can be made
 end
 
+"""
+    diagonal_element(g::TwoBodyCorrelation, add::BoseFS2C{NA,NB,M,AA,AB})
+
+The diagonal element in [`TwoBodyCorrelation`](@ref), where `(p-q)=0`, hence
+it becomes
+```math
+\\frac{1}{M}\\sum_{spqr}^M a^†_{k} b^†_{p}  b_p a_k .
+```
+# See also
+
+* [`TwoBodyCorrelation`](@ref)
+"""
 function diagonal_element(g::TwoBodyCorrelation, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     onrep_a = onr(add.bsa)
     onrep_b = onr(add.bsb)
