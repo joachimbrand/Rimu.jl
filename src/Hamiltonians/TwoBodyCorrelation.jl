@@ -20,6 +20,7 @@ It currently only works on [`BoseFS2C`](@ref) on Fock states in momentum space. 
 
 * [`BoseHubbardMom1D2C`](@ref)
 * [`BoseFS2C`](@ref)
+* [`AbstractHamiltonian`](@ref)
 
 """
 struct TwoBodyCorrelation <: AbstractHamiltonian{ComplexF64}
