@@ -286,8 +286,12 @@ struct Norm1ProjectorPPop <: AbstractProjector end
 
 function LinearAlgebra.dot(::Norm1ProjectorPPop, y::DVecOrVec)
     T = float(valtype(y))
-    return mapreduce(+, values(y); init=zero(T)) do p
-        T(abs(real(p)) + im*abs(imag(p)))
+    if T isa Complex
+        return T(sum(values(y)) do p
+            abs(real(p)) + im*abs(imag(p))
+        end)
+    else
+        return T(sum(abs, values(y)))
     end
 end
 
@@ -311,9 +315,9 @@ struct PopsProjector <: AbstractProjector end
 
 function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
     T = float(real(valtype(y)))
-    return mapreduce(+, values(y); init=zero(T)) do p
-        T(real(p) * imag(p))
-    end
+    return T(sum(values(y)) do p
+        real(p) * imag(p)
+    end)
 end
 
 """

@@ -33,7 +33,7 @@ end
 Base.eltype(md::MPIData) = eltype(md.data)
 Base.valtype(md::MPIData) = valtype(md.data)
 Base.keytype(md::MPIData) = keytype(md.data)
-Rimu.DictVectors.localpart(md::MPIData) = md.data
+Rimu.localpart(md::MPIData) = md.data
 Rimu.StochasticStyle(d::MPIData) = Rimu.StochasticStyle(d.data)
 
 function Base.summary(io::IO, md::MPIData)
