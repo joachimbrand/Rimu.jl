@@ -3,10 +3,10 @@
 """
     TwoBodyCorrelation(d::Int)
 
-Implements the two-body correlation operator for `BoseFS2C` for computing the correlation function
+Implements the two-body correlation operator computing the correlation function
 between the impurity and a boson from the Bose gas as a function of the distance `d`, which can take
 `Integer` values from `0` to `M` (the number of modes).
-It works on Fock states in momentum space and could return a `Complex` value.
+It currently only works on [`BoseFS2C`](@ref) on Fock states in momentum space. It returns a `Complex` value.
 
 ```math
 \\hat{G}_2^{(d)} = \\frac{1}{M}\\sum_{spqr}^M e^{-id(p-q)2π/M} a^†_{s} b^†_{p}  b_q a_r δ_{s+p,q+r}
