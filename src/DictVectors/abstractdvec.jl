@@ -286,7 +286,7 @@ struct Norm1ProjectorPPop <: AbstractProjector end
 
 function LinearAlgebra.dot(::Norm1ProjectorPPop, y::DVecOrVec)
     T = float(valtype(y))
-    if T isa Complex
+    if T <: Complex
         return T(sum(values(y)) do p
             abs(real(p)) + im*abs(imag(p))
         end)
