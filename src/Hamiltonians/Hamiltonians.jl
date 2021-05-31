@@ -23,6 +23,7 @@ export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
+export TwoBodyCorrelation
 
 include("abstract.jl")
 include("offdiagonals.jl")
