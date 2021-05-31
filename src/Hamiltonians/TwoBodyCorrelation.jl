@@ -1,7 +1,7 @@
 # Methods that need to be implemented:
 #   •  starting_address(::AbstractHamiltonian) - not needed
 """
-    TwoBodyCorrelation(d::Int)
+    G2Correlator(d::Int)
 
 Implements the two-body correlation operator computing the correlation function
 between the impurity and a boson from the Bose gas as a function of the distance `d`, which can take
@@ -23,11 +23,11 @@ It currently only works on [`BoseFS2C`](@ref) on Fock states in momentum space. 
 * [`AbstractHamiltonian`](@ref)
 
 """
-struct TwoBodyCorrelation <: AbstractHamiltonian{ComplexF64}
+struct G2Correlator <: AbstractHamiltonian{ComplexF64}
     d::Int
 end
 
-function num_offdiagonals(g::TwoBodyCorrelation, add::BoseFS2C)
+function num_offdiagonals(g::G2Correlator, add::BoseFS2C)
     M = num_modes(add)
     sa = numberoccupiedsites(add.bsa)
     sb = numberoccupiedsites(add.bsb)
@@ -36,18 +36,18 @@ function num_offdiagonals(g::TwoBodyCorrelation, add::BoseFS2C)
 end
 
 """
-    diagonal_element(g::TwoBodyCorrelation, add::BoseFS2C{NA,NB,M,AA,AB})
+    diagonal_element(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB})
 
-The diagonal element in [`TwoBodyCorrelation`](@ref), where `(p-q)=0`, hence
+The diagonal element in [`G2Correlator`](@ref), where `(p-q)=0`, hence
 it becomes
 ```math
 \\frac{1}{M}\\sum_{spqr}^M a^†_{k} b^†_{p}  b_p a_k .
 ```
 # See also
 
-* [`TwoBodyCorrelation`](@ref)
+* [`G2Correlator`](@ref)
 """
-function diagonal_element(g::TwoBodyCorrelation, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+function diagonal_element(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     onrep_a = onr(add.bsa)
     onrep_b = onr(add.bsb)
     gd = 0
@@ -60,7 +60,7 @@ function diagonal_element(g::TwoBodyCorrelation, add::BoseFS2C{NA,NB,M,AA,AB}) w
     return ComplexF64(gd/M)
 end
 
-function get_offdiagonal(g::TwoBodyCorrelation, add::BoseFS2C{NA,NB,M,AA,AB}, chosen) where {NA,NB,M,AA,AB}
+function get_offdiagonal(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB}, chosen) where {NA,NB,M,AA,AB}
     sa = numberoccupiedsites(add.bsa)
     sb = numberoccupiedsites(add.bsb)
     new_bsa, new_bsb, onproduct_a, onproduct_b, p, q = hop_across_two_addresses(add.bsa, add.bsb, chosen, sa, sb)

@@ -85,7 +85,9 @@ end
     hop_across_two_addresses(add_a, add_b, chosen[, sa, sb])
 
 Perform a hop across two addresses (in momentum space). Optional arguments `sa` and `sb`
-should equal the numbers of occupied sites in the respective components.
+should equal the numbers of occupied sites in the respective components. It returns updated
+addresses and products of occupation numbers for computing off-diagonal elements.
+`p` and `q` are the momenta returned for calculating [`G2Correlator`](@ref).
 """
 @inline function hop_across_two_addresses(
     add_a::BoseFS{NA,M}, add_b::BoseFS{NB,M}, chosen, sa, sb
