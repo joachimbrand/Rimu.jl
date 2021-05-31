@@ -31,7 +31,7 @@ Depending on `T == `[`StochasticStyle(w)`](@ref), a stochastic or deterministic 
 be chosen. The possible values for `T` are:
 
 - [`IsDeterministic()`](@ref) deteministic algorithm
-- [`IsStochastic()`](@ref) stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm
+- [`IsStochasticInteger()`](@ref) stochastic version where the changes added to `w` are purely integer, according to the FCIQMC algorithm
 - [`IsStochasticWithThreshold(c)`](@ref) stochastic algorithm with floating point walkers.
 """
 function fciqmc_col!(w::Union{AbstractArray{T},AbstractDVec{K,T}},

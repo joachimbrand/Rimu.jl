@@ -90,6 +90,6 @@ end
         @test dot(dv1, dv1) == dot(localpart(dv1), dv1)
         rand_ham = MatrixHamiltonian(rand(4,4))
         ldv1 = localpart(dv1)
-        @test norm(dot(dv1, rand_ham, dv1)) == norm(dot(ldv1, rand_ham, ldv1))
+        @test norm(dot(dv1, rand_ham, dv1)) ≈ norm(dot(ldv1, rand_ham, ldv1))
     end
 end

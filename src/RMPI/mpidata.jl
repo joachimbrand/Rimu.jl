@@ -111,7 +111,7 @@ function LinearAlgebra.norm(md::MPIData, p::Real=2)
     elseif p === 1
         return float(sum(abs, values(md)))
     elseif p === Inf
-        return float(mapreduce(abs, max, values(md); init=zero(valtype(md))))
+        return float(mapreduce(abs, max, values(md); init=real(zero(valtype(md)))))
     else
         error("$p-norm of MPIData is not implemented.")
     end

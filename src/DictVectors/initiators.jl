@@ -297,63 +297,42 @@ end
 # These are needed because `Iterators.map` does not infer `eltype` correctly and does not work
 # with SplittablesBase.jl.
 """
-    InitiatorPairs
+    InitiatorIterator
 
-Iterator over pairs of an `InitiatorDVec`. Supports the `SplittablesBase` interface.
+Iterator over pairs or values of an `InitiatorDVec`. Supports the `SplittablesBase`
+interface.
 """
-struct InitiatorPairs{K,V,D,I}
+struct InitiatorIterator{T,D,I}
     iter::D
     initiator::I
 
-    InitiatorPairs{K,V}(iter::D, initiator::I) where {K,V,D,I} = new{K,V,D,I}(iter, initiator)
+    InitiatorIterator{T}(iter::D, initiator::I) where {T,D,I} = new{T,D,I}(iter, initiator)
 end
-function Base.pairs(dvec::InitiatorDVec{K,V}) where {K,V}
-    InitiatorPairs{K,V}(pairs(storage(dvec)), dvec.initiator)
-end
-function SplittablesBase.halve(p::InitiatorPairs{K,V}) where {K,V}
+function SplittablesBase.halve(p::InitiatorIterator{T}) where {T}
     left, right = SplittablesBase.halve(p.iter)
-    return InitiatorPairs{K,V}(left, p.initiator), InitiatorPairs{K,V}(right, p.initiator)
+    return InitiatorIterator{T}(left, p.initiator), InitiatorIterator{T}(right, p.initiator)
 end
-SplittablesBase.amount(p::InitiatorPairs) = SplittablesBase.amount(p.iter)
+SplittablesBase.amount(p::InitiatorIterator) = SplittablesBase.amount(p.iter)
 
-Base.length(p::InitiatorPairs) = length(p.iter)
-Base.IteratorSize(::InitiatorPairs) = Base.HasLength()
-Base.IteratorEltype(::InitiatorPairs) = Base.HasEltype()
-Base.eltype(::InitiatorPairs{K,V}) where {K,V} = Pair{K,V}
+Base.length(p::InitiatorIterator) = length(p.iter)
+Base.IteratorSize(::InitiatorIterator) = Base.HasLength()
+Base.IteratorEltype(::InitiatorIterator) = Base.HasEltype()
+Base.eltype(::InitiatorIterator{T}) where {T} = T
 
-function Base.iterate(p::InitiatorPairs, args...)
+function Base.pairs(dvec::InitiatorDVec{K,V}) where {K,V}
+    InitiatorIterator{Pair{K,V}}(pairs(storage(dvec)), dvec.initiator)
+end
+function Base.iterate(p::InitiatorIterator{<:Pair}, args...)
     it = iterate(p.iter, args...)
     isnothing(it) && return nothing
     (k, v), st = it
     return k => value(p.initiator, v), st
 end
 
-"""
-    InitiatorValues
-
-Iterator over values of an `InitiatorDVec`. Supports the `SplittablesBase` interface.
-"""
-struct InitiatorValues{V,D,I}
-    iter::D
-    initiator::I
-
-    InitiatorValues{V}(iter::D, initiator::I) where {V,D,I} = new{V,D,I}(iter, initiator)
-end
 function Base.values(dvec::InitiatorDVec{<:Any,V}) where {V}
-    return InitiatorValues{V}(values(storage(dvec)), dvec.initiator)
+    InitiatorIterator{V}(values(storage(dvec)), dvec.initiator)
 end
-function SplittablesBase.halve(p::InitiatorValues{V}) where {V}
-    left, right = SplittablesBase.halve(p.iter)
-    return InitiatorValues{V}(left, p.initiator), InitiatorValues{V}(right, p.initiator)
-end
-SplittablesBase.amount(p::InitiatorValues) = SplittablesBase.amount(p.iter)
-
-Base.length(p::InitiatorValues) = length(p.iter)
-Base.IteratorSize(::InitiatorValues) = Base.HasLength()
-Base.IteratorEltype(::InitiatorValues) = Base.HasEltype()
-Base.eltype(::InitiatorValues{V}) where {V} = V
-
-function Base.iterate(p::InitiatorValues, args...)
+function Base.iterate(p::InitiatorIterator, args...)
     it = iterate(p.iter, args...)
     isnothing(it) && return nothing
     v, st = it

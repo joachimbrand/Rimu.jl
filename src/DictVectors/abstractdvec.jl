@@ -116,7 +116,7 @@ function LinearAlgebra.norm(x::AbstractDVec, p::Real=2)
     elseif p === 2
         return sqrt(sum(abs2, values(x)))
     elseif p === Inf
-        return float(mapreduce(abs, max, values(x), init=zero(valtype(x))))
+        return float(mapreduce(abs, max, values(x), init=real(zero(valtype(x)))))
     else
         error("$p-norm of $(typeof(x)) is not implemented.")
     end

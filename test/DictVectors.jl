@@ -129,7 +129,7 @@ function test_dvec_interface(type, keys, vals, cap)
         @testset "ThreadsX" begin
             dvec = type(Dict(pairs))
             @test ThreadsX.sum(values(dvec)) ≈ sum(values(dvec))
-            @test ThreadsX.sum(last, pairs(dvec)) ≈ sum(last, pairs(dvec))
+            @test ThreadsX.sum(last, Base.pairs(dvec)) ≈ sum(last, Base.pairs(dvec))
         end
         @testset "add!" begin
             dvec1 = type(Dict(pairs))
