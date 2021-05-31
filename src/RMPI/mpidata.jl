@@ -46,7 +46,7 @@ end
 function Base.show(io::IO, md::MPIData)
     summary(io, md)
     limit, _ = displaysize()
-    for (i, p) in enumerate(pairs(md))
+    for (i, p) in enumerate(pairs(localpart(md)))
         if length(md) > i > limit - 4
             print(io, "\n  ⋮   => ⋮")
             break
@@ -62,34 +62,34 @@ end
 """
     MPIDataIterator{I,M<:MPIData}
 
-Iterator over `keys`, `values`, or `pairs` of a `dv::MPIData`. Note that iterating over this
-iterator will only iterate the local part of `dv`. To perform computations on `dv` that span
-across ranks, use `mapreduce`, or its derivatives (`sum`, `prod`, `reduce`...).
+Iterator over `keys`, `values`, or `pairs` of a `dv::MPIData`. Unlike its name would
+suggest, it does not actually support iteration. To perform computations with it, use
+`mapreduce`, or its derivatives (`sum`, `prod`, `reduce`...), which will perform the
+reduction accross MPI ranks.
 """
 struct MPIDataIterator{I,M<:MPIData}
     iter::I
     data::M
 end
-function SplittablesBase.halve(p::MPIDataIterator)
-    left, right = SplittablesBase.halve(p.iter)
-    return MPIDataIterator(left, p.data), MPIDataIterator(right, p.data)
+
+function Base.iterate(it::MPIDataIterator, args...)
+    error(
+        "iterating over `::MPIData` is not supported. ",
+        "Use `localpart` to iterate over the local part of the vector or `mapreduce` to ",
+        "perform a reduction accross ranks",
+    )
 end
-SplittablesBase.amount(p::MPIDataIterator) = SplittablesBase.amount(p.iter)
 
-Base.length(p::MPIDataIterator) = length(p.iter)
-Base.IteratorSize(::MPIDataIterator) = Base.HasLength()
-Base.IteratorEltype(::MPIDataIterator) = Base.HasEltype()
-Base.eltype(::MPIDataIterator{I}) where {I} = eltype(I)
-Base.iterate(p::MPIDataIterator, args...) = iterate(p.iter, args...)
-
-function Base.mapreduce(f, op, p::MPIDataIterator; kwargs...)
-    res = mapreduce(f, op, p.iter; kwargs...)
-    return MPI.Allreduce(res, op, p.data.comm)
+function Base.mapreduce(f, op, it::MPIDataIterator; kwargs...)
+    res = mapreduce(f, op, it.iter; kwargs...)
+    return MPI.Allreduce(res, op, it.data.comm)
 end
 
 Base.pairs(data::MPIData) = MPIDataIterator(pairs(localpart(data)), data)
 Base.keys(data::MPIData) = MPIDataIterator(keys(localpart(data)), data)
 Base.values(data::MPIData) = MPIDataIterator(values(localpart(data)), data)
+
+Rimu.localpart(it::MPIDataIterator) = it.iter
 
 """
     length(md::MPIData)

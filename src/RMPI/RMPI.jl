@@ -8,7 +8,6 @@ using Rimu
 using LinearAlgebra
 using Rimu.ConsistentRNG
 using Random
-using SplittablesBase
 using StaticArrays
 
 import Rimu: sort_into_targets!

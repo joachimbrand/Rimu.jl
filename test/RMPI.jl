@@ -2,7 +2,6 @@ using LinearAlgebra
 using Rimu
 using Rimu.RMPI
 using Rimu.RMPI: sort_and_count!
-using SplittablesBase: halve, amount
 using Test
 
 @testset "RNG independence" begin
@@ -59,17 +58,18 @@ end
     dv1 = MPIData(DVec(4 => 1, 3 => 2, 2 => 3, 1 => 4))
     dv2 = MPIData(empty(localpart(dv1)))
 
-    @testset "Iteration" begin
-        @test sort(collect(values(dv1))) == 1:4
-        @test sort(collect(keys(dv1))) == 1:4
+    @testset "Iteration and reductions" begin
+        @test sort(collect(localpart(values(dv1)))) == 1:4
+
         @test sum(first, pairs(dv1)) == 10
         @test sum(last, pairs(dv1)) == 10
-
-        a, b = halve(pairs(dv1))
-        @test amount(a) + amount(b) == amount(pairs(dv1))
-        @test prod(first, a) * prod(first, b) == 24
-
+        @test prod(keys(dv1)) == 24
         @test sum(values(dv2)) == 0
+    end
+    @testset "Errors" begin
+        @test_throws ErrorException [p for p in pairs(dv1)]
+        @test_throws ErrorException [k for k in keys(dv1)]
+        @test_throws ErrorException [v for v in values(dv1)]
     end
     @testset "Norms" begin
         @test walkernumber(dv1) ≡ 10.0
@@ -88,7 +88,7 @@ end
     @testset "dot" begin
         @test dot(dv1, dv2) == 0
         @test dot(dv1, dv1) == dot(localpart(dv1), dv1)
-        rand_ham = MatrixHamiltonian(rand(4,4))
+        rand_ham = MatrixHamiltonian(rand(ComplexF64, 4,4))
         ldv1 = localpart(dv1)
         @test norm(dot(dv1, rand_ham, dv1)) ≈ norm(dot(ldv1, rand_ham, ldv1))
     end
