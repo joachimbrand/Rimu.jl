@@ -3,10 +3,13 @@
 """
     G2Correlator(d::Int)
 
-Implements the two-body correlation operator computing the correlation function
-between the impurity and a boson from the Bose gas as a function of the distance `d`, which can take
-`Integer` values from `0` to `M` (the number of modes).
-It currently only works on [`BoseFS2C`](@ref) on Fock states in momentum space. It returns a `Complex` value.
+Implements the two-body correlation operator for computing the correlation
+between two particles in two different components of a Fock states encoded
+in momentum space. The variable `d` is the distance between the two particles
+which can take `Integer` values from `0` to `M` (the number of modes).
+It returns a `Complex` value.
+It currently only works on [`BoseFS2C`](@ref).
+
 
 ```math
 \\hat{G}_2^{(d)} = \\frac{1}{M}\\sum_{spqr=1}^M e^{-id(p-q)2π/M} a^†_{s} b^†_{p}  b_q a_r δ_{s+p,q+r}
@@ -41,7 +44,7 @@ end
 The diagonal element in [`G2Correlator`](@ref), where `(p-q)=0`, hence
 it becomes
 ```math
-\\frac{1}{M}\\sum_{spqr}^M a^†_{k} b^†_{p}  b_p a_k .
+\\frac{1}{M}\\sum_{k,p=1}^M a^†_{k} b^†_{p}  b_p a_k .
 ```
 # See also
 
