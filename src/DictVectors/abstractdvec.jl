@@ -27,7 +27,7 @@ Implement what would be needed for the `AbstractDict` interface (`pairs`, `keys`
 """
 abstract type AbstractDVec{K,V} end
 
-function Base.show(io::IO, dvec::AbstractDVec{K,V}) where {K,V}
+function Base.show(io::IO, dvec::AbstractDVec)
     summary(io, dvec)
     limit, _ = displaysize()
     for (i, p) in enumerate(pairs(dvec))
@@ -231,7 +231,7 @@ of projectors in FCIQMC.
 """
 struct UniformProjector <: AbstractProjector end
 
-LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(y)
+LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(values(y))
 # a specialised fast and non-allocating method for
 # `dot(::UniformProjector, A::AbstractHamiltonian, y)` is defined in `Hamiltonians.jl`
 
@@ -249,7 +249,7 @@ of projectors in FCIQMC.
 """
 struct NormProjector <: AbstractProjector end
 
-LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y),norm(y,1))
+LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y), norm(y,1))
 # dot returns the promote_type of the arguments.
 # NOTE that this can be different from the return type of norm()->Float64
 # NOTE: This operation should work for `MPIData` and is MPI synchronizing
@@ -267,7 +267,7 @@ of projectors in FCIQMC.
 """
 struct Norm2Projector <: AbstractProjector end
 
-LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y,2)
+LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y, 2)
 # NOTE that this returns a `Float64` opposite to the convention for
 # dot to return the promote_type of the arguments.
 
@@ -315,3 +315,26 @@ function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
         T(real(p) * imag(p))
     end
 end
+
+"""
+    walkernumber(w)
+
+Compute the number of walkers in `w`. It is used for updating the shift. Overload this
+function for modifying population control.
+
+In most cases `walkernumber(w)` is identical to `norm(w,1)`. For `AbstractDVec`s with
+complex coefficients it reports the one norm separately for the real and the imaginary part
+as a `ComplexF64`. See [`Norm1ProjectorPPop`](@ref).
+"""
+walkernumber(w) = walkernumber(StochasticStyle(w), w)
+# use StochasticStyle trait for dispatch
+walkernumber(::StochasticStyle, w) = Norm1ProjectorPPop() ⋅ w
+# complex walkers as two populations
+# the following default is fast and generic enough to be good for real walkers and
+
+"""
+    localpart(dv) -> AbstractDVec
+
+Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for `DictVector`s.
+"""
+localpart(dv) = dv # default for local data

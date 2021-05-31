@@ -11,7 +11,7 @@ module DictVectors
 
 using Random, LinearAlgebra
 import SplittablesBase
-export AbstractDVec, zero!, add!, deposit!, storage
+export AbstractDVec, zero!, add!, deposit!, storage, walkernumber, localpart
 export DVec, InitiatorDVec
 
 export
@@ -51,6 +51,5 @@ include("abstractdvec.jl")
 include("dvec.jl")
 include("initiators.jl")
 include("deprecated.jl")
-
 
 end # module

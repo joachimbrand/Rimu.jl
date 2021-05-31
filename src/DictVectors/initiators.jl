@@ -305,9 +305,7 @@ struct InitiatorPairs{K,V,D,I}
     iter::D
     initiator::I
 
-    function InitiatorPairs{K,V}(iter::D, initiator::I) where {K,V,D,I}
-        return new{K,V,D,I}(iter, initiator)
-    end
+    InitiatorPairs{K,V}(iter::D, initiator::I) where {K,V,D,I} = new{K,V,D,I}(iter, initiator)
 end
 function Base.pairs(dvec::InitiatorDVec{K,V}) where {K,V}
     InitiatorPairs{K,V}(pairs(storage(dvec)), dvec.initiator)
@@ -339,9 +337,7 @@ struct InitiatorValues{V,D,I}
     iter::D
     initiator::I
 
-    function InitiatorValues{V}(iter::D, initiator::I) where {V,D,I}
-        return new{V,D,I}(iter, initiator)
-    end
+    InitiatorValues{V}(iter::D, initiator::I) where {V,D,I} = new{V,D,I}(iter, initiator)
 end
 function Base.values(dvec::InitiatorDVec{<:Any,V}) where {V}
     return InitiatorValues{V}(values(storage(dvec)), dvec.initiator)

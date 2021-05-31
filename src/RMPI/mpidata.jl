@@ -30,9 +30,66 @@ function MPIData(data; setup=mpi_point_to_point, comm=mpi_comm(), root=mpi_root,
     return setup(data, comm, root; kwargs...)
 end
 
-Base.valtype(md::MPIData{D,S}) where {D,S} = valtype(D)
-Rimu.localpart(md::MPIData) = md.data
+Base.eltype(md::MPIData) = eltype(md.data)
+Base.valtype(md::MPIData) = valtype(md.data)
+Base.keytype(md::MPIData) = keytype(md.data)
+Rimu.DictVectors.localpart(md::MPIData) = md.data
 Rimu.StochasticStyle(d::MPIData) = Rimu.StochasticStyle(d.data)
+
+function Base.summary(io::IO, md::MPIData)
+    data = nameof(typeof(md.data))
+    len = length(md)
+    style = StochasticStyle(md)
+    strat = nameof(typeof(md.s))
+    print(io, "MPIData($data) with $len entries, style = $style, strategy = $strat")
+end
+function Base.show(io::IO, md::MPIData)
+    summary(io, md)
+    limit, _ = displaysize()
+    for (i, p) in enumerate(pairs(md))
+        if length(md) > i > limit - 4
+            print(io, "\n  ⋮   => ⋮")
+            break
+        else
+            print(io, "\n  ", p)
+        end
+    end
+end
+
+###
+### Iterators
+###
+"""
+    MPIDataIterator{I,M<:MPIData}
+
+Iterator over `keys`, `values`, or `pairs` of a `dv::MPIData`. Note that iterating over this
+iterator will only iterate the local part of `dv`. To perform computations on `dv` that span
+across ranks, use `mapreduce`, or its derivatives (`sum`, `prod`, `reduce`...).
+"""
+struct MPIDataIterator{I,M<:MPIData}
+    iter::I
+    data::M
+end
+function SplittablesBase.halve(p::MPIDataIterator)
+    left, right = SplittablesBase.halve(p.iter)
+    return MPIDataIterator(left, p.data), MPIDataIterator(right, p.data)
+end
+SplittablesBase.amount(p::MPIDataIterator) = SplittablesBase.amount(p.iter)
+
+Base.length(p::MPIDataIterator) = length(p.iter)
+Base.IteratorSize(::MPIDataIterator) = Base.HasLength()
+Base.IteratorEltype(::MPIDataIterator) = Base.HasEltype()
+Base.eltype(::MPIDataIterator{I}) where {I} = eltype(I)
+Base.iterate(p::MPIDataIterator, args...) = iterate(p.iter, args...)
+
+function Base.mapreduce(f, op, p::MPIDataIterator; kwargs...)
+    res = mapreduce(f, op, p.iter; kwargs...)
+    return MPI.Allreduce(res, op, p.data.comm)
+end
+
+Base.pairs(data::MPIData) = MPIDataIterator(pairs(localpart(data)), data)
+Base.keys(data::MPIData) = MPIDataIterator(keys(localpart(data)), data)
+Base.values(data::MPIData) = MPIDataIterator(values(localpart(data)), data)
 
 """
     length(md::MPIData)
@@ -50,13 +107,13 @@ MPI syncronizing.
 """
 function LinearAlgebra.norm(md::MPIData, p::Real=2)
     if p === 2
-        return sqrt(MPI.Allreduce(Rimu.DictVectors.norm_sqr(md.data), +, md.comm))
+        return sqrt(sum(abs2, values(md)))
     elseif p === 1
-        return MPI.Allreduce(Rimu.DictVectors.norm1(md.data), +, md.comm)
+        return float(sum(abs, values(md)))
     elseif p === Inf
-        return MPI.Allreduce(Rimu.DictVectors.normInf(md.data), max, md.comm)
+        return float(mapreduce(abs, max, values(md); init=zero(valtype(md))))
     else
-        @error "$p-norm of MPIData is not implemented."
+        error("$p-norm of MPIData is not implemented.")
     end
 end
 
@@ -66,7 +123,7 @@ end
 Compute the walkernumber of the distributed data on every MPI rank with `MPI.Allreduce`.
 MPI syncronizing.
 """
-function Rimu.walkernumber(md::MPIData)
+function Rimu.DictVectors.walkernumber(md::MPIData)
     return MPI.Allreduce(walkernumber(md.data), +, md.comm)
 end
 
@@ -78,7 +135,9 @@ function LinearAlgebra.dot(x, lop, md::MPIData)
 end
 function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
     temp_1 = lop * localpart(md_right)
-    temp_2 = deepcopy(md_left)
+    # Construct a new MPIData instance, reusing as much of md_left as possible. Use that
+    # to communicate walkers that were supposed to be on a different rank.
+    temp_2 = MPIData(empty(temp_1), md_left.comm, md_left.root, md_left.s)
     mpi_combine_walkers!(temp_2, temp_1)
     return dot(localpart(md_left), temp_2)
 end
