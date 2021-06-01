@@ -4,6 +4,7 @@ Random Integrator for Many-Body Quantum Systems
 """
 module Rimu
 
+using Arrow
 using Reexport, Parameters, LinearAlgebra, DataFrames
 using Setfield, StaticArrays
 using SplittablesBase, ThreadsX

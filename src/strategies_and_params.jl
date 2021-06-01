@@ -143,6 +143,56 @@ controlling info messages in MPI codes. Include projection onto `projector`.
 See [`ReportingStrategy`](@ref) for details.
 """ ReportDFAndInfo
 
+@with_kw struct StreamingReport{P1,P2} <: ReportingStrategy{P1,P2}
+    filename::String
+    save_every::Int = 100
+    save::Bool = true
+    projector::P1 = nothing
+    hproj::P2 = :auto
+end
+function refine_r_strat(s::StreamingReport{P1,P2}, ham::H) where {P1,P2,H}
+    # If filename exists, add -1 to the end of it. If that exists as well,
+    # increment the number after the dash
+    new_filename = s.filename
+    if isfile(new_filename)
+        base, ext = splitext(new_filename)
+        new_filename = string(base, "-", 1, ext)
+    end
+    while isfile(new_filename)
+        base, ext = splitext(new_filename)
+        m = match(r"(.*)-([0-9]+)$", base)
+        if !isnothing(m)
+            new_filename = string(m[1], "-", parse(Int, m[2]) + 1, ext)
+        end
+    end
+    if s.filename ≠ new_filename
+        @info "File $(s.filename) exists. Using $new_filename"
+        s = @set s.filename = new_filename
+    end
+    # Do the standard refine_r_strat
+    return invoke(refine_r_strat, Tuple{ReportingStrategy{P1,P2}, H}, s, ham)
+end
+function print_report(s::StreamingReport, step, report, _)
+    if s.save && step % s.save_every == 0
+        @info "Step $step: saving data to $(s.filename)"
+        if isfile(s.filename)
+            Arrow.append(s.filename, report.data)
+        else
+            Arrow.write(s.filename, report.data; file=false)
+        end
+        empty!(report)
+    end
+end
+function finalize_report!(s::StreamingReport, report)
+    @info "Finalizing"
+    if isfile(s.filename)
+        Arrow.append(s.filename, report.data)
+    else
+        Arrow.write(s.filename, report.data; file=false)
+    end
+    return DataFrame(Arrow.Table(s.filename))
+end
+
 """
     compute_proj_observables(v, ham, r::ReportingStrategy)
 Compute the projection of `r.projector⋅v` and `r.hproj⋅v` or
@@ -196,7 +246,7 @@ To overload this function for a new `ReportingStrategy`, overload
 `report!(::ReportingStrategy, step, args...)` and apply the report by calling
 `report!(args...)`.
 """
-function report!(::EveryTimeStep, _, args...)
+function report!(::ReportingStrategy, _, args...)
     report!(args...)
     return nothing
 end
@@ -225,6 +275,14 @@ function print_report(s::ReportDFAndInfo, step, args...)
     end
 end
 
+"""
+    finalize_report!(::ReportingStrategy, report)
+
+Finalize the report. TODO
+"""
+function finalize_report!(::ReportingStrategy, report)
+    DataFrame(report)
+end
 
 """
 Abstract type for strategies for updating the time step with
