@@ -51,6 +51,7 @@ also affects the calculation and reporting of projected quantities in the DataFr
 * [`EveryTimeStep`](@ref)
 * [`EveryKthStep`](@ref)
 * [`ReportDFAndInfo`](@ref)
+* [`ReportToFile`](@ref)
 
 Every strategy accepts the keyword arguments `projector` and `hproj` according to which a
 projection of the instantaneous coefficient vector `projector⋅v` and `hproj⋅v` are reported
@@ -79,6 +80,7 @@ A `ReportingStrategy` must define the following:
 
 * [`report!`](@ref)
 * [`print_report`](@ref) (optional)
+* [`finalize_report!`](@ref) (optional)
 
 # Examples
 
@@ -100,15 +102,52 @@ and report every `k`th time step.
 """
 abstract type ReportingStrategy{P1,P2} end
 
+"""
+     report!(::ReportingStrategy, step, report::Report, keys, values, id="")
+     report!(::ReportingStrategy, step, report::Report, nt, id="")
+
+Report `keys` and `values` to `report`, which will be converted to a `DataFrame` before
+[`lomc!`](@ref) exits. Alternatively, a `nt::NamedTuple` can be passed in place of `keys`
+and `values`. If `id` is specified, it is appended to all `keys`. This is used to
+differentiate between values reported by different replicas.
+
+To overload this function for a new `ReportingStrategy`, overload
+`report!(::ReportingStrategy, step, args...)` and apply the report by calling
+`report!(args...)`.
+"""
+function report!(::ReportingStrategy, _, args...)
+    report!(args...)
+    return nothing
+end
+
+"""
+    print_report(::ReportingStrategy, step, report, state)
+
+This function is called at the very end of a step. It can let the `ReportingStrategy`
+print some information to output.
+"""
+function print_report(::ReportingStrategy, args...)
+    return nothing
+end
+
+"""
+    finalize_report!(::ReportingStrategy, report)
+
+Finalize the report. This function is called after all steps in [`lomc!`](@ref) have finished.
+"""
+function finalize_report!(::ReportingStrategy, report)
+    DataFrame(report)
+end
+
+"""
+    EveryTimeStep(;projector = nothing, hproj = :auto)
+Report every time step. Include projection onto `projector`. See
+[`ReportingStrategy`](@ref) for details.
+"""
 @with_kw struct EveryTimeStep{P1,P2} <: ReportingStrategy{P1,P2}
     projector::P1 = nothing # no projection by default
     hproj::P2 = :auto # choose automatically by default
 end
-@doc """
-    EveryTimeStep(;projector = nothing, hproj = :auto)
-Report every time step. Include projection onto `projector`. See
-[`ReportingStrategy`](@ref) for details.
-""" EveryTimeStep
 
 # function EveryTimeStep(; projector = missing, ham = missing)
 #     EveryTimeStep(projector, ham'*projector)
@@ -116,17 +155,24 @@ Report every time step. Include projection onto `projector`. See
 #     # compute df.hproj = dot(projector, ham, v) [== (ham'*projector)⋅v]
 # end
 
+"""
+    EveryKthStep(;k = 10, projector = nothing, hproj = :auto)
+Report every `k`th step. Include projection onto `projector`. See
+[`ReportingStrategy`](@ref) for details.
+"""
 @with_kw struct EveryKthStep{P1,P2} <: ReportingStrategy{P1,P2}
     k::Int = 10
     projector::P1 = nothing # no projection by default
     hproj::P2 = :auto # choose automatically by default
 end
-@doc """
-    EveryKthStep(;k = 10, projector = nothing, hproj = :auto)
-Report every `k`th step. Include projection onto `projector`. See
-[`ReportingStrategy`](@ref) for details.
-""" EveryKthStep
 
+"""
+    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = nothing, hproj = :auto)
+Report every `k`th step in DataFrame and write info message to `io` every `i`th
+step (unless `writeinfo == false`). The flag `writeinfo` is useful for
+controlling info messages in MPI codes. Include projection onto `projector`.
+See [`ReportingStrategy`](@ref) for details.
+"""
 @with_kw struct ReportDFAndInfo{P1,P2} <: ReportingStrategy{P1,P2}
     k::Int = 10 # how often to write to DataFrame
     i::Int = 100 # how often to write info message
@@ -135,46 +181,66 @@ Report every `k`th step. Include projection onto `projector`. See
     projector::P1 = nothing # no projection by default
     hproj::P2 = :auto # choose automatically by default
 end
-@doc """
-    ReportDFAndInfo(; k=10, i=100, io=stdout, writeinfo=true, projector = nothing, hproj = :auto)
-Report every `k`th step in DataFrame and write info message to `io` every `i`th
-step (unless `writeinfo == false`). The flag `writeinfo` is useful for
-controlling info messages in MPI codes. Include projection onto `projector`.
-See [`ReportingStrategy`](@ref) for details.
-""" ReportDFAndInfo
 
-@with_kw struct StreamingReport{P1,P2} <: ReportingStrategy{P1,P2}
+"""
+    ReportToFile{P1,P2} <: ReportingStrategy{P1,P2}
+
+Reporting strategy that writes the report directly to a file. Useful when dealing with long
+jobs or large numbers of replicas, when the report can incur a significant memory cost.
+
+# Keyword arguments
+
+* `filename`: the file to report to. If the file already exists, a new file is created.
+* `chunk_size = 1000`: the size of each chunk that is written to the file.
+* `save_if = true`: if this value is true, save the report, otherwise ignore it. Use
+  `save_if=mpi_is_root()` when running MPI jobs.
+* `return_df`: if this value is true, read the file and return the data frame at the end of
+  computation. Otherwise, an empty `DataFrame` is returned.
+* `io=stdout`: The `IO` to print messages to. Set to `devnull` if you don't want to see
+  messages printed out.
+"""
+@with_kw struct ReportToFile{P1,P2} <: ReportingStrategy{P1,P2}
     filename::String
-    save_every::Int = 100
-    save::Bool = true
+    chunk_size::Int = 1000
+    save_if::Bool = true
+    return_df::Bool = false
+    io::IO = stdout
     projector::P1 = nothing
     hproj::P2 = :auto
 end
-function refine_r_strat(s::StreamingReport{P1,P2}, ham::H) where {P1,P2,H}
-    # If filename exists, add -1 to the end of it. If that exists as well,
-    # increment the number after the dash
-    new_filename = s.filename
-    if isfile(new_filename)
-        base, ext = splitext(new_filename)
-        new_filename = string(base, "-", 1, ext)
+function report!(s::ReportToFile, _, args...)
+    if s.save_if
+        report!(args...)
     end
-    while isfile(new_filename)
-        base, ext = splitext(new_filename)
-        m = match(r"(.*)-([0-9]+)$", base)
-        if !isnothing(m)
-            new_filename = string(m[1], "-", parse(Int, m[2]) + 1, ext)
+    return nothing
+end
+function refine_r_strat(s::ReportToFile{P1,P2}, ham::H) where {P1,P2,H}
+    if s.save_if
+        # If filename exists, add -1 to the end of it. If that exists as well,
+        # increment the number after the dash
+        new_filename = s.filename
+        if isfile(new_filename)
+            base, ext = splitext(new_filename)
+            new_filename = string(base, "-", 1, ext)
+        end
+        while isfile(new_filename)
+            base, ext = splitext(new_filename)
+            m = match(r"(.*)-([0-9]+)$", base)
+            if !isnothing(m)
+                new_filename = string(m[1], "-", parse(Int, m[2]) + 1, ext)
+            end
+        end
+        if s.filename ≠ new_filename
+            println(s.io, "File $(s.filename) exists. Using $new_filename")
+            s = @set s.filename = new_filename
         end
     end
-    if s.filename ≠ new_filename
-        @info "File $(s.filename) exists. Using $new_filename"
-        s = @set s.filename = new_filename
-    end
-    # Do the standard refine_r_strat
+    # Do the standard refine_r_strat to take care of projectors.
     return invoke(refine_r_strat, Tuple{ReportingStrategy{P1,P2}, H}, s, ham)
 end
-function print_report(s::StreamingReport, step, report, _)
-    if s.save && step % s.save_every == 0
-        @info "Step $step: saving data to $(s.filename)"
+function print_report(s::ReportToFile, step, report, _)
+    if s.save && step % s.chunk_size == 0
+        println(s.io, "Step $step: saving data to $(s.filename)")
         if isfile(s.filename)
             Arrow.append(s.filename, report.data)
         else
@@ -183,14 +249,20 @@ function print_report(s::StreamingReport, step, report, _)
         empty!(report)
     end
 end
-function finalize_report!(s::StreamingReport, report)
-    @info "Finalizing"
-    if isfile(s.filename)
-        Arrow.append(s.filename, report.data)
+function finalize_report!(s::ReportToFile, report)
+    if s.save_if
+        println(s.io, "Finalizing")
+        if isfile(s.filename)
+            Arrow.append(s.filename, report.data)
+        else
+            Arrow.write(s.filename, report.data; file=false)
+        end
+        if s.return_df
+            return DataFrame(Arrow.Table(s.filename))
+        end
     else
-        Arrow.write(s.filename, report.data; file=false)
+        return DataFrame()
     end
-    return DataFrame(Arrow.Table(s.filename))
 end
 
 """
@@ -233,23 +305,6 @@ end
 #     return r.projector⋅v, missing
 # end
 # # The dot products work across MPI when `v::MPIData`; MPI sync
-"""
-     report!(::ReportingStrategy, step, report::Report, keys, values, id="")
-     report!(::ReportingStrategy, step, report::Report, nt, id="")
-
-Report `keys` and `values` to `report`, which will be converted to a `DataFrame` before
-[`lomc!`](@ref) exits. Alternatively, a `nt::NamedTuple` can be passed in place of `keys`
-and `values`. If `id` is specified, it is appended to all `keys`. This is used to
-differentiate between values reported by different replicas.
-
-To overload this function for a new `ReportingStrategy`, overload
-`report!(::ReportingStrategy, step, args...)` and apply the report by calling
-`report!(args...)`.
-"""
-function report!(::ReportingStrategy, _, args...)
-    report!(args...)
-    return nothing
-end
 function report!(s::EveryKthStep, step, args...)
     step % s.k == 0 && report!(args...)
     return nothing
@@ -259,29 +314,11 @@ function report!(s::ReportDFAndInfo, step, args...)
     return nothing
 end
 
-"""
-    print_report(::ReportingStrategy, step, report, state)
-
-This function is called at the very end of a step. It can let the `ReportingStrategy`
-print some information to output.
-"""
-function print_report(::ReportingStrategy, args...)
-    return nothing
-end
 function print_report(s::ReportDFAndInfo, step, args...)
     if s.writeinfo && step % s.i == 0
         println(s.io, "Step ", step)
         flush(s.io)
     end
-end
-
-"""
-    finalize_report!(::ReportingStrategy, report)
-
-Finalize the report. TODO
-"""
-function finalize_report!(::ReportingStrategy, report)
-    DataFrame(report)
 end
 
 """
