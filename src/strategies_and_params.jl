@@ -871,55 +871,46 @@ replica_stats(::NoStats, _) = (), ()
     AllOverlaps(n=2, operator=nothing) <: ReplicaStrategy{n}
 
 Run `n` replicas and report overlaps between all pairs of replica vectors. If operator is
-not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well.
+not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If operator is a tuple
+of operators, the overlaps are computed for all operators.
 
 Column names in the report are of the form c{i}_dot_c{j} for vector-vector overlaps, and
-c{i}_Op_c{j} for operator overlaps.
+c{i}_Op{k}_c{j} for operator overlaps.
 
 See [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an interface for
 implementing operators).
 """
 struct AllOverlaps{N,O} <: ReplicaStrategy{N}
-    operator::O
+    operators::O
 end
 
+function AllOverlaps(; num_replicas=2, operators=nothing)
+    return AllOverlaps(num_replicas, operators)
+end
 function AllOverlaps(num_replicas=2, operator=nothing)
-    return AllOverlaps{num_replicas, typeof(operator)}(operator)
+    if isnothing(operator)
+        operators = ()
+    elseif operator isa Tuple
+        operators = operator
+    else
+        operators = (operator,)
+    end
+    return AllOverlaps{num_replicas, typeof(operators)}(operators)
 end
 
 function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
-    first_replica_v = localpart(replicas[1].v)
-    if isnothing(rs.operator)
-        T = float(valtype(first_replica_v))
-        hermitian = true
-    else
-        T = float(promote_type(valtype(first_replica_v), eltype(rs.operator)))
-        hermitian = Hamiltonians.LOStructure(rs.operator) ≡ Hamiltonians.Hermitian()
-    end
-
+    T = promote_type((valtype(r.v) for r in replicas)..., eltype.(rs.operators)...)
     names = String[]
     values = T[]
-
     for i in 1:N, j in i+1:N
         push!(names, "c$(i)_dot_c$(j)")
         push!(values, dot(localpart(replicas[i].v), localpart(replicas[j].v)))
-        if !isnothing(rs.operator)
-            push!(names, "c$(i)_Op_c$(j)")
-            push!(values, dot(localpart(replicas[i].v), rs.operator, localpart(replicas[j].v)))
-        end
-        if !hermitian
-            push!(names, "c$(j)_Op_c$(i)")
-            push!(values, dot(localpart(replicas[j].v), rs.operator, localpart(replicas[i].v)))
+        for (k, op) in enumerate(rs.operators)
+            push!(names, "c$(i)_Op$(k)_c$(j)")
+            push!(values, dot(replicas[i].v, op, replicas[j].v))
         end
     end
 
-    # Note: this if-else chain is evaulated at compile time and makes the function type-stable
-    if isnothing(rs.operator)
-        num_reports = N * (N - 1) ÷ 2
-    elseif hermitian
-        num_reports = N * (N - 1)
-    else
-        num_reports = 3N * (N - 1) ÷ 2
-    end
+    num_reports = (N * (N - 1) ÷ 2) * (length(rs.operators) + 1)
     return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
 end
