@@ -239,7 +239,7 @@ function refine_r_strat(s::ReportToFile{P1,P2}, ham::H) where {P1,P2,H}
     return invoke(refine_r_strat, Tuple{ReportingStrategy{P1,P2}, H}, s, ham)
 end
 function report_after_step(s::ReportToFile, step, report, _)
-    if s.save && step % s.chunk_size == 0
+    if s.save_if && step % s.chunk_size == 0
         println(s.io, "Step $step: saving data to $(s.filename)")
         if isfile(s.filename)
             Arrow.append(s.filename, report.data)
@@ -260,9 +260,8 @@ function finalize_report!(s::ReportToFile, report)
         if s.return_df
             return DataFrame(Arrow.Table(s.filename))
         end
-    else
-        return DataFrame()
     end
+    return DataFrame()
 end
 
 """

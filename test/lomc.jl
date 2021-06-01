@@ -187,6 +187,40 @@ using Statistics
             end
             @test length(split(out, '\n')) == 6 # (last line is empty)
         end
+        @testset "ReportToFile" begin
+            # Clean up.
+            rm("test-report.arrow"; force=true)
+            rm("test-report-1.arrow"; force=true)
+            rm("test-report-2.arrow"; force=true)
+
+            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, save_if=false)
+            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test !isfile("test-report.arrow")
+
+            r_strat = ReportToFile(filename="test-report.arrow", io=devnull)
+            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test isempty(df)
+            df1 = RimuIO.load_df("test-report.arrow")
+
+            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
+            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test isempty(df)
+            df2 = RimuIO.load_df("test-report-1.arrow")
+
+            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, return_df=true)
+            df3 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test isempty(df)
+            df4 = RimuIO.load_df("test-report-2.arrow")
+
+            @test df1.shift ≈ df2.shift
+            @test df2.norm ≈ df3.norm
+            @test df3 == df4
+
+            # Clean up.
+            rm("test-report.arrow"; force=true)
+            rm("test-report-1.arrow"; force=true)
+            rm("test-report-2.arrow"; force=true)
+        end
     end
 end
 
