@@ -238,9 +238,14 @@ function refine_r_strat(s::ReportToFile{P1,P2}, ham::H) where {P1,P2,H}
     # Do the standard refine_r_strat to take care of projectors.
     return invoke(refine_r_strat, Tuple{ReportingStrategy{P1,P2}, H}, s, ham)
 end
-function report_after_step(s::ReportToFile, step, report, _)
+function report_after_step(s::ReportToFile, step, report, state)
     if s.save_if && step % s.chunk_size == 0
-        println(s.io, "Step $step: saving data to $(s.filename)")
+        # Report some stats:
+        print(s.io, "[ ", lpad("$step:", 11), " ")
+        shift = lpad(round(state.replicas[1].params.shift, digits=4), 7)
+        norm = lpad(round(state.replicas[1].pnorm, digits=4), 7)
+        println(s.io, "shift: ", shift, ", norm: ", norm)
+
         if isfile(s.filename)
             Arrow.append(s.filename, report.data)
         else
