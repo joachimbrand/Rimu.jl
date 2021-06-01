@@ -79,7 +79,7 @@ report `dot(projector, ham, v)`, the keyword `hproj` accepts the following value
 A `ReportingStrategy` must define the following:
 
 * [`report!`](@ref)
-* [`print_report`](@ref) (optional)
+* [`report_after_step`](@ref) (optional)
 * [`finalize_report!`](@ref) (optional)
 
 # Examples
@@ -121,12 +121,12 @@ function report!(::ReportingStrategy, _, args...)
 end
 
 """
-    print_report(::ReportingStrategy, step, report, state)
+    report_after_step(::ReportingStrategy, step, report, state)
 
 This function is called at the very end of a step. It can let the `ReportingStrategy`
 print some information to output.
 """
-function print_report(::ReportingStrategy, args...)
+function report_after_step(::ReportingStrategy, args...)
     return nothing
 end
 
@@ -238,7 +238,7 @@ function refine_r_strat(s::ReportToFile{P1,P2}, ham::H) where {P1,P2,H}
     # Do the standard refine_r_strat to take care of projectors.
     return invoke(refine_r_strat, Tuple{ReportingStrategy{P1,P2}, H}, s, ham)
 end
-function print_report(s::ReportToFile, step, report, _)
+function report_after_step(s::ReportToFile, step, report, _)
     if s.save && step % s.chunk_size == 0
         println(s.io, "Step $step: saving data to $(s.filename)")
         if isfile(s.filename)
@@ -314,7 +314,7 @@ function report!(s::ReportDFAndInfo, step, args...)
     return nothing
 end
 
-function print_report(s::ReportDFAndInfo, step, args...)
+function report_after_step(s::ReportDFAndInfo, step, args...)
     if s.writeinfo && step % s.i == 0
         println(s.io, "Step ", step)
         flush(s.io)
