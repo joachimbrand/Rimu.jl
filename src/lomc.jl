@@ -241,7 +241,11 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
     # compatible, which should be the case if the run is an actual continuation. Maybe the
     # DataFrames should be merged in a more permissive manner?
-    df = vcat(df, DataFrame(report))
+    if !isempty(df)
+        df = vcat(df, DataFrame(report))
+    else
+        df = DataFrame(report)
+    end
     return (; df, state)
 end
 

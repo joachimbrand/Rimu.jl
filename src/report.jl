@@ -61,5 +61,5 @@ function report!(::Integer, report, ::NamedTuple{(),Tuple{}}, args...)
     return report
 end
 function DataFrames.DataFrame(report::Report)
-    DataFrame(report.data)
+    DataFrame(report.data; copycols=false)
 end
