@@ -83,6 +83,7 @@ end
 
 """
     hop_across_two_addresses(add_a, add_b, chosen[, sa, sb])
+      -> new_add_a, new_add_b, onproduct_a, onproduct_b, p, q
 
 Perform a hop across two addresses (in momentum space). Optional arguments `sa` and `sb`
 should equal the numbers of occupied sites in the respective components. It returns updated
