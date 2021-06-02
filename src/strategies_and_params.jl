@@ -193,7 +193,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 * `filename`: the file to report to. If the file already exists, a new file is created.
 * `chunk_size = 1000`: the size of each chunk that is written to the file.
 * `save_if = true`: if this value is true, save the report, otherwise ignore it. Use
-  `save_if=mpi_is_root()` when running MPI jobs.
+  `save_if=is_mpi_root()` when running MPI jobs.
 * `return_df`: if this value is true, read the file and return the data frame at the end of
   computation. Otherwise, an empty `DataFrame` is returned.
 * `io=stdout`: The `IO` to print messages to. Set to `devnull` if you don't want to see
