@@ -74,7 +74,7 @@ using Statistics
         end
 
         @testset "AllOverlaps" begin
-            # column names are of the form c{i}_dot_c{j} and c{i}_Op_c{j}.
+            # column names are of the form c{i}_dot_c{j} and c{i}_Op{k}_c{j}.
             num_stats(df) = length(filter(startswith('c'), names(df)))
 
             # No operator: N choose 2 reports.
@@ -83,16 +83,16 @@ using Statistics
             df, _ = lomc!(H, dv; replica=AllOverlaps(5))
             @test num_stats(df) == binomial(5, 2)
 
-            # Hermitian operator: 2 * N choose 2 reports.
+            # One operator: 2 * N choose 2 reports.
             df, _ = lomc!(H, dv; replica=AllOverlaps(4, H))
             @test num_stats(df) == 2 * binomial(4, 2)
             df, _ = lomc!(H, dv; replica=AllOverlaps(5, H))
             @test num_stats(df) == 2 * binomial(5, 2)
 
-            # Non-hermitian operator: 3 * N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(2, GutzwillerSampling(H, 1)))
+            # Two operators: 3 * N choose 2 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(2, (GutzwillerSampling(H, 1), H)))
             @test num_stats(df) == 3 * binomial(2, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(7, GutzwillerSampling(H, 1)))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(7, (GutzwillerSampling(H, 1), H)))
             @test num_stats(df) == 3 * binomial(7, 2)
 
             # Complex operator
@@ -101,7 +101,7 @@ using Statistics
             O = MatrixHamiltonian(rand(ComplexF64, 5, 5))
             df, _ = lomc!(G, v, replica=AllOverlaps(2, O))
             @test df.c1_dot_c2 isa Vector{ComplexF64}
-            @test df.c1_Op_c2 isa Vector{ComplexF64}
+            @test df.c1_Op1_c2 isa Vector{ComplexF64}
 
             # MPIData
             df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4, H))

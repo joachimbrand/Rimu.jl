@@ -28,7 +28,7 @@ After construction, we can access the underlying hamiltonian with `G.hamiltonian
 ```jldoctest
 julia> H = HubbardReal1D(BoseFS{3}((1,1,1)); u=6.0, t=1.0);
 
-julia> v = DVec2(starting_address(H) => 10; capacity=1);
+julia> v = DVec(starting_address(H) => 10; capacity=1);
 
 julia> G = GuidingVectorSampling(H, v, 0.1);
 
