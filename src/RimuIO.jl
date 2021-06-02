@@ -32,40 +32,39 @@ Load Arrow file into dataframe.
 """
 load_df(filename) = DataFrame(Arrow.Table(filename))
 
-function serialize_state(filename, state)
-    # Extract pairs from DVecs for better storage
-    temp_storage = map(r -> r.v, state.replicas)
-    dvec_pairs = map(r -> collect(pairs(storage(r.v))), state.replicas)
+"""
+    compress(dvec::AbstractDVec)
 
-    # Empty working memory and replace vectors with empty ones.
-    for r in state.replicas
-        if r.w isa Tuple
-            map(empty!, r.w)
-        else
-            empty!(r.w)
-        end
-        r.v = empty(r.v)
-    end
+"Compress" the `DVec` by throwing away the `Dict`.
+"""
+function compress(dvec::AbstractDVec)
+    return empty(dvec), collect(pairs(storage(dvec)))
+end
 
-    # Serialize both
-    JLSO.save(filename, :state => state, :dvec_pairs => dvec_pairs)
-
-    # Regenerate the state
-    for (r, v) in zip(state.replicas, temp_storage)
-        r.v = v
-    end
+function save_dvec(filename, state)
+    JLSO.save(filename, :dvecs => map(r -> compress(r.v), state.replicas))
     return filename
 end
 
-function deserialize_state(filename)
+function save_dvec(filename, dvec::AbstractDVec)
+    JLSO.save(filename, :dvecs => (compress(dvec),))
+    return filename
+end
+
+function load_dvec(filename)
     d = JLSO.load(filename)
-    state = d[:state]
-    for (r, ps) in zip(state.replicas, d[:dvec_pairs])
-        for (k, v) in ps
-            storage(r.v)[k] = v
+    result = map(d[:dvecs]) do d
+        shell, pairs = d
+        for (k, v) in pairs
+            storage(shell)[k] = v
         end
+        shell
     end
-    return state
+    if length(result) == 1
+        return only(result)
+    else
+        return result
+    end
 end
 
 end # module RimuIO
