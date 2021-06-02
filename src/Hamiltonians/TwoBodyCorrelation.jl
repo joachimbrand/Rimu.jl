@@ -14,10 +14,6 @@ It currently only works on [`BoseFS2C`](@ref).
 \\hat{G}_2(d) = \\frac{1}{M}\\sum_{spqr=1}^M e^{-id(p-q)2π/M} a^†_{s} b^†_{p}  b_q a_r δ_{s+p,q+r}
 ```
 
-# Arguments
-
-* `d`: the distance between the impurity and a boson from the Bose gas.
-
 # See also
 
 * [`BoseHubbardMom1D2C`](@ref)
