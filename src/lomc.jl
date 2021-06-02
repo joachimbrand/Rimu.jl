@@ -1,9 +1,17 @@
 """
-    ReplicaState(hamiltonian, v, w, pnorm, r_strat)
+    ReplicaState(v, w, pnorm, params, id)
 
 Struct that holds all information needed for an independent run of the algorithm.
 
 Can be advanced a step forward with [`advance!`](@ref).
+
+# Fields
+
+* `v`: vector.
+* `w`: working memory.
+* `pnorm`: previous walker number (see [`walkernumber`](@ref)).
+* `params`: the [`FCIQMCRunStrategy`](@ref).
+* `id`: appended to reported columns.
 """
 mutable struct ReplicaState{T,V,W,R<:FciqmcRunStrategy{T}}
     v::V       # vector
