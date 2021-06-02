@@ -1,12 +1,11 @@
 # Methods that need to be implemented:
 #   •  starting_address(::AbstractHamiltonian) - not needed
 """
-    G2Correlator(d::Int)
+    G2Correlator(d::Int) <: AbstractHamiltonian{ComplexF64}
 
-Implements the two-body correlation operator for computing the correlation
-between two particles in two different components of a Fock states encoded
-in momentum space. The variable `d` is the distance between the two particles
-which can take `Integer` values from `0` to `M` (the number of modes).
+Two-body correlation operator representing the inter-component density-
+density correlation at distance `d` of a two component system 
+in a momentum-space Fock-state basis. 
 It returns a `Complex` value.
 It currently only works on [`BoseFS2C`](@ref).
 
