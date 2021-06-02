@@ -383,4 +383,5 @@ end
     @test dot(v0,g1,v0) ≈ 0.6740721867996825
     @test dot(v0,g2,v0) ≈ 0.6740721867996825
     @test dot(v0,g3,v0) ≈ 0.6519750102294596
+    @test num_offdiagonals(g0,aIni) == 2
 end
