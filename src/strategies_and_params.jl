@@ -231,8 +231,10 @@ function refine_r_strat(s::ReportToFile{P1,P2}, ham::H) where {P1,P2,H}
             end
         end
         if s.filename ≠ new_filename
-            println(s.io, "File $(s.filename) exists. Using $new_filename")
+            println(s.io, "File `$(s.filename)` exists. Using `$(new_filename)`.")
             s = @set s.filename = new_filename
+        else
+            println(s.io, "Saving report to `$(s.filename)`.")
         end
     end
     # Do the standard refine_r_strat to take care of projectors.
@@ -241,10 +243,10 @@ end
 function report_after_step(s::ReportToFile, step, report, state)
     if s.save_if && step % s.chunk_size == 0
         # Report some stats:
-        print(s.io, "[ ", lpad("$step:", 11), " ")
-        shift = lpad(round(state.replicas[1].params.shift, digits=4), 7)
-        norm = lpad(round(state.replicas[1].pnorm, digits=4), 7)
-        println(s.io, "shift: ", shift, ", norm: ", norm)
+        print(s.io, "[ ", lpad(step, 11), " | ")
+        shift = lpad(round(state.replicas[1].params.shift, digits=4), 10)
+        norm = lpad(round(state.replicas[1].pnorm, digits=4), 10)
+        println(s.io, "shift: ", shift, " | norm: ", norm)
 
         if isfile(s.filename)
             Arrow.append(s.filename, report.data)
