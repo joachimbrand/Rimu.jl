@@ -364,6 +364,8 @@ conventional manner, but supports faster dot products.
 """
 freeze(dv) = FrozenDVec(collect(pairs(localpart(dv))))
 
+freeze(p::AbstractProjector) = p
+
 function LinearAlgebra.dot(fd::FrozenDVec, dv)
     result = zero(promote_type(valtype(fd), valtype(dv)))
     for (k, v) in pairs(fd)
