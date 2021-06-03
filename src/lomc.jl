@@ -51,6 +51,7 @@ struct QMCState{
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
     RRS<:ReplicaStrategy,
+    PS<:NTuple{<:Any,PostStepStrategy},
 }
     hamiltonian::H
     replicas::NTuple{N,R}
@@ -61,6 +62,7 @@ struct QMCState{
     s_strat::SS
     τ_strat::TS
     replica::RRS
+    post_step::PS
 end
 
 function QMCState(
@@ -75,6 +77,7 @@ function QMCState(
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     m_strat::MemoryStrategy=NoMemory(),
     replica::ReplicaStrategy=NoStats(),
+    post_step=(),
     maxlength=2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers)),
 )
     # Set up default arguments
@@ -86,6 +89,9 @@ function QMCState(
         params.dτ = dτ
     end
     wm = default_working_memory(threading, v, s_strat)
+    if !(post_step isa Tuple)
+        post_step = (post_step,)
+    end
     # Set up replicas
     nreplicas = num_replicas(replica)
     if nreplicas > 1
@@ -183,6 +189,7 @@ required for continuation runs.
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
 * `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
 * `replica::ReplicaStrategy = NoStats(1)` - see [`ReplicaStrategy`](@ref).
+* `post_step::NTuple{N,<:PostStepStrategy} = ()` - see [`PostStepStrategy`](@ref).
 
 # Return values
 
@@ -270,7 +277,7 @@ function advance!(
 ) where {T}
     @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat = state
     @unpack v, w, pnorm, params, id = replica
-    @unpack step, laststep, shiftMode, shift, dτ = params
+    @unpack step, shiftMode, shift, dτ = params
     step += 1
 
     v, w, step_stats, stat_names, shift_noise = fciqmc_step!(
@@ -286,9 +293,7 @@ function advance!(
         s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
-
-    @pack! params = step, laststep, shiftMode, shift, dτ
-    @pack! replica = v, w, pnorm, params
+    post_step_names, post_step_values = post_step(state.post_step, replica)
 
     report!(
         r_strat, step, report,
@@ -298,6 +303,10 @@ function advance!(
     report!(r_strat, step, report, stat_names, step_stats, id)
     report!(r_strat, step, report, update_stats, id)
     report!(r_strat, step, report, (;shift_noise), id)
+    report!(state.r_strat, step, report, after_names, after_values, id)
+
+    @pack! params = step, shiftMode, shift, dτ
+    @pack! replica = v, w, pnorm, params
 
     if len == 0
         if length(state.replicas) > 1

@@ -21,18 +21,27 @@ function Base.show(io::IO, report::Report)
         end
     end
 end
+function Base.empty!(report::Report)
+    foreach(empty!, values(report.data))
+end
+function DataFrames.DataFrame(report::Report)
+    DataFrame(report.data; copycols=false)
+end
+
+const SymbolOrString = Union{Symbol,AbstractString}
 
 """
     report!(report, keys, values, id="")
-    report!(report, nt, id="")
+    report!(report, pairs, id="")
 
 Write `keys`, `values` pairs to `report` that will be converted to a `DataFrame` later.
-Alternatively, a named tuple can be passed instead of `keys` and `values`.
+Alternatively, a named tuple or a collection of pairs can be passed instead of `keys` and
+`values`.
 
 The value of `id` is appended to the name of the column, e.g.
 `report!(report, :key, value, :_1)` will report `value` to a column named `:key_1`.
 """
-function report!(report, key, value)
+function report!(report::Report, key::SymbolOrString, value)
     data = report.data
     if haskey(data, key)
         column = data[key]::Vector{typeof(value)}
@@ -42,28 +51,22 @@ function report!(report, key, value)
     end
     return report
 end
-function report!(report, key, value, postfix)
+function report!(report::Report, key::SymbolOrString, value, postfix::SymbolOrString)
     report!(report, Symbol(key, postfix), value)
 end
-function report!(report, keys::Tuple, vals, postfix="")
+function report!(report::Report, keys, vals, postfix::SymbolOrString="")
     for (k, v) in zip(keys, vals)
         report!(report, k, v, postfix)
     end
     return report
 end
-function report!(report, kvpairs::NamedTuple, postfix="")
-    for (k, v) in pairs(kvpairs)
+function report!(report::Report, nt::NamedTuple, postfix::SymbolOrString="")
+    report!(report, pairs(nt), postfix)
+    return report
+end
+function report!(report::Report, kvpairs, postfix::SymbolOrString="")
+    for (k, v) in kvpairs
         report!(report, k, v, postfix)
     end
     return report
-end
-function report!(::Integer, report, ::NamedTuple{(),Tuple{}}, args...)
-    return report
-end
-function DataFrames.DataFrame(report::Report)
-    DataFrame(report.data; copycols=false)
-end
-
-function Base.empty!(report::Report)
-    foreach(empty!, values(report.data))
 end

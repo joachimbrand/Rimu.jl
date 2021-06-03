@@ -40,6 +40,7 @@ include("report.jl")
 
 include("strategies_and_params/fciqmcrunstrategy.jl")
 include("strategies_and_params/memorystrategy.jl")
+include("strategies_and_params/poststepstrategy.jl")
 include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
