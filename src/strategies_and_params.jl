@@ -988,9 +988,6 @@ struct AllOverlaps{N,O} <: ReplicaStrategy{N}
     operators::O
 end
 
-function AllOverlaps(; num_replicas=2, operators=nothing)
-    return AllOverlaps(num_replicas, operators)
-end
 function AllOverlaps(num_replicas=2, operator=nothing)
     if isnothing(operator)
         operators = ()
