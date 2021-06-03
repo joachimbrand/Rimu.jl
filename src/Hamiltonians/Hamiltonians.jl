@@ -23,6 +23,7 @@ export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
+export G2Correlator
 
 include("abstract.jl")
 include("offdiagonals.jl")
@@ -39,6 +40,8 @@ include("BoseHubbardMom1D2C.jl")
 
 include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
+
+include("TwoBodyCorrelation.jl")
 
 # deprecated:
 include("BoseHubbardReal1D.jl")

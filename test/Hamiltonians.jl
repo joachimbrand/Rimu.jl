@@ -359,3 +359,29 @@ end
     @test Rimu.Hamiltonians.LOStructure(hamcc) == Rimu.Hamiltonians.AdjointUnknown()
     @test_throws ErrorException hamcc'
 end
+
+@testset "G2Correlator" begin
+    # v0 is the exact ground state from BoseHubbardMom1D2C(aIni;ua=0,ub=0,v=0.1)
+    bfs1=BoseFS([0,2,0])
+    bfs2=BoseFS([0,1,0])
+    aIni = BoseFS2C(bfs1,bfs2)
+    v0 = DVec(
+        BoseFS2C((0, 2, 0), (0, 1, 0)) => 0.9999389545691221,
+        BoseFS2C((1, 1, 0), (0, 0, 1)) => -0.007812695959057453,
+        BoseFS2C((0, 1, 1), (1, 0, 0)) => -0.007812695959057453,
+        BoseFS2C((2, 0, 0), (1, 0, 0)) => 4.046694762039993e-5,
+        BoseFS2C((0, 0, 2), (0, 0, 1)) => 4.046694762039993e-5,
+        BoseFS2C((1, 0, 1), (0, 1, 0)) => 8.616127793651117e-5,
+    )
+    g0 = G2Correlator(0)
+    g1 = G2Correlator(1)
+    g2 = G2Correlator(2)
+    g3 = G2Correlator(3)
+    @test imag(dot(v0,g0,v0)) == 0 # should be strictly real
+    @test abs(imag(dot(v0,g3,v0))) < 1e-10
+    @test dot(v0,g0,v0) ≈ 0.6519750102294596
+    @test dot(v0,g1,v0) ≈ 0.6740721867996825
+    @test dot(v0,g2,v0) ≈ 0.6740721867996825
+    @test dot(v0,g3,v0) ≈ 0.6519750102294596
+    @test num_offdiagonals(g0,aIni) == 2
+end
