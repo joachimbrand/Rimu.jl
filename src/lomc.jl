@@ -234,19 +234,19 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
         end
         replica_names, replica_values = replica_stats(state.replica, state.replicas)
         report!(state.r_strat, step, report, replica_names, replica_values)
-        print_report(state.r_strat, step, report, state)
+        report_after_step(state.r_strat, step, report, state)
         !success && break
     end
 
     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
     # compatible, which should be the case if the run is an actual continuation. Maybe the
     # DataFrames should be merged in a more permissive manner?
+    result_df = finalize_report!(state.r_strat, report)
     if !isempty(df)
-        df = vcat(df, DataFrame(report))
+        return (; df=vcat(df, result_df), state)
     else
-        df = DataFrame(report)
+        return (; df=result_df, state)
     end
-    return (; df, state)
 end
 
 """

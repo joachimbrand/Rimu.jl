@@ -4,6 +4,7 @@ Random Integrator for Many-Body Quantum Systems
 """
 module Rimu
 
+using Arrow
 using Reexport, Parameters, LinearAlgebra, DataFrames
 using Setfield, StaticArrays
 using SplittablesBase, ThreadsX
@@ -30,7 +31,7 @@ export DoubleLogUpdate, DelayedDoubleLogUpdate, DoubleLogUpdateAfterTargetWalker
 export DelayedDoubleLogUpdateAfterTW
 export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
-export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
+export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo, ReportToFile
 export ReplicaStrategy, NoStats, AllOverlaps
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber

@@ -63,3 +63,7 @@ end
 function DataFrames.DataFrame(report::Report)
     DataFrame(report.data; copycols=false)
 end
+
+function Base.empty!(report::Report)
+    foreach(empty!, values(report.data))
+end
