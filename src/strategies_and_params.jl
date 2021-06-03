@@ -183,7 +183,7 @@ See [`ReportingStrategy`](@ref) for details.
 end
 
 """
-    ReportToFile{P1,P2} <: ReportingStrategy{P1,P2}
+    ReportToFile(; kwargs...) <: ReportingStrategy
 
 Reporting strategy that writes the report directly to a file. Useful when dealing with long
 jobs or large numbers of replicas, when the report can incur a significant memory cost.
@@ -198,6 +198,9 @@ jobs or large numbers of replicas, when the report can incur a significant memor
   computation. Otherwise, an empty `DataFrame` is returned.
 * `io=stdout`: The `IO` to print messages to. Set to `devnull` if you don't want to see
   messages printed out.
+* `projector = nothing`: include projection onto `projector`
+* `hproj = :auto`: secondary projector
+See `ReportingStrategy` for details regarding the use of projectors.
 """
 @with_kw struct ReportToFile{P1,P2} <: ReportingStrategy{P1,P2}
     filename::String
