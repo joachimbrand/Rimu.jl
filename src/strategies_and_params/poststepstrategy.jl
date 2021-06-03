@@ -58,3 +58,36 @@ function post_step(sc::SignCoherence, replica)
     coherent_configs = num_correct / length(vector)
     return (:coherent_configs => coherent_configs,)
 end
+
+struct ProjectedEnergy{P,Q,H} <: PostStepStrategy
+    vproj::P
+    hproj::Q
+    ham::H
+end
+
+function ProjectedEnergy(projector, hamiltonian::AbstractHamiltonian)
+    return ProjectedEnergy(Hamiltonians.LOStructure(hamiltonian), projector, hamiltonian)
+end
+function ProjectedEnergy(::Hamiltonians.AdjointUnknown, projector, hamiltonian)
+    @warn "typeof(hamiltonian) has unknown adjoint. This will negatively affect performance."
+    return ProjectedEnergy(freeze(projector), nothing, ham)
+end
+function ProjectedEnergy(::Hamiltonians.LOStructure, projector, ham)
+    vproj = freeze(projector)
+    hproj = freeze(ham' * projector)
+    return ProjectedEnergy(vproj, hproj, ham)
+end
+
+# Method with non-adjointable hamiltonian
+function post_step(p::ProjectedEnergy{<:Any,Nothing}, replica)
+    return (
+        :vproj => dot(p.vproj, replica.v),
+        :hproj => dot(p.vproj, p.ham, replica.v),
+    )
+end
+function post_step(p::ProjectedEnergy, replica)
+    return (
+        :vproj => dot(p.vproj, replica.v),
+        :hproj => conj(dot(p.hproj, replica.v)),
+    )
+end

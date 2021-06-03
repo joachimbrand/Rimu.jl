@@ -13,7 +13,8 @@ Can be advanced a step forward with [`advance!`](@ref).
 * `params`: the [`FCIQMCRunStrategy`](@ref).
 * `id`: appended to reported columns.
 """
-mutable struct ReplicaState{T,V,W,R<:FciqmcRunStrategy{T}}
+mutable struct ReplicaState{H,T,V,W,R<:FciqmcRunStrategy{T}}
+    hamiltonian::H
     v::V       # vector
     w::W       # working memory. Maybe working memories could be shared among replicas?
     pnorm::T   # previous walker number - used to control the shift
@@ -21,11 +22,11 @@ mutable struct ReplicaState{T,V,W,R<:FciqmcRunStrategy{T}}
     id::String # id is appended to column names
 end
 
-function ReplicaState(v, w, params, id="")
+function ReplicaState(h, v, w, params, id="")
     if isnothing(w)
         w = similar(v)
     end
-    return ReplicaState(v, w, walkernumber(v), params, id)
+    return ReplicaState(h, v, w, walkernumber(v), params, id)
 end
 
 function Base.show(io::IO, r::ReplicaState)
@@ -61,8 +62,8 @@ struct QMCState{
     r_strat::RS
     s_strat::SS
     τ_strat::TS
-    replica::RRS
     post_step::PS
+    replica::RRS
 end
 
 function QMCState(
@@ -96,14 +97,15 @@ function QMCState(
     nreplicas = num_replicas(replica)
     if nreplicas > 1
         replicas = ntuple(nreplicas) do i
-            ReplicaState(deepcopy(v), deepcopy(wm), deepcopy(params), "_$i")
+            ReplicaState(hamiltonian, deepcopy(v), deepcopy(wm), deepcopy(params), "_$i")
         end
     else
-        replicas = (ReplicaState(v, wm, params, ""),)
+        replicas = (ReplicaState(hamiltonian, v, wm, params, ""),)
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(maxlength), m_strat, r_strat, s_strat, τ_strat, replica
+        hamiltonian, replicas, Ref(maxlength),
+        m_strat, r_strat, s_strat, τ_strat, post_step, replica
     )
 end
 
@@ -280,10 +282,10 @@ function advance!(
     @unpack step, shiftMode, shift, dτ = params
     step += 1
 
-    v, w, step_stats, stat_names, shift_noise = fciqmc_step!(
+    v, w, step_stat_values, step_stat_names, shift_noise = fciqmc_step!(
         hamiltonian, v, shift, dτ, pnorm, w, 1.0; m_strat
     )
-    v, update_stats = update_dvec!(v)
+    v, update_dvec_stats = update_dvec!(v)
     tnorm = walkernumber(v)
     len = length(v)
 
@@ -293,17 +295,17 @@ function advance!(
         s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
-    post_step_names, post_step_values = post_step(state.post_step, replica)
+    post_step_stats = post_step(state.post_step, replica)
 
     report!(
         r_strat, step, report,
         (dτ, shift, shiftMode, len, norm=tnorm), id,
     )
     report!(r_strat, step, report, proj_observables, id)
-    report!(r_strat, step, report, stat_names, step_stats, id)
-    report!(r_strat, step, report, update_stats, id)
+    report!(r_strat, step, report, step_stat_names, step_stat_values, id)
+    report!(r_strat, step, report, update_dvec_stats, id)
     report!(r_strat, step, report, (;shift_noise), id)
-    report!(state.r_strat, step, report, after_names, after_values, id)
+    report!(state.r_strat, step, report, post_step_stats, id)
 
     @pack! params = step, shiftMode, shift, dτ
     @pack! replica = v, w, pnorm, params

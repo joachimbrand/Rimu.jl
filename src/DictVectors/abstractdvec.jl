@@ -342,3 +342,32 @@ walkernumber(::StochasticStyle, w) = Norm1ProjectorPPop() ⋅ w
 Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for `DictVector`s.
 """
 localpart(dv) = dv # default for local data
+
+"""
+    FrozenDVec
+
+See: [`freeze`](@ref).
+"""
+struct FrozenDVec{K,V}
+    pairs::Vector{Pair{K,V}}
+end
+Base.keytype(::FrozenDVec{K}) where {K} = K
+Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
+Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}
+Base.pairs(fd::FrozenDVec) = fd.pairs
+
+"""
+    freeze(dv)
+
+Create a "frozen" version of `dv` which can no longer be modified or used in the
+conventional manner, but supports faster dot products.
+"""
+freeze(dv) = FrozenDVec(collect(pairs(localpart(dv))))
+
+function LinearAlgebra.dot(fd::FrozenDVec, dv)
+    result = zero(promote_type(valtype(fd), valtype(dv)))
+    for (k, v) in pairs(fd)
+        result += dv[k] ⋅ v
+    end
+    return result
+end
