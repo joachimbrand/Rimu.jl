@@ -2,12 +2,16 @@
 Module to provide file inut and output functionality for `Rimu`.
 Provides convenience functions:
 
-* [`RimuIO.save(filename, df::DataFrame)`](@ref) Save dataframe in Arrow format.
-* [`RimuIO.load(filename)`](@ref) Load Arrow file into dataframe.
+* [`RimuIO.save_df(filename, df::DataFrame)`](@ref) Save dataframe in Arrow format.
+* [`RimuIO.load_df(filename)`](@ref) Load Arrow file into dataframe.
+* [`RimuIO.save_dvec(filename, dv)`](@ref) Save dict vector in BSON format.
+* [`RimuIO.load_dvec(filename)`](@ref) Load BSON file into dict vector.
 """
 module RimuIO
 
-using Arrow, DataFrames
+using ..DictVectors
+
+using Arrow, DataFrames, BSON
 
 export save_df, load_df
 
@@ -29,5 +33,26 @@ save_df(filename, df::DataFrame) = Arrow.write(filename, df)
 Load Arrow file into dataframe.
 """
 load_df(filename) = DataFrame(Arrow.Table(filename))
+
+"""
+    RimuIO.save_dvec(filename, dvec)
+Save `dvec` in [BSON](https://github.com/JuliaIO/BSON.jl) format.
+
+## Notes
+
+* Only the [`localpart`](@ref) is saved. You may need to re-wrap the result in
+  [`MPIData`](@ref) if using MPI.
+
+* When using this function with MPI, make sure to save the vectors from different ranks to
+  different files, e.g. by saving as `RimuIO.save_dvec("filename-\$(mpi_rank()).bson", dvec)`.
+
+"""
+save_dvec(filename, dvec) = bson(filename, Dict(:dvec => localpart(dvec)))
+
+"""
+    RimuIO.load_dvec(filename) -> AbstractDVec
+Load `AbstractDVec` stored in [BSON](https://github.com/JuliaIO/BSON.jl).
+"""
+load_dvec(filename) = BSON.load(filename)[:dvec]
 
 end # module RimuIO
