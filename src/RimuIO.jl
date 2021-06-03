@@ -2,14 +2,16 @@
 Module to provide file inut and output functionality for `Rimu`.
 Provides convenience functions:
 
-* [`RimuIO.save(filename, df::DataFrame)`](@ref) Save dataframe in Arrow format.
-* [`RimuIO.load(filename)`](@ref) Load Arrow file into dataframe.
+* [`RimuIO.save_df(filename, df::DataFrame)`](@ref) Save dataframe in Arrow format.
+* [`RimuIO.load_df(filename)`](@ref) Load Arrow file into dataframe.
+* [`RimuIO.save_dvec(filename, dv)`](@ref) Save dict vector in BSON format.
+* [`RimuIO.load_dvec(filename)`](@ref) Load BSON file into dict vector.
 """
 module RimuIO
 
 using ..DictVectors
 
-using Arrow, DataFrames, JLSO
+using Arrow, DataFrames, BSON
 
 export save_df, load_df
 
@@ -33,38 +35,24 @@ Load Arrow file into dataframe.
 load_df(filename) = DataFrame(Arrow.Table(filename))
 
 """
-    compress(dvec::AbstractDVec)
+    RimuIO.save_dvec(filename, dvec)
+Save `dvec` in [BSON](https://github.com/JuliaIO/BSON.jl) format.
 
-"Compress" the `DVec` by throwing away the `Dict`.
+## Notes
+
+* Only the [`localpart`](@ref) is saved. You may need to re-wrap the result in
+  [`MPIData`](@ref) if using MPI.
+
+* When using this function with MPI, make sure to save the vectors from different ranks to
+  different files, e.g. by saving as `RimuIO.save_dvec("filename-\$(mpi_rank()).bson", dvec)`.
+
 """
-function compress(dvec::AbstractDVec)
-    return empty(dvec), collect(pairs(storage(dvec)))
-end
+save_dvec(filename, dvec) = bson(filename, Dict(:dvec => localpart(dvec)))
 
-function save_dvec(filename, state)
-    JLSO.save(filename, :dvecs => map(r -> compress(r.v), state.replicas))
-    return filename
-end
-
-function save_dvec(filename, dvec::AbstractDVec)
-    JLSO.save(filename, :dvecs => (compress(dvec),))
-    return filename
-end
-
-function load_dvec(filename)
-    d = JLSO.load(filename)
-    result = map(d[:dvecs]) do d
-        shell, pairs = d
-        for (k, v) in pairs
-            storage(shell)[k] = v
-        end
-        shell
-    end
-    if length(result) == 1
-        return only(result)
-    else
-        return result
-    end
-end
+"""
+    RimuIO.load_dvec(filename) -> AbstractDVec
+Load `AbstractDVec` stored in [BSON](https://github.com/JuliaIO/BSON.jl).
+"""
+load_dvec(filename) = BSON.load(filename)[:dvec]
 
 end # module RimuIO

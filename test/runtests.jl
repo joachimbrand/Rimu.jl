@@ -284,8 +284,8 @@ end
         rm(file)
     end
     @testset "save_dvec, load_dvec" begin
-        file1 = joinpath(@__DIR__, "tmp1.jlso")
-        file2 = joinpath(@__DIR__, "tmp2.jlso")
+        file1 = joinpath(@__DIR__, "tmp1.bson")
+        file2 = joinpath(@__DIR__, "tmp2.bson")
         rm(file1; force=true)
         rm(file2; force=true)
 
@@ -295,15 +295,15 @@ end
 
         _, state = lomc!(H, dv; replica=NoStats(2))
         RimuIO.save_dvec(file1, state.replicas[1].v)
-        RimuIO.save_dvec(file2, state)
+        RimuIO.save_dvec(file2, state.replicas[2].v)
 
         dv1 = RimuIO.load_dvec(file1)
-        dv2, dv3 = RimuIO.load_dvec(file2)
+        dv2 = RimuIO.load_dvec(file2)
 
-        @test dv1 == dv2 == state.replicas[1].v
-        @test typeof(dv1) == typeof(dv2) == typeof(state.replicas[1].v)
+        @test dv1 == state.replicas[1].v
+        @test typeof(dv2) == typeof(state.replicas[1].v)
         @test StochasticStyle(dv1) == StochasticStyle(state.replicas[1].v)
-        @test storage(dv3) == storage(state.replicas[2].v)
+        @test storage(dv2) == storage(state.replicas[2].v)
 
         rm(file1; force=true)
         rm(file2; force=true)
