@@ -29,7 +29,7 @@ end
 """
     Projector(name=projector) <: PostStepStrategy
 
-After each step, compute `dot(projector, v)` and report it in the `DataFrame` under `name`.
+After each step, compute `dot(projector, dv)` and report it in the `DataFrame` under `name`.
 `projector` can be an [`AbstractDVec`](@ref), or an [`AbstractProjector`](@ref).
 """
 struct Projector{P} <: PostStepStrategy
@@ -46,7 +46,7 @@ end
     ProjectedEnergy(hamiltonian, projector) <: PostStepStrategy
 
 After every step, compute `hproj = dot(projector, hamiltonian, dv)` and `vproj =
-dot(projector, dv)`, where `dv` is the current vector.
+dot(projector, dv)`, where `dv` is the instantaneous coefficient vector.
 `projector` can be an [`AbstractDVec`](@ref), or an [`AbstractProjector`](@ref).
 
 `hproj` and `vproj` can be used to compute projected energy. See also

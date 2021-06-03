@@ -82,7 +82,7 @@ function QMCState(
     maxlength=2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers)),
 )
     # Set up default arguments
-    r_strat = refine_r_strat(r_strat, hamiltonian)
+    r_strat = refine_r_strat(r_strat)
     if !isnothing(laststep)
         params.laststep = laststep
     end
