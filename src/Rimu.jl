@@ -37,7 +37,14 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
 
 include("report.jl")
-include("strategies_and_params.jl") # type defs and helpers
+
+include("strategies_and_params/fciqmcrunstrategy.jl")
+include("strategies_and_params/memorystrategy.jl")
+include("strategies_and_params/replicastrategy.jl")
+include("strategies_and_params/reportingstrategy.jl")
+include("strategies_and_params/shiftstrategy.jl")
+include("strategies_and_params/timestepstrategy.jl")
+
 include("helpers.jl")               # non MPI-dependent helper functions
 include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
