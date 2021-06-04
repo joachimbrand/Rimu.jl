@@ -31,7 +31,7 @@ export DoubleLogUpdate, DelayedDoubleLogUpdate, DoubleLogUpdateAfterTargetWalker
 export DelayedDoubleLogUpdateAfterTW
 export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
-export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo, ReportToFile
+export ReportingStrategy, ReportDFAndInfo, ReportToFile
 export ReplicaStrategy, NoStats, AllOverlaps
 export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence
 export TimeStepStrategy, ConstantTimeStep, OvershootControl

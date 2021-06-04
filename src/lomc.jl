@@ -74,7 +74,7 @@ function QMCState(
     wm=nothing,
     params::FciqmcRunStrategy=RunTillLastStep{float(valtype(v))}(),
     s_strat::ShiftStrategy=DoubleLogUpdate(),
-    r_strat::ReportingStrategy=EveryTimeStep(),
+    r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     m_strat::MemoryStrategy=NoMemory(),
     replica::ReplicaStrategy=NoStats(),
@@ -187,7 +187,7 @@ required for continuation runs.
 * `wm` - working memory; if set, it controls the use of multithreading and overrides `threading`; is mutated
 * `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100)` - contains basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
 * `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000)` - see [`ShiftStrategy`](@ref)
-* `r_strat::ReportingStrategy = EveryTimeStep()` - see [`ReportingStrategy`](@ref)
+* `r_strat::ReportingStrategy = ReportDFAndInfo()` - see [`ReportingStrategy`](@ref)
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
 * `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
 * `replica::ReplicaStrategy = NoStats(1)` - see [`ReplicaStrategy`](@ref).
@@ -289,8 +289,6 @@ function advance!(
     tnorm = walkernumber(v)
     len = length(v)
 
-    proj_observables = compute_proj_observables(v, hamiltonian, r_strat)
-
     shift, shiftMode, pnorm = update_shift(
         s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
     )
@@ -301,7 +299,6 @@ function advance!(
         r_strat, step, report,
         (dτ, shift, shiftMode, len, norm=tnorm), id,
     )
-    report!(r_strat, step, report, proj_observables, id)
     report!(r_strat, step, report, step_stat_names, step_stat_values, id)
     report!(r_strat, step, report, update_dvec_stats, id)
     report!(r_strat, step, report, (;shift_noise), id)

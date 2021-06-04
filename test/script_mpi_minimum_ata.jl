@@ -27,7 +27,7 @@ params = RunTillLastStep(dτ = 0.001, laststep = 500)
 
 # use `localpart(dv)` to access the `DVec`
 # here we set up a projector for projected energy calculation
-r_strat = EveryTimeStep(projector = copy(localpart(dv)))
+after_step = ProjectedEnergy(ham, localpart(dv))
 
 wn = walkernumber(dv) # an MPI synchronising operation; must not appear after `@mpi_root`
 # write a message only from the root rank
@@ -35,11 +35,11 @@ wn = walkernumber(dv) # an MPI synchronising operation; must not appear after `@
 @info "before 1st lomc!" mpi_rank() cRand(UInt16)
 
 # compilation (optional)
-nt0 = lomc!(ham,dv; params = deepcopy(params), s_strat, r_strat, laststep = 0, threading=false)
+nt0 = lomc!(ham,dv; params = deepcopy(params), s_strat, after_step, laststep = 0, threading=false)
 # run `lomc!()` passing in the `MPIData` object
 @info "after 1st lomc!" mpi_rank() cRand(UInt16)
 
-el = @elapsed nt = lomc!(ham,dv; params, s_strat, r_strat, threading=false)
+el = @elapsed nt = lomc!(ham,dv; params, s_strat, after_step, threading=false)
 @info "after 2nd lomc!" mpi_rank() cRand(UInt16)
 
 @mpi_root @info "Parallel fciqmc completed in $el seconds."

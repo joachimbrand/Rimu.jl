@@ -53,34 +53,38 @@ dot(projector, dv)`, where `dv` is the instantaneous coefficient vector.
 [`Rimu.StatsTools.ratio_of_means`](@ref).
 """
 struct ProjectedEnergy{H,P,Q} <: PostStepStrategy
+    vproj_name::Symbol
+    hproj_name::Symbol
     ham::H
     vproj::P
     hproj::Q
 end
 
-function ProjectedEnergy(hamiltonian::AbstractHamiltonian, projector)
-    return ProjectedEnergy(Hamiltonians.LOStructure(hamiltonian), hamiltonian, projector)
+function ProjectedEnergy(
+    hamiltonian::AbstractHamiltonian, projector;
+    vproj=:vproj, hproj=:hproj
+)
+    hproj_vec = compute_hproj(Hamiltonians.LOStructure(hamiltonian), hamiltonian, projector)
+    return ProjectedEnergy(vproj, hproj, hamiltonian, freeze(projector), hproj_vec)
 end
-function ProjectedEnergy(::Hamiltonians.AdjointUnknown, hamiltonian, projector)
+function compute_hproj(::Hamiltonians.AdjointUnknown, hamiltonian, projector)
     @warn "$(typeof(hamiltonian)) has an unknown adjoint. This will be slow."
-    return ProjectedEnergy(freeze(projector), ham, nothing)
+    return nothing
 end
-function ProjectedEnergy(::Hamiltonians.LOStructure, ham, projector)
-    vproj = freeze(projector)
-    hproj = freeze(ham' * projector)
-    return ProjectedEnergy(vproj, hproj, ham)
+function compute_hproj(::Hamiltonians.LOStructure, ham, projector)
+    return freeze(ham' * projector)
 end
 
 function post_step(p::ProjectedEnergy{<:Any,<:Any,Nothing}, replica)
     return (
-        :vproj => dot(p.vproj, replica.v),
-        :hproj => dot(p.vproj, p.ham, replica.v),
+        p.vproj_name => dot(p.vproj, replica.v),
+        p.hproj_name => dot(p.vproj, p.ham, replica.v),
     )
 end
 function post_step(p::ProjectedEnergy, replica)
     return (
-        :vproj => dot(p.vproj, replica.v),
-        :hproj => conj(dot(p.hproj, replica.v)),
+        p.vproj_name => dot(p.vproj, replica.v),
+        p.hproj_name => conj(dot(p.hproj, replica.v)),
     )
 end
 
@@ -96,7 +100,7 @@ end
 
 function post_step(sc::SignCoherence, replica)
     vector = replica.v
-    num_correct = mapreduce(+, vector; init=zero(valtype(vector))) do ((k, v))
+    num_correct = mapreduce(+, pairs(vector); init=zero(valtype(vector))) do ((k, v))
         sign(v) == sign(sc.reference[k])
     end
     return (:coherence => num_correct / length(vector),)

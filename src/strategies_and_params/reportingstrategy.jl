@@ -6,8 +6,6 @@ also affects the calculation and reporting of projected quantities in the DataFr
 
 # Implemented strategies:
 
-* [`EveryTimeStep`](@ref)
-* [`EveryKthStep`](@ref)
 * [`ReportDFAndInfo`](@ref)
 * [`ReportToFile`](@ref)
 

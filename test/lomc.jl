@@ -171,18 +171,13 @@ using Statistics
         H = HubbardReal1D(add; u=2)
         dv = DVec(add => 1, style=IsDeterministic())
 
-        @testset "EveryKthStep" begin
-            r_strat = EveryKthStep(k=5)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
-            @test size(df, 1) == 20
-        end
         @testset "ReportDFAndInfo" begin
-            r_strat = ReportDFAndInfo(k=5, i=20, io=devnull)
+            r_strat = ReportDFAndInfo(k=5, i=20, io=devnull, writeinfo=true)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test size(df, 1) == 20
 
             out = @capture_out begin
-                r_strat = ReportDFAndInfo(k=5, i=20, io=stdout)
+                r_strat = ReportDFAndInfo(k=5, i=20, io=stdout, writeinfo=true)
                 lomc!(H, copy(dv); r_strat, laststep=100)
             end
             @test length(split(out, '\n')) == 6 # (last line is empty)
@@ -222,6 +217,32 @@ using Statistics
             rm("test-report-2.arrow"; force=true)
         end
     end
+
+    @testset "Post step" begin
+        add = BoseFS((0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0))
+        H = HubbardMom1D(add; u=4)
+        dv = DVec(add => 1)
+
+        @testset "Projector, ProjectedEnergy" begin
+            post_step = (
+                Projector(p1=NormProjector()),
+                Projector(p2=copy(dv)),
+                ProjectedEnergy(H, dv),
+                ProjectedEnergy(H, dv, vproj=:vproj2, hproj=:hproj2),
+            )
+            df, _ = lomc!(H, copy(dv); post_step)
+            @test df.vproj == df.vproj2 == df.p2
+            @test df.norm == df.p1
+        end
+
+        @testset "SignCoherence" begin
+            ref = eigsolve(H, dv, 1, :SR; issymmetric=true)[2][1]
+            post_step = SignCoherence(ref)
+            df, _ = lomc!(H, copy(dv); post_step)
+            @test df.coherence[1] == 1.0
+            @test all(df.coherence .> 0.5)
+        end
+    end
 end
 
 @testset "Ground state energy estimates" begin
@@ -232,11 +253,11 @@ end
     )
         @testset "$H" begin
             dv = DVec(starting_address(H) => 2; style=IsDynamicSemistochastic())
-            r_strat = EveryTimeStep(projector=copy(dv))
+            post_step = ProjectedEnergy(H, dv)
 
             E0 = eigsolve(H, copy(dv), 1, :SR; issymmetric=true)[1][1]
 
-            df = lomc!(H, dv; r_strat, laststep=3000).df
+            df = lomc!(H, dv; post_step, laststep=3000).df
 
             # Shift estimate.
             Es, σs = mean_and_se(df.shift)

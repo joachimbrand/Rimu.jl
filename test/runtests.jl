@@ -181,18 +181,6 @@ end
     @test a.shift ≈ c.shift
 end
 
-@testset "ReportingStrategy internals" begin
-    aIni = BoseFS((2,4,0,0,1))
-    ham = BoseHubbardMom1D(aIni)
-    v = DVec(aIni => 2; capacity = 1)
-    r = EveryTimeStep(projector = copy(v))
-    @test r.hproj == :auto
-    @test_throws ErrorException Rimu.compute_proj_observables(v, ham, r)
-    rr = Rimu.refine_r_strat(r, ham)
-    @test rr.hproj⋅v == dot(v, ham, v)
-    @test Rimu.compute_proj_observables(v, ham, rr) == (; vproj=v⋅v, hproj=dot(v, ham, v))
-end
-
 @testset "helpers" begin
     v = [1,2,3]
     @test walkernumber(v) == norm(v,1)
@@ -248,13 +236,13 @@ using Rimu.Blocking
     svec = DVec(Dict(aIni => 2))
     StochasticStyle(svec)
     vs = copy(svec)
-    r_strat = EveryTimeStep(projector = copy(svec))
+    post_step = ProjectedEnergy(ham, svec)
     τ_strat = ConstantTimeStep()
 
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat = r_strat,
-        τ_strat = τ_strat, wm = similar(vs)
+    @time rdfs = lomc!(
+        ham, vs; params = pa, s_strat = s, post_step, τ_strat, wm = similar(vs),
     ).df
     r = autoblock(rdfs, start=101)
     @test r.s̄ ≈ -5.14 atol=0.1

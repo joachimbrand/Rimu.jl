@@ -13,15 +13,8 @@ function run_lomc(H, addr; n_steps, Ntw, dτ)
     params = RunTillLastStep(; step=0, dτ=dτ, laststep=n_steps)
     s_strat = DoubleLogUpdate(targetwalkers=Ntw, ζ=0.08)
     τ_strat = ConstantTimeStep()
-    r_strat = EveryTimeStep(; projector=copy(c))
+    post_step = ProjectedEnergy(H, c)
     Rimu.ConsistentRNG.seedCRNG!(17)
 
-    return lomc!(
-        H, c;
-        params=params,
-        laststep=n_steps,
-        s_strat=s_strat,
-        r_strat=r_strat,
-        τ_strat=τ_strat
-    )
+    return lomc!(H, c; params, laststep=n_steps, s_strat, τ_strat, post_step)
 end
