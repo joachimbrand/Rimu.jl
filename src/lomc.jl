@@ -252,6 +252,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
         replica_names, replica_values = replica_stats(state.replica, state.replicas)
         report!(state.r_strat, step, report, replica_names, replica_values)
         report_after_step(state.r_strat, step, report, state)
+        ensure_correct_lengths(report)
         !success && break
     end
 

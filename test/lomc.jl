@@ -224,6 +224,8 @@ using Statistics
         dv = DVec(add => 1)
 
         @testset "Projector, ProjectedEnergy" begin
+            ConsistentRNG.seedCRNG!(1337)
+
             post_step = (
                 Projector(p1=NormProjector()),
                 Projector(p2=copy(dv)),
@@ -232,7 +234,11 @@ using Statistics
             )
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.vproj == df.vproj2 == df.p2
-            @test df.norm == df.p1
+            @test df.norm ≈ df.p1
+
+            @test_throws ErrorException lomc!(
+                H, dv; post_step=(Projector(a=dv), Projector(a=dv))
+            )
         end
 
         @testset "SignCoherence" begin
@@ -240,7 +246,6 @@ using Statistics
             post_step = SignCoherence(ref)
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.coherence[1] == 1.0
-            @test all(df.coherence .> 0.5)
         end
     end
 end

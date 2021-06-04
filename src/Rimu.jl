@@ -5,11 +5,18 @@ Random Integrator for Many-Body Quantum Systems
 module Rimu
 
 using Arrow
-using Reexport, Parameters, LinearAlgebra, DataFrames
-using Setfield, StaticArrays
-using SplittablesBase, ThreadsX
+using DataFrames
+using DataStructures
+using LinearAlgebra
+using OrderedCollections # for LittleDict
+using Parameters
+using Reexport
+using Setfield
+using SplittablesBase
+using StaticArrays
+using ThreadsX
+
 @reexport using Distributed
-import MPI, DataStructures
 
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
@@ -36,8 +43,6 @@ export ReplicaStrategy, NoStats, AllOverlaps
 export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
-
-include("report.jl")
 
 include("strategies_and_params/fciqmcrunstrategy.jl")
 include("strategies_and_params/memorystrategy.jl")

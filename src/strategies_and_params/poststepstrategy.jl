@@ -43,11 +43,15 @@ function post_step(p::Projector, replica)
 end
 
 """
-    ProjectedEnergy(hamiltonian, projector) <: PostStepStrategy
+    ProjectedEnergy(hamiltonian, projector; hproj=:vproj, vproj=:vproj) <: PostStepStrategy
 
 After every step, compute `hproj = dot(projector, hamiltonian, dv)` and `vproj =
 dot(projector, dv)`, where `dv` is the instantaneous coefficient vector.
 `projector` can be an [`AbstractDVec`](@ref), or an [`AbstractProjector`](@ref).
+
+The keyword arguments `hproj` and `vproj` can be used to change the names of the columns
+the dot products are reported to. This can be used to compute projected energies with
+different projectors in the same run.
 
 `hproj` and `vproj` can be used to compute projected energy. See also
 [`Rimu.StatsTools.ratio_of_means`](@ref).
@@ -92,7 +96,7 @@ end
     SignCoherence(reference) <: PostStepStrategy
 
 After each step, compute the proportion of configurations that have the same sign as they do
-in the `reference_dvec`.
+in the `reference_dvec`. Reports to a column named `coherence`.
 """
 struct SignCoherence{R} <: PostStepStrategy
     reference::R
