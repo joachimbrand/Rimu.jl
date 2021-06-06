@@ -137,7 +137,7 @@ function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
     temp_1 = lop * localpart(md_right)
     # Construct a new MPIData instance, reusing as much of md_left as possible. Use that
     # to communicate walkers that were supposed to be on a different rank.
-    temp_2 = MPIData(empty(temp_1), md_left.comm, md_left.root, md_left.s)
+    temp_2 = MPIData(empty(temp_1))
     mpi_combine_walkers!(temp_2, temp_1)
     return dot(localpart(md_left), temp_2)
 end
