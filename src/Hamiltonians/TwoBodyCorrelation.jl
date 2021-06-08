@@ -65,5 +65,5 @@ function get_offdiagonal(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB}, chosen) 
     new_add = BoseFS2C(new_bsa, new_bsb)
     gamma = sqrt(onproduct_a*onproduct_b)
     gd = exp(-im*g.d*(p-q)*2π/M)*gamma
-    return new_add, ComplexF64(gd/M)
+    return new_add, ComplexF64(gd/M)::ComplexF64
 end
