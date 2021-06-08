@@ -74,11 +74,13 @@ end
 Internal function evaluates the 3-argument `dot()` function in order from right
 to left.
 """
-function dot_from_right(x::AbstractDVec{K,T1}, LO::AbstractHamiltonian{T}, v::AbstractDVec{K,T2}) where {K, T,T1, T2}
-    result = zero(promote_type(T1,promote_type(T,T2)))
-    for (key,val) in pairs(v)
+function dot_from_right(
+    x::AbstractDVec{K,T}, LO::AbstractHamiltonian{U}, v::AbstractDVec{K,V}
+) where {K,T,U,V}
+    result = zero(promote_type(T, U, V))
+    for (key, val) in pairs(v)
         result += conj(x[key]) * diagonal_element(LO, key) * val
-        for (add,elem) in offdiagonals(LO, key)
+        for (add, elem) in offdiagonals(LO, key)
             result += conj(x[add]) * elem * val
         end
     end
