@@ -239,6 +239,8 @@ using Statistics
             @test_throws ErrorException lomc!(
                 H, dv; post_step=(Projector(a=dv), Projector(a=dv))
             )
+            @test_throws ErrorException Projector(a=dv, b=dv)
+            @test_throws ErrorException Projector()
         end
 
         @testset "SignCoherence" begin

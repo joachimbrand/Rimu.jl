@@ -4,6 +4,9 @@
 Subtypes of `PostStepStrategy` can be used to perform arbitrary computation on a replica
 after a FCIQMC step is finished and report the results.
 
+Note: a tuple of multiple strategies can be passed to [`lomc!`](@ref). In that case, all
+reported column names must be distinct.
+
 A subtype of this type must implement [`post_step(::PostStepStrategy, ::ReplicaState)`](@ref).
 """
 abstract type PostStepStrategy end
@@ -36,7 +39,10 @@ struct Projector{P} <: PostStepStrategy
     name::Symbol
     projector::P
 end
-Projector(;kwarg...) = Projector(only(keys(kwarg)), only(values(kwarg)))
+function Projector(;kwarg...)
+    length(kwarg) ≠ 1 && error("exactly one keyword argument must be passed to `Projector`")
+    Projector(only(keys(kwarg)), only(values(kwarg)))
+end
 
 function post_step(p::Projector, replica)
     return (p.name => dot(p.projector, replica.v),)
@@ -46,15 +52,13 @@ end
     ProjectedEnergy(hamiltonian, projector; hproj=:vproj, vproj=:vproj) <: PostStepStrategy
 
 After every step, compute `hproj = dot(projector, hamiltonian, dv)` and `vproj =
-dot(projector, dv)`, where `dv` is the instantaneous coefficient vector.
-`projector` can be an [`AbstractDVec`](@ref), or an [`AbstractProjector`](@ref).
+dot(projector, dv)`, where `dv` is the instantaneous coefficient vector.  `projector` can be
+an [`AbstractDVec`](@ref), or an [`AbstractProjector`](@ref).
 
-The keyword arguments `hproj` and `vproj` can be used to change the names of the columns
-the dot products are reported to. This can be used to compute projected energies with
-different projectors in the same run.
-
-`hproj` and `vproj` can be used to compute projected energy. See also
-[`Rimu.StatsTools.ratio_of_means`](@ref).
+Reports to columns `hproj` and `vproj`, which can be used to compute projective energy,
+e.g. with [`Rimu.StatsTools.ratio_of_means`](@ref). The keyword arguments `hproj` and
+`vproj` can be used to change the names of these columns. This can be used to make the names
+unique when computing projected energies with different projectors in the same run.
 """
 struct ProjectedEnergy{H,P,Q} <: PostStepStrategy
     vproj_name::Symbol
