@@ -165,7 +165,7 @@ Print a message to `stdout` from each rank separately, in order. MPI synchronizi
 function mpi_allprintln(args...)
     for i in 0:(mpi_size() - 1)
         if mpi_rank() == i
-            print("[ rank ", lpad(i, length(string(mpi_size() - 1))), ": ", args...)
+            println("[ rank ", lpad(i, length(string(mpi_size() - 1))), ": ", args...)
             flush(stdout)
         end
         mpi_barrier()
