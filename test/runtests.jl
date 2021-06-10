@@ -371,6 +371,19 @@ end
     include("RMPI.jl")
 end
 
+@testset "deprecated" begin
+    @test @capture_err(EveryTimeStep()) ≠ ""
+    @test @capture_err(EveryKthStep()) ≠ ""
+    @suppress_err begin
+        @test EveryTimeStep().k == 1
+        @test EveryTimeStep().writeinfo == false
+
+        @test EveryKthStep(k=1000).k == 1000
+        @test EveryKthStep().k == 10
+        @test EveryKthStep().writeinfo == false
+    end
+end
+
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
