@@ -157,3 +157,17 @@ function mpi_seed_CRNGs!(seed = rand(Random.RandomDevice(), UInt))
     _check_crng_independence(mpi_comm())
     return rngs
 end
+
+"""
+    mpi_allprintln(args...)
+Print a message to `stdout` from each rank separately, in order. MPI synchronizing.
+"""
+function mpi_allprintln(args...)
+    for i in 0:(mpi_size() - 1)
+        if mpi_rank() == i
+            print("[ rank ", lpad(i, length(string(mpi_size() - 1))), ": ", args...)
+            flush(stdout)
+        end
+        mpi_barrier()
+    end
+end
