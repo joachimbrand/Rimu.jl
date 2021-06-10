@@ -63,10 +63,10 @@ The MPI barrier with optional argument. MPI syncronizing.
 mpi_barrier(comm = mpi_comm()) = MPI.Barrier(comm)
 
 """
-    targetrank(key, np, hash = hash(key))
+    targetrank(key, np)
 Compute the rank where the `key` belongs.
 """
-targetrank(key, np, hash = hash(key)) = hash%np
+targetrank(key, np) = hash(key, hash(1)) % np
 
 """
     mpi_combine_walkers!(target, source, [strategy])
