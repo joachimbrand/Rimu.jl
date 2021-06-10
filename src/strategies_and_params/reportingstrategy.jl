@@ -128,8 +128,8 @@ end
 """
     report_after_step(::ReportingStrategy, step, report, state)
 
-This function is called exactly once at the very end of a step. It can let the
-`ReportingStrategy` print some information to output.
+This function is called exactly once at the very end of a step. It can be used to
+print some information to `stdout`.
 """
 function report_after_step(::ReportingStrategy, args...)
     return nothing
@@ -185,7 +185,9 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 # Keyword arguments
 
 * `filename`: the file to report to. If the file already exists, a new file is created.
-* `chunk_size = 1000`: the size of each chunk that is written to the file.
+* `chunk_size = 1000`: the size of each chunk that is written to the file. A `DataFrame` of
+  this size is collected in memory and written to disk. When saving, an info message is also
+  printed to `io`.
 * `save_if = true`: if this value is true, save the report, otherwise ignore it. Use
   `save_if=is_mpi_root()` when running MPI jobs.
 * `return_df`: if this value is true, read the file and return the data frame at the end of
@@ -205,23 +207,20 @@ function refine_r_strat(s::ReportToFile)
         # If filename exists, add -1 to the end of it. If that exists as well,
         # increment the number after the dash
         new_filename = s.filename
-        if isfile(new_filename)
-            base, ext = splitext(new_filename)
-            new_filename = string(base, "-", 1, ext)
-        end
         while isfile(new_filename)
             base, ext = splitext(new_filename)
             m = match(r"(.*)-([0-9]+)$", base)
-            if !isnothing(m)
+            if isnothing(m)
+                new_filename = string(base, "-1", ext)
+            else
                 new_filename = string(m[1], "-", parse(Int, m[2]) + 1, ext)
             end
         end
         if s.filename ≠ new_filename
-            println(s.io, "File `$(s.filename)` exists. Using `$(new_filename)`.")
+            println(s.io, "File `$(s.filename)` exists.")
             s = @set s.filename = new_filename
-        else
-            println(s.io, "Saving report to `$(s.filename)`.")
         end
+        println(s.io, "Saving report to `$(s.filename)`.")
     end
     return s
 end
