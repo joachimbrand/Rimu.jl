@@ -127,6 +127,14 @@ function Rimu.DictVectors.walkernumber(md::MPIData)
     return MPI.Allreduce(walkernumber(md.data), +, md.comm)
 end
 
+"""
+    *(lop::AbstractHamiltonian, md::MPIData)
+Allocating "Matrix"-"vector" multiplication with MPI-distributed "vector" `md`. The result is similar to 
+[`localpart(md)`](@ref) with all content having been communicated to the correct [`targetrank`](@ref).
+MPI communicating.
+
+See [`MPIData`](@ref).
+"""
 function Base.:*(lop, md::MPIData)
     T = promote_type(eltype(lop),valtype(md))
     P = Pair{keytype(md),T}
