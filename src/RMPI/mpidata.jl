@@ -127,6 +127,61 @@ function Rimu.DictVectors.walkernumber(md::MPIData)
     return MPI.Allreduce(walkernumber(md.data), +, md.comm)
 end
 
+"""
+    *(lop::AbstractHamiltonian, md::MPIData)
+Allocating "Matrix"-"vector" multiplication with MPI-distributed "vector" `md`. The result is similar to 
+[`localpart(md)`](@ref) with all content having been communicated to the correct [`targetrank`](@ref).
+MPI communicating.
+
+See [`MPIData`](@ref).
+"""
+function Base.:*(lop, md::MPIData)
+    T = promote_type(eltype(lop),valtype(md))
+    P = Pair{keytype(md),T}
+    buffers = Vector{P}[P[] for _ in 1:mpi_size()]
+    datatype = MPI.Datatype(P)
+    myrank = mpi_rank()
+    recbuf = buffers[myrank + 1]
+
+    result = similar(localpart(md), T)
+
+    # Do the multiplication into the buffers.
+    for (key,val) in pairs(localpart(md))
+        result[key] += diagonal_element(lop, key)*val
+        for (add, elem) in offdiagonals(lop, key)
+            tr = targetrank(add, mpi_size())
+            if tr == myrank
+                result[add] += elem * val
+            else
+                push!(buffers[tr + 1], add => elem * val)
+            end
+        end
+    end
+
+    # Receive from lower ranks.
+    for id in 0:(myrank - 1)
+        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, md.comm), datatype))
+        MPI.Recv!(recbuf, id, 0, md.comm)
+        for (add, value) in recbuf
+            result[add] += value
+        end
+    end
+    # Perform sends.
+    for id in 0:(mpi_size() - 1)
+        id == myrank && continue
+        MPI.Send(buffers[id + 1], id, 0, md.comm)
+    end
+    # Receive from lower ranks.
+    for id in (myrank + 1):(mpi_size() - 1)
+        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, md.comm), datatype))
+        MPI.Recv!(recbuf, id, 0, md.comm)
+        for (add, value) in recbuf
+            result[add] += value
+        end
+    end
+    return result
+end
+
 function LinearAlgebra.dot(x, md::MPIData)
     return MPI.Allreduce(localpart(x)⋅localpart(md), +, md.comm)
 end
@@ -134,10 +189,7 @@ function LinearAlgebra.dot(x, lop, md::MPIData)
     return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
 end
 function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
-    temp_1 = lop * localpart(md_right)
-    # Construct a new MPIData instance and use it to communicate walkers that were supposed
-    # to be on a different rank.
-    temp_2 = MPIData(empty(temp_1))
-    mpi_combine_walkers!(temp_2, temp_1)
-    return dot(localpart(md_left), temp_2)
+    # Arguments are swapped since lop * md_right is not an MPIData and MPIData should be on
+    # the right hand side.
+    return conj(dot(lop * md_right, md_left))
 end

@@ -4,8 +4,8 @@
     G2Correlator(d::Int) <: AbstractHamiltonian{ComplexF64}
 
 Two-body correlation operator representing the inter-component density-
-density correlation at distance `d` of a two component system 
-in a momentum-space Fock-state basis. 
+density correlation at distance `d` of a two component system
+in a momentum-space Fock-state basis.
 It returns a `Complex` value.
 It currently only works on [`BoseFS2C`](@ref).
 
@@ -65,5 +65,5 @@ function get_offdiagonal(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB}, chosen) 
     new_add = BoseFS2C(new_bsa, new_bsb)
     gamma = sqrt(onproduct_a*onproduct_b)
     gd = exp(-im*g.d*(p-q)*2π/M)*gamma
-    return new_add, gd/M
+    return new_add, ComplexF64(gd/M)::ComplexF64
 end

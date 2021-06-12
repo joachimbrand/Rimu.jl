@@ -63,10 +63,10 @@ The MPI barrier with optional argument. MPI syncronizing.
 mpi_barrier(comm = mpi_comm()) = MPI.Barrier(comm)
 
 """
-    targetrank(key, np, hash = hash(key))
+    targetrank(key, np)
 Compute the rank where the `key` belongs.
 """
-targetrank(key, np, hash = hash(key)) = hash%np
+targetrank(key, np) = hash(key, hash(1)) % np
 
 """
     mpi_combine_walkers!(target, source, [strategy])
@@ -156,4 +156,18 @@ function mpi_seed_CRNGs!(seed = rand(Random.RandomDevice(), UInt))
     rngs = seedCRNG!(seed + hash(mpi_rank()))
     _check_crng_independence(mpi_comm())
     return rngs
+end
+
+"""
+    mpi_allprintln(args...)
+Print a message to `stdout` from each rank separately, in order. MPI synchronizing.
+"""
+function mpi_allprintln(args...)
+    for i in 0:(mpi_size() - 1)
+        if mpi_rank() == i
+            println("[ rank ", lpad(i, length(string(mpi_size() - 1))), ": ", args...)
+            flush(stdout)
+        end
+        mpi_barrier()
+    end
 end

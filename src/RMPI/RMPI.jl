@@ -14,7 +14,7 @@ import Rimu: sort_into_targets!
 
 export MPIData
 export mpi_rank, is_mpi_root, @mpi_root, mpi_barrier
-export mpi_comm, mpi_root, mpi_size, mpi_seed_CRNGs!
+export mpi_comm, mpi_root, mpi_size, mpi_seed_CRNGs!, mpi_allprintln
 
 function __init__()
     # Initialise the MPI library once at runtime.
