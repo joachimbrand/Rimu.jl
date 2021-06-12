@@ -378,3 +378,56 @@ function fciqmc_col!(
         return (0, 1, spawns)
     end
 end
+
+function step_stats(::IsStochasticWithWalkingWalkers)
+    return (
+        (:spawns, :walks),
+        SVector(0, 0),
+    )
+end
+function fciqmc_col!(
+    s::IsStochasticWithWalkingWalkers,
+    w, ham::AbstractHamiltonian, add, val::Real, shift, dτ
+)
+    spawns = deaths = clones = antiparticles = annihilations = zero(val)
+    hops = offdiagonals(ham,add)
+    if abs(val) > s.threshold
+        spawns = 0
+        for _ in 1:abs(val)
+            spawns += _spawn!(w, hops, add, val, length(hops) * dτ)
+        end
+        _diagonal!(w, ham, add, val, shift, 1, dτ)
+        return (spawns, 0)
+    else
+        # Walk
+        num = length(hops) + 1
+        selected = rand(1:num)
+        if selected ≤ length(hops)
+            _spawn!(w, hops, add, val, num * dτ)
+        else
+            _diagonal!(w, ham, add, val, shift, num, dτ)
+        end
+        return (0, 1)
+    end
+end
+function _spawn!(w, hops, add, val::T, factor) where T
+    spawns = 0
+    new_add, _, elem = random_offdiagonal(hops)
+    pspawn = abs(elem) * factor
+    nspawn = floor(pspawn + 1 - cRand())
+    nspawns = T(-nspawn * sign(val) * sign(elem))
+    if !iszero(nspawns)
+        deposit!(w, new_add, nspawns, add => val)
+        spawns += abs(nspawns)
+    end
+    return spawns
+end
+function _diagonal!(w, ham, add, val::T, shift, factor, dτ) where T
+    elem = diagonal_element(ham,add)
+    pd = dτ * (elem - shift)
+    newdiagpop = (1-pd) * val
+    ndiag = floor(newdiagpop + 1 - cRand())
+    ndiags = T(ndiag)
+    deposit!(w, add, ndiags, add => val)
+    return
+end

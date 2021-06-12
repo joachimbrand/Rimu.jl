@@ -115,6 +115,17 @@ function IsDynamicSemistochastic{T}(
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
 
+"""
+    IsStochasticWithWalkingWalkers
+"""
+struct IsStochasticWithWalkingWalkers{T<:Integer}<:StochasticStyle{T}
+    threshold::Int
+
+    IsStochasticWithWalkingWalkers{T}(threshold=1) where {T} = new{T}(threshold)
+end
+IsStochasticWithWalkingWalkers(threshold=1) = IsStochasticWithWalkingWalkers{Int}(threshold)
+export IsStochasticWithWalkingWalkers
+
 # Defaults for arrays.
 StochasticStyle(::AbstractArray{AbstractFloat}) = IsDeterministic()
 StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
