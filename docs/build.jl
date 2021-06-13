@@ -16,6 +16,10 @@ makedocs(;
     format=Documenter.HTML(prettyurls = false),
     pages=[
         "Guide" => "index.md",
+        "Example: 1D Bose-Hubbard Model" => "BHM-example.md",
+        "User documentation" => [
+            "StatsTools" => "statstools.md",
+        ],
         "Developer documentation" => [
             "Hamiltonians" => "hamiltonians.md",
             "Random Numbers" => "consistentrng.md",
@@ -24,7 +28,6 @@ makedocs(;
         ],
         # "Example" => "generated/qmcexample.md",
         "API" => "API.md",
-        "Example: 1D Bose-Hubbard Model" => "BHM-example.md",
     ],
     #repo="https://github.com/joachimbrand/Rimu.jl/tree/{commit}{path}#L{line}",
     sitename="Rimu.jl",

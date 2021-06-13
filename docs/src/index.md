@@ -11,9 +11,8 @@ time evolution.
 
 ## Contents
 ```@contents
-Pages = ["index.md","hamiltonians.md","consistentrng.md","documentation.md",
-            "testing.md","API.md","BHM-example.md"]
-Depth = 4
+Pages = ["index.md", "BHM-example.md", "hamiltonians.md", "consistentrng.md", "documentation.md", "testing.md","API.md"]
+Depth = 5
 ```
 
 ## Installation
