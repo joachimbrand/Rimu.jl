@@ -1,4 +1,3 @@
-# User Documentation
 
 ## Module `Rimu/StatsTools`
 
