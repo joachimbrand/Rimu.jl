@@ -8,16 +8,16 @@ from the command line.
 
 More tests should be added over time to test core functionality of the code. To add new tests, directly edit the file `runtest.jl`.
 
-### Automated testing with Pipelines
+### Automated testing with GitHub Actions
 
-Bitbucket Pipelines are set up to run the test script automatically on the Bitbucket cloud server every time a new commit to the master branch is pushed to the server. The setup for this to happen is configured in the file
-`bitbucket-pipelines.yml` in the `Rimu/` folder.
+GitHub Actions are set up to run the test script automatically on the GitHub cloud server every time a new commit to the master branch is pushed to the server. The setup for this to happen is configured in the file
+`actions.yml` in the `Rimu/.github/workflows` folder.
 
 ### Modifying the `Project.toml` file
 
 In order for the testing code to be able to run on the cloud server, external packages that are accessed in the
 code with `using` or `import` need to be installed first.
-This is done in the script `bitbucket-pipelines.yml` via the package manager, based on the information contained in the file
+This is done in the script `actions.yml` via the package manager, based on the information contained in the file
 `test/Project.toml`. More packages can be added to this file using the package manager in the following way: Say we want to install the package `DelimitedFiles`. At the Julia REPL, type the following:
 ```julia-repl
 julia> cd("test")
