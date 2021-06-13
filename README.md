@@ -6,14 +6,13 @@
 *Random Integrators for many-body quantum systems*
 
 The grand aim is to develop a toolbox for many-body quantum systems that can be
-represented by a Hamiltonian in second quantisation language. Currently
-there
-are tools to find the ground state with a Lanczos algorithm
-(using [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) for small Hilbert spaces), or with projector
-quantum Monte Carlo in the flavour of FCIQMC (see [References](@ref)).
-Later, we may add tools to solve the
-time-dependent Schrödinger equation and Master equations for open system
-time evolution.
+represented by a Hamiltonian in second quantisation language.
+Currently there are tools to find the ground state with a Lanczos algorithm
+(using [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) for small Hilbert
+spaces), or with projector quantum Monte Carlo in the flavour of full
+configuration interaction quantum Monte Carlo (FCIQMC, see [References](@ref)).
+We will add tools to solve the time-dependent Schrödinger equation and Master
+equations for open system time evolution.
 
 **Concept:** Joachim Brand and Elke Pahl.
 
