@@ -3,30 +3,33 @@
 *Random Integrators for many-body quantum systems*
 
 The grand aim is to develop a toolbox for many-body quantum systems that can be
-represented by a Hamiltonian in second quantisation language. Currently there
-are tools to find the ground state with FCIQMC or with a Lanczos algorithm
-(using KrylovKit for small Hilbert spaces). We will add tools to solve the
+represented by a Hamiltonian in second quantisation language.
+Currently there
+are tools to find the ground state with a Lanczos algorithm
+(using [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) for small Hilbert spaces), or with projector
+quantum Monte Carlo in the flavour of FCIQMC (see [References](@ref)).
+We will add tools to solve the
 time-dependent Schrödinger equation and Master equations for open system
 time evolution.
 
 
 ## Installation
 
-### Install `Rimu` for usage
+### Installing `Rimu` for usage
 
 `Rimu` can be installed with the package manager directly from the github
-repository. Either hit the `]` key at the Julia REPL to get into `Pkg` mode and
+repository. Hit the `]` key at the Julia REPL to get into `Pkg` mode and
 type
 ```julia-repl
-pkg> add https://github.com/joachimbrand/Rimu.jl#master
+pkg> add https://github.com/joachimbrand/Rimu.jl
 ```
-where `master` can be exchanged with the name of the desired git branch.
 Alternatively, use
 ```julia-repl
-julia> using Pkg; Pkg.add(PackageSpec(url="https://github.com/joachimbrand/Rimu.jl", rev="master"))
+julia> using Pkg; Pkg.add(PackageSpec(url="https://github.com/joachimbrand/Rimu.jl"))
 ```
+in order to install `Rimu` from a script.
 
-### Install `Rimu` for development
+### Installing `Rimu` for development
 
 In order to be able to edit the source code, push changes, change and make new git branches,
 etc.,
@@ -69,10 +72,8 @@ is done with scripts. The folder `scripts/` contains a collections of scripts
 that are either examples for use of the Rimu package or useful scripts for
 data analysis. In particular:
 
-- `scripts/BHM-example.jl` is an example script that runs fciqmc on the 1D Bose-Hubbard model. A data frame with results is written to the file `fciqmcdata.feather`.
-- `scripts/BHM-example-mpi.jl` is an example script that runs the same fciqmc calculation as above with MPI enabled.
-- `scripts/read_file_and_plot.jl` reads the feather file (from the working directory) and displays basic plots and blocking analysis of the shift.
-- `plotting.jl` is a collection of (currently very primitive) plotting function. On purpose these are not part of the Rimu package in order to avoid a dependency on a plotting package.
+- `scripts/BHM-example.jl` is an example script that runs fciqmc on the 1D Bose-Hubbard model. A data frame with results is written to the file `fciqmcdata.arrow`.
+- `test/script_mpi_minimum_ptp.jl` demonstrates basic usage of `Rimu` with MPI.
 
 ## MPI
 
@@ -92,13 +93,8 @@ on the same hardware makes use of 4 cores and the main part completes in 1.04
 seconds, a speedup factor of 2.6. This seems reasonable, given that extra work
 needs to be done for communicating between different processes.
 
-Initialising and finalising MPI communication has to be handled at the script level. Enabling MPI communication for use in [`lomc!()`](@ref) is done by wrapping the primary data structures as [`MPIData`](@ref). A number of different strategies
-for data communication are implemented and most easily accessed
-with the functions:
-
-- [`mpi_default`](@ref)
-- [`mpi_one_sided`](@ref)
-- [`mpi_no_exchange`](@ref)
+Initialising and finalising MPI communication has to be handled at the script level. Enabling MPI communication for use in [`lomc!()`](@ref) is done by wrapping the primary data structures as [`MPIData`](@ref). The relevant functionality is
+provided by the module `Rimu.RMPI`.
 
 See examples in the [Scripts](@ref) folder.
 

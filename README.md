@@ -9,7 +9,7 @@ The grand aim is to develop a toolbox for many-body quantum systems that can be
 represented by a Hamiltonian in second quantisation language. Currently
 there
 are tools to find the ground state with a Lanczos algorithm
-(using KrylovKit for small Hilbert spaces), or with projector
+(using [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) for small Hilbert spaces), or with projector
 quantum Monte Carlo in the flavour of FCIQMC (see [References](@ref)).
 Later, we may add tools to solve the
 time-dependent Schrödinger equation and Master equations for open system
@@ -22,7 +22,7 @@ time evolution.
 Discussions, help, and additional contributions are acknowledged by Ali Alavi,
 Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
 
-### Install `Rimu`
+### Installing Rimu
 
 `Rimu` can be installed with the package manager directly from the github
 repository. Hit the `]` key at the Julia REPL to get into `Pkg` mode and
@@ -42,9 +42,9 @@ The package is now installed and can be imported with
 ```julia-repl
 julia> using Rimu
 ```
-Rimu offers a number of tools for representing Hamiltonians (see
-[`Hamiltonians`](@ref)) and state vectors / wave functions (see [`DictVectors`](@ref))
-as well as algorithms to find the ground state, e.g. [`lomc!`](@ref).
+`Rimu` offers a number of tools for representing Hamiltonians and
+state vectors / wave functions
+as well as algorithms for finding the ground state.
 
 
 ### References
