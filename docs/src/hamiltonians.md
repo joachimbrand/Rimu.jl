@@ -1,5 +1,3 @@
-# Developer Documentation
-
 ## Module `Hamiltionians.jl`
 
 This module contains definitions of Hamiltonians, in particular specific
