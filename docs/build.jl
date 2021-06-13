@@ -1,5 +1,6 @@
 using Documenter, Rimu
 using Rimu.ConsistentRNG, Rimu.BitStringAddresses
+using Rimu.StatsTools
 
 # using Literate
 #

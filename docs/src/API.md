@@ -4,34 +4,35 @@
 ```@autodocs
 Modules = [Rimu]
 ```
-## Reexported Submodules
-### Hamiltonians
+# Reexported Submodules
+## Hamiltonians
 
 Link to [Module `Hamiltionians.jl`](@ref)
 
-### BitStringAddresses
+## BitStringAddresses
 ```@autodocs
 Modules = [BitStringAddresses]
 ```
 
-### DictVectors
+## DictVectors
 ```@autodocs
 Modules = [DictVectors]
 ```
 
-### StatsTools
-```@autodocs
-Modules = [StatsTools]
-```
+## ConsistentRNG
 
-### Blocking
+Link to [Module `ConsistentRNG.jl`](@ref)
+
+# Unexported Submodules
+
+## StatsTools
+
+Link to [Module `Rimu/StatsTools`](@ref)
+
+## Blocking
 ```@autodocs
 Modules = [Blocking]
 ```
-
-### ConsistentRNG
-
-Link to [Module `ConsistentRNG.jl`](@ref)
 
 # Index
 

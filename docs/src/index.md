@@ -9,11 +9,6 @@ are tools to find the ground state with FCIQMC or with a Lanczos algorithm
 time-dependent Schrödinger equation and Master equations for open system
 time evolution.
 
-## Contents
-```@contents
-Pages = ["index.md", "BHM-example.md", "hamiltonians.md", "consistentrng.md", "documentation.md", "testing.md","API.md"]
-Depth = 5
-```
 
 ## Installation
 
@@ -113,3 +108,4 @@ The code implements the FCIQMC algorithm described in
 
 Scientific papers using the `Rimu` code:
 - "Improved walker population control for full configuration interaction quantum Monte Carlo", M. Yang, E. Pahl, J. Brand, [*J. Chem. Phys.* **153**, 170143 (2020)](https://doi.org/10.1063/5.0023088); DOI: 10.1063/5.0023088; [arXiv:2008.01927](https://arxiv.org/abs/2008.01927).
+- "Stochastic differential equation approach to understanding the population control bias in full configuration interaction quantum Monte Carlo", J. Brand, M. Yang, E. Pahl; [arXiv:2103.07800](http://arxiv.org/abs/2103.07800) (2021).
