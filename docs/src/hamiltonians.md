@@ -1,4 +1,4 @@
-offdiagonals# Developer Documentation
+# Developer Documentation
 
 ## Module `Hamiltionians.jl`
 
