@@ -6,14 +6,16 @@ on:
       - master
       - develop
       - feature/github-actions
-      - 'feature/doc-**'
+      - feature/doc-**
+      - 'doc/**'
     tags: '*'
   pull_request:
     branches:
       - master
       - develop
       - feature/github-actions
-      - 'feature/doc-**'
+      - feature/doc-**
+      - 'doc/**'
 
 jobs:
   build:
@@ -23,10 +25,6 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6'
-      - name: "Install MPI"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y openmpi-bin libopenmpi-dev
       - name: Install dependencies
         run: |
           export JULIA_PROJECT=@.
