@@ -249,10 +249,7 @@ of projectors in FCIQMC.
 """
 struct NormProjector <: AbstractProjector end
 
-LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y), norm(y,1))
-# dot returns the promote_type of the arguments.
-# NOTE that this can be different from the return type of norm()->Float64
-# NOTE: This operation should work for `MPIData` and is MPI synchronizing
+LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = norm(y, 1)
 
 """
     Norm2Projector()
@@ -332,7 +329,7 @@ as a `ComplexF64`. See [`Norm1ProjectorPPop`](@ref).
 """
 walkernumber(w) = walkernumber(StochasticStyle(w), w)
 # use StochasticStyle trait for dispatch
-walkernumber(::StochasticStyle, w) = Norm1ProjectorPPop() ⋅ w
+walkernumber(::StochasticStyle, w) = dot(Norm1ProjectorPPop(), w)
 # complex walkers as two populations
 # the following default is fast and generic enough to be good for real walkers and
 
