@@ -48,39 +48,13 @@ jobs:
           julia --project -e 'ENV["JULIA_MPI_BINARY"]=""; using Pkg; Pkg.add("MPI"); Pkg.build("MPI"; verbose=true); using MPI; MPI.install_mpiexecjl()'
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
-          julia --project=@. test/script_mpi_minimum_ptp.jl
           export PATH=$PATH:/home/runner/.julia/bin
-          mpiexecjl -n 2 julia --project=@. test/script_mpi_minimum_os.jl
-          OUTPUT_FILE=mpi_df_os.arrow
-          if [ -f "$OUTPUT_FILE" ]; then
-              echo "$OUTPUT_FILE exists."
-          elif [ -f "test/$OUTPUT_FILE" ]; then
-              echo "$OUTPUT_FILE exists under /test/."
-          else
-              echo "$OUTPUT_FILE does not exist. Test should fail."
-          fi
-          mpiexecjl -n 2 julia --project=@. test/script_mpi_minimum_ptp.jl
-          OUTPUT_FILE=mpi_df_ptp.arrow
-          if [ -f "$OUTPUT_FILE" ]; then
-              echo "$OUTPUT_FILE exists."
-          elif [ -f "test/$OUTPUT_FILE" ]; then
-              echo "$OUTPUT_FILE exists under /test/."
-          else
-              echo "$OUTPUT_FILE does not exist. Test should fail."
-          fi
-          mpiexecjl -n 2 julia --project=@. test/script_mpi_minimum_ata.jl
-          OUTPUT_FILE=mpi_df_ata.arrow
-          if [ -f "$OUTPUT_FILE" ]; then
-              echo "$OUTPUT_FILE exists."
-          elif [ -f "test/$OUTPUT_FILE" ]; then
-              echo "$OUTPUT_FILE exists under /test/."
-          else
-              echo "$OUTPUT_FILE does not exist. Test should fail."
-          fi
+
+	  # Run regular tests
+          julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
           # Run mpi tests
           mpiexecjl -n 2 julia --project=@. test/mpi_runtests.jl
 
-          julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
 
       - uses: julia-actions/julia-processcoverage@latest
       - uses: coverallsapp/github-action@v1.1.2

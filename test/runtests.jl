@@ -402,22 +402,9 @@ end
     run(`which $mpiexec`)
 
     if is_local
-        # MPIData tests
-        rr = run(`$mpiexec -np 2 $juliaexec -t 1 mpi_runtests.jl`)
-
         flavours = ["os", "ptp", "ata"]
-        for f in flavours
-            savefile = joinpath(@__DIR__,"mpi_df_$f.arrow")
-
-            rm(savefile, force = true) # make sure to remove any old file
-            runfile = joinpath(@__DIR__,"script_mpi_minimum_$f.jl")
-            rr = run(`$mpiexec -np 2 $juliaexec -t 1 $runfile`)
-            @test rr.exitcode == 0
-        end
-        savefiles = [joinpath(@__DIR__,"mpi_df_$f.arrow") for f in flavours]
-        dfs = [RimuIO.load_df(sf) for sf in savefiles]
-        @test reduce(==, dfs) # require equal DataFrames from seeded qmc
-        map(rm, savefiles)# clean up
+        rr = run(`$mpiexec -np 2 $juliaexec -t 1 mpi_runtests.jl`)
+        @test rr.exitcode == 0
     else
         @info "not testing MPI on CI"
     end
