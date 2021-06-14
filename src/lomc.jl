@@ -290,7 +290,6 @@ function advance!(
     v, update_dvec_stats = update_dvec!(v)
 
     # Stats
-    post_step_stats = post_step(state.post_step, replica)
     tnorm = walkernumber(v)
     len = length(v)
 
@@ -299,6 +298,12 @@ function advance!(
         s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
+
+    @pack! params = step, shiftMode, shift, dτ
+    @pack! replica = v, w, pnorm, params
+
+    # Note: post_step must be called after packing the values.
+    post_step_stats = post_step(state.post_step, replica)
 
     # Reporting
     report!(
@@ -309,9 +314,6 @@ function advance!(
     report!(r_strat, step, report, update_dvec_stats, id)
     report!(r_strat, step, report, (;shift_noise), id)
     report!(state.r_strat, step, report, post_step_stats, id)
-
-    @pack! params = step, shiftMode, shift, dτ
-    @pack! replica = v, w, pnorm, params
 
     if len == 0
         if length(state.replicas) > 1

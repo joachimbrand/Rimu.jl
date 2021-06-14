@@ -41,7 +41,7 @@ struct Projector{P} <: PostStepStrategy
 end
 function Projector(;kwarg...)
     length(kwarg) ≠ 1 && error("exactly one keyword argument must be passed to `Projector`")
-    Projector(only(keys(kwarg)), only(values(kwarg)))
+    return Projector(only(keys(kwarg)), freeze(only(values(kwarg))))
 end
 
 function post_step(p::Projector, replica)
