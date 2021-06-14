@@ -1,7 +1,7 @@
 """
     Report
 
-Internal structure that hold the temporary reported values. See [`report!`](@ref).
+Internal structure that holds the temporary reported values. See [`report!`](@ref).
 """
 struct Report
     data::LittleDict{Symbol,Vector}
@@ -128,7 +128,7 @@ end
 """
     report_after_step(::ReportingStrategy, step, report, state)
 
-This function is called exactly once at the very end of a step. It can be used to
+This function is called exactly once at the very end of a step. For example, it can be used to
 print some information to `stdout`.
 """
 function report_after_step(::ReportingStrategy, args...)

@@ -1,8 +1,10 @@
+using DataFrames
 using Rimu
-using Test
 using LinearAlgebra
-using Statistics, DataFrames
 using SafeTestsets
+using Statistics
+using Suppressor
+using Test
 
 # assuming VERSION ≥ v"1.6"
 # the following is needed because random numbers of collections are computed
