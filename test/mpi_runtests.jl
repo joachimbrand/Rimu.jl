@@ -1,4 +1,3 @@
-using KrylovKit
 using LinearAlgebra
 using MPI
 using Random
