@@ -233,7 +233,6 @@ using Statistics
                 ProjectedEnergy(H, dv, vproj=:vproj2, hproj=:hproj2),
             )
             df, _ = lomc!(H, copy(dv); post_step)
-            @show length(df.norm) length(df.p1)
             @test df.vproj == df.vproj2 == df.p2
             @test df.norm ≈ df.p1
 

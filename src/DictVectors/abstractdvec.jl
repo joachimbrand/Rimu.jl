@@ -291,7 +291,7 @@ function LinearAlgebra.dot(::Norm1ProjectorPPop, y::DVecOrVec)
             abs(real(p)) + im*abs(imag(p))
         end)
     else
-        return T(sum(abs, values(y)))
+        return dot(NormProjector(), y)
     end
 end
 
