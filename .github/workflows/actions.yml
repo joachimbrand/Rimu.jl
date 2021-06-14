@@ -50,7 +50,7 @@ jobs:
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           export PATH=$PATH:/home/runner/.julia/bin
 
-	  # Run regular tests
+          # Run regular tests
           julia --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
           # Run mpi tests
           mpiexecjl -n 2 julia --project=@. test/mpi_runtests.jl
