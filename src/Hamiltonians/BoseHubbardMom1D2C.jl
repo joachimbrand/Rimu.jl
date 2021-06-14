@@ -140,7 +140,7 @@ addresses and products of occupation numbers for computing off-diagonal elements
     # if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
     #     error("Momentum is not conserved!")
     # end
-    return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b, p, q
+    return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b, s, q
 end
 
 function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
