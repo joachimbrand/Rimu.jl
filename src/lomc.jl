@@ -283,19 +283,24 @@ function advance!(
     @unpack step, shiftMode, shift, dτ = params
     step += 1
 
+    # Step
     v, w, step_stat_values, step_stat_names, shift_noise = fciqmc_step!(
         hamiltonian, v, shift, dτ, pnorm, w, 1.0; m_strat
     )
     v, update_dvec_stats = update_dvec!(v)
+
+    # Stats
+    post_step_stats = post_step(state.post_step, replica)
     tnorm = walkernumber(v)
     len = length(v)
 
+    # Updates
     shift, shiftMode, pnorm = update_shift(
         s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
-    post_step_stats = post_step(state.post_step, replica)
 
+    # Reporting
     report!(
         r_strat, step, report,
         (dτ, shift, shiftMode, len, norm=tnorm), id,
