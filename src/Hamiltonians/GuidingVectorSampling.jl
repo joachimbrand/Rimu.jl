@@ -96,7 +96,7 @@ function get_offdiagonal(h::GuidingVectorSampling{A}, add1, chosen) where A
 end
 
 struct GuidingVectorOffdiagonals{
-    A,E,F,T,H<:AbstractHamiltonian,D,N<:AbstractOffdiagonals{F,T}
+    F,T,A,E,H<:AbstractHamiltonian,D,N<:AbstractOffdiagonals{F,T}
 }<:AbstractOffdiagonals{F,T}
     hamiltonian::H
     vector::D
@@ -107,12 +107,12 @@ end
 function offdiagonals(h::GuidingVectorSampling{A,T,H,D,E}, a) where {A,T,H,D,E}
     hps = offdiagonals(h.hamiltonian, a)
     guide = h.vector[a]
-    return GuidingVectorOffdiagonals{A,E,typeof(a),T,H,D,typeof(hps)}(
+    return GuidingVectorOffdiagonals{typeof(a),T,A,E,H,D,typeof(hps)}(
         h.hamiltonian, h.vector, guide, hps
     )
 end
 
-function Base.getindex(h::GuidingVectorOffdiagonals{A,E}, i) where {A,E}
+function Base.getindex(h::GuidingVectorOffdiagonals{F,T,A,E}, i)::Tuple{F,T} where {F,T,A,E}
     add2, matrix_element = h.offdiagonals[i]
     guide1 = h.guide
     guide2 = h.vector[add2]

@@ -58,12 +58,18 @@ function diagonal_element(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB}) where {
     return ComplexF64(gd/M)
 end
 
-function get_offdiagonal(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB}, chosen) where {NA,NB,M,AA,AB}
-    sa = numberoccupiedsites(add.bsa)
-    sb = numberoccupiedsites(add.bsb)
+function get_offdiagonal(
+    g::G2Correlator,
+    add::A,
+    chosen,
+    sa=numberoccupiedsites(add.bsa),
+    sb=numberoccupiedsites(add.bsb),
+)::Tuple{A,ComplexF64} where {A<:BoseFS2C}
+
+    M = num_modes(add)
     new_bsa, new_bsb, onproduct_a, onproduct_b, p, q = hop_across_two_addresses(add.bsa, add.bsb, chosen, sa, sb)
     new_add = BoseFS2C(new_bsa, new_bsb)
     gamma = sqrt(onproduct_a*onproduct_b)
     gd = exp(-im*g.d*(p-q)*2π/M)*gamma
-    return new_add, ComplexF64(gd/M)::ComplexF64
+    return new_add, ComplexF64(gd/M)
 end
