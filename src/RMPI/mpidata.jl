@@ -128,8 +128,62 @@ function Rimu.DictVectors.walkernumber(md::MPIData)
 end
 
 """
+    mpi_synchronize!(md::MPIData)
+
+Synchronize `md`, ensuring its contents are distributed among ranks correctly.
+"""
+function mpi_synchronize!(md::MPIData)
+    P = eltype(md)
+    myrank = mpi_rank(md.comm)
+    buffers = Vector{P}[P[] for _ in 1:mpi_size(md.comm)]
+    for (add, val) in pairs(localpart(md))
+        tr = targetrank(add, mpi_size(md.comm))
+        if tr ≠ myrank
+            push!(buffers[tr + 1], add => val)
+            localpart(md)[add] = zero(valtype(md))
+        end
+    end
+    mpi_communicate_buffers!(localpart(md), buffers, md.comm)
+    return md
+end
+
+"""
+    mpi_communicate_buffers!(target::AbstractDVec{K,V}, buffers::Vector{<:Vector{V}})
+
+Use MPI to communicate the contents of `buffers` and sort them into `target`. The length
+of `buffers` should be equal to [`mpi_size`](@ref).
+"""
+function mpi_communicate_buffers!(target, buffers, comm)
+    myrank = mpi_rank(comm)
+    recbuf = buffers[myrank + 1]
+    datatype = MPI.Datatype(eltype(target))
+    # Receive from lower ranks.
+    for id in 0:(myrank - 1)
+        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
+        MPI.Recv!(recbuf, id, 0, comm)
+        for (add, value) in recbuf
+            target[add] += value
+        end
+    end
+    # Perform sends.
+    for id in 0:(mpi_size(comm) - 1)
+        id == myrank && continue
+        MPI.Send(buffers[id + 1], id, 0, comm)
+    end
+    # Receive from lower ranks.
+    for id in (myrank + 1):(mpi_size(comm) - 1)
+        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
+        MPI.Recv!(recbuf, id, 0, comm)
+        for (add, value) in recbuf
+            target[add] += value
+        end
+    end
+    return target
+end
+
+"""
     *(lop::AbstractHamiltonian, md::MPIData)
-Allocating "Matrix"-"vector" multiplication with MPI-distributed "vector" `md`. The result is similar to 
+Allocating "Matrix"-"vector" multiplication with MPI-distributed "vector" `md`. The result is similar to
 [`localpart(md)`](@ref) with all content having been communicated to the correct [`targetrank`](@ref).
 MPI communicating.
 
@@ -138,18 +192,16 @@ See [`MPIData`](@ref).
 function Base.:*(lop, md::MPIData)
     T = promote_type(eltype(lop),valtype(md))
     P = Pair{keytype(md),T}
-    buffers = Vector{P}[P[] for _ in 1:mpi_size()]
-    datatype = MPI.Datatype(P)
+    buffers = Vector{P}[P[] for _ in 1:mpi_size(md.comm)]
     myrank = mpi_rank()
-    recbuf = buffers[myrank + 1]
 
     result = similar(localpart(md), T)
 
-    # Do the multiplication into the buffers.
-    for (key,val) in pairs(localpart(md))
+    # Sort values into buffers and communicate.
+    for (key, val) in pairs(localpart(md))
         result[key] += diagonal_element(lop, key)*val
         for (add, elem) in offdiagonals(lop, key)
-            tr = targetrank(add, mpi_size())
+            tr = targetrank(add, mpi_size(md.comm))
             if tr == myrank
                 result[add] += elem * val
             else
@@ -157,28 +209,8 @@ function Base.:*(lop, md::MPIData)
             end
         end
     end
+    mpi_communicate_buffers!(result, buffers, md.comm)
 
-    # Receive from lower ranks.
-    for id in 0:(myrank - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, md.comm), datatype))
-        MPI.Recv!(recbuf, id, 0, md.comm)
-        for (add, value) in recbuf
-            result[add] += value
-        end
-    end
-    # Perform sends.
-    for id in 0:(mpi_size() - 1)
-        id == myrank && continue
-        MPI.Send(buffers[id + 1], id, 0, md.comm)
-    end
-    # Receive from lower ranks.
-    for id in (myrank + 1):(mpi_size() - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, md.comm), datatype))
-        MPI.Recv!(recbuf, id, 0, md.comm)
-        for (add, value) in recbuf
-            result[add] += value
-        end
-    end
     return result
 end
 
@@ -192,4 +224,9 @@ function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
     # Arguments are swapped since lop * md_right is not an MPIData and MPIData should be on
     # the right hand side.
     return conj(dot(lop * md_right, md_left))
+end
+
+function Rimu.freeze(md::MPIData)
+    mpi_synchronize!(md)
+    return freeze(localpart(md))
 end

@@ -361,12 +361,14 @@ Base.pairs(fd::FrozenDVec) = fd.pairs
 
 Create a "frozen" version of `dv` which can no longer be modified or used in the
 conventional manner, but supports faster dot products.
+
+If `dv` is an [`MPIData`](@ref), synchronize its contents among the ranks first.
 """
-freeze(dv) = FrozenDVec(collect(pairs(localpart(dv))))
+freeze(dv) = FrozenDVec(collect(pairs(dv)))
 
 freeze(p::AbstractProjector) = p
 
-function LinearAlgebra.dot(fd::FrozenDVec, dv)
+function LinearAlgebra.dot(fd::FrozenDVec, dv::AbstractDVec)
     result = zero(promote_type(valtype(fd), valtype(dv)))
     for (k, v) in pairs(fd)
         result += dv[k] ⋅ v

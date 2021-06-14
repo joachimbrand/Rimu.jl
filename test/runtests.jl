@@ -402,6 +402,9 @@ end
     run(`which $mpiexec`)
 
     if is_local
+        # MPIData tests
+        rr = run(`$mpiexec -np 2 $juliaexec -t 1 mpi_runtests.jl`)
+
         flavours = ["os", "ptp", "ata"]
         for f in flavours
             savefile = joinpath(@__DIR__,"mpi_df_$f.arrow")
