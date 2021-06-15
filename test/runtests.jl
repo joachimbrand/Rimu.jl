@@ -404,7 +404,6 @@ end
     run(`which $mpiexec`)
 
     if is_local
-        flavours = ["os", "ptp", "ata"]
         rr = run(`$mpiexec -np 2 $juliaexec -t 1 mpi_runtests.jl`)
         @test rr.exitcode == 0
     else

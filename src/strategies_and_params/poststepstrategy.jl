@@ -2,9 +2,9 @@
     PostStepStrategy
 
 Subtypes of `PostStepStrategy` can be used to perform arbitrary computation on a replica
-after a FCIQMC step is finished and report the results.
+after an FCIQMC step is finished and report the results.
 
-Note: a tuple of multiple strategies can be passed to [`lomc!`](@ref). In that case, all
+Note: A tuple of multiple strategies can be passed to [`lomc!`](@ref). In that case, all
 reported column names must be distinct.
 
 A subtype of this type must implement [`post_step(::PostStepStrategy, ::ReplicaState)`](@ref).
@@ -92,7 +92,7 @@ end
 function post_step(p::ProjectedEnergy, replica)
     return (
         p.vproj_name => dot(p.vproj, replica.v),
-        p.hproj_name => conj(dot(p.hproj, replica.v)),
+        p.hproj_name => dot(p.hproj, replica.v),
     )
 end
 
@@ -108,8 +108,19 @@ end
 
 function post_step(sc::SignCoherence, replica)
     vector = replica.v
-    num_correct = mapreduce(+, pairs(vector); init=zero(valtype(vector))) do ((k, v))
-        sign(v) == sign(sc.reference[k])
+    return coherence(valtype(vector), sc.reference, vector)
+end
+
+function coherence(::Type{<:Real}, reference, vector)
+    num_correct = mapreduce(+, pairs(vector); init=0) do ((k, v))
+        sign(v) == sign(reference[k])
+    end
+    return (:coherence => num_correct / length(vector),)
+end
+function coherence(::Type{<:Complex}, reference, vector)
+    num_correct = mapreduce(+, pairs(vector); init=0 + 0im) do ((k, v))
+        ref_sign = sign(reference[k])
+        (sign(real(v)) == ref_sign) + im * (sign(imag(v)) == ref_sign)
     end
     return (:coherence => num_correct / length(vector),)
 end

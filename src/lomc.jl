@@ -7,6 +7,7 @@ Can be advanced a step forward with [`advance!`](@ref).
 
 # Fields
 
+* `hamiltonian`: the model Hamiltonian.
 * `v`: vector.
 * `w`: working memory.
 * `pnorm`: previous walker number (see [`walkernumber`](@ref)).
@@ -40,7 +41,7 @@ end
 """
     QMCState
 
-Holds all inforamtion needed to run FCIQMC, except the data frame. Holds a `NTuple` of
+Holds all information needed to run FCIQMC, except the data frame. Holds a `NTuple` of
 `ReplicaState`s and various strategies that control the algorithm.
 """
 struct QMCState{
