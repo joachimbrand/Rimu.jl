@@ -17,9 +17,10 @@ end
 function Base.:*(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V}
     T = promote_type(E, V) # allow for type promotion
     w = empty(v, T) # allocate new vector; non-mutating version
-    for (key,val) in pairs(v)
+    for (key, val) in pairs(v)
         w[key] += diagonal_element(h, key)*val
-        for (add, elem) in offdiagonals(h, key)
+        off = offdiagonals(h, key)
+        for (add, elem) in off
             w[add] += elem*val
         end
     end
