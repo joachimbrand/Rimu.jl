@@ -170,7 +170,7 @@ function mpi_communicate_buffers!(target, buffers, comm)
         id == myrank && continue
         MPI.Send(buffers[id + 1], id, 0, comm)
     end
-    # Receive from lower ranks.
+    # Receive from higher ranks.
     for id in (myrank + 1):(mpi_size(comm) - 1)
         resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
         MPI.Recv!(recbuf, id, 0, comm)
