@@ -87,7 +87,7 @@ function get_offdiagonal(h::GutzwillerSampling{A}, add1, chosen) where A
 end
 
 struct GutzwillerOffdiagonals{
-    A,G,F,T,H<:AbstractHamiltonian,N<:AbstractOffdiagonals{F,T}
+    F,T,A,G,H<:AbstractHamiltonian,N<:AbstractOffdiagonals{F,T}
 }<:AbstractOffdiagonals{F,T}
     hamiltonian::H
     diag::T
@@ -97,12 +97,12 @@ end
 function offdiagonals(ham::GutzwillerSampling{A,<:Any,<:Any,G}, a) where {A,G}
     hps = offdiagonals(ham.hamiltonian, a)
     diag = diagonal_element(ham, a)
-    return GutzwillerOffdiagonals{A,G,typeof(a),eltype(ham),typeof(ham),typeof(hps)}(
+    return GutzwillerOffdiagonals{typeof(a),eltype(ham),A,G,typeof(ham),typeof(hps)}(
         ham, diag, hps
     )
 end
 
-function Base.getindex(h::GutzwillerOffdiagonals{A,G}, i) where {A,G}
+function Base.getindex(h::GutzwillerOffdiagonals{F,T,A,G}, i)::Tuple{F,T} where {F,T,A,G}
     add2, matrix_element = h.offdiagonals[i]
     diag2 = diagonal_element(h.hamiltonian, add2)
     return add2, gutzwiller_modify(matrix_element, A, G, h.diag, diag2)
