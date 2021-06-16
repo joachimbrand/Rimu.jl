@@ -193,6 +193,7 @@ end
         # H1 = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
         # E0 = eigsolve(H1, DVec(starting_address(H1) => 1.0), 1, :SR; issymmetric=true)[1][1]
         E0 = -4.6285244934941305
+        mpi_seed_CRNGs!(1000_000_000)
 
         for (setup, kwargs) in (
             (RMPI.mpi_point_to_point, (;)),
