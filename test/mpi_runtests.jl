@@ -11,7 +11,7 @@ using Rimu.StatsTools
 using Rimu.ConsistentRNG
 using Rimu.RMPI: targetrank, mpi_synchronize!
 
-const N_REPEATS = 10
+const N_REPEATS = 5
 
 """
     rand_onr(N, M)
@@ -173,7 +173,7 @@ end
                     (; setup=RMPI.mpi_all_to_all),
                 )) do kw
                     Random.seed!(2021 * hash(mpi_rank()) * i)
-                    source = DVec([BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10])
+                    source = DVec([BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10_000])
                     target = MPIData(similar(source); kw...)
                     RMPI.mpi_combine_walkers!(target, source)
                     return target
