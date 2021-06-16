@@ -8,9 +8,10 @@ using Test
 
 using Rimu.RMPI
 using Rimu.StatsTools
+using Rimu.ConsistentRNG
 using Rimu.RMPI: targetrank, mpi_synchronize!
 
-const N_REPEATS = 1
+const N_REPEATS = 10
 
 """
     rand_onr(N, M)
@@ -37,7 +38,7 @@ function correct_ranks(md)
 end
 
 # Ignore all printing on ranks other than root.
-if mpi_rank() == mpi_root
+if mpi_rank() != mpi_root
     redirect_stderr(devnull)
     redirect_stdout(devnull)
 end
@@ -48,12 +49,12 @@ end
 Create a local and distributed versions of dvec of type `type`. Ensure they both have the same
 contents.
 """
-function setup_dv(type, args...; kwargs...)
+function setup_dv(type, args...; md_kwargs=(;), kwargs...)
     v = type(args...; kwargs...)
     if mpi_rank() == mpi_root
-        dv = MPIData(copy(v))
+        dv = MPIData(copy(v); md_kwargs...)
     else
-        dv = MPIData(empty(v))
+        dv = MPIData(empty(v); md_kwargs...)
     end
     return v, dv
 end
@@ -163,6 +164,28 @@ end
                 end
             end
         end
+        @testset "Communication strategies" begin
+            # Idea here is to
+            for i in 1:N_REPEATS
+                sorted = map((
+                    (; setup=RMPI.mpi_point_to_point),
+                    (; setup=RMPI.mpi_one_sided, capacity=10_000),
+                    (; setup=RMPI.mpi_all_to_all),
+                )) do kw
+                    Random.seed!(2021 * hash(mpi_rank()) * i)
+                    source = DVec([BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10])
+                    target = MPIData(similar(source); kw...)
+                    RMPI.mpi_combine_walkers!(target, source)
+                    return target
+                end
+
+                for v in sorted
+                    @test correct_ranks(v)
+                end
+                @test localpart(sorted[1]) == localpart(sorted[2])
+                @test localpart(sorted[2]) == localpart(sorted[3])
+            end
+        end
     end
 
     @testset "Ground state energy estimates" begin
@@ -210,6 +233,25 @@ end
                 @test E0 ≤ Es
             end
         end
+    end
+
+    @testset "Same seed gives same results" begin
+        # Note: all_to_all will give different results here, as it sorts slightly differently.
+        # The entries in the vectors are the same (tested above), but they appear in a
+        # different order.
+        add = BoseFS2C((1, 1, 1, 1, 1), (1, 0, 0, 0, 0))
+        H = BoseHubbardReal1D2C(add; v=2)
+        dv = DVec(add => 1)
+
+        dv_ptp = MPIData(copy(dv); setup=RMPI.mpi_point_to_point)
+        mpi_seed_CRNGs!(17)
+        df_ptp = lomc!(H, dv_ptp).df
+
+        dv_os = MPIData(copy(dv); setup=RMPI.mpi_one_sided, capacity=1000)
+        mpi_seed_CRNGs!(17)
+        df_os = lomc!(H, dv_os).df
+
+        @test df_ptp == df_os
     end
 
     # Make sure all ranks came this far.
