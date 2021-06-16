@@ -165,7 +165,8 @@ end
             end
         end
         @testset "Communication strategies" begin
-            # Idea here is to
+            # The idea here is to generate a big DVec and make sure all communication
+            # strategies distribute it in the same manner.
             for i in 1:N_REPEATS
                 sorted = map((
                     (; setup=RMPI.mpi_point_to_point),
