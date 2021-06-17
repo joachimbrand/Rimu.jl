@@ -1,8 +1,10 @@
+using DataFrames
 using Rimu
-using Test
 using LinearAlgebra
-using Statistics, DataFrames
 using SafeTestsets
+using Statistics
+using Suppressor
+using Test
 
 # assuming VERSION ≥ v"1.6"
 # the following is needed because random numbers of collections are computed
@@ -181,18 +183,6 @@ end
     @test a.shift ≈ c.shift
 end
 
-@testset "ReportingStrategy internals" begin
-    aIni = BoseFS((2,4,0,0,1))
-    ham = BoseHubbardMom1D(aIni)
-    v = DVec(aIni => 2; capacity = 1)
-    r = EveryTimeStep(projector = copy(v))
-    @test r.hproj == :auto
-    @test_throws ErrorException Rimu.compute_proj_observables(v, ham, r)
-    rr = Rimu.refine_r_strat(r, ham)
-    @test rr.hproj⋅v == dot(v, ham, v)
-    @test Rimu.compute_proj_observables(v, ham, rr) == (; vproj=v⋅v, hproj=dot(v, ham, v))
-end
-
 @testset "helpers" begin
     v = [1,2,3]
     @test walkernumber(v) == norm(v,1)
@@ -248,13 +238,13 @@ using Rimu.Blocking
     svec = DVec(Dict(aIni => 2))
     StochasticStyle(svec)
     vs = copy(svec)
-    r_strat = EveryTimeStep(projector = copy(svec))
+    post_step = ProjectedEnergy(ham, svec)
     τ_strat = ConstantTimeStep()
 
     seedCRNG!(12345) # uses RandomNumbers.Xorshifts.Xoroshiro128Plus()
     # @time rdfs = fciqmc!(vs, pa, ham, s, r_strat, τ_strat, similar(vs))
-    @time rdfs = lomc!(ham, vs; params = pa, s_strat = s, r_strat = r_strat,
-        τ_strat = τ_strat, wm = similar(vs)
+    @time rdfs = lomc!(
+        ham, vs; params = pa, s_strat = s, post_step, τ_strat, wm = similar(vs),
     ).df
     r = autoblock(rdfs, start=101)
     @test r.s̄ ≈ -5.14 atol=0.1
@@ -383,6 +373,19 @@ end
     include("RMPI.jl")
 end
 
+@testset "deprecated" begin
+    @test @capture_err(EveryTimeStep()) ≠ ""
+    @test @capture_err(EveryKthStep()) ≠ ""
+    @suppress_err begin
+        @test EveryTimeStep().k == 1
+        @test EveryTimeStep().writeinfo == false
+
+        @test EveryKthStep(k=1000).k == 1000
+        @test EveryKthStep().k == 10
+        @test EveryKthStep().writeinfo == false
+    end
+end
+
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
@@ -401,19 +404,8 @@ end
     run(`which $mpiexec`)
 
     if is_local
-        flavours = ["os", "ptp", "ata"]
-        for f in flavours
-            savefile = joinpath(@__DIR__,"mpi_df_$f.arrow")
-
-            rm(savefile, force = true) # make sure to remove any old file
-            runfile = joinpath(@__DIR__,"script_mpi_minimum_$f.jl")
-            rr = run(`$mpiexec -np 2 $juliaexec -t 1 $runfile`)
-            @test rr.exitcode == 0
-        end
-        savefiles = [joinpath(@__DIR__,"mpi_df_$f.arrow") for f in flavours]
-        dfs = [RimuIO.load_df(sf) for sf in savefiles]
-        @test reduce(==, dfs) # require equal DataFrames from seeded qmc
-        map(rm, savefiles)# clean up
+        rr = run(`$mpiexec -np 2 $juliaexec -t 1 mpi_runtests.jl`)
+        @test rr.exitcode == 0
     else
         @info "not testing MPI on CI"
     end

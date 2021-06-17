@@ -66,7 +66,8 @@ mpi_barrier(comm = mpi_comm()) = MPI.Barrier(comm)
     targetrank(key, np)
 Compute the rank where the `key` belongs.
 """
-targetrank(key, np) = hash(key, hash(1)) % np
+targetrank(key::Union{Integer,AbstractFockAddress}, np) = hash(key, hash(1)) % np
+targetrank(pair::Pair, np) = targetrank(pair[1], np)
 
 """
     mpi_combine_walkers!(target, source, [strategy])

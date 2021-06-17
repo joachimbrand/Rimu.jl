@@ -33,12 +33,12 @@ end
     for l in (1, 2, 30, 1000)
         for k in (2, 10, 100)
             @testset "k=$k, l=$l" begin
-                ordfun(x) = hash(x) % k
-                vals = rand(Int, l)
+                ordfun(x) = hash(x, hash(1)) % k
+                vals = rand(1:10, l)
                 counts = zeros(Int, k)
                 displs = zeros(Int, k)
 
-                sort_and_count!(counts, displs, vals, ordfun.(vals), (0, k-1))
+                RMPI.sort_and_count!(counts, displs, vals, ordfun.(vals), (0, k-1))
                 @test issorted(vals, by=ordfun)
                 @test sum(counts) == l
 

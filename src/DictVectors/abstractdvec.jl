@@ -249,10 +249,7 @@ of projectors in FCIQMC.
 """
 struct NormProjector <: AbstractProjector end
 
-LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = convert(valtype(y), norm(y,1))
-# dot returns the promote_type of the arguments.
-# NOTE that this can be different from the return type of norm()->Float64
-# NOTE: This operation should work for `MPIData` and is MPI synchronizing
+LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = norm(y, 1)
 
 """
     Norm2Projector()
@@ -291,7 +288,7 @@ function LinearAlgebra.dot(::Norm1ProjectorPPop, y::DVecOrVec)
             abs(real(p)) + im*abs(imag(p))
         end)
     else
-        return T(sum(abs, values(y)))
+        return dot(NormProjector(), y)
     end
 end
 
@@ -332,7 +329,7 @@ as a `ComplexF64`. See [`Norm1ProjectorPPop`](@ref).
 """
 walkernumber(w) = walkernumber(StochasticStyle(w), w)
 # use StochasticStyle trait for dispatch
-walkernumber(::StochasticStyle, w) = Norm1ProjectorPPop() ⋅ w
+walkernumber(::StochasticStyle, w) = dot(Norm1ProjectorPPop(), w)
 # complex walkers as two populations
 # the following default is fast and generic enough to be good for real walkers and
 
@@ -342,3 +339,36 @@ walkernumber(::StochasticStyle, w) = Norm1ProjectorPPop() ⋅ w
 Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for `DictVector`s.
 """
 localpart(dv) = dv # default for local data
+
+"""
+    FrozenDVec
+
+See: [`freeze`](@ref).
+"""
+struct FrozenDVec{K,V}
+    pairs::Vector{Pair{K,V}}
+end
+Base.keytype(::FrozenDVec{K}) where {K} = K
+Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
+Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}
+Base.pairs(fd::FrozenDVec) = fd.pairs
+
+"""
+    freeze(dv)
+
+Create a "frozen" version of `dv` which can no longer be modified or used in the
+conventional manner, but supports faster dot products.
+
+If `dv` is an [`MPIData`](@ref), synchronize its contents among the ranks first.
+"""
+freeze(dv) = FrozenDVec(collect(pairs(dv)))
+
+freeze(p::AbstractProjector) = p
+
+function LinearAlgebra.dot(fd::FrozenDVec, dv::AbstractDVec)
+    result = zero(promote_type(valtype(fd), valtype(dv)))
+    for (k, v) in pairs(fd)
+        result += dv[k] ⋅ v
+    end
+    return result
+end

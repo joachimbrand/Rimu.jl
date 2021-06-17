@@ -6,10 +6,10 @@ const SUITE = @benchmarkset "Rimu" begin
         add = BoseFS(ntuple(i -> ifelse(i == 10, 10, 0), 20))
         ham = HubbardMom1D(add, u=6.0)
         dv = InitiatorDVec(add => 1.0; style=IsDynamicSemistochastic())
-        r_strat = EveryTimeStep(projector=copy(dv))
+        post_step = ProjectedEnergy(ham, dv)
         s_strat = DoubleLogUpdate(targetwalkers=20_000)
 
-        lomc!(ham, dv; s_strat, r_strat, dτ=1e-4, laststep=4000)
+        lomc!(ham, dv; s_strat, post_step, dτ=1e-4, laststep=4000)
     end seconds=150
     @case "(4+1, 11) 2C Mom space with G2Correlators" begin
         add = BoseFS2C(ntuple(i -> ifelse(i == 5, 4, 0), 11), ntuple(==(5), 11))
