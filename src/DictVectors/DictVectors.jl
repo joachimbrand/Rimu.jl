@@ -10,8 +10,9 @@ concrete implementation of [`DVec`](@ref)
 module DictVectors
 
 using Random, LinearAlgebra
+import OrderedCollections: freeze
 import SplittablesBase
-export AbstractDVec, zero!, add!, deposit!, storage, walkernumber, localpart
+export AbstractDVec, zero!, add!, deposit!, storage, walkernumber, localpart, freeze
 export DVec, InitiatorDVec
 
 export

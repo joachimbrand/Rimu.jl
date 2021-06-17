@@ -6,7 +6,6 @@ Declare `data` as mpi-distributed and set communication strategy to all-to-all.
 Sets up the [`MPIData`](@ref) structure with [`MPIAllToAll`](@ref) strategy.
 """
 function mpi_all_to_all(data, comm = mpi_comm(), root = mpi_root)
-    @warn "mpi_all_to_all appears to be buggy."
     MPI.Initialized() || error("MPI needs to be initialised first.")
     np = MPI.Comm_size(comm)
     id = MPI.Comm_rank(comm)
