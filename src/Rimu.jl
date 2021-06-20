@@ -6,15 +6,15 @@ module Rimu
 
 using Arrow
 using DataFrames
-using DataStructures
+using DataStructures: CircularBuffer # in memorystrategy.jl
 using LinearAlgebra
-using OrderedCollections # for LittleDict
+using OrderedCollections: LittleDict # in reportingstrategy.jl
 using Parameters
 using Reexport
 using Setfield
-using SplittablesBase
+using SplittablesBase: SplittablesBase # in fciqmc_step.jl
 using StaticArrays
-using ThreadsX
+using ThreadsX: ThreadsX # in fciqmc_step.jl
 
 @reexport using Distributed
 

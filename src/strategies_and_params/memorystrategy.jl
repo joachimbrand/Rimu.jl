@@ -34,9 +34,9 @@ r = r̃ - <r̃>
 mutable struct DeltaMemory <: MemoryStrategy
     Δ::Int # length of memory noise buffer
     pnorm::Float64 # previous norm
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+    noiseBuffer::CircularBuffer{Float64} # buffer for memory noise
 end
-DeltaMemory(Δ::Int) = DeltaMemory(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
+DeltaMemory(Δ::Int) = DeltaMemory(Δ, NaN, CircularBuffer{Float64}(Δ))
 
 """
     DeltaMemory2(Δ::Int) <: MemoryStrategy
@@ -52,9 +52,9 @@ The long-term average of `r` is not guaranteed to be zero.
 mutable struct DeltaMemory2 <: MemoryStrategy
     Δ::Int # length of memory noise buffer
     pnorm::Float64 # previous norm
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+    noiseBuffer::CircularBuffer{Float64} # buffer for memory noise
 end
-DeltaMemory2(Δ::Int) = DeltaMemory2(Δ, NaN, DataStructures.CircularBuffer{Float64}(Δ))
+DeltaMemory2(Δ::Int) = DeltaMemory2(Δ, NaN, CircularBuffer{Float64}(Δ))
 
 """
     DeltaMemory3(Δ::Int, level::Float64) <: MemoryStrategy
@@ -71,9 +71,9 @@ w .*= 1 + level*r
 mutable struct DeltaMemory3 <: MemoryStrategy
     Δ::Int # length of memory noise buffer
     level::Float64 # previous norm
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+    noiseBuffer::CircularBuffer{Float64} # buffer for memory noise
 end
-DeltaMemory3(Δ::Int,level::Float64) = DeltaMemory3(Δ, level, DataStructures.CircularBuffer{Float64}(Δ))
+DeltaMemory3(Δ::Int,level::Float64) = DeltaMemory3(Δ, level, CircularBuffer{Float64}(Δ))
 
 
 """
@@ -84,9 +84,9 @@ where `Δ = 1` means no averaging.
 """
 struct ShiftMemory <: MemoryStrategy
     Δ::Int # length of memory noise buffer
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+    noiseBuffer::CircularBuffer{Float64} # buffer for memory noise
 end
-ShiftMemory(Δ::Int) = ShiftMemory(Δ, DataStructures.CircularBuffer{Float64}(Δ))
+ShiftMemory(Δ::Int) = ShiftMemory(Δ, CircularBuffer{Float64}(Δ))
 
 """
     ProjectedMemory(Δ::Int, projector, pp::Number) <: MemoryStrategy
@@ -107,45 +107,45 @@ mutable struct ProjectedMemory{D} <: MemoryStrategy
     Δ::Int # length of memory noise buffer
     pp::Float64 # previous projection
     projector::D # projector
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+    noiseBuffer::CircularBuffer{Float64} # buffer for memory noise
 end
-ProjectedMemory(Δ::Int, projector, pp::Number) = ProjectedMemory(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+ProjectedMemory(Δ::Int, projector, pp::Number) = ProjectedMemory(Δ, pp, projector, CircularBuffer{Float64}(Δ))
 function ProjectedMemory(Δ::Int, projector, v::AbstractDVec)
     pp = projector⋅v
-    ProjectedMemory(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+    ProjectedMemory(Δ, pp, projector, CircularBuffer{Float64}(Δ))
 end
 
 mutable struct ProjectedMemory2{D} <: MemoryStrategy
     Δ::Int # length of memory noise buffer
     pp::Float64 # previous projection
     projector::D # projector
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+    noiseBuffer::CircularBuffer{Float64} # buffer for memory noise
 end
-ProjectedMemory2(Δ::Int, projector, pp::Number) = ProjectedMemory2(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+ProjectedMemory2(Δ::Int, projector, pp::Number) = ProjectedMemory2(Δ, pp, projector, CircularBuffer{Float64}(Δ))
 function ProjectedMemory2(Δ::Int, projector, v::AbstractDVec)
     pp = projector⋅v
-    ProjectedMemory2(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+    ProjectedMemory2(Δ, pp, projector, CircularBuffer{Float64}(Δ))
 end
 
 mutable struct ProjectedMemory3{D} <: MemoryStrategy
     Δ::Int # length of memory noise buffer
     pp::Float64 # previous projection
     projector::D # projector
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+    noiseBuffer::CircularBuffer{Float64} # buffer for memory noise
 end
-ProjectedMemory3(Δ::Int, projector, pp::Number) = ProjectedMemory3(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+ProjectedMemory3(Δ::Int, projector, pp::Number) = ProjectedMemory3(Δ, pp, projector, CircularBuffer{Float64}(Δ))
 function ProjectedMemory3(Δ::Int, projector, v::AbstractDVec)
     pp = projector⋅v
-    ProjectedMemory3(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+    ProjectedMemory3(Δ, pp, projector, CircularBuffer{Float64}(Δ))
 end
 mutable struct ProjectedMemory4{D} <: MemoryStrategy
     Δ::Int # length of memory noise buffer
     pp::Float64 # previous projection
     projector::D # projector
-    noiseBuffer::DataStructures.CircularBuffer{Float64} # buffer for memory noise
+    noiseBuffer::CircularBuffer{Float64} # buffer for memory noise
 end
-ProjectedMemory4(Δ::Int, projector, pp::Number) = ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+ProjectedMemory4(Δ::Int, projector, pp::Number) = ProjectedMemory4(Δ, pp, projector, CircularBuffer{Float64}(Δ))
 function ProjectedMemory4(Δ::Int, projector, v::AbstractDVec)
     pp = projector⋅v
-    ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
+    ProjectedMemory4(Δ, pp, projector, CircularBuffer{Float64}(Δ))
 end
