@@ -378,3 +378,42 @@ function fciqmc_col!(
         return (0, 1, spawns)
     end
 end
+
+function step_stats(::IsSemistochasticWithList)
+    return (:exact_steps, :inexact_steps, :spawns), SVector(0, 0, 0)
+end
+
+function fciqmc_col!(
+    s::IsSemistochasticWithList,
+    w, ham::AbstractHamiltonian, add, val, shift, dτ,
+)
+    absval = abs(val)
+    spawns = 0
+
+    # Diagonal step:
+    new_val = (1 + dτ*(shift - diagonal_element(ham, add))) * val
+    deposit!(w, add, new_val, add => val)
+
+    hops = offdiagonals(ham, add)
+    if add in s.preserve
+        # Exact multiplication when conditions are met.
+        factor = dτ * val
+        for (new_add, mat_elem) in hops
+            deposit!(w, new_add, -factor * mat_elem, add => val)
+        end
+        spawns = length(hops)
+        return (1, 0, spawns)
+    else
+        remainder = absval % 1
+        hasrem = !iszero(remainder)
+        spawns = ceil(Int, absval)
+        for i in 1:spawns
+            new_add, gen_prob, mat_elem = random_offdiagonal(hops)
+            rem_factor = ifelse(i == 1 & hasrem, remainder, 1.0)
+            new_val = sign(val) * rem_factor * dτ * mat_elem / gen_prob
+            deposit!(w, new_add, -new_val, add => val)
+        end
+
+        return (0, 1, spawns)
+    end
+end

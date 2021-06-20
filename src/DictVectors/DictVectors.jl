@@ -19,7 +19,7 @@ export
     AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 export
     StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
-    IsDynamicSemistochastic, StyleUnknown
+    IsDynamicSemistochastic, StyleUnknown, IsSemistochasticWithList
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.

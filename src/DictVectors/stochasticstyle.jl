@@ -115,6 +115,33 @@ function IsDynamicSemistochastic{T}(
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
 
+"""
+    IsSemistochasticWithList{T=Float64}(;
+        preserve = [],
+        preserve_exactly::Bool = false,
+        proj_threshold = 1,
+    ) <: StochasticStyle{T}
+QMC propagation with non-integer walker number and exactly performed spawns on addresses
+in the collection `preserve`. Stochastic vector compression with
+threshold `proj_threshold` is applied after spawning, diagonal death and annihilation steps.
+"""
+struct IsSemistochasticWithList{T<:AbstractFloat, E, L} <: StochasticStyle{T}
+    # type parameter `E` encodes `preserve_exactly`
+    proj_threshold::T
+    preserve::L
+end
+
+function IsSemistochasticWithList{T}(;
+    preserve = 1:0,
+    preserve_exactly::Bool = false,
+    proj_threshold = 1.0,
+) where {T}
+    return IsSemistochasticWithList{T, preserve_exactly, typeof(preserve)}(
+        T(proj_threshold), preserve
+    )
+end
+IsSemistochasticWithList(; kwargs...) = IsSemistochasticWithList{Float64}(; kwargs...)
+
 # Defaults for arrays.
 StochasticStyle(::AbstractArray{AbstractFloat}) = IsDeterministic()
 StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
