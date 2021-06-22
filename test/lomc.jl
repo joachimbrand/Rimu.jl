@@ -314,8 +314,8 @@ end
         df_dy = lomc!(H, dv_dy; s_strat, laststep=2500).df
         df_de = lomc!(H, dv_de; s_strat, laststep=2500).df
 
-        @test ("spawns", "deaths", "clones", "antiparticles", "annihilations") ⊆ names(df_st)
-        @test ("spawns", "deaths", "clones", "antiparticles", "annihilations") ⊆ names(df_cx)
+        @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_st)
+        @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_cx)
         @test ("spawns", "deaths") ⊆ names(df_th)
         @test ("exact_steps", "inexact_steps", "spawns") ⊆ names(df_dy)
         @test ("exact_steps",) ⊆ names(df_de)

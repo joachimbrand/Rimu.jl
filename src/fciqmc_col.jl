@@ -28,14 +28,14 @@ function integer_diagonal_step(w, ham, add, num::T, dτ, shift) where {T}
     if sign(w[add]) ≠ sign(new_num) # record annihilations
         annihilations = min(abs(w[add]), abs(new_num))
     end
-    if (1 - pd) < 0
+    if pd < 0
         clones = abs(new_num - num)
     elseif pd < 1
         deaths = abs(new_num - num)
     else
-        zombies = new_num
+        zombies = abs(new_num)
     end
-    return (annihilations, clones, deaths, zombies)
+    return (annihilations, deaths, clones, zombies)
 end
 function integer_spawns(w, ham, add, num::T, dτ, strength=1) where {T}
     spawns = annihilations = zero(T)
@@ -57,10 +57,26 @@ function integer_spawns(w, ham, add, num::T, dτ, strength=1) where {T}
     return (spawns, annihilations)
 end
 
+function exact_diagonal_step(w, ham, add, val, dτ, shift, threshold=0)
+    clones = deaths = zombies = zero(val)
+
+    pd = dτ * (diagonal_element(ham, add) - shift)
+    new_val = (1 - dτ) * val
+    deposit!(s, w, add, new_val, add => val)
+    if pd < 0
+        clones = abs(new_val - val)
+    elseif pd < 1
+        deaths = abs(new_val - val)
+    else
+        zombies = abs(new_val)
+    end
+    return (clones, deaths, zombies)
+end
+
 """
     fciqmc_col!(w, ham, add, num, shift, dτ)
     fciqmc_col!(::Type{T}, args...)
-    -> spawns, deaths, clones, antiparticles, annihilations
+    -> spawns, deaths, clones, zombies, annihilations
 Spawning and diagonal step of FCIQMC for single column of `ham`. In essence it
 computes
 
@@ -128,7 +144,7 @@ end
 
 function step_stats(::DictVectors.IsStochastic2Pop)
     return (
-        (:spawns, :deaths, :clones, :antiparticles, :annihilations),
+        (:spawns, :deaths, :clones, :zombies, :annihilations),
         SVector{5,Complex{Int}}(0, 0, 0, 0, 0),
     )
 end
@@ -137,7 +153,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
 )
     # version for complex integer psips
     # off-diagonal: spawning psips
-    spawns = deaths = clones = antiparticles = annihilations = zero(cnum)
+    spawns = deaths = clones = zombies = annihilations = zero(cnum)
     # stats reported are complex, for each component separately
     hops = offdiagonals(ham,add)
     # real psips first
@@ -202,7 +218,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     elseif pd < 1
         deaths += abs(real(ndiags) - num)
     else
-        antiparticles += abs(real(ndiags))
+        zombies += abs(real(ndiags))
     end
     # treat imaginary part
     newdiagpop = imag(cnewdiagpop)
@@ -220,7 +236,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     elseif pd < 1
         deaths += im*abs(imag(ndiags) - num)
     else
-        antiparticles += im*abs(imag(ndiags))
+        zombies += im*abs(imag(ndiags))
     end
 
     # imaginary part of shift leads to spawns across populations
@@ -254,7 +270,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     # perform spawn (if nonzero): add walkers with correct sign
     spawns += abs(nspawn)
 
-    return (spawns, deaths, clones, antiparticles, annihilations)
+    return (spawns, deaths, clones, zombies, annihilations)
     # note that w is not returned
 end
 
