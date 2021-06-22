@@ -18,6 +18,45 @@ function step_stats(s::StochasticStyle, ::Val{N}) where N
     end
 end
 
+function integer_diagonal_step(w, ham, add, num::T, dτ, shift) where {T}
+    annihilations = clones = deaths = zombies = zero(T)
+
+    diag = diagonal_element(ham, add)
+    pd = dτ * (diag - shift)
+    new_num = floor(T, (1 - pd) * num + 1 - cRand())
+    deposit!(w, add, new_num, add => num)
+    if sign(w[add]) ≠ sign(new_num) # record annihilations
+        annihilations = min(abs(w[add]), abs(new_num))
+    end
+    if (1 - pd) < 0
+        clones = abs(new_num - num)
+    elseif pd < 1
+        deaths = abs(new_num - num)
+    else
+        zombies = new_num
+    end
+    return (annihilations, clones, deaths, zombies)
+end
+function integer_spawns(w, ham, add, num::T, dτ, strength=1) where {T}
+    spawns = annihilations = zero(T)
+    hops = offdiagonals(ham, add)
+    for n in 1:ceil(Int, abs(num) * strength)
+        new_add, prob, mat_elem = random_offdiagonal(hops)
+        n_spawns = floor(dτ * abs(mat_elem) / (prob * strength) + 1 - cRand())
+        new_spawns = convert(typeof(num), -n_spawns * sign(num) * sign(mat_elem))
+
+        if sign(w[new_add]) * sign(new_spawns) < 0 # record annihilations
+            annihilations += min(abs(w[new_add]), abs(new_spawns))
+        end
+        if !iszero(new_spawns)
+            deposit!(w, new_add, new_spawns, add => num)
+            # perform spawn (if nonzero): add walkers with correct sign
+            spawns += abs(new_spawns)
+        end
+    end
+    return (spawns, annihilations)
+end
+
 """
     fciqmc_col!(w, ham, add, num, shift, dτ)
     fciqmc_col!(::Type{T}, args...)
@@ -75,53 +114,16 @@ end
 
 function step_stats(::IsStochasticInteger)
     return (
-        (:spawns, :deaths, :clones, :antiparticles, :annihilations),
+        (:spawns, :deaths, :clones, :zombies, :annihilations),
         SVector(0, 0, 0, 0, 0),
     )
 end
 function fciqmc_col!(
     ::IsStochasticInteger, w, ham::AbstractHamiltonian, add, num::Real, shift, dτ
 )
-    # version for single population of integer psips
-    # off-diagonal: spawning psips
-    spawns = deaths = clones = antiparticles = annihilations = zero(num)
-    hops = offdiagonals(ham,add)
-    for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = random_offdiagonal(hops)
-        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
-        nspawn = floor(pspawn + 1 - cRand()) # project to integer
-        # at this point, nspawn is non-negative
-        # now converted to correct type and compute sign
-        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
-        # - because Hamiltonian appears with - sign in iteration equation
-        if sign(w[naddress]) * sign(nspawns) < 0 # record annihilations
-            annihilations += min(abs(w[naddress]),abs(nspawns))
-        end
-        if !iszero(nspawns)
-            deposit!(w, naddress, nspawns, add => num)
-            # perform spawn (if nonzero): add walkers with correct sign
-            spawns += abs(nspawns)
-        end
-    end
-    # diagonal death / clone
-    dME = diagonal_element(ham,add)
-    pd = dτ * (dME - shift)
-    newdiagpop = (1-pd)*num # new diag population but not yet integer
-    ndiag = floor(newdiagpop + 1 - cRand()) # project to integer
-    ndiags = convert(typeof(num),ndiag) # now integer type
-    if sign(w[add]) ≠ sign(ndiags) # record annihilations
-        annihilations += min(abs(w[add]),abs(ndiags))
-    end
-    deposit!(w, add, ndiags, add => num) # should carry to correct sign
-    if  pd < 0 # record event statistics
-        clones += abs(ndiags - num)
-    elseif pd < 1
-        deaths += abs(ndiags - num)
-    else
-        antiparticles += abs(ndiags)
-    end
-    return (spawns, deaths, clones, antiparticles, annihilations)
-    # note that w is not returned
+    spawns, ann_offdiag = integer_spawns(w, ham, add, num, dτ)
+    ann_diag, clones, deaths, zombies = integer_diagonal_step(w, ham, add, num, dτ, shift)
+    return (spawns, clones, deaths, zombies, ann_diag + ann_offdiag)
 end
 
 function step_stats(::DictVectors.IsStochastic2Pop)
