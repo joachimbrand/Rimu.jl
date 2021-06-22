@@ -98,7 +98,7 @@ function sort_and_count!(
             mid = fld(lo + hi, 2)
             i = i_start
             j = j_start
-            @inbounds while i < j
+             while i < j
                 if ord[i] ≤ mid
                     i += 1
                 elseif ord[j] > mid
@@ -136,7 +136,7 @@ function prepare_send!(s::MPIAllToAll, source)
     if len > 0
         resize!(buffer, len)
         resize!(targets, len)
-        @inbounds for (i, p) in enumerate(pairs(source))
+         for (i, p) in enumerate(pairs(source))
             buffer[i] = p
             targets[i] = targetrank(p, s.np)
         end

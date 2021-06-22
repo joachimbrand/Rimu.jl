@@ -134,7 +134,7 @@ function Base.sum(f::F, dvec::DVec{<:Any,V,<:Any,<:Dict}) where {F,V}
         vals = dvec.storage.vals
         slots = dvec.storage.slots
         result = f(vals[1] * (slots[1] == 0x1))
-        @inbounds @simd for i in 2:length(vals)
+         @simd for i in 2:length(vals)
             result += f(vals[i] * (slots[i] == 0x1))
         end
         return result

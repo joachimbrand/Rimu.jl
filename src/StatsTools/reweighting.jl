@@ -16,7 +16,7 @@ See also [`w_lin()`](@ref), [`growth_estimator()`](@ref),
     T = promote_type(eltype(shift),typeof(E_r))
     len = length(shift)-skip
     accu = Vector{T}(undef, len)
-    @inbounds for n in 1:len
+     for n in 1:len
         a = zero(T)
         look_back = min(h,skip+n-1)
         @simd ivdep for j in 1:look_back # makes it very fast
@@ -43,7 +43,7 @@ See also [`w_exp()`](@ref), [`growth_estimator()`](@ref),
     T = promote_type(eltype(shift),typeof(E_r))
     len = length(shift)-skip
     accu = ones(T, len)
-    @inbounds for n in 1:len
+     for n in 1:len
         a = one(T)
         look_back = min(h,skip+n-1)
         @simd ivdep for j in 1:look_back

@@ -107,7 +107,7 @@ addresses and products of occupation numbers for computing off-diagonal elements
             hole_a -= 1 # searching for the position for hole_a
             if hole_a == 0 # found the hole_a here
                 onproduct_a *= occ # record the normalisation factor before annihilate
-                @inbounds onrep_a[i] = occ - 1 # annihilate an A boson: a_r
+                 onrep_a[i] = occ - 1 # annihilate an A boson: a_r
                 r = i # remember where we make the hole
                 break # should break out of the for loop
             end
@@ -119,15 +119,15 @@ addresses and products of occupation numbers for computing off-diagonal elements
     # create an A boson:
     ΔP = p - r # change in momentun
     p = mod1(p, M) # enforce periodic boundary condition
-    @inbounds onrep_a[p] += 1 # create an A boson: a†_p
-    @inbounds onproduct_a *= onrep_a[p] # record the normalisation factor after creation
+     onrep_a[p] += 1 # create an A boson: a†_p
+     onproduct_a *= onrep_a[p] # record the normalisation factor after creation
     # annihilate a B boson:
     for (i, occ) in enumerate(onrep_b)
         if occ > 0
             hole_b -= 1 # searching for the position for hole_b
             if hole_b == 0 # found the hole_b here
                 onproduct_b *= occ # record the normalisation factor before annihilate
-                @inbounds onrep_b[i] = occ-1 # annihilate a B boson: b_q
+                 onrep_b[i] = occ-1 # annihilate a B boson: b_q
                 q = i # remember where we make the holes
                 break # should break out of the for loop
             end
@@ -135,8 +135,8 @@ addresses and products of occupation numbers for computing off-diagonal elements
     end
     s = mod1(q-ΔP, M) # compute s with periodic boundary condition
     # create a B boson:
-    @inbounds onrep_b[s] += 1 # create a B boson: b†_s
-    @inbounds onproduct_b *= onrep_b[s] # record the normalisation factor after creation
+     onrep_b[s] += 1 # create a B boson: b†_s
+     onproduct_b *= onrep_b[s] # record the normalisation factor after creation
     # if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
     #     error("Momentum is not conserved!")
     # end

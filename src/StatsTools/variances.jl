@@ -9,7 +9,7 @@ function autocovariance(v::AbstractVector,h::Int; corrected::Bool=true, mean = m
     n = length(v)
     covsum = zero(mean)
     for i in 1:n-h
-        @inbounds covsum += (v[i]-mean)*conj(v[i+h]-mean)
+         covsum += (v[i]-mean)*conj(v[i+h]-mean)
     end
     gamma = covsum/(n - Int(corrected))
     return gamma
@@ -31,7 +31,7 @@ significantly faster and avoids allocations.
     @assert length(y) == n
     res = zero(promote_type(eltype(x), eltype(y))) / 1
     for i = 1:n
-        @inbounds res += (x[i] - xmean) * (y[i] - ymean)
+         res += (x[i] - xmean) * (y[i] - ymean)
     end
     return res / (n - Int(corrected))
 end

@@ -128,7 +128,7 @@ julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
 ) where {M,I}
     # now compute diagonal interaction energy
     onproduct = zero(I) # Σ_kp < c^†_p c^†_k c_k c_p >
-    # Not having @inbounds here is faster?
+    # Not having  here is faster?
     for p in 1:M
         iszero(onrep[p]) && continue
         onproduct += onrep[p] * (onrep[p] - one(I))
@@ -180,7 +180,7 @@ end
                 double -= 1
                 if double == 0
                     onproduct *= occ*(occ-1)
-                    @inbounds onrep[i] = occ-2
+                     onrep[i] = occ-2
                     # annihilate two particles in onrep
                     p = k = i # remember where we make the holes
                     break # should break out of the for loop
@@ -204,12 +204,12 @@ end
                 counter += 1
                 if counter == f_hole
                     onproduct *= occ
-                    @inbounds onrep[i] = occ-1
+                     onrep[i] = occ-1
                     # punch first hole
                     p = i # location of first hole
                 elseif counter == s_hole
                     onproduct *= occ
-                    @inbounds onrep[i] = occ-1
+                     onrep[i] = occ-1
                     # punch second hole
                     k = i # location of second hole
                     break
@@ -225,14 +225,14 @@ end
     # now it is time to deal with two creation operators
     # c^†_k-q
     kmq = mod1(k-q, M) # in 1:m # use mod1() to implement periodic boundaries
-    @inbounds occ = onrep[kmq]
+     occ = onrep[kmq]
     onproduct *= occ + 1
-    @inbounds onrep[kmq] = occ + 1
+     onrep[kmq] = occ + 1
     # c^†_p+q
     ppq = mod1(p+q, M) # in 1:m # use mod1() to implement periodic boundaries
-    @inbounds occ = onrep[ppq]
+     occ = onrep[ppq]
     onproduct *= occ + 1
-    @inbounds onrep[ppq] = occ + 1
+     onrep[ppq] = occ + 1
 
     return A(SVector(onrep)), ham.u/(2*M)*sqrt(onproduct)
     # return new address and matrix element

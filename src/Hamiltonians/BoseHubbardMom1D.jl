@@ -169,8 +169,8 @@ function diagonal_element(h::BoseHubbardMom1D, add)
     # end
     for p = 1:h.m
         # faster triangular loop; 9 μs instead of 33 μs for nearUniform(BoseFS{200,199})
-        @inbounds onproduct += onrep[p] * (onrep[p] - 1)
-        @inbounds @simd for k = 1:p-1
+         onproduct += onrep[p] * (onrep[p] - 1)
+         @simd for k = 1:p-1
             onproduct += 4*onrep[k]*onrep[p]
         end
     end

@@ -142,7 +142,7 @@ function mpi_combine_walkers!(target, source, s::MPIOneSided{P}) where P
     bufs = [Vector{P}(undef,length(source)) for i in 1:(s.np-1)] # type-stable
     lens = zeros(Int,(s.np-1))
     # sort source into send buffers
-    @inbounds for (key,val) in pairs(source)
+     for (key,val) in pairs(source)
         tr = targetrank(key, s.np)
         if tr < s.id
             lens[tr+1] +=1

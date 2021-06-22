@@ -150,7 +150,7 @@ function blocker(v::AbstractVector{T}) where T
     P = typeof(zero(T)/1)
     new_v = Array{P}(undef,(length(v)÷2))
     for i  in 1:length(v)÷2
-        @inbounds new_v[i] = (v[2i-1]+v[2i])/2
+         new_v[i] = (v[2i-1]+v[2i])/2
     end
     return new_v
 end

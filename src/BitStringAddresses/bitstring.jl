@@ -270,7 +270,7 @@ function _left_shift(s::S, k) where {S<:BitString}
     carry = s.chunks .>>> ((64 - r) % UInt64)
 
     for i in d + 1:length(result)
-        @inbounds result[i - d] = shift[i] | get(carry, i + 1, zero(UInt64))
+         result[i - d] = shift[i] | get(carry, i + 1, zero(UInt64))
     end
     # This bit removes ghost bits.
     result[1] &= ghost_bit_mask(S)

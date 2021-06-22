@@ -85,7 +85,7 @@ function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString
         while curr_occnum > 0
             x = min(curr_occnum, bits_left)
             mask = (one(UInt64) << x - 1) << offset
-            @inbounds result[j] |= mask
+             result[j] |= mask
             bits_left -= x
             offset += x
             curr_occnum -= x
@@ -195,7 +195,7 @@ address `bs` as an `MVector{M,Int32}`, where `M` is the number of orbitals.
     address = bba.bs
     for orbital in 1:M
         bosons = Int32(trailing_ones(address))
-        @inbounds result[orbital] = bosons
+         result[orbital] = bosons
         address >>>= (bosons + 1) % UInt
         iszero(address) && break
     end
@@ -215,7 +215,7 @@ end
         bits_left = chunk_bits(address, i)
         while !iszero(chunk)
             bosons = trailing_ones(chunk)
-            @inbounds result[orbital] += unsafe_trunc(Int32, bosons)
+             result[orbital] += unsafe_trunc(Int32, bosons)
             chunk >>>= bosons % UInt
             empty_modes = trailing_zeros(chunk)
             orbital += empty_modes
@@ -300,7 +300,7 @@ end
     while bits_left < 1
         i -= 1
         i < 1 && return nothing
-        @inbounds chunk = chunks(address)[i]
+         chunk = chunks(address)[i]
         bits_left = chunk_bits(S, i)
         empty_orbitals = min(bits_left, trailing_zeros(chunk))
         orbital += empty_orbitals
@@ -319,7 +319,7 @@ end
     while bits_left < 1
         i -= 1
         i < 1 && break
-        @inbounds chunk = chunks(address)[i]
+         chunk = chunks(address)[i]
         bits_left = chunk_bits(S, i)
 
         bosons = trailing_ones(chunk)
