@@ -97,18 +97,20 @@ function post_step(p::ProjectedEnergy, replica)
 end
 
 """
-    SignCoherence(reference) <: PostStepStrategy
+    SignCoherence(reference[; name=:coherence]) <: PostStepStrategy
 
 After each step, compute the proportion of configurations that have the same sign as they do
-in the `reference_dvec`. Reports to a column named `coherence`.
+in the `reference_dvec`. Reports to a column named `name`, which defaults to `coherence`.
 """
 struct SignCoherence{R} <: PostStepStrategy
+    name::Symbol
     reference::R
 end
+SignCoherence(ref; name=:coherence) = SignCoherence(name, ref)
 
 function post_step(sc::SignCoherence, replica)
     vector = replica.v
-    return (:coherence => coherence(valtype(vector), sc.reference, vector),)
+    return (sc.name => coherence(valtype(vector), sc.reference, vector),)
 end
 
 function coherence(::Type{<:Real}, reference, vector)

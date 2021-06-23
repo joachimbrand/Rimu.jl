@@ -210,7 +210,7 @@ end
 
                 post_step = (
                     ProjectedEnergy(H, dv),
-                    SignCoherence(copy(dv)),
+                    SignCoherence(copy(localpart(dv))),
                     WalkerLoneliness(),
                     Projector(proj_1=Norm2Projector()),
                 )
