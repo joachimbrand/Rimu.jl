@@ -258,7 +258,7 @@ using Statistics
             post_step = WalkerLoneliness()
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.loneliness[1] == 1
-            @test all(1 .≥ df.loneliness .> 0)
+            @test all(1 .≥ df.loneliness .≥ 0)
 
             cdv = DVec(add => 1 + im)
             df, _ = lomc!(H, cdv; post_step)
