@@ -253,6 +253,17 @@ using Statistics
             df, _ = lomc!(H, cdv; post_step)
             @test df.coherence isa Vector{ComplexF64}
         end
+
+        @testset "WalkerLoneliness" begin
+            post_step = WalkerLoneliness()
+            df, _ = lomc!(H, copy(dv); post_step)
+            @test df.loneliness[1] == 1
+            @test all(1 .≥ df.loneliness .> 0)
+
+            cdv = DVec(add => 1 + im)
+            df, _ = lomc!(H, cdv; post_step)
+            @test df.loneliness isa Vector{ComplexF64}
+        end
     end
 end
 

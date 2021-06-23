@@ -208,7 +208,12 @@ end
                     kwargs...
                 )
 
-                post_step = ProjectedEnergy(H, dv)
+                post_step = (
+                    ProjectedEnergy(H, dv),
+                    SignCoherence(copy(dv)),
+                    WalkerLoneliness(),
+                    Projector(proj_1=Norm2Projector()),
+                )
                 df = lomc!(H, dv; post_step, laststep=5000).df
 
                 # Shift estimate.

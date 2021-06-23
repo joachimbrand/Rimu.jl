@@ -108,19 +108,49 @@ end
 
 function post_step(sc::SignCoherence, replica)
     vector = replica.v
-    return coherence(valtype(vector), sc.reference, vector)
+    return (:coherence => coherence(valtype(vector), sc.reference, vector),)
 end
 
 function coherence(::Type{<:Real}, reference, vector)
     num_correct = mapreduce(+, pairs(vector); init=0) do ((k, v))
         sign(v) == sign(reference[k])
     end
-    return (:coherence => num_correct / length(vector),)
+    return num_correct / length(vector)
 end
 function coherence(::Type{<:Complex}, reference, vector)
     num_correct = mapreduce(+, pairs(vector); init=0 + 0im) do ((k, v))
         ref_sign = sign(reference[k])
         (sign(real(v)) == ref_sign) + im * (sign(imag(v)) == ref_sign)
     end
-    return (:coherence => num_correct / length(vector),)
+    return num_correct / length(vector)
+end
+
+"""
+    WalkerLoneliness(threshold=1) <: PostStepStrategy
+
+After each step, compute the proportion of configurations that are occupied by (not
+strictly) fewer than `threshold` walkers. Reports to a column named `loneliness`.
+"""
+struct WalkerLoneliness{T} <: PostStepStrategy
+    threshold::T
+end
+WalkerLoneliness() = WalkerLoneliness(1)
+
+function post_step(wl::WalkerLoneliness, replica)
+    vector = replica.v
+    return (:loneliness => loneliness(valtype(vector), vector, wl.threshold),)
+end
+
+function loneliness(::Type{<:Real}, vector, threshold)
+    num_lonely = mapreduce(+, values(vector), init=0) do v
+        abs(v) ≤ threshold
+    end
+    return num_lonely / length(vector)
+end
+
+function loneliness(::Type{<:Complex}, vector, threshold)
+    num_lonely = mapreduce(+, values(vector), init=0 + 0im) do v
+        (abs(real(v)) ≤ threshold) + im*(abs(imag(v)) ≤ threshold)
+    end
+    return num_lonely / length(vector)
 end
