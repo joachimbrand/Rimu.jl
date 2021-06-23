@@ -245,10 +245,11 @@ using Statistics
 
         @testset "SignCoherence" begin
             ref = eigsolve(H, dv, 1, :SR; issymmetric=true)[2][1]
-            post_step = SignCoherence(ref)
+            post_step = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.coherence[1] == 1.0
-            @test -1.0 ≤ df.coherence ≤ 1.0
+            @test all(-1.0 ≤. df.coherence ≤. 1.0)
+            @test df.single_coherence[1] == -1.0
 
             cdv = DVec(add => 1 + im)
             df, _ = lomc!(H, cdv; post_step)

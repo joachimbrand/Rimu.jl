@@ -154,8 +154,8 @@ end
 """
     WalkerLoneliness(threshold=1) <: PostStepStrategy
 
-After each step, compute the proportion of configurations that are occupied by (not
-strictly) fewer than `threshold` walkers. Reports to a column named `loneliness`.
+After each step, compute the proportion of configurations that are occupied by at most
+`threshold` walkers. Reports to a column named `loneliness`.
 """
 struct WalkerLoneliness{T} <: PostStepStrategy
     threshold::T
