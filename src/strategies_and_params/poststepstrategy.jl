@@ -139,15 +139,15 @@ function coherence(::Type{<:Real}, reference, vector)
     end
 end
 function coherence(::Type{<:Complex}, reference, vector)
-    num_correct = mapreduce(+, pairs(vector); init=0 + 0im) do ((k, v))
+   accumulate = mapreduce(+, pairs(vector); init=0 + 0im) do ((k, v))
         ref_sign = sign(reference[k])
-        (sign(real(v)) == ref_sign) + im * (sign(imag(v)) == ref_sign)
-    end
+        sign(real(v)) * ref_sign + im * sign(imag(v)) * ref_sign
+    end # accumulates values of -1, 0, +1
     num_overlap = num_overlapping(reference, vector)
     if iszero(num_overlap)
         return 0.0
     else
-        return num_correct / num_overlap
+        return accumulate / num_overlap
     end
 end
 
