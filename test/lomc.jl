@@ -248,6 +248,7 @@ using Statistics
             post_step = SignCoherence(ref)
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.coherence[1] == 1.0
+            @test -1.0 ≤ df.coherence ≤ 1.0
 
             cdv = DVec(add => 1 + im)
             df, _ = lomc!(H, cdv; post_step)

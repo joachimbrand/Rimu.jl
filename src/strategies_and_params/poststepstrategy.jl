@@ -113,18 +113,42 @@ function post_step(sc::SignCoherence, replica)
     return (sc.name => coherence(valtype(vector), sc.reference, vector),)
 end
 
+"""
+    num_overlapping(v, w)
+
+Count the number of configurations where both `v` and `w` are nonzero.
+"""
+function num_overlapping(v, w)
+    if length(w) < length(v)
+        v, w = w, v
+    end
+    return mapreduce(+, keys(v); init=0) do k
+        !iszero(localpart(w)[k])
+    end
+end
+
 function coherence(::Type{<:Real}, reference, vector)
     num_correct = mapreduce(+, pairs(vector); init=0) do ((k, v))
         sign(v) == sign(reference[k])
     end
-    return num_correct / length(vector)
+    num_overlap = num_overlapping(reference, vector)
+    if iszero(num_overlap)
+        return 0.0
+    else
+        return 2 * (num_correct / num_overlap) - 1
+    end
 end
 function coherence(::Type{<:Complex}, reference, vector)
     num_correct = mapreduce(+, pairs(vector); init=0 + 0im) do ((k, v))
         ref_sign = sign(reference[k])
         (sign(real(v)) == ref_sign) + im * (sign(imag(v)) == ref_sign)
     end
-    return num_correct / length(vector)
+    num_overlap = num_overlapping(reference, vector)
+    if iszero(num_overlap)
+        return 0.0
+    else
+        return num_correct / num_overlap
+    end
 end
 
 """
