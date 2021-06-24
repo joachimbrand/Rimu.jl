@@ -114,41 +114,32 @@ function post_step(sc::SignCoherence, replica)
 end
 
 """
-    num_overlapping(v, w)
+    DoubleScalar{T}
 
-Count the number of configurations where both `v` and `w` are nonzero.
+MPI is not happy with communicating multiple values at the same time. This type exists to
+fix that.
 """
-function num_overlapping(v, w)
-    if length(w) < length(v)
-        v, w = w, v
-    end
-    return mapreduce(+, keys(v); init=0) do k
-        !iszero(localpart(w)[k])
-    end
+struct DoubleScalar{T}
+    a::T
+    b::T
 end
+Base.:+(x::DoubleScalar, y::DoubleScalar) = DoubleScalar(x.a + y.a, x.b + y.b)
+Base.iterate(x::DoubleScalar, i=1) = i == 1 ? (x.a, 2) : i == 2 ? (x.b, 3) : nothing
 
 function coherence(::Type{<:Real}, reference, vector)
-    num_correct = mapreduce(+, pairs(vector); init=0) do ((k, v))
-        sign(v) == sign(reference[k])
+    accumulator, overlap = mapreduce(+, pairs(vector); init=DoubleScalar(0.0, 0.0)) do ((k, v))
+        ref = reference[k]
+        DoubleScalar(Float64(sign(ref) * sign(v)), Float64(!iszero(ref)))
     end
-    num_overlap = num_overlapping(reference, vector)
-    if iszero(num_overlap)
-        return 0.0
-    else
-        return 2 * (num_correct / num_overlap) - 1
-    end
+    return iszero(overlap) ? 0.0 : accumulator / overlap
 end
 function coherence(::Type{<:Complex}, reference, vector)
-   accumulate = mapreduce(+, pairs(vector); init=0 + 0im) do ((k, v))
-        ref_sign = sign(reference[k])
-        sign(real(v)) * ref_sign + im * sign(imag(v)) * ref_sign
-    end # accumulates values of -1, 0, +1
-    num_overlap = num_overlapping(reference, vector)
-    if iszero(num_overlap)
-        return 0.0
-    else
-        return accumulate / num_overlap
+    z = DoubleScalar(0.0 + 0im, 0.0 + 0im)
+    accumulator, overlap = mapreduce(+, pairs(vector); init=z) do ((k, v))
+        ref = sign(reference[k])
+        DoubleScalar(sign(real(v)) * sign(ref) + im * sign(imag(v)) * sign(ref), !iszero(ref))
     end
+    return iszero(overlap) ? 0.0 : accumulator / overlap
 end
 
 """

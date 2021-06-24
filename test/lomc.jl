@@ -249,7 +249,7 @@ using Statistics
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.coherence[1] == 1.0
             @test all(-1.0 .≤ df.coherence .≤ 1.0)
-            @test df.single_coherence[1] == -1.0
+            @test all(in.(df.single_coherence, Ref((-1, 0, 1))))
 
             cdv = DVec(add => 1 + im)
             df, _ = lomc!(H, cdv; post_step)
