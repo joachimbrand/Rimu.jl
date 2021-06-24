@@ -121,7 +121,7 @@ function coherence(::Type{<:Real}, reference, vector)
     return iszero(overlap) ? 0.0 : accumulator / overlap
 end
 function coherence(::Type{<:Complex}, reference, vector)
-    z = DoubleScalar(0.0 + 0im, 0)
+    z = MultiScalar(0.0 + 0im, 0)
     accumulator, overlap = mapreduce(+, pairs(vector); init=z) do ((k, v))
         ref = sign(reference[k])
         MultiScalar(
