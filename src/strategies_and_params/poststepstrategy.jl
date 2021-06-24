@@ -113,31 +113,21 @@ function post_step(sc::SignCoherence, replica)
     return (sc.name => coherence(valtype(vector), sc.reference, vector),)
 end
 
-"""
-    DoubleScalar{T}
-
-MPI is not happy with communicating multiple values at the same time. This type exists to
-fix that.
-"""
-struct DoubleScalar{T}
-    a::T
-    b::T
-end
-Base.:+(x::DoubleScalar, y::DoubleScalar) = DoubleScalar(x.a + y.a, x.b + y.b)
-Base.iterate(x::DoubleScalar, i=1) = i == 1 ? (x.a, 2) : i == 2 ? (x.b, 3) : nothing
-
 function coherence(::Type{<:Real}, reference, vector)
-    accumulator, overlap = mapreduce(+, pairs(vector); init=DoubleScalar(0.0, 0.0)) do ((k, v))
+    accumulator, overlap = mapreduce(+, pairs(vector); init=MultiScalar(0.0, 0)) do ((k, v))
         ref = reference[k]
-        DoubleScalar(Float64(sign(ref) * sign(v)), Float64(!iszero(ref)))
+        MultiScalar(Float64(sign(ref) * sign(v)), Int(!iszero(ref)))
     end
     return iszero(overlap) ? 0.0 : accumulator / overlap
 end
 function coherence(::Type{<:Complex}, reference, vector)
-    z = DoubleScalar(0.0 + 0im, 0.0 + 0im)
+    z = DoubleScalar(0.0 + 0im, 0)
     accumulator, overlap = mapreduce(+, pairs(vector); init=z) do ((k, v))
         ref = sign(reference[k])
-        DoubleScalar(sign(real(v)) * sign(ref) + im * sign(imag(v)) * sign(ref), !iszero(ref))
+        MultiScalar(
+            sign(real(v)) * sign(ref) + im * sign(imag(v)) * sign(ref),
+            Int(!iszero(ref))
+        )
     end
     return iszero(overlap) ? 0.0 : accumulator / overlap
 end

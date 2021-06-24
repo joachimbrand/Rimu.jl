@@ -33,3 +33,50 @@ function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
     return target, ws, combine_stats(statss)
 end
 # three argument version for MPIData to be found in RMPI.jl
+
+
+"""
+    MultiScalar
+
+Wrapper over a tuple that supports `+`, `-`, `min`, and `max`. Used with MPI communication
+because `SVector`s are treated as arrays by `MPI.Allreduce` and `Tuples` do not support
+scalar operations.
+
+# Example
+
+Suppose you want to compute the sum of a vector `dv` and also get the number of positive
+elements it has in a single pass. You can use `MultiScalar`:
+
+```julia
+julia> dv = DVec(:a => 1, :b => -2, :c => 1);
+
+julia> s, p = mapreduce(+, values(dv)) do v
+    Rimu.MultiScalar(v, Int(sign(v) == 1))
+end;
+
+julia> s, p
+(0, 2)
+```
+
+This will work with `MPIData`.
+
+Note that only `MultiScalar`s with the same types can be operated on. This is a feature, as it
+forces type stability.
+"""
+struct MultiScalar{T}
+    tuple::T
+end
+function MultiScalar(args...)
+    return MultiScalar(args)
+end
+function MultiScalar(v::SVector)
+    return MultiScalar(v...)
+end
+
+for op in (:+, :*, :max, :min)
+    @eval function Base.$op(a::MultiScalar{T}, b::MultiScalar{T}) where {T}
+        return MultiScalar($op.(a.tuple, b.tuple))
+    end
+end
+
+Base.iterate(m::MultiScalar, args...) = iterate(m.tuple, args...)
