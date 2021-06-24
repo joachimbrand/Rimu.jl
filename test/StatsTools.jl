@@ -149,10 +149,10 @@ end
     steps_equi = 200
     steps_meas = 2^10
     p = RunTillLastStep(laststep = steps_equi+steps_meas)
-    r_strat = EveryTimeStep(projector = copy(v))
+    post_step = ProjectedEnergy(ham, v)
     s_strat = DoubleLogUpdate(targetwalkers=10)
     seedCRNG!(173)
-    @time df = lomc!(ham, v; params=p, r_strat, s_strat).df
+    @time df = lomc!(ham, v; params=p, s_strat, post_step).df
     bs = blocking_analysis(df.shift[steps_equi+1:end])
     pcb = bs.mean - exact_energy
     # TODO
@@ -194,12 +194,12 @@ end
     steps_equi = 200
     steps_meas = 2^10
     p = RunTillLastStep(laststep = steps_equi+steps_meas)
-    r_strat = EveryTimeStep(projector = gs, hproj = os)
+    post_step = (Projector(vproj=gs), Projector(hproj=os))
     s_strat = DoubleLogUpdate(targetwalkers=10)
 
     # run replica fciqmc
     seedCRNG!(17)
-    @time rr = lomc!(ham, v; params=p, s_strat, r_strat, replica=AllOverlaps()).df
+    @time rr = lomc!(ham, v; params=p, s_strat, post_step, replica=AllOverlaps()).df
 
     # check fidelity with ground state
     fid_gs = StatsTools.replica_fidelity(rr; p_field=:vproj, skip=steps_equi)

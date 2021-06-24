@@ -263,8 +263,10 @@ function offdiagonals(h::HubbardMom1D, a::BoseFS)
     return OffdiagonalsBoseMom1D(h, a, num, singlies, doublies)
 end
 
-function Base.getindex(s::OffdiagonalsBoseMom1D, i)
-    @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
+function Base.getindex(s::OffdiagonalsBoseMom1D{A,T}, i)::Tuple{A,T} where {A,T}
+    @boundscheck begin
+        1 ≤ i ≤ s.length || throw(BoundsError(s, i))
+    end
     new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i, s.singlies, s.doublies)
     return (new_address, matrix_element)
 end

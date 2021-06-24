@@ -113,7 +113,7 @@ function IsDynamicSemistochastic{T}(
         T(rel_threshold), T(abs_threshold), T(proj_threshold)
     )
 end
-IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(kwargs...)
+IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
 
 # Defaults for arrays.
 StochasticStyle(::AbstractArray{AbstractFloat}) = IsDeterministic()

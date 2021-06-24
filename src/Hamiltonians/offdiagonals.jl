@@ -87,7 +87,7 @@ This is the default implementation defined in terms of [`num_offdiagonals`](@ref
 * [`offdiagonals`](@ref)
 
 """
-struct Offdiagonals{T,A,H<:AbstractHamiltonian{T}} <: AbstractOffdiagonals{A,T}
+struct Offdiagonals{A,T,H<:AbstractHamiltonian{T}} <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int
@@ -98,7 +98,7 @@ function Offdiagonals(h, a)
     return Offdiagonals(h, a, num_offdiagonals(h, a))
 end
 
-function Base.getindex(s::Offdiagonals, i)
+function Base.getindex(s::Offdiagonals{A,T}, i)::Tuple{A,T} where {A,T}
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i)
     return (new_address, matrix_element)

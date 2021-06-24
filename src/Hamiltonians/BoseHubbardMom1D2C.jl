@@ -140,7 +140,7 @@ addresses and products of occupation numbers for computing off-diagonal elements
     # if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
     #     error("Momentum is not conserved!")
     # end
-    return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b, p, q
+    return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b, s, q
 end
 
 function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
@@ -177,7 +177,7 @@ Specialized [`AbstractOffdiagonals`](@ref) that keep track of number of off-diag
 number of occupied sites in both components of the address.
 """
 struct OffdiagonalsBoseMom1D2C{
-    A<:BoseFS2C,V,T,H<:TwoComponentHamiltonian{T}
+    A<:BoseFS2C,T,V,H<:TwoComponentHamiltonian{T}
 } <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
@@ -195,12 +195,12 @@ function offdiagonals(h::BoseHubbardMom1D2C{T,<:Any,<:Any,V}, a::BoseFS2C) where
     occ_b = numberoccupiedsites(a.bsb)
     length = hops_a + hops_b + occ_a * (num_modes(a) - 1) * occ_b
 
-    return OffdiagonalsBoseMom1D2C{typeof(a),V,T,typeof(h)}(
+    return OffdiagonalsBoseMom1D2C{typeof(a),T,V,typeof(h)}(
         h, a, length, hops_a, hops_b, occ_a, occ_b
     )
 end
 
-function Base.getindex(s::OffdiagonalsBoseMom1D2C{A,V}, i) where {A,V}
+function Base.getindex(s::OffdiagonalsBoseMom1D2C{A,T,V}, i)::Tuple{A,T} where {A,T,V}
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     if i ≤ s.num_hops_a
         new_a, matrix_element = get_offdiagonal(s.hamiltonian.ha, s.address.bsa, i)

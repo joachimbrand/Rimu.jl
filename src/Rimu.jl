@@ -4,11 +4,19 @@ Random Integrator for Many-Body Quantum Systems
 """
 module Rimu
 
-using Reexport, Parameters, LinearAlgebra, DataFrames
-using Setfield, StaticArrays
-using SplittablesBase, ThreadsX
+using Arrow
+using DataFrames
+using DataStructures
+using LinearAlgebra
+using OrderedCollections # for LittleDict
+using Parameters
+using Reexport
+using Setfield
+using SplittablesBase
+using StaticArrays
+using ThreadsX
+
 @reexport using Distributed
-import MPI, DataStructures
 
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
@@ -30,13 +38,20 @@ export DoubleLogUpdate, DelayedDoubleLogUpdate, DoubleLogUpdateAfterTargetWalker
 export DelayedDoubleLogUpdateAfterTW
 export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
-export ReportingStrategy, EveryTimeStep, EveryKthStep, ReportDFAndInfo
+export ReportingStrategy, ReportDFAndInfo, ReportToFile
 export ReplicaStrategy, NoStats, AllOverlaps
+export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
 
-include("report.jl")
-include("strategies_and_params.jl") # type defs and helpers
+include("strategies_and_params/fciqmcrunstrategy.jl")
+include("strategies_and_params/memorystrategy.jl")
+include("strategies_and_params/poststepstrategy.jl")
+include("strategies_and_params/replicastrategy.jl")
+include("strategies_and_params/reportingstrategy.jl")
+include("strategies_and_params/shiftstrategy.jl")
+include("strategies_and_params/timestepstrategy.jl")
+
 include("helpers.jl")               # non MPI-dependent helper functions
 include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
@@ -52,5 +67,7 @@ include("EmbarrassinglyDistributed.jl")
 # analysis tools not reexported
 include("Blocking.jl")
 include("StatsTools/StatsTools.jl")
+
+include("deprecated.jl")
 
 end # module

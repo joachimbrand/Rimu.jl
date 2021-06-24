@@ -1,11 +1,21 @@
 """
-    ReplicaState(hamiltonian, v, w, pnorm, r_strat)
+    ReplicaState(v, w, pnorm, params, id)
 
 Struct that holds all information needed for an independent run of the algorithm.
 
 Can be advanced a step forward with [`advance!`](@ref).
+
+# Fields
+
+* `hamiltonian`: the model Hamiltonian.
+* `v`: vector.
+* `w`: working memory.
+* `pnorm`: previous walker number (see [`walkernumber`](@ref)).
+* `params`: the [`FCIQMCRunStrategy`](@ref).
+* `id`: appended to reported columns.
 """
-mutable struct ReplicaState{T,V,W,R<:FciqmcRunStrategy{T}}
+mutable struct ReplicaState{H,T,V,W,R<:FciqmcRunStrategy{T}}
+    hamiltonian::H
     v::V       # vector
     w::W       # working memory. Maybe working memories could be shared among replicas?
     pnorm::T   # previous walker number - used to control the shift
@@ -13,11 +23,11 @@ mutable struct ReplicaState{T,V,W,R<:FciqmcRunStrategy{T}}
     id::String # id is appended to column names
 end
 
-function ReplicaState(v, w, params, id="")
+function ReplicaState(h, v, w, params, id="")
     if isnothing(w)
         w = similar(v)
     end
-    return ReplicaState(v, w, walkernumber(v), params, id)
+    return ReplicaState(h, v, w, walkernumber(v), params, id)
 end
 
 function Base.show(io::IO, r::ReplicaState)
@@ -31,7 +41,7 @@ end
 """
     QMCState
 
-Holds all inforamtion needed to run FCIQMC, except the data frame. Holds a `NTuple` of
+Holds all information needed to run FCIQMC, except the data frame. Holds a `NTuple` of
 `ReplicaState`s and various strategies that control the algorithm.
 """
 struct QMCState{
@@ -43,6 +53,7 @@ struct QMCState{
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
     RRS<:ReplicaStrategy,
+    PS<:NTuple{<:Any,PostStepStrategy},
 }
     hamiltonian::H
     replicas::NTuple{N,R}
@@ -52,6 +63,7 @@ struct QMCState{
     r_strat::RS
     s_strat::SS
     τ_strat::TS
+    post_step::PS
     replica::RRS
 end
 
@@ -63,14 +75,15 @@ function QMCState(
     wm=nothing,
     params::FciqmcRunStrategy=RunTillLastStep{float(valtype(v))}(),
     s_strat::ShiftStrategy=DoubleLogUpdate(),
-    r_strat::ReportingStrategy=EveryTimeStep(),
+    r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     m_strat::MemoryStrategy=NoMemory(),
     replica::ReplicaStrategy=NoStats(),
+    post_step=(),
     maxlength=2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers)),
 )
     # Set up default arguments
-    r_strat = refine_r_strat(r_strat, hamiltonian)
+    r_strat = refine_r_strat(r_strat)
     if !isnothing(laststep)
         params.laststep = laststep
     end
@@ -78,18 +91,22 @@ function QMCState(
         params.dτ = dτ
     end
     wm = default_working_memory(threading, v, s_strat)
+    if !(post_step isa Tuple)
+        post_step = (post_step,)
+    end
     # Set up replicas
     nreplicas = num_replicas(replica)
     if nreplicas > 1
         replicas = ntuple(nreplicas) do i
-            ReplicaState(deepcopy(v), deepcopy(wm), deepcopy(params), "_$i")
+            ReplicaState(hamiltonian, deepcopy(v), deepcopy(wm), deepcopy(params), "_$i")
         end
     else
-        replicas = (ReplicaState(v, wm, params, ""),)
+        replicas = (ReplicaState(hamiltonian, v, wm, params, ""),)
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(maxlength), m_strat, r_strat, s_strat, τ_strat, replica
+        hamiltonian, replicas, Ref(maxlength),
+        m_strat, r_strat, s_strat, τ_strat, post_step, replica
     )
 end
 
@@ -171,10 +188,11 @@ required for continuation runs.
 * `wm` - working memory; if set, it controls the use of multithreading and overrides `threading`; is mutated
 * `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100)` - contains basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
 * `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000)` - see [`ShiftStrategy`](@ref)
-* `r_strat::ReportingStrategy = EveryTimeStep()` - see [`ReportingStrategy`](@ref)
+* `r_strat::ReportingStrategy = ReportDFAndInfo()` - see [`ReportingStrategy`](@ref)
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
 * `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
 * `replica::ReplicaStrategy = NoStats(1)` - see [`ReplicaStrategy`](@ref).
+* `post_step::NTuple{N,<:PostStepStrategy} = ()` - see [`PostStepStrategy`](@ref).
 
 # Return values
 
@@ -234,19 +252,20 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
         end
         replica_names, replica_values = replica_stats(state.replica, state.replicas)
         report!(state.r_strat, step, report, replica_names, replica_values)
-        print_report(state.r_strat, step, report, state)
+        report_after_step(state.r_strat, step, report, state)
+        ensure_correct_lengths(report)
         !success && break
     end
 
     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
     # compatible, which should be the case if the run is an actual continuation. Maybe the
     # DataFrames should be merged in a more permissive manner?
+    result_df = finalize_report!(state.r_strat, report)
     if !isempty(df)
-        df = vcat(df, DataFrame(report))
+        return (; df=vcat(df, result_df), state)
     else
-        df = DataFrame(report)
+        return (; df=result_df, state)
     end
-    return (; df, state)
 end
 
 """
@@ -262,34 +281,40 @@ function advance!(
 ) where {T}
     @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat = state
     @unpack v, w, pnorm, params, id = replica
-    @unpack step, laststep, shiftMode, shift, dτ = params
+    @unpack step, shiftMode, shift, dτ = params
     step += 1
 
-    v, w, step_stats, stat_names, shift_noise = fciqmc_step!(
+    # Step
+    v, w, step_stat_values, step_stat_names, shift_noise = fciqmc_step!(
         hamiltonian, v, shift, dτ, pnorm, w, 1.0; m_strat
     )
-    v, update_stats = update_dvec!(v)
+    v, update_dvec_stats = update_dvec!(v)
+
+    # Stats
     tnorm = walkernumber(v)
     len = length(v)
 
-    proj_observables = compute_proj_observables(v, hamiltonian, r_strat)
-
+    # Updates
     shift, shiftMode, pnorm = update_shift(
         s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
 
-    @pack! params = step, laststep, shiftMode, shift, dτ
+    @pack! params = step, shiftMode, shift, dτ
     @pack! replica = v, w, pnorm, params
 
+    # Note: post_step must be called after packing the values.
+    post_step_stats = post_step(state.post_step, replica)
+
+    # Reporting
     report!(
         r_strat, step, report,
         (dτ, shift, shiftMode, len, norm=tnorm), id,
     )
-    report!(r_strat, step, report, proj_observables, id)
-    report!(r_strat, step, report, stat_names, step_stats, id)
-    report!(r_strat, step, report, update_stats, id)
+    report!(r_strat, step, report, step_stat_names, step_stat_values, id)
+    report!(r_strat, step, report, update_dvec_stats, id)
     report!(r_strat, step, report, (;shift_noise), id)
+    report!(state.r_strat, step, report, post_step_stats, id)
 
     if len == 0
         if length(state.replicas) > 1

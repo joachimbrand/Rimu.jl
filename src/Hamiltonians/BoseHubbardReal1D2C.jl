@@ -118,7 +118,7 @@ function offdiagonals(h::BoseHubbardReal1D2C, a::BoseFS2C)
     return OffdiagonalsBoseReal1D2C(h, a, length, hops_a)
 end
 
-function Base.getindex(s::OffdiagonalsBoseReal1D2C{A}, i) where {A}
+function Base.getindex(s::OffdiagonalsBoseReal1D2C{A,T}, i)::Tuple{A,T} where {A,T}
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     if i ≤ s.num_hops_a
         new_a, matrix_element = get_offdiagonal(s.hamiltonian.ha, s.address.bsa, i)
