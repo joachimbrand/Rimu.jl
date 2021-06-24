@@ -125,7 +125,7 @@ function coherence(::Type{<:Complex}, reference, vector)
     accumulator, overlap = mapreduce(+, pairs(vector); init=z) do ((k, v))
         ref = sign(reference[k])
         MultiScalar(
-            sign(real(v)) * sign(ref) + im * sign(imag(v)) * sign(ref),
+            ComplexF64(sign(real(v)) * sign(ref) + im * sign(imag(v)) * sign(ref)),
             Int(!iszero(ref))
         )
     end
