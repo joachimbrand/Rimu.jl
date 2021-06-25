@@ -97,30 +97,67 @@ function post_step(p::ProjectedEnergy, replica)
 end
 
 """
-    SignCoherence(reference) <: PostStepStrategy
+    SignCoherence(reference[; name=:coherence]) <: PostStepStrategy
 
 After each step, compute the proportion of configurations that have the same sign as they do
-in the `reference_dvec`. Reports to a column named `coherence`.
+in the `reference_dvec`. Reports to a column named `name`, which defaults to `coherence`.
 """
 struct SignCoherence{R} <: PostStepStrategy
+    name::Symbol
     reference::R
 end
+SignCoherence(ref; name=:coherence) = SignCoherence(name, ref)
 
 function post_step(sc::SignCoherence, replica)
     vector = replica.v
-    return coherence(valtype(vector), sc.reference, vector)
+    return (sc.name => coherence(valtype(vector), sc.reference, vector),)
 end
 
 function coherence(::Type{<:Real}, reference, vector)
-    num_correct = mapreduce(+, pairs(vector); init=0) do ((k, v))
-        sign(v) == sign(reference[k])
+    accumulator, overlap = mapreduce(+, pairs(vector); init=MultiScalar(0.0, 0)) do ((k, v))
+        ref = reference[k]
+        MultiScalar(Float64(sign(ref) * sign(v)), Int(!iszero(ref)))
     end
-    return (:coherence => num_correct / length(vector),)
+    return iszero(overlap) ? 0.0 : accumulator / overlap
 end
 function coherence(::Type{<:Complex}, reference, vector)
-    num_correct = mapreduce(+, pairs(vector); init=0 + 0im) do ((k, v))
-        ref_sign = sign(reference[k])
-        (sign(real(v)) == ref_sign) + im * (sign(imag(v)) == ref_sign)
+    z = MultiScalar(0.0 + 0im, 0)
+    accumulator, overlap = mapreduce(+, pairs(vector); init=z) do ((k, v))
+        ref = sign(reference[k])
+        MultiScalar(
+            ComplexF64(sign(real(v)) * sign(ref) + im * sign(imag(v)) * sign(ref)),
+            Int(!iszero(ref))
+        )
     end
-    return (:coherence => num_correct / length(vector),)
+    return iszero(overlap) ? 0.0 : accumulator / overlap
+end
+
+"""
+    WalkerLoneliness(threshold=1) <: PostStepStrategy
+
+After each step, compute the proportion of configurations that are occupied by at most
+`threshold` walkers. Reports to a column named `loneliness`.
+"""
+struct WalkerLoneliness{T} <: PostStepStrategy
+    threshold::T
+end
+WalkerLoneliness() = WalkerLoneliness(1)
+
+function post_step(wl::WalkerLoneliness, replica)
+    vector = replica.v
+    return (:loneliness => loneliness(valtype(vector), vector, wl.threshold),)
+end
+
+function loneliness(::Type{<:Real}, vector, threshold)
+    num_lonely = mapreduce(+, values(vector), init=0) do v
+        abs(v) ≤ threshold
+    end
+    return num_lonely / length(vector)
+end
+
+function loneliness(::Type{<:Complex}, vector, threshold)
+    num_lonely = mapreduce(+, values(vector), init=0 + 0im) do v
+        (abs(real(v)) ≤ threshold) + im*(abs(imag(v)) ≤ threshold)
+    end
+    return num_lonely / length(vector)
 end

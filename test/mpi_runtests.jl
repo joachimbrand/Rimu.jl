@@ -200,7 +200,7 @@ end
             (RMPI.mpi_all_to_all, (;)),
             (RMPI.mpi_one_sided, (; capacity=1000)),
         )
-            @testset "Regular with $setup" begin
+            @testset "Regular with $setup and post-steps" begin
                 H = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
                 dv = MPIData(
                     DVec(starting_address(H) => 3; style=IsDynamicSemistochastic());
@@ -208,7 +208,12 @@ end
                     kwargs...
                 )
 
-                post_step = ProjectedEnergy(H, dv)
+                post_step = (
+                    ProjectedEnergy(H, dv),
+                    SignCoherence(copy(localpart(dv))),
+                    WalkerLoneliness(),
+                    Projector(proj_1=Norm2Projector()),
+                )
                 df = lomc!(H, dv; post_step, laststep=5000).df
 
                 # Shift estimate.
@@ -220,6 +225,8 @@ end
 
                 @test s_low < E0 < s_high
                 @test p_low < E0 < p_high
+                @test all(-1 .≤ df.coherence .≤ 1)
+                @test all(0 .≤ df.loneliness .≤ 1)
             end
             @testset "Initiator with $setup" begin
                 H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)

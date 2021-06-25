@@ -40,7 +40,7 @@ export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, ReportDFAndInfo, ReportToFile
 export ReplicaStrategy, NoStats, AllOverlaps
-export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence
+export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
 

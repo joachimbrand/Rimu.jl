@@ -86,10 +86,6 @@ function mpi_combine_walkers!(dtarget::MPIData, source::AbstractDVec)
 end
 
 # This function is just a wrapper that makes allreduce treat a SVector as a scalar
-function _communicate_stats(stats, comm)
-    return invoke(MPI.Allreduce, Tuple{Any, typeof(+), MPI.Comm}, stats, +, comm)
-end
-
 function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
     # multi-threaded MPI version
     # should only ever run on thread 1
@@ -100,13 +96,13 @@ function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) whe
     end
     mpi_combine_walkers!(dtarget,lwm) # combine walkers from different MPI ranks
     stats = sum(statss) # combine stats from all threads
-    res_stats = _communicate_stats(stats, dtarget.comm) # add stats from all MPI ranks
+    res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
     return dtarget, ws, res_stats
 end
 function Rimu.sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
     # single threaded MPI version
     mpi_combine_walkers!(dtarget,w) # combine walkers from different MPI ranks
-    res_stats = _communicate_stats(stats, dtarget.comm) # add stats from all MPI ranks
+    res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
     return dtarget, w, res_stats
 end
 
