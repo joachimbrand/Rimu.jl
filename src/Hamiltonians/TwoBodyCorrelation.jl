@@ -26,11 +26,17 @@ struct G2Correlator <: AbstractHamiltonian{ComplexF64}
 end
 
 function num_offdiagonals(g::G2Correlator, add::BoseFS2C)
-    M = num_modes(add)
+    m = num_modes(add)
     sa = numberoccupiedsites(add.bsa)
     sb = numberoccupiedsites(add.bsb)
-    return sa*(M-1)*sb
+    return sa*(m-1)*sb
     # number of excitations that can be made
+end
+
+function num_offdiagonals(g::G2Correlator, add::BoseFS)
+    m = num_modes(add)
+    singlies, doublies = num_singly_doubly_occupied_sites(add)
+    return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
 end
 
 """
@@ -58,6 +64,19 @@ function diagonal_element(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB}) where {
     return ComplexF64(gd/M)
 end
 
+function diagonal_element(g::G2Correlator, add::BoseFS{N,M,A}) where {N,M,A}
+    onrep = onr(add)
+    gd = 0
+    for p in 1:M
+        iszero(onrep[p]) && continue
+        for k in 1:M
+            gd += onrep[k]*onrep[p] # a†_p a_p a†_k a_k
+        end
+    end
+    return ComplexF64(gd/M)
+end
+
+
 function get_offdiagonal(
     g::G2Correlator,
     add::A,
@@ -66,10 +85,24 @@ function get_offdiagonal(
     sb=numberoccupiedsites(add.bsb),
 )::Tuple{A,ComplexF64} where {A<:BoseFS2C}
 
-    M = num_modes(add)
+    m = num_modes(add)
     new_bsa, new_bsb, onproduct_a, onproduct_b, p, q = hop_across_two_addresses(add.bsa, add.bsb, chosen, sa, sb)
     new_add = BoseFS2C(new_bsa, new_bsb)
     gamma = sqrt(onproduct_a*onproduct_b)
-    gd = exp(-im*g.d*(p-q)*2π/M)*gamma
-    return new_add, ComplexF64(gd/M)
+    gd = exp(-im*g.d*(p-q)*2π/m)*gamma
+    return new_add, ComplexF64(gd/m)
+end
+
+function get_offdiagonal(
+    g::G2Correlator,
+    add::A,
+    chosen
+)::Tuple{A,ComplexF64} where {A<:BoseFS}
+
+    m = num_modes(add)
+    singlies, doublies = num_singly_doubly_occupied_sites(add)
+    new_add, onproduct, Δp = generate_new_add(add, chosen, singlies, doublies)
+    gamma = sqrt(onproduct)
+    gd = exp(-im*g.d*Δp*2π/m)*gamma
+    return A(new_add), ComplexF64(gd/m)
 end
