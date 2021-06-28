@@ -1,18 +1,32 @@
 # Methods that need to be implemented:
 #   •  starting_address(::AbstractHamiltonian) - not needed
 """
-    G2Correlator(d::Int) <: AbstractHamiltonian{ComplexF64}
+    G2Correlator(d::Int,c=:cross) <: AbstractHamiltonian{ComplexF64}
 
-Two-body correlation operator representing the inter-component density-
-density correlation at distance `d` of a two component system
+Two-body correlation operator representing the density-density
+correlation at distance `d` of a two component system
 in a momentum-space Fock-state basis.
 It returns a `Complex` value.
-It currently only works on [`BoseFS2C`](@ref).
 
-
+Correlation across two-component:
 ```math
-\\hat{G}_2(d) = \\frac{1}{M}\\sum_{spqr=1}^M e^{-id(p-q)2π/M} a^†_{s} b^†_{p}  b_q a_r δ_{s+p,q+r}
+\\hat{G}^{(2)}(d) = \\frac{1}{M}\\sum_{spqr=1}^M e^{-id(p-q)2π/M} a^†_{s} b^†_{p}  b_q a_r δ_{s+p,q+r}
 ```
+Correlation within a single component:
+```math
+\\hat{G}^{(2)}(d) = \\frac{1}{M}\\sum_{spqr=1}^M e^{-id(p-q)2π/M} a^†_{s} a^†_{p}  a_q a_r δ_{s+p,q+r}
+```
+# Arguments
+- `d::Integer`: the distance between two particles.
+- `c`: possible instructions: `:cross`: default instruction, computing correlation between particles across two components;
+  `:first`: computing correlation between particles within the first component;
+  `:second`: computing correlation between particles within the second component.
+  These are the only defined instructions, using anything else with produce errors.
+
+# To use on a one-component system
+
+For a system with only one component, e.g. with `BoseFS`, the second argument `c` is irrelevant
+and can be any of the above instructions, one could simply skip this argument and let it be the default value.
 
 # See also
 
@@ -23,17 +37,28 @@ It currently only works on [`BoseFS2C`](@ref).
 """
 struct G2Correlator{C} <: AbstractHamiltonian{ComplexF64}
     d::Int
+
+    function G2Correlator(d,c=:cross)
+        if c == :first
+            return new{1}(d)
+        elseif c == :second
+            return new{2}(d)
+        elseif c == :cross
+            return new{3}(d)
+        else
+            error("Unknown instrcution for G2Correlator!")
+        end
+    end
 end
 
-function G2Correlator(d,c=:first)
-    if c == :first
-        return G2Correlator{1}(d)
-    elseif c == :second
-        return G2Correlator{2}(d)
-    elseif c == :cross
-        return G2Correlator{3}(d)
-    else
-        error("Unknown operation for G2Correlator!")
+
+function Base.show(io::IO, g::G2Correlator{C}) where C
+    if C == 1
+        print(io, "G2Correlator($(g.d),:first)")
+    elseif C == 2
+        print(io, "G2Correlator($(g.d),:second)")
+    elseif C == 3
+        print(io, "G2Correlator($(g.d),:cross)")
     end
 end
 
@@ -95,14 +120,14 @@ function diagonal_element(g::G2Correlator, add::BoseFS{N,M,A}) where {N,M,A}
     return ComplexF64(gd/M)
 end
 
-function get_offdiagonal(g::G2Correlator{1}, add::BoseFS2C, chosen)::Tuple{BoseFS2C,ComplexF64}
+function get_offdiagonal(g::G2Correlator{1}, add::A, chosen)::Tuple{A,ComplexF64} where A
     new_bsa, elem = get_offdiagonal(g, add.bsa, chosen)
-    return BoseFS2C(new_bsa,add.bsb), elem
+    return A(new_bsa,add.bsb), elem
 end
 
-function get_offdiagonal(g::G2Correlator{2}, add::BoseFS2C, chosen)::Tuple{BoseFS2C,ComplexF64}
+function get_offdiagonal(g::G2Correlator{2}, add::A, chosen)::Tuple{A,ComplexF64} where A
     new_bsb, elem = get_offdiagonal(g, add.bsb, chosen)
-    return BoseFS2C(add.bsa, new_bsb), elem
+    return A(add.bsa, new_bsb), elem
 end
 
 function get_offdiagonal(
@@ -115,10 +140,9 @@ function get_offdiagonal(
 
     m = num_modes(add)
     new_bsa, new_bsb, onproduct_a, onproduct_b, p, q = hop_across_two_addresses(add.bsa, add.bsb, chosen, sa, sb)
-    new_add = BoseFS2C(new_bsa, new_bsb)
     gamma = sqrt(onproduct_a*onproduct_b)
     gd = exp(-im*g.d*(p-q)*2π/m)*gamma
-    return new_add, ComplexF64(gd/m)
+    return A(new_bsa, new_bsb), ComplexF64(gd/m)
 end
 
 function get_offdiagonal(
