@@ -61,6 +61,13 @@ function test_dvec_interface(type, keys, vals, cap)
                 @test iszero(dvec[k])
             end
             @test isempty(dvec)
+            for (k, v) in shuffle(pairs)
+                dvec[k] += v
+            end
+            for (k, v) in shuffle(pairs)
+                dvec[k] -= v
+            end
+            @test isempty(dvec)
         end
         @testset "types and traits" begin
             dvec = type(pairs...; capacity=cap)

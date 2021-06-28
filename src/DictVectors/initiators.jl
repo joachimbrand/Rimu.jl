@@ -282,7 +282,12 @@ function deposit!(w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)) where {V}
             new_val = InitiatorValue{V}(unsafe=val)
         end
     end
-    w.storage[add] = get(w.storage, add, zero(InitiatorValue{V})) + new_val
+    new_val += get(w.storage, add, zero(InitiatorValue{V}))
+    if new_val == InitiatorValue{V}(0, 0, 0)
+        delete!(w.storage, add)
+    else
+        w.storage[add] = new_val
+    end
 end
 
 function deposit!(w::InitiatorDVec{<:Any,V}, add, val::InitiatorValue{V}, _) where {V}

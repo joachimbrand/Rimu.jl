@@ -338,9 +338,6 @@ end
 
     @testset "Initiator energies" begin
         add = BoseFS{10,10}((0,0,0,0,10,0,0,0,0,0))
-        H = HubbardMom1D(add)
-        E0 = -16.36048582876015
-
         dv_no = DVec(
             add => 1;
             style=IsDynamicSemistochastic()
@@ -364,25 +361,28 @@ end
         @testset "Energies below the plateau & initiator bias" begin
             seedCRNG!(8008)
 
-            s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=50)
-            laststep = 2500
-            dτ = 1e-3
+            H = HubbardMom1D(add; u=4.0)
+            E0 = -9.251592973178997
+
+            s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=300)
+            laststep = 6_000
+            dτ = 5e-4
             df_no = lomc!(H, copy(dv_no); s_strat, laststep, dτ).df
             df_i1 = lomc!(H, copy(dv_i1); s_strat, laststep, dτ).df
             df_i2 = lomc!(H, copy(dv_i2); s_strat, laststep, dτ).df
             df_i3 = lomc!(H, copy(dv_i3); s_strat, laststep, dτ).df
 
-            E_no, σ_no = mean_and_se(df_no.shift[500:end])
-            E_i1, σ_i1 = mean_and_se(df_i1.shift[500:end])
-            E_i2, σ_i2 = mean_and_se(df_i2.shift[500:end])
-            E_i3, σ_i3 = mean_and_se(df_i3.shift[500:end])
+            E_no, σ_no = mean_and_se(df_no.shift[2000:end])
+            E_i1, σ_i1 = mean_and_se(df_i1.shift[2000:end])
+            E_i2, σ_i2 = mean_and_se(df_i2.shift[2000:end])
+            E_i3, σ_i3 = mean_and_se(df_i3.shift[2000:end])
 
             # Garbage energy from no initiator.
             @test E_no < E0
             # Initiator has a bias.
-            @test E_i1 > E0 - σ_i1
-            @test E_i2 > E0 - σ_i2
-            @test E_i3 > E0 - σ_i3
+            @test E_i1 > E0
+            @test E_i2 > E0
+            @test E_i3 > E0
 
             # Simple initiator has the largest bias.
             @test E_i2 > E_i1
@@ -392,6 +392,9 @@ end
 
         @testset "Energies above the plateau" begin
             seedCRNG!(1337)
+
+            H = HubbardMom1D(add)
+            E0 = -16.36048582876015
 
             s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=3000)
             laststep = 2500
