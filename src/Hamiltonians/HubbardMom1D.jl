@@ -244,7 +244,7 @@ end
 @inline function get_offdiagonal(
     ham::HubbardMom1D{<:Any,M,A}, add, chosen, singlies, doublies
 ) where {M,A}
-    svec, onproduct, _ = generate_new_add(add, chosen, singlies, doublies)
+    svec, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
     return A(svec), ham.u/(2*M)*sqrt(onproduct)
     # return new address and matrix element
 end
