@@ -30,7 +30,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, w, m = 1.0;
     # this function:
     stat_names, stats = step_stats(v, Val(1))
     for (k, v) in pairs(v)
-        stats += SVector(fciqmc_col!(w, Ĥ, k, v, shift, dτ))
+        stats += MultiScalar(fciqmc_col!(w, Ĥ, k, v, shift, dτ))
     end
     r = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat) # memory noise
     return (sort_into_targets!(dv, w, stats)..., stat_names, r) # MPI syncronizing
@@ -104,7 +104,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Float64;
             # serial_loop_configs!(ps, ws[id], statss[id], trng())
             for (add, num) in ps
                 ss = fciqmc_col!(ws[threadid()], Ĥ, add, num, shift, dτ)
-                stats[threadid()] += SVector(ss)
+                stats[threadid()] += MultiScalar(ss)
             end
         end
         return nothing
@@ -141,7 +141,7 @@ function fciqmc_step!(Ĥ, dv, shift, dτ, pnorm, ws::NTuple{NT,W}, f::Bool;
     # stats = mapreduce(p-> SVector(fciqmc_col!(ws[Threads.threadid()], Ĥ, p.first, p.second, shift, dτ)), +,
     #   pairs(v))
 
-    stats = ThreadsX.sum(SVector(fciqmc_col!(ws[Threads.threadid()], Ĥ, p.first, p.second, shift, dτ)) for p in pairs(v))
+    stats = ThreadsX.sum(MultiScalar(fciqmc_col!(ws[Threads.threadid()], Ĥ, p.first, p.second, shift, dτ)) for p in pairs(v))
     # return ws, stats
     r = apply_memory_noise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
     return (sort_into_targets!(dv, ws, stats)... , r) # MPI syncronizing

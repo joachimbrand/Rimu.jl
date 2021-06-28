@@ -101,7 +101,7 @@ walker annihilation is done before the stochastic vector compression.
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsDynamicSemistochastic{T<:AbstractFloat,P}<:StochasticStyle{T}
+struct IsDynamicSemistochastic{T<:AbstractFloat,P} <: StochasticStyle{T}
     rel_threshold::T
     abs_threshold::T
     proj_threshold::T
@@ -114,6 +114,22 @@ function IsDynamicSemistochastic{T}(
     )
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
+
+struct IsExplosive{T<:AbstractFloat} <: StochasticStyle{T}
+    splatter_factor::T
+    explosion_threshold::T
+    proj_threshold::T
+end
+function IsExplosive{T}(
+    ; splatter_factor=one(T), explosion_threshold=one(T), proj_threshold=one(T)
+) where {T}
+    return IsExplosive(
+        T(splatter_factor), T(explosion_threshold), T(proj_threshold)
+    )
+end
+function IsExplosive(; kwargs...)
+    return IsExplosive{Float64}(; kwargs...)
+end
 
 # Defaults for arrays.
 StochasticStyle(::AbstractArray{AbstractFloat}) = IsDeterministic()

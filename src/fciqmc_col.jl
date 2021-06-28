@@ -83,10 +83,6 @@ projection threshold.
 function exact_diagonal_step(w, ham, add, val, dτ, shift, proj=0)
     clones = deaths = zombies = zero(val)
 
-
-    # new_val1 = (1 + dτ*(shift - diagonal_element(ham, add))) * val
-    #threshold_projected_deposit!(s, w, add, new_val, add => val)
-
     pd = dτ * (diagonal_element(ham, add) - shift)
     new_val = (1 - pd) * val
     threshold_projected_deposit!(w, add, new_val, add => val, proj)
@@ -179,7 +175,7 @@ fciqmc_col!(::Type{T}, args...) where T = throw(TypeError(:fciqmc_col!,
 ###
 
 function step_stats(::IsDeterministic)
-    return (:exact_steps,), SVector(0,)
+    return (:exact_steps,), MultiScalar(0,)
 end
 function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
     for i in axes(ham, 1) # iterate through off-diagonal rows of `ham`
@@ -202,7 +198,7 @@ end
 function step_stats(::IsStochasticInteger)
     return (
         (:spawns, :deaths, :clones, :zombies, :annihilations),
-        SVector(0, 0, 0, 0, 0),
+        MultiScalar(0, 0, 0, 0, 0),
     )
 end
 function fciqmc_col!(
@@ -216,7 +212,7 @@ end
 function step_stats(::DictVectors.IsStochastic2Pop)
     return (
         (:spawns, :deaths, :clones, :zombies, :annihilations),
-        SVector{5,Complex{Int}}(0, 0, 0, 0, 0),
+        MultiScalar(ntuple(0 + 0im, Val(5))),
     )
 end
 function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian, add,
@@ -346,7 +342,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
 end
 
 function step_stats(::IsStochasticWithThreshold)
-    return (:spawns, :deaths), SVector(0, 0)
+    return (:spawns, :deaths), MultiScalar(0, 0)
 end
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
         add, val::N, shift, dτ) where N <: Real
@@ -413,7 +409,7 @@ end
 function step_stats(::IsDynamicSemistochastic)
     return (
         (:exact_steps, :inexact_steps, :spawns, :clones, :deaths, :zombies),
-        SVector(0, 0, 0, 0.0, 0.0, 0.0),
+        MultiScalar(0, 0, 0, 0.0, 0.0, 0.0),
     )
 end
 function fciqmc_col!(
@@ -423,4 +419,46 @@ function fciqmc_col!(
     clones, deaths, zombies = exact_diagonal_step(w, ham, add, val, dτ, shift)
     exact, inexact, spawns = semistochastic_spawns(w, ham, add, val, dτ, 0, 2, false)
     return (exact, inexact, spawns, clones, deaths, zombies)
+end
+
+function step_stats(::IsExplosive)
+    return (
+        (:explosive_steps,
+         :explosive_spawns,
+         :unevents,
+         :normal_steps,
+         :normal_spawns,
+         :clones, :deaths, :zombies
+         ),
+        MultiScalar(0, 0, 0, 0, 0, 0.0, 0.0, 0.0),
+    )
+end
+function fciqmc_col!(
+    s::IsExplosive, w, ham::AbstractHamiltonian, add, val, shift, dτ,
+)
+    explosive_steps = normal_steps = unevents = 0
+    explosive_spawns = normal_spawns = 0
+    clones = deaths = zombies = 0.0
+
+    pd = dτ * (diagonal_element(ham, add) - shift)
+    if abs(val) ≤ s.explosion_threshold && 0 ≤ pd < 1
+        if cRand() < pd
+            _, _, explosive_spawns = semistochastic_spawns(
+                w, ham, add, val / pd, dτ, 0, s.splatter_factor, true
+            )
+            explosions = 1
+        else
+            deposit!(w, add, val, add => val)
+            unevents = 1
+        end
+    else
+        clones, deaths, zombies = exact_diagonal_step(w, ham, add, val, dτ, shift)
+        _, _, normal_spawns = semistochastic_spawns(w, ham, add, val, dτ, 0, 1, true)
+        normal_steps = 1
+    end
+
+    return (
+        explosive_steps, explosive_spawns, unevents, normal_steps, normal_spawns,
+        clones, deaths, zombies,
+    )
 end
