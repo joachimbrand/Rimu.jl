@@ -120,12 +120,12 @@ function diagonal_element(g::G2Correlator, add::BoseFS{N,M,A}) where {N,M,A}
     return ComplexF64(gd/M)
 end
 
-function get_offdiagonal(g::G2Correlator{1}, add::A, chosen)::Tuple{A,ComplexF64} where A
+function get_offdiagonal(g::G2Correlator{1}, add::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
     new_bsa, elem = get_offdiagonal(g, add.bsa, chosen)
     return A(new_bsa,add.bsb), elem
 end
 
-function get_offdiagonal(g::G2Correlator{2}, add::A, chosen)::Tuple{A,ComplexF64} where A
+function get_offdiagonal(g::G2Correlator{2}, add::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
     new_bsb, elem = get_offdiagonal(g, add.bsb, chosen)
     return A(add.bsa, new_bsb), elem
 end

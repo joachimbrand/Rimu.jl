@@ -384,4 +384,27 @@ end
     @test dot(v0,g2,v0) ≈ 0.6740124948852698
     @test dot(v0,g3,v0) ≈ 0.6519750102294596
     @test num_offdiagonals(g0,aIni) == 2
+
+    # on first component
+    g0f = G2Correlator(0,:first)
+    g1f = G2Correlator(1,:first)
+    @test imag(dot(v0,g0f,v0)) == 0 # should be strictly real
+    @test dot(v0,g0f,v0) ≈ 1.3334945983804103
+    @test dot(v0,g1f,v0) ≈ 1.3332527008097934 + 7.086237479146318e-5im
+    # on second component
+    g0s = G2Correlator(0,:second)
+    g1s = G2Correlator(1,:second)
+    @test_throws ErrorException("invalid ONR") get_offdiagonal(g0s,aIni,1) # should fail due to invalid ONR
+    @test dot(v0,g0s,v0) ≈ 1/3
+    @test dot(v0,g1s,v0) ≈ 1/3
+    # test against BoseFS
+    ham1 = HubbardMom1D(bfs1)
+    ham2 = HubbardMom1D(bfs2)
+    @test num_offdiagonals(g0f,aIni) == num_offdiagonals(ham1,bfs1)
+    @test num_offdiagonals(g0s,aIni) == num_offdiagonals(ham2,bfs2)
+    aIni = BoseFS2C(bfs2,bfs1) # flip bfs1 and bfs2
+    @test get_offdiagonal(g0s,aIni,1) == (BoseFS2C(BoseFS{1,3}((0, 1, 0)),BoseFS{2,3}((1, 0, 1))), 0.47140452079103173)
+    # test on BoseFS
+    @test diagonal_element(g0s,bfs1) == 4/3
+    @test diagonal_element(g0s,bfs2) == 1/3
 end
