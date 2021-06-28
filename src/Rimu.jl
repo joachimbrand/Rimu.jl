@@ -14,6 +14,7 @@ using Reexport
 using Setfield
 using SplittablesBase
 using StaticArrays
+using StatsBase
 using ThreadsX
 
 @reexport using Distributed

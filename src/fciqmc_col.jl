@@ -1,4 +1,5 @@
 # third level: `fciqmc_col!()`
+using StatsBase
 
 """
     step_stats(::StochasticStyle)
@@ -57,12 +58,38 @@ function integer_spawns(w, ham, add, num::T, dτ, strength=1) where {T}
     return (spawns, annihilations)
 end
 
-function exact_diagonal_step(w, ham, add, val, dτ, shift, threshold=0)
+"""
+    threshold_projected_deposit!(w, add, val, parent, threshold)
+
+Like [`deposit!`](@ref), but performs threshold projection before spawning.
+"""
+function threshold_projected_deposit!(w, add, val, parent, threshold)
+    absval = abs(val)
+    if absval < threshold
+        if cRand() < abs(val) / threshold
+            deposit!(w, add, sign(val) * threshold, parent)
+        end
+    else
+        deposit!(w, add, val, parent)
+    end
+    return nothing
+end
+"""
+    exact_diagonal_step(w, ham, add, val, dτ, shift, proj=0)
+
+Perform exact diagonal step on a walker `add => val`. Optional argument `proj` sets the
+projection threshold.
+"""
+function exact_diagonal_step(w, ham, add, val, dτ, shift, proj=0)
     clones = deaths = zombies = zero(val)
 
+
+    # new_val1 = (1 + dτ*(shift - diagonal_element(ham, add))) * val
+    #threshold_projected_deposit!(s, w, add, new_val, add => val)
+
     pd = dτ * (diagonal_element(ham, add) - shift)
-    new_val = (1 - dτ) * val
-    deposit!(s, w, add, new_val, add => val)
+    new_val = (1 - pd) * val
+    threshold_projected_deposit!(w, add, new_val, add => val, proj)
     if pd < 0
         clones = abs(new_val - val)
     elseif pd < 1
@@ -71,6 +98,50 @@ function exact_diagonal_step(w, ham, add, val, dτ, shift, threshold=0)
         zombies = abs(new_val)
     end
     return (clones, deaths, zombies)
+end
+"""
+    semistochastic_spawns(w, ham, add, val, dτ, proj=0, strength=1)
+
+Perform semistochastic spawns from a walker `add => val`. Optional argument `proj` sets the
+projection threshold. `strength` sets the number of spawns to perform, e.g. if `val=5` and
+`strength=2`, 10 spawns will be performed.
+"""
+function semistochastic_spawns(w, ham, add, val, dτ, proj=0, strength=1, replace=true)
+    hops = offdiagonals(ham, add)
+    num_spawns = strength * abs(val)
+    if num_spawns ≥ length(hops)
+        # Exact multiplication when conditions are met.
+        factor = dτ * val
+        for (new_add, mat_elem) in hops
+            threshold_projected_deposit!(w, new_add, -factor * mat_elem, add => val, proj)
+        end
+        spawns = length(hops)
+        return (1, 0, spawns)
+    elseif replace
+        remainder = num_spawns % 1
+        hasrem = !iszero(remainder)
+        spawns = ceil(Int, num_spawns)
+        for i in 1:spawns
+            new_add, gen_prob, mat_elem = random_offdiagonal(hops)
+            rem_factor = ifelse(i == 1 & hasrem, remainder, 1.0)
+            new_val = sign(val) * rem_factor * dτ * mat_elem / (gen_prob * strength)
+            threshold_projected_deposit!(w, new_add, -new_val, add => val, proj)
+        end
+
+        return (0, 1, spawns)
+    else
+        spawns = floor(Int, num_spawns)
+        selected = sample(1:length(hops), spawns; replace=false)
+        # new_val = sign(val) * rem_factor * dτ * mat_elem / (gen_prob * strength)
+        α = sign(val) * (num_spawns / spawns) * dτ * length(hops) / strength
+        for i in selected
+            new_add, mat_elem = hops[i]
+            new_val = α * mat_elem
+            threshold_projected_deposit!(w, new_add, -new_val, add => val, proj)
+        end
+
+        return (0, 1, spawns)
+    end
 end
 
 """
@@ -338,61 +409,18 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     return (spawns, deaths)
 end
 
-"""
-    threshold_projected_deposit!
-This function performs threshold projection before spawning, but only for
-`IsDynamicSemistochastic` with the `project_later` parameter set to `false`.
-"""
-function threshold_projected_deposit!(s::IsDynamicSemistochastic{<:Any,false}, w, add, val, p)
-    threshold = s.proj_threshold
-    absval = abs(val)
-    if absval < threshold
-        if cRand() < abs(val) / threshold
-            deposit!(w, add, sign(val) * threshold, p)
-        end
-    else
-        deposit!(w, add, val, p)
-    end
-    return nothing
-end
-function threshold_projected_deposit!(::IsDynamicSemistochastic{<:Any,true}, w, add, val, p)
-    deposit!(w, add, val, p)
-end
 
 function step_stats(::IsDynamicSemistochastic)
-    return (:exact_steps, :inexact_steps, :spawns), SVector(0, 0, 0)
+    return (
+        (:exact_steps, :inexact_steps, :spawns, :clones, :deaths, :zombies),
+        SVector(0, 0, 0, 0.0, 0.0, 0.0),
+    )
 end
 function fciqmc_col!(
     s::IsDynamicSemistochastic,
     w, ham::AbstractHamiltonian, add, val, shift, dτ,
 )
-    absval = abs(val)
-    spawns = 0
-
-    # Diagonal step:
-    new_val = (1 + dτ*(shift - diagonal_element(ham, add))) * val
-    threshold_projected_deposit!(s, w, add, new_val, add => val)
-
-    hops = offdiagonals(ham, add)
-    if s.rel_threshold * val ≥ length(hops) || val ≥ s.abs_threshold
-        # Exact multiplication when conditions are met.
-        factor = dτ * val
-        for (new_add, mat_elem) in hops
-            threshold_projected_deposit!(s, w, new_add, -factor * mat_elem, add => val)
-        end
-        spawns = length(hops)
-        return (1, 0, spawns)
-    else
-        remainder = absval % 1
-        hasrem = !iszero(remainder)
-        spawns = ceil(Int, absval)
-        for i in 1:spawns
-            new_add, gen_prob, mat_elem = random_offdiagonal(hops)
-            rem_factor = ifelse(i == 1 & hasrem, remainder, 1.0)
-            new_val = sign(val) * rem_factor * dτ * mat_elem / gen_prob
-            threshold_projected_deposit!(s, w, new_add, -new_val, add => val)
-        end
-
-        return (0, 1, spawns)
-    end
+    clones, deaths, zombies = exact_diagonal_step(w, ham, add, val, dτ, shift)
+    exact, inexact, spawns = semistochastic_spawns(w, ham, add, val, dτ, 0, 2, false)
+    return (exact, inexact, spawns, clones, deaths, zombies)
 end
