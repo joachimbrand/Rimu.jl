@@ -75,7 +75,7 @@ using Statistics
 
         @testset "AllOverlaps" begin
             # column names are of the form c{i}_dot_c{j} and c{i}_Op{k}_c{j}.
-            num_stats(df) = length(filter(startswith('c'), names(df)))
+            num_stats(df) = length(filter(x -> match(r"^c[0-9]", x) ≠ nothing, names(df)))
 
             # No operator: N choose 2 reports.
             df, _ = lomc!(H, dv; replica=AllOverlaps(4))

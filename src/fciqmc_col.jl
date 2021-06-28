@@ -212,7 +212,7 @@ end
 function step_stats(::DictVectors.IsStochastic2Pop)
     return (
         (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(ntuple(0 + 0im, Val(5))),
+        MultiScalar(ntuple(_ -> 0 + 0im, Val(5))),
     )
 end
 function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian, add,
@@ -220,7 +220,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
 )
     # version for complex integer psips
     # off-diagonal: spawning psips
-    spawns = deaths = clones = zombies = annihilations = zero(cnum)
+    spawns::typeof(cnum) = deaths = clones = zombies = annihilations = zero(cnum)
     # stats reported are complex, for each component separately
     hops = offdiagonals(ham,add)
     # real psips first
@@ -228,7 +228,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
-        nspawn = floor(pspawn) # deal with integer part separately
+        nspawn = floor(Int, pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
         # at this point, nspawn is non-negative
         # now converted to correct type and compute sign
@@ -248,7 +248,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     for n in 1:abs(num) # for each psip attempt to spawn once
         naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
-        nspawn = floor(pspawn) # deal with integer part separately
+        nspawn = floor(Int, pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
         # at this point, nspawn is non-negative
         # now converted to correct type and compute sign
@@ -275,7 +275,7 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
     ndiag = trunc(newdiagpop)
     abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
     # only treat non-integer part stochastically
-    ndiags = convert(typeof(num),ndiag) # now real integer type
+    ndiags = convert(typeof(num),ndiag) + 0im # now real integer type
     if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
         annihilations += min(abs(real(w[add])),abs(real(ndiags)))
     end
@@ -311,8 +311,8 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
 
     # real part - to be spawned into real walkers
     rspawn = real(cspawn) # float with sign
-    nspawn = trunc(rspawn) # deal with integer part separately
-    cRand() < abs(rspawn - nspawn) && (nspawn += sign(rspawn)) # random spawn
+    nspawn = trunc(Int, rspawn) # deal with integer part separately
+    cRand() < abs(rspawn - nspawn) && (nspawn += Int(sign(rspawn))) # random spawn
     # at this point, nspawn has correct sign
     # now convert to correct type
     cnspawn = convert(typeof(cnum), nspawn)
@@ -325,8 +325,8 @@ function fciqmc_col!(::DictVectors.IsStochastic2Pop, w, ham::AbstractHamiltonian
 
     # imag part - to be spawned into imaginary walkers
     ispawn = imag(cspawn) # float with sign
-    nspawn = trunc(ispawn) # deal with integer part separately
-    cRand() < abs(ispawn - nspawn) && (nspawn += sign(ispawn)) # random spawn
+    nspawn = trunc(Int, ispawn) # deal with integer part separately
+    cRand() < abs(ispawn - nspawn) && (nspawn += Int(sign(ispawn))) # random spawn
     # at this point, nspawn has correct sign
     # now convert to correct type
     cnspawn = convert(typeof(cnum), nspawn*im)# imaginary spawns!
@@ -373,10 +373,10 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     # only integers are spawned!!
     hops = offdiagonals(ham, add)
     # first deal with integer psips
-    for n in 1:floor(abs(val)) # for each psip attempt to spawn once
+    for n in 1:floor(Int, abs(val)) # for each psip attempt to spawn once
         naddress, pgen, matelem = random_offdiagonal(hops)
         pspawn = dτ * abs(matelem) /pgen # non-negative Float64
-        nspawn = floor(pspawn) # deal with integer part separately
+        nspawn = floor(Int, pspawn) # deal with integer part separately
         cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
         # at this point, nspawn is non-negative
         # now converted to correct type and compute sign
@@ -391,7 +391,7 @@ function fciqmc_col!(s::IsStochasticWithThreshold, w, ham::AbstractHamiltonian,
     rval =  abs(val%1) # non-integer part reduces probability for spawning
     naddress, pgen, matelem = random_offdiagonal(hops)
     pspawn = rval * dτ * abs(matelem) /pgen # non-negative Float64
-    nspawn = floor(pspawn) # deal with integer part separately
+    nspawn = floor(Int, pspawn) # deal with integer part separately
     cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
     # at this point, nspawn is non-negative
     # now converted to correct type and compute sign
