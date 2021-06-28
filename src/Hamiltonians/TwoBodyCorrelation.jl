@@ -8,7 +8,7 @@ correlation at distance `d` of a two component system
 in a momentum-space Fock-state basis.
 It returns a `Complex` value.
 
-Correlation across two-component:
+Correlation across two components:
 ```math
 \\hat{G}^{(2)}(d) = \\frac{1}{M}\\sum_{spqr=1}^M e^{-id(p-q)2π/M} a^†_{s} b^†_{p}  b_q a_r δ_{s+p,q+r}
 ```
