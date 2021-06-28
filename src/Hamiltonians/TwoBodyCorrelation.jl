@@ -21,7 +21,7 @@ Correlation within a single component:
 - `c`: possible instructions: `:cross`: default instruction, computing correlation between particles across two components;
   `:first`: computing correlation between particles within the first component;
   `:second`: computing correlation between particles within the second component.
-  These are the only defined instructions, using anything else with produce errors.
+  These are the only defined instructions, using anything else will produce errors.
 
 # To use on a one-component system
 
