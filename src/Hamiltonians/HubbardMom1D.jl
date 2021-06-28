@@ -161,7 +161,12 @@ end
     get_offdiagonal(ham, add, chosen, num_singly_doubly_occupied_sites(add)...)
 end
 
-"Internal function used in `get_offdiagonal()`, `-q` is the change in momentum needed for `G2Corrlator`."
+"""
+    momentum_transfer_excitation(add, chosen, singlies, doublies)
+Internal function used in [`get_offdiagonal`](@ref) for [`HubbardMom1D`](@ref) 
+and [`G2Correlator`](@ref). Returns the new address, the onproduct, 
+and the change in momentum. 
+"""
 @inline function generate_new_add(add, chosen, singlies, doublies)
     M = num_modes(add)
     onrep = BitStringAddresses.m_onr(add)
