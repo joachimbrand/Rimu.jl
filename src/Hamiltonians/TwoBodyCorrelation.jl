@@ -21,11 +21,27 @@ It currently only works on [`BoseFS2C`](@ref).
 * [`AbstractHamiltonian`](@ref)
 
 """
-struct G2Correlator <: AbstractHamiltonian{ComplexF64}
+struct G2Correlator{C} <: AbstractHamiltonian{ComplexF64}
     d::Int
 end
 
-function num_offdiagonals(g::G2Correlator, add::BoseFS2C)
+function G2Correlator(d,c=:first)
+    if c == :first
+        return G2Correlator{1}(d)
+    elseif c == :second
+        return G2Correlator{2}(d)
+    elseif c == :cross
+        return G2Correlator{3}(d)
+    else
+        error("Unknown operation for G2Correlator!")
+    end
+end
+
+
+num_offdiagonals(g::G2Correlator{1},add::BoseFS2C) = num_offdiagonals(g, add.bsa)
+num_offdiagonals(g::G2Correlator{2},add::BoseFS2C) = num_offdiagonals(g, add.bsb)
+
+function num_offdiagonals(g::G2Correlator{3}, add::BoseFS2C)
     m = num_modes(add)
     sa = numberoccupiedsites(add.bsa)
     sb = numberoccupiedsites(add.bsb)
@@ -51,7 +67,10 @@ it becomes
 
 * [`G2Correlator`](@ref)
 """
-function diagonal_element(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+diagonal_element(g::G2Correlator{1}, add::BoseFS2C) = diagonal_element(g, add.bsa)
+diagonal_element(g::G2Correlator{2}, add::BoseFS2C) = diagonal_element(g, add.bsb)
+
+function diagonal_element(g::G2Correlator{3}, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     onrep_a = onr(add.bsa)
     onrep_b = onr(add.bsb)
     gd = 0
@@ -76,9 +95,18 @@ function diagonal_element(g::G2Correlator, add::BoseFS{N,M,A}) where {N,M,A}
     return ComplexF64(gd/M)
 end
 
+function get_offdiagonal(g::G2Correlator{1}, add::BoseFS2C, chosen)::Tuple{BoseFS2C,ComplexF64}
+    new_bsa, elem = get_offdiagonal(g, add.bsa, chosen)
+    return BoseFS2C(new_bsa,add.bsb), elem
+end
+
+function get_offdiagonal(g::G2Correlator{2}, add::BoseFS2C, chosen)::Tuple{BoseFS2C,ComplexF64}
+    new_bsb, elem = get_offdiagonal(g, add.bsb, chosen)
+    return BoseFS2C(add.bsa, new_bsb), elem
+end
 
 function get_offdiagonal(
-    g::G2Correlator,
+    g::G2Correlator{3},
     add::A,
     chosen,
     sa=numberoccupiedsites(add.bsa),
