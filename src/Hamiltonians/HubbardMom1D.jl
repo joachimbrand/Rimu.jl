@@ -162,7 +162,7 @@ end
 end
 
 "Internal function used in `get_offdiagonal()`, `-q` is the change in momentum needed for `G2Corrlator`."
-function generate_new_add(add, chosen, singlies, doublies)
+@inline function generate_new_add(add, chosen, singlies, doublies)
     M = num_modes(add)
     onrep = BitStringAddresses.m_onr(add)
     # get occupation number representation as a static array
