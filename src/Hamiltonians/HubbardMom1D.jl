@@ -163,11 +163,11 @@ end
 
 """
     momentum_transfer_excitation(add, chosen, singlies, doublies)
-Internal function used in [`get_offdiagonal`](@ref) for [`HubbardMom1D`](@ref) 
-and [`G2Correlator`](@ref). Returns the new address, the onproduct, 
-and the change in momentum. 
+Internal function used in [`get_offdiagonal`](@ref) for [`HubbardMom1D`](@ref)
+and [`G2Correlator`](@ref). Returns the new address, the onproduct,
+and the change in momentum.
 """
-@inline function generate_new_add(add, chosen, singlies, doublies)
+@inline function momentum_transfer_excitation(add, chosen, singlies, doublies)
     M = num_modes(add)
     onrep = BitStringAddresses.m_onr(add)
     # get occupation number representation as a static array

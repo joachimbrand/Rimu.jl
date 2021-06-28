@@ -153,7 +153,7 @@ function get_offdiagonal(
 
     m = num_modes(add)
     singlies, doublies = num_singly_doubly_occupied_sites(add)
-    new_add, onproduct, Δp = generate_new_add(add, chosen, singlies, doublies)
+    new_add, onproduct, Δp = momentum_transfer_excitation(add, chosen, singlies, doublies)
     gamma = sqrt(onproduct)
     gd = exp(-im*g.d*Δp*2π/m)*gamma
     return A(new_add), ComplexF64(gd/m)
