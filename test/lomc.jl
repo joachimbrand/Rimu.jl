@@ -130,6 +130,8 @@ using Statistics
         H = HubbardMom1D(add; u=6.0)
         dv = DVec(add => 1; style=IsDynamicSemistochastic())
 
+        seedCRNG!(1336)
+
         df = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4).df
         @test all(df.len[1:end-1] .≤ 10)
         @test df.len[end] > 10
@@ -327,7 +329,7 @@ end
         E_de, σ_de = mean_and_se(df_de.shift[500:end])
 
         # Stochastic noise depends on the method.
-        @test σ_cx > σ_st > σ_th > σ_dy > σ_de
+        @test σ_st > σ_th > σ_dy > σ_de
         # All estimates are fairly good.
         @test E_st ≈ E0 atol=3σ_st
         @test E_th ≈ E0 atol=3σ_th

@@ -98,6 +98,10 @@ end
     @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
 end
 
+@safetestset "fciqmc_col!" begin
+    include("fciqmc_col.jl")
+end
+
 @safetestset "lomc!" begin
     include("lomc.jl")
 end
@@ -116,7 +120,7 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2610 atol=1
+        @test sum(df[:,:norm]) ≈ 1809 atol=1
     end
 
     @testset "DeltaMemory" begin
@@ -125,14 +129,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2610 atol=1
+        @test sum(df[:,:norm]) ≈ 1809 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2236 atol=1
+        @test sum(df[:,:norm]) ≈ 1861 atol=1
     end
 
     @testset "DeltaMemory2" begin
@@ -141,14 +145,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2610 atol=1
+        @test sum(df[:,:norm]) ≈ 1809 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2038 atol=1
+        @test sum(df[:,:norm]) ≈ 2197 atol=1
     end
 
     @testset "ShiftMemory" begin
@@ -157,14 +161,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2610 atol=1
+        @test sum(df[:,:norm]) ≈ 1809 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 3135 atol=1
+        @test sum(df[:,:norm]) ≈ 2893 atol=1
     end
 end
 
@@ -247,9 +251,9 @@ using Rimu.Blocking
         ham, vs; params = pa, s_strat = s, post_step, τ_strat, wm = similar(vs),
     ).df
     r = autoblock(rdfs, start=101)
-    @test r.s̄ ≈ -5.14 atol=0.1
+    @test r.s̄ ≈ -5.80 atol=0.1
     @test r.σs ≈ 0.27 atol=0.1
-    @test r.ē ≈ -5.52 atol=0.1
+    @test r.ē ≈ -5.72 atol=0.1
     @test r.σe ≈ 0.39 atol=0.1
     @test r.k == 6
 
