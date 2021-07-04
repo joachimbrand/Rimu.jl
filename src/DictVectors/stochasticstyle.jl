@@ -52,11 +52,15 @@ IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 """
     IsDeterministic{T=Float64}() <: StochasticStyle{T}
 Trait for generalised vector of configuration indicating deterministic propagation of walkers.
+The optional [`compression`](@ref) argument can set a [`CompressionStrategy`](@ref).
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsDeterministic{T<:AbstractFloat} <: StochasticStyle{T} end
-IsDeterministic() = IsDeterministic{Float64}()
+struct IsDeterministic{T<:AbstractFloat,C<:CompressionStrategy} <: StochasticStyle{T}
+    compression::C
+end
+IsDeterministic{T}(; compression::C=NoCompression()) where {T,C} = IsDeterministic{T,C}(compression)
+IsDeterministic(; kwargs...) = IsDeterministic{Float64}(; kwargs...)
 
 """
     IsStochasticWithThreshold(threshold=1.0) <: StochasticStyle
@@ -75,6 +79,8 @@ IsStochasticWithThreshold(t=1.0) = IsStochasticWithThreshold{typeof(float(t))}(f
 
 """
     IsDynamicSemistochastic{T=Float64}(rel_threshold=1, abs_threshold=Inf, proj_threshold=1) <: StochasticStyle{T}
+
+TODO: rework this text.
 
 QMC propagation with non-integer walker numbers and reduced noise. All possible spawns are performed
 deterministically when number of walkers in a configuration is high. Stochastic vector compression with
@@ -101,34 +107,59 @@ walker annihilation is done before the stochastic vector compression.
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsDynamicSemistochastic{T<:AbstractFloat,P} <: StochasticStyle{T}
-    rel_threshold::T
-    abs_threshold::T
-    proj_threshold::T
+struct IsDynamicSemistochastic{T<:AbstractFloat,C<:CompressionStrategy} <: StochasticStyle{T}
+    strength::T
+    compression::C
 end
 function IsDynamicSemistochastic{T}(
-    ; late_projection::Bool=true, rel_threshold=1.0, abs_threshold=Inf, proj_threshold=1.0
-) where {T}
-    return IsDynamicSemistochastic{T,late_projection}(
-        T(rel_threshold), T(abs_threshold), T(proj_threshold)
-    )
+    ; proj_threshold=1.0, strength=1.0, compression::C=ThresholdCompression(proj_threshold),
+) where {T,C}
+    return IsDynamicSemistochastic{T,C}(strength, compression)
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
 
-struct IsExplosive{T<:AbstractFloat} <: StochasticStyle{T}
+struct IsDynamicSemistochasticProjectedSpawns{T<:AbstractFloat} <: StochasticStyle{T}
+    strength::T
+    threshold::T
+end
+function IsDynamicSemistochasticProjectedSpawns{T}(; strength=1, threshold=1) where {T}
+    return IsDynamicSemistochasticProjectedSpawns(strength, threshold)
+end
+function IsDynamicSemistochasticProjectedSpawns(; kwargs...)
+    return IsDynamicSemistochasticProjectedSpawns{Float64}(kwargs...)
+end
+
+struct IsExplosive{T<:AbstractFloat,C<:CompressionStrategy} <: StochasticStyle{T}
     splatter_factor::T
     explosion_threshold::T
-    proj_threshold::T
+    compression::C
+    delay_factor::T
 end
 function IsExplosive{T}(
-    ; splatter_factor=one(T), explosion_threshold=one(T), proj_threshold=one(T)
+    ;
+    splatter_factor=one(T),
+    explosion_threshold=one(T),
+    proj_threshold=one(T),
+    compression=ThresholdCompression(proj_threshold),
+    delay_factor=one(T),
 ) where {T}
     return IsExplosive(
-        T(splatter_factor), T(explosion_threshold), T(proj_threshold)
+        T(splatter_factor), T(explosion_threshold), T(proj_threshold), T(delay_factor),
     )
 end
-function IsExplosive(; kwargs...)
-    return IsExplosive{Float64}(; kwargs...)
+IsExplosive(; kwargs...) = IsExplosive{Float64}(; kwargs...)
+
+struct IsDynamicSemistochasticPlus{T<:AbstractFloat} <: StochasticStyle{T}
+    target_len_before::Int
+    target_len_after::Int
+    threshold::T
+    strength::T
+end
+function IsDynamicSemistochasticPlus{T}(target_len_before, target_len_after) where T
+    return IsDynamicSemistochasticPlus{T}(target_len_before, target_len_after, one(T), one(T))
+end
+function IsDynamicSemistochasticPlus(target_len_before, target_len_after)
+    return IsDynamicSemistochasticPlus{Float64}(target_len_before, target_len_after)
 end
 
 # Defaults for arrays.

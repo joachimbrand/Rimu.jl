@@ -101,7 +101,7 @@ Returns the number of spawns and the number of annihilations.
 function spawns!(w, ham, add, val::T, dτ, proj=0, strength=1) where {T}
     hops = offdiagonals(ham, add)
     spawns = annihilations = zero(valtype(w))
-    num_spawns = floor(Int, abs(val) * strength)
+    num_spawns = max(floor(Int, abs(val) * strength), 1)
     magnitude = val / num_spawns
 
     for _ in 1:num_spawns
@@ -399,48 +399,61 @@ function fciqmc_col!(
     w, ham::AbstractHamiltonian, add, val, shift, dτ,
 )
     clones, deaths, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
-    exact, inexact, spawns, ann_o = semistochastic_spawns!(w, ham, add, val, dτ)
+    exact, inexact, spawns, ann_o = semistochastic_spawns!(w, ham, add, val, dτ, 0, s.strength)
     return (exact, inexact, spawns, deaths, clones, zombies, ann_d + ann_o)
 end
 
 function step_stats(::IsExplosive)
     return (
-        (:explosive_steps,
-         :explosive_spawns,
-         :unevents,
-         :normal_steps,
-         :normal_spawns,
+        (:explosions, :ticks, :normal_steps,
+         :explosive_spawns, :normal_spawns,
          :clones, :deaths, :zombies
          ),
-        MultiScalar(0, 0, 0, 0, 0, 0.0, 0.0, 0.0),
+        MultiScalar(0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0),
     )
 end
 function fciqmc_col!(
     s::IsExplosive, w, ham::AbstractHamiltonian, add, val, shift, dτ,
 )
-    explosive_steps = normal_steps = unevents = 0
-    explosive_spawns = normal_spawns = 0
+    explosions = normal_steps = ticks = 0
+    explosive_spawns = normal_spawns = 0.0
     clones = deaths = zombies = 0.0
 
-    pd = dτ * (diagonal_element(ham, add) - shift)
+    pd = dτ * (diagonal_element(ham, add) - shift) * s.delay_factor
     if abs(val) ≤ s.explosion_threshold && 0 ≤ pd < 1
         if cRand() < pd
-            _, _, explosive_spawns = semistochastic_spawns!(
-                w, ham, add, val / pd, dτ, 0, s.splatter_factor, true
+            _, _, explosive_spawns, _ = semistochastic_spawns!(
+                w, ham, add, val / pd, dτ, 0, s.splatter_factor
             )
             explosions = 1
         else
             deposit!(w, add, val, add => val)
-            unevents = 1
+            ticks = 1
         end
     else
-        clones, deaths, zombies = diagonal_step!(w, ham, add, val, dτ, shift)
-        _, _, normal_spawns = semistochastic_spawns!(w, ham, add, val, dτ, 0, 1, true)
+        clones, deaths, zombies, _ = diagonal_step!(w, ham, add, val, dτ, shift)
+        _, _, normal_spawns, _ = semistochastic_spawns!(w, ham, add, val, dτ)
         normal_steps = 1
     end
 
     return (
-        explosive_steps, explosive_spawns, unevents, normal_steps, normal_spawns,
+        explosions, ticks, normal_steps,
+        explosive_spawns, normal_spawns,
         clones, deaths, zombies,
     )
+end
+
+function step_stats(::IsDynamicSemistochasticPlus)
+    return (
+        (:exact_steps, :inexact_steps, :spawns, :deaths, :clones, :zombies, :annihilations),
+        MultiScalar(0, 0, 0.0, 0.0, 0.0, 0.0, 0.0),
+    )
+end
+function fciqmc_col!(
+    s::IsDynamicSemistochasticPlus,
+    w, ham::AbstractHamiltonian, add, val, shift, dτ,
+)
+    clones, deaths, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
+    exact, inexact, spawns, ann_o = semistochastic_spawns!(w, ham, add, val, dτ, 0, s.strength)
+    return (exact, inexact, spawns, deaths, clones, zombies, ann_d + ann_o)
 end

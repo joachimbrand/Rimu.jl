@@ -1,15 +1,3 @@
-function threshold_project!(v, threshold)
-    w = localpart(v)
-    for (add, val) in pairs(w)
-        prob = abs(val) / threshold
-        if prob < 1 # projection is only necessary if abs(val) < s.threshold
-            val = ifelse(prob > cRand(), threshold * sign(val), zero(val))
-            w[add] = val
-        end
-    end
-    return v
-end
-
 """
     update_dvec!([::StochasticStyle,] dvec) -> dvec, nt
 
@@ -25,12 +13,30 @@ update_dvec!(::StochasticStyle, v) = v, NamedTuple()
 
 update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
 
-function update_dvec!(s::IsDynamicSemistochastic{<:Any,true}, v)
+function update_dvec!(s::IsDeterministic, v)
     len_before = length(v)
-    return threshold_project!(v, s.proj_threshold), (; len_before)
+    return compress!(s.compression, v), (; len_before)
+end
+
+function update_dvec!(s::IsDynamicSemistochastic, v)
+    len_before = length(v)
+    return compress!(s.compression, v), (; len_before)
 end
 
 function update_dvec!(s::IsExplosive, v)
     len_before = length(v)
-    return threshold_project!(v, s.proj_threshold), (; len_before)
+    return compress!(s.compression, v), (; len_before)
+end
+
+function update_dvec!(s::IsDynamicSemistochasticPlus, v)
+    ζ = 1e-3
+    ξ = 0.04^2/4
+    len_before = length(v)
+    # DoubleLog for len_before
+    δ = s.target_len_before - len_before
+    strength = s.strength + ζ * δ
+    s = @set s.strength = strength
+    v = @set v.style = s
+
+    threshold_project!(v, s.threshold), (; len_before, strength)
 end

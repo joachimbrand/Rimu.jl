@@ -18,8 +18,11 @@ export DVec, InitiatorDVec
 export
     AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 export
+    compress!, NoCompression, ThresholdCompression, DoubleOrNothing, DoubleOrNothingWithTarget
+export
     StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
-    IsDynamicSemistochastic, IsExplosive, StyleUnknown
+    IsDynamicSemistochastic, IsExplosive, StyleUnknown,
+    IsDynamicSemistochasticPlus
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.
@@ -47,6 +50,7 @@ export
 # fill!(v, α)
 
 include("delegate.jl")
+include("compression.jl")
 include("stochasticstyle.jl")
 include("abstractdvec.jl")
 include("dvec.jl")
