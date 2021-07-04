@@ -161,9 +161,14 @@ end
     get_offdiagonal(ham, add, chosen, num_singly_doubly_occupied_sites(add)...)
 end
 
-@inline function get_offdiagonal(
-    ham::HubbardMom1D{<:Any,M,A}, add, chosen, singlies, doublies
-) where {M,A}
+"""
+    momentum_transfer_excitation(add, chosen, singlies, doublies)
+Internal function used in [`get_offdiagonal`](@ref) for [`HubbardMom1D`](@ref)
+and [`G2Correlator`](@ref). Returns the new address, the onproduct,
+and the change in momentum.
+"""
+@inline function momentum_transfer_excitation(add, chosen, singlies, doublies)
+    M = num_modes(add)
     onrep = BitStringAddresses.m_onr(add)
     # get occupation number representation as a static array
     onproduct = 1
@@ -233,8 +238,14 @@ end
     @inbounds occ = onrep[ppq]
     onproduct *= occ + 1
     @inbounds onrep[ppq] = occ + 1
+    return SVector(onrep), onproduct, -q
+end
 
-    return A(SVector(onrep)), ham.u/(2*M)*sqrt(onproduct)
+@inline function get_offdiagonal(
+    ham::HubbardMom1D{<:Any,M,A}, add, chosen, singlies, doublies
+) where {M,A}
+    svec, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
+    return A(svec), ham.u/(2*M)*sqrt(onproduct)
     # return new address and matrix element
 end
 
