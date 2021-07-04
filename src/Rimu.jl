@@ -19,12 +19,12 @@ using ThreadsX
 
 @reexport using Distributed
 
+include("ConsistentRNG.jl")
+@reexport using .ConsistentRNG
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
 include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
-include("ConsistentRNG.jl")
-@reexport using .ConsistentRNG
 include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("RimuIO.jl")
@@ -41,7 +41,7 @@ export DoubleLogUpdateAfterTargetWalkersSwitch
 export HistoryLogUpdate
 export ReportingStrategy, ReportDFAndInfo, ReportToFile
 export ReplicaStrategy, NoStats, AllOverlaps
-export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness
+export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness, Timer
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
 

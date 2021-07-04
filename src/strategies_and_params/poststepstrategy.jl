@@ -161,3 +161,13 @@ function loneliness(::Type{<:Complex}, vector, threshold)
     end
     return num_lonely / length(vector)
 end
+
+"""
+    Timer
+
+Record current time after every step. See [`Base.time`](@ref) for information on what time
+is recorded.
+"""
+struct Timer <: PostStepStrategy end
+
+post_step(::Timer, _) = (:time => time(),)
