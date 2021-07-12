@@ -149,15 +149,3 @@ function ProjectedMemory4(Δ::Int, projector, v::AbstractDVec)
     pp = projector⋅v
     ProjectedMemory4(Δ, pp, projector, DataStructures.CircularBuffer{Float64}(Δ))
 end
-
-struct ImmortalWalkers{N,P} <: MemoryStrategy
-    walkers::NTuple{N,P}
-end
-ImmortalWalkers(args...) = ImmortalWalkers(args)
-function apply_memory_noise!(::StochasticStyle, w::AbstractDVec, _, _, _, _, iw::ImmortalWalkers)
-    for (k, v) in iw.walkers
-        if iszero(w[k])
-            w[k] = v
-        end
-    end
-end

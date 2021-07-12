@@ -14,7 +14,6 @@ function step_stats(::IsStochasticInteger)
         MultiScalar(0, 0, 0, 0, 0),
     )
 end
-SpawningStrategy(::IsStochasticInteger) = WithReplacement()
 function fciqmc_col!(
     ::IsStochasticInteger, w, ham, add, num::Real, shift, dτ
 )
@@ -176,8 +175,6 @@ end
 IsDeterministic{T}(; compression::C=NoCompression()) where {T,C} = IsDeterministic{T,C}(compression)
 IsDeterministic(; kwargs...) = IsDeterministic{Float64}(; kwargs...)
 
-SpawningStrategy(::IsDeterministic) = Exact()
-
 function update_dvec!(s::IsDeterministic, v)
     len_before = length(v)
     return compress!(s.compression, v), (; len_before)
@@ -196,7 +193,7 @@ function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift,
 end
 function fciqmc_col!(::IsDeterministic, w, ham, add, val, shift, dτ)
     diagonal_step!(w, ham, add, val, dτ, shift)
-    spawn!(w, ham, add, val, dτ)
+    spawn!(Exact(), w, ham, add, val, dτ)
     return (1,)
 end
 
@@ -214,7 +211,6 @@ struct IsStochasticWithThreshold{T<:AbstractFloat} <: StochasticStyle{T}
     threshold::T
 end
 IsStochasticWithThreshold(t=1.0) = IsStochasticWithThreshold{typeof(float(t))}(float(t))
-SpawningStrategy(s::IsStochasticWithThreshold) = WithReplacement(s.threshold, 1.0)
 
 function step_stats(::IsStochasticWithThreshold)
     return (
@@ -224,7 +220,7 @@ function step_stats(::IsStochasticWithThreshold)
 end
 function fciqmc_col!(::IsStochasticWithThreshold, w, ham, add, val, shift, dτ)
     deaths, clones, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
-    spawns, ann_o = spawn!(w, ham, add, val, dτ)
+    spawns, ann_o = spawn!(WithReplacement(s.threshold, 1.0), w, ham, add, val, dτ)
     return (spawns, deaths, clones, zombies, ann_d + ann_o)
 end
 
@@ -274,8 +270,6 @@ function IsDynamicSemistochastic{T}(
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
 
-SpawningStrategy(s::IsDynamicSemistochastic) = s.spawning
-
 function update_dvec!(s::IsDynamicSemistochastic, v)
     len_before = length(v)
     return compress!(s.compression, v), (; len_before)
@@ -289,7 +283,7 @@ function step_stats(::IsDynamicSemistochastic)
 end
 function fciqmc_col!(s::IsDynamicSemistochastic, w, ham, add, val, shift, dτ)
     clones, deaths, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
-    exact, inexact, spawns, ann_o = spawn!(w, ham, add, val, dτ)
+    exact, inexact, spawns, ann_o = spawn!(s.spawning, w, ham, add, val, dτ)
     return (exact, inexact, spawns, deaths, clones, zombies, ann_d + ann_o)
 end
 
@@ -314,11 +308,6 @@ function IsExplosive{T}(
     )
 end
 IsExplosive(; kwargs...) = IsExplosive{Float64}(; kwargs...)
-
-function update_dvec!(s::IsExplosive, v)
-    len_before = length(v)
-    return compress!(s.compression, v), (; len_before)
-end
 
 function step_stats(::IsExplosive)
     return (

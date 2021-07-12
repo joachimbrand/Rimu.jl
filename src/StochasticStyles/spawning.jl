@@ -112,8 +112,6 @@ Base.@kwdef struct Exact{T} <: SpawningStrategy
     threshold::T = 0.0
 end
 
-step_stats(::Exact, ::Type{T}) where {T} = (:spawns => T, :annihilations => T)
-
 function spawn!(s::Exact, w, offdiags::AbstractVector, add, val, dτ)
     spawns = annihilations = zero(valtype(w))
     factor = -dτ * val
@@ -142,8 +140,6 @@ Base.@kwdef struct WithReplacement{T} <: SpawningStrategy
     threshold::T = 0.0
     strength::T = 1.0
 end
-
-step_stats(::WithReplacement, ::Type{T}) where {T} = (:spawns => T, :annihilations => T)
 
 function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val, dτ)
     spawns = annihilations = zero(valtype(w))
@@ -182,8 +178,6 @@ Base.@kwdef struct WithoutReplacement{T} <: SpawningStrategy
     strength::T = 1.0
 end
 
-step_stats(::WithoutReplacement, ::Type{T}) where {T} = (:spawns => T, :annihilations => T)
-
 function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, dτ)
     spawns = annihilations = zero(valtype(w))
     num_spawns = max(floor(Int, abs(val) * s.strength), 1)
@@ -219,8 +213,6 @@ Base.@kwdef struct Bernoulli{T} <: SpawningStrategy
     threshold::T = 0.0
     strength::T = 1.0
 end
-
-step_stats(::Bernoulli, ::Type{T}) where {T} = (:spawns => T, :annihilations => T)
 
 function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val, dτ)
     spawns = annihilations = zero(valtype(w))
@@ -262,14 +254,6 @@ Base.@kwdef struct DynamicSemistochastic{T,S<:SpawningStrategy} <: SpawningStrat
     rel_threshold::T = 1.0
     abs_threshold::T = Inf
 end
-
-step_stats(::DynamicSemistochastic, ::Type{T}) where {T} =
-    (
-        :exact_steps => Int,
-        :inexact_steps => Int,
-        :spawns => T,
-        :annihilations => T,
-    )
 
 function spawn!(s::DynamicSemistochastic, w, offdiags::AbstractVector, add, val, dτ)
     thresh = min(s.abs_threshold, length(offdiags))

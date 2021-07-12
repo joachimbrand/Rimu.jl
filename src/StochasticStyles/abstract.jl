@@ -60,10 +60,13 @@ for the two-argument call signature!
 The default implementation uses [`CompressionStrategy`](@ref) to compress the vector.
 """
 function update_dvec!(s::StochasticStyle, v)
-    len_before = length(v)
-    return compress!(CompressionStrategy(s), v), (; len_before)
+    return update_dvec!(CompressionStrategy(s), v)
 end
-update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
+function update_dvec!(c::CompressionStrategy, s::StochasticStyle, v)
+    len_before = length(v)
+    return compress!(c, v), (; len_before)
+end
+update_dvec!(v) = update_dvec!(::NoCompression, v)
 
 """
     step_stats(::StochasticStyle)

@@ -2,6 +2,7 @@ using DataFrames
 using Rimu
 using LinearAlgebra
 using SafeTestsets
+using StaticArrays
 using Statistics
 using Suppressor
 using Test
@@ -21,7 +22,7 @@ end
 end
 
 using Rimu.ConsistentRNG
-@testset "ConsistentRNG.jl" begin
+@testset "ConsistentRNG" begin
     seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
     @test cRand(UInt128) == 0x31b845fb73fcb6aa392bdbbeabf3ce50
 
@@ -33,15 +34,15 @@ using Rimu.ConsistentRNG
     @test ConsistentRNG.check_crng_independence(0) == Threads.nthreads()
 end
 
-@safetestset "StochasticStyles.jl" begin
+@safetestset "StochasticStyles" begin
     include("StochasticStyles.jl")
 end
 
-@safetestset "DictVectors.jl" begin
+@safetestset "DictVectors" begin
     include("DictVectors.jl")
 end
 
-@testset "Hamiltonians.jl" begin
+@testset "Hamiltonians" begin
     include("Hamiltonians.jl")
 end
 
@@ -188,21 +189,33 @@ end
 end
 
 @testset "helpers" begin
-    v = [1,2,3]
-    @test walkernumber(v) == norm(v,1)
-    dvc= DVec(:a=>2-5im)
-    @test StochasticStyle(dvc) isa StochasticStyles.IsStochastic2Pop
-    @test walkernumber(dvc) == 2.0 + 5.0im
-    Rimu.purge_negative_walkers!(dvc)
-    @test walkernumber(dvc) == 2.0 + 0.0im
-    dvi= DVec(:a=>Complex{Int32}(2-5im))
-    @test StochasticStyle(dvi) isa StochasticStyles.IsStochastic2Pop
-    dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
-    @test walkernumber(dvr) ≈ norm(dvr,1)
+    @testset "walkernumber" begin
+        v = [1,2,3]
+        @test walkernumber(v) == norm(v,1)
+        dvc = DVec(:a => 2-5im)
+        @test StochasticStyle(dvc) isa StochasticStyles.IsStochastic2Pop
+        @test walkernumber(dvc) == 2.0 + 5.0im
+        Rimu.purge_negative_walkers!(dvc)
+        @test walkernumber(dvc) == 2.0 + 0.0im
+        dvi= DVec(:a=>Complex{Int32}(2-5im))
+        @test StochasticStyle(dvi) isa StochasticStyles.IsStochastic2Pop
+        dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
+        @test walkernumber(dvr) ≈ norm(dvr,1)
+    end
+    @testset "MultiScalar" begin
+        a = Rimu.MultiScalar(1, 1.0, SVector(1))
+        b = Rimu.MultiScalar(SVector(2, 3.0, SVector(4)))
+        c = Rimu.MultiScalar((3, 4.0, SVector(5)))
+        @test a + b == c
+        @test_throws MethodError a + Rimu.MultiScalar(1, 1, 1)
+
+        @test Rimu.combine_stats(a) == a
+        @test Rimu.combine_stats([a, b]) == c
+    end
 end
 
 using Rimu.Blocking
-@testset "Blocking.jl" begin
+@testset "Blocking" begin
     n=10
     a = rand(n)
     m = mean(a)
