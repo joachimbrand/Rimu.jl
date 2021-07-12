@@ -2,7 +2,7 @@ using LinearAlgebra
 using Random
 using Rimu
 using Rimu.DictVectors
-using Rimu.DictVectors: IsStochastic2Pop
+using Rimu.StochasticStyles: IsStochastic2Pop
 using StaticArrays
 using Suppressor
 using Test
@@ -277,19 +277,4 @@ end
         dvec4 = InitiatorDVec(:a => 1.0, style=IsStochastic2Pop())
         @test !isreal(dvec4)
     end
-end
-
-@testset "deprecations" begin
-    warning = @capture_err copytight(DVec(:a => 1))
-    @test warning ≠ ""
-
-    warning = @capture_err DVec2(:a => 1)
-    @test warning ≠ ""
-    @test DVec2(:a => 1) isa DVec{Symbol,Int}
-
-    @test_throws ErrorException capacity(DVec(:a => 1))
-
-    warning = @capture_err IsStochastic()
-    @test warning ≠ ""
-    @test IsStochastic() === IsStochasticInteger()
 end

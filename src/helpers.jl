@@ -2,12 +2,16 @@
 # versions without dependence on MPI.jl
 using Base.Threads: nthreads
 
-threadedWorkingMemory(dv) = threadedWorkingMemory(localpart(dv))
-function threadedWorkingMemory(v::AbstractDVec)
-    return Tuple(similar(v) for _ in 1:nthreads())
-end
-function threadedWorkingMemory(v::AbstractVector)
-    return Tuple(similar(v) for _ in 1:nthreads())
+"""
+    localpart(dv) -> AbstractDVec
+
+Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for
+`DictVector`s.
+"""
+localpart(dv) = dv # default for local data
+
+function threadedWorkingMemory(v)
+    return Tuple(similar(localpart(v)) for _ in 1:nthreads())
 end
 
 """
@@ -43,6 +47,7 @@ struct MultiScalar{T<:Tuple}
 end
 MultiScalar(args...) = MultiScalar(args)
 MultiScalar(v::SVector) = MultiScalar(Tuple(v))
+MultiScalar(m::MultiScalar) = m
 MultiScalar(arg) = MultiScalar((arg,))
 
 for op in (:+, :*, :max, :min)
@@ -52,6 +57,7 @@ for op in (:+, :*, :max, :min)
 end
 
 Base.iterate(m::MultiScalar, args...) = iterate(m.tuple, args...)
+Base.length(m::MultiScalar) = length(m.tuple)
 
 
 # three-argument version

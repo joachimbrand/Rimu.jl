@@ -1,6 +1,7 @@
 using Rimu
 using Test
-using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, IsStochastic2Pop
+using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator
+using Rimu.StochasticStyles: IsStochastic2Pop
 using Rimu.StatsTools
 using Rimu.ConsistentRNG: seedCRNG!
 using Rimu.RMPI

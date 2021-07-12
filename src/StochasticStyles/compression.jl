@@ -1,5 +1,3 @@
-using ..ConsistentRNG
-
 """
     CompressionStrategy
 
@@ -15,6 +13,10 @@ abstract type CompressionStrategy end
 Default [`CompressionStrategy`](@ref). Leaves the vector intact.
 """
 struct NoCompression <: CompressionStrategy end
+
+CompressionStrategy(::StochasticStyle) = NoCompression()
+
+compress!(::NoCompression, v) = v
 
 """
     ThresholdCompression(threshold=1) <: CompressionStrategy
@@ -58,11 +60,8 @@ function compress!(d::DoubleOrNothing, v)
     w = localpart(v)
     for (add, val) in pairs(w)
         if abs(val) < d.threshold
-            if cRand() > d.prob
-                delete!(w, add)
-            else
-                w[add] /= d.prob
-            end
+            val = ifelse(cRand() > d.prob, zero(valtype(w)), val / d.prob)
+            w[add] = val
         end
     end
     return v
@@ -103,11 +102,8 @@ function compress!(d::DoubleOrNothingWithThreshold, v)
             w[add] = ifelse(prob > cRand(), d.threshold_lo * sign(val), zero(val))
         elseif abs(val) < d.threshold_hi
             # Double or nothing projection
-            if cRand() > d.prob
-                delete!(w, add)
-            else
-                w[add] /= d.prob
-            end
+            val = ifelse(cRand() > d.prob, zero(valtype(w)), val / d.prob)
+            w[add] = val
         end
     end
     return v

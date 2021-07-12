@@ -20,10 +20,6 @@ end
     include("BitStringAddresses.jl")
 end
 
-@safetestset "DictVectors.jl" begin
-    include("DictVectors.jl")
-end
-
 using Rimu.ConsistentRNG
 @testset "ConsistentRNG.jl" begin
     seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
@@ -35,6 +31,14 @@ using Rimu.ConsistentRNG
     @test rand(trng(),UInt16) == 0xcd4d
     @test rand(newChildRNG(),UInt16) == 0x6e4c
     @test ConsistentRNG.check_crng_independence(0) == Threads.nthreads()
+end
+
+@safetestset "StochasticStyles.jl" begin
+    include("StochasticStyles.jl")
+end
+
+@safetestset "DictVectors.jl" begin
+    include("DictVectors.jl")
 end
 
 @testset "Hamiltonians.jl" begin
@@ -98,10 +102,6 @@ end
     @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
 end
 
-@safetestset "fciqmc_col!" begin
-    include("fciqmc_col.jl")
-end
-
 @safetestset "lomc!" begin
     include("lomc.jl")
 end
@@ -120,7 +120,7 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 1809 atol=1
+        @test sum(df[:,:norm]) ≈ 2731 atol=1
     end
 
     @testset "DeltaMemory" begin
@@ -129,14 +129,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 1809 atol=1
+        @test sum(df[:,:norm]) ≈ 2731 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 1861 atol=1
+        @test sum(df[:,:norm]) ≈ 2474 atol=1
     end
 
     @testset "DeltaMemory2" begin
@@ -145,14 +145,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 1809 atol=1
+        @test sum(df[:,:norm]) ≈ 2731 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2197 atol=1
+        @test sum(df[:,:norm]) ≈ 2567 atol=1
     end
 
     @testset "ShiftMemory" begin
@@ -161,14 +161,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 1809 atol=1
+        @test sum(df[:,:norm]) ≈ 2731 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2893 atol=1
+        @test sum(df[:,:norm]) ≈ 2325 atol=1
     end
 end
 
@@ -191,12 +191,12 @@ end
     v = [1,2,3]
     @test walkernumber(v) == norm(v,1)
     dvc= DVec(:a=>2-5im)
-    @test StochasticStyle(dvc) isa DictVectors.IsStochastic2Pop
+    @test StochasticStyle(dvc) isa StochasticStyles.IsStochastic2Pop
     @test walkernumber(dvc) == 2.0 + 5.0im
     Rimu.purge_negative_walkers!(dvc)
     @test walkernumber(dvc) == 2.0 + 0.0im
     dvi= DVec(:a=>Complex{Int32}(2-5im))
-    @test StochasticStyle(dvi) isa DictVectors.IsStochastic2Pop
+    @test StochasticStyle(dvi) isa StochasticStyles.IsStochastic2Pop
     dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
     @test walkernumber(dvr) ≈ norm(dvr,1)
 end
@@ -278,29 +278,32 @@ end
         rm(file)
     end
     @testset "save_dvec, load_dvec" begin
-        file1 = joinpath(@__DIR__, "tmp1.bson")
-        file2 = joinpath(@__DIR__, "tmp2.bson")
-        rm(file1; force=true)
-        rm(file2; force=true)
+        # BSON is currently broken on 1.8
+        if VERSION ≤ v"1.7"
+            file1 = joinpath(@__DIR__, "tmp1.bson")
+            file2 = joinpath(@__DIR__, "tmp2.bson")
+            rm(file1; force=true)
+            rm(file2; force=true)
 
-        add = BoseFS2C((1,1,0,1), (1,1,0,0))
-        dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic(abs_threshold=3.5))
-        H = BoseHubbardMom1D2C(add)
+            add = BoseFS2C((1,1,0,1), (1,1,0,0))
+            dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic(abs_threshold=3.5))
+            H = BoseHubbardMom1D2C(add)
 
-        _, state = lomc!(H, dv; replica=NoStats(2))
-        RimuIO.save_dvec(file1, state.replicas[1].v)
-        RimuIO.save_dvec(file2, state.replicas[2].v)
+            _, state = lomc!(H, dv; replica=NoStats(2))
+            RimuIO.save_dvec(file1, state.replicas[1].v)
+            RimuIO.save_dvec(file2, state.replicas[2].v)
 
-        dv1 = RimuIO.load_dvec(file1)
-        dv2 = RimuIO.load_dvec(file2)
+            dv1 = RimuIO.load_dvec(file1)
+            dv2 = RimuIO.load_dvec(file2)
 
-        @test dv1 == state.replicas[1].v
-        @test typeof(dv2) == typeof(state.replicas[1].v)
-        @test StochasticStyle(dv1) == StochasticStyle(state.replicas[1].v)
-        @test storage(dv2) == storage(state.replicas[2].v)
+            @test dv1 == state.replicas[1].v
+            @test typeof(dv2) == typeof(state.replicas[1].v)
+            @test StochasticStyle(dv1) == StochasticStyle(state.replicas[1].v)
+            @test storage(dv2) == storage(state.replicas[2].v)
 
-        rm(file1; force=true)
-        rm(file2; force=true)
+            rm(file1; force=true)
+            rm(file2; force=true)
+        end
     end
 end
 

@@ -9,9 +9,12 @@ module Hamiltonians
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 using Setfield
 
+using ..StochasticStyles
 using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
+
+import ..StochasticStyles: diagonal_element, spawn!, offdiagonals
 
 export AbstractHamiltonian, TwoComponentBosonicHamiltonian, offdiagonals, random_offdiagonal
 export diagonal_element, num_offdiagonals, get_offdiagonal, dimension, starting_address

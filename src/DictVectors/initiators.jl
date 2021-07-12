@@ -254,10 +254,10 @@ function Base.get(dvec::InitiatorDVec, args...)
     return value(dvec.initiator, get(dvec.storage, args...))
 end
 function Base.get!(dvec::InitiatorDVec{<:Any,V}, key, default) where {V}
-    return(value(dvec.initiator, get!(dvec.storage, key, InitiatorValue{V}(safe=default))))
+    return value(dvec.initiator, get!(dvec.storage, key, InitiatorValue{V}(safe=default)))
 end
 function Base.get!(f::Function, dvec::InitiatorDVec{<:Any,V}, key) where {V}
-    return(value(dvec.initiator, get!(dvec.storage, key, InitiatorValue{V}(safe=f()))))
+    return value(dvec.initiator, get!(dvec.storage, key, InitiatorValue{V}(safe=f())))
 end
 
 @delegate InitiatorDVec.storage [haskey, getkey, pop!, isempty, length, keys]
@@ -267,8 +267,10 @@ end
     deposit!(w::InitiatorDVec, add, val, p_add=>p_val)
 Add `val` into `w` at address `add` as an [`InitiatorValue`](@ref).
 """
-function deposit!(w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)) where {V}
+function StochasticStyles.deposit!(w::InitiatorDVec, add, val, (p_add, p_val))
+    V = valtype(w)
     i = w.initiator
+    old_val = get(w.storage, add, zero(InitiatorValue{V}))
     if p_add == add # diagonal death
         if abs(p_val) > i.threshold
             new_val = InitiatorValue{V}(initiator=val)
@@ -282,12 +284,13 @@ function deposit!(w::InitiatorDVec{<:Any,V}, add, val, (p_add, p_val)) where {V}
             new_val = InitiatorValue{V}(unsafe=val)
         end
     end
-    new_val += get(w.storage, add, zero(InitiatorValue{V}))
+    new_val += old_val
     if new_val == InitiatorValue{V}(0, 0, 0)
         delete!(w.storage, add)
     else
         w.storage[add] = new_val
     end
+    return (old_val, new_val)
 end
 
 function deposit!(w::InitiatorDVec{<:Any,V}, add, val::InitiatorValue{V}, _) where {V}

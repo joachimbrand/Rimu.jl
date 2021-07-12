@@ -19,8 +19,12 @@ using ThreadsX
 
 @reexport using Distributed
 
+include("helpers.jl")               # non MPI-dependent helper functions
+
 include("ConsistentRNG.jl")
 @reexport using .ConsistentRNG
+include("StochasticStyles/StochasticStyles.jl")
+@reexport using .StochasticStyles
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
 include("BitStringAddresses/BitStringAddresses.jl")
@@ -53,11 +57,8 @@ include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
 
-include("helpers.jl")               # non MPI-dependent helper functions
-include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level
-include("update_dvec.jl")
 include("lomc.jl")                  # top level
 
 include("RMPI/RMPI.jl")
