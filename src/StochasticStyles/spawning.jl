@@ -49,7 +49,8 @@ end
     diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
 
 Perform diagonal step on a walker `add => val`. Optional argument `threshold` sets the
-projection threshold. If `eltype(w)` is an `Integer`, the `val` is rounded stochastically.
+projection threshold. If `eltype(w)` is an `Integer`, the `val` is rounded to the nearest
+integer stochastically.
 """
 function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
     clones = deaths = zombies = zero(valtype(w))
@@ -71,15 +72,15 @@ end
 """
     SpawningStrategy
 
-A `SpawningStrategy` is used to control how spawns are peformed.
+A `SpawningStrategy` is used to control how (offdiagonal) spawns are peformed.
 
 The following methods are implemented:
 
-* [`ExactSpawning`](@ref)
-* [`SpawningWithReplacement`](@ref)
-* [`SpawningWithoutReplacement`](@ref)
-* [`BernoulliSpawning`](@ref)
-* [`DynamicSemistochasticSpawning`](@ref)
+* [`Exact`](@ref)
+* [`WithReplacement`](@ref)
+* [`WithoutReplacement`](@ref)
+* [`Bernoulli`](@ref)
+* [`DynamicSemistochastic`](@ref)
 """
 abstract type SpawningStrategy end
 

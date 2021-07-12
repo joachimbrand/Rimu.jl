@@ -211,3 +211,26 @@ end
         end
     end
 end
+
+@testset "Compression does not change 1-norm on average." begin
+    add = BoseFS((0,0,0,10,0,0,0))
+    H = HubbardMom1D(add)
+    dv = DVec(add => 1.0, style=IsDeterministic())
+    lomc!(H, dv)
+
+    for compression in (
+        StochasticStyles.ThresholdCompression(),
+        StochasticStyles.ThresholdCompression(2),
+        StochasticStyles.DoubleOrNothing(),
+        StochasticStyles.DoubleOrNothing(prob=0.1),
+        StochasticStyles.DoubleOrNothingWithThreshold(),
+        StochasticStyles.DoubleOrNothingWithTarget(target=500),
+    )
+        target = similar(dv)
+        for _ in 1:1000
+            compressed = StochasticStyles.compress!(compression, copy(dv))
+            add!(target, compressed)
+        end
+        @test walkernumber(target * (1/1000)) ≈ walkernumber(dv) rtol=0.1
+    end
+end

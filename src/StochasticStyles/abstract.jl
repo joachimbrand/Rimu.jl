@@ -1,9 +1,11 @@
 """
     StochasticStyle(v)
+
 `StochasticStyle` specifies the native style of the generalised vector `v` that determines
-how simulations are to proceed. This can be fully stochastic (with `IsStochasticInteger`),
-fully deterministic (with `IsDeterministic`), or stochastic with floating point walker
-numbers and threshold (with [`IsStochasticWithThreshold`](@ref)).
+how simulations are to proceed. This can be fully stochastic (with
+[`IsStochasticInteger`](@ref)), fully deterministic (with [`IsDeterministic`](@ref)), or
+stochastic with floating point walker numbers and threshold (with
+[`IsStochasticWithThreshold`](@ref), [`IsDynamicSemistochastic`](@ref)).
 
 When defining a new `StochasticStyle`, subtype it as `MyStyle<:StochasticStyle{T}` where `T`
 is the concrete value type the style is designed to work with.
@@ -13,8 +15,14 @@ For it to work with FCIQMC, a `StochasticStyle` must define the following:
 * [`fciqmc_col!(::StochasticStyle, w, H, address, value, shift, dτ)`](@ref)
 * [`step_stats(::StochasticStyle)`](@ref)
 
-Optionally, it can also define [`update_dvec!`](@ref), which can be used to perform arbitrary
-transformations on the `dvec` after the spawning step is complete.
+Optionally, it can also define:
+
+* [`update_dvec!`](@ref): perform arbitrary transformations on the `dvec` after the spawning
+step is complete.
+* [`CompressionStrategy`](@ref): if `update_dvec!` is not defined, this provides an
+  implementation that performs vector compression based on the returned
+  `CompressionStrategy`.
+
 """
 abstract type StochasticStyle{T} end
 
@@ -48,6 +56,8 @@ Returns the new `dvec` and a `NamedTuple` `nt` of statistics to be reported.
 
 When extending this function for a custom [`StochasticStyle`](@ref), define a method
 for the two-argument call signature!
+
+The default implementation uses [`CompressionStrategy`](@ref) to compress the vector.
 """
 function update_dvec!(s::StochasticStyle, v)
     len_before = length(v)
@@ -130,7 +140,7 @@ function offdiagonals(matrix, add)
 end
 
 """
-    diagonal_element(m::AbstractMatrix, i) = m[i, i]
+    diagonal_element(m::AbstractMatrix, i)
 
 Get the diagonal element of `m` at index `i`.
 """

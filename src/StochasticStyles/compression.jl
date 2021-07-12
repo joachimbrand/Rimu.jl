@@ -16,6 +16,11 @@ struct NoCompression <: CompressionStrategy end
 
 CompressionStrategy(::StochasticStyle) = NoCompression()
 
+"""
+    compress!(::CompressionStrategy, v)
+
+Compress the vector `v` and return it.
+"""
 compress!(::NoCompression, v) = v
 
 """

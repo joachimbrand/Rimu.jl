@@ -1,3 +1,10 @@
+"""
+This module defines [`StochasticStyle`](@ref)s, which tell Rimu which algorithm to use
+when doing stochastic matrix-vector multiplication.
+
+The offdiagonal spawning is defined in `spawning.jl` and is controlled by setting a
+[`SpawningStrategy`](@ref).
+"""
 module StochasticStyles
 
 using StaticArrays
