@@ -1,29 +1,4 @@
 """
-    CompressionStrategy
-
-The `CompressionStrategy` controls how a vector is compressed after a step. To use, define
-`CompressionStrategy(::StochasticStyle)`. The default implementation returns
-[`NoCompression`](@ref).
-"""
-abstract type CompressionStrategy end
-
-"""
-    NoCompression <: CompressionStrategy end
-
-Default [`CompressionStrategy`](@ref). Leaves the vector intact.
-"""
-struct NoCompression <: CompressionStrategy end
-
-CompressionStrategy(::StochasticStyle) = NoCompression()
-
-"""
-    compress!(::CompressionStrategy, v)
-
-Compress the vector `v` and return it.
-"""
-compress!(::NoCompression, v) = v
-
-"""
     ThresholdCompression(threshold=1) <: CompressionStrategy
 
 [`CompressionStrategy`](@ref) that compresses a vector by threshold projection. Every entry

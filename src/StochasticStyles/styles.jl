@@ -218,28 +218,22 @@ function step_stats(::IsStochasticWithThreshold)
         MultiScalar(0.0, 0.0, 0.0, 0.0, 0.0)
     )
 end
-function fciqmc_col!(::IsStochasticWithThreshold, w, ham, add, val, shift, dτ)
+function fciqmc_col!(s::IsStochasticWithThreshold, w, ham, add, val, shift, dτ)
     deaths, clones, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
     spawns, ann_o = spawn!(WithReplacement(s.threshold, 1.0), w, ham, add, val, dτ)
     return (spawns, deaths, clones, zombies, ann_d + ann_o)
 end
 
 """
-    IsDynamicSemistochastic{T=Float64}(rel_threshold=1, abs_threshold=Inf, proj_threshold=1) <: StochasticStyle{T}
+    IsDynamicSemistochastic{T=Float64}(; kwargs...) <: StochasticStyle{T}
 
-TODO: rework this text.
-
-QMC propagation with non-integer walker numbers and reduced noise. All possible spawns are performed
-deterministically when number of walkers in a configuration is high. Stochastic vector compression with
-threshold `proj_threshold` is applied after spawning and diagonal death steps.
-
-Unlike with [`IsStochasticWithThreshold`](@ref), when `late_projection` is set to `true`,
-walker annihilation is done before the stochastic vector compression.
+QMC propagation with non-integer walker numbers and reduced noise. All possible spawns are
+performed deterministically when number of walkers in a configuration is high. Unlike with
+[`IsStochasticInteger`](@ref) or [`IsStochasticWithThreshold`](@ref), where spawns are
+projected on the fly, stochastic vector compression is applied after spawning and diagonal
+death steps.
 
 ## Parameters:
-
-* `late_projection = true`: If set to true, threshold projection is done after all spawns are
-  collected, otherwise, values are projected as they are being spawned.
 
 * `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
   is greater than the number of offdiagonals, spawning is done deterministically. Should be
@@ -252,6 +246,11 @@ walker annihilation is done before the stochastic vector compression.
 * `proj_threshold = 1.0`: Values below this number are stochastically projected to this
   value or zero. See also [`IsStochasticWithThreshold`](@ref).
 
+* `spawning = WithReplacement()`: [`SpawningStrategy`](@ref) to use for the non-exact spawns.
+
+* `compression = ThresholdCompression(proj_threshold)`: [`CompressionStartegy`](@ref) used
+  to compress the vector after a step. Overrides `proj_threshold`.
+
 See also [`StochasticStyle`](@ref).
 """
 struct IsDynamicSemistochastic{
@@ -263,10 +262,11 @@ end
 function IsDynamicSemistochastic{T}(
     ;
     proj_threshold=1.0, strength=1.0, rel_threshold=1.0, abs_threshold=Inf,
-    compression::C=ThresholdCompression(proj_threshold),
-    spawning::S=DynamicSemistochastic(WithReplacement(), rel_threshold, abs_threshold),
-) where {T,C,S}
-    return IsDynamicSemistochastic{T,C,S}(spawning, compression)
+    compression=ThresholdCompression(proj_threshold),
+    spawning=WithReplacement(),
+) where {T}
+    s = DynamicSemistochastic(spawning, rel_threshold, abs_threshold)
+    return IsDynamicSemistochastic{T,typeof(compression),typeof(s)}(s, compression)
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
 

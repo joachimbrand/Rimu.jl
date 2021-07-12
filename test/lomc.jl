@@ -1,7 +1,7 @@
 using Rimu
 using Test
 using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator
-using Rimu.StochasticStyles: IsStochastic2Pop
+using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement, DoubleOrNothing
 using Rimu.StatsTools
 using Rimu.ConsistentRNG: seedCRNG!
 using Rimu.RMPI
@@ -299,6 +299,7 @@ end
     end
 
     @testset "Stochastic style comparison" begin
+
         add = BoseFS{5,5}((1,1,1,1,1))
         H = HubbardReal1D(add)
         E0 = -8.280991746582686
@@ -310,12 +311,20 @@ end
         dv_dy = DVec(add => 1; style=IsDynamicSemistochastic())
         dv_de = DVec(add => 1; style=IsDeterministic())
 
+        dv_br = DVec(add => 1; style=IsDynamicSemistochastic(spawning=Bernoulli()))
+        dv_nr = DVec(add => 1; style=IsDynamicSemistochastic(spawning=WithoutReplacement()))
+        dv_dn = DVec(add => 1; style=IsDynamicSemistochastic(compression=DoubleOrNothing()))
+
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
         df_st = lomc!(H, dv_st; s_strat, laststep=2500).df
         df_th = lomc!(H, dv_th; s_strat, laststep=2500).df
         df_cx = lomc!(H, dv_cx; s_strat, laststep=2500).df
         df_dy = lomc!(H, dv_dy; s_strat, laststep=2500).df
         df_de = lomc!(H, dv_de; s_strat, laststep=2500).df
+
+        df_br = lomc!(H, dv_br; s_strat, laststep=2500).df
+        df_nr = lomc!(H, dv_nr; s_strat, laststep=2500).df
+        df_dn = lomc!(H, dv_dn; s_strat, laststep=2500).df
 
         @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_st)
         @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_cx)
@@ -329,14 +338,23 @@ end
         E_dy, σ_dy = mean_and_se(df_dy.shift[500:end])
         E_de, σ_de = mean_and_se(df_de.shift[500:end])
 
-        # Stochastic noise depends on the method.
-        @test σ_st > σ_th > σ_dy > σ_de
+        E_br, σ_br = mean_and_se(df_br.shift[500:end])
+        E_nr, σ_nr = mean_and_se(df_nr.shift[500:end])
+        E_dn, σ_dn = mean_and_se(df_dn.shift[500:end])
+
+        # Stochastic noise depends on the method. Sampling without replacement makes a
+        # small difference and is not consistently lower, so is not included here.
+        @test σ_st > σ_th > σ_dn > σ_dy > σ_de
         # All estimates are fairly good.
         @test E_st ≈ E0 atol=3σ_st
         @test E_th ≈ E0 atol=3σ_th
         @test E_cx ≈ E0 atol=3σ_cx
         @test E_dy ≈ E0 atol=3σ_dy
         @test E_de ≈ E0 atol=3σ_de
+
+        @test_broken E_br ≈ E0 atol=3σ_br
+        @test E_nr ≈ E0 atol=3σ_nr
+        @test E_dn ≈ E0 atol=3σ_dn
     end
 
     @testset "Initiator energies" begin

@@ -47,6 +47,31 @@ See also [`StochasticStyle`](@ref).
 struct StyleUnknown{T} <: StochasticStyle{T} end
 
 """
+    CompressionStrategy
+
+The `CompressionStrategy` controls how a vector is compressed after a step. To use, define
+`CompressionStrategy(::StochasticStyle)`. The default implementation returns
+[`NoCompression`](@ref).
+"""
+abstract type CompressionStrategy end
+
+"""
+    NoCompression <: CompressionStrategy end
+
+Default [`CompressionStrategy`](@ref). Leaves the vector intact.
+"""
+struct NoCompression <: CompressionStrategy end
+
+CompressionStrategy(::StochasticStyle) = NoCompression()
+
+"""
+    compress!(::CompressionStrategy, v)
+
+Compress the vector `v` and return it.
+"""
+compress!(::NoCompression, v) = v
+
+"""
     update_dvec!([::StochasticStyle,] dvec) -> dvec, nt
 
 Perform an arbitrary transformation on `dvec` after the spawning step is completed and
@@ -59,14 +84,13 @@ for the two-argument call signature!
 
 The default implementation uses [`CompressionStrategy`](@ref) to compress the vector.
 """
-function update_dvec!(s::StochasticStyle, v)
-    return update_dvec!(CompressionStrategy(s), v)
-end
+update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
+update_dvec!(s::StochasticStyle, v) = update_dvec!(CompressionStrategy(s), v)
+update_dvec!(::NoCompression, v) = v, NamedTuple()
 function update_dvec!(c::CompressionStrategy, s::StochasticStyle, v)
     len_before = length(v)
     return compress!(c, v), (; len_before)
 end
-update_dvec!(v) = update_dvec!(::NoCompression, v)
 
 """
     step_stats(::StochasticStyle)
