@@ -7,7 +7,7 @@ an `Integer`, values are stochastically rounded.
 Returns the value deposited and the number of annihilations.
 """
 function projected_deposit!(w, add, val, parent, threshold=0)
-    projected_deposit!(valtype(w), w, add, val, parent, threshold)
+    return projected_deposit!(valtype(w), w, add, val, parent, threshold)
 end
 # Non-integer
 function projected_deposit!(::Type{T}, w, add, val, parent, threshold) where T
@@ -100,7 +100,11 @@ end
 """
     Exact(threshold=0.0) <: SpawningStrategy
 
-Perform an exact spawning step. `threshold` sets the projection threshold.
+Perform an exact spawning step.
+
+## Parameters
+
+* `threshold` sets the projection threshold. If set to zero, no projection is performed.
 
 [`spawn!`](@ref) with this strategy returns the number of spawns and annihilations.
 """
@@ -122,11 +126,11 @@ end
 """
     WithReplacement <: SpawningStrategy
 
-Perform semistochastic spawns from a walker `add => val`. If `val` exceeds the number of possible spawns, the spawning is done exactly (see [`Exact`](@ref)).
+[`SpawningStrategy`](@ref) where spawn targets are sampled with replacement. This is the default spawning strategy for most of the [`StochasticStyle`](@ref)s.
 
 ## Parameters
 
-* `threshold` sets the projection threshold.
+* `threshold` sets the projection threshold. If set to zero, no projection is performed.
 * `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
   spawns will be performed.
 
@@ -152,18 +156,16 @@ function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val, dτ)
     return (spawns, annihilations)
 end
 
-
 """
     WithoutReplacement <: SpawningStrategy
 
-Only to be used with [`DynamicSemistochastic`](@ref).
+[`SpawningStrategy`](@ref) where spawn targets are sampled without replacement.
 
-Perform semistochastic spawns from a walker `add => val`. Spawn targets are sampled without
-replacement. If `val` exceeds the number of possible spawns, the spawning is done exactly (see [`Exact`](@ref)).
+Only to be used with [`DynamicSemistochastic`](@ref).
 
 ## Parameters
 
-* `threshold` sets the projection threshold.
+* `threshold` sets the projection threshold. If set to zero, no projection is performed.
 * `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
   spawns will be performed.
 
@@ -195,13 +197,17 @@ end
 """
     Bernoulli <: SpawningStrategy
 
+Perform Bernoulli sampling. A spawn is attempted on each offdiagonal element with a
+probability that results in an expected number of spawns equal to the number of walkers on
+the spawning configuration.
+
 Only to be used with [`DynamicSemistochastic`](@ref).
 
 ## Parameters
 
 * `threshold` sets the projection threshold.
 * `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
-  spawns will be performed.
+  spawns will be performed on average.
 
 [`spawn!`](@ref) with this strategy returns the number of spawns and annihilations.
 """
@@ -233,17 +239,28 @@ end
     DynamicSemistochastic(; start, rel_threshold, abs_threshold) <: SpawningStrategy
 
 [`SpawningStrategy`](@ref) that behaves like `strat` when the number of walkers is low, but
-performs exact steps when it is high.
+performs exact steps when it is high. What "high" means is controlled by the two thresholds
+described below.
 
-* `strat = WithReplacement()`: a [`SpawningStrategy`](@ref) to use when the
-  multiplication is not performed exactly.
+## Parameters
+
+* `strat = WithReplacement()`: a [`SpawningStrategy`](@ref) to use when the multiplication
+  is not performed exactly. If the `strat` has a `threshold` different from zero, all spawns
+  will be projected to that threshold.
 
 * `rel_threshold = 1.0`: When deciding on whether to perform an exact spawn, this value is
-  multiplied to the number of walkers. Should be set to 1 or more for best performance.
+  multiplied to the number of walkers. Should be set to 1 or more for best performance. This
+  threshold is affected by `strat.strength`.
 
 * `abs_threshold = Inf`: When deciding on whether to perform an exact spawn,
-  `min(abs_threshold, num_offdiagonals)` is used.
+  `min(abs_threshold, num_offdiagonals)` is used. This threshold is affected by
+  `strat.strength`.
 
+See e.g. [`WithoutReplacement`](@ref) for a description of the `strat.threshold` and
+`strat.strength` parameters.
+
+[`spawn!`](@ref) with this strategy returns the numbers of exact and inexact spawns, and the
+number of spawns and annihilations.
 """
 Base.@kwdef struct DynamicSemistochastic{T,S<:SpawningStrategy} <: SpawningStrategy
     strat::S = WithReplacement()

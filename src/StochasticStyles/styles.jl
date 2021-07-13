@@ -1,5 +1,6 @@
 """
     IsStochasticInteger{T=Int}() <: StochasticStyle{T}
+
 Trait for generalised vector of configurations indicating stochastic propagation as seen in
 the original FCIQMC algorithm.
 
@@ -24,6 +25,7 @@ end
 
 """
     IsStochastic2Pop{T=Complex{Int}}() <: StochasticStyle{T}
+
 Trait for generalised vector of configurations indicating stochastic propagation with
 complex walker numbers representing two populations of integer walkers.
 
@@ -164,8 +166,10 @@ end
 
 """
     IsDeterministic{T=Float64}() <: StochasticStyle{T}
-Trait for generalised vector of configuration indicating deterministic propagation of walkers.
-The optional [`compression`](@ref) argument can set a [`CompressionStrategy`](@ref).
+
+Trait for generalised vector of configuration indicating deterministic propagation of
+walkers. The optional [`compression`](@ref) argument can set a
+[`CompressionStrategy`](@ref).
 
 See also [`StochasticStyle`](@ref).
 """
@@ -195,12 +199,13 @@ function fciqmc_col!(::IsDeterministic, w, ham, add, val, shift, dτ)
 end
 
 """
-    IsStochasticWithThreshold(threshold=1.0) <: StochasticStyle
-Trait for generalised vector of configurations indicating stochastic
-propagation with real walker numbers and cutoff `threshold`.
+    IsStochasticWithThreshold{T=Float64}(threshold=1.0) <: StochasticStyle{T}
 
-During stochastic propagation, walker numbers small than `threshold` will be
-stochastically projected to either zero or `threshold`.
+Trait for generalised vector of configurations indicating stochastic propagation with real
+walker numbers and cutoff `threshold`.
+
+During stochastic propagation, walker numbers small than `threshold` will be stochastically
+projected to either zero or `threshold`.
 
 See also [`StochasticStyle`](@ref).
 """
@@ -229,6 +234,8 @@ performed deterministically when number of walkers in a configuration is high. U
 [`IsStochasticInteger`](@ref) or [`IsStochasticWithThreshold`](@ref), where spawns are
 projected on the fly, stochastic vector compression is applied after spawning and diagonal
 death steps.
+
+Note: if you want `IsDynamicSemistochastic` to project spawns as they are being performed, set a threshold to `spawning`, and set `compression` to [`NoCompression`](@ref).
 
 ## Parameters:
 
@@ -282,6 +289,31 @@ function fciqmc_col!(s::IsDynamicSemistochastic, w, ham, add, val, shift, dτ)
 end
 
 """
+    IsExplosive{T=Float64}(; splatter_factor, explosion_threshold, compression) <: StochasticStyle{T}
+
+QMC propagation with explosive walkers. Walkers with small walker numbers do not perform the
+standard death/spawning steps. Instead, a walker will either die completely and spawn with a
+greater magnitude (refered to as explosion below), or stay unchanged and not spawn. The
+probabilty of exploding is controlled by the shift and `dτ`.
+
+Walkers with high walker numbers spawn as if [`IsDynamicSemistochastic`](@ref) was used.
+
+Like [`IsDynamicSemistochastic`](@ref), the vector is compressed after all spawning is
+performed.
+
+## Parameters
+
+* `splatter_factor = 1.0`: The spawning strength to use with exploded walkers.
+
+* `explosion_threshold = 1.0`: Entries smaller or equal than this value will attempt to
+  explode.
+
+* `proj_threshold = 1.0`: Threshold to use in vector compression.
+
+* `compression = ThresholdCompression(proj_threshold)`: [`CompressionStrategy`](@ref) to use
+  to compress the vector. Overrides `proj_threshold`.
+
+See also [`StochasticStyle`](@ref).
 """
 struct IsExplosive{T<:AbstractFloat,C<:CompressionStrategy} <: StochasticStyle{T}
     splatter_factor::T

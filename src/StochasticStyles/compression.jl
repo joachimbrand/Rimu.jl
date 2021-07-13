@@ -4,7 +4,6 @@
 [`CompressionStrategy`](@ref) that compresses a vector by threshold projection. Every entry
 in the vector with a value below the threshold is either set to zero, or increased to the
 threshold. The probabilty of setting it to zero is equal to `abs(value) / threshold`.
-
 """
 struct ThresholdCompression{T} <: CompressionStrategy
     threshold::T
@@ -24,11 +23,12 @@ function compress!(t::ThresholdCompression, v)
 end
 
 """
-    DoubleOrNothing(threshold) <: CompressionStrategy
+    DoubleOrNothing(; threshold=1, prob=0.5) <: CompressionStrategy
 
 [`CompressionStrategy`](@ref) that compresses a vector by a double or nothing approach. For
-each value in the vector below the threshold, a coin is flipped. If heads, the value is
-doubled, if tails, the value is removed from the vector.
+each value in the vector below the `threshold`, a coin is flipped. If heads, the value is
+doubled, if tails, the value is removed from the vector. The fairness of the coin is
+controlled with `prob` - lower values indicate lower probabilties to keep.
 """
 struct DoubleOrNothing{T} <: CompressionStrategy
     threshold::T
@@ -47,6 +47,13 @@ function compress!(d::DoubleOrNothing, v)
     return v
 end
 
+"""
+    DoubleOrNothingWithTarget(; target, threshold=1.0) <: CompressionStrategy
+
+Like [`DoubleOrNothing`](@ref), but attempts to keep the number of elements in the vector
+after compression as close to `target` as possible. Works like `DoubleOrNothing`, but the
+`prob` parameter is chosen dynamically to try to reach the `target` length.
+"""
 struct DoubleOrNothingWithTarget{T} <: CompressionStrategy
     target::Int
     threshold::T
@@ -64,6 +71,14 @@ function compress!(d::DoubleOrNothingWithTarget, v)
     return v
 end
 
+"""
+    DoubleOrNothingWithThreshold(; threshold_hi=1.0, threshold_lo=1e-3, prob=0.5) <: CompressionStrategy
+
+A combination of [`ThresholdProjection`](@ref) and [`DoubleOrNothing`](@ref). If a value is
+below `threshold_lo`, [`ThresholdProjection`](@ref) is applied, and if it is below
+`threshold_hi`, [`DoubleOrNothing`](@ref) is. The `prob` parameter has the same function as
+in [`DoubleOrNothing`](@ref).
+"""
 struct DoubleOrNothingWithThreshold{T} <: CompressionStrategy
     threshold_hi::T
     threshold_lo::T
