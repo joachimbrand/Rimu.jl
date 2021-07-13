@@ -267,7 +267,7 @@ end
     deposit!(w::InitiatorDVec, add, val, p_add=>p_val)
 Add `val` into `w` at address `add` as an [`InitiatorValue`](@ref).
 """
-function StochasticStyles.deposit!(w::InitiatorDVec, add, val, (p_add, p_val))
+function deposit!(w::InitiatorDVec, add, val, (p_add, p_val))
     V = valtype(w)
     i = w.initiator
     old_val = get(w.storage, add, zero(InitiatorValue{V}))
@@ -295,8 +295,9 @@ end
 
 function deposit!(w::InitiatorDVec{<:Any,V}, add, val::InitiatorValue{V}, _) where {V}
     dict = storage(w)
-    prev_val = get(dict, add, zero(valtype(dict)))
-    dict[add] = prev_val + val
+    old_val = get(dict, add, zero(valtype(dict)))
+    dict[add] = old_val + val
+    return (old_val, new_val)
 end
 
 ###

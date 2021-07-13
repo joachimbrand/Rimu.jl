@@ -70,6 +70,4 @@ include("EmbarrassinglyDistributed.jl")
 include("Blocking.jl")
 include("StatsTools/StatsTools.jl")
 
-include("deprecated.jl")
-
 end # module
