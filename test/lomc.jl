@@ -352,6 +352,7 @@ end
         @test E_dy ≈ E0 atol=3σ_dy
         @test E_de ≈ E0 atol=3σ_de
 
+        # For some reason, Bernoulli wants more walkers
         @test_broken E_br ≈ E0 atol=3σ_br
         @test E_nr ≈ E0 atol=3σ_nr
         @test E_dn ≈ E0 atol=3σ_dn
