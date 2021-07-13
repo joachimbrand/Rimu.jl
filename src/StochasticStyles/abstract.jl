@@ -87,7 +87,7 @@ The default implementation uses [`CompressionStrategy`](@ref) to compress the ve
 update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
 update_dvec!(s::StochasticStyle, v) = update_dvec!(CompressionStrategy(s), v)
 update_dvec!(::NoCompression, v) = v, NamedTuple()
-function update_dvec!(c::CompressionStrategy, s::StochasticStyle, v)
+function update_dvec!(c::CompressionStrategy, v)
     len_before = length(v)
     return compress!(c, v), (; len_before)
 end

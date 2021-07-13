@@ -172,13 +172,10 @@ See also [`StochasticStyle`](@ref).
 struct IsDeterministic{T<:AbstractFloat,C<:CompressionStrategy} <: StochasticStyle{T}
     compression::C
 end
-IsDeterministic{T}(; compression::C=NoCompression()) where {T,C} = IsDeterministic{T,C}(compression)
-IsDeterministic(; kwargs...) = IsDeterministic{Float64}(; kwargs...)
+IsDeterministic{T}(compression::C=NoCompression()) where {T,C} = IsDeterministic{T,C}(compression)
+IsDeterministic(args...) = IsDeterministic{Float64}(args...)
 
-function update_dvec!(s::IsDeterministic, v)
-    len_before = length(v)
-    return compress!(s.compression, v), (; len_before)
-end
+CompressionStrategy(s::IsDeterministic) = s.compression
 
 function step_stats(::IsDeterministic)
     return (:exact_steps,), MultiScalar(0,)
@@ -270,10 +267,7 @@ function IsDynamicSemistochastic{T}(
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
 
-function update_dvec!(s::IsDynamicSemistochastic, v)
-    len_before = length(v)
-    return compress!(s.compression, v), (; len_before)
-end
+CompressionStrategy(s::IsDynamicSemistochastic) = s.compression
 
 function step_stats(::IsDynamicSemistochastic)
     return (
@@ -308,6 +302,8 @@ function IsExplosive{T}(
     )
 end
 IsExplosive(; kwargs...) = IsExplosive{Float64}(; kwargs...)
+
+CompressionStrategy(s::IsExplosive) = s.compression
 
 function step_stats(::IsExplosive)
     return (
