@@ -300,7 +300,6 @@ end
     end
 
     @testset "Stochastic style comparison" begin
-
         add = BoseFS{5,5}((1,1,1,1,1))
         H = HubbardReal1D(add)
         E0 = -8.280991746582686
@@ -312,6 +311,7 @@ end
         dv_dy = DVec(add => 1; style=IsDynamicSemistochastic())
         dv_de = DVec(add => 1; style=IsDeterministic())
         dv_dp = DVec(add => 1; style=IsDeterministic(ThresholdCompression()))
+        dv_ex = DVec(add => 1; style=IsExplosive())
 
         dv_dn = DVec(add => 10; style=IsDynamicSemistochastic(compression=DoubleOrNothing()))
         dv_nr = DVec(add => 1; style=IsDynamicSemistochastic(spawning=WithoutReplacement()))
@@ -324,6 +324,7 @@ end
         df_dy = lomc!(H, dv_dy; s_strat, laststep=2500).df
         df_de = lomc!(H, dv_de; s_strat, laststep=2500).df
         df_dp = lomc!(H, dv_dp; s_strat, laststep=2500).df
+        df_ex = lomc!(H, dv_ex; s_strat, laststep=2500).df
 
         df_dn = lomc!(H, dv_dn; s_strat, laststep=2500).df
         df_nr = lomc!(H, dv_nr; s_strat, laststep=2500).df
@@ -334,6 +335,9 @@ end
         @test ("spawns", "deaths") ⊆ names(df_th)
         @test ("exact_steps", "inexact_steps", "spawns") ⊆ names(df_dy)
         @test "exact_steps" ∈ names(df_de)
+
+        @test ("explosions", "ticks", "normal_steps",
+               "explosive_spawns", "normal_spawns") ⊆ names(df_ex)
         @test ("exact_steps", "len_before") ⊆ names(df_dp)
         @test ("exact_steps", "len_before") ⊆ names(df_br)
         @test ("exact_steps", "len_before") ⊆ names(df_nr)
@@ -349,6 +353,7 @@ end
         E_dy, σ_dy = mean_and_se(df_dy.shift[500:end])
         E_de, σ_de = mean_and_se(df_de.shift[500:end])
         E_dp, σ_dp = mean_and_se(df_dp.shift[500:end])
+        E_ex, σ_ex = mean_and_se(df_dp.shift[500:end])
 
         E_dn, σ_dn = mean_and_se(df_dn.shift[500:end])
         E_nr, σ_nr = mean_and_se(df_nr.shift[500:end])
@@ -356,7 +361,7 @@ end
 
         # Stochastic noise depends on the method. Sampling without replacement makes a
         # small difference and is not consistently lower, so is not included here. A similar
-        # thing happens with deterministic with compression.
+        # thing happens with deterministic with compression and explosive spawns.
         @test σ_st > σ_th > σ_dn > σ_dy > σ_de
         # All estimates are fairly good.
         @test E_st ≈ E0 atol=3σ_st
@@ -365,6 +370,7 @@ end
         @test E_dy ≈ E0 atol=3σ_dy
         @test E_de ≈ E0 atol=3σ_de
         @test E_dp ≈ E0 atol=3σ_dp
+        @test E_ex ≈ E0 atol=3σ_ex
         @test E_nr ≈ E0 atol=3σ_nr
         @test E_dn ≈ E0 atol=3σ_dn
 

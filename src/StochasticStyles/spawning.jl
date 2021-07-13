@@ -85,7 +85,7 @@ The following methods are implemented:
 abstract type SpawningStrategy end
 
 """
-    spawn!(w, ham::AbstractHamiltonian, add, val, dτ)
+    spawn!(s::SpawningStrategy, w, ham::AbstractHamiltonian, add, val, dτ)
     spawn!(s::SpawningStrategy, w, offdiags::AbstractOffdiagonals, add, val, dτ)
 
 Perform stochastic spawns to `w` from address `add` with `val` walkers. `dτ` is a factor
@@ -93,10 +93,6 @@ multiplied to every spawns, while `val` also controls the number of spawns perfo
 
 This function should be overloaded in the second form, with `offdiags` as an argument.
 """
-function spawn!(w, ham, add, val, dτ)
-    spawn_strat = SpawningStrategy(StochasticStyle(w))
-    return spawn!(spawn_strat, w, offdiagonals(ham, add), add, val, dτ)
-end
 function spawn!(s::SpawningStrategy, w, ham, add, val, dτ)
     return spawn!(s, w, offdiagonals(ham, add), add, val, dτ)
 end

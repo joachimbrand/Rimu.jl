@@ -83,6 +83,8 @@ When extending this function for a custom [`StochasticStyle`](@ref), define a me
 for the two-argument call signature!
 
 The default implementation uses [`CompressionStrategy`](@ref) to compress the vector.
+
+Note: `update_dvec!` may return a new vector.
 """
 update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
 update_dvec!(s::StochasticStyle, v) = update_dvec!(CompressionStrategy(s), v)

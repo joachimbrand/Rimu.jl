@@ -287,7 +287,6 @@ struct IsExplosive{T<:AbstractFloat,C<:CompressionStrategy} <: StochasticStyle{T
     splatter_factor::T
     explosion_threshold::T
     compression::C
-    delay_factor::T
 end
 function IsExplosive{T}(
     ;
@@ -295,11 +294,8 @@ function IsExplosive{T}(
     explosion_threshold=one(T),
     proj_threshold=one(T),
     compression=ThresholdCompression(proj_threshold),
-    delay_factor=one(T),
 ) where {T}
-    return IsExplosive(
-        T(splatter_factor), T(explosion_threshold), T(proj_threshold), T(delay_factor),
-    )
+    return IsExplosive(T(splatter_factor), T(explosion_threshold), compression)
 end
 IsExplosive(; kwargs...) = IsExplosive{Float64}(; kwargs...)
 
@@ -314,16 +310,17 @@ function step_stats(::IsExplosive)
         MultiScalar(0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0),
     )
 end
-function fciqmc_col!(s::IsExplosive, w, ham, add, val, shift, dτ)
+function fciqmc_col!(s::IsExplosive{T}, w, ham, add, val, shift, dτ) where {T}
     explosions = normal_steps = ticks = 0
     explosive_spawns = normal_spawns = 0.0
     clones = deaths = zombies = 0.0
 
-    pd = dτ * (diagonal_element(ham, add) - shift) * s.delay_factor
+    pd = dτ * (diagonal_element(ham, add) - shift)
     if abs(val) ≤ s.explosion_threshold && 0 ≤ pd < 1
         if cRand() < pd
             _, _, explosive_spawns, _ = spawn!(
-                w, ham, add, val / pd, dτ, 0, s.splatter_factor
+                DynamicSemistochastic(strat=WithReplacement(zero(T), s.splatter_factor)),
+                w, ham, add, val / pd, dτ,
             )
             explosions = 1
         else
@@ -332,7 +329,9 @@ function fciqmc_col!(s::IsExplosive, w, ham, add, val, shift, dτ)
         end
     else
         clones, deaths, zombies, _ = diagonal_step!(w, ham, add, val, dτ, shift)
-        _, _, normal_spawns, _ = spawn!(w, ham, add, val, dτ)
+        _, _, normal_spawns, _ = spawn!(
+            DynamicSemistochastic(strat=WithReplacement()), w, ham, add, val, dτ,
+        )
         normal_steps = 1
     end
 
