@@ -140,7 +140,7 @@ function deposit!(w, add, val, _)
     old = w[add]
     new = old + convert(valtype(w), val)
     w[add] = new
-    return (old, new)
+    return w
 end
 
 """
