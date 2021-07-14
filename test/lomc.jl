@@ -270,6 +270,16 @@ using Statistics
             df, _ = lomc!(H, cdv; post_step)
             @test df.loneliness isa Vector{ComplexF64}
         end
+
+        @testset "Timer" begin
+            post_step = Rimu.Timer()
+            time_before = time()
+            df, _ = lomc!(H, copy(dv); post_step)
+            time_after = time()
+            @test df.time[1] > time_before
+            @test df.time[end] < time_after
+            @test issorted(df.time)
+        end
     end
 end
 
