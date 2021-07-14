@@ -43,21 +43,47 @@ function projected_deposit!(::Type{T}, w, add, val, parent, _) where {T<:Integer
     end
     return abs(intval), annihilations
 end
-# TODO complex
+# Complex/Int
+function projected_deposit!(::Type{T}, w, add, val, parent, _) where {I<:Integer,T<:Complex{I}}
+    r_val, i_val = reim(val)
+
+    r_intval = I(sign(r_val)) * floor(I, abs(r_val) + cRand())
+    i_intval = I(sign(i_val)) * floor(I, abs(i_val) + cRand())
+    intval = r_intval + im * i_intval
+
+    annihilations = zero(T)
+    if !iszero(intval)
+        prev = w[add]
+        r_prev, i_prev = reim(prev)
+        if sign(r_prev) ≠ sign(r_intval)
+            annihilations += min(abs(r_prev), abs(r_intval))
+        end
+        if sign(i_prev) ≠ sign(i_intval)
+            annihilations += min(abs(i_prev), abs(i_intval)) * im
+        end
+        deposit!(w, add, intval, parent)
+    end
+    return abs(r_intval) + im * abs(i_intval), annihilations
+end
 
 """
-    diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
+    diagonal_step!(w, ham, add, val, dτ, shift, threshold=0, factor=1)
 
 Perform diagonal step on a walker `add => val`. Optional argument `threshold` sets the
 projection threshold. If `eltype(w)` is an `Integer`, the `val` is rounded to the nearest
-integer stochastically.
+integer stochastically. The entire value is multiplied by optional `factor`.
 """
-function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
+function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0, factor=1)
     clones = deaths = zombies = zero(valtype(w))
 
     pd = dτ * (diagonal_element(ham, add) - shift)
     new_val = (1 - pd) * val
-    res, annihilations = projected_deposit!(w, add, new_val, add => val, threshold)
+    res, annihilations = projected_deposit!(w, add, new_val * factor, add => val, threshold)
+    return (clones_deaths_zombies(pd, res, val)..., annihilations)
+end
+
+function clones_deaths_zombies(pd::Real, res::Real, val::Real)
+    clones = deaths = zombies = zero(res)
     if pd < 0
         clones = abs(res - val)
     elseif pd < 1
@@ -66,7 +92,30 @@ function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
         deaths = abs(val)
         zombies = abs(res)
     end
-    return (clones, deaths, zombies, annihilations)
+    return (clones, deaths, zombies)
+end
+function clones_deaths_zombies(pd::Complex, res::Complex, val::Complex)
+    clones = deaths = zombies = zero(res)
+    pd_re, pd_im = reim(pd)
+    res_re, res_im = reim(res)
+    val_re, val_im = reim(val)
+    if pd_re < 0
+        clones += abs(res_re - val_re)
+    elseif pd_re < 1
+        deaths += abs(res_re - val_re)
+    else
+        deaths += abs(val_re)
+        zombies += abs(res_re)
+    end
+    if pd_im < 0
+        clones += abs(res_im - val_im) * im
+    elseif pd_im < 1
+        deaths += abs(res_im - val_im) * im
+    else
+        deaths += abs(val_im) * im
+        zombies += abs(res_im) * im
+    end
+    return (clones, deaths, zombies)
 end
 
 """

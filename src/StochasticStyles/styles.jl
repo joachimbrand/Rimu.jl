@@ -23,14 +23,6 @@ function fciqmc_col!(
     return (spawns, deaths, clones, zombies, ann_diag + ann_offdiag)
 end
 
-"""
-    IsStochastic2Pop{T=Complex{Int}}() <: StochasticStyle{T}
-
-Trait for generalised vector of configurations indicating stochastic propagation with
-complex walker numbers representing two populations of integer walkers.
-
-See also [`StochasticStyle`](@ref).
-"""
 struct IsStochastic2Pop{T<:Complex{<:Integer}} <: StochasticStyle{T} end
 IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 
@@ -40,7 +32,39 @@ function step_stats(::IsStochastic2Pop)
         MultiScalar(ntuple(_ -> 0 + 0im, Val(5))),
     )
 end
-function fciqmc_col!(::IsStochastic2Pop, w, ham, add, cnum::Complex, cshift, dτ)
+function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
+    offdiags = offdiagonals(ham, add)
+    spawns = deaths = clones = zombies = ann_o = ann_d = 0 + 0im
+    # off-diagonal real.
+    s, a = spawn!(WithReplacement(), w, offdiags, add, real(val), dτ)
+    spawns += s; ann_o += a
+    # off-diagonal complex: complex dτ ensures spawning to the correct population.
+    s, a = spawn!(WithReplacement(), w, offdiags, add, imag(val), dτ * im)
+    spawns += s; ann_o += a
+
+    clones, deaths, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
+
+    return (spawns, deaths, clones, zombies, ann_o + ann_d)
+end
+
+"""
+    IsStochastic2PopOld{T=Complex{Int}}() <: StochasticStyle{T}
+
+Trait for generalised vector of configurations indicating stochastic propagation with
+complex walker numbers representing two populations of integer walkers.
+
+See also [`StochasticStyle`](@ref).
+"""
+struct IsStochastic2PopOld{T<:Complex{<:Integer}} <: StochasticStyle{T} end
+IsStochastic2PopOld() = IsStochastic2PopOld{Complex{Int}}()
+
+function step_stats(::IsStochastic2PopOld)
+    return (
+        (:spawns, :deaths, :clones, :zombies, :annihilations),
+        MultiScalar(ntuple(_ -> 0 + 0im, Val(5))),
+    )
+end
+function fciqmc_col!(::IsStochastic2PopOld, w, ham, add, cnum::Complex, cshift, dτ)
     # version for complex integer psips
     # off-diagonal: spawning psips
     spawns::typeof(cnum) = deaths = clones = zombies = annihilations = zero(cnum)
