@@ -21,7 +21,7 @@ jobs:
           body=$(julia -e '
           using BenchmarkCI
           let
-              judgement = BenchmarkCI.judge(target="origin/develop")
+              judgement = BenchmarkCI.judge(baseline="origin/develop")
               title = "Benchmark result"
               ciresult = BenchmarkCI.CIResult(; judgement, title)
               BenchmarkCI.printcommentmd(stdout::IO, ciresult)
