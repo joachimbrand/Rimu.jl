@@ -13,6 +13,8 @@ jobs:
       - uses: julia-actions/julia-buildpkg@latest
       - name: Install dependencies
         run: julia -e 'using Pkg; pkg"add PkgBenchmark BenchmarkTools BenchmarkCI@0.1"'
+      - name: Run benchmarks
+        run: julia -e 'using BenchmarkCI; BenchmarkCI.judge(baseline="origin/develop"); BenchmarkCI.displayjudgement()'
 
       # generate result markdown
       - name: generate benchmark result
@@ -21,7 +23,7 @@ jobs:
           body=$(julia -e '
           using BenchmarkCI
           let
-              judgement = BenchmarkCI.judge(baseline="origin/develop")
+              judgement = BenchmarkCI._loadjudge(BenchmarkCI.DEFAULT_WORKSPACE)
               title = "Benchmark result"
               ciresult = BenchmarkCI.CIResult(; judgement, title)
               BenchmarkCI.printcommentmd(stdout::IO, ciresult)
