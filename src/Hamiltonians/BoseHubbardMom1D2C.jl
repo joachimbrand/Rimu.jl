@@ -93,54 +93,44 @@ addresses and products of occupation numbers for computing off-diagonal elements
 @inline function hop_across_two_addresses(
     add_a::BoseFS{NA,M}, add_b::BoseFS{NB,M}, chosen, sa, sb
 ) where {NA,NB,M}
-    onrep_a = BitStringAddresses.m_onr(add_a)
-    onrep_b = BitStringAddresses.m_onr(add_b)
+    onrep_a = onr(add_a)
+    onrep_b = onr(add_b)
     # b†_s b_q a†_p a_r
-    s = p = q = r = 0
-    onproduct_a = 1
-    onproduct_b = 1
     hole_a, remainder = fldmod1(chosen, (M - 1) * sb) # hole_a: position for hole_a
     p, hole_b = fldmod1(remainder, sb) # hole_b: position for hole_b
     # annihilate an A boson:
-    for (i, occ) in enumerate(onrep_a)
-        if occ > 0
-            hole_a -= 1 # searching for the position for hole_a
-            if hole_a == 0 # found the hole_a here
-                onproduct_a *= occ # record the normalisation factor before annihilate
-                @inbounds onrep_a[i] = occ - 1 # annihilate an A boson: a_r
-                r = i # remember where we make the hole
-                break # should break out of the for loop
-            end
-        end
-    end
+    onrep_a, r, onproduct_a = annihilate_boson(onrep_a, hole_a)
+
     if p ≥ r
         p += 1 # to skip the hole_a
     end
     # create an A boson:
     ΔP = p - r # change in momentun
     p = mod1(p, M) # enforce periodic boundary condition
-    @inbounds onrep_a[p] += 1 # create an A boson: a†_p
+    @inbounds onrep_a = setindex(onrep_a, onrep_a[p] + 1, p)
     @inbounds onproduct_a *= onrep_a[p] # record the normalisation factor after creation
+
     # annihilate a B boson:
-    for (i, occ) in enumerate(onrep_b)
-        if occ > 0
-            hole_b -= 1 # searching for the position for hole_b
-            if hole_b == 0 # found the hole_b here
-                onproduct_b *= occ # record the normalisation factor before annihilate
-                @inbounds onrep_b[i] = occ-1 # annihilate a B boson: b_q
-                q = i # remember where we make the holes
-                break # should break out of the for loop
-            end
-        end
-    end
+    onrep_b, q, onproduct_b = annihilate_boson(onrep_b, hole_b)
+
     s = mod1(q-ΔP, M) # compute s with periodic boundary condition
     # create a B boson:
-    @inbounds onrep_b[s] += 1 # create a B boson: b†_s
+    @inbounds onrep_b = setindex(onrep_b, onrep_b[s] + 1, s) # create a B boson: b†_s
     @inbounds onproduct_b *= onrep_b[s] # record the normalisation factor after creation
-    # if mod(q+r,M)-mod(s+p,M) != 0 # sanity check for momentum conservation
-    #     error("Momentum is not conserved!")
-    # end
+
     return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b, s, q
+end
+function annihilate_boson(onrep, hole)
+    q = onproduct = 0
+    for (i, occ) in enumerate(onrep)
+        hole -= occ > 0
+        if hole == 0
+            onproduct = occ
+            q = i
+            break
+        end
+    end
+    return setindex(onrep, onproduct - 1, q), q, onproduct
 end
 
 function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
