@@ -23,6 +23,17 @@ function fciqmc_col!(
     return (spawns, deaths, clones, zombies, ann_diag + ann_offdiag)
 end
 
+"""
+    IsStochastic2Pop{T=Complex{Int}}() <: StochasticStyle{T}
+
+Trait for generalised vector of configurations indicating stochastic propagation with
+complex walker numbers representing two populations of integer walkers.
+
+When using this style, make sure to set a complex target number walkers in the
+[`ShiftStrategy`](@ref)!
+
+See also [`StochasticStyle`](@ref).
+"""
 struct IsStochastic2Pop{T<:Complex{<:Integer}} <: StochasticStyle{T} end
 IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 
@@ -45,147 +56,6 @@ function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
     clones, deaths, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
 
     return (spawns, deaths, clones, zombies, ann_o + ann_d)
-end
-
-"""
-    IsStochastic2PopOld{T=Complex{Int}}() <: StochasticStyle{T}
-
-Trait for generalised vector of configurations indicating stochastic propagation with
-complex walker numbers representing two populations of integer walkers.
-
-See also [`StochasticStyle`](@ref).
-"""
-struct IsStochastic2PopOld{T<:Complex{<:Integer}} <: StochasticStyle{T} end
-IsStochastic2PopOld() = IsStochastic2PopOld{Complex{Int}}()
-
-function step_stats(::IsStochastic2PopOld)
-    return (
-        (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(ntuple(_ -> 0 + 0im, Val(5))),
-    )
-end
-function fciqmc_col!(::IsStochastic2PopOld, w, ham, add, cnum::Complex, cshift, dτ)
-    # version for complex integer psips
-    # off-diagonal: spawning psips
-    spawns::typeof(cnum) = deaths = clones = zombies = annihilations = zero(cnum)
-    # stats reported are complex, for each component separately
-    hops = offdiagonals(ham,add)
-    # real psips first
-    num = real(cnum)
-    for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = random_offdiagonal(hops)
-        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
-        nspawn = floor(Int, pspawn) # deal with integer part separately
-        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
-        # at this point, nspawn is non-negative
-        # now converted to correct type and compute sign
-        nspawns = convert(typeof(num), -nspawn * sign(num) * sign(matelem))
-        # - because Hamiltonian appears with - sign in iteration equation
-        if sign(real(w[naddress])) * sign(nspawns) < 0 # record annihilations
-            annihilations += min(abs(real(w[naddress])),abs(nspawns))
-        end
-        if !iszero(nspawns)
-            deposit!(w, naddress, nspawns, add => cnum)
-            # perform spawn (if nonzero): add walkers with correct sign
-            spawns += abs(nspawns)
-        end
-    end
-    # now imaginary psips
-    num = imag(cnum)
-    for n in 1:abs(num) # for each psip attempt to spawn once
-        naddress, pgen, matelem = random_offdiagonal(hops)
-        pspawn = dτ * abs(matelem) /pgen # non-negative Float64
-        nspawn = floor(Int, pspawn) # deal with integer part separately
-        cRand() < (pspawn - nspawn) && (nspawn += 1) # random spawn
-        # at this point, nspawn is non-negative
-        # now converted to correct type and compute sign
-        nspawns = im*convert(typeof(num), -nspawn * sign(num) * sign(matelem))
-        # - because Hamiltonian appears with - sign in iteration equation
-        if sign(imag(w[naddress])) * sign(imag(nspawns)) < 0 # record annihilations
-            annihilations += min(abs(imag(w[naddress])),abs(imag(nspawns)))
-        end
-        if !iszero(nspawns)
-            deposit!(w, naddress, nspawns, add => cnum)
-            # perform spawn (if nonzero): add walkers with correct sign
-            spawns += im*abs(nspawns)
-        end
-    end
-
-    # diagonal death / clone
-    shift = real(cshift) # use only real part of shift for now
-    dME = diagonal_element(ham,add)
-    pd = dτ * (dME - shift) # real valued so far
-    cnewdiagpop = (1-pd)*cnum # now it's complex
-    # treat real part
-    newdiagpop = real(cnewdiagpop)
-    num = real(cnum)
-    ndiag = trunc(newdiagpop)
-    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
-    # only treat non-integer part stochastically
-    ndiags = convert(typeof(num),ndiag) + 0im # now real integer type
-    if sign(real(w[add])) ≠ sign(ndiag) # record annihilations
-        annihilations += min(abs(real(w[add])),abs(real(ndiags)))
-    end
-    deposit!(w, add, ndiags, add => num) # should carry the correct sign
-    if  pd < 0 # record event statistics
-        clones += abs(real(ndiags) - num)
-    elseif pd < 1
-        deaths += abs(real(ndiags) - num)
-    else
-        zombies += abs(real(ndiags))
-    end
-    # treat imaginary part
-    newdiagpop = imag(cnewdiagpop)
-    num = imag(cnum)
-    ndiag = trunc(newdiagpop)
-    abs(newdiagpop-ndiag)>cRand() && (ndiag += sign(newdiagpop))
-    # only treat non-integer part stochastically
-    ndiags = im*convert(typeof(num),ndiag) # now complex integer type
-    if sign(imag(w[add])) ≠ sign(imag(ndiag)) # record annihilations
-        annihilations += min(abs(imag(w[add])),abs(imag(ndiags)))
-    end
-    deposit!(w, add, ndiags, add => cnum)
-    if  pd < 0 # record event statistics
-        clones += im*abs(imag(ndiags) - num)
-    elseif pd < 1
-        deaths += im*abs(imag(ndiags) - num)
-    else
-        zombies += im*abs(imag(ndiags))
-    end
-
-    # imaginary part of shift leads to spawns across populations
-    cspawn = im*dτ*imag(cshift)*cnum # to be spawned as complex number with signs
-
-    # real part - to be spawned into real walkers
-    rspawn = real(cspawn) # float with sign
-    nspawn = trunc(Int, rspawn) # deal with integer part separately
-    cRand() < abs(rspawn - nspawn) && (nspawn += Int(sign(rspawn))) # random spawn
-    # at this point, nspawn has correct sign
-    # now convert to correct type
-    cnspawn = convert(typeof(cnum), nspawn)
-    if sign(real(w[add])) * sign(nspawn) < 0 # record annihilations
-        annihilations += min(abs(real(w[add])),abs(nspawn))
-    end
-    deposit!(w, add, cnspawn, add => cnum)
-    # perform spawn (if nonzero): add walkers with correct sign
-    spawns += abs(nspawn)
-
-    # imag part - to be spawned into imaginary walkers
-    ispawn = imag(cspawn) # float with sign
-    nspawn = trunc(Int, ispawn) # deal with integer part separately
-    cRand() < abs(ispawn - nspawn) && (nspawn += Int(sign(ispawn))) # random spawn
-    # at this point, nspawn has correct sign
-    # now convert to correct type
-    cnspawn = convert(typeof(cnum), nspawn*im)# imaginary spawns!
-    if sign(imag(w[add])) * sign(nspawn) < 0 # record annihilations
-        annihilations += min(abs(imag(w[add])),abs(nspawn))
-    end
-    deposit!(w, add, cnspawn, add => cnum)
-    # perform spawn (if nonzero): add walkers with correct sign
-    spawns += abs(nspawn)
-
-    return (spawns, deaths, clones, zombies, annihilations)
-    # note that w is not returned
 end
 
 """

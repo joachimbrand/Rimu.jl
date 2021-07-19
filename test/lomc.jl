@@ -317,7 +317,7 @@ end
         seedCRNG!(1234)
         dv_st = DVec(add => 1; style=IsStochasticInteger())
         dv_th = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
-        dv_cx = DVec(add => 1; style=IsStochastic2Pop())
+        dv_cx = DVec(add => 1 + im; style=IsStochastic2Pop())
         dv_dy = DVec(add => 1; style=IsDynamicSemistochastic())
         dv_de = DVec(add => 1; style=IsDeterministic())
         dv_dp = DVec(add => 1; style=IsDeterministic(ThresholdCompression()))
@@ -328,9 +328,10 @@ end
         dv_br = DVec(add => 1; style=IsDynamicSemistochastic(spawning=Bernoulli()))
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
+        s_strat_cx = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100 + 100im)
         df_st = lomc!(H, dv_st; s_strat, laststep=2500).df
         df_th = lomc!(H, dv_th; s_strat, laststep=2500).df
-        df_cx = lomc!(H, dv_cx; s_strat, laststep=2500).df
+        df_cx = lomc!(H, dv_cx; s_strat=s_strat_cx, laststep=2500).df
         df_dy = lomc!(H, dv_dy; s_strat, laststep=2500).df
         df_de = lomc!(H, dv_de; s_strat, laststep=2500).df
         df_dp = lomc!(H, dv_dp; s_strat, laststep=2500).df
@@ -359,7 +360,7 @@ end
 
         E_st, σ_st = mean_and_se(df_st.shift[500:end])
         E_th, σ_th = mean_and_se(df_th.shift[500:end])
-        E_cx, σ_cx = mean_and_se(df_cx.shift[500:end])
+        E_cx, σ_cx = mean_and_se(real.(df_cx.shift[500:end]))
         E_dy, σ_dy = mean_and_se(df_dy.shift[500:end])
         E_de, σ_de = mean_and_se(df_de.shift[500:end])
         E_dp, σ_dp = mean_and_se(df_dp.shift[500:end])
