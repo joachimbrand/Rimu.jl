@@ -283,8 +283,8 @@ using Statistics
     end
 
     @testset "fciqmc_step! does not allocate" begin
-        # Wrapping over `fciqmc_step!` ensure nothing gets allocated unnecessarily. In
-        # particular, without a wrapper, a small allocation is made for the return value.
+        # Wrapping over `fciqmc_step!` ensure nothing gets allocated unnecessarily.
+        # Without a wrapper a small allocation is made for the return value.
         function wrap(H, dv, dw)
             Rimu.fciqmc_step!(H, dv, 0, 0.01, 1, dw, 1.0)
             return nothing

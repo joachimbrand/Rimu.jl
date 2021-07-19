@@ -75,6 +75,14 @@ IsDeterministic(args...) = IsDeterministic{Float64}(args...)
 
 CompressionStrategy(s::IsDeterministic) = s.compression
 
+function Base.show(io::IO, s::IsDeterministic{T}) where {T}
+    if s.compression isa NoCompression
+        print(io, "IsDeterministic{$T}()")
+    else
+        print(io, "IsDeterministic{$T}($(s.compression))")
+    end
+end
+
 function step_stats(::IsDeterministic)
     return (:exact_steps,), MultiScalar(0,)
 end
@@ -154,8 +162,8 @@ See also [`StochasticStyle`](@ref).
 struct IsDynamicSemistochastic{
     T<:AbstractFloat,C<:CompressionStrategy,S<:DynamicSemistochastic
 } <: StochasticStyle{T}
-    spawning::S
     compression::C
+    spawning::S
 end
 function IsDynamicSemistochastic{T}(
     ;
@@ -164,9 +172,14 @@ function IsDynamicSemistochastic{T}(
     spawning=WithReplacement(),
 ) where {T}
     s = DynamicSemistochastic(spawning, rel_threshold, abs_threshold)
-    return IsDynamicSemistochastic{T,typeof(compression),typeof(s)}(s, compression)
+    return IsDynamicSemistochastic{T,typeof(compression),typeof(s)}(compression, s)
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
+
+function Base.show(io::IO, s::IsDynamicSemistochastic{T,C}) where {T,C}
+    spawning = nameof(typeof(s.spawning.strat))
+    print(io, "IsDynamicSemistochastic{$T}(", spawning, ", ", nameof(C), ")")
+end
 
 CompressionStrategy(s::IsDynamicSemistochastic) = s.compression
 
