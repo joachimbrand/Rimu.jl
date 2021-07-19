@@ -105,7 +105,7 @@ function QMCState(
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(maxlength),
+        hamiltonian, replicas, Ref(Int(maxlength)),
         m_strat, r_strat, s_strat, τ_strat, post_step, replica
     )
 end
