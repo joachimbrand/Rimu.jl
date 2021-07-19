@@ -281,6 +281,33 @@ using Statistics
             @test issorted(df.time)
         end
     end
+
+    @testset "fciqmc_step! does not allocate" begin
+        # Wrapping over `fciqmc_step!` ensure nothing gets allocated unnecessarily. In
+        # particular, without a wrapper, a small allocation is made for the return value.
+        function wrap(H, dv, dw)
+            Rimu.fciqmc_step!(H, dv, 0, 0.01, 1, dw, 1.0)
+            return nothing
+        end
+
+        for H in (
+            HubbardReal1D(BoseFS((1,1,2))),
+            BoseHubbardReal1D2C(BoseFS2C((1,2,2), (0,1,0))),
+            BoseHubbardMom1D2C(BoseFS2C((0,1), (1,0))),
+        ), style in (
+            IsStochasticInteger(),
+            IsStochasticWithThreshold(),
+            IsDynamicSemistochastic(),
+        )
+            add = starting_address(H)
+            dw = DVec(add => 1; style, capacity=1000)
+            dv = DVec(add => 1; style, capacity=1000)
+
+            # Precompile
+            wrap(H, dv, dw)
+            @test @allocated(wrap(H, dv, dw)) == 0
+        end
+    end
 end
 
 @testset "Ground state energy estimates" begin
