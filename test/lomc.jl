@@ -299,13 +299,15 @@ using Statistics
             IsStochasticWithThreshold(),
             IsDynamicSemistochastic(),
         )
-            add = starting_address(H)
-            dw = DVec(add => 1; style, capacity=1000)
-            dv = DVec(add => 1; style, capacity=1000)
+            @testset "$H with $style" begin
+                add = starting_address(H)
+                dw = DVec(add => 1; style, capacity=1000)
+                dv = DVec(add => 1; style, capacity=1000)
 
-            # Precompile
-            wrap(H, dv, dw)
-            @test @allocated(wrap(H, dv, dw)) == 0
+                # Precompile
+                wrap(H, dv, dw)
+                @test @allocated(wrap(H, dv, dw)) == 0
+            end
         end
     end
 end
