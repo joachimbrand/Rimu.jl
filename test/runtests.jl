@@ -402,16 +402,11 @@ end
     mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
     is_local = !haskey(ENV, "CI")
 
-    # use user installed julia executable if available
-    if isfile(joinpath(homedir(),"bin/julia"))
-        juliaexec = joinpath(homedir(),"bin/julia")
-    else
-        juliaexec = "julia"
-    end
-    run(`which $mpiexec`)
+    juliaexec = Base.julia_cmd()
+    mpi_test_file = joinpath(@__DIR__, "mpi_runtests.jl")
 
     if is_local
-        rr = run(`$mpiexec -np 2 $juliaexec -t 1 mpi_runtests.jl`)
+        rr = run(`$mpiexec -np 2 $juliaexec -t 1 $mpi_test_file`)
         @test rr.exitcode == 0
     else
         @info "not testing MPI on CI"
