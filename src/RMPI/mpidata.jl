@@ -217,13 +217,65 @@ end
 function LinearAlgebra.dot(x, md::MPIData)
     return MPI.Allreduce(localpart(x)⋅localpart(md), +, md.comm)
 end
-function LinearAlgebra.dot(x, lop, md::MPIData)
-    return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
-end
-function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
-    # Arguments are swapped since lop * md_right is not an MPIData and MPIData should be on
-    # the right hand side.
-    return conj(dot(lop * md_right, md_left))
+#function LinearAlgebra.dot(x, lop, md::MPIData)
+#    return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
+#end
+#function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
+#    # Arguments are swapped since lop * md_right is not an MPIData and MPIData should be on
+#    # the right hand side.
+#    return conj(dot(lop * md_right, md_left))
+#end
+
+function LinearAlgebra.dot(md_left, lop, md_right::MPIData)
+    T = promote_type(eltype(lop), valtype(md_left), valtype(md_right))
+    dv = localpart(md_left)
+
+    P = Pair{keytype(md_right),T}
+    buffers = Vector{P}[P[] for _ in 1:mpi_size(md_right.comm)]
+    myrank = mpi_rank()
+    comm = md_right.comm
+
+    result = zero(T)
+
+    # Sort values into buffers and communicate.
+    for (key, val) in pairs(localpart(md_right))
+        result += conj(dv[key]) * diagonal_element(lop, key) * val
+        for (add, elem) in offdiagonals(lop, key)
+            tr = targetrank(add, mpi_size(comm))
+            if tr == myrank
+                result += conj(dv[add]) * elem * val
+            else
+                push!(buffers[tr + 1], add => elem * val)
+            end
+        end
+    end
+
+    myrank = mpi_rank(comm)
+    recbuf = buffers[myrank + 1]
+    datatype = MPI.Datatype(P)
+    # Receive from lower ranks.
+    for id in 0:(myrank - 1)
+        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
+        MPI.Recv!(recbuf, id, 0, comm)
+        for (add, value) in recbuf
+            result += conj(dv[add]) * value
+        end
+    end
+    # Perform sends.
+    for id in 0:(mpi_size(comm) - 1)
+        id == myrank && continue
+        MPI.Send(buffers[id + 1], id, 0, comm)
+    end
+    # Receive from higher ranks.
+    for id in (myrank + 1):(mpi_size(comm) - 1)
+        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
+        MPI.Recv!(recbuf, id, 0, comm)
+        for (add, value) in recbuf
+            result += conj(dv[add]) * value
+        end
+    end
+
+    return MPI.Allreduce(result, +, comm)
 end
 
 function Rimu.freeze(md::MPIData)
