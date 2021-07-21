@@ -173,6 +173,35 @@ function spawn!(s::Exact, w, offdiags::AbstractVector, add, val, dτ)
 end
 
 """
+    SingleSpawn(threshold=0.0) <: SpawningStrategy
+
+Perform a single spawn. Useful as a building block for other stochastic styles.
+
+## Parameters
+
+* `threshold` sets the projection threshold. If set to zero, no projection is performed.
+
+[`spawn!`](@ref) with this strategy returns the number of spawns and annihilations.
+
+"""
+struct SingleSpawn{T} <: SpawningStrategy
+    threshold::T
+    strength::T
+end
+SingleSpawn(threshold=0.0) = SingleSpawn(threshold, zero(threshold))
+
+function spawn!(s::SingleSpawn, w, offdiags::AbstractVector, add, val, dτ)
+    if iszero(val)
+        z = zero(valtype(w))
+        return (z, z)
+    else
+        new_add, prob, mat_elem = random_offdiagonal(offdiags)
+        new_val = -val * mat_elem * dτ / prob
+        return projected_deposit!(w, new_add, new_val, add => val, s.threshold)
+    end
+end
+
+"""
     WithReplacement <: SpawningStrategy
 
 [`SpawningStrategy`](@ref) where spawn targets are sampled with replacement. This is the default spawning strategy for most of the [`StochasticStyle`](@ref)s.
@@ -228,17 +257,22 @@ end
 function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, dτ)
     spawns = annihilations = zero(valtype(w))
     num_spawns = max(floor(Int, abs(val) * s.strength), 1)
-    magnitude = val / num_spawns
 
-    num_offdiags = length(offdiags)
-    prob = 1 / num_offdiags
+    if abs(num_spawns) ≤ 1
+        spawn!(SingleSpawn(s.threshold), w, offdiags, add, val, dτ)
+    else
+        magnitude = val / num_spawns
 
-    for i in sample(1:num_offdiags, num_spawns; replace=false)
-        new_add, mat_elem = offdiags[i]
-        new_val = -mat_elem * magnitude / prob * dτ
-        spw, ann = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
-        spawns += spw
-        annihilations += ann
+        num_offdiags = length(offdiags)
+        prob = 1 / num_offdiags
+
+        for i in sample(1:num_offdiags, num_spawns; replace=false)
+            new_add, mat_elem = offdiags[i]
+            new_val = -mat_elem * magnitude / prob * dτ
+            spw, ann = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
+            spawns += spw
+            annihilations += ann
+        end
     end
     return (spawns, annihilations)
 end
@@ -267,10 +301,9 @@ end
 
 function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val, dτ)
     spawns = annihilations = zero(valtype(w))
-
+    # General case.
     num_offdiags = length(offdiags)
     prob = abs(val) * s.strength / num_offdiags
-
     for i in 1:num_offdiags
         if cRand() > prob
             new_add, mat_elem = offdiags[i]

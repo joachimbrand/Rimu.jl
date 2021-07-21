@@ -3,7 +3,7 @@ using Test
 using Rimu.StochasticStyles
 
 using Rimu.StochasticStyles: projected_deposit!, diagonal_step!, spawn!
-using Rimu.StochasticStyles: Exact, WithReplacement, WithoutReplacement, Bernoulli, DynamicSemistochastic
+using Rimu.StochasticStyles: Exact, SingleSpawn, WithReplacement, WithoutReplacement, Bernoulli, DynamicSemistochastic
 
 @testset "Generic Hamiltonian-free functions" begin
     matrix = [1 2 3; 4 5 6; 7 8 9]
@@ -172,6 +172,7 @@ end
     dss_b = DynamicSemistochastic(Bernoulli(), 1.0, Inf)
     dss_ws = DynamicSemistochastic(WithoutReplacement(strength=1.1), 1.0, Inf)
     dss_bs = DynamicSemistochastic(Bernoulli(strength=1.5), 1.0, Inf)
+    dss_s = DynamicSemistochastic(SingleSpawn(), 1.0, Inf)
 
     # The expected value for all spawning strategies should be the same. This tests makes
     # enough spawns to hopefully reach that average consistently.
@@ -182,32 +183,38 @@ end
         exact = DVec(add => 1.0)
         vanilla = DVec(add => 1.0)
         strong = DVec(add => 1.0)
+        single = DVec(add => 1.0)
         semi_rep = DVec(add => 1.0)
         semi_bern = DVec(add => 1.0)
         semi_wo = DVec(add => 1.0)
         semi_bern_strong = DVec(add => 1.0)
         semi_wo_strong = DVec(add => 1.0)
+        semi_single = DVec(add => 1.0)
 
         for _ in 1:10000
             val = rand() * num_offdiagonals(H, add) * 1.2
             spawn!(Exact(), exact, H, add, val, 1e-5)
             spawn!(WithReplacement(), vanilla, H, add, val, 1e-5)
             spawn!(WithReplacement(strength=2.0), strong, H, add, val, 1e-5)
+            spawn!(SingleSpawn(), single, H, add, val, 1e-5)
             spawn!(dss_r, semi_rep, H, add, val, 1e-5)
             spawn!(dss_w, semi_wo, H, add, val, 1e-5)
             spawn!(dss_b, semi_bern, H, add, val, 1e-5)
             spawn!(dss_ws, semi_wo_strong, H, add, val, 1e-5)
             spawn!(dss_bs, semi_bern_strong, H, add, val, 1e-5)
+            spawn!(dss_s, semi_single, H, add, val, 1e-5)
         end
 
         for k in keys(exact)
             @test exact[k] ≈ vanilla[k] rtol=0.1
             @test exact[k] ≈ strong[k] rtol=0.1
+            @test exact[k] ≈ single[k] rtol=0.3 # ← very noisy.
             @test exact[k] ≈ semi_rep[k] rtol=0.1
             @test exact[k] ≈ semi_bern[k] rtol=0.1
             @test exact[k] ≈ semi_wo[k] rtol=0.1
             @test exact[k] ≈ semi_bern_strong[k] rtol=0.1
             @test exact[k] ≈ semi_wo_strong[k] rtol=0.1
+            @test exact[k] ≈ semi_single[k] rtol=0.3 # ← very noisy.
         end
     end
 end
