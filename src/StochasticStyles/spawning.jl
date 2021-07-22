@@ -13,7 +13,9 @@ function projected_deposit!(::Type{T}, w, add, val::U, parent, threshold) where 
     return projected_deposit!(T, w, add, convert(T, val), parent, convert(T, threshold))
 end
 # Non-integer
-function projected_deposit!(::Type{T}, w, add, val::T, parent, threshold::T) where {T}
+function projected_deposit!(::Type{T}, w, add, val::T, parent, thresh) where {T}
+    # ensure type stability.
+    threshold = T(thresh)
     absval = abs(val)
     if absval < threshold
         if cRand() < abs(val) / threshold
