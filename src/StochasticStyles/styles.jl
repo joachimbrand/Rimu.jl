@@ -9,10 +9,11 @@ See also [`StochasticStyle`](@ref).
 struct IsStochasticInteger{T<:Integer} <: StochasticStyle{T} end
 IsStochasticInteger() = IsStochasticInteger{Int}()
 
-function step_stats(::IsStochasticInteger)
+function step_stats(::IsStochasticInteger{T}) where {T}
+    z = zero(T)
     return (
         (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(0, 0, 0, 0, 0),
+        MultiScalar(z, z, z, z, z),
     )
 end
 function fciqmc_col!(
@@ -40,7 +41,7 @@ IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 function step_stats(::IsStochastic2Pop)
     return (
         (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(ntuple(_ -> 0 + 0im, Val(5))),
+        MultiScalar(ntuple(_ -> zero(T), Val(5))),
     )
 end
 function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
@@ -114,17 +115,19 @@ See also [`StochasticStyle`](@ref).
 struct IsStochasticWithThreshold{T<:AbstractFloat} <: StochasticStyle{T}
     threshold::T
 end
-IsStochasticWithThreshold(t=1.0) = IsStochasticWithThreshold{typeof(float(t))}(float(t))
+IsStochasticWithThreshold(args...) = IsStochasticWithThreshold(args...)
+IsStochasticWithThreshold{T}(t=1.0) where {T} = IsStochasticWithThreshold{T}(T(t))
 
-function step_stats(::IsStochasticWithThreshold)
+function step_stats(::IsStochasticWithThreshold{T}) where {T}
+    z = zero(T)
     return (
         (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(0.0, 0.0, 0.0, 0.0, 0.0)
+        MultiScalar(z, z, z, z, z)
     )
 end
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham, add, val, shift, dτ)
     deaths, clones, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
-    spawns, ann_o = spawn!(WithReplacement(s.threshold, 1.0), w, ham, add, val, dτ)
+    spawns, ann_o = spawn!(WithReplacement(s.threshold), w, ham, add, val, dτ)
     return (spawns, deaths, clones, zombies, ann_d + ann_o)
 end
 
@@ -183,10 +186,11 @@ end
 
 CompressionStrategy(s::IsDynamicSemistochastic) = s.compression
 
-function step_stats(::IsDynamicSemistochastic)
+function step_stats(::IsDynamicSemistochastic{T}) where {T}
+    z = zero(T)
     return (
         (:exact_steps, :inexact_steps, :spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(0, 0, 0.0, 0.0, 0.0, 0.0, 0.0),
+        MultiScalar(0, 0, z, z, z, z, z),
     )
 end
 function fciqmc_col!(s::IsDynamicSemistochastic, w, ham, add, val, shift, dτ)
@@ -240,19 +244,20 @@ IsExplosive(; kwargs...) = IsExplosive{Float64}(; kwargs...)
 
 CompressionStrategy(s::IsExplosive) = s.compression
 
-function step_stats(::IsExplosive)
+function step_stats(::IsExplosive{T}) where {T}
+    z = zero(T)
     return (
         (:explosions, :ticks, :normal_steps,
          :explosive_spawns, :normal_spawns,
          :clones, :deaths, :zombies
          ),
-        MultiScalar(0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0),
+        MultiScalar(0, 0, 0, z, z, z, z, z),
     )
 end
 function fciqmc_col!(s::IsExplosive{T}, w, ham, add, val, shift, dτ) where {T}
     explosions = normal_steps = ticks = 0
-    explosive_spawns = normal_spawns = 0.0
-    clones = deaths = zombies = 0.0
+    explosive_spawns = normal_spawns = zero(T)
+    clones = deaths = zombies = zero(T)
 
     pd = dτ * (diagonal_element(ham, add) - shift)
     if abs(val) ≤ s.explosion_threshold && 0 ≤ pd < 1

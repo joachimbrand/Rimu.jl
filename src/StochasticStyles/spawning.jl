@@ -9,8 +9,11 @@ Returns the value deposited and the number of annihilations.
 function projected_deposit!(w, add, val, parent, threshold=0)
     return projected_deposit!(valtype(w), w, add, val, parent, threshold)
 end
+function projected_deposit!(::Type{T}, w, add, val::U, parent, threshold) where {T,U}
+    return projected_deposit!(T, w, add, convert(T, val), parent, convert(T, threshold))
+end
 # Non-integer
-function projected_deposit!(::Type{T}, w, add, val, parent, threshold) where T
+function projected_deposit!(::Type{T}, w, add, val::T, parent, threshold::T) where {T}
     absval = abs(val)
     if absval < threshold
         if cRand() < abs(val) / threshold
@@ -31,7 +34,7 @@ function projected_deposit!(::Type{T}, w, add, val, parent, threshold) where T
     return abs(val), annihilations
 end
 # Round to integer
-function projected_deposit!(::Type{T}, w, add, val, parent, _) where {T<:Integer}
+function projected_deposit!(::Type{T}, w, add, val::T, parent, _) where {T<:Integer}
     intval = T(sign(val)) * floor(T, abs(val) + cRand())
     annihilations = zero(T)
     if !iszero(intval)
@@ -44,7 +47,10 @@ function projected_deposit!(::Type{T}, w, add, val, parent, _) where {T<:Integer
     return abs(intval), annihilations
 end
 # Complex/Int
-function projected_deposit!(::Type{T}, w, add, val, parent, _) where {I<:Integer,T<:Complex{I}}
+function projected_deposit!(
+    ::Type{T}, w, add, val::T, parent, _,
+) where {I<:Integer,T<:Complex{I}}
+
     r_val, i_val = reim(val)
 
     r_intval = I(sign(r_val)) * floor(I, abs(r_val) + cRand())
@@ -74,9 +80,8 @@ projection threshold. If `eltype(w)` is an `Integer`, the `val` is rounded to th
 integer stochastically. The entire value is multiplied by optional `factor`.
 """
 function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0, factor=1)
-    clones = deaths = zombies = zero(valtype(w))
-
-    pd = dτ * (diagonal_element(ham, add) - shift)
+    T = valtype(w)
+    pd = T(dτ * (diagonal_element(ham, add) - shift))
     new_val = (1 - pd) * val
     res, annihilations = projected_deposit!(w, add, new_val * factor, add => val, threshold)
     return (clones_deaths_zombies(pd, res, val)..., annihilations)
@@ -157,15 +162,19 @@ Perform an exact spawning step.
 
 [`spawn!`](@ref) with this strategy returns the number of spawns and annihilations.
 """
-Base.@kwdef struct Exact{T} <: SpawningStrategy
-    threshold::T = 0.0
+struct Exact{T} <: SpawningStrategy
+    threshold::T
 end
+Exact() = Exact(0.0)
 
 function spawn!(s::Exact, w, offdiags::AbstractVector, add, val, dτ)
+    T = valtype(w)
     spawns = annihilations = zero(valtype(w))
     factor = -dτ * val
     for (new_add, mat_elem) in offdiags
-        spw, ann = projected_deposit!(w, new_add, factor * mat_elem, add => val, s.threshold)
+        spw, ann = projected_deposit!(
+            w, new_add, factor * mat_elem, add => val, s.threshold
+        )
         spawns += spw
         annihilations += ann
     end
@@ -202,7 +211,7 @@ function spawn!(s::SingleSpawn, w, offdiags::AbstractVector, add, val, dτ)
 end
 
 """
-    WithReplacement <: SpawningStrategy
+    WithReplacement(threshold=0.0, strength=1.0) <: SpawningStrategy
 
 [`SpawningStrategy`](@ref) where spawn targets are sampled with replacement. This is the default spawning strategy for most of the [`StochasticStyle`](@ref)s.
 
@@ -214,9 +223,13 @@ end
 
 [`spawn!`](@ref) with this strategy returns the number of spawns and annihilations.
 """
-Base.@kwdef struct WithReplacement{T} <: SpawningStrategy
-    threshold::T = 0.0
-    strength::T = 1.0
+struct WithReplacement{T} <: SpawningStrategy
+    threshold::T
+    strength::T
+
+    function WithReplacement(threshold=0.0, strength=one(threshold))
+        return new{typeof(threshold)}(threshold, strength)
+    end
 end
 
 function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val, dτ)
@@ -235,7 +248,7 @@ function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val, dτ)
 end
 
 """
-    WithoutReplacement <: SpawningStrategy
+    WithoutReplacement(threshold=0.0, strength=1.0) <: SpawningStrategy
 
 [`SpawningStrategy`](@ref) where spawn targets are sampled without replacement.
 
@@ -249,9 +262,13 @@ Only to be used with [`DynamicSemistochastic`](@ref).
 
 [`spawn!`](@ref) with this strategy returns the number of spawns and annihilations.
 """
-Base.@kwdef struct WithoutReplacement{T} <: SpawningStrategy
-    threshold::T = 0.0
-    strength::T = 1.0
+struct WithoutReplacement{T} <: SpawningStrategy
+    threshold::T
+    strength::T
+
+    function WithReplacement(threshold=0.0, strength=one(threshold))
+        return new{typeof(threshold)}(threshold, strength)
+    end
 end
 
 function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, dτ)
@@ -278,7 +295,7 @@ function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, d�
 end
 
 """
-    Bernoulli <: SpawningStrategy
+    Bernoulli(threshold=0.0, strength=1.0) <: SpawningStrategy
 
 Perform Bernoulli sampling. A spawn is attempted on each offdiagonal element with a
 probability that results in an expected number of spawns equal to the number of walkers on
@@ -294,9 +311,13 @@ Only to be used with [`DynamicSemistochastic`](@ref).
 
 [`spawn!`](@ref) with this strategy returns the number of spawns and annihilations.
 """
-Base.@kwdef struct Bernoulli{T} <: SpawningStrategy
-    threshold::T = 0.0
-    strength::T = 1.0
+struct Bernoulli{T} <: SpawningStrategy
+    threshold::T
+    strength::T
+
+    function Bernoulli(threshold=0.0, strength=one(threshold))
+        return new{typeof(threshold)}(threshold, strength)
+    end
 end
 
 function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val, dτ)
