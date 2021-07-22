@@ -9,13 +9,12 @@ Returns the value deposited and the number of annihilations.
 function projected_deposit!(w, add, val, parent, threshold=0)
     return projected_deposit!(valtype(w), w, add, val, parent, threshold)
 end
-function projected_deposit!(::Type{T}, w, add, val::U, parent, threshold) where {T,U}
-    return projected_deposit!(T, w, add, convert(T, val), parent, convert(T, threshold))
-end
 # Non-integer
-function projected_deposit!(::Type{T}, w, add, val::T, parent, thresh) where {T}
+function projected_deposit!(::Type{T}, w, add, value, parent, thresh) where {T}
     # ensure type stability.
     threshold = T(thresh)
+    val = T(value)
+
     absval = abs(val)
     if absval < threshold
         if cRand() < abs(val) / threshold
@@ -36,7 +35,7 @@ function projected_deposit!(::Type{T}, w, add, val::T, parent, thresh) where {T}
     return abs(val), annihilations
 end
 # Round to integer
-function projected_deposit!(::Type{T}, w, add, val::T, parent, _) where {T<:Integer}
+function projected_deposit!(::Type{T}, w, add, val, parent, _) where {T<:Integer}
     intval = T(sign(val)) * floor(T, abs(val) + cRand())
     annihilations = zero(T)
     if !iszero(intval)
@@ -50,7 +49,7 @@ function projected_deposit!(::Type{T}, w, add, val::T, parent, _) where {T<:Inte
 end
 # Complex/Int
 function projected_deposit!(
-    ::Type{T}, w, add, val::T, parent, _,
+    ::Type{T}, w, add, val, parent, _,
 ) where {I<:Integer,T<:Complex{I}}
 
     r_val, i_val = reim(val)
