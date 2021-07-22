@@ -217,14 +217,6 @@ end
 function LinearAlgebra.dot(x, md::MPIData)
     return MPI.Allreduce(localpart(x)⋅localpart(md), +, md.comm)
 end
-#function LinearAlgebra.dot(x, lop, md::MPIData)
-#    return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
-#end
-#function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
-#    # Arguments are swapped since lop * md_right is not an MPIData and MPIData should be on
-#    # the right hand side.
-#    return conj(dot(lop * md_right, md_left))
-#end
 
 function LinearAlgebra.dot(md_left, lop, md_right::MPIData)
     T = promote_type(eltype(lop), valtype(md_left), valtype(md_right))
