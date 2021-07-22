@@ -74,17 +74,16 @@ function projected_deposit!(
 end
 
 """
-    diagonal_step!(w, ham, add, val, dτ, shift, threshold=0, factor=1)
+    diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
 
 Perform diagonal step on a walker `add => val`. Optional argument `threshold` sets the
 projection threshold. If `eltype(w)` is an `Integer`, the `val` is rounded to the nearest
-integer stochastically. The entire value is multiplied by optional `factor`.
+integer stochastically.
 """
-function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0, factor=1)
-    T = valtype(w)
-    pd = T(dτ * (diagonal_element(ham, add) - shift))
+function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
+    pd = dτ * (diagonal_element(ham, add) - shift)
     new_val = (1 - pd) * val
-    res, annihilations = projected_deposit!(w, add, new_val * factor, add => val, threshold)
+    res, annihilations = projected_deposit!(w, add, new_val, add => val, threshold)
     return (clones_deaths_zombies(pd, res, val)..., annihilations)
 end
 
@@ -227,10 +226,10 @@ end
 struct WithReplacement{T} <: SpawningStrategy
     threshold::T
     strength::T
-
-    function WithReplacement(threshold=0.0, strength=one(threshold))
-        return new{typeof(threshold)}(threshold, strength)
-    end
+end
+function WithReplacement(threshold=0.0, strength=one(threshold))
+    t, s = promote(threshold, strength)
+    return WithReplacement{typeof(t)}(t, s)
 end
 
 function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val, dτ)
@@ -266,10 +265,10 @@ Only to be used with [`DynamicSemistochastic`](@ref).
 struct WithoutReplacement{T} <: SpawningStrategy
     threshold::T
     strength::T
-
-    function WithReplacement(threshold=0.0, strength=one(threshold))
-        return new{typeof(threshold)}(threshold, strength)
-    end
+end
+function WithoutReplacement(threshold=0.0, strength=one(threshold))
+    t, s = promote(threshold, strength)
+    return WithoutReplacement{typeof(t)}(t, s)
 end
 
 function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, dτ)
@@ -315,10 +314,11 @@ Only to be used with [`DynamicSemistochastic`](@ref).
 struct Bernoulli{T} <: SpawningStrategy
     threshold::T
     strength::T
+end
 
-    function Bernoulli(threshold=0.0, strength=one(threshold))
-        return new{typeof(threshold)}(threshold, strength)
-    end
+function Bernoulli(threshold=0.0, strength=one(threshold))
+    t, s = promote(threshold, strength)
+    return Bernoulli{typeof(t)}(t, s)
 end
 
 function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val, dτ)

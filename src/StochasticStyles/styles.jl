@@ -38,7 +38,7 @@ See also [`StochasticStyle`](@ref).
 struct IsStochastic2Pop{T<:Complex{<:Integer}} <: StochasticStyle{T} end
 IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 
-function step_stats(::IsStochastic2Pop)
+function step_stats(::IsStochastic2Pop{T}) where {T}
     return (
         (:spawns, :deaths, :clones, :zombies, :annihilations),
         MultiScalar(ntuple(_ -> zero(T), Val(5))),
@@ -115,7 +115,7 @@ See also [`StochasticStyle`](@ref).
 struct IsStochasticWithThreshold{T<:AbstractFloat} <: StochasticStyle{T}
     threshold::T
 end
-IsStochasticWithThreshold(args...) = IsStochasticWithThreshold(args...)
+IsStochasticWithThreshold(args...) = IsStochasticWithThreshold{Float64}(args...)
 IsStochasticWithThreshold{T}(t=1.0) where {T} = IsStochasticWithThreshold{T}(T(t))
 
 function step_stats(::IsStochasticWithThreshold{T}) where {T}

@@ -170,8 +170,8 @@ end
     dss_r = DynamicSemistochastic(WithReplacement(), 1.0, Inf)
     dss_w = DynamicSemistochastic(WithoutReplacement(), 1.0, Inf)
     dss_b = DynamicSemistochastic(Bernoulli(), 1.0, Inf)
-    dss_ws = DynamicSemistochastic(WithoutReplacement(strength=1.1), 1.0, Inf)
-    dss_bs = DynamicSemistochastic(Bernoulli(strength=1.5), 1.0, Inf)
+    dss_ws = DynamicSemistochastic(WithoutReplacement(0, 1.1), 1.0, Inf)
+    dss_bs = DynamicSemistochastic(Bernoulli(0, 1.5), 1.0, Inf)
     dss_s = DynamicSemistochastic(SingleSpawn(), 1.0, Inf)
 
     # The expected value for all spawning strategies should be the same. This tests makes
@@ -195,7 +195,7 @@ end
             val = rand() * num_offdiagonals(H, add) * 1.2
             spawn!(Exact(), exact, H, add, val, 1e-5)
             spawn!(WithReplacement(), vanilla, H, add, val, 1e-5)
-            spawn!(WithReplacement(strength=2.0), strong, H, add, val, 1e-5)
+            spawn!(WithReplacement(0.0, 2.0), strong, H, add, val, 1e-5)
             spawn!(SingleSpawn(), single, H, add, val, 1e-5)
             spawn!(dss_r, semi_rep, H, add, val, 1e-5)
             spawn!(dss_w, semi_wo, H, add, val, 1e-5)
