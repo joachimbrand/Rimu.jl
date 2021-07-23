@@ -234,7 +234,7 @@ function LinearAlgebra.dot(md::MPIData, lop, x)
 end
 
 function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
-    # Strategy: accumulate the dot product without allocating and intermediate vector.
+    # Strategy: accumulate the dot product without allocating an intermediate vector.
 
     # spawns to other ranks are stored in buffers and communicated via MPI point-point
     # communications.
