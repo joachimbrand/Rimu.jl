@@ -99,6 +99,8 @@ end
 
                         @test dot(v, H, w) ≈ dot(v, H, dw)
                         @test dot(w, H, v) ≈ dot(w, H, dv)
+                        @test dot(w, H, v) ≈ dot(dw, H, dv)
+                        @test dot(w, H, v) ≈ dot(dw, H, v)
 
                         @test dot(freeze(dw), dv) ≈ dot(w, v)
                         @test dot(freeze(dv), dw) ≈ dot(v, w)
@@ -139,6 +141,8 @@ end
                         G3 = G2Correlator(3)
                         @test dot(v, G1, w) ≈ dot(v, G1, dw)
                         @test dot(w, G3, v) ≈ dot(w, G3, dv)
+                        @test dot(w, G3, v) ≈ dot(dw, G3, v)
+                        @test dot(w, G3, v) ≈ dot(dw, G3, dv)
 
                         @test dot(freeze(dw), dv) ≈ dot(w, v)
                         @test dot(freeze(dv), dw) ≈ dot(v, w)
