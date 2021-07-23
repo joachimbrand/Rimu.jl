@@ -214,22 +214,33 @@ function Base.:*(lop, md::MPIData)
     return result
 end
 
+# Note: the following methods assume MPIDatas are distributed correctly.
 function LinearAlgebra.dot(x, md::MPIData)
     return MPI.Allreduce(localpart(x)⋅localpart(md), +, md.comm)
 end
+function LinearAlgebra.dot(md::MPIData, x)
+    return MPI.Allreduce(localpart(md)⋅localpart(x), +, md.comm)
+end
+function LinearAlgebra.dot(md_left::MPIData, md_right::MPIData)
+    return MPI.Allreduce(localpart(md_left)⋅localpart(md_right), +, md_left.comm)
+end
 
+# Note: the following two methods work with x::DVec and assume `x` is the same on all ranks.
 function LinearAlgebra.dot(x, lop, md::MPIData)
     return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
+end
+function LinearAlgebra.dot(md::MPIData, lop, x)
+    return MPI.Allreduce(dot(localpart(md), lop, x), +, md.comm)
 end
 
 function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
     T = promote_type(eltype(lop), valtype(md_left), valtype(md_right))
     dv = localpart(md_left)
+    comm = md_left.comm
 
     P = Pair{keytype(md_right),T}
-    buffers = Vector{P}[P[] for _ in 1:mpi_size(md_right.comm)]
+    buffers = Vector{P}[P[] for _ in 1:mpi_size(comm)]
     myrank = mpi_rank()
-    comm = md_right.comm
 
     result = zero(T)
 
