@@ -214,16 +214,80 @@ function Base.:*(lop, md::MPIData)
     return result
 end
 
+# Note: the following methods assume MPIDatas are distributed correctly.
 function LinearAlgebra.dot(x, md::MPIData)
     return MPI.Allreduce(localpart(x)⋅localpart(md), +, md.comm)
 end
+function LinearAlgebra.dot(md::MPIData, x)
+    return MPI.Allreduce(localpart(md)⋅localpart(x), +, md.comm)
+end
+function LinearAlgebra.dot(md_left::MPIData, md_right::MPIData)
+    return MPI.Allreduce(localpart(md_left)⋅localpart(md_right), +, md_left.comm)
+end
+
+# Note: the following two methods work with x::DVec and assume `x` is the same on all ranks.
 function LinearAlgebra.dot(x, lop, md::MPIData)
     return MPI.Allreduce(dot(x, lop, localpart(md)), +, md.comm)
 end
+function LinearAlgebra.dot(md::MPIData, lop, x)
+    return MPI.Allreduce(dot(localpart(md), lop, x), +, md.comm)
+end
+
 function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
-    # Arguments are swapped since lop * md_right is not an MPIData and MPIData should be on
-    # the right hand side.
-    return conj(dot(lop * md_right, md_left))
+    # Strategy: accumulate the dot product without allocating an intermediate vector.
+
+    # spawns to other ranks are stored in buffers and communicated via MPI point-point
+    # communications.
+
+    T = promote_type(eltype(lop), valtype(md_left), valtype(md_right))
+    dv = localpart(md_left)
+    comm = md_left.comm
+
+    P = Pair{keytype(md_right),T}
+    buffers = Vector{P}[P[] for _ in 1:mpi_size(comm)]
+    myrank = mpi_rank()
+
+    result = zero(T)
+
+    # Sort values into buffers and communicate.
+    for (key, val) in pairs(localpart(md_right))
+        result += conj(dv[key]) * diagonal_element(lop, key) * val
+        for (add, elem) in offdiagonals(lop, key)
+            tr = targetrank(add, mpi_size(comm))
+            if tr == myrank
+                result += conj(dv[add]) * elem * val
+            else
+                push!(buffers[tr + 1], add => elem * val)
+            end
+        end
+    end
+
+    myrank = mpi_rank(comm)
+    recbuf = buffers[myrank + 1]
+    datatype = MPI.Datatype(P)
+    # Receive from lower ranks.
+    for id in 0:(myrank - 1)
+        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
+        MPI.Recv!(recbuf, id, 0, comm)
+        for (add, value) in recbuf
+            result += conj(dv[add]) * value
+        end
+    end
+    # Perform sends.
+    for id in 0:(mpi_size(comm) - 1)
+        id == myrank && continue
+        MPI.Send(buffers[id + 1], id, 0, comm)
+    end
+    # Receive from higher ranks.
+    for id in (myrank + 1):(mpi_size(comm) - 1)
+        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
+        MPI.Recv!(recbuf, id, 0, comm)
+        for (add, value) in recbuf
+            result += conj(dv[add]) * value
+        end
+    end
+
+    return MPI.Allreduce(result, +, comm)
 end
 
 function Rimu.freeze(md::MPIData)
