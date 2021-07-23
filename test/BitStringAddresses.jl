@@ -235,8 +235,23 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
             o[j] += 1
             return BoseFS{N}(SVector(o)), (o[i] + 1) * (o[j])
         end
+        function move_particle2(bose::BoseFS{N,M}, at, by) where {N,M}
+            o = MVector{M,Int32}(onr(bose))
+            index = 0
+            i = 0
+            # Find target particle
+            for num in o
+                i += 1
+                index += num ≠ 0
+                index == at && break
+            end
+            j = mod1(i + by, M)
+            o[i] -= 1
+            o[j] += 1
+            return BoseFS{N}(SVector(o)), (o[i] + 1) * (o[j])
+        end
 
-        for (N, M) in ((16, 16), (64, 32), (200, 200), (100, 100), (200, 20), (20, 200))
+        for (N, M) in ((16, 16), (32, 10), (10, 32), (64, 32), (200, 200), (100, 100), (200, 20), (20, 200))
             @testset "$N, $M" begin
                 for _ in 1:10
                     input = rand_onr(N, M)
@@ -256,6 +271,18 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
                         hopnextneighbour2(bose, i) == hopnextneighbour(bose, i)
                         for i in 1:numberoccupiedsites(bose) * 2
                     )
+
+                    for i in 1:numberoccupiedsites(bose), j in vcat(-(M-1):-1, 1:M-1)
+                        a = move_particle2(bose, i, j)
+                        b = move_particle(bose, i, j)
+                        if a ≠ b
+                            @show bose i j mod1(j, M)
+                            @show a
+                            @show b
+                            @test false
+                            break
+                        end
+                    end
 
                     # This test checks that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(bose))) == bose

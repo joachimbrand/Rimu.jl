@@ -1,25 +1,4 @@
 """
-    AbstractFockAddress
-
-Supertype representing a Fock state.
-"""
-abstract type AbstractFockAddress end
-
-"""
-    num_particles(::Type{<:AbstractFockAddress})
-
-Number of particles represented by address.
-"""
-num_particles(b::AbstractFockAddress) = num_particles(typeof(b))
-
-"""
-    num_modes(::Type{<:AbstractFockAddress})
-
-Number of modes represented by address.
-"""
-num_modes(b::AbstractFockAddress) = num_modes(typeof(b))
-
-"""
     BoseFS{N,M,S} <: AbstractFockAddress
     BoseFS(bs::S) where S <: BitAdd
     BoseFS(bs::S, b)
@@ -58,7 +37,9 @@ function BoseFS(bs::BitString{B}) where B
     return BoseFS{N,M}(bs)
 end
 
-function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString{<:Any,1}}
+@inline function BoseFS{N,M,S}(
+    onr::Union{SVector{M},NTuple{M}}
+) where {N,M,S<:BitString{<:Any,1}}
     @boundscheck sum(onr) == N || error("invalid ONR")
     T = chunk_type(S)
     result = zero(T)
@@ -70,7 +51,7 @@ function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString
     return BoseFS{N,M,S}(S(SVector(result)))
 end
 
-function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString}
+@inline function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString}
     @boundscheck sum(onr) == N || error("invalid ONR")
     K = num_chunks(S)
     result = zeros(MVector{K,UInt64})
@@ -108,9 +89,6 @@ function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString
     end
     return BoseFS{N,M}(S(SVector(result)))
 end
-function BoseFS{N,M,S}(onr::AbstractVector) where {N,M,S}
-    return BoseFS{N,M,S}(SVector{M}(onr))
-end
 function BoseFS{N,M}(onr::Union{AbstractVector,Tuple}) where {N,M}
     S = typeof(BitString{N + M - 1}(0))
     return BoseFS{N,M,S}(SVector{M}(onr))
@@ -127,11 +105,14 @@ end
 function Base.show(io::IO, b::BoseFS{N,M,S}) where {N,M,S}
     print(io, "BoseFS{$N,$M}(", tuple(onr(b)...), ")")
 end
+Base.bitstring(b::BoseFS) = bitstring(b.bs)
 
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
+Base.:(==)(a::BoseFS, b::BoseFS) = a.bs == b.bs
 num_particles(::Type{BoseFS{N,M,S}}) where {N,M,S} = N
 num_modes(::Type{BoseFS{N,M,S}}) where {N,M,S} = M
+num_components(::Type{<:BoseFS}) = 1
 
 """
     nearUniformONR(N, M) -> onr::SVector{M,Int}
@@ -330,32 +311,134 @@ end
 end
 
 """
-    BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
+    find_sites(b::BoseFS, ks...)
 
-Address type that constructed with two [`BoseFS{N,M,S}`](@ref). It represents a
-Fock state with two components, e.g. two different species of bosons with particle
-number `NA` from species S and particle number `NB` from species B. The number of
-orbitals `M` is expected to be the same for both components.
+Find the `k`-th site (occupied or not).
+
+Return bit offset and occupation number. If multiple `k`s are given, find multiple sites in
+a single pass over the address.
 """
-struct BoseFS2C{NA,NB,M,SA,SB} <: AbstractFockAddress
-    bsa::BoseFS{NA,M,SA}
-    bsb::BoseFS{NB,M,SB}
+function find_sites(b::BoseFS, ks...)
+    # This is somewhat convoluted, but it allows us to find multiple sites in a single pass.
+    #
+    # The idea is to pass around an occupied orbital iterator and construct a tuple with
+    # the results as you go along. Since we know the number of sites we're looking for, julia
+    # is able to infer the length of the tuple.
+    return _find_sites(b::BoseFS, ks, iterate(occupied_orbitals(b)), (0, 0, 0))
+end
+_find_sites(b::BoseFS, ::Tuple{}, _, _) = ()
+function _find_sites(b::BoseFS, (k, ks...), state, last)
+    iter = occupied_orbitals(b)
+    while !isnothing(state)
+        (occnum, site, offset), st = state
+        there = k - site
+        if there == 0
+            # We are done with this site.
+            # Call the next step with the next iteration.
+            result = offset, occnum
+            return (result, _find_sites(b, ks, iterate(iter, st), (occnum, site, offset))...)
+        elseif there < 0
+            # The desired site was before the one found in iteration.
+            # Call the next step, but do not iterate yet.
+            result = offset + there, 0
+            return (result, _find_sites(b, ks, state, last)...)
+        else
+            # k-th site not found yet, look further.
+            state = iterate(iter, st)
+        end
+    end
+    # Remaining sites are after the last occupied site.
+    last_offset, last_occnum, last_site = last
+    result = (last_offset + last_occnum + k - last_site, 0)
+    return (result, _find_sites(b, ks, state, last)...)
 end
 
-BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
+"""
+    find_particles(b::BoseFS, i; n=1)
 
-function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
-    print(io, "BoseFS2C(")
-    Base.show(io,b.bsa)
-    print(io, ",")
-    Base.show(io,b.bsb)
-    print(io, ")")
+Find the `i`-th occupied site with an occupation number of at least `n`.
+
+Return the bit offset, the site and the occupation number. If multiple `i`s are given, find
+multiple occupied sites in a single pass over the address.
+"""
+function find_particles(b::BoseFS, is...; n=1)
+    # This uses the same idea as find_site, explained above.
+    return _find_particles(b::BoseFS, is, 0, n, iterate(occupied_orbitals(b)))
 end
 
-num_particles(::Type{<:BoseFS2C{NA,NB}}) where {NA,NB} = NA + NB
-num_modes(::Type{<:BoseFS2C{<:Any,<:Any,M}}) where {M} = M
-Base.isless(a::BoseFS2C, b::BoseFS2C) = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
+_find_particles(::BoseFS, ::Tuple{}, _, _, _) = ()
+function _find_particles(b::BoseFS, (i, is...), counter, n, state)
+    iter = occupied_orbitals(b)
+    while !isnothing(state)
+        (occnum, site, offset), st = state
+        counter += occnum ≥ n
+        if counter == i
+            result = (offset, site, occnum)
+            return (result, _find_particles(b, is, counter, n, iterate(iter, st))...)
+        else
+            state = iterate(iter, st)
+        end
+    end
+    # This should never be returned unless we are out of bounds.
+    return ((0, 0, 0), )
+end
 
-function nearUniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
-    return BoseFS2C(nearUniform(BoseFS{NA,M}), nearUniform(BoseFS{NB,M}))
+"""
+    move_particle(b::BoseFS, n, by)
+
+Move the `n`-th particle by `by` sites. Negative values of `by` move the particle to the
+left and positive values move it to the right.
+
+This is equivalent to applying a destruction operator followed by a creation operator to the
+address.
+
+Return the new fock state and the product of the occupation numbers.
+"""
+function move_particle(b::BoseFS{<:Any,M}, n, by) where {M}
+    if by == 0
+        _, _, occnum = find_particles(b, n)
+        return b, occnum * (occnum - 1)
+    else
+        from, site, occnum1 = find_particles(b, n)
+        to, occnum2 = find_sites(b, mod1(site + by, M))
+        return move_particle_bitoffset(b, from, to), occnum1 * (occnum2 + 1)
+    end
+end
+
+export double_move_particle
+function double_move_particle(b::BoseFS{<:Any,M}, i, by) where {M}
+    @assert by ≠ 0
+    # Both moves from the same site.
+    (from, site, occnum_i), = find_particles(b, i; n=2)
+    j = mod1(site + by, M)
+    k = mod1(site - by, M)
+
+    (to_j, occnum_j), = find_sites(b, j)
+    b = move_particle_bitoffset(b, from, to_j)
+    # Need to find second site after first move.
+    (to_k, occnum_k), = find_sites(b, k)
+    b = move_particle_bitoffset(b, from, to_k)
+    return b, occnum_i * (occnum_i - 1) * (occnum_j + 1) * (occnum_k + 1)
+end
+function double_move_particle(b::BoseFS{<:Any,M}, i, j, by) where {M}
+    @assert by ≠ 0
+    # Move from different sites.
+    (from_i, site_i, occnum_i), (from_j, site_j, occnum_j) = find_particles(b, i, j)
+    k = mod1(site_i - by, M)
+    l = mod1(site_j + by, M)
+
+    (to_k, occnum_k), = find_sites(b, k)
+    b = move_particle_bitoffset(b, from_i, to_k)
+    # Need to find second site after first move.
+    (to_l, occnum_l), = find_sites(b, l)
+    b = move_particle_bitoffset(b, from_j, to_l)
+    return b, occnum_i * (occnum_k + 1) * occnum_j * (occnum_l + 1)
+end
+
+function move_particle_bitoffset(b::BoseFS, from, to)
+    if to < from
+        return typeof(b)(partial_left_shift(b.bs, to, from))
+    else
+        return typeof(b)(partial_right_shift(b.bs, from, to - 1))
+    end
 end

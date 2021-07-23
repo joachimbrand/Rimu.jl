@@ -328,3 +328,116 @@ Base.iseven(s::BitString) = iseven(chunks(s)[end])
 # tests fail.
 Base.hash(b::BitString{<:Any,1}, h::UInt) = hash(b.chunks[1], h)
 Base.hash(b::BitString, h::UInt) = hash(b.chunks.data, h)
+
+"""
+    partial_left_shift(chunk::Unsigned, i, j)
+
+Shift a part of the bitstring left or right by one place.
+
+In a `BoseFS` bitstring, it moves a particle from the chunk at offset `j` to the position at
+offset `i`. See: [`bose_move`](@ref).
+"""
+function partial_left_shift(chunk::T, i, j) where {T<:Unsigned}
+    # Mask of one spanning from i to j
+    mask = (T(1) << T(j - i + 1) - T(1)) << T(i)
+    # Shift the part of the string that needs to be shifted, ensure a one is added at the end
+    # swap shift to move in other direction
+    #println(bitstring(mask))
+    shifted_part = ((chunk & mask) << 0x1) & mask
+    # Leave the rest intact
+    intact_part = chunk & ~mask
+
+    return shifted_part | intact_part | T(1) << T(i)
+end
+function partial_right_shift(chunk::T, i, j) where {T<:Unsigned}
+    # Mask of one spanning from i to j
+    mask = (T(1) << T(j - i + 1) - T(1)) << T(i)
+    # Shift the part of the string that needs to be shifted, ensure a one is added at the end
+    # swap shift to move in other direction
+    shifted_part = ((chunk & mask) >> 0x1) & mask
+    # Leave the rest intact
+    intact_part = chunk & ~mask
+    #println(lpad("↑" * " "^j, length(bitstring(chunk))))
+
+    return shifted_part | intact_part | T(1) << T(j)
+end
+
+function partial_left_shift(bs::S, i, j) where {S<:BitString{<:Any,1}}
+    return S(partial_left_shift(bs.chunks[1], i, j))
+end
+
+function partial_right_shift(bs::S, i, j) where {S<:BitString{<:Any,1}}
+    return S(partial_right_shift(bs.chunks[1], i, j))
+end
+
+function partial_left_shift(bs::S, i, j) where {N,S<:BitString{<:Any,N}}
+    result = MVector(bs.chunks)
+    lo_idx = N - (i >>> 0x6)
+    hi_idx = N - (j >>> 0x6)
+    lo_off = i & 63
+    hi_off = j & 63
+    @inbounds if hi_idx == lo_idx
+        result[hi_idx] = partial_left_shift(result[hi_idx], lo_off, hi_off)
+    else
+        # Top part first.
+        chunk = result[hi_idx]
+        chunk = partial_left_shift(chunk, 0, hi_off)
+        # Carry bit.
+        chunk &= -UInt(1) << 0x1
+        chunk |= result[hi_idx + 1] >> 63
+        result[hi_idx] = chunk
+
+        idx = hi_idx + 1
+        while idx < lo_idx
+            chunk = result[idx]
+            chunk <<= 0x1
+            chunk |= result[idx + 1] >> 63
+            result[idx] = chunk
+            idx += 1
+        end
+
+        # Bottom part.
+        chunk = result[lo_idx]
+        chunk = partial_left_shift(chunk, lo_off, 64)
+        result[lo_idx] = chunk
+    end
+    return S(SVector(result))
+end
+
+function partial_right_shift(bs::S, i, j) where {N,S<:BitString{<:Any,N}}
+    result = MVector(bs.chunks)
+    lo_idx = N - (i >>> 0x6)
+    hi_idx = N - (j >>> 0x6)
+    lo_off = i & 63
+    hi_off = j & 63
+    @inbounds if hi_idx == lo_idx
+        result[hi_idx] = partial_right_shift(result[hi_idx], lo_off, hi_off)
+    else
+        # Bottom first
+        chunk = result[lo_idx]
+        chunk = partial_right_shift(chunk, lo_off, 64)
+        # Carry bit.
+        chunk &= -UInt(1) >> 0x1
+        chunk |= result[lo_idx - 1] << 63
+        result[lo_idx] = chunk
+
+        idx = lo_idx - 1
+        while idx > hi_idx
+            chunk = result[idx]
+            chunk >>= 0x1
+            chunk |= result[idx - 1] << 63
+            result[idx] = chunk
+            idx -= 1
+        end
+
+        # Top part.
+        chunk = result[hi_idx]
+        chunk = partial_right_shift(chunk, 0, hi_off)
+        result[hi_idx] = chunk
+    end
+    return S(SVector(result))
+end
+
+function bit_mask(bs::BitString, i, j)
+
+end
