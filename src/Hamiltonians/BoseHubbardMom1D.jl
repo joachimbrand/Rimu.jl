@@ -123,7 +123,7 @@ function get_offdiagonal(ham::BoseHubbardMom1D, add::ADDRESS, chosen) where ADDR
     onproduct *= occ + 1
     onr[ppq] = occ + 1
 
-    return ADDRESS(onr), ham.u/(2*ham.m)*sqrt(onproduct)
+    return ADDRESS(onr.data), ham.u/(2*ham.m)*sqrt(onproduct)
     # return new address and matrix element
 end
 

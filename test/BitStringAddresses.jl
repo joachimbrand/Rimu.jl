@@ -9,13 +9,18 @@ using Test
     @testset "num_chunks for Val(B)" begin
         @test_throws ArgumentError num_chunks(Val(0))
         @test_throws ArgumentError num_chunks(Val(-15))
-        @test num_chunks(Val(1)) == 1
-        @test num_chunks(Val(33)) == 1
-        @test num_chunks(Val(64)) == 1
-        @test num_chunks(Val(65)) == 2
-        @test num_chunks(Val(128)) == 2
-        @test num_chunks(Val(129)) == 3
-        @test num_chunks(Val(200)) == 4
+        @test num_chunks(Val(1)) == (1, UInt8)
+        @test num_chunks(Val(8)) == (1, UInt8)
+        @test num_chunks(Val(9)) == (1, UInt16)
+        @test num_chunks(Val(16)) == (1, UInt16)
+        @test num_chunks(Val(17)) == (1, UInt32)
+        @test num_chunks(Val(32)) == (1, UInt32)
+        @test num_chunks(Val(33)) == (1, UInt64)
+        @test num_chunks(Val(64)) == (1, UInt64)
+        @test num_chunks(Val(65)) == (2, UInt64)
+        @test num_chunks(Val(128)) == (2, UInt64)
+        @test num_chunks(Val(129)) == (3, UInt64)
+        @test num_chunks(Val(200)) == (4, UInt64)
     end
 
     @testset "Constructors" begin
@@ -98,12 +103,12 @@ using Test
     end
     @testset "Bitwise operations" begin
         function rand_bitstring(B)
-            N = num_chunks(Val(B))
-            s = rand(SVector{N,UInt64})
-            return remove_ghost_bits(BitString{B,N}(s))
+            N, T = num_chunks(Val(B))
+            s = rand(SVector{N,T})
+            return remove_ghost_bits(BitString{B,N,T}(s))
         end
 
-        for B in (32, 65, 120, 200, 256)
+        for B in (11, 32, 65, 120, 200, 256)
             a = rand_bitstring(B)
             b = rand_bitstring(B)
             one = ~zero(a)
@@ -142,13 +147,15 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
 
 @testset "BoseFS" begin
     middle_full = BoseFS{67,100}(
-        BitString{166,3}(SVector(1, ~UInt64(0), UInt64(1) << 63 | UInt64(2)))
+        BitString{166,3,UInt64}(SVector(1, ~UInt64(0), UInt64(1) << 63 | UInt64(2)))
     )
     middle_empty = BoseFS{10,150}(
-        BitString{159,3}(SVector{3,UInt64}(255, 0, 3))
+        BitString{159,3,UInt64}(SVector{3,UInt64}(255, 0, 3))
     )
     two_full = BoseFS{136,136}(
-        BitString{271,5}(SVector(UInt64(0), UInt64(0), UInt64(255), ~UInt64(0), ~UInt64(0)))
+        BitString{271,5,UInt64}(
+            SVector(UInt64(0), UInt64(0), UInt64(255), ~UInt64(0), ~UInt64(0))
+        )
     )
     @testset "onr" begin
         middle_full_onr = onr(middle_full)

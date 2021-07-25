@@ -10,7 +10,7 @@ using Setfield
 using Base.Cartesian
 
 export BitString
-export num_bits, num_chunks, chunks, chunk_bits, top_chunk_bits
+export num_bits, num_chunks, chunk_type, chunks, chunk_bits, top_chunk_bits
 
 export AbstractFockAddress, BoseFS, BoseFS2C, num_particles, num_modes
 export onr, nearUniform, nearUniformONR, occupied_orbitals

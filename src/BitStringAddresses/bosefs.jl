@@ -44,8 +44,6 @@ must be passed as an argument (e.g. for `BSAdd64` and `BSAdd128`).
 """
 struct BoseFS{N,M,S<:BitString} <: AbstractFockAddress
     bs::S
-
-    BoseFS{N,M,S}(bs::S) where {N,M,S} = new{N,M,S}(bs)
 end
 
 function BoseFS{N,M}(bs::BitString{B}) where {N,M,B}
@@ -62,11 +60,12 @@ end
 
 function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString{<:Any,1}}
     @boundscheck sum(onr) == N || error("invalid ONR")
-    result = zero(UInt64)
+    T = chunk_type(S)
+    result = zero(T)
     for i in M:-1:1
-        curr_occnum = onr[i]
-        result <<= curr_occnum + 1
-        result |= one(UInt64) << curr_occnum - 1
+        curr_occnum = T(onr[i])
+        result <<= curr_occnum + T(1)
+        result |= one(T) << curr_occnum - T(1)
     end
     return BoseFS{N,M,S}(S(SVector(result)))
 end
