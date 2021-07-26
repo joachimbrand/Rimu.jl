@@ -1,8 +1,9 @@
 """
     GuidingVectorSampling
 
-Wrapper over any `AbstractHamiltonian` that implements guided vector a.k.a. guided wave
-function sampling. In this importance sampling scheme the Hamiltonian is modified as follows.
+Wrapper over any [`AbstractHamiltonian`](@ref) that implements guided vector a.k.a. guided
+wave function sampling. In this importance sampling scheme the Hamiltonian is modified as
+follows.
 
 ```math
 \\tilde{H}_{ij} = v_i H_{ij} v_j^{-1}

@@ -1,7 +1,7 @@
 """
     GutzwillerSampling(::AbstractHamiltonian; g)
 
-Wrapper over any `AbstractHamiltonian` that implements Gutzwiller sampling. In this
+Wrapper over any [`AbstractHamiltonian`](@ref) that implements Gutzwiller sampling. In this
 importance sampling scheme the Hamiltonian is modified as follows.
 
 ```math

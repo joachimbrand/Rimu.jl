@@ -3,6 +3,24 @@
 
 This module defines Hamiltonian types, interfaces, and functions for working with
 Hamiltonians.
+
+## Interface for working with Hamiltonians
+- [`AbstractHamiltonian`](@ref)
+
+## Exported concrete Hamiltonian types include
+- [`MatrixHamiltonian`](@ref)
+- [`HubbardReal1D`](@ref)
+- [`ExtendedHubbardReal1D`](@ref)
+- [`HubbardMom1D`](@ref)
+- [`BoseHubbardMom1D2C`](@ref)
+- [`BoseHubbardReal1D2C`](@ref)
+
+## Wrappers
+- [`GutzwillerSampling`](@ref)
+- [`GuidingVectorSampling`](@ref)
+
+## Other
+- [`G2Correlator`](@ref)
 """
 module Hamiltonians
 

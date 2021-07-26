@@ -172,8 +172,8 @@ end
     lomc!(ham, v; kwargs...)
 
 Linear operator Monte Carlo: Perform the FCIQMC algorithm for determining the lowest
-eigenvalue of `ham`. `v` can be a single starting vector of (wrapped) type
-`:<AbstractDVec`.
+eigenvalue of `ham` starting with vector `v`. Supported are linear operators `ham <:`
+[`AbstractHamiltonian`](@ref) and vectors `v :<` [`AbstractDVec`](@ref).
 
 Returns a `DataFrame` with various statistics and a `QMCState` containing all information
 required for continuation runs.
