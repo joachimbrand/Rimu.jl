@@ -233,64 +233,77 @@ function LinearAlgebra.dot(md::MPIData, lop, x)
     return MPI.Allreduce(dot(localpart(md), lop, x), +, md.comm)
 end
 
-function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
-    # Strategy: accumulate the dot product without allocating an intermediate vector.
+"""
+    copy_to_local(md::MPIData)
 
-    # spawns to other ranks are stored in buffers and communicated via MPI point-point
-    # communications.
-
-    T = promote_type(eltype(lop), valtype(md_left), valtype(md_right))
-    dv = localpart(md_left)
-    comm = md_left.comm
-
-    P = Pair{keytype(md_right),T}
-    buffers = Vector{P}[P[] for _ in 1:mpi_size(comm)]
-    myrank = mpi_rank()
-
-    result = zero(T)
-
-    # Sort values into buffers and communicate.
-    for (key, val) in pairs(localpart(md_right))
-        result += conj(dv[key]) * diagonal_element(lop, key) * val
-        for (add, elem) in offdiagonals(lop, key)
-            tr = targetrank(add, mpi_size(comm))
-            if tr == myrank
-                result += conj(dv[add]) * elem * val
-            else
-                push!(buffers[tr + 1], add => elem * val)
-            end
-        end
-    end
-
+Collect all pairs in `md` from all ranks and store them in a local `AbstractDVec`.
+"""
+function copy_to_local(md::MPIData)
+    comm = md.comm
     myrank = mpi_rank(comm)
-    recbuf = buffers[myrank + 1]
-    datatype = MPI.Datatype(P)
+    datatype = MPI.Datatype(eltype(md))
+    result = copy(localpart(md))
+
+    # Store all pairs to a buffer.
+    sendbuf = Vector{eltype(md)}(undef, length(localpart(md)))
+    for (i, p) in enumerate(pairs(localpart(md)))
+        sendbuf[i] = p
+    end
+    recbuf = eltype(md)[]
+
     # Receive from lower ranks.
     for id in 0:(myrank - 1)
         resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
         MPI.Recv!(recbuf, id, 0, comm)
         for (add, value) in recbuf
-            result += conj(dv[add]) * value
+            result[add] += value
         end
     end
     # Perform sends.
     for id in 0:(mpi_size(comm) - 1)
         id == myrank && continue
-        MPI.Send(buffers[id + 1], id, 0, comm)
+        MPI.Send(sendbuf, id, 0, comm)
     end
     # Receive from higher ranks.
     for id in (myrank + 1):(mpi_size(comm) - 1)
         resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
         MPI.Recv!(recbuf, id, 0, comm)
         for (add, value) in recbuf
-            result += conj(dv[add]) * value
+            result[add] += value
         end
     end
+    MPI.Barrier(comm)
+    return result
+end
 
-    return MPI.Allreduce(result, +, comm)
+function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
+    # Idea: lop * md_right can be huge. It might be better to just collect the full left
+    # vector and do the multiplication locally.
+    left = copy_to_local(md_left)
+    return dot(left, lop, md_right)
 end
 
 function Rimu.freeze(md::MPIData)
     mpi_synchronize!(md)
     return freeze(localpart(md))
+end
+
+using ..Rimu: ReplicaState, AllOverlaps
+function replica_stats(
+    rs::AllOverlaps{2}, replicas::NTuple{2,ReplicaState{<:Any,<:MPIData}}
+)
+    local_left = copy_to_local(replicas[1])
+
+    T = promote_type((valtype(r.v) for r in replicas)..., eltype.(rs.operators)...)
+    names = String[]
+    values = T[]
+    push!(names, "c$(i)_dot_c$(j)")
+    push!(values, dot(local_left, replicas[2].v))
+    for (k, op) in enumerate(rs.operators)
+        push!(names, "c$(i)_Op$(k)_c$(j)")
+        push!(values, dot(local_left, op, replicas[2].v))
+    end
+
+    num_reports = length(rs.operators) + 1
+    return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
 end
