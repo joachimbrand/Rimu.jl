@@ -296,26 +296,6 @@ function Rimu.freeze(md::MPIData)
     return freeze(localpart(md))
 end
 
-using ..Rimu: ReplicaState, AllOverlaps
-function Rimu.replica_stats(
-    rs::AllOverlaps{2}, replicas::NTuple{2,ReplicaState{<:Any,<:MPIData}}
-)
-    local_left = copy_to_local(replicas[1])
-
-    T = promote_type((valtype(r.v) for r in replicas)..., eltype.(rs.operators)...)
-    names = String[]
-    values = T[]
-    push!(names, "c$(i)_dot_c$(j)")
-    push!(values, dot(local_left, replicas[2].v))
-    for (k, op) in enumerate(rs.operators)
-        push!(names, "c$(i)_Op$(k)_c$(j)")
-        push!(values, dot(local_left, op, replicas[2].v))
-    end
-
-    num_reports = length(rs.operators) + 1
-    return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
-end
-
 function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}) where {N}
     local_vec_i = similar(localpart(vecs[1]))
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
