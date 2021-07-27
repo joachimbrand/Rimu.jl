@@ -245,7 +245,8 @@ end
                     setup,
                     kwargs...
                 )
-                df = lomc!(H, dv; laststep=5000).df
+                s_strat = DoubleLogUpdate(targetwalkers=100)
+                df = lomc!(H, dv; laststep=5000, s_strat).df
 
                 # Shift estimate.
                 Es, _ = mean_and_se(df.shift[2000:end])
