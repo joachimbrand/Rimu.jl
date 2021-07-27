@@ -317,7 +317,6 @@ function Rimu.replica_stats(
 end
 
 function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}) where {N}
-    println("called")
     local_vec_i = similar(localpart(vecs[1]))
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]
