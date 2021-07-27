@@ -238,11 +238,19 @@ end
 
 Collect all pairs in `md` from all ranks and store them in a local `AbstractDVec`.
 """
-function copy_to_local(md::MPIData)
+copy_to_local(md::MPIData) = copy_to_local!(similar(localpart(md)), md)
+
+"""
+    copy_to_local!(target, md::MPIData)
+
+Collect all pairs in `md` from all ranks and store them in `target`.
+In-place version of [`copy_to_local`](@ref).
+"""
+function copy_to_local!(target, md::MPIData)
+    copy!(target, localpart(md))
     comm = md.comm
     myrank = mpi_rank(comm)
     datatype = MPI.Datatype(eltype(md))
-    result = copy(localpart(md))
 
     # Store all pairs to a buffer.
     sendbuf = Vector{eltype(md)}(undef, length(localpart(md)))
@@ -256,7 +264,7 @@ function copy_to_local(md::MPIData)
         resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
         MPI.Recv!(recbuf, id, 0, comm)
         for (add, value) in recbuf
-            result[add] += value
+            target[add] += value
         end
     end
     # Perform sends.
@@ -269,11 +277,11 @@ function copy_to_local(md::MPIData)
         resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
         MPI.Recv!(recbuf, id, 0, comm)
         for (add, value) in recbuf
-            result[add] += value
+            target[add] += value
         end
     end
     MPI.Barrier(comm)
-    return result
+    return target
 end
 
 function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
@@ -310,13 +318,14 @@ end
 
 function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}) where {N}
     println("called")
+    local_vec_i = similar(localpart(vecs[1]))
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]
     values = T[]
     for i in 1:N, j in i+1:N
         push!(names, "c$(i)_dot_c$(j)")
         push!(values, dot(vecs[i], vecs[j]))
-        local_vec_i = copy_to_local(vecs[i])
+        copy_to_local!(local_vec_i, vecs[i])
         for (k, op) in enumerate(operators)
             push!(names, "c$(i)_Op$(k)_c$(j)")
             push!(values, dot(local_vec_i, op, vecs[j]))
