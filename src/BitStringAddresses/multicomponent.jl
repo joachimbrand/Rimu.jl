@@ -32,11 +32,16 @@ end
 
 const SingleFS{M} = Union{BoseFS{<:Any,M},FermiFS{<:Any,M}}
 
+"""
+"""
 struct CompositeFS{C,M,T<:NTuple{C,SingleFS{M}}} <: AbstractFockAddress
     adds::T
 end
 
 CompositeFS(adds::Vararg{AbstractFockAddress}) = CompositeFS(adds)
+
+num_components(::CompositeFS{C}) where {C} = C
+num_modes(::CompositeFS{<:Any,M}) where {M} = M
 
 #function CompositeFS(adds::NTuple{C,SingleFS{M}}) where {C,M}
 #    return CompositeFS{C,M,typeof(adds)}(adds)
@@ -47,4 +52,13 @@ function Base.show(io::IO, fs::CompositeFS{C}) where {C}
     for add in fs.adds
         print(io, "\n  ", add)
     end
+end
+
+function update_component(fs::CompositeFS, new, ::Val{I}) where {I}
+    return typeof(fs)(_update_component(fs.adds, new, Val(I)))
+end
+
+@inline _update_component((a, as...), new, ::Val{1}) = (new, as...)
+@inline function _update_component((a, as...), new, ::Val{I}) where {I}
+    return (a, _update_component(as, new, Val(I - 1))...)
 end

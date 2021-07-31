@@ -25,9 +25,12 @@ export GutzwillerSampling, GuidingVectorSampling
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 export G2Correlator
 
+export PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
+
 include("abstract.jl")
 include("offdiagonals.jl")
 include("operations.jl")
+include("geometry.jl")
 
 include("MatrixHamiltonian.jl")
 

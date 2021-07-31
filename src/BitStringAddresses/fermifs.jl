@@ -73,14 +73,45 @@ function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitStrin
     # Masks that locate positions `from` and `to`.
     from_mask = T(1) << T(from - 1)
     to_mask = T(1) << T(to - 1)
+
     # Mask for counting how many particles lie between them.
     between_mask = T(2^(abs(from - to) - 1) - 1) << T(min(from, to))
 
-    @boundscheck begin
-        bs & from_mask > 0 || error("`from` has no particle")
-        bs & to_mask == 0 || error("`to` is already occupied")
+    if bs & to_mask > 0
+        return a, 0
+    else
+        bs ⊻= from_mask | to_mask
+        num_between = count_ones(bs & between_mask)
+        return typeof(a)(S(bs)), (-1)^num_between
     end
-    bs ⊻= from_mask | to_mask
-    num_between = count_ones(bs & between_mask)
-    return typeof(a)(S(bs)), (-1)^num_between
+end
+
+struct FermiOccupiedOrbitals{N,B}
+    bs::B
+end
+
+#function occupied_orbitals(a::FermiFS{<:Any,M,S}) where {M,T,S<:BitString{<:Any,1,T}}
+#    # TODO
+#    check if correct on multi-chunk address
+#    use trailing_zeros?
+#    findall(==(1), onr(a))
+#end
+occupied_orbitals(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedOrbitals{N,S}(a.bs)
+function Base.iterate(
+    o::FermiOccupiedOrbitals{N}, st=(1, one(chunk_type(o.bs)), N, num_chunks(o.bs))
+) where {N}
+    index, mask, left, chunk_index = st
+    left == 0 && return nothing
+    # Mask is zero -> it was shifted all the way and we are done with this chunk.
+    chunk_index += iszero(mask)
+    chunk = o.bs.chunks[chunk_index]
+    mask = ifelse(iszero(mask), one(chunk), mask)
+
+    val = chunk & mask
+    while val == 0
+        index += 1
+        mask <<= 0x1
+        val = chunk & mask
+    end
+    return index, (index + 1, mask << 0x1, left - 1, chunk_index)
 end

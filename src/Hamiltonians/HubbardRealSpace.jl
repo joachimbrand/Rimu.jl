@@ -49,42 +49,207 @@ function real_space_interaction(b::BoseFS, f::FermiFS, v)
     return acc * v
 end
 function real_space_interaction(fs::CompositeFS, m)
-    M = num_components(fs)
-    acc = 0
-    for i in 1:M
-        for j in i:M
-            acc += real_space_interaction(fs.adds[i], fs.adds[j], m[i, j])
-        end
-    end
-    return acc
+    _interactions(fs.adds, m)
 end
 
-struct HubbardRealSpace{D,C,A,S}
+"""
+    _interaction_col(a, bs::Tuple, us::Tuple)
+
+Compute all interacitons in a column (below the diagonal). `a` is the address on the left-hand
+side of the interaction, and `bs` and `us` are the right-hand side addresses and interactions.
+"""
+@inline _interaction_col(a, ::Tuple{}, ::Tuple{}) = 0
+@inline function _interaction_col(a, (b, bs...), (u, us...))
+    return real_space_interaction(a, b, u) + _interaction_col(a, bs, us)
+end
+
+"""
+    _interaction(addresses, interaction_matrix)
+
+Compute all pairwise interactions in a tuple of `addresses`. The `interaction_matrix` sets the
+intraction strengths.
+
+The code is equivalent to the following.
+
+```julia
+acc = 0.0
+for (i, a) in enumerate(addresses)
+    acc += real_space_interaction(a, interaction_matrix[i, i])
+    for (j, b) in enumerate(addresses[i+1:end])
+        acc += real_space_interaction(a, b, interaction_matrix[i, j])
+    end
+end
+return acc
+```
+
+It is implemented recursively to ensure type stability.
+"""
+@inline _interactions(::Tuple{}, ::SMatrix{0,0}) = 0.0
+@inline function _interactions(
+    (a, as...)::NTuple{N,AbstractFockAddress}, m::SMatrix{N,N}
+) where {N}
+    # Split the matrix into the column we need now, and the rest.
+    (u, column...) = Tuple(m[:, 1])
+    # Type-stable way to subset SMatrix:
+    rest = SMatrix{N-1,N-1}(view(m, 2:N, 2:N))
+
+    # Get the self-interaction first.
+    self = real_space_interaction(a, u)
+    # Get the interactions for the rest of the row.
+    row = _interaction_col(a, as, column)
+    # Get the interaction for the rest of the rows.
+    return self + row + _interactions(as, rest)
+end
+
+###
+### HubbardRealSpace
+###
+struct HubbardRealSpace{
+    C,A,G,
+    # The following need to be type params.
+    T<:SVector{C,Float64},
+    U<:SMatrix{C,C,Float64},
+} <: AbstractHamiltonian{Float64}
     address::A
-    interactions::SMatrix{C,C,Float32}
-    ts::SVector{C,Float32}
+    u::U
+    t::T
+    geom::G
 end
 
 function HubbardRealSpace(
     address;
-    interactions=ones(num_components(address), num_components(address)),
-    ts=ones(num_components(address)),
-    size=(num_modes(address),)
+    u=ones(num_components(address), num_components(address)),
+    t=ones(num_components(address)),
+    geom=PeriodicBoundaries((num_modes(address),))
 )
     C = num_components(address)
-    prod(size) ≠ num_modes(address) && error("address is not compatible with lattice size")
 
-    return HubbardRealSpace{length(size),C,typeof(address),size}(
-        address, SMatrix{C,C,Float32}(interactions), SVector{C,Float32}(ts),
+    # Sanity checks
+    if prod(size(geom)) ≠ num_modes(address)
+        error("`geom` does not have the correct number of sites")
+    elseif length(u) ≠ 1 && !issymmetric(u)
+        error("`u` must be symmetric")
+    elseif size(u) ≠ (C, C) && C ≠ 1 && length(u) ≠ 1
+        error("`u` must be a $C × $C matrix")
+    elseif size(t) ≠ (C,)
+        error("`t` must be a vector of length $C")
+    end
+
+    u_mat = SMatrix{C,C,Float64}(u)
+    t_vec = SVector{C,Float64}(t)
+    return HubbardRealSpace{C,typeof(address),typeof(geom),typeof(t_vec),typeof(u_mat)}(
+        address, u_mat, t_vec, geom,
     )
 end
 
-starting_address(h::HubbardRealSpace) = h.address
-lattice_size(::HubbardRealSpace{<:Any,<:Any,S}) where {S} = S
-diagonal_element(h::HubbardRealSpace, address) = real_space_interaction(h, address)
+function Base.show(io::IO, h::HubbardRealSpace)
+    println(io, "HubbardRealSpace(")
+    println(io, "  ", starting_address(h), ",")
+    println(io, "  u = ", Float64.(h.u), ",")
+    println(io, "  t = ", Float64.(h.t), ",")
+    println(io, "  geom = ", h.geom, ",")
+    println(io, ")")
+end
 
-function get_offdiagonal(h::HubbardRealSpace{D,C}, add, chosen) where {D,C}
-    sz = lattice_size(h)
-    # We have length(sz) dimensions. Moving in the first one is going to ±1, moving in the second is ±sz[1], nth ±prod(sz[1:n-1])
-    length(sz)
+starting_address(h::HubbardRealSpace) = h.address
+diagonal_element(h::HubbardRealSpace, address) = real_space_interaction(address, h.u)
+diagonal_element(h::HubbardRealSpace{1}, address) = real_space_interaction(address, h.u[1])
+
+# Bosonic part
+struct HubbardRealSpaceBoseOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
+    geom::G
+    address::A
+    t::Float64
+    length::Int
+end
+
+function offdiagonals(h::HubbardRealSpace, comp, add)
+    neighbours = num_neighbours(h.geom)
+    return HubbardRealSpaceBoseOffdiagonals(
+        h.geom, add, h.t[comp], numberoccupiedsites(add) * neighbours,
+    )
+end
+
+Base.size(o::HubbardRealSpaceBoseOffdiagonals) = (o.length,)
+
+function Base.getindex(o::HubbardRealSpaceBoseOffdiagonals, chosen)
+    neighbours = num_neighbours(o.geom)
+    particle, neigh = fldmod1(chosen, neighbours)
+    i = find_particle(o.address, particle)
+    target_site = neighbour_site(o.geom, i.site, neigh)
+    if iszero(target_site)
+        # Move is illegal in specified geometry.
+        return o.address, 0.0
+    else
+        j = find_site(o.address, target_site)
+        new_address, onproduct = move_particle(o.address, i, j)
+        return new_address, -o.t * √onproduct
+    end
+end
+
+# Fermi part
+function offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
+    neighbours = num_neighbours(h.geom)
+    # While we do not know the exact number of offdiagonals, we know an upper bound.
+    # We only fill the result up to the point we need it, and return a view into it.
+    result = MVector{N * neighbours,Tuple{typeof(add),Float64}}(undef)
+    idx = 0
+    for site in occupied_orbitals(add)
+        for i in 1:neighbours
+            neigh = neighbour_site(h.geom, site, i)
+            iszero(neigh) && continue
+            new_add, sign = move_particle(add, site, neigh)
+            iszero(sign) && continue
+            idx += 1
+            @inbounds result[idx] = (new_add, -h.t[comp] * sign)
+        end
+    end
+    final = SVector(result)
+    return view(final, 1:idx)
+end
+
+# TODO SparseBoseFS
+
+# Multi-component part
+struct HubbardRealSpaceOffdiagonals{A,T<:Tuple} <: AbstractOffdiagonals{A,Float64}
+    address::A
+    parts::T
+    length::Int
+end
+
+function offdiagonals(h::HubbardRealSpace{C,A}, address::A) where {C,A<:CompositeFS}
+    parts = _get_parts(address.adds, h, Val(1))
+    return HubbardRealSpaceOffdiagonals(address, parts, sum(length, parts))
+end
+@inline function _get_parts((a,as...), h, ::Val{I}) where {I}
+    return (offdiagonals(h, I, a), _get_parts(as, h, Val(I+1))...)
+end
+@inline _get_parts(::Tuple{}, h, ::Val) = ()
+
+Base.size(o::HubbardRealSpaceOffdiagonals) = (o.length,)
+
+function Base.getindex(o::HubbardRealSpaceOffdiagonals{A}, chosen) where {A}
+    return _getindex(o.parts, o.address, chosen, Val(1))
+end
+@inline function _getindex((p, ps...), address::A, chosen, comp::Val{I}) where {A,I}
+    if chosen ≤ length(p)
+        new_add, val = p[chosen]
+        return BitStringAddresses.update_component(address, new_add, comp), val
+    else
+        chosen -= length(p)
+        return _getindex(ps, address, chosen, Val(I + 1))
+    end
+end
+
+# Single-component models
+offdiagonals(h::HubbardRealSpace{1,A}, add::A) where {A} = offdiagonals(h, 1, add)
+
+# TODO
+function rand_offdiagonal(v::AbstractVector)
+    if length(v) == 0
+        @show v
+    end
+    i = cRand(1:length(v))
+    add, val = v[i]
+    return add, 1/length(v), val
 end

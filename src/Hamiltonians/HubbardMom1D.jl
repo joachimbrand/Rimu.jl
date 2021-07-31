@@ -259,37 +259,11 @@ function creation_operators(onrep::SVector{M}, onproduct, p, q, k) where {M}
     return SVector(m_onrep), onproduct
 end
 
-function inplace_momentum_transfer_excitation(
-    add::BoseFS{<:Any,M}, chosen, singlies, doublies
-) where {M}
-
-    double = chosen - singlies * (singlies - 1) * (M - 2)
-
-    if double > 0
-        # pick a doubly occupied site and move particles in both directions.
-        double, q = fldmod1(double, M - 1)
-        add, onproduct = double_move_particle(add, double, q)
-        return add, onproduct, -q
-    else
-        pair, q = fldmod1(chosen, M - 2)
-        first, second = fldmod1(pair, singlies - 1) # where the holes are to be made
-        if second < first # put them in ascending order
-            first, second = second, first
-        else
-            second += 1 # as we are counting through all singlies
-        end
-        add, onproduct = double_move_particle(add, first, second, q)
-        return add, onproduct, -q
-    end
-end
-
 @inline function get_offdiagonal(
     ham::HubbardMom1D{<:Any,M,A}, add, chosen, singlies, doublies
 ) where {M,A}
-    #svec, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
-    #return A(svec), ham.u/(2*M)*sqrt(onproduct)
-    add, onproduct, _ = inplace_momentum_transfer_excitation(add, chosen, singlies, doublies)
-    return add, ham.u / (2 * M) * √(onproduct)
+    svec, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
+    return A(svec), ham.u/(2*M)*sqrt(onproduct)
 end
 
 ###

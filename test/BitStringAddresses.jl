@@ -207,7 +207,7 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
             end
             return SVector(result)
         end
-        # This function checks if iteration works ok.
+        # Should be exactly the same as onr, but slower.
         function onr2(bose::BoseFS{N,M}) where {N,M}
             result = zeros(MVector{M,Int32})
             for (n, i, _) in occupied_orbitals(bose)
@@ -216,6 +216,7 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
             end
             return SVector(result)
         end
+        # Should be exactly the same as hopnextneighbour, but slower.
         function hopnextneighbour2(bose::BoseFS{N,M}, chosen) where {N,M}
             o = MVector{M,Int32}(onr(bose))
             site = (chosen + 1) ÷ 2
@@ -235,23 +236,36 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
             o[j] += 1
             return BoseFS{N}(SVector(o)), (o[i] + 1) * (o[j])
         end
-        function move_particle2(bose::BoseFS{N,M}, at, by) where {N,M}
-            o = MVector{M,Int32}(onr(bose))
-            index = 0
-            i = 0
-            # Find target particle
-            for num in o
-                i += 1
-                index += num ≠ 0
-                index == at && break
+        # Tests find_particle, find_site, and move_particle.
+        function test_move_particle(bose::BoseFS{N,M}) where {N,M}
+            onrep = onr(bose)
+            for (i, idx) in enumerate(occupied_orbitals(bose))
+                for j in 1:M
+                    idx.site == j && continue # Don't test moving to the same spot
+                    correct = setindex(onrep, onrep[idx.site] - 1, idx.site)
+                    correct = typeof(bose)(setindex(correct, correct[j] + 1, j))
+                    correct_val = onrep[idx.site] * (onrep[j] + 1)
+
+                    jdx = find_site(bose, j)
+                    new_bose, val = move_particle(bose, idx, jdx)
+
+                    if jdx.site ≠ j
+                        error("jdx.site=$(jdx.site) ≠ $(j)")
+                    elseif new_bose ≠ correct
+                        error("new_bose=$(new_bose) ≠ $(correct)")
+                    elseif val ≠ correct_val
+                        error("val=$(val) ≠ $(correct_val)")
+                    elseif find_particle(bose, i) ≠ idx
+                        error("find_particle(bose, i)=$(find_particle(bose, i)) ≠ $idx")
+                    end
+                end
             end
-            j = mod1(i + by, M)
-            o[i] -= 1
-            o[j] += 1
-            return BoseFS{N}(SVector(o)), (o[i] + 1) * (o[j])
+            return true
         end
 
-        for (N, M) in ((16, 16), (32, 10), (10, 32), (64, 32), (200, 200), (100, 100), (200, 20), (20, 200))
+        for (N, M) in (
+            (16, 16), (10, 32), (64, 32), (200, 200), (100, 100), (200, 20), (20, 200)
+        )
             @testset "$N, $M" begin
                 for _ in 1:10
                     input = rand_onr(N, M)
@@ -260,9 +274,6 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
                     @test num_modes(bose) == M
                     @test onr(bose) == input
                     @test numberoccupiedsites(bose) == count(!iszero, input)
-                    if bose_hubbard_interaction(bose) != sum(input .* (input .- 1))
-                        @show input
-                    end
                     @test bose_hubbard_interaction(bose) == sum(input .* (input .- 1))
 
                     @test onr2(bose) == input
@@ -272,17 +283,13 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
                         for i in 1:numberoccupiedsites(bose) * 2
                     )
 
-                    for i in 1:numberoccupiedsites(bose), j in vcat(-(M-1):-1, 1:M-1)
-                        a = move_particle2(bose, i, j)
-                        b = move_particle(bose, i, j)
-                        if a ≠ b
-                            @show bose i j mod1(j, M)
-                            @show a
-                            @show b
-                            @test false
-                            break
-                        end
-                    end
+                    occupied = [
+                        find_particle(bose, i).site
+                        for i in 1:numberoccupiedsites(bose)
+                    ]
+                    @test occupied == findall(!iszero, onr(bose))
+
+                    @test test_move_particle(bose)
 
                     # This test checks that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(bose))) == bose

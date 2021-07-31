@@ -254,7 +254,8 @@ end
         empty_orbitals = trailing_zeros(chunk)
         chunk >>>= (empty_orbitals % UInt)
         next_bit = bit + bosons + empty_orbitals
-        return (bosons, orbital, bit), (chunk, next_bit, orbital + empty_orbitals)
+        next_orbital = orbital + empty_orbitals
+        return FockAddressIndex(bosons, orbital, bit), (chunk, next_bit, next_orbital)
     end
 end
 
@@ -307,135 +308,57 @@ end
         result += bosons
         chunk >>>= bosons % UInt
     end
-    return (result, orbital, bit_position), (i, chunk, bits_left, orbital)
+    return FockAddressIndex(result, orbital, bit_position), (i, chunk, bits_left, orbital)
 end
 
-"""
-    find_sites(b::BoseFS, ks...)
-
-Find the `k`-th site (occupied or not).
-
-Return bit offset and occupation number. If multiple `k`s are given, find multiple sites in
-a single pass over the address.
-"""
-function find_sites(b::BoseFS, ks...)
-    # This is somewhat convoluted, but it allows us to find multiple sites in a single pass.
-    #
-    # The idea is to pass around an occupied orbital iterator and construct a tuple with
-    # the results as you go along. Since we know the number of sites we're looking for, julia
-    # is able to infer the length of the tuple.
-    return _find_sites(b::BoseFS, ks, iterate(occupied_orbitals(b)), (0, 0, 0))
+function find_site(b::BoseFS, index)
+    last_occnum = last_site = last_offset = 0
+    for (occnum, site, offset) in occupied_orbitals(b)
+        dist = index - site
+        if dist == 0
+            return FockAddressIndex(occnum, index, offset)
+        elseif dist < 0
+            return FockAddressIndex(0, index, offset + dist)
+        end
+        last_occnum = occnum
+        last_site = site
+        last_offset = offset
+    end
+    offset = last_offset + last_occnum + index - last_site
+    return FockAddressIndex(0, index, offset)
 end
-_find_sites(b::BoseFS, ::Tuple{}, _, _) = ()
-function _find_sites(b::BoseFS, (k, ks...), state, last)
-    iter = occupied_orbitals(b)
-    while !isnothing(state)
-        (occnum, site, offset), st = state
-        there = k - site
-        if there == 0
-            # We are done with this site.
-            # Call the next step with the next iteration.
-            result = offset, occnum
-            return (result, _find_sites(b, ks, iterate(iter, st), (occnum, site, offset))...)
-        elseif there < 0
-            # The desired site was before the one found in iteration.
-            # Call the next step, but do not iterate yet.
-            result = offset + there, 0
-            return (result, _find_sites(b, ks, state, last)...)
-        else
-            # k-th site not found yet, look further.
-            state = iterate(iter, st)
+
+function find_particle(b::BoseFS, index, n=1)
+    for (occnum, site, offset) in occupied_orbitals(b)
+        index -= occnum ≥ n
+        if index == 0
+            return FockAddressIndex(occnum, site, offset)
         end
     end
-    # Remaining sites are after the last occupied site.
-    last_offset, last_occnum, last_site = last
-    result = (last_offset + last_occnum + k - last_site, 0)
-    return (result, _find_sites(b, ks, state, last)...)
+    return FockAddressIndex(0, 0, 0)
 end
 
 """
-    find_particles(b::BoseFS, i; n=1)
+    move_particle(b::BoseFS, from::FockAddressIndex, to::FockAddressIndex)
 
-Find the `i`-th occupied site with an occupation number of at least `n`.
-
-Return the bit offset, the site and the occupation number. If multiple `i`s are given, find
-multiple occupied sites in a single pass over the address.
-"""
-function find_particles(b::BoseFS, is...; n=1)
-    # This uses the same idea as find_site, explained above.
-    return _find_particles(b::BoseFS, is, 0, n, iterate(occupied_orbitals(b)))
-end
-
-_find_particles(::BoseFS, ::Tuple{}, _, _, _) = ()
-function _find_particles(b::BoseFS, (i, is...), counter, n, state)
-    iter = occupied_orbitals(b)
-    while !isnothing(state)
-        (occnum, site, offset), st = state
-        counter += occnum ≥ n
-        if counter == i
-            result = (offset, site, occnum)
-            return (result, _find_particles(b, is, counter, n, iterate(iter, st))...)
-        else
-            state = iterate(iter, st)
-        end
-    end
-    # This should never be returned unless we are out of bounds.
-    return ((0, 0, 0), )
-end
-
-"""
-    move_particle(b::BoseFS, n, by)
-
-Move the `n`-th particle by `by` sites. Negative values of `by` move the particle to the
-left and positive values move it to the right.
+Move particle from [`FockAddressIndex`](@info) `from` to the [`FockAddressIndex`](@ref) `to`.
 
 This is equivalent to applying a destruction operator followed by a creation operator to the
 address.
 
 Return the new fock state and the product of the occupation numbers.
 """
-function move_particle(b::BoseFS{<:Any,M}, n, by) where {M}
-    if by == 0
-        _, _, occnum = find_particles(b, n)
-        return b, occnum * (occnum - 1)
+function move_particle(b::BoseFS, from::FockAddressIndex, to::FockAddressIndex)
+    occ1 = from.occnum
+    occ2 = to.occnum
+    if from == to
+        return b, occ1 * (occ1 - 1)
     else
-        from, site, occnum1 = find_particles(b, n)
-        to, occnum2 = find_sites(b, mod1(site + by, M))
-        return move_particle_bitoffset(b, from, to), occnum1 * (occnum2 + 1)
+        _move_particle(b, from.offset, to.offset), occ1 * (occ2 + 1)
     end
 end
 
-export double_move_particle
-function double_move_particle(b::BoseFS{<:Any,M}, i, by) where {M}
-    @assert by ≠ 0
-    # Both moves from the same site.
-    (from, site, occnum_i), = find_particles(b, i; n=2)
-    j = mod1(site + by, M)
-    k = mod1(site - by, M)
-
-    (to_j, occnum_j), = find_sites(b, j)
-    b = move_particle_bitoffset(b, from, to_j)
-    # Need to find second site after first move.
-    (to_k, occnum_k), = find_sites(b, k)
-    b = move_particle_bitoffset(b, from, to_k)
-    return b, occnum_i * (occnum_i - 1) * (occnum_j + 1) * (occnum_k + 1)
-end
-function double_move_particle(b::BoseFS{<:Any,M}, i, j, by) where {M}
-    @assert by ≠ 0
-    # Move from different sites.
-    (from_i, site_i, occnum_i), (from_j, site_j, occnum_j) = find_particles(b, i, j)
-    k = mod1(site_i - by, M)
-    l = mod1(site_j + by, M)
-
-    (to_k, occnum_k), = find_sites(b, k)
-    b = move_particle_bitoffset(b, from_i, to_k)
-    # Need to find second site after first move.
-    (to_l, occnum_l), = find_sites(b, l)
-    b = move_particle_bitoffset(b, from_j, to_l)
-    return b, occnum_i * (occnum_k + 1) * occnum_j * (occnum_l + 1)
-end
-
-function move_particle_bitoffset(b::BoseFS, from, to)
+function _move_particle(b::BoseFS, from, to)
     if to < from
         return typeof(b)(partial_left_shift(b.bs, to, from))
     else

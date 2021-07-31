@@ -11,6 +11,7 @@ using Base.Cartesian
 
 export BitString
 export num_bits, num_chunks, chunk_type, chunks, chunk_bits, top_chunk_bits
+export find_particle, find_site, move_particle
 
 export AbstractFockAddress, BoseFS, BoseFS2C, FermiFS, CompositeFS
 export num_particles, num_modes, num_components

@@ -134,23 +134,37 @@ julia> dimension(BigInt, HubbardMom1D(nearUniform(BoseFS{200,100})))
 ```
 """
 function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:Integer}
+    return try_binomial(T(N + M - 1), T(N))
+end
+function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
+    return approximate_binomial(T(N + M - 1), T(N))
+end
+function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:Integer}
+    return try_binomial(T(M), T(N))
+end
+function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:AbstractFloat}
+    return approximate_binomial(T(M), T(N))
+end
+function dimension(::Type{T}, b::BoseFS2C) where {T}
+    return dimension(T, b.bsa) * dimension(T, b.bsb)
+end
+function dimension(::Type{T}, c::CompositeFS) where {T}
+    return prod(x -> dimension(T, x), c.adds)
+end
+
+function try_binomial(n::T, k::T) where {T}
     try
-        return T(binomial(T(N + M - 1), T(N)))
+        return T(binomial(n, k))
     catch
         return nothing
     end
 end
-function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
-    n = N + M - 1
-    k = N
+function approximate_binomial(n::T, k::T) where {T}
     try
         T(binomial(Int128(n), Int128(k)))
     catch
         T(exp(logbinomialapprox(n, k)))
     end
-end
-function dimension(::Type{T}, b::BoseFS2C) where T
-    return dimension(T, b.bsa) * dimension(T, b.bsb)
 end
 
 dimension(h::AbstractHamiltonian) = dimension(Int, h)

@@ -1,3 +1,4 @@
+using KrylovKit
 using LinearAlgebra
 using Rimu
 using Test
@@ -62,6 +63,14 @@ end
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
         ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
+        HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
+        HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[1], t=[3]),
+        HubbardRealSpace(
+            CompositeFS(
+                FermiFS((1, 1, 1, 1, 1, 0, 0, 0)),
+                FermiFS((1, 1, 1, 1, 0, 0, 0, 0)),
+            ); u=[1, 2], t=[3 1; 1 3]
+        ),
 
         BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
         BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))),
@@ -138,6 +147,90 @@ end
             @test eval(Meta.parse(repr(H1))) == H1
             @test eval(Meta.parse(repr(H2))) == H2
         end
+    end
+end
+
+function exact_energy(ham)
+    dv = DVec(starting_address(ham) => 1.0)
+    all_results = eigsolve(ham, dv, 1, :SR; issymmetric = true)
+    return all_results[1][1]
+end
+
+@testset "HubbardRealSpace" begin
+    @testset "1D Bosons (single)" begin
+        H1 = HubbardReal1D(BoseFS((1, 1, 1, 1, 1, 0)); u=2, t=3)
+        H2 = HubbardRealSpace(BoseFS((1, 1, 1, 1, 1, 0)); u=[2], t=[3])
+
+        @test exact_energy(H1) == exact_energy(H2)
+    end
+    @testset "1D Bosons (2-component)" begin
+        add1 = BoseFS2C(
+            (1, 1, 1, 0, 0, 0),
+            (1, 0, 0, 0, 0, 0),
+        )
+        H1 = BoseHubbardReal1D2C(add1, ua=2, v=3, tb=4)
+
+        add2 = CompositeFS(
+            BoseFS((1, 1, 1, 0, 0, 0)),
+            BoseFS((1, 0, 0, 0, 0, 0)),
+        )
+        H2 = HubbardRealSpace(add2, t=[1,4], u=[2 3; 3 1])
+
+        add3 = CompositeFS(
+            BoseFS((1, 1, 1, 0, 0, 0)),
+            FermiFS((1, 0, 0, 0, 0, 0)),
+        )
+        H3 = HubbardRealSpace(add3, t=[1,4], u=[2 3; 3 1])
+
+        E1 = exact_energy(H1)
+        E2 = exact_energy(H2)
+        E3 = exact_energy(H3)
+
+        @test E1 == E2 == E3
+    end
+    @testset "1D Fermions" begin
+        H1 = HubbardRealSpace(FermiFS((1, 1, 1, 0, 0, 0)), t=[3.5])
+
+        # Kinetic energies [+1, -1, -2, -1, +1, +2] can be multiplied by t to get the exact
+        # energy.
+        @test exact_energy(H1) ≈ -14
+
+        # Not interacting, we can sum the parts together.
+        H2 = HubbardRealSpace(
+            CompositeFS(FermiFS((1, 1, 1, 1, 0, 0)), FermiFS((1, 1, 0, 0, 0, 0))),
+            t=[1, 2], u=[0 0; 0 0],
+        )
+
+        @test exact_energy(H2) ≈ -3 + -6
+
+        # Repulsive interactions increase energy.
+        H3 = HubbardRealSpace(
+            CompositeFS(FermiFS((1, 1, 1, 1, 0, 0)), FermiFS((1, 1, 0, 0, 0, 0))),
+            t=[1, 2], u=[0 1; 1 0],
+        )
+        @test exact_energy(H3) > -9
+
+        # Attractive interactions reduce energy.
+        H4 = HubbardRealSpace(
+            CompositeFS(FermiFS((1, 1, 1, 1, 0, 0)), FermiFS((1, 1, 0, 0, 0, 0))),
+            t=[1, 2], u=[0 -1; -1 0],
+        )
+        @test exact_energy(H4) < -9
+    end
+
+    @testset "2D Fermions" begin
+        H1 = HubbardRealSpace(
+            FermiFS((1,1,1,1,1,0,0,0,0)),
+            t=[1],
+            geom=PeriodicBoundaries(3, 3),
+        )
+
+        H2 = HubbardRealSpace(
+            CompositeFS(FermiFS((1,1,1,1,1,0,0,0,0)), FermiFS((1,1,0,0,0,0,0,0,0))),
+            t=[0.5, 1.2], u=[0 0; 0 0],
+            geom=PeriodicBoundaries(3, 3),
+        )
+        @test exact_energy(H1) ≈ 1.5 + -1
     end
 end
 

@@ -32,11 +32,16 @@ num_components(b::AbstractFockAddress) = num_components(typeof(b))
 """
     FockAddressIndex
 
-Convenience struct for indexing into a fock state. Contains the bit offset `offset`, the
-occupation number `occnum, and the site index `site`.
+Convenience struct for indexing into a fock state.
+
+Fields:
+
+* `occnum`: the occupation number.
+* `site`: the index of the site.
+* `offset`: the bit offset of the site.
 """
-struct FockAddressIndex
-    offset::Int
+struct FockAddressIndex <: FieldVector{3,Int}
     occnum::Int
     site::Int
+    offset::Int
 end
