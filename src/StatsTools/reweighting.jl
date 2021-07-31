@@ -60,6 +60,7 @@ end
         skip = 0,
         E_r = mean(shift[skip+1:end]),
         weights = w_exp,
+        change_type = identity,
         kwargs...,
     ) -> (; E_gr::Particles, k, blocks, success)
     growth_estimator(df::DataFrame, h; kwargs ...)
@@ -81,7 +82,11 @@ When `h` is greater than the autocorrelation time scale of the `shift`,
 then `E_gr` is an unbiased but approximate estimator for the ground state energy
 ``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased confidence intervals
 compared to the (biased) shift estimator.
-Error propagation is done with [`MonteCarloMeasurements`](@ref). If `success==true` the
+Error propagation is done with [`MonteCarloMeasurements`](@ref). Progagation through the logarithm
+can be modified by setting `change_type` to [`to_measurement`](@ref) in order to avoid `NaN` results 
+from negative outliers.
+ 
+If `success==true` the
 blocking analysis was successful in `k-1` steps, using `blocks` uncorrelated data points.
 
 See also [`mixed_estimator()`](@ref).
@@ -91,14 +96,18 @@ function growth_estimator(
     skip = 0,
     E_r = mean(shift[skip+1:end]),
     weights = w_exp,
+    change_type = identity,
     kwargs...,
 )
+    T = promote_type(eltype(shift), eltype(wn))
     # W_{t+1}^{(n+1)} .* wn^{(n+1)}
     numerator = weights(shift[2:end], h+1, dτ; E_r, skip) .* wn[skip+2:end]
     # W_{t}^{(n)} .* wn^{(n)}
     denominator = weights(shift[1:end-1], h, dτ; E_r, skip) .* wn[skip+1:end-1]
     nt = ratio_of_means(numerator, denominator; kwargs...)
-    E_gr = E_r - log(nt.ratio)/dτ # MonteCarloMeasurements propagates the uncertainty
+    r = nt.ratio::MonteCarloMeasurements.Particles{T,<:Any}
+    r = change_type(r)
+    E_gr = E_r - log(r)/dτ # MonteCarloMeasurements propagates the uncertainty
     return (; E_gr, k=nt.k, blocks = nt.blocks, success = nt.success)
 end
 function growth_estimator(df::DataFrame, h; kwargs...)
