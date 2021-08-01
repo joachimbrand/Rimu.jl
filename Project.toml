@@ -30,7 +30,7 @@ StrLiterals = "68059f60-971f-57ff-a2d0-18e7de9ccc84"
 ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 
 [compat]
-RandomNumbers = "~1.4"
+RandomNumbers = "^1.5.1"
 Arrow = "^1.5"
 MPI = "^0.18"
 RandomNumbers = "^1.5.2"
