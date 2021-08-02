@@ -253,10 +253,7 @@ function copy_to_local!(target, md::MPIData)
     datatype = MPI.Datatype(eltype(md))
 
     # Store all pairs to a buffer.
-    sendbuf = Vector{eltype(md)}(undef, length(localpart(md)))
-    for (i, p) in enumerate(pairs(localpart(md)))
-        sendbuf[i] = p
-    end
+    sendbuf = collect(pairs(localpart(md)))
     recbuf = eltype(md)[]
 
     # Receive from lower ranks.
