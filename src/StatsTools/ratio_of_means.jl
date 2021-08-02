@@ -150,6 +150,7 @@ function ratio_estimators(x, y; corrected = true, mc_samples = 10_000)
 
     # Monte Carlo sampling of correlated normal distribution of sample means for x and y
     x_y_ps = Particles(mc_samples, MvNormal([μ_x,μ_y],[var_x ρ; ρ var_y]))
+    # Note: type instability creeps in here through `Particles`
     r = x_y_ps[1]/x_y_ps[2] # MC sampled ratio of means
 
     # linear error propagation

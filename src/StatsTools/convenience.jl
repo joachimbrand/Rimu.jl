@@ -52,7 +52,7 @@ end
 """
     med_and_errs(p) -> (; med, err1_l, err1_u, err2_l, err2_u)
 Convenience function for extracting plottable data from a distribution or
-[`Particles`](@ref) object.
+an uncertain object created by the packages `MonteCarloMeasurements` or `Measurements`.
 Returns the median `med` and the lower `err1_l` and upper `err1_u` standard error
 (for 1σ or 68% confidence inteval). `err2_l` and `err2_u` provide the lower and upper error
 limits for the 2σ or 95% confidence interval.
@@ -78,6 +78,12 @@ function med_and_errs(p)
     err2_u = q[5] - med
     return (; med, err1_l, err1_u, err2_l, err2_u)
 end
+function med_and_errs(p::Measurements.Measurement)
+    med = Measurements.value(p)
+    err1_l = err1_u = Measurements.uncertainty(p)
+    err2_l = err2_u = 2err1_l
+    return (; med, err1_l, err1_u, err2_l, err2_u)
+end   
 
 """
     ratio_with_errs(r::RatioBlockingResult)
@@ -112,4 +118,15 @@ function ratio_with_errs(r::RatioBlockingResult)
         k=r.k,
         success=r.success,
     )
+end
+
+"""
+    to_measurement(p::MonteCarloMeasurements.Particles) -> ::Measurements.measurement
+Convert an uncertain number from `MonteCarloMeasurements` to `Measurements` format using the median as the central
+point. The new `±` boundaries will include the 68% quantile around the median.
+"""
+function to_measurement(p::MonteCarloMeasurements.Particles)
+        q = quantile(p, [0.16, 0.5, 0.84])
+        σ = max(q[3]-q[2],q[2]-q[1]) # take the larger one 
+        return Measurements.measurement(q[2],σ)
 end
