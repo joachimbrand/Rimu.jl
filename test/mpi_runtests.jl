@@ -62,6 +62,12 @@ end
 @testset "MPI tests" begin
     @testset "MPIData" begin
         for type in (InitiatorDVec, DVec)
+            @testset "copy_to_local" begin
+                dv = MPIData(type(mpi_rank() => 1, -1 => 10))
+                loc = RMPI.copy_to_local(dv)
+                @test length(loc) == mpi_size() + 1
+                @test loc[-1] == 10 * mpi_size()
+            end
             @testset "Single component $type" begin
                 for i in 1:N_REPEATS
                     add = BoseFS((0,0,10,0,0))
@@ -239,7 +245,8 @@ end
                     setup,
                     kwargs...
                 )
-                df = lomc!(H, dv; laststep=5000).df
+                s_strat = DoubleLogUpdate(targetwalkers=100)
+                df = lomc!(H, dv; laststep=5000, s_strat).df
 
                 # Shift estimate.
                 Es, _ = mean_and_se(df.shift[2000:end])
