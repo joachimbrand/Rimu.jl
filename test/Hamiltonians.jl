@@ -300,7 +300,7 @@ end
     d = lomc!(mh, ones(dim)).df
     @test d.shift ≈ a.shift
     # integer walkernumber triggers IsStochasticInteger algorithm
-    seedCRNG!(41)
+    seedCRNG!(13)
     e = lomc!(mh, ones(Int,dim)).df
     @test ≈(e.shift[end], a.shift[end], atol=0.3)
     # wrap full matrix as MatrixHamiltonian

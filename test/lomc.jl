@@ -244,6 +244,8 @@ using Statistics
         end
 
         @testset "SignCoherence" begin
+            ConsistentRNG.seedCRNG!(1337)
+
             ref = eigsolve(H, dv, 1, :SR; issymmetric=true)[2][1]
             post_step = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
             df, _ = lomc!(H, copy(dv); post_step)
@@ -257,6 +259,8 @@ using Statistics
         end
 
         @testset "WalkerLoneliness" begin
+            ConsistentRNG.seedCRNG!(1337)
+
             post_step = WalkerLoneliness()
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.loneliness[1] == 1
