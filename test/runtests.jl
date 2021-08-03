@@ -27,13 +27,13 @@ end
 using Rimu.ConsistentRNG
 @testset "ConsistentRNG.jl" begin
     seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
-    @test cRand(UInt128) == 0x31b845fb73fcb6aa392bdbbeabf3ce50
+    @test cRand(UInt128) == 0x50f0f296b239b257a8c2ac2f11d6d2cb
 
-    @test rand(ConsistentRNG.CRNGs[][1],UInt128) == 0xad825b6d8cdd554f3deee102bf4d5704
+    @test rand(ConsistentRNG.CRNGs[][1],UInt128) == 0xba97314c00e092e448993a2bef41d28d
     # Only looks at first element of the `NTuple`. This should be reproducible
     # regardless of `numthreads()`.
-    @test rand(trng(),UInt16) == 0xcd4d
-    @test rand(newChildRNG(),UInt16) == 0x6e4c
+    @test rand(trng(),UInt16) == 0x4e65
+    @test rand(newChildRNG(),UInt16) == 0x03aa
     @test ConsistentRNG.check_crng_independence(0) == Threads.nthreads()
 end
 
@@ -116,7 +116,7 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2610 atol=1
+        @test sum(df[:,:norm]) ≈ 2907 atol=1
     end
 
     @testset "DeltaMemory" begin
@@ -125,14 +125,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2610 atol=1
+        @test sum(df[:,:norm]) ≈ 2907 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2236 atol=1
+        @test sum(df[:,:norm]) ≈ 2317 atol=1
     end
 
     @testset "DeltaMemory2" begin
@@ -141,14 +141,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2610 atol=1
+        @test sum(df[:,:norm]) ≈ 2907 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2038 atol=1
+        @test sum(df[:,:norm]) ≈ 2646 atol=1
     end
 
     @testset "ShiftMemory" begin
@@ -157,14 +157,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2610 atol=1
+        @test sum(df[:,:norm]) ≈ 2907 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 3135 atol=1
+        @test sum(df[:,:norm]) ≈ 1719 atol=1
     end
 end
 
@@ -247,9 +247,9 @@ using Rimu.Blocking
         ham, vs; params = pa, s_strat = s, post_step, τ_strat, wm = similar(vs),
     ).df
     r = autoblock(rdfs, start=101)
-    @test r.s̄ ≈ -5.14 atol=0.1
+    @test r.s̄ ≈ -4.78 atol=0.1
     @test r.σs ≈ 0.27 atol=0.1
-    @test r.ē ≈ -5.52 atol=0.1
+    @test r.ē ≈ -5.81 atol=0.1
     @test r.σe ≈ 0.39 atol=0.1
     @test r.k == 6
 
