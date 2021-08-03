@@ -86,6 +86,10 @@ function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitStrin
     end
 end
 
+function move_particle(a::FermiFS, from, to)
+    from
+end
+
 struct FermiOccupiedOrbitals{N,B}
     bs::B
 end

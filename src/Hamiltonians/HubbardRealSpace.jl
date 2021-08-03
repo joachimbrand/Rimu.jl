@@ -104,6 +104,26 @@ end
 ###
 ### HubbardRealSpace
 ###
+"""
+    HubbardRealSpace(address; u=ones(C, C), t=ones(C), geom=PeriodicBoundaries(M,))
+
+General Hubbard model in real space. Supports various different kinds of particle sizes and
+geometries.
+
+## Address types
+
+* [`BoseFS`](@ref): Single-component Bose-Hubbard model.
+* [`FermiFS`](@ref): Single-component Fermi-Hubbard model. This address only provides a
+  single species of Fermions. You probably want to use [`CompositeFS`](@ref).
+* [`CompositeFS`](@ref): For multi-component models.
+
+## Gemoetries
+
+* [`PeriodicBoundaries`](@ref)
+* [`HardwallBoundaries`](@ref)
+* [`LadderBoundaries`](@ref)
+
+"""
 struct HubbardRealSpace{
     C,A,G,
     # The following need to be type params.
@@ -129,7 +149,7 @@ function HubbardRealSpace(
         error("`geom` does not have the correct number of sites")
     elseif length(u) ≠ 1 && !issymmetric(u)
         error("`u` must be symmetric")
-    elseif size(u) ≠ (C, C) && C ≠ 1 && length(u) ≠ 1
+    elseif length(u) ≠ C * C
         error("`u` must be a $C × $C matrix")
     elseif size(t) ≠ (C,)
         error("`t` must be a vector of length $C")
@@ -155,7 +175,23 @@ starting_address(h::HubbardRealSpace) = h.address
 diagonal_element(h::HubbardRealSpace, address) = real_space_interaction(address, h.u)
 diagonal_element(h::HubbardRealSpace{1}, address) = real_space_interaction(address, h.u[1])
 
+###
+### Offdiagonals
+###
+# This may be an inefficient implementation, but it is not actually used anywhere in the
+# main algorithm.
+get_offdiagonal(h::HubbardRealSpace, add, i) = offdiagonals(h, add)[i]
+num_offdiagonals(h::HubbardRealSpace, add) = length(offdiagonals(h, add))
+
 # Bosonic part
+"""
+    HubbardRealSpaceBoseOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
+
+Offdiagonals for the bosonic part of a [`HubbardRealSpace`](@ref) model.
+
+Used when the model's address is a [`BoseFS`](@ref), or a [`CompositeFS`](@ref) with a
+[`BoseFS`](@ref) component.
+"""
 struct HubbardRealSpaceBoseOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
     geom::G
     address::A
@@ -188,6 +224,8 @@ function Base.getindex(o::HubbardRealSpaceBoseOffdiagonals, chosen)
 end
 
 # Fermi part
+# Here, the offdiagonals are an actual vector of offdiagonals and do not need a separate
+# struct.
 function offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
     neighbours = num_neighbours(h.geom)
     # While we do not know the exact number of offdiagonals, we know an upper bound.
@@ -211,20 +249,33 @@ end
 # TODO SparseBoseFS
 
 # Multi-component part
+"""
+    HubbardRealSpaceOffdiagonals{A,T<:Tuple} <: AbstractOffdiagonals{A,Float64}
+
+Offdiagonals of a [`HubbardRealSpace`](@ref) model with a [`CompositeFS`](@ref) address.
+"""
 struct HubbardRealSpaceOffdiagonals{A,T<:Tuple} <: AbstractOffdiagonals{A,Float64}
     address::A
     parts::T
     length::Int
 end
 
+"""
+    get_comp_offdiags(h::HubbardRealSpace, add)
+
+Get offdiagonals of all components of address in a type-stable manner.
+"""
+get_comp_offdiags(h::HubbardRealSpace, address) = _get_comp_offdiags(address.adds, h, Val(1))
+
+@inline function _get_comp_offdiags((a,as...), h, ::Val{I}) where {I}
+    return (offdiagonals(h, I, a), _get_comp_offdiags(as, h, Val(I+1))...)
+end
+@inline _get_comp_offdiags(::Tuple{}, h, ::Val) = ()
+
 function offdiagonals(h::HubbardRealSpace{C,A}, address::A) where {C,A<:CompositeFS}
-    parts = _get_parts(address.adds, h, Val(1))
+    parts = get_comp_offdiags(h, address)
     return HubbardRealSpaceOffdiagonals(address, parts, sum(length, parts))
 end
-@inline function _get_parts((a,as...), h, ::Val{I}) where {I}
-    return (offdiagonals(h, I, a), _get_parts(as, h, Val(I+1))...)
-end
-@inline _get_parts(::Tuple{}, h, ::Val) = ()
 
 Base.size(o::HubbardRealSpaceOffdiagonals) = (o.length,)
 
@@ -241,14 +292,13 @@ end
     end
 end
 
-# Single-component models
+###
+### Single-component models
+###
 offdiagonals(h::HubbardRealSpace{1,A}, add::A) where {A} = offdiagonals(h, 1, add)
 
 # TODO
 function rand_offdiagonal(v::AbstractVector)
-    if length(v) == 0
-        @show v
-    end
     i = cRand(1:length(v))
     add, val = v[i]
     return add, 1/length(v), val
