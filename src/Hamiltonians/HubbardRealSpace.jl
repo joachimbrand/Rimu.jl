@@ -110,6 +110,9 @@ end
 General Hubbard model in real space. Supports various different kinds of particle sizes and
 geometries.
 
+```math
+```
+
 ## Address types
 
 * [`BoseFS`](@ref): Single-component Bose-Hubbard model.
@@ -117,11 +120,16 @@ geometries.
   single species of Fermions. You probably want to use [`CompositeFS`](@ref).
 * [`CompositeFS`](@ref): For multi-component models.
 
-## Gemoetries
+## Geometries
 
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
 * [`LadderBoundaries`](@ref)
+
+## Other parameters
+
+* `u`
+* `t`: the t parameters for
 
 """
 struct HubbardRealSpace{
@@ -161,6 +169,8 @@ function HubbardRealSpace(
         address, u_mat, t_vec, geom,
     )
 end
+
+LOStructure(::Type{<:HubbardRealSpace}) = Hermitian()
 
 function Base.show(io::IO, h::HubbardRealSpace)
     println(io, "HubbardRealSpace(")

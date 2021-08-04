@@ -2,6 +2,7 @@ using Rimu
 using Rimu.BitStringAddresses
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
 using Rimu.BitStringAddresses: occupied_orbitals
+using Random
 using StaticArrays
 using Test
 
@@ -200,7 +201,7 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
     @testset "Randomized tests" begin
         # Note: the random number for these tests will be the same everytime. This is still
         # an ok way to look for errors.
-        function rand_onr(N, M)
+        function rand_onr_bose(N, M)
             result = zeros(MVector{M,Int})
             for _ in 1:N
                 result[rand(1:M)] += 1
@@ -263,12 +264,10 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
             return true
         end
 
-        for (N, M) in (
-            (16, 16), (10, 32), (64, 32), (200, 200), (100, 100), (200, 20), (20, 200)
-        )
+        for (N, M) in ((16, 16), (10, 32), (64, 32), (200, 200), (200, 20), (20, 200))
             @testset "$N, $M" begin
                 for _ in 1:10
-                    input = rand_onr(N, M)
+                    input = rand_onr_bose(N, M)
                     bose = BoseFS(input)
                     @test num_particles(bose) == N
                     @test num_modes(bose) == M
@@ -293,6 +292,83 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
 
                     # This test checks that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(bose))) == bose
+                end
+            end
+        end
+    end
+end
+
+@testset "FermiFS" begin
+    small = SVector(1, 0, 0, 0, 0, 1, 1, 1, 0, 0)
+    big = [rand(0:1) for _ in 1:70]
+    giant = [rand() < 0.1 for _ in 1:200]
+    giant_sparse = [1; 1; zeros(Int, 100); 1]
+    giant_dense = [1; 0; ones(Int, 50); 0; 1; 1]
+    @testset "onr, constructors" begin
+        for o in (small, big, giant, giant_sparse, giant_dense)
+            f = FermiFS(o)
+            @test onr(f) == o
+            @test typeof(f)(onr(f)) == f
+        end
+
+        @test_throws ErrorException FermiFS((1, 2, 3))
+        @test_throws ErrorException FermiFS{2,3}((1, 1, 1))
+    end
+    @testset "occupied_orbitals" begin
+        for o in (small, big, giant)
+            f = FermiFS(o)
+            sites = Int[]
+            foreach(occupied_orbitals(f)) do i
+                push!(sites, i)
+            end
+            @test sites == findall(≠(0), onr(f))
+        end
+    end
+    @testset "Randomized Tests" begin
+        function rand_onr_fermi(N, M)
+            return SVector{M}(shuffle([ones(Int,N); zeros(Int,M - N)]))
+        end
+        function test_move_particle(fermi::FermiFS{<:Any,M}) where {M}
+            onrep = onr(fermi)
+            for i in occupied_orbitals(fermi)
+                for j in 1:M
+                    i == j && continue # Don't test moving to the same spot
+                    onrep[j] ≠ 0 && continue # Don't attempt to move to an occupied spot
+                    onrep[i] == 1 || error("onrep[$i] ≠ 1 in $onrep")
+
+                    correct = FermiFS(setindex(setindex(onrep, 0, i), 1, j))
+                    l, u = minmax(i, j)
+                    correct_sign = (-1)^sum(onrep[l + 1:u - 1])
+
+                    new_fermi, sign = move_particle(fermi, i, j)
+                    if new_fermi ≠ correct
+                        error("new_fermi=$(new_fermi) ≠ $(correct) after moving $fermi $i to $j")
+                    elseif sign ≠ correct_sign
+                        error("sign=$(sign) ≠ $(correct_sign) for $fermi, $i, $j")
+                    end
+                end
+            end
+            return true
+        end
+
+        for (N, M) in ((15, 16), (10, 29), (32, 60), (180, 200), (10, 200), (1, 20))
+            @testset "$N, $M" begin
+                for _ in 1:10
+                    input = rand_onr_fermi(N, M)
+                    fermi = FermiFS(input)
+
+                    @test num_particles(fermi) == N
+                    @test num_modes(fermi) == M
+                    @test onr(fermi) == input
+
+                    @test test_move_particle(fermi)
+
+                    f = FermiFS(input)
+                    sites = Int[]
+                    foreach(occupied_orbitals(f)) do i
+                        push!(sites, i)
+                    end
+                    @test sites == findall(≠(0), onr(f))
                 end
             end
         end

@@ -7,13 +7,12 @@ end
 function FermiFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,C,T,S<:BitString{M,C,T}}
     @boundscheck sum(onr) == N && all(in((0, 1)), onr) || error("invalid ONR")
     result = zero(SVector{C,T})
-    j = length(result)
     for orbital in 1:M
-        i = mod1(orbital, 64)
-        new = result[j]
-        new |= UInt64(onr[i]) << UInt64(i - 1)
+        iszero(onr[orbital]) && continue
+        minus_j, offset = fldmod(orbital - 1, 64)
+        j = C - minus_j
+        new = result[j] | T(1) << T(offset)
         result = setindex(result, new, j)
-        j -= (i == 64)
     end
     return FermiFS{N,M,S}(S(SVector(result)))
 end
@@ -47,10 +46,8 @@ onr(a::FermiFS) = SVector(m_onr(a))
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
     result = zero(MVector{M,Int32})
     j = num_chunks(a.bs)
-    @inbounds for orbital in 1:M
-        i = mod1(orbital, 64)
-        result[orbital] = (chunks(a.bs)[j] & (1 << (i - 1))) > 0
-        j -= (i == 64)
+    @inbounds for orbital in occupied_orbitals(a)
+        result[orbital] = 1
     end
     return result
 end
@@ -68,8 +65,42 @@ Move particle from location `from` to location `to`. Note: the check that `from`
 valid can be elided with `@inbounds`.
 """
 function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitString{<:Any,1,T}}
-    bs = a.bs.chunks[1]
+    new_chunk, value = _move_particle(a.bs.chunks[1], from, to)
+    return typeof(a)(S(new_chunk)), value
+end
 
+function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {S}
+    T = chunk_type(a.bs)
+    # Ensure they are ordered.
+    from, to = minmax(from, to)
+    result = a.bs.chunks
+
+    # Get chunk and offset.
+    i, from_offset = divrem(from - 1, 64)
+    j, to_offset = divrem(to - 1, 64)
+    # Indexing from right -> make it from left
+    i = lastindex(result) - i
+    j = lastindex(result) - j
+
+    if i == j
+        new_chunk, value = _move_particle(result[i], from_offset + 1, to_offset + 1)
+        result = setindex(result, new_chunk, i)
+    else
+        result = setindex(result, result[i] ⊻ T(1) << T(from_offset), i)
+        result = setindex(result, result[j] ⊻ T(1) << T(to_offset), j)
+
+        value = 0
+        value += count_ones(result[i] & (-UInt(1) << (from_offset + 1)))
+        value += count_ones(result[j] & ~(-UInt(1) << to_offset))
+        for k in j+1:i-1
+            value += count_ones(result[k])
+        end
+        value = (-1)^value
+    end
+    return typeof(a)(S(result)), value
+end
+
+function _move_particle(bs::T, from, to) where {T<:Unsigned}
     # Masks that locate positions `from` and `to`.
     from_mask = T(1) << T(from - 1)
     to_mask = T(1) << T(to - 1)
@@ -77,45 +108,51 @@ function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitStrin
     # Mask for counting how many particles lie between them.
     between_mask = T(2^(abs(from - to) - 1) - 1) << T(min(from, to))
 
-    if bs & to_mask > 0
-        return a, 0
-    else
-        bs ⊻= from_mask | to_mask
-        num_between = count_ones(bs & between_mask)
-        return typeof(a)(S(bs)), (-1)^num_between
-    end
+    bs ⊻= from_mask | to_mask
+    num_between = count_ones(bs & between_mask)
+    return bs, (-1)^num_between
 end
 
-function move_particle(a::FermiFS, from, to)
-    from
+struct FermiOccupiedOrbitals{N,S}
+    bs::S
 end
 
-struct FermiOccupiedOrbitals{N,B}
-    bs::B
-end
-
-#function occupied_orbitals(a::FermiFS{<:Any,M,S}) where {M,T,S<:BitString{<:Any,1,T}}
-#    # TODO
-#    check if correct on multi-chunk address
-#    use trailing_zeros?
-#    findall(==(1), onr(a))
-#end
 occupied_orbitals(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedOrbitals{N,S}(a.bs)
-function Base.iterate(
-    o::FermiOccupiedOrbitals{N}, st=(1, one(chunk_type(o.bs)), N, num_chunks(o.bs))
-) where {N}
-    index, mask, left, chunk_index = st
-    left == 0 && return nothing
-    # Mask is zero -> it was shifted all the way and we are done with this chunk.
-    chunk_index += iszero(mask)
-    chunk = o.bs.chunks[chunk_index]
-    mask = ifelse(iszero(mask), one(chunk), mask)
 
-    val = chunk & mask
-    while val == 0
-        index += 1
-        mask <<= 0x1
-        val = chunk & mask
+function Base.iterate(o::FermiOccupiedOrbitals)
+    c = 0
+    chunk = o.bs.chunks[end]
+    while iszero(chunk)
+        c += 1
+        chunk = o.bs.chunks[end - c]
     end
-    return index, (index + 1, mask << 0x1, left - 1, chunk_index)
+    zeros = trailing_zeros(chunk % Int)
+    return iterate(o, (chunk >> (zeros % UInt64), c * 64 + zeros, c))
+end
+function Base.iterate(o::FermiOccupiedOrbitals, st)
+    chunk, index, c = st
+    while iszero(chunk)
+        c += 1
+        c == num_chunks(o.bs) && return nothing
+        chunk = o.bs.chunks[end - c]
+        index = c * 64
+    end
+    zeros = trailing_zeros(chunk % Int)
+    index += zeros
+    chunk >>= zeros
+    return index + 1, (chunk >> 1, index + 1, c)
+end
+
+function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}) where {T}
+    chunk = o.bs.chunks[end]
+    zeros = trailing_zeros(chunk % Int)
+    return iterate(o, (chunk >> (zeros % T), zeros))
+end
+function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}, st) where {T}
+    chunk, index = st
+    iszero(chunk) && return nothing
+    chunk >>= 0x1
+    index += 1
+    zeros = trailing_zeros(chunk % Int)
+    return index, (chunk >> (zeros % T), index + zeros)
 end
