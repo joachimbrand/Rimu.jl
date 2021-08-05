@@ -79,7 +79,7 @@ function neighbour_site(geom::PeriodicBoundaries{D}, site, i) where {D}
     offset = ntuple(Val(D)) do k
         ifelse(2(k - 1) ≤ i < 2k, (-1)^(i & 1), 0)
     end
-    new_index = CartesianIndex(mod1.(cart_index .+ offset, size(geom)))
+    new_index = CartesianIndex(mod1.(cart_index .+ offset, size(geom) .% UInt))
     return LinearIndices(cart_indices)[new_index]
 end
 

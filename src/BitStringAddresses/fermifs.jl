@@ -89,13 +89,13 @@ function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {S}
         result = setindex(result, result[i] ⊻ T(1) << T(from_offset), i)
         result = setindex(result, result[j] ⊻ T(1) << T(to_offset), j)
 
-        value = 0
-        value += count_ones(result[i] & (-UInt(1) << (from_offset + 1)))
-        value += count_ones(result[j] & ~(-UInt(1) << to_offset))
+        count = 0
+        count += count_ones(result[i] & (-UInt(1) << (from_offset + 1)))
+        count += count_ones(result[j] & ~(-UInt(1) << to_offset))
         for k in j+1:i-1
-            value += count_ones(result[k])
+            count += count_ones(result[k])
         end
-        value = (-1)^value
+        value = ifelse(iseven(count), 1, -1)
     end
     return typeof(a)(S(result)), value
 end
@@ -110,7 +110,7 @@ function _move_particle(bs::T, from, to) where {T<:Unsigned}
 
     bs ⊻= from_mask | to_mask
     num_between = count_ones(bs & between_mask)
-    return bs, (-1)^num_between
+    return bs, ifelse(iseven(num_between), 1, -1)
 end
 
 struct FermiOccupiedOrbitals{N,S}
