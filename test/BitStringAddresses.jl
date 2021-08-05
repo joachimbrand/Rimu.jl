@@ -333,12 +333,17 @@ end
             for i in occupied_orbitals(fermi)
                 for j in 1:M
                     i == j && continue # Don't test moving to the same spot
-                    onrep[j] ≠ 0 && continue # Don't attempt to move to an occupied spot
                     onrep[i] == 1 || error("onrep[$i] ≠ 1 in $onrep")
 
-                    correct = FermiFS(setindex(setindex(onrep, 0, i), 1, j))
-                    l, u = minmax(i, j)
-                    correct_sign = (-1)^sum(onrep[l + 1:u - 1])
+                    if onrep[j] == 1
+                        # Illegal move
+                        correct = fermi
+                        correct_sign = 0
+                    else
+                        correct = FermiFS(setindex(setindex(onrep, 0, i), 1, j))
+                        l, u = minmax(i, j)
+                        correct_sign = (-1)^sum(onrep[l + 1:u - 1])
+                    end
 
                     new_fermi, sign = move_particle(fermi, i, j)
                     if new_fermi ≠ correct

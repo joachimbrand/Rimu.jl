@@ -223,6 +223,7 @@ end
         H1 = HubbardRealSpace(
             FermiFS((1,1,1,1,1,0,0,0,0)),
             t=[1],
+            u=[0],
             geom=PeriodicBoundaries(3, 3),
         )
 

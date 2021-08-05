@@ -41,6 +41,8 @@ num_particles(::Type{FermiFS{N,M,S}}) where {N,M,S} = N
 num_modes(::Type{FermiFS{N,M,S}}) where {N,M,S} = M
 num_components(::Type{<:FermiFS}) = 1
 
+Base.hash(f::FermiFS, u::UInt) = hash(f.bs, u)
+
 onr(a::FermiFS) = SVector(m_onr(a))
 
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
@@ -52,6 +54,10 @@ onr(a::FermiFS) = SVector(m_onr(a))
     return result
 end
 
+function is_occupied(a::FermiFS{<:Any,M,S}, orbital) where {M,N,T,S<:BitString{<:Any,N,T}}
+    @boundscheck 1 ≤ orbital ≤ M || throw(BoundsError(a, orbital))
+    return a.bs.chunks[1] & (T(1) << (i - 1) % T) > 0
+end
 function is_occupied(a::FermiFS{<:Any,M}, orbital) where {M}
     @boundscheck 1 ≤ orbital ≤ M || throw(BoundsError(a, orbital))
     j, i = fldmod1(orbital, 64)
@@ -65,12 +71,35 @@ Move particle from location `from` to location `to`. Note: the check that `from`
 valid can be elided with `@inbounds`.
 """
 function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitString{<:Any,1,T}}
-    new_chunk, value = _move_particle(a.bs.chunks[1], from, to)
+    from, to = minmax(from, to)
+    new_chunk, value = _move_particle(a.bs.chunks[1], from % T, to % T)
     return typeof(a)(S(new_chunk)), value
 end
 
-function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {S}
-    T = chunk_type(a.bs)
+function move_particle(a::FermiFS, from, to)
+    return _move_particle(a, from % UInt64, to % UInt64)
+end
+
+# Note: the methods with underscores accept unsigned from/to and assume they are ordered.
+# This allows us to not worry about converting types and swapping all the time.
+@inline function _move_particle(chunk::T, from::T, to::T) where {T<:Unsigned}
+    # Masks that locate positions `from` and `to`.
+    from_mask = T(1) << (from - T(1))
+    to_mask = T(1) << (to - T(1))
+
+    if (from_mask & chunk > 0) == (to_mask & chunk > 0)
+        # Illegal move
+        return chunk, 0
+    else
+        # Mask for counting how many particles lie between them.
+        between_mask = ((T(1) << (to - from - T(1))) - T(1)) << from
+
+        chunk ⊻= from_mask | to_mask
+        num_between = count_ones(chunk & between_mask)
+        return chunk, ifelse(iseven(num_between), 1, -1)
+    end
+end
+@inline function _move_particle(a::FermiFS{<:Any,<:Any,S}, from::UInt64, to::UInt64) where {S}
     # Ensure they are ordered.
     from, to = minmax(from, to)
     result = a.bs.chunks
@@ -79,38 +108,35 @@ function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {S}
     i, from_offset = divrem(from - 1, 64)
     j, to_offset = divrem(to - 1, 64)
     # Indexing from right -> make it from left
-    i = lastindex(result) - i
-    j = lastindex(result) - j
+    i = UInt64(lastindex(result)) - i
+    j = UInt64(lastindex(result)) - j
 
     if i == j
-        new_chunk, value = _move_particle(result[i], from_offset + 1, to_offset + 1)
-        result = setindex(result, new_chunk, i)
+        new_chunk, value = _move_particle(
+            result[i], from_offset + UInt64(1), to_offset + UInt64(1)
+        )
+        result = setindex(result, new_chunk, i % Int)
     else
-        result = setindex(result, result[i] ⊻ T(1) << T(from_offset), i)
-        result = setindex(result, result[j] ⊻ T(1) << T(to_offset), j)
+        from_mask = UInt64(1) << from_offset
+        to_mask = UInt64(1) << to_offset
+        if (result[i] & from_mask > 0) == (result[j] & to_mask > 0)
+            # Illegal move
+            return a, 0
+        else
+            result = setindex(result, result[i] ⊻ from_mask, i % Int)
+            result = setindex(result, result[j] ⊻ to_mask, j % Int)
 
-        count = 0
-        count += count_ones(result[i] & (-UInt(1) << (from_offset + 1)))
-        count += count_ones(result[j] & ~(-UInt(1) << to_offset))
-        for k in j+1:i-1
-            count += count_ones(result[k])
+            count = (
+                count_ones(result[i] & (-UInt64(1) << (from_offset + UInt(1)))) +
+                count_ones(result[j] & ~(-UInt64(1) << to_offset))
+            )
+            for k in j+1:i-1
+                count += count_ones(result[k])
+            end
+            value = ifelse(iseven(count), 1, -1)
         end
-        value = ifelse(iseven(count), 1, -1)
     end
     return typeof(a)(S(result)), value
-end
-
-function _move_particle(bs::T, from, to) where {T<:Unsigned}
-    # Masks that locate positions `from` and `to`.
-    from_mask = T(1) << T(from - 1)
-    to_mask = T(1) << T(to - 1)
-
-    # Mask for counting how many particles lie between them.
-    between_mask = T(2^(abs(from - to) - 1) - 1) << T(min(from, to))
-
-    bs ⊻= from_mask | to_mask
-    num_between = count_ones(bs & between_mask)
-    return bs, ifelse(iseven(num_between), 1, -1)
 end
 
 struct FermiOccupiedOrbitals{N,S}

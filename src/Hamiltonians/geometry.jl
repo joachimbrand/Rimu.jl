@@ -77,7 +77,7 @@ function neighbour_site(geom::PeriodicBoundaries{D}, site, i) where {D}
     cart_indices = CartesianIndices(size(geom))
     cart_index = Tuple(cart_indices[site])
     offset = ntuple(Val(D)) do k
-        ifelse(2(k - 1) ≤ i < 2k, (-1)^(i & 1), 0)
+        ifelse(2(k - 1) ≤ i < 2k, ifelse(iseven(i), 1, -1), 0)
     end
     new_index = CartesianIndex(mod1.(cart_index .+ offset, size(geom) .% UInt))
     return LinearIndices(cart_indices)[new_index]
@@ -110,7 +110,7 @@ function neighbour_site(geom::HardwallBoundaries{D}, site, i) where {D}
     cart_indices = CartesianIndices(size(geom))
     cart_index = Tuple(cart_indices[site])
     offset = ntuple(Val(D)) do k
-        ifelse(2(k - 1) ≤ i < 2k, (-1)^(i & 1), 0)
+        ifelse(2(k - 1) ≤ i < 2k, ifelse(iseven(i), 1, -1), 0)
     end
     new_index = CartesianIndex(cart_index .+ offset)
     if new_index in cart_indices
