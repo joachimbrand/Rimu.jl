@@ -245,10 +245,12 @@ function offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
     for site in occupied_orbitals(add)
         for i in 1:neighbours
             neigh = neighbour_site(h.geom, site, i)
-            iszero(neigh) && continue
+            if iszero(neigh) || is_occupied(add, neigh)
+                continue
+            end
             new_add, sign = move_particle(add, site, neigh)
-            iszero(sign) && continue
             idx += 1
+
             @inbounds result[idx] = (new_add, -h.t[comp] * sign)
         end
     end
