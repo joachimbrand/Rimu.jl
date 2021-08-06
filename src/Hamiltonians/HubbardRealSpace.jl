@@ -202,14 +202,14 @@ Offdiagonals for the bosonic part of a [`HubbardRealSpace`](@ref) model.
 Used when the model's address is a [`BoseFS`](@ref), or a [`CompositeFS`](@ref) with a
 [`BoseFS`](@ref) component.
 """
-struct HubbardRealSpaceBoseOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
+struct HubbardRealSpaceBoseOffdiagonals{G,A<:BoseFS} <: AbstractOffdiagonals{A,Float64}
     geom::G
     address::A
     t::Float64
     length::Int
 end
 
-function offdiagonals(h::HubbardRealSpace, comp, add)
+function offdiagonals(h::HubbardRealSpace, comp, add::BoseFS)
     neighbours = num_neighbours(h.geom)
     return HubbardRealSpaceBoseOffdiagonals(
         h.geom, add, h.t[comp], numberoccupiedsites(add) * neighbours,
@@ -234,9 +234,40 @@ function Base.getindex(o::HubbardRealSpaceBoseOffdiagonals, chosen)
 end
 
 # Fermi part
+struct HubbardRealSpaceFermiOffdiagonals{G,A<:FermiFS} <: AbstractOffdiagonals{A,Float64}
+    geom::G
+    address::A
+    t::Float64
+    length::Int
+end
+
+function offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
+    neighbours = num_neighbours(h.geom)
+    return HubbardRealSpaceFermiOffdiagonals(
+        h.geom, add, h.t[comp], N * neighbours,
+    )
+end
+
+Base.size(o::HubbardRealSpaceFermiOffdiagonals) = (o.length,)
+
+function Base.getindex(o::HubbardRealSpaceFermiOffdiagonals, chosen)
+    @boundscheck 1 ≤ chosen ≤ length(o) || throw(BoundsError(o, chosen))
+    neighbours = num_neighbours(o.geom)
+    particle, neigh = fldmod1(chosen, neighbours)
+    source_site = find_particle(o.address, particle)
+    target_site = neighbour_site(o.geom, source_site, neigh)
+    if iszero(target_site)
+        return o.address, 0.0
+    else
+        new_address, sign = move_particle(o.address, source_site, target_site)
+        return new_address, -o.t * sign
+    end
+end
+
+# TODO Make this thing into iterate?.
 # Here, the offdiagonals are an actual vector of offdiagonals and do not need a separate
 # struct.
-function offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
+function _offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
     neighbours = num_neighbours(h.geom)
     # While we do not know the exact number of offdiagonals, we know an upper bound.
     # We only fill the result up to the point we need it, and return a view into it.
@@ -309,7 +340,7 @@ end
 offdiagonals(h::HubbardRealSpace{1,A}, add::A) where {A} = offdiagonals(h, 1, add)
 
 # TODO
-function rand_offdiagonal(v::AbstractVector)
+function random_offdiagonal(v::AbstractVector)
     i = cRand(1:length(v))
     add, val = v[i]
     return add, 1/length(v), val

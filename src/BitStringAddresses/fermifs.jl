@@ -41,8 +41,6 @@ num_particles(::Type{FermiFS{N,M,S}}) where {N,M,S} = N
 num_modes(::Type{FermiFS{N,M,S}}) where {N,M,S} = M
 num_components(::Type{<:FermiFS}) = 1
 
-Base.hash(f::FermiFS, u::UInt) = hash(f.bs, u)
-
 onr(a::FermiFS) = SVector(m_onr(a))
 
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
@@ -181,4 +179,12 @@ function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}, st
     index += 1
     zeros = trailing_zeros(chunk % Int)
     return index, (chunk >> (zeros % T), index + zeros)
+end
+
+function find_particle(a::FermiFS, i)
+    for k in occupied_orbitals(a)
+        i -= 1
+        i == 0 && return k
+    end
+    return 0
 end
