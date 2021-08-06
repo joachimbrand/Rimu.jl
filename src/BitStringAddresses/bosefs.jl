@@ -112,19 +112,18 @@ Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.:(==)(a::BoseFS, b::BoseFS) = a.bs == b.bs
 num_particles(::Type{BoseFS{N,M,S}}) where {N,M,S} = N
 num_modes(::Type{BoseFS{N,M,S}}) where {N,M,S} = M
-num_components(::Type{<:BoseFS}) = 1
 
 """
-    nearUniformONR(N, M) -> onr::SVector{M,Int}
+    near_uniform_onr(N, M) -> onr::SVector{M,Int}
 
 Create occupation number representation `onr` distributing `N` particles in `M`
 modes in a close-to-uniform fashion with each orbital filled with at least
 `N ÷ M` particles and at most with `N ÷ M + 1` particles.
 """
-function nearUniformONR(n::Number, m::Number)
-    return nearUniformONR(Val(n),Val(m))
+function near_uniform_onr(n::Number, m::Number)
+    return near_uniform_onr(Val(n),Val(m))
 end
-function nearUniformONR(::Val{N}, ::Val{M}) where {N, M}
+function near_uniform_onr(::Val{N}, ::Val{M}) where {N, M}
     fillingfactor, extras = divrem(N, M)
     # startonr = fill(fillingfactor,M)
     startonr = fillingfactor * @MVector ones(Int,M)
@@ -133,25 +132,27 @@ function nearUniformONR(::Val{N}, ::Val{M}) where {N, M}
 end
 
 """
-    nearUniform(BoseFS{N,M})
-    nearUniform(BoseFS{N,M,S}) -> bfs::BoseFS{N,M,S}
+    near_uniform(BoseFS{N,M})
+    near_uniform(BoseFS{N,M,S}) -> bfs::BoseFS{N,M,S}
 
 Create bosonic Fock state with near uniform occupation number of `M` modes with
 a total of `N` particles. Specifying the bit address type `S` is optional.
 
 # Examples
 ```jldoctest
-julia> nearUniform(BoseFS{7,5,BitString{14}})
+julia> near_uniform(BoseFS{7,5,BitString{14}})
 BoseFS((2,2,1,1,1))
 
-julia> nearUniform(BoseFS{7,5})
+julia> near_uniform(BoseFS{7,5})
 BoseFS((2,2,1,1,1))
 ```
 """
-function nearUniform(::Type{<:BoseFS{N,M}}) where {N,M}
-    return BoseFS{N,M}(nearUniformONR(Val(N),Val(M)))
+function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
+    return BoseFS{N,M}(near_uniform_onr(Val(N),Val(M)))
 end
-nearUniform(b::AbstractFockAddress) = nearUniform(typeof(b))
+near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
+
+@deprecate nearUniform near_uniform
 
 """
     onr(bs)
@@ -210,29 +211,44 @@ end
 end
 
 """
-    occupied_orbitals(b)
+    BoseFSIndex
 
-Iterate over occupied orbitals in `BoseFS` address. Returns tuples of
-`(boson_number, orbital_number, bit_offset)`.
+Convenience struct for indexing into a fock state.
 
-Note that the `bit_offset` is zero-based!
+## Fields:
+
+* `occnum`: the occupation number.
+* `site`: the index of the site.
+* `offset`: the bit offset of the site.
+"""
+struct BoseFSIndex <: FieldVector{3,Int}
+    occnum::Int
+    site::Int
+    offset::Int
+end
+
+struct OccupiedOrbitalIterator{C,S}
+    address::S
+end
+
+"""
+    occupied_orbitals(b::BoseFS)
+
+Iterate over occupied orbitals in `BoseFS` address. Iterates values of type
+[`BoseFSIndex`](@ref).
 
 # Example
 
 ```jldoctest
 julia> b = BoseFS((1,5,0,4))
-julia> for (n, i) in occupied_orbitals(b)
-    @show n, i
+julia> for (n, i, o) in occupied_orbitals(b)
+    @show n, i, o
 end
-(n, i) = (1, 1)
-(n, i) = (5, 2)
-(n, i) = (4, 4)
+(n, i, o) = (1, 1, 0)
+(n, i, o) = (5, 2, 2)
+(n, i, o) = (4, 4, 9)
 
 """
-struct OccupiedOrbitalIterator{C,S}
-    address::S
-end
-
 function occupied_orbitals(b::BoseFS{<:Any,<:Any,S}) where {S}
     return OccupiedOrbitalIterator{num_chunks(S),S}(b.bs)
 end
@@ -255,10 +271,11 @@ end
         chunk >>>= (empty_orbitals % UInt)
         next_bit = bit + bosons + empty_orbitals
         next_orbital = orbital + empty_orbitals
-        return FockAddressIndex(bosons, orbital, bit), (chunk, next_bit, next_orbital)
+        return BoseFSIndex(bosons, orbital, bit), (chunk, next_bit, next_orbital)
     end
 end
 
+# Multi-chunk version
 @inline function Base.iterate(osi::OccupiedOrbitalIterator)
     address = osi.address
     i = num_chunks(address)
@@ -308,7 +325,7 @@ end
         result += bosons
         chunk >>>= bosons % UInt
     end
-    return FockAddressIndex(result, orbital, bit_position), (i, chunk, bits_left, orbital)
+    return BoseFSIndex(result, orbital, bit_position), (i, chunk, bits_left, orbital)
 end
 
 function find_site(b::BoseFS, index)
@@ -316,45 +333,45 @@ function find_site(b::BoseFS, index)
     for (occnum, site, offset) in occupied_orbitals(b)
         dist = index - site
         if dist == 0
-            return FockAddressIndex(occnum, index, offset)
+            return BoseFSIndex(occnum, index, offset)
         elseif dist < 0
-            return FockAddressIndex(0, index, offset + dist)
+            return BoseFSIndex(0, index, offset + dist)
         end
         last_occnum = occnum
         last_site = site
         last_offset = offset
     end
     offset = last_offset + last_occnum + index - last_site
-    return FockAddressIndex(0, index, offset)
+    return BoseFSIndex(0, index, offset)
 end
 
 function find_particle(b::BoseFS, index, n=1)
     for (occnum, site, offset) in occupied_orbitals(b)
         index -= occnum ≥ n
         if index == 0
-            return FockAddressIndex(occnum, site, offset)
+            return BoseFSIndex(occnum, site, offset)
         end
     end
-    return FockAddressIndex(0, 0, 0)
+    return BoseFSIndex(0, 0, 0)
 end
 
 """
-    move_particle(b::BoseFS, from::FockAddressIndex, to::FockAddressIndex)
+    move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
 
-Move particle from [`FockAddressIndex`](@info) `from` to the [`FockAddressIndex`](@ref) `to`.
+Move particle from [`BoseFSIndex`](@info) `from` to the [`BoseFSIndex`](@ref) `to`.
 
 This is equivalent to applying a destruction operator followed by a creation operator to the
 address.
 
 Return the new fock state and the product of the occupation numbers.
 """
-function move_particle(b::BoseFS, from::FockAddressIndex, to::FockAddressIndex)
+function move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
     occ1 = from.occnum
     occ2 = to.occnum
     if from == to
         return b, occ1 * (occ1 - 1)
     else
-        _move_particle(b, from.offset, to.offset), occ1 * (occ2 + 1)
+        return _move_particle(b, from.offset, to.offset), occ1 * (occ2 + 1)
     end
 end
 

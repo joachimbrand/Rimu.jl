@@ -28,20 +28,20 @@ num_modes(b::AbstractFockAddress) = num_modes(typeof(b))
 Number of components in address.
 """
 num_components(b::AbstractFockAddress) = num_components(typeof(b))
+num_components(::Type{<:AbstractFockAddress}) = 1
 
 """
-    FockAddressIndex
+    find_site(address, i)
 
-Convenience struct for indexing into a fock state.
-
-Fields:
-
-* `occnum`: the occupation number.
-* `site`: the index of the site.
-* `offset`: the bit offset of the site.
+Find the `i`-th site in `address`. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and
+an integer for [`FermiFS`](@ref).
 """
-struct FockAddressIndex <: FieldVector{3,Int}
-    occnum::Int
-    site::Int
-    offset::Int
-end
+find_site
+
+"""
+    find_particle(address, k)
+
+Find the `k`-th particle in `address`. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref),
+and an integer for [`FermiFS`](@ref).
+"""
+find_particle

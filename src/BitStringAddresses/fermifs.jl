@@ -41,7 +41,81 @@ num_particles(::Type{FermiFS{N,M,S}}) where {N,M,S} = N
 num_modes(::Type{FermiFS{N,M,S}}) where {N,M,S} = M
 num_components(::Type{<:FermiFS}) = 1
 
+function near_uniform(::Type{FermiFS{N,M}}) where {N,M}
+    return FermiFS([fill(1, N); fill(0, M - N)])
+end
+
 onr(a::FermiFS) = SVector(m_onr(a))
+
+struct FermiOccupiedOrbitals{N,S}
+    bs::S
+end
+
+"""
+    occupied_orbitals(f::FermiFS)
+
+Iterate over occupied orbitals in `FermiFS` address. Iterates values of type `Int`.
+
+# Example
+
+```jldoctest
+julia> f = FermiFS((1,1,0,1,0,0,1))
+julia> for i in occupied_orbitals(f)
+    @show i
+end
+i = 1
+i = 2
+i = 4
+i = 7
+
+"""
+occupied_orbitals(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedOrbitals{N,S}(a.bs)
+
+function Base.iterate(o::FermiOccupiedOrbitals)
+    c = 0
+    chunk = o.bs.chunks[end]
+    while iszero(chunk)
+        c += 1
+        chunk = o.bs.chunks[end - c]
+    end
+    zeros = trailing_zeros(chunk % Int)
+    return iterate(o, (chunk >> (zeros % UInt64), c * 64 + zeros, c))
+end
+function Base.iterate(o::FermiOccupiedOrbitals, st)
+    chunk, index, c = st
+    while iszero(chunk)
+        c += 1
+        c == num_chunks(o.bs) && return nothing
+        chunk = o.bs.chunks[end - c]
+        index = c * 64
+    end
+    zeros = trailing_zeros(chunk % Int)
+    index += zeros
+    chunk >>= zeros
+    return index + 1, (chunk >> 1, index + 1, c)
+end
+
+function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}) where {T}
+    chunk = o.bs.chunks[end]
+    zeros = trailing_zeros(chunk % Int)
+    return iterate(o, (chunk >> (zeros % T), zeros))
+end
+function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}, st) where {T}
+    chunk, index = st
+    iszero(chunk) && return nothing
+    chunk >>= 0x1
+    index += 1
+    zeros = trailing_zeros(chunk % Int)
+    return index, (chunk >> (zeros % T), index + zeros)
+end
+
+function find_particle(a::FermiFS, i)
+    for k in occupied_orbitals(a)
+        i -= 1
+        i == 0 && return k
+    end
+    return 0
+end
 
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
     result = zero(MVector{M,Int32})
@@ -65,8 +139,9 @@ end
 """
     move_particle(a::FermiFS, from, to)
 
-Move particle from location `from` to location `to`. Note: the check that `from` and `to` are
-valid can be elided with `@inbounds`.
+Move particle from location `from` to location `to`.
+
+Returns new address and the sign. If the move is not legal, return a sign of zero.
 """
 function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitString{<:Any,1,T}}
     from, to = minmax(from, to)
@@ -135,56 +210,4 @@ end
         end
     end
     return typeof(a)(S(result)), value
-end
-
-struct FermiOccupiedOrbitals{N,S}
-    bs::S
-end
-
-occupied_orbitals(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedOrbitals{N,S}(a.bs)
-
-function Base.iterate(o::FermiOccupiedOrbitals)
-    c = 0
-    chunk = o.bs.chunks[end]
-    while iszero(chunk)
-        c += 1
-        chunk = o.bs.chunks[end - c]
-    end
-    zeros = trailing_zeros(chunk % Int)
-    return iterate(o, (chunk >> (zeros % UInt64), c * 64 + zeros, c))
-end
-function Base.iterate(o::FermiOccupiedOrbitals, st)
-    chunk, index, c = st
-    while iszero(chunk)
-        c += 1
-        c == num_chunks(o.bs) && return nothing
-        chunk = o.bs.chunks[end - c]
-        index = c * 64
-    end
-    zeros = trailing_zeros(chunk % Int)
-    index += zeros
-    chunk >>= zeros
-    return index + 1, (chunk >> 1, index + 1, c)
-end
-
-function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}) where {T}
-    chunk = o.bs.chunks[end]
-    zeros = trailing_zeros(chunk % Int)
-    return iterate(o, (chunk >> (zeros % T), zeros))
-end
-function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}, st) where {T}
-    chunk, index = st
-    iszero(chunk) && return nothing
-    chunk >>= 0x1
-    index += 1
-    zeros = trailing_zeros(chunk % Int)
-    return index, (chunk >> (zeros % T), index + zeros)
-end
-
-function find_particle(a::FermiFS, i)
-    for k in occupied_orbitals(a)
-        i -= 1
-        i == 0 && return k
-    end
-    return 0
 end

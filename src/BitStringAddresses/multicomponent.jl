@@ -33,6 +33,9 @@ end
 const SingleFS{M} = Union{BoseFS{<:Any,M},FermiFS{<:Any,M}}
 
 """
+    CompositeFS(addresses...) <: AbstractFockAddress
+
+Used to encode addresses for multi-component models.
 """
 struct CompositeFS{C,M,T<:NTuple{C,SingleFS{M}}} <: AbstractFockAddress
     adds::T
@@ -43,10 +46,6 @@ CompositeFS(adds::Vararg{AbstractFockAddress}) = CompositeFS(adds)
 num_components(::CompositeFS{C}) where {C} = C
 num_modes(::CompositeFS{<:Any,M}) where {M} = M
 Base.hash(c::CompositeFS, u::UInt) = hash(c.adds, u)
-
-#function CompositeFS(adds::NTuple{C,SingleFS{M}}) where {C,M}
-#    return CompositeFS{C,M,typeof(adds)}(adds)
-#end
 
 function Base.show(io::IO, fs::CompositeFS{C}) where {C}
     print(io, "$C-component CompositeFS:")

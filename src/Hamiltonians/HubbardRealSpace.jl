@@ -264,7 +264,8 @@ function Base.getindex(o::HubbardRealSpaceFermiOffdiagonals, chosen)
     end
 end
 
-# TODO: do this without intermediate vector?
+# TODO: do this without intermediate vector
+# TODO: make this work for multi-component models
 function Base.iterate(o::HubbardRealSpaceFermiOffdiagonals)
     add = o.address
     neighbours = num_neighbours(o.geom)
@@ -294,7 +295,7 @@ function Base.iterate(o::HubbardRealSpaceFermiOffdiagonals, (vals, i))
     end
 end
 
-# TODO SparseBoseFS
+# TODO: SparseBoseFS
 
 # Multi-component part
 """
@@ -345,7 +346,7 @@ end
 ###
 offdiagonals(h::HubbardRealSpace{1,A}, add::A) where {A} = offdiagonals(h, 1, add)
 
-# TODO
+# TODO:
 function random_offdiagonal(v::AbstractVector)
     i = cRand(1:length(v))
     add, val = v[i]

@@ -182,12 +182,20 @@ end
         )
         H3 = HubbardRealSpace(add3, t=[1,4], u=[2 3; 3 1])
 
+        add4 = CompositeFS(
+            FermiFS((1, 0, 0, 0, 0, 0)),
+            BoseFS((1, 1, 1, 0, 0, 0)),
+        )
+        H4 = HubbardRealSpace(add4, t=[4,1], u=[1 3; 3 2])
+
         E1 = exact_energy(H1)
         E2 = exact_energy(H2)
         E3 = exact_energy(H3)
+        E4 = exact_energy(H4)
 
         @test E1 ≈ E2 rtol=0.0001
         @test E2 ≈ E3 rtol=0.0001
+        @test E3 ≈ E4 rtol=0.0001
     end
     @testset "1D Fermions" begin
         H1 = HubbardRealSpace(FermiFS((1, 1, 1, 0, 0, 0)), t=[3.5])
@@ -220,19 +228,65 @@ end
     end
 
     @testset "2D Fermions" begin
-        H1 = HubbardRealSpace(
-            FermiFS((1,1,1,1,1,0,0,0,0)),
-            t=[1],
-            u=[0],
-            geom=PeriodicBoundaries(3, 3),
-        )
+        @testset "2 × 2" begin
+            p22 = PeriodicBoundaries(2, 2)
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{1, 4}), geom=p22, t=[2])
+            ) ≈ -8 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{2, 4}), geom=p22, t=[2])
+            ) ≈ -8 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{3, 4}), geom=p22, t=[2])
+            ) ≈ -8 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{4, 4}), geom=p22, t=[2])
+            ) ≈ 0 rtol=0.001
+        end
 
-        H2 = HubbardRealSpace(
-            CompositeFS(FermiFS((1,1,1,1,1,0,0,0,0)), FermiFS((1,1,0,0,0,0,0,0,0))),
-            t=[0.5, 1.2], u=[0 0; 0 0],
-            geom=PeriodicBoundaries(3, 3),
-        )
-        @test_broken exact_energy(H1) ≈ 1.5 + -1
+        @testset "4 × 4" begin
+            p44 = PeriodicBoundaries(4, 4)
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{1, 16}), geom=p44)
+            ) ≈ -4 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{2, 16}), geom=p44)
+            ) ≈ -6 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{3, 16}), geom=p44)
+            ) ≈ -8 rtol=0.001
+            # Note: a vector with only near_uniform is orthogonal to the ground state, so
+            # KrylovKit will give the wrong energy here.
+            @test exact_energy(
+                HubbardRealSpace(FermiFS((1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0)), geom=p44)
+            ) ≈ -10 rtol=0.001
+        end
+
+        @testset "Two-component" begin
+            H1 = HubbardRealSpace(
+                CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
+                t=[1,2],
+                u=[0 0; 0 0],
+                geom=PeriodicBoundaries(3, 3),
+            )
+            @test exact_energy(H1) ≈ -16 rtol=0.001
+
+            H2 = HubbardRealSpace(
+                CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
+                t=[1,2],
+                u=[0 1; 1 0],
+                geom=PeriodicBoundaries(3, 3),
+            )
+            @test exact_energy(H2) > -16
+
+            H3 = HubbardRealSpace(
+                CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
+                t=[1,2],
+                u=[0 -1; -1 0],
+                geom=PeriodicBoundaries(3, 3),
+            )
+            @test exact_energy(H3) < -16
+        end
     end
 end
 
