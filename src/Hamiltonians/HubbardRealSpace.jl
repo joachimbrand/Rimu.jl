@@ -264,28 +264,34 @@ function Base.getindex(o::HubbardRealSpaceFermiOffdiagonals, chosen)
     end
 end
 
-# TODO Make this thing into iterate?.
-# Here, the offdiagonals are an actual vector of offdiagonals and do not need a separate
-# struct.
-function _offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
-    neighbours = num_neighbours(h.geom)
+# TODO: do this without intermediate vector?
+function Base.iterate(o::HubbardRealSpaceFermiOffdiagonals)
+    add = o.address
+    neighbours = num_neighbours(o.geom)
     # While we do not know the exact number of offdiagonals, we know an upper bound.
     # We only fill the result up to the point we need it, and return a view into it.
-    result = MVector{N * neighbours,Tuple{typeof(add),Float64}}(undef)
+    result = MVector{num_particles(add) * neighbours,Tuple{typeof(add),Float64}}(undef)
     idx = 0
     for site in occupied_orbitals(add)
         for i in 1:neighbours
-            neigh = neighbour_site(h.geom, site, i)
-            iszero(neigh) && continue
-            new_add, sign = move_particle(add, site, neigh)
-            iszero(sign) && continue
             idx += 1
-
-            @inbounds result[idx] = (new_add, -h.t[comp] * sign)
+            neigh = neighbour_site(o.geom, site, i)
+            if iszero(neigh)
+                @inbounds result[idx] = (add, 0.0)
+            else
+                new_add, sign = move_particle(add, site, neigh)
+                @inbounds result[idx] = (new_add, -o.t * sign)
+            end
         end
     end
-    final = SVector(result)
-    return view(final, 1:idx)
+    return iterate(o, (SVector(result), 1))
+end
+function Base.iterate(o::HubbardRealSpaceFermiOffdiagonals, (vals, i))
+    if i > length(vals)
+        return nothing
+    else
+        return vals[i], (vals, i + 1)
+    end
 end
 
 # TODO SparseBoseFS

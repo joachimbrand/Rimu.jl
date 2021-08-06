@@ -42,6 +42,7 @@ CompositeFS(adds::Vararg{AbstractFockAddress}) = CompositeFS(adds)
 
 num_components(::CompositeFS{C}) where {C} = C
 num_modes(::CompositeFS{<:Any,M}) where {M} = M
+Base.hash(c::CompositeFS, u::UInt) = hash(c.adds, u)
 
 #function CompositeFS(adds::NTuple{C,SingleFS{M}}) where {C,M}
 #    return CompositeFS{C,M,typeof(adds)}(adds)
