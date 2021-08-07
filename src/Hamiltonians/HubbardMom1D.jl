@@ -184,7 +184,7 @@ and the change in momentum.
     return SVector(onrep), onproduct, -q
 end
 function double_hole(onrep::SVector{M}, double) where {M}
-    m_onrep = MVector(onrep...)
+    m_onrep = MVector(onrep)
     double, q = fldmod1(double, M - 1)
     p = k = 0
     onproduct = 1
@@ -204,7 +204,7 @@ function double_hole(onrep::SVector{M}, double) where {M}
     return SVector(m_onrep), onproduct, p, q, k
 end
 function single_hole(onrep::SVector{M}, chosen, singlies) where {M}
-    m_onrep = MVector(onrep...)
+    m_onrep = MVector(onrep)
     # c_k c_p
     pair, q = fldmod1(chosen, M - 2)
     p = k = 0
@@ -244,7 +244,7 @@ function single_hole(onrep::SVector{M}, chosen, singlies) where {M}
     return SVector(m_onrep), onproduct, p, q, k
 end
 function creation_operators(onrep::SVector{M}, onproduct, p, q, k) where {M}
-    m_onrep = MVector(onrep...)
+    m_onrep = MVector(onrep)
     # c^†_k-q
     kmq = mod1(k - q, M)
     @inbounds occ = m_onrep[kmq]
