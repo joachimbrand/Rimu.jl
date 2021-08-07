@@ -164,6 +164,14 @@ function HubbardRealSpace(
     elseif address isa BoseFS2C
         error("`BoseFS2C` is not supported for this Hamiltonian, use `CompositeFS`")
     end
+    if address isa CompositeFS
+        for c in 1:C
+            if address.adds[c] isa FermiFS && u ≠ ones(C,C) && u[c,c] ≠ 0
+                @warn "component $(c) is Fermionic, but was given a self-interaction " *
+                    "strength of $(u[c,c])" once=true
+            end
+        end
+    end
 
     u_mat = SMatrix{C,C,Float64}(u)
     t_vec = SVector{C,Float64}(t)
@@ -328,7 +336,8 @@ end
 
 Base.size(o::HubbardRealSpaceOffdiagonals) = (o.length,)
 
-function Base.getindex(o::HubbardRealSpaceOffdiagonals{A}, chosen) where {A}
+# Becomes type unstable without inline for lots of components
+@inline function Base.getindex(o::HubbardRealSpaceOffdiagonals{A}, chosen) where {A}
     return _getindex(o.parts, o.address, chosen, Val(1))
 end
 @inline function _getindex((p, ps...), address::A, chosen, comp::Val{I}) where {A,I}

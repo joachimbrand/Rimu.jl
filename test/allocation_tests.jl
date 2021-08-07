@@ -6,9 +6,13 @@ using Test
     # The purpose of these tests is to find type instabilities that might appear as the
     # Julia compiler changes. If allocations suddenly increase by a lot, there is a good
     # chance that dynamic dispatch is happening somewhere in the code.
-    b1 = nearUniform(BoseFS{10,10})
-    b2 = nearUniform(BoseFS{50,50})
-    b3 = nearUniform(BoseFS{100,100})
+    b1 = near_uniform(BoseFS{10,10})
+    b2 = near_uniform(BoseFS{50,50})
+    b3 = near_uniform(BoseFS{100,100})
+
+    f1 = near_uniform(FermiFS{9,10})
+    f2 = near_uniform(FermiFS{24,50})
+    f3 = near_uniform(FermiFS{49,100})
 
     for H in (
         HubbardReal1D(b1),
@@ -30,6 +34,22 @@ using Test
         BoseHubbardMom1D2C(BoseFS2C(b1, b1)),
         BoseHubbardMom1D2C(BoseFS2C(b2, b2)),
         BoseHubbardMom1D2C(BoseFS2C(b3, b3)),
+
+        HubbardRealSpace(b1),
+        HubbardRealSpace(b2),
+        HubbardRealSpace(b3),
+
+        HubbardRealSpace(f1),
+        HubbardRealSpace(f2),
+        HubbardRealSpace(f3),
+
+        HubbardRealSpace(CompositeFS(f1, f1)),
+        HubbardRealSpace(CompositeFS(f2, f2)),
+        HubbardRealSpace(CompositeFS(f3, f3)),
+
+        HubbardRealSpace(CompositeFS(f1, f1, b1)),
+        HubbardRealSpace(CompositeFS(f2, f2, b2)),
+        HubbardRealSpace(CompositeFS(f3, f3, b3)),
     )
         add = starting_address(H)
         for dv_type in (DVec, InitiatorDVec)
@@ -55,8 +75,10 @@ using Test
                     sizehint!(dv, 500_000)
 
                     # Warmup for lomc!
-                   params = RunTillLastStep(shift=diagonal_element(H, add), dτ=dτ)
-                    _, st = lomc!(H, dv; params, threading=false, maxlength=10_000, laststep=1)
+                   params = RunTillLastStep(shift=float(diagonal_element(H, add)), dτ=dτ)
+                    _, st = lomc!(
+                        H, dv; params, threading=false, maxlength=10_000, laststep=1
+                    )
 
                     r = only(st.replicas)
                     p = r.params
