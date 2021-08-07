@@ -24,7 +24,7 @@ end
 num_particles(::Type{<:BoseFS2C{NA,NB}}) where {NA,NB} = NA + NB
 num_modes(::Type{<:BoseFS2C{<:Any,<:Any,M}}) where {M} = M
 num_components(::Type{<:BoseFS2C}) = 2
-Base.isless(a::BoseFS2C, b::BoseFS2C) = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
+Base.isless(a::T, b::T) where {T<:BoseFS2C} = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
 
 function nearUniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return BoseFS2C(nearUniform(BoseFS{NA,M}), nearUniform(BoseFS{NB,M}))
@@ -45,20 +45,24 @@ CompositeFS(adds::Vararg{AbstractFockAddress}) = CompositeFS(adds)
 
 num_components(::CompositeFS{C}) where {C} = C
 num_modes(::CompositeFS{<:Any,M}) where {M} = M
+num_particles(c::CompositeFS) = sum(num_particles, c.adds)
 Base.hash(c::CompositeFS, u::UInt) = hash(c.adds, u)
 
-function Base.show(io::IO, fs::CompositeFS{C}) where {C}
-    print(io, "$C-component CompositeFS:")
-    for add in fs.adds
-        print(io, "\n  ", add)
+function Base.show(io::IO, c::CompositeFS{C}) where {C}
+    println(io, "CompositeFS(")
+    for add in c.adds
+        println(io, "  ", add, ",")
     end
+    print(io, ")")
 end
 
-function update_component(fs::CompositeFS, new, ::Val{I}) where {I}
-    return typeof(fs)(_update_component(fs.adds, new, Val(I)))
+function update_component(c::CompositeFS, new, ::Val{I}) where {I}
+    return typeof(c)(_update_component(c.adds, new, Val(I)))
 end
 
 @inline _update_component((a, as...), new, ::Val{1}) = (new, as...)
 @inline function _update_component((a, as...), new, ::Val{I}) where {I}
     return (a, _update_component(as, new, Val(I - 1))...)
 end
+
+Base.isless(a::T, b::T) where {T<:CompositeFS} = isless(a.adds, b.adds)

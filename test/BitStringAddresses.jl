@@ -1,7 +1,7 @@
 using Rimu
 using Rimu.BitStringAddresses
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
-using Rimu.BitStringAddresses: occupied_orbitals
+using Rimu.BitStringAddresses: occupied_orbitals, update_component
 using Random
 using StaticArrays
 using Test
@@ -377,5 +377,47 @@ end
                 end
             end
         end
+    end
+end
+
+@testset "Multicomponent" begin
+    @testset "CompositeFS" begin
+        fs1 = CompositeFS(FermiFS((1,1,0,0,0)), FermiFS((1,1,1,0,0)), BoseFS((5,0,0,0,0)))
+        @test num_modes(fs1) == 5
+        @test num_components(fs1) == 3
+        @test num_particles(fs1) == 10
+        @test fs1.adds[1] == FermiFS((1,1,0,0,0))
+        @test fs1.adds[2] == FermiFS((1,1,1,0,0))
+        @test fs1.adds[3] == BoseFS((5,0,0,0,0))
+        @test eval(Meta.parse(repr(fs1))) == fs1
+
+        fs2 = CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((1,0,1,0,1)), BoseFS((1,1,1,1,1)))
+        @test fs1 < fs2
+
+        @test_throws MethodError CompositeFS(BoseFS((1,1)), BoseFS((1,1,1)))
+
+        @inferred update_component(fs1, FermiFS((0,0,0,1,1)), Val(1))
+        @inferred update_component(fs1, FermiFS((0,0,1,1,1)), Val(2))
+        @inferred update_component(fs1, BoseFS((1,1,1,1,1)), Val(3))
+        @test_throws MethodError update_component(fs1, BoseFS((1,1,1,1,1)), Val(1))
+        @test_throws MethodError update_component(fs1, FermiFS((1,1,1,1,1)), Val(1))
+
+        fs3 = Rimu.BitStringAddresses.update_component(fs1, FermiFS((0,0,1,1,1)), Val(2))
+        @test fs3 == CompositeFS(
+            FermiFS((1,1,0,0,0)), FermiFS((0,0,1,1,1)), BoseFS((5,0,0,0,0)),
+        )
+    end
+
+    @testset "BoseFS2C" begin
+        fs1 = BoseFS2C((1,1,1,0,0,0,0), (1,1,1,0,5,0,0))
+        @test num_modes(fs1) == 7
+        @test num_components(fs1) == 2
+        @test num_particles(fs1) == 11
+        @test eval(Meta.parse(repr(fs1))) == fs1
+
+        fs2 = BoseFS2C((0,0,0,0,0,0,3), (0,2,1,0,5,0,0))
+        @test fs1 < fs2
+
+        @test_throws MethodError BoseFS2C(BoseFS((1,1)), BoseFS((1,1,1)))
     end
 end

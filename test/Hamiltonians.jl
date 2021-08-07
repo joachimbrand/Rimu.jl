@@ -106,7 +106,7 @@ end
 end
 
 @testset "1C model properties" begin
-    addr = nearUniform(BoseFS{100,100})
+    addr = near_uniform(BoseFS{100,100})
 
     for Hamiltonian in (HubbardReal1D, HubbardMom1D)
         @testset "$Hamiltonian" begin
@@ -122,8 +122,8 @@ end
 
 @testset "2C model properties" begin
     flip(b) = BoseFS2C(b.bsb, b.bsa)
-    addr1 = nearUniform(BoseFS2C{1,100,20})
-    addr2 = nearUniform(BoseFS2C{100,1,20})
+    addr1 = near_uniform(BoseFS2C{1,100,20})
+    addr2 = near_uniform(BoseFS2C{100,1,20})
 
     for Hamiltonian in (BoseHubbardReal1D2C, BoseHubbardMom1D2C)
         @testset "$Hamiltonian" begin
@@ -157,6 +157,35 @@ function exact_energy(ham)
 end
 
 @testset "HubbardRealSpace" begin
+    @testset "Constructor" begin
+        bose = BoseFS((1, 2, 3, 4, 5, 6))
+        @test_throws ErrorException HubbardRealSpace(bose; geom=PeriodicBoundaries(3,3))
+        @test_throws ErrorException HubbardRealSpace(
+            bose; geom=PeriodicBoundaries(3,2), t=[1, 2],
+        )
+        @test_throws ErrorException HubbardRealSpace(
+            bose; geom=PeriodicBoundaries(3,2), u=[1 1; 1 1],
+        )
+
+        comp = CompositeFS(bose, bose)
+        @test_throws ErrorException HubbardRealSpace(
+            comp; geom=PeriodicBoundaries(3,2), t=[1, 2], u=[1 2; 3 4],
+        )
+        @test_throws ErrorException HubbardRealSpace(
+            comp; geom=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
+        )
+
+        @test_throws ErrorException HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
+
+        H = HubbardRealSpace(comp, t=[1,2], u=[1 2; 2 3])
+        @test eval(Meta.parse(repr(H))) == H
+    end
+    @testset "Offdiagonals" begin
+        @warn "TODO:"
+        # Ladder
+        # Periodic
+        # Hardwall
+    end
     @testset "1D Bosons (single)" begin
         H1 = HubbardReal1D(BoseFS((1, 1, 1, 1, 1, 0)); u=2, t=3)
         H2 = HubbardRealSpace(BoseFS((1, 1, 1, 1, 1, 0)); u=[2], t=[3])
@@ -243,7 +272,6 @@ end
                 HubbardRealSpace(near_uniform(FermiFS{4, 4}), geom=p22, t=[2])
             ) ≈ 0 rtol=0.001
         end
-
         @testset "4 × 4" begin
             p44 = PeriodicBoundaries(4, 4)
             @test exact_energy(
@@ -261,7 +289,6 @@ end
                 HubbardRealSpace(FermiFS((1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0)), geom=p44)
             ) ≈ -10 rtol=0.001
         end
-
         @testset "Two-component" begin
             H1 = HubbardRealSpace(
                 CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
@@ -467,7 +494,7 @@ end
         AT = BoseFS{9,9})
     @test dimension(ham) == 24310
 
-    aIni = Rimu.Hamiltonians.nearUniform(ham)
+    aIni = Rimu.Hamiltonians.near_uniform(ham)
     @test aIni == BoseFS{9,9}((1,1,1,1,1,1,1,1,1))
 
     hp = offdiagonals(ham,aIni)
@@ -495,7 +522,7 @@ end
     @test -⋅(UniformProjector(),ham,svec)≈⋅(NormProjector(),ham,svec)≈norm(v2,1)
     @test dot(Norm2Projector(),v2) ≈ norm(v2,2)
     @test Hamiltonians.LOStructure(ham) == Hamiltonians.Hermitian()
-    aIni2 = nearUniform(BoseFS{9,9})
+    aIni2 = near_uniform(BoseFS{9,9})
     hamc = BoseHubbardReal1D(aIni2, u=6.0+0im, t=1.0+0im) # formally a complex operator
     @test Hamiltonians.LOStructure(hamc) == Hamiltonians.AdjointUnknown()
     @test dot(v3,ham,svec) ≈ dot(v3,hamc,svec) ≈ dot(svec,ham,v3) ≈ dot(svec,hamc,v3) ≈ 864

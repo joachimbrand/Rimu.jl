@@ -105,7 +105,7 @@ end
 @testset "MemoryStrategy" begin
     # Define the initial Fock state with n particles and m modes
     n = m = 9
-    add = nearUniform(BoseFS{n,m})
+    add = near_uniform(BoseFS{n,m})
     H = BoseHubbardReal1D(add; u = 6.0, t = 1.0)
     dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
     s_strat = DoubleLogUpdate(targetwalkers=100)
@@ -229,7 +229,7 @@ using Rimu.Blocking
 
     # Define the initial Fock state with n particles and m modes
     n = m = 9
-    aIni = nearUniform(BoseFS{n,m})
+    aIni = near_uniform(BoseFS{n,m})
     ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
     pa = RunTillLastStep(laststep = 1000)
 

@@ -161,6 +161,8 @@ function HubbardRealSpace(
         error("`u` must be a $C × $C matrix")
     elseif size(t) ≠ (C,)
         error("`t` must be a vector of length $C")
+    elseif address isa BoseFS2C
+        error("`BoseFS2C` is not supported for this Hamiltonian, use `CompositeFS`")
     end
 
     u_mat = SMatrix{C,C,Float64}(u)
@@ -295,8 +297,6 @@ function Base.iterate(o::HubbardRealSpaceFermiOffdiagonals, (vals, i))
     end
 end
 
-# TODO: SparseBoseFS
-
 # Multi-component part
 """
     HubbardRealSpaceOffdiagonals{A,T<:Tuple} <: AbstractOffdiagonals{A,Float64}
@@ -345,10 +345,3 @@ end
 ### Single-component models
 ###
 offdiagonals(h::HubbardRealSpace{1,A}, add::A) where {A} = offdiagonals(h, 1, add)
-
-# TODO:
-function random_offdiagonal(v::AbstractVector)
-    i = cRand(1:length(v))
-    add, val = v[i]
-    return add, 1/length(v), val
-end
