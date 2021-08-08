@@ -36,7 +36,7 @@ using Test
 
                 lomc!(H, dv; dτ=1e-6)
                 allocs = @allocated lomc!(H, dv; dτ=1e-6, laststep=200)
-                @test allocs < 1e8 # 100MiB
+                @test allocs < 5e8 # 500MiB
             end
         end
     end
