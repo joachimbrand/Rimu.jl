@@ -34,8 +34,8 @@ using Test
             for dv_type in (DVec, InitiatorDVec)
                 dv = dv_type(starting_address(H) => 1.0, style=IsDynamicSemistochastic())
 
-                lomc!(H, dv; dτ=1e-5)
-                allocs = @allocated lomc!(H, dv; dτ=1e-5)
+                lomc!(H, dv; dτ=1e-6)
+                allocs = @allocated lomc!(H, dv; dτ=1e-6, laststep=200)
                 @test allocs < 1e8 # 100MiB
             end
         end
