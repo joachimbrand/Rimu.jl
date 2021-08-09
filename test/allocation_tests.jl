@@ -1,4 +1,5 @@
 using Rimu
+using Rimu: fciqmc_step!
 using Test
 
 @testset "Allocations" begin
@@ -30,14 +31,44 @@ using Test
         BoseHubbardMom1D2C(BoseFS2C(b2, b2)),
         BoseHubbardMom1D2C(BoseFS2C(b3, b3)),
     )
-        @testset "Allocations for $(typeof(H))" begin
+        add = starting_address(H)
+        hamname = string(nameof(typeof(H)), "(", num_modes(add), "): ")
+        @testset "Allocations for $(hamname)" begin
             for dv_type in (DVec, InitiatorDVec)
-                dv = dv_type(starting_address(H) => 1.0, style=IsDynamicSemistochastic())
-                sizehint!(dv, 10_000)
+                dτ = if num_modes(add) == 10
+                    1e-3
+                elseif num_modes(add) == 50
+                    1e-4
+                else
+                    1e-6
+                end
 
-                lomc!(H, dv; dτ=1e-6, threading=false)
-                allocs = @allocated lomc!(H, dv; dτ=1e-6, laststep=200, threading=false)
-                @test allocs < 1e8 # 500MiB
+                dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
+                sizehint!(dv, 50_000)
+
+                # Warmup for lomc!
+                _, st = lomc!(H, dv; dτ, threading=false, maxlength=10_000)
+
+                r = only(st.replicas)
+                p = r.params
+
+                # Warmup for step!
+                fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
+                fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
+                fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
+                fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
+
+                allocs_step = @allocated fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
+                @test allocs_step ≤ 512
+
+                allocs_full = @allocated lomc!(
+                    H, dv; dτ, laststep=200, threading=false, maxlength=10_000
+                )
+                @test allocs_full ≤ 1e8 # 100MiB
+
+                # Print out the results to make it easier to find problems.
+                print(rpad(hamname, 40))
+                print("per step ", allocs_step, ", full ", allocs_full/(1024^2), "M\n")
             end
         end
     end
