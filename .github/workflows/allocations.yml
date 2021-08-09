@@ -1,0 +1,30 @@
+name: Allocations
+
+on:
+  push:
+    branches:
+      - develop
+      - 'feature/**'
+      - 'bugfix/**'
+  pull_request:
+    branches:
+      - develop
+      - feature/github-actions
+
+jobs:
+  Allocations:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        julia-version: [1.6, 'nightly']
+        julia-arch: [x64]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Set up Julia"
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.julia-version }}
+          arch: ${{ matrix.julia-arch }}
+      - name: "Run test"
+        run: julia -O3 --project=@. test/allocation_tests.jl

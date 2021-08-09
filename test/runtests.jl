@@ -366,10 +366,6 @@ end
     @test eig2cReal.values[1] ≈ eig2cMom.values[1]
 end
 
-@safetestset "Allocations" begin
-    include("allocations.jl")
-end
-
 @safetestset "KrylovKit" begin
     include("KrylovKit.jl")
 end
