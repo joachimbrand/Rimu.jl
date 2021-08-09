@@ -32,43 +32,53 @@ using Test
         BoseHubbardMom1D2C(BoseFS2C(b3, b3)),
     )
         add = starting_address(H)
-        hamname = string(nameof(typeof(H)), "(", num_modes(add), "): ")
-        @testset "Allocations for $(hamname)" begin
-            for dv_type in (DVec, InitiatorDVec)
-                dτ = if num_modes(add) == 10
-                    1e-3
-                elseif num_modes(add) == 50
-                    1e-4
-                else
-                    1e-6
-                end
-
-                dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
-                sizehint!(dv, 50_000)
-
-                # Warmup for lomc!
-                _, st = lomc!(H, dv; dτ, threading=false, maxlength=10_000)
-
-                r = only(st.replicas)
-                p = r.params
-
-                # Warmup for step!
-                fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
-                fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
-                fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
-                fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
-
-                allocs_step = @allocated fciqmc_step!(H, r.v, p.shift, 1e-4, r.pnorm, r.w)
-                @test allocs_step ≤ 512
-
-                allocs_full = @allocated lomc!(
-                    H, dv; dτ, laststep=200, threading=false, maxlength=10_000
+        for dv_type in (DVec, InitiatorDVec)
+            for style in (
+                IsDeterministic(),
+                IsStochasticInteger(),
+                IsStochasticWithThreshold(),
+                IsDynamicSemistochastic(),
+            )
+                hamname = string(
+                    nameof(typeof(H)), "(", num_modes(add), ")/", nameof(typeof(style))
                 )
-                @test allocs_full ≤ 1e8 # 100MiB
+                @testset "Allocations for $(hamname)" begin
+                    dτ = if num_modes(add) == 10
+                        1e-4
+                    elseif num_modes(add) == 50
+                        1e-4
+                    else
+                        1e-6
+                    end
 
-                # Print out the results to make it easier to find problems.
-                print(rpad(hamname, 40))
-                print("per step ", allocs_step, ", full ", allocs_full/(1024^2), "M\n")
+                    dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
+                    sizehint!(dv, 500_000)
+
+                    # Warmup for lomc!
+                    _, st = lomc!(H, dv; dτ, threading=false, maxlength=10_000, laststep=1)
+
+                    r = only(st.replicas)
+                    p = r.params
+
+                    # Warmup for step!
+                    fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
+                    fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
+                    fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
+                    fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
+
+                    allocs_step = @allocated fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
+                    @test allocs_step ≤ 512
+
+                    dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
+                    allocs_full = @allocated lomc!(
+                        H, dv; dτ, laststep=200, threading=false, maxlength=10_000
+                    )
+                    @test allocs_full ≤ 1e8 # 100MiB
+
+                    # Print out the results to make it easier to find problems.
+                    print(rpad(hamname, 50))
+                    print(": per step ", allocs_step, ", full ", allocs_full/(1024^2), "M\n")
+                end
             end
         end
     end
