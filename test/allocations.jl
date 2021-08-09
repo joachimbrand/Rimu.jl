@@ -33,11 +33,11 @@ using Test
         @testset "Allocations for $(typeof(H))" begin
             for dv_type in (DVec, InitiatorDVec)
                 dv = dv_type(starting_address(H) => 1.0, style=IsDynamicSemistochastic())
-                sizehint!(dv, 1000)
+                sizehint!(dv, 10_000)
 
-                lomc!(H, dv; dτ=1e-6)
-                allocs = @allocated lomc!(H, dv; dτ=1e-6, laststep=200)
-                @test allocs < 5e8 # 500MiB
+                lomc!(H, dv; dτ=1e-6, threading=false)
+                allocs = @allocated lomc!(H, dv; dτ=1e-6, laststep=200, threading=false)
+                @test allocs < 1e8 # 500MiB
             end
         end
     end
