@@ -27,4 +27,6 @@ jobs:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
       - name: "Run test"
-        run: julia -O3 --project=@. test/allocation_tests.jl
+        run: |
+          julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
+          julia -O3 --project=@. test/allocation_tests.jl
