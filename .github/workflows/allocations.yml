@@ -6,10 +6,6 @@ on:
       - develop
       - 'feature/**'
       - 'bugfix/**'
-  pull_request:
-    branches:
-      - develop
-      - feature/github-actions
 
 jobs:
   Allocations:
