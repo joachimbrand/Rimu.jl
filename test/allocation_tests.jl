@@ -55,7 +55,8 @@ using Test
                     sizehint!(dv, 500_000)
 
                     # Warmup for lomc!
-                    _, st = lomc!(H, dv; dτ, threading=false, maxlength=10_000, laststep=1)
+                   params = RunTillLastStep(shift = diagonal_element(H, add), dτ)
+                    _, st = lomc!(H, dv; params, threading=false, maxlength=10_000, laststep=1)
 
                     r = only(st.replicas)
                     p = r.params
