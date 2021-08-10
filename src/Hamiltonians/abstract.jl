@@ -125,11 +125,11 @@ Stirling formula may be returned instead.
 ```jldoctest
 julia> dimension(HubbardMom1D(BoseFS((1,2,3))))
 28
-julia> dimension(HubbardMom1D(nearUniform(BoseFS{200,100})))
+julia> dimension(HubbardMom1D(near_uniform(BoseFS{200,100})))
 
-julia> dimension(Float64, HubbardMom1D(nearUniform(BoseFS{200,100})))
+julia> dimension(Float64, HubbardMom1D(near_uniform(BoseFS{200,100})))
 1.3862737677578232e81
-julia> dimension(BigInt, HubbardMom1D(nearUniform(BoseFS{200,100})))
+julia> dimension(BigInt, HubbardMom1D(near_uniform(BoseFS{200,100})))
 1386083821086188248261127842108801860093488668581216236221011219101585442774669540
 ```
 """
@@ -170,7 +170,7 @@ end
 dimension(h::AbstractHamiltonian) = dimension(Int, h)
 dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
 
-BitStringAddresses.nearUniform(h::AbstractHamiltonian) = nearUniform(typeof(starting_address(h)))
+BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(starting_address(h)))
 
 """
     starting_address(h)

@@ -48,7 +48,7 @@ function BoseHubbardReal1D(add::BSA; u=1.0, t=1.0) where BSA <: AbstractFockAddr
 end
 
 function starting_address(h::BoseHubbardReal1D)
-    return nearUniform(h.AT)
+    return near_uniform(h.AT)
 end
 
 function diagonal_element(h::BoseHubbardReal1D, address)

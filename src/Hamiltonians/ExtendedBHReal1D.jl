@@ -40,7 +40,7 @@ function ExtendedBHReal1D(add::BSA; u=1.0, v=1.0, t=1.0) where BSA <: AbstractFo
 end
 
 function starting_address(h::ExtendedBHReal1D)
-    return nearUniform(h.AT)
+    return near_uniform(h.AT)
 end
 
 function diagonal_element(h::ExtendedBHReal1D, b)

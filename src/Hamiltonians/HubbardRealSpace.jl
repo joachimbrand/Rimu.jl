@@ -168,7 +168,7 @@ function HubbardRealSpace(
         for c in 1:C
             if address.adds[c] isa FermiFS && u ≠ ones(C,C) && u[c,c] ≠ 0
                 @warn "component $(c) is Fermionic, but was given a self-interaction " *
-                    "strength of $(u[c,c])" once=true
+                    "strength of $(u[c,c])" maxlog=1
             end
         end
     end

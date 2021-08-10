@@ -2,6 +2,7 @@ using KrylovKit
 using LinearAlgebra
 using Rimu
 using Test
+using Logging
 
 using Rimu.Hamiltonians: LOStructure, Hermitian, AdjointKnown, AdjointUnknown
 
@@ -64,12 +65,12 @@ end
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
         ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
         HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
-        HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[1], t=[3]),
+        HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
         HubbardRealSpace(
             CompositeFS(
                 FermiFS((1, 1, 1, 1, 1, 0, 0, 0)),
                 FermiFS((1, 1, 1, 1, 0, 0, 0, 0)),
-            ); t=[1, 2], u=[3 1; 1 4]
+            ); t=[1, 2], u=[0 3; 3 0]
         ),
 
         BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
@@ -177,6 +178,8 @@ end
 
         @test_throws ErrorException HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
 
+        @test_logs min_level=Logging.Warn HubbardRealSpace(FermiFS((1,0)), u=[2])
+
         H = HubbardRealSpace(comp, t=[1,2], u=[1 2; 2 3])
         @test eval(Meta.parse(repr(H))) == H
     end
@@ -236,19 +239,19 @@ end
             BoseFS((1, 1, 1, 0, 0, 0)),
             BoseFS((1, 0, 0, 0, 0, 0)),
         )
-        H2 = HubbardRealSpace(add2, t=[1,4], u=[2 3; 3 1])
+        H2 = HubbardRealSpace(add2, t=[1,4], u=[2 3; 3 0])
 
         add3 = CompositeFS(
             BoseFS((1, 1, 1, 0, 0, 0)),
             FermiFS((1, 0, 0, 0, 0, 0)),
         )
-        H3 = HubbardRealSpace(add3, t=[1,4], u=[2 3; 3 1])
+        H3 = HubbardRealSpace(add3, t=[1,4], u=[2 3; 3 0])
 
         add4 = CompositeFS(
             FermiFS((1, 0, 0, 0, 0, 0)),
             BoseFS((1, 1, 1, 0, 0, 0)),
         )
-        H4 = HubbardRealSpace(add4, t=[4,1], u=[1 3; 3 2])
+        H4 = HubbardRealSpace(add4, t=[4,1], u=[0 3; 3 2])
 
         E1 = exact_energy(H1)
         E2 = exact_energy(H2)
