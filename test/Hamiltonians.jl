@@ -181,10 +181,43 @@ end
         @test eval(Meta.parse(repr(H))) == H
     end
     @testset "Offdiagonals" begin
-        @warn "TODO:"
-        # Ladder
-        # Periodic
-        # Hardwall
+        f = near_uniform(FermiFS{3,12})
+
+        H = HubbardRealSpace(f, geom=PeriodicBoundaries(3, 4))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 12
+        @test length(od_nonzeros) == 6
+
+        H = HubbardRealSpace(f, geom=PeriodicBoundaries(4, 3))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 12
+        @test length(od_nonzeros) == 8
+
+        H = HubbardRealSpace(f, geom=HardwallBoundaries(3, 4))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 12
+        @test length(od_nonzeros) == 3
+
+        H = HubbardRealSpace(f, geom=HardwallBoundaries(4, 3))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 12
+        @test length(od_nonzeros) == 4
+
+        H = HubbardRealSpace(f, geom=LadderBoundaries(2, 6))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 9
+        @test length(od_nonzeros) == 5
+
+        H = HubbardRealSpace(f, geom=LadderBoundaries(2, 6, subgeometry=HardwallBoundaries))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 9
+        @test length(od_nonzeros) == 3
     end
     @testset "1D Bosons (single)" begin
         H1 = HubbardReal1D(BoseFS((1, 1, 1, 1, 1, 0)); u=2, t=3)

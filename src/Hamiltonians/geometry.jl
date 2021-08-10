@@ -157,6 +157,7 @@ function neighbour_site(geom::LadderBoundaries, site, i)
         return site + site % 2 - (site + 1) % 2
     else
         i -= 1
-        return 2 * neighbour_site(geom.subgeometry, cld(site, 2), i) - site % 2
+        subneighbour = neighbour_site(geom.subgeometry, cld(site, 2), i)
+        return ifelse(iszero(subneighbour), 0, 2 * subneighbour - site % 2)
     end
 end
