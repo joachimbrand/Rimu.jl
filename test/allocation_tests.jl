@@ -46,10 +46,6 @@ using Test
         HubbardRealSpace(CompositeFS(f1, f1)),
         HubbardRealSpace(CompositeFS(f2, f2)),
         HubbardRealSpace(CompositeFS(f3, f3)),
-
-        HubbardRealSpace(CompositeFS(f1, f1, b1)),
-        HubbardRealSpace(CompositeFS(f2, f2, b2)),
-        HubbardRealSpace(CompositeFS(f3, f3, b3)),
     )
         add = starting_address(H)
         for dv_type in (DVec, InitiatorDVec)
