@@ -26,8 +26,8 @@ num_modes(::Type{<:BoseFS2C{<:Any,<:Any,M}}) where {M} = M
 num_components(::Type{<:BoseFS2C}) = 2
 Base.isless(a::T, b::T) where {T<:BoseFS2C} = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
 
-function nearUniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
-    return BoseFS2C(nearUniform(BoseFS{NA,M}), nearUniform(BoseFS{NB,M}))
+function near_uniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
+    return BoseFS2C(near_uniform(BoseFS{NA,M}), near_uniform(BoseFS{NB,M}))
 end
 
 const SingleFS{M} = Union{BoseFS{<:Any,M},FermiFS{<:Any,M}}
