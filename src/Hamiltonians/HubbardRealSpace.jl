@@ -49,7 +49,7 @@ function real_space_interaction(b::BoseFS, f::FermiFS, v)
     return acc * v
 end
 function real_space_interaction(fs::CompositeFS, m)
-    _interactions(fs.adds, m)
+    _interactions(fs.components, m)
 end
 
 """
@@ -105,7 +105,7 @@ end
 ### HubbardRealSpace
 ###
 """
-    HubbardRealSpace(address; u=ones(C, C), t=ones(C), geom=PeriodicBoundaries(M,))
+    HubbardRealSpace(address; u=ones(C, C), t=ones(C), geometry=PeriodicBoundaries(M,))
 
 General Hubbard model in real space. Supports various different kinds of particle sizes and
 geometries.
@@ -141,20 +141,20 @@ struct HubbardRealSpace{
     address::A
     u::U
     t::T
-    geom::G
+    geometry::G
 end
 
 function HubbardRealSpace(
     address;
     u=ones(num_components(address), num_components(address)),
     t=ones(num_components(address)),
-    geom=PeriodicBoundaries((num_modes(address),))
+    geometry=PeriodicBoundaries((num_modes(address),))
 )
     C = num_components(address)
 
     # Sanity checks
-    if prod(size(geom)) ≠ num_modes(address)
-        error("`geom` does not have the correct number of sites")
+    if prod(size(geometry)) ≠ num_modes(address)
+        error("`geometry` does not have the correct number of sites")
     elseif length(u) ≠ 1 && !issymmetric(u)
         error("`u` must be symmetric")
     elseif length(u) ≠ C * C
@@ -164,21 +164,36 @@ function HubbardRealSpace(
     elseif address isa BoseFS2C
         error("`BoseFS2C` is not supported for this Hamiltonian, use `CompositeFS`")
     end
-    if address isa CompositeFS
-        for c in 1:C
-            if address.adds[c] isa FermiFS && u ≠ ones(C,C) && u[c,c] ≠ 0
-                @warn "component $(c) is Fermionic, but was given a self-interaction " *
-                    "strength of $(u[c,c])" maxlog=1
-            end
-        end
-    end
+    warn_fermi_interaction(address, u)
 
     u_mat = SMatrix{C,C,Float64}(u)
     t_vec = SVector{C,Float64}(t)
-    return HubbardRealSpace{C,typeof(address),typeof(geom),typeof(t_vec),typeof(u_mat)}(
-        address, u_mat, t_vec, geom,
+    return HubbardRealSpace{C,typeof(address),typeof(geometry),typeof(t_vec),typeof(u_mat)}(
+        address, u_mat, t_vec, geometry,
     )
 end
+
+"""
+    warn_fermi_interaction(address, u)
+
+Warn if interaction matrix `u` does not make sense for `address`.
+"""
+function warn_fermi_interaction(address::CompositeFS, u)
+    C = num_components(address)
+    for c in 1:C
+        if address.components[c] isa FermiFS && u ≠ ones(C,C) && u[c,c] ≠ 0
+            @warn "component $(c) is Fermionic, but was given a self-interaction " *
+                "strength of $(u[c,c])" maxlog=1
+        end
+    end
+end
+function warn_fermi_interaction(address::FermiFS, u)
+    if u ≠ ones(1, 1) && u[1, 1] ≠ 0
+        @warn "address is Fermionic, but was given a self-interaction " *
+            "strength of $(u[1,1])" maxlog=1
+    end
+end
+warn_fermi_interaction(_, _) = nothing
 
 LOStructure(::Type{<:HubbardRealSpace}) = Hermitian()
 
@@ -187,7 +202,7 @@ function Base.show(io::IO, h::HubbardRealSpace)
     println(io, "  ", starting_address(h), ",")
     println(io, "  u = ", Float64.(h.u), ",")
     println(io, "  t = ", Float64.(h.t), ",")
-    println(io, "  geom = ", h.geom, ",")
+    println(io, "  geometry = ", h.geometry, ",")
     println(io, ")")
 end
 
@@ -207,32 +222,32 @@ num_offdiagonals(h::HubbardRealSpace, add) = length(offdiagonals(h, add))
 """
     HubbardRealSpaceBoseOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
 
-Offdiagonals for the bosonic part of a [`HubbardRealSpace`](@ref) model.
+Offdiagonals for a Bosonic part of a [`HubbardRealSpace`](@ref) model.
 
 Used when the model's address is a [`BoseFS`](@ref), or a [`CompositeFS`](@ref) with a
 [`BoseFS`](@ref) component.
 """
 struct HubbardRealSpaceBoseOffdiagonals{G,A<:BoseFS} <: AbstractOffdiagonals{A,Float64}
-    geom::G
+    geometry::G
     address::A
     t::Float64
     length::Int
 end
 
 function offdiagonals(h::HubbardRealSpace, comp, add::BoseFS)
-    neighbours = num_neighbours(h.geom)
+    neighbours = num_neighbours(h.geometry)
     return HubbardRealSpaceBoseOffdiagonals(
-        h.geom, add, h.t[comp], numberoccupiedsites(add) * neighbours,
+        h.geometry, add, h.t[comp], numberoccupiedsites(add) * neighbours,
     )
 end
 
 Base.size(o::HubbardRealSpaceBoseOffdiagonals) = (o.length,)
 
 function Base.getindex(o::HubbardRealSpaceBoseOffdiagonals, chosen)
-    neighbours = num_neighbours(o.geom)
+    neighbours = num_neighbours(o.geometry)
     particle, neigh = fldmod1(chosen, neighbours)
     i = find_particle(o.address, particle)
-    target_site = neighbour_site(o.geom, i.site, neigh)
+    target_site = neighbour_site(o.geometry, i.site, neigh)
     if iszero(target_site)
         # Move is illegal in specified geometry.
         return o.address, 0.0
@@ -244,17 +259,25 @@ function Base.getindex(o::HubbardRealSpaceBoseOffdiagonals, chosen)
 end
 
 # Fermi part
+"""
+    HubbardRealSpaceFermiOffdiagonals <: AbstractOffdiagonals
+
+Offdiagonals for a Fermionic part of a [`HubbardRealSpace`](@ref) model.
+
+Used when the model's address is a [`FermiFS`](@ref), or a [`CompositeFS`](@ref) with a
+[`FermiFS`](@ref) component.
+"""
 struct HubbardRealSpaceFermiOffdiagonals{G,A<:FermiFS} <: AbstractOffdiagonals{A,Float64}
-    geom::G
+    geometry::G
     address::A
     t::Float64
     length::Int
 end
 
 function offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
-    neighbours = num_neighbours(h.geom)
+    neighbours = num_neighbours(h.geometry)
     return HubbardRealSpaceFermiOffdiagonals(
-        h.geom, add, h.t[comp], N * neighbours,
+        h.geometry, add, h.t[comp], N * neighbours,
     )
 end
 
@@ -262,10 +285,10 @@ Base.size(o::HubbardRealSpaceFermiOffdiagonals) = (o.length,)
 
 function Base.getindex(o::HubbardRealSpaceFermiOffdiagonals, chosen)
     @boundscheck 1 ≤ chosen ≤ length(o) || throw(BoundsError(o, chosen))
-    neighbours = num_neighbours(o.geom)
+    neighbours = num_neighbours(o.geometry)
     particle, neigh = fldmod1(chosen, neighbours)
     source_site = find_particle(o.address, particle)
-    target_site = neighbour_site(o.geom, source_site, neigh)
+    target_site = neighbour_site(o.geometry, source_site, neigh)
     if iszero(target_site)
         return o.address, 0.0
     else
@@ -274,36 +297,8 @@ function Base.getindex(o::HubbardRealSpaceFermiOffdiagonals, chosen)
     end
 end
 
-# TODO: do this without intermediate vector
-# TODO: make this work for multi-component models
-function Base.iterate(o::HubbardRealSpaceFermiOffdiagonals)
-    add = o.address
-    neighbours = num_neighbours(o.geom)
-    # While we do not know the exact number of offdiagonals, we know an upper bound.
-    # We only fill the result up to the point we need it, and return a view into it.
-    result = MVector{num_particles(add) * neighbours,Tuple{typeof(add),Float64}}(undef)
-    idx = 0
-    for site in occupied_orbitals(add)
-        for i in 1:neighbours
-            idx += 1
-            neigh = neighbour_site(o.geom, site, i)
-            if iszero(neigh)
-                @inbounds result[idx] = (add, 0.0)
-            else
-                new_add, sign = move_particle(add, site, neigh)
-                @inbounds result[idx] = (new_add, -o.t * sign)
-            end
-        end
-    end
-    return iterate(o, (SVector(result), 1))
-end
-function Base.iterate(o::HubbardRealSpaceFermiOffdiagonals, (vals, i))
-    if i > length(vals)
-        return nothing
-    else
-        return vals[i], (vals, i + 1)
-    end
-end
+# For simple models with one component.
+offdiagonals(h::HubbardRealSpace{1,A}, add::A) where {A} = offdiagonals(h, 1, add)
 
 # Multi-component part
 """
@@ -322,8 +317,12 @@ end
 
 Get offdiagonals of all components of address in a type-stable manner.
 """
-get_comp_offdiags(h::HubbardRealSpace, address) = _get_comp_offdiags(address.adds, h, Val(1))
+@inline function get_comp_offdiags(h::HubbardRealSpace, address)
+    return _get_comp_offdiags(address.components, h, Val(1))
+end
 
+# All steps of recursive function (should) get inlined, creating a type-stable tuple of
+# offdiagonals.
 @inline function _get_comp_offdiags((a,as...), h, ::Val{I}) where {I}
     return (offdiagonals(h, I, a), _get_comp_offdiags(as, h, Val(I+1))...)
 end
@@ -336,7 +335,8 @@ end
 
 Base.size(o::HubbardRealSpaceOffdiagonals) = (o.length,)
 
-# Becomes type unstable without inline for lots of components
+# Becomes type unstable without inline for lots of components. Recursive function is used
+# because the type of the result of `o.parts[i]` can not be inferred.
 @inline function Base.getindex(o::HubbardRealSpaceOffdiagonals{A}, chosen) where {A}
     return _getindex(o.parts, o.address, chosen, Val(1))
 end
@@ -349,8 +349,3 @@ end
         return _getindex(ps, address, chosen, Val(I + 1))
     end
 end
-
-###
-### Single-component models
-###
-offdiagonals(h::HubbardRealSpace{1,A}, add::A) where {A} = offdiagonals(h, 1, add)

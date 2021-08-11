@@ -2,7 +2,6 @@ using KrylovKit
 using LinearAlgebra
 using Rimu
 using Test
-using Logging
 
 using Rimu.Hamiltonians: LOStructure, Hermitian, AdjointKnown, AdjointUnknown
 
@@ -160,25 +159,28 @@ end
 @testset "HubbardRealSpace" begin
     @testset "Constructor" begin
         bose = BoseFS((1, 2, 3, 4, 5, 6))
-        @test_throws ErrorException HubbardRealSpace(bose; geom=PeriodicBoundaries(3,3))
+        @test_throws ErrorException HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
         @test_throws ErrorException HubbardRealSpace(
-            bose; geom=PeriodicBoundaries(3,2), t=[1, 2],
+            bose; geometry=PeriodicBoundaries(3,2), t=[1, 2],
         )
         @test_throws ErrorException HubbardRealSpace(
-            bose; geom=PeriodicBoundaries(3,2), u=[1 1; 1 1],
+            bose; geometry=PeriodicBoundaries(3,2), u=[1 1; 1 1],
         )
 
         comp = CompositeFS(bose, bose)
         @test_throws ErrorException HubbardRealSpace(
-            comp; geom=PeriodicBoundaries(3,2), t=[1, 2], u=[1 2; 3 4],
+            comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[1 2; 3 4],
         )
         @test_throws ErrorException HubbardRealSpace(
-            comp; geom=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
+            comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
         )
 
         @test_throws ErrorException HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
 
-        @test_logs min_level=Logging.Warn HubbardRealSpace(FermiFS((1,0)), u=[2])
+        @test_logs (:warn,) HubbardRealSpace(FermiFS((1,0)), u=[2])
+        @test_logs (:warn,) HubbardRealSpace(
+            CompositeFS(BoseFS((1,1)), FermiFS((1,0))); u=[2 2; 2 2]
+        )
 
         H = HubbardRealSpace(comp, t=[1,2], u=[1 2; 2 3])
         @test eval(Meta.parse(repr(H))) == H
@@ -186,37 +188,38 @@ end
     @testset "Offdiagonals" begin
         f = near_uniform(FermiFS{3,12})
 
-        H = HubbardRealSpace(f, geom=PeriodicBoundaries(3, 4))
+        H = HubbardRealSpace(f, geometry=PeriodicBoundaries(3, 4))
         od_values = last.(offdiagonals(H, f))
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 12
         @test length(od_nonzeros) == 6
 
-        H = HubbardRealSpace(f, geom=PeriodicBoundaries(4, 3))
+        H = HubbardRealSpace(f, geometry=PeriodicBoundaries(4, 3))
         od_values = last.(offdiagonals(H, f))
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 12
         @test length(od_nonzeros) == 8
 
-        H = HubbardRealSpace(f, geom=HardwallBoundaries(3, 4))
+        H = HubbardRealSpace(f, geometry=HardwallBoundaries(3, 4))
         od_values = last.(offdiagonals(H, f))
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 12
         @test length(od_nonzeros) == 3
 
-        H = HubbardRealSpace(f, geom=HardwallBoundaries(4, 3))
+        H = HubbardRealSpace(f, geometry=HardwallBoundaries(4, 3))
         od_values = last.(offdiagonals(H, f))
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 12
         @test length(od_nonzeros) == 4
 
-        H = HubbardRealSpace(f, geom=LadderBoundaries(2, 6))
+        H = HubbardRealSpace(f, geometry=LadderBoundaries(2, 6))
         od_values = last.(offdiagonals(H, f))
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 9
         @test length(od_nonzeros) == 5
 
-        H = HubbardRealSpace(f, geom=LadderBoundaries(2, 6, subgeometry=HardwallBoundaries))
+        hard_ladder = LadderBoundaries(2, 6, subgeometry=HardwallBoundaries)
+        H = HubbardRealSpace(f, geometry=hard_ladder)
         od_values = last.(offdiagonals(H, f))
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 9
@@ -248,19 +251,27 @@ end
         H3 = HubbardRealSpace(add3, t=[1,4], u=[2 3; 3 0])
 
         add4 = CompositeFS(
-            FermiFS((1, 0, 0, 0, 0, 0)),
+            BoseFS((1, 0, 0, 0, 0, 0)),
             BoseFS((1, 1, 1, 0, 0, 0)),
         )
         H4 = HubbardRealSpace(add4, t=[4,1], u=[0 3; 3 2])
+
+        add5 = CompositeFS(
+            FermiFS((1, 0, 0, 0, 0, 0)),
+            BoseFS((1, 1, 1, 0, 0, 0)),
+        )
+        H5 = HubbardRealSpace(add5, t=[4,1], u=[0 3; 3 2])
 
         E1 = exact_energy(H1)
         E2 = exact_energy(H2)
         E3 = exact_energy(H3)
         E4 = exact_energy(H4)
+        E5 = exact_energy(H5)
 
         @test E1 ≈ E2 rtol=0.0001
         @test E2 ≈ E3 rtol=0.0001
         @test E3 ≈ E4 rtol=0.0001
+        @test E4 ≈ E5 rtol=0.0001
     end
     @testset "1D Fermions" begin
         H1 = HubbardRealSpace(FermiFS((1, 1, 1, 0, 0, 0)), t=[3.5])
@@ -296,33 +307,33 @@ end
         @testset "2 × 2" begin
             p22 = PeriodicBoundaries(2, 2)
             @test exact_energy(
-                HubbardRealSpace(near_uniform(FermiFS{1, 4}), geom=p22, t=[2])
+                HubbardRealSpace(near_uniform(FermiFS{1, 4}), geometry=p22, t=[2])
             ) ≈ -8 rtol=0.001
             @test exact_energy(
-                HubbardRealSpace(near_uniform(FermiFS{2, 4}), geom=p22, t=[2])
+                HubbardRealSpace(near_uniform(FermiFS{2, 4}), geometry=p22, t=[2])
             ) ≈ -8 rtol=0.001
             @test exact_energy(
-                HubbardRealSpace(near_uniform(FermiFS{3, 4}), geom=p22, t=[2])
+                HubbardRealSpace(near_uniform(FermiFS{3, 4}), geometry=p22, t=[2])
             ) ≈ -8 rtol=0.001
             @test exact_energy(
-                HubbardRealSpace(near_uniform(FermiFS{4, 4}), geom=p22, t=[2])
+                HubbardRealSpace(near_uniform(FermiFS{4, 4}), geometry=p22, t=[2])
             ) ≈ 0 rtol=0.001
         end
         @testset "4 × 4" begin
             p44 = PeriodicBoundaries(4, 4)
             @test exact_energy(
-                HubbardRealSpace(near_uniform(FermiFS{1, 16}), geom=p44)
+                HubbardRealSpace(near_uniform(FermiFS{1, 16}), geometry=p44)
             ) ≈ -4 rtol=0.001
             @test exact_energy(
-                HubbardRealSpace(near_uniform(FermiFS{2, 16}), geom=p44)
+                HubbardRealSpace(near_uniform(FermiFS{2, 16}), geometry=p44)
             ) ≈ -6 rtol=0.001
             @test exact_energy(
-                HubbardRealSpace(near_uniform(FermiFS{3, 16}), geom=p44)
+                HubbardRealSpace(near_uniform(FermiFS{3, 16}), geometry=p44)
             ) ≈ -8 rtol=0.001
             # Note: a vector with only near_uniform is orthogonal to the ground state, so
             # KrylovKit will give the wrong energy here.
             @test exact_energy(
-                HubbardRealSpace(FermiFS((1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0)), geom=p44)
+                HubbardRealSpace(FermiFS((1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0)), geometry=p44)
             ) ≈ -10 rtol=0.001
         end
         @testset "Two-component" begin
@@ -330,7 +341,7 @@ end
                 CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
                 t=[1,2],
                 u=[0 0; 0 0],
-                geom=PeriodicBoundaries(3, 3),
+                geometry=PeriodicBoundaries(3, 3),
             )
             @test exact_energy(H1) ≈ -16 rtol=0.001
 
@@ -338,7 +349,7 @@ end
                 CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
                 t=[1,2],
                 u=[0 1; 1 0],
-                geom=PeriodicBoundaries(3, 3),
+                geometry=PeriodicBoundaries(3, 3),
             )
             @test exact_energy(H2) > -16
 
@@ -346,7 +357,7 @@ end
                 CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
                 t=[1,2],
                 u=[0 -1; -1 0],
-                geom=PeriodicBoundaries(3, 3),
+                geometry=PeriodicBoundaries(3, 3),
             )
             @test exact_energy(H3) < -16
         end

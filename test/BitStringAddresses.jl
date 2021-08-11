@@ -386,9 +386,9 @@ end
         @test num_modes(fs1) == 5
         @test num_components(fs1) == 3
         @test num_particles(fs1) == 10
-        @test fs1.adds[1] == FermiFS((1,1,0,0,0))
-        @test fs1.adds[2] == FermiFS((1,1,1,0,0))
-        @test fs1.adds[3] == BoseFS((5,0,0,0,0))
+        @test fs1.components[1] == FermiFS((1,1,0,0,0))
+        @test fs1.components[2] == FermiFS((1,1,1,0,0))
+        @test fs1.components[3] == BoseFS((5,0,0,0,0))
         @test eval(Meta.parse(repr(fs1))) == fs1
 
         fs2 = CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((1,0,1,0,1)), BoseFS((1,1,1,1,1)))

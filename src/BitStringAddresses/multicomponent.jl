@@ -38,26 +38,26 @@ const SingleFS{M} = Union{BoseFS{<:Any,M},FermiFS{<:Any,M}}
 Used to encode addresses for multi-component models.
 """
 struct CompositeFS{C,M,T<:NTuple{C,SingleFS{M}}} <: AbstractFockAddress
-    adds::T
+    components::T
 end
 
 CompositeFS(adds::Vararg{AbstractFockAddress}) = CompositeFS(adds)
 
 num_components(::CompositeFS{C}) where {C} = C
 num_modes(::CompositeFS{<:Any,M}) where {M} = M
-num_particles(c::CompositeFS) = sum(num_particles, c.adds)
-Base.hash(c::CompositeFS, u::UInt) = hash(c.adds, u)
+num_particles(c::CompositeFS) = sum(num_particles, c.components)
+Base.hash(c::CompositeFS, u::UInt) = hash(c.components, u)
 
 function Base.show(io::IO, c::CompositeFS{C}) where {C}
     println(io, "CompositeFS(")
-    for add in c.adds
+    for add in c.components
         println(io, "  ", add, ",")
     end
     print(io, ")")
 end
 
 function update_component(c::CompositeFS, new, ::Val{I}) where {I}
-    return typeof(c)(_update_component(c.adds, new, Val(I)))
+    return typeof(c)(_update_component(c.components, new, Val(I)))
 end
 
 @inline _update_component((a, as...), new, ::Val{1}) = (new, as...)
@@ -65,4 +65,4 @@ end
     return (a, _update_component(as, new, Val(I - 1))...)
 end
 
-Base.isless(a::T, b::T) where {T<:CompositeFS} = isless(a.adds, b.adds)
+Base.isless(a::T, b::T) where {T<:CompositeFS} = isless(a.components, b.components)

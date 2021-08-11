@@ -149,7 +149,7 @@ function dimension(::Type{T}, b::BoseFS2C) where {T}
     return dimension(T, b.bsa) * dimension(T, b.bsb)
 end
 function dimension(::Type{T}, c::CompositeFS) where {T}
-    return prod(x -> dimension(T, x), c.adds)
+    return prod(x -> dimension(T, x), c.components)
 end
 
 function try_binomial(n::T, k::T) where {T}
