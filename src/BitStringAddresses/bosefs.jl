@@ -123,7 +123,7 @@ function near_uniform_onr(::Val{N}, ::Val{M}) where {N, M}
     fillingfactor, extras = divrem(N, M)
     # startonr = fill(fillingfactor,M)
     startonr = fillingfactor * @MVector ones(Int,M)
-    startonr[1:extras] .+= 1 
+    startonr[1:extras] .+= 1
     return SVector{M}(startonr)
 end
 
@@ -243,7 +243,7 @@ end
 (n, i, o) = (1, 1, 0)
 (n, i, o) = (5, 2, 2)
 (n, i, o) = (4, 4, 9)
-
+```
 """
 function occupied_orbitals(b::BoseFS{<:Any,<:Any,S}) where {S}
     return OccupiedOrbitalIterator{num_chunks(S),S}(b.bs)

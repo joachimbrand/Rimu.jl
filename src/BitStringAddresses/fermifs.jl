@@ -67,7 +67,7 @@ i = 1
 i = 2
 i = 4
 i = 7
-
+```
 """
 occupied_orbitals(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedOrbitals{N,S}(a.bs)
 
