@@ -1,25 +1,21 @@
 """
     BoseFS{N,M,S} <: AbstractFockAddress
-    BoseFS(bs::S) where S <: BitAdd
-    BoseFS(bs::S, b)
 
 Address type that represents a Fock state of `N` spinless bosons in `M` orbitals
-by wrapping a bitstring of type `S`. Orbitals are stored in reverse
-order, i.e. the first orbital in a `BoseFS` is stored rightmost in the
-bitstring `bs`. If the number of significant bits `b` is not encoded in `S` it
-must be passed as an argument (e.g. for `BSAdd64` and `BSAdd128`).
+by wrapping a bitstring of type `S <: BitString`.
 
 # Constructors
 
-* `BoseFS{N,M}(::BitString)`: Unsafe constructor. Does not check whether the number of ones
-  in a is equal to `N`.
+* `BoseFS{N,M}(bs::BitString)`: Unsafe constructor. Does not check whether the number of
+  particles in `bs` is equal to `N`.
 
 * `BoseFS(::BitString)`: Automatically determine `N` and `M`. This constructor is not type
   stable!
 
-* `BoseFS{[N,M,S]}(onr)`: Create `BoseFS{N,M}` from onr representation. This is efficient
-  as long as at least `N` is provided.
+* `BoseFS{[N,M,S]}(onr)`: Create `BoseFS{N,M}` from [`onr`](@ref) representation. This is
+  efficient as long as at least `N` is provided.
 
+See also: [`FermiFS`](@ref), [`BitString`](@ref).
 """
 struct BoseFS{N,M,S<:BitString} <: AbstractFockAddress
     bs::S
