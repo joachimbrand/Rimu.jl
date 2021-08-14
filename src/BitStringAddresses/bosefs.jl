@@ -123,7 +123,7 @@ function near_uniform_onr(::Val{N}, ::Val{M}) where {N, M}
     fillingfactor, extras = divrem(N, M)
     # startonr = fill(fillingfactor,M)
     startonr = fillingfactor * @MVector ones(Int,M)
-    startonr[1:extras] += ones(Int, extras)
+    startonr[1:extras] .+= 1 
     return SVector{M}(startonr)
 end
 
