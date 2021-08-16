@@ -2,7 +2,7 @@
     real_space_interaction(::AbstractFockAddress, u)
     real_space_interaction(::AbstractFockAddress, ::AbstractFockAddress, v)
 
-Return the real space interaction between one or two fock states.
+Return the real space interaction between one or two Fock states.
 """
 real_space_interaction(b::BoseFS, u) = u * bose_hubbard_interaction(b) / 2
 real_space_interaction(f::FermiFS, _) = 0

@@ -354,12 +354,12 @@ end
 """
     move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
 
-Move particle from [`BoseFSIndex`](@info) `from` to the [`BoseFSIndex`](@ref) `to`.
+Move particle from [`BoseFSIndex`](@ref) `from` to the [`BoseFSIndex`](@ref) `to`.
 
 This is equivalent to applying a destruction operator followed by a creation operator to the
 address.
 
-Return the new fock state and the product of the occupation numbers.
+Return the new Fock state and the product of the occupation numbers.
 """
 function move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
     occ1 = from.occnum

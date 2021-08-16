@@ -47,7 +47,7 @@ end
     BitString{B,N,T<:Unsigned}
 
 Type for storing bitstrings of static size. Holds `B` bits in `N` chunks, where each chunk is
-an `UInt64`
+of type `T`.
 
 `N` is chosen automatically to accommodate `B` bits as efficiently as possible.
 
@@ -183,8 +183,8 @@ function BitString{B}(i::Union{UInt64,UInt32,UInt16,UInt8}) where {B}
 end
 function BitString{B}(i::UInt128) where {B}
     N, T = num_chunks(Val(B))
-    left = i >>> 0x40 % T
-    right = i & typemax(T) % T
+    left = i >>> 0x40 % T # left will only be used if T == UInt64 and N > 1
+    right = i  % T
     s = ntuple(Val(N)) do i
         i == N ? right : i == N - 1 ? left : zero(T)
     end

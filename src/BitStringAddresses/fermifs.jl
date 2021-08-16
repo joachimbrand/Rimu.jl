@@ -5,7 +5,7 @@ struct FermiFS{N,M,S<:BitString{M}} <: AbstractFockAddress
 end
 
 function FermiFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,C,T,S<:BitString{M,C,T}}
-    @boundscheck sum(onr) == N && all(in((0, 1)), onr) || error("invalid ONR")
+    @boundscheck sum(onr) == N && all(in((0, 1)), onr) || error("Invalid ONR: may only contain 0s and 1s.")
     result = zero(SVector{C,T})
     for orbital in 1:M
         iszero(onr[orbital]) && continue
@@ -71,6 +71,7 @@ i = 7
 """
 occupied_orbitals(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedOrbitals{N,S}(a.bs)
 
+Base.length(o::FermiOccupiedOrbitals{N}) where {N} = N
 function Base.iterate(o::FermiOccupiedOrbitals)
     c = 0
     chunk = o.bs.chunks[end]
@@ -126,7 +127,7 @@ end
     return result
 end
 
-function is_occupied(a::FermiFS{<:Any,M,S}, orbital) where {M,N,T,S<:BitString{<:Any,N,T}}
+function is_occupied(a::FermiFS{<:Any,M,S}, orbital) where {M,T,S<:BitString{<:Any,1,T}}
     @boundscheck 1 ≤ orbital ≤ M || throw(BoundsError(a, orbital))
     return a.bs.chunks[1] & (T(1) << (i - 1) % T) > 0
 end
