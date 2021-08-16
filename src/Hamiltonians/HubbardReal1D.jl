@@ -44,7 +44,7 @@ Base.getproperty(h::HubbardReal1D{<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
 Base.getproperty(h::HubbardReal1D, ::Val{:add}) = getfield(h, :add)
 
 function num_offdiagonals(::HubbardReal1D, address::BoseFS)
-    return 2 * numberoccupiedsites(address)
+    return 2 * num_occupied_modes(address)
 end
 
 """

@@ -144,7 +144,7 @@ using Test
     end
 end
 
-using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextneighbour
+using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextneighbour
 
 @testset "BoseFS" begin
     middle_full = BoseFS{67,100}(
@@ -177,10 +177,10 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
         @test two_full_onr[1] == 136
         @test all(iszero, two_full_onr[2:end])
     end
-    @testset "numberoccupiedsites" begin
-        @test numberoccupiedsites(middle_full) == 2
-        @test numberoccupiedsites(middle_empty) == 2
-        @test numberoccupiedsites(two_full) == 1
+    @testset "num_occupied_modes" begin
+        @test num_occupied_modes(middle_full) == 2
+        @test num_occupied_modes(middle_empty) == 2
+        @test num_occupied_modes(two_full) == 1
     end
     @testset "bose_hubbard_interaction" begin
         @test bose_hubbard_interaction(middle_full) == 66 * 65
@@ -197,6 +197,8 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
         @test orbital == 63
         @test bit == 63
         @test isnothing(iterate(occupied_modes(middle_full), st))
+
+        @test collect(occupied_modes(middle_empty)) == [[2, 1, 0], [8, 127, 128]]
     end
     @testset "Randomized tests" begin
         # Note: the random number for these tests will be the same everytime. This is still
@@ -272,19 +274,19 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
                     @test num_particles(bose) == N
                     @test num_modes(bose) == M
                     @test onr(bose) == input
-                    @test numberoccupiedsites(bose) == count(!iszero, input)
+                    @test num_occupied_modes(bose) == count(!iszero, input)
                     @test bose_hubbard_interaction(bose) == sum(input .* (input .- 1))
 
                     @test onr2(bose) == input
 
                     @test all(
                         hopnextneighbour2(bose, i) == hopnextneighbour(bose, i)
-                        for i in 1:numberoccupiedsites(bose) * 2
+                        for i in 1:num_occupied_modes(bose) * 2
                     )
 
                     occupied = [
                         find_occupied_mode(bose, i).mode
-                        for i in 1:numberoccupiedsites(bose)
+                        for i in 1:num_occupied_modes(bose)
                     ]
                     @test occupied == findall(!iszero, onr(bose))
 
@@ -317,10 +319,7 @@ end
     @testset "occupied_modes" begin
         for o in (small, big, giant)
             f = FermiFS(o)
-            sites = Int[]
-            foreach(occupied_modes(f)) do i
-                push!(sites, i)
-            end
+            sites = collect(occupied_modes(f))
             @test sites == findall(≠(0), onr(f))
         end
     end

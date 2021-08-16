@@ -237,7 +237,7 @@ end
 function offdiagonals(h::HubbardRealSpace, comp, add::BoseFS)
     neighbours = num_neighbours(h.geometry)
     return HubbardRealSpaceBoseOffdiagonals(
-        h.geometry, add, h.t[comp], numberoccupiedsites(add) * neighbours,
+        h.geometry, add, h.t[comp], num_occupied_modes(add) * neighbours,
     )
 end
 

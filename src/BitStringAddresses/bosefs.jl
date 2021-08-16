@@ -207,6 +207,62 @@ end
 end
 
 """
+    num_occupied_modes(b::BoseFS)
+
+Return the number of occupied modes in address `b`, which is equal to the number of
+non-zeros in its ONR representation.
+
+# Example
+
+```jldoctest
+julia> num_occupied_modes(BoseFS((1, 0, 2)))
+2
+julia> num_occupied_modes(BoseFS((3, 0, 0)))
+1
+```
+"""
+function num_occupied_modes(b::BoseFS{<:Any,<:Any,S}) where S
+    return num_occupied_modes(Val(num_chunks(S)), b)
+end
+
+@inline function num_occupied_modes(::Val{1}, b::BoseFS)
+    chunk = b.bs.chunks[1]
+    result = 0
+    while true
+        chunk >>= (trailing_zeros(chunk) % UInt)
+        chunk >>= (trailing_ones(chunk) % UInt)
+        result += 1
+        iszero(chunk) && break
+    end
+    return result
+end
+
+@inline function num_occupied_modes(_, b::BoseFS)
+    # This version is faster than using the occupied_mode iterator
+    address = b.bs
+    result = 0
+    K = num_chunks(address)
+    last_mask = UInt64(1) << 63 # = 0b100000...
+    prev_top_bit = false
+    # This loop compiles away for address<:BSAdd*
+    for i in K:-1:1
+        chunk = chunks(address)[i]
+        # This part handles modes that span across chunk boundaries.
+        # If the previous top bit and the current bottom bit are both 1, we have to subtract
+        # 1 from the result or the mode will be counted twice.
+        result -= (chunk & prev_top_bit) % Int
+        prev_top_bit = (chunk & last_mask) > 0
+        while !iszero(chunk)
+            chunk >>>= trailing_zeros(chunk)
+            chunk >>>= trailing_ones(chunk)
+            result += 1
+        end
+    end
+    return result
+end
+
+
+"""
     BoseFSIndex
 
 Convenience struct for indexing into a fock state.
@@ -217,7 +273,7 @@ Convenience struct for indexing into a fock state.
 * `mode`: the index of the mode.
 * `offset`: the bit offset of the mode.
 """
-struct BoseFSIndex <: FieldVector{3,Int}
+struct BoseFSIndex<:FieldVector{3,Int}
     occnum::Int
     mode::Int
     offset::Int
@@ -246,12 +302,15 @@ end
 ```
 """
 function occupied_modes(b::BoseFS{<:Any,<:Any,S}) where {S}
-    return BoseOccupiedModes{num_chunks(S),S}(b.bs)
+    return BoseOccupiedModes{num_chunks(S),typeof(b)}(b)
 end
+
+Base.length(o::BoseOccupiedModes) = num_occupied_modes(o.address)
+Base.eltype(::BoseOccupiedModes) = BoseFSIndex
 
 # Single chunk versions are simpler.
 @inline function Base.iterate(osi::BoseOccupiedModes{1})
-    chunk = osi.address.chunks[1]
+    chunk = osi.address.bs.chunks[1]
     empty_modes = trailing_zeros(chunk)
     return iterate(
         osi, (chunk >> (empty_modes % UInt), empty_modes, 1 + empty_modes)
@@ -273,17 +332,17 @@ end
 
 # Multi-chunk version
 @inline function Base.iterate(osi::BoseOccupiedModes)
-    address = osi.address
-    i = num_chunks(address)
-    chunk = chunks(address)[i]
-    bits_left = chunk_bits(address, i)
+    bitstring = osi.address.bs
+    i = num_chunks(bitstring)
+    chunk = chunks(bitstring)[i]
+    bits_left = chunk_bits(bitstring, i)
     mode = 1
     return iterate(osi, (i, chunk, bits_left, mode))
 end
 @inline function Base.iterate(osi::BoseOccupiedModes, (i, chunk, bits_left, mode))
     i < 1 && return nothing
-    address = osi.address
-    S = typeof(address)
+    bitstring = osi.address.bs
+    S = typeof(bitstring)
     bit_position = 0
 
     # Remove and count trailing zeros.
@@ -294,7 +353,7 @@ end
     while bits_left < 1
         i -= 1
         i < 1 && return nothing
-        @inbounds chunk = chunks(address)[i]
+        @inbounds chunk = chunks(bitstring)[i]
         bits_left = chunk_bits(S, i)
         empty_modes = min(bits_left, trailing_zeros(chunk))
         mode += empty_modes
@@ -302,7 +361,7 @@ end
         chunk >>>= empty_modes % UInt
     end
 
-    bit_position = chunk_bits(S, i) - bits_left + 64 * (num_chunks(address) - i)
+    bit_position = chunk_bits(S, i) - bits_left + 64 * (num_chunks(bitstring) - i)
 
     # Remove and count trailing ones.
     result = 0
@@ -313,7 +372,7 @@ end
     while bits_left < 1
         i -= 1
         i < 1 && break
-        @inbounds chunk = chunks(address)[i]
+        @inbounds chunk = chunks(bitstring)[i]
         bits_left = chunk_bits(S, i)
 
         bosons = trailing_ones(chunk)

@@ -110,63 +110,6 @@ Base.size(s::Offdiagonals) = (s.length,)
 ### Internal functions common to several different bosonic Hamiltonians
 ###
 """
-    numberoccupiedsites(b::BoseFS)
-
-Return the number of occupied sites in address `b`, which is equal to the number of
-non-zeros in its ONR representation.
-
-# Example
-
-```jldoctest
-julia> using Rimu.Hamiltonians: numberoccupiedsites
-
-julia> numberoccupiedsites(BoseFS((1, 0, 2)))
-2
-julia> numberoccupiedsites(BoseFS((3, 0, 0)))
-1
-```
-"""
-function numberoccupiedsites(b::BoseFS{<:Any,<:Any,S}) where S
-    return numberoccupiedsites(Val(num_chunks(S)), b)
-end
-
-@inline function numberoccupiedsites(::Val{1}, b::BoseFS)
-    chunk = b.bs.chunks[1]
-    result = 0
-    while true
-        chunk >>= (trailing_zeros(chunk) % UInt)
-        chunk >>= (trailing_ones(chunk) % UInt)
-        result += 1
-        iszero(chunk) && break
-    end
-    return result
-end
-
-@inline function numberoccupiedsites(_, b::BoseFS)
-    # This version is faster than using the occupied_mode iterator
-    address = b.bs
-    result = 0
-    K = num_chunks(address)
-    last_mask = UInt64(1) << 63 # = 0b100000...
-    prev_top_bit = false
-    # This loop compiles away for address<:BSAdd*
-    for i in K:-1:1
-        chunk = chunks(address)[i]
-        # This part handles sites that span across chunk boundaries.
-        # If the previous top bit and the current bottom bit are both 1, we have to subtract
-        # 1 from the result or the mode will be counted twice.
-        result -= (chunk & prev_top_bit) % Int
-        prev_top_bit = (chunk & last_mask) > 0
-        while !iszero(chunk)
-            chunk >>>= trailing_zeros(chunk)
-            chunk >>>= trailing_ones(chunk)
-            result += 1
-        end
-    end
-    return result
-end
-
-"""
     new_address, product = hopnextneighbour(add, chosen)
 
 Compute the new address of a hopping event for the Bose-Hubbard model. Returns the new

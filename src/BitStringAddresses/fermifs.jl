@@ -71,7 +71,9 @@ i = 7
 """
 occupied_modes(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedModes{N,S}(a.bs)
 
-Base.length(o::FermiOccupiedModes{N}) where {N} = N
+Base.length(::FermiOccupiedModes{N}) where {N} = N
+Base.eltype(::FermiOccupiedModes) = Int
+
 function Base.iterate(o::FermiOccupiedModes)
     c = 0
     chunk = o.bs.chunks[end]

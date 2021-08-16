@@ -49,7 +49,7 @@ function diagonal_element(h::ExtendedBHReal1D, b)
 end
 
 function num_offdiagonals(ham::ExtendedBHReal1D, add)
-    return 2 * numberoccupiedsites(add)
+    return 2 * num_occupied_modes(add)
 end
 
 function get_offdiagonal(ham::ExtendedBHReal1D, add, chosen::Integer)

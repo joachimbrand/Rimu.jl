@@ -56,7 +56,7 @@ function diagonal_element(h::BoseHubbardReal1D, address)
 end
 
 function num_offdiagonals(ham::BoseHubbardReal1D, add)
-    return 2 * numberoccupiedsites(add)
+    return 2 * num_occupied_modes(add)
 end
 
 function get_offdiagonal(ham::BoseHubbardReal1D, add, chosen::Integer)
