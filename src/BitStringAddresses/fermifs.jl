@@ -147,41 +147,38 @@ function is_occupied(a::FermiFS{<:Any,M}, mode) where {M}
     return a.bs.chunks[end + 1 - j] & (UInt(1) << UInt(i - 1)) > 0
 end
 
-"""
-    move_particle(a::FermiFS, from, to)
-
-Move particle from location `from` to location `to`.
-
-Returns new address and the sign. If the move is not legal, return a sign of zero.
-"""
 function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitString{<:Any,1,T}}
-    from, to = minmax(from, to)
-    new_chunk, value = _move_particle(a.bs.chunks[1], from % T, to % T)
-    return typeof(a)(S(new_chunk)), value
+    if is_occupied(a, from) && !is_occupied(a, to)
+        from, to = minmax(from, to)
+        new_chunk, value = _move_particle(a.bs.chunks[1], from % T, to % T)
+        return typeof(a)(S(new_chunk)), value
+    else
+        return a, 0
+    end
 end
 
 function move_particle(a::FermiFS, from, to)
-    return _move_particle(a, from % UInt64, to % UInt64)
+    if is_occupied(a, from) && !is_occupied(a, to)
+        return _move_particle(a, from % UInt64, to % UInt64)
+    else
+        return a, 0
+    end
 end
 
 # Note: the methods with underscores accept unsigned from/to and assume they are ordered.
-# This allows us to not worry about converting types and swapping all the time.
+# This allows us to not worry about converting types and swapping all the time. It also
+# assumes from and to are valid positions in the bitstring.
 @inline function _move_particle(chunk::T, from::T, to::T) where {T<:Unsigned}
     # Masks that locate positions `from` and `to`.
     from_mask = T(1) << (from - T(1))
     to_mask = T(1) << (to - T(1))
 
-    if (from_mask & chunk > 0) == (to_mask & chunk > 0)
-        # Illegal move
-        return chunk, 0
-    else
-        # Mask for counting how many particles lie between them.
-        between_mask = ((T(1) << (to - from - T(1))) - T(1)) << from
+    # Mask for counting how many particles lie between them.
+    between_mask = ((T(1) << (to - from - T(1))) - T(1)) << from
 
-        chunk ⊻= from_mask | to_mask
-        num_between = count_ones(chunk & between_mask)
-        return chunk, ifelse(iseven(num_between), 1, -1)
-    end
+    chunk ⊻= from_mask | to_mask
+    num_between = count_ones(chunk & between_mask)
+    return chunk, ifelse(iseven(num_between), 1, -1)
 end
 @inline function _move_particle(a::FermiFS{<:Any,<:Any,S}, from::UInt64, to::UInt64) where {S}
     # Ensure they are ordered.
@@ -203,22 +200,17 @@ end
     else
         from_mask = UInt64(1) << from_offset
         to_mask = UInt64(1) << to_offset
-        if (result[i] & from_mask > 0) == (result[j] & to_mask > 0)
-            # Illegal move
-            return a, 0
-        else
-            result = setindex(result, result[i] ⊻ from_mask, i % Int)
-            result = setindex(result, result[j] ⊻ to_mask, j % Int)
+        result = setindex(result, result[i] ⊻ from_mask, i % Int)
+        result = setindex(result, result[j] ⊻ to_mask, j % Int)
 
-            count = (
-                count_ones(result[i] & (-UInt64(1) << (from_offset + UInt(1)))) +
-                count_ones(result[j] & ~(-UInt64(1) << to_offset))
-            )
-            for k in j+1:i-1
-                count += count_ones(result[k])
-            end
-            value = ifelse(iseven(count), 1, -1)
+        count = (
+            count_ones(result[i] & (-UInt64(1) << (from_offset + UInt(1)))) +
+            count_ones(result[j] & ~(-UInt64(1) << to_offset))
+        )
+        for k in j+1:i-1
+            count += count_ones(result[k])
         end
+        value = ifelse(iseven(count), 1, -1)
     end
     return typeof(a)(S(result)), value
 end
