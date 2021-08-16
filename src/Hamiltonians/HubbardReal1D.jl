@@ -68,22 +68,22 @@ end
 
 @inline function bose_hubbard_interaction(_, b::BoseFS)
     result = 0
-    for (n, _, _) in occupied_orbitals(b)
+    for (n, _, _) in occupied_modes(b)
         result += n * (n - 1)
     end
     return result
 end
 
 @inline function bose_hubbard_interaction(::Val{1}, b::BoseFS)
-    # currently this ammounts to counting occupation numbers of orbitals
+    # currently this ammounts to counting occupation numbers of modes
     chunk = chunks(b.bs)[1]
     matrixelementint = 0
     while !iszero(chunk)
-        chunk >>>= (trailing_zeros(chunk) % UInt) # proceed to next occupied orbital
+        chunk >>>= (trailing_zeros(chunk) % UInt) # proceed to next occupied mode
         bosonnumber = trailing_ones(chunk) # count how many bosons inside
         # surpsingly it is faster to not check whether this is nonzero and do the
         # following operations anyway
-        chunk >>>= (bosonnumber % UInt) # remove the counted orbital
+        chunk >>>= (bosonnumber % UInt) # remove the counted mode
         matrixelementint += bosonnumber * (bosonnumber - 1)
     end
     return matrixelementint

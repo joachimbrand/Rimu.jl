@@ -4,7 +4,7 @@
 Address type that constructed with two [`BoseFS{N,M,S}`](@ref). It represents a
 Fock state with two components, e.g. two different species of bosons with particle
 number `NA` from species S and particle number `NB` from species B. The number of
-orbitals `M` is expected to be the same for both components.
+modes `M` is expected to be the same for both components.
 """
 struct BoseFS2C{NA,NB,M,SA,SB} <: AbstractFockAddress
     bsa::BoseFS{NA,M,SA}

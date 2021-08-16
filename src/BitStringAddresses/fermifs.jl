@@ -7,9 +7,9 @@ end
 function FermiFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,C,T,S<:BitString{M,C,T}}
     @boundscheck sum(onr) == N && all(in((0, 1)), onr) || error("Invalid ONR: may only contain 0s and 1s.")
     result = zero(SVector{C,T})
-    for orbital in 1:M
-        iszero(onr[orbital]) && continue
-        minus_j, offset = fldmod(orbital - 1, 64)
+    for mode in 1:M
+        iszero(onr[mode]) && continue
+        minus_j, offset = fldmod(mode - 1, 64)
         j = C - minus_j
         new = result[j] | T(1) << T(offset)
         result = setindex(result, new, j)
@@ -47,20 +47,20 @@ end
 
 onr(a::FermiFS) = SVector(m_onr(a))
 
-struct FermiOccupiedOrbitals{N,S}
+struct FermiOccupiedModes{N,S}
     bs::S
 end
 
 """
-    occupied_orbitals(f::FermiFS)
+    occupied_modes(f::FermiFS)
 
-Iterate over occupied orbitals in `FermiFS` address. Iterates values of type `Int`.
+Iterate over occupied modes in `FermiFS` address. Iterates values of type `Int`.
 
 # Example
 
 ```jldoctest
 julia> f = FermiFS((1,1,0,1,0,0,1))
-julia> for i in occupied_orbitals(f)
+julia> for i in occupied_modes(f)
     @show i
 end
 i = 1
@@ -69,10 +69,10 @@ i = 4
 i = 7
 ```
 """
-occupied_orbitals(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedOrbitals{N,S}(a.bs)
+occupied_modes(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedModes{N,S}(a.bs)
 
-Base.length(o::FermiOccupiedOrbitals{N}) where {N} = N
-function Base.iterate(o::FermiOccupiedOrbitals)
+Base.length(o::FermiOccupiedModes{N}) where {N} = N
+function Base.iterate(o::FermiOccupiedModes)
     c = 0
     chunk = o.bs.chunks[end]
     while iszero(chunk)
@@ -82,7 +82,7 @@ function Base.iterate(o::FermiOccupiedOrbitals)
     zeros = trailing_zeros(chunk % Int)
     return iterate(o, (chunk >> (zeros % UInt64), c * 64 + zeros, c))
 end
-function Base.iterate(o::FermiOccupiedOrbitals, st)
+function Base.iterate(o::FermiOccupiedModes, st)
     chunk, index, c = st
     while iszero(chunk)
         c += 1
@@ -96,12 +96,12 @@ function Base.iterate(o::FermiOccupiedOrbitals, st)
     return index + 1, (chunk >> 1, index + 1, c)
 end
 
-function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}) where {T}
+function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}) where {T}
     chunk = o.bs.chunks[end]
     zeros = trailing_zeros(chunk % Int)
     return iterate(o, (chunk >> (zeros % T), zeros))
 end
-function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}, st) where {T}
+function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}, st) where {T}
     chunk, index = st
     iszero(chunk) && return nothing
     chunk >>= 0x1
@@ -110,8 +110,8 @@ function Base.iterate(o::FermiOccupiedOrbitals{<:Any,<:BitString{<:Any,1,T}}, st
     return index, (chunk >> (zeros % T), index + zeros)
 end
 
-function find_particle(a::FermiFS, i)
-    for k in occupied_orbitals(a)
+function find_occupied_mode(a::FermiFS, i)
+    for k in occupied_modes(a)
         i -= 1
         i == 0 && return k
     end
@@ -121,19 +121,19 @@ end
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
     result = zero(MVector{M,Int32})
     j = num_chunks(a.bs)
-    @inbounds for orbital in occupied_orbitals(a)
-        result[orbital] = 1
+    @inbounds for mode in occupied_modes(a)
+        result[mode] = 1
     end
     return result
 end
 
-function is_occupied(a::FermiFS{<:Any,M,S}, orbital) where {M,T,S<:BitString{<:Any,1,T}}
-    @boundscheck 1 ≤ orbital ≤ M || throw(BoundsError(a, orbital))
-    return a.bs.chunks[1] & (T(1) << (i - 1) % T) > 0
+function is_occupied(a::FermiFS{<:Any,M,S}, mode) where {M,T,S<:BitString{<:Any,1,T}}
+    @boundscheck 1 ≤ mode ≤ M || throw(BoundsError(a, mode))
+    return a.bs.chunks[1] & (T(1) << (mode - 1) % T) > 0
 end
-function is_occupied(a::FermiFS{<:Any,M}, orbital) where {M}
-    @boundscheck 1 ≤ orbital ≤ M || throw(BoundsError(a, orbital))
-    j, i = fldmod1(orbital, 64)
+function is_occupied(a::FermiFS{<:Any,M}, mode) where {M}
+    @boundscheck 1 ≤ mode ≤ M || throw(BoundsError(a, mode))
+    j, i = fldmod1(mode, 64)
     return a.bs.chunks[end + 1 - j] & (UInt(1) << UInt(i - 1)) > 0
 end
 

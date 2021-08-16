@@ -143,7 +143,7 @@ end
 end
 
 @inline function numberoccupiedsites(_, b::BoseFS)
-    # This version is faster than using the occupied_orbital iterator
+    # This version is faster than using the occupied_mode iterator
     address = b.bs
     result = 0
     K = num_chunks(address)
@@ -170,7 +170,7 @@ end
     new_address, product = hopnextneighbour(add, chosen)
 
 Compute the new address of a hopping event for the Bose-Hubbard model. Returns the new
-address and the product of occupation numbers of the involved orbitals.
+address and the product of occupation numbers of the involved modes.
 
 The off-diagonals are indexed as follows:
 
@@ -200,7 +200,7 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
         offset = 0
         sc = 0
         reached_end = false
-        for (i, (num, sn, bit)) in enumerate(occupied_orbitals(b))
+        for (i, (num, sn, bit)) in enumerate(occupied_modes(b))
             next = num * (sn == sc + 1) # only set next to > 0 if sites are neighbours
             reached_end = i == site + 1
             reached_end && break
@@ -226,7 +226,7 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
             curr = 0
             offset = 0
             sp = 0
-            for (i, (num, sc, bit)) in enumerate(occupied_orbitals(b))
+            for (i, (num, sc, bit)) in enumerate(occupied_modes(b))
                 prev = curr * (sc == sp + 1) # only set prev to > 0 if sites are neighbours
                 curr = num
                 offset = bit

@@ -1,7 +1,7 @@
 """
     BoseFS{N,M,S} <: AbstractFockAddress
 
-Address type that represents a Fock state of `N` spinless bosons in `M` orbitals
+Address type that represents a Fock state of `N` spinless bosons in `M` modes
 by wrapping a bitstring of type `S <: BitString`.
 
 # Constructors
@@ -113,7 +113,7 @@ num_modes(::Type{BoseFS{N,M,S}}) where {N,M,S} = M
     near_uniform_onr(N, M) -> onr::SVector{M,Int}
 
 Create occupation number representation `onr` distributing `N` particles in `M`
-modes in a close-to-uniform fashion with each orbital filled with at least
+modes in a close-to-uniform fashion with each mode filled with at least
 `N ÷ M` particles and at most with `N ÷ M + 1` particles.
 """
 function near_uniform_onr(n::Number, m::Number)
@@ -154,7 +154,7 @@ near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
     onr(bs)
 
 Compute and return the occupation number representation of the bit string
-address `bs` as an `SVector{M,Int32}`, where `M` is the number of orbitals.
+address `bs` as an `SVector{M,Int32}`, where `M` is the number of modes.
 """
 onr(bba::BoseFS) = SVector(m_onr(bba))
 
@@ -162,7 +162,7 @@ onr(bba::BoseFS) = SVector(m_onr(bba))
     m_onr(bs)
 
 Compute and return the occupation number representation of the bit string
-address `bs` as an `MVector{M,Int32}`, where `M` is the number of orbitals.
+address `bs` as an `MVector{M,Int32}`, where `M` is the number of modes.
 """
 @inline m_onr(bba::BoseFS) = m_onr(Val(num_chunks(bba.bs)), bba)
 
@@ -170,9 +170,9 @@ address `bs` as an `MVector{M,Int32}`, where `M` is the number of orbitals.
 @inline function m_onr(::Val{1}, bba::BoseFS{N,M}) where {N,M}
     result = zeros(MVector{M,Int32})
     address = bba.bs
-    for orbital in 1:M
+    for mode in 1:M
         bosons = Int32(trailing_ones(address))
-        @inbounds result[orbital] = bosons
+        @inbounds result[mode] = bosons
         address >>>= (bosons + 1) % UInt
         iszero(address) && break
     end
@@ -185,23 +185,23 @@ end
     B = num_bits(bba.bs)
     result = zeros(MVector{M,Int32})
     address = bba.bs
-    orbital = 1
+    mode = 1
     i = K
     while true
         chunk = chunks(address)[i]
         bits_left = chunk_bits(address, i)
         while !iszero(chunk)
             bosons = trailing_ones(chunk)
-            @inbounds result[orbital] += unsafe_trunc(Int32, bosons)
+            @inbounds result[mode] += unsafe_trunc(Int32, bosons)
             chunk >>>= bosons % UInt
             empty_modes = trailing_zeros(chunk)
-            orbital += empty_modes
+            mode += empty_modes
             chunk >>>= empty_modes % UInt
             bits_left -= bosons + empty_modes
         end
         i == 1 && break
         i -= 1
-        orbital += bits_left
+        mode += bits_left
     end
     return result
 end
@@ -214,30 +214,30 @@ Convenience struct for indexing into a fock state.
 ## Fields:
 
 * `occnum`: the occupation number.
-* `site`: the index of the site.
-* `offset`: the bit offset of the site.
+* `mode`: the index of the mode.
+* `offset`: the bit offset of the mode.
 """
 struct BoseFSIndex <: FieldVector{3,Int}
     occnum::Int
-    site::Int
+    mode::Int
     offset::Int
 end
 
-struct OccupiedOrbitalIterator{C,S}
+struct BoseOccupiedModes{C,S}
     address::S
 end
 
 """
-    occupied_orbitals(b::BoseFS)
+    occupied_modes(b::BoseFS)
 
-Iterate over occupied orbitals in `BoseFS` address. Iterates values of type
+Iterate over occupied modes in `BoseFS` address. Iterates values of type
 [`BoseFSIndex`](@ref).
 
 # Example
 
 ```jldoctest
 julia> b = BoseFS((1,5,0,4))
-julia> for (n, i, o) in occupied_orbitals(b)
+julia> for (n, i, o) in occupied_modes(b)
     @show n, i, o
 end
 (n, i, o) = (1, 1, 0)
@@ -245,61 +245,61 @@ end
 (n, i, o) = (4, 4, 9)
 ```
 """
-function occupied_orbitals(b::BoseFS{<:Any,<:Any,S}) where {S}
-    return OccupiedOrbitalIterator{num_chunks(S),S}(b.bs)
+function occupied_modes(b::BoseFS{<:Any,<:Any,S}) where {S}
+    return BoseOccupiedModes{num_chunks(S),S}(b.bs)
 end
 
 # Single chunk versions are simpler.
-@inline function Base.iterate(osi::OccupiedOrbitalIterator{1})
+@inline function Base.iterate(osi::BoseOccupiedModes{1})
     chunk = osi.address.chunks[1]
-    empty_orbitals = trailing_zeros(chunk)
+    empty_modes = trailing_zeros(chunk)
     return iterate(
-        osi, (chunk >> (empty_orbitals % UInt), empty_orbitals, 1 + empty_orbitals)
+        osi, (chunk >> (empty_modes % UInt), empty_modes, 1 + empty_modes)
     )
 end
-@inline function Base.iterate(osi::OccupiedOrbitalIterator{1}, (chunk, bit, orbital))
+@inline function Base.iterate(osi::BoseOccupiedModes{1}, (chunk, bit, mode))
     if iszero(chunk)
         return nothing
     else
         bosons = trailing_ones(chunk)
         chunk >>>= (bosons % UInt)
-        empty_orbitals = trailing_zeros(chunk)
-        chunk >>>= (empty_orbitals % UInt)
-        next_bit = bit + bosons + empty_orbitals
-        next_orbital = orbital + empty_orbitals
-        return BoseFSIndex(bosons, orbital, bit), (chunk, next_bit, next_orbital)
+        empty_modes = trailing_zeros(chunk)
+        chunk >>>= (empty_modes % UInt)
+        next_bit = bit + bosons + empty_modes
+        next_mode = mode + empty_modes
+        return BoseFSIndex(bosons, mode, bit), (chunk, next_bit, next_mode)
     end
 end
 
 # Multi-chunk version
-@inline function Base.iterate(osi::OccupiedOrbitalIterator)
+@inline function Base.iterate(osi::BoseOccupiedModes)
     address = osi.address
     i = num_chunks(address)
     chunk = chunks(address)[i]
     bits_left = chunk_bits(address, i)
-    orbital = 1
-    return iterate(osi, (i, chunk, bits_left, orbital))
+    mode = 1
+    return iterate(osi, (i, chunk, bits_left, mode))
 end
-@inline function Base.iterate(osi::OccupiedOrbitalIterator, (i, chunk, bits_left, orbital))
+@inline function Base.iterate(osi::BoseOccupiedModes, (i, chunk, bits_left, mode))
     i < 1 && return nothing
     address = osi.address
     S = typeof(address)
     bit_position = 0
 
     # Remove and count trailing zeros.
-    empty_orbitals = min(trailing_zeros(chunk), bits_left)
-    chunk >>>= empty_orbitals % UInt
-    bits_left -= empty_orbitals
-    orbital += empty_orbitals
+    empty_modes = min(trailing_zeros(chunk), bits_left)
+    chunk >>>= empty_modes % UInt
+    bits_left -= empty_modes
+    mode += empty_modes
     while bits_left < 1
         i -= 1
         i < 1 && return nothing
         @inbounds chunk = chunks(address)[i]
         bits_left = chunk_bits(S, i)
-        empty_orbitals = min(bits_left, trailing_zeros(chunk))
-        orbital += empty_orbitals
-        bits_left -= empty_orbitals
-        chunk >>>= empty_orbitals % UInt
+        empty_modes = min(bits_left, trailing_zeros(chunk))
+        mode += empty_modes
+        bits_left -= empty_modes
+        chunk >>>= empty_modes % UInt
     end
 
     bit_position = chunk_bits(S, i) - bits_left + 64 * (num_chunks(address) - i)
@@ -321,31 +321,31 @@ end
         result += bosons
         chunk >>>= bosons % UInt
     end
-    return BoseFSIndex(result, orbital, bit_position), (i, chunk, bits_left, orbital)
+    return BoseFSIndex(result, mode, bit_position), (i, chunk, bits_left, mode)
 end
 
-function find_site(b::BoseFS, index)
-    last_occnum = last_site = last_offset = 0
-    for (occnum, site, offset) in occupied_orbitals(b)
-        dist = index - site
+function find_mode(b::BoseFS, index)
+    last_occnum = last_mode = last_offset = 0
+    for (occnum, mode, offset) in occupied_modes(b)
+        dist = index - mode
         if dist == 0
             return BoseFSIndex(occnum, index, offset)
         elseif dist < 0
             return BoseFSIndex(0, index, offset + dist)
         end
         last_occnum = occnum
-        last_site = site
+        last_mode = mode
         last_offset = offset
     end
-    offset = last_offset + last_occnum + index - last_site
+    offset = last_offset + last_occnum + index - last_mode
     return BoseFSIndex(0, index, offset)
 end
 
-function find_particle(b::BoseFS, index, n=1)
-    for (occnum, site, offset) in occupied_orbitals(b)
+function find_occupied_mode(b::BoseFS, index, n=1)
+    for (occnum, mode, offset) in occupied_modes(b)
         index -= occnum ≥ n
         if index == 0
-            return BoseFSIndex(occnum, site, offset)
+            return BoseFSIndex(occnum, mode, offset)
         end
     end
     return BoseFSIndex(0, 0, 0)

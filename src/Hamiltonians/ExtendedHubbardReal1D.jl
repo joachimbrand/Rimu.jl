@@ -54,7 +54,7 @@ sum_j n_j n_{j+1} with periodic boundary conditions.
 function extended_bose_hubbard_interaction(b::BoseFS{<:Any,M}) where M
     address = b.bs
     # compute the diagonal matrix element of the Extended Bose Hubbard Hamiltonian
-    # currently this ammounts to counting occupation numbers of orbitals
+    # currently this ammounts to counting occupation numbers of modes
     bhmmatrixelementint = 0
     ebhmmatrixelementint = 0
     bosonnumber2=0
@@ -64,14 +64,14 @@ function extended_bose_hubbard_interaction(b::BoseFS{<:Any,M}) where M
     bhmmatrixelementint += bosonnumber1 * (bosonnumber1-1)
     firstbosonnumber = bosonnumber1 #keap on memory the boson number of the first
     #to do the calculation with the last boson
-    address >>>= bosonnumber1 # remove the countedorbital
+    address >>>= bosonnumber1 # remove the countedmode
     address >>>= 1
     for i in 1:M-1
-        # proceed to next occupied orbital
+        # proceed to next occupied mode
         bosonnumber2 = trailing_ones(address) # count how many bosons inside
         # surpsingly it is faster to not check whether this is nonzero and do the
         # following operations anyway
-        address >>>= bosonnumber2 # remove the countedorbital
+        address >>>= bosonnumber2 # remove the countedmode
         ebhmmatrixelementint += bosonnumber2 * (bosonnumber1)
         bhmmatrixelementint+= bosonnumber2 * (bosonnumber2-1)
         bosonnumber1=bosonnumber2

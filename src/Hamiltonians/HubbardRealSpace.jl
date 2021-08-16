@@ -10,8 +10,8 @@ real_space_interaction(f::FermiFS, g::FermiFS, v) = v * count_ones(f.bs & g.bs)
 real_space_interaction(f::FermiFS, b::BoseFS, v) = real_space_interaction(b, f, v)
 
 function real_space_interaction(a::BoseFS, b::BoseFS, v)
-    occ_a = occupied_orbitals(a)
-    occ_b = occupied_orbitals(b)
+    occ_a = occupied_modes(a)
+    occ_b = occupied_modes(b)
 
     (n_a, i_a, _), st_a = iterate(occ_a)
     (n_b, i_b, _), st_b = iterate(occ_b)
@@ -43,7 +43,7 @@ function real_space_interaction(a::BoseFS, b::BoseFS, v)
 end
 function real_space_interaction(b::BoseFS, f::FermiFS, v)
     acc = 0
-    for (n, i) in occupied_orbitals(b)
+    for (n, i) in occupied_modes(b)
         acc += is_occupied(f, i) * n
     end
     return acc * v
@@ -246,13 +246,13 @@ Base.size(o::HubbardRealSpaceBoseOffdiagonals) = (o.length,)
 function Base.getindex(o::HubbardRealSpaceBoseOffdiagonals, chosen)
     neighbours = num_neighbours(o.geometry)
     particle, neigh = fldmod1(chosen, neighbours)
-    i = find_particle(o.address, particle)
-    target_site = neighbour_site(o.geometry, i.site, neigh)
+    i = find_occupied_mode(o.address, particle)
+    target_site = neighbour_site(o.geometry, i.mode, neigh)
     if iszero(target_site)
         # Move is illegal in specified geometry.
         return o.address, 0.0
     else
-        j = find_site(o.address, target_site)
+        j = find_mode(o.address, target_site)
         new_address, onproduct = move_particle(o.address, i, j)
         return new_address, -o.t * √onproduct
     end
@@ -287,7 +287,7 @@ function Base.getindex(o::HubbardRealSpaceFermiOffdiagonals, chosen)
     @boundscheck 1 ≤ chosen ≤ length(o) || throw(BoundsError(o, chosen))
     neighbours = num_neighbours(o.geometry)
     particle, neigh = fldmod1(chosen, neighbours)
-    source_site = find_particle(o.address, particle)
+    source_site = find_occupied_mode(o.address, particle)
     target_site = neighbour_site(o.geometry, source_site, neigh)
     if iszero(target_site)
         return o.address, 0.0

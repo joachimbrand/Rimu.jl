@@ -31,17 +31,17 @@ num_components(b::AbstractFockAddress) = num_components(typeof(b))
 num_components(::Type{<:AbstractFockAddress}) = 1
 
 """
-    find_site(address, i)
+    find_mode(address, i)
 
-Find the `i`-th site in `address`. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and
+Find the `i`-th mode in `address`. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and
 an integer for [`FermiFS`](@ref).
 """
-find_site
+find_mode
 
 """
-    find_particle(address, k)
+    find_occupied_mode(address, k)
 
 Find the `k`-th particle in `address`. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref),
 and an integer for [`FermiFS`](@ref).
 """
-find_particle
+find_occupied_mode

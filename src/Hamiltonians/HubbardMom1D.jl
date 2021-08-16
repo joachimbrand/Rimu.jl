@@ -76,7 +76,7 @@ julia> Hamiltonians.num_singly_doubly_occupied_sites(BoseFS{3,3}((2, 0, 1)))
 function num_singly_doubly_occupied_sites(b::BoseFS)
     singlies = 0
     doublies = 0
-    for (n, _, _) in occupied_orbitals(b)
+    for (n, _, _) in occupied_modes(b)
         singlies += 1
         doublies += n > 1
     end

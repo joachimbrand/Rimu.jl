@@ -1,7 +1,7 @@
 using Rimu
 using Rimu.BitStringAddresses
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
-using Rimu.BitStringAddresses: occupied_orbitals, update_component
+using Rimu.BitStringAddresses: occupied_modes, update_component
 using Random
 using StaticArrays
 using Test
@@ -187,16 +187,16 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
         @test bose_hubbard_interaction(middle_empty) == 8 * 7 + 2
         @test bose_hubbard_interaction(two_full) == 136 * 135
     end
-    @testset "occupied_orbitals" begin
-        (bosons, orbital, bit), st = iterate(occupied_orbitals(middle_full))
+    @testset "occupied_modes" begin
+        (bosons, orbital, bit), st = iterate(occupied_modes(middle_full))
         @test bosons == 1
         @test orbital == 2
         @test bit == 1
-        (bosons, orbital, bit), st = iterate(occupied_orbitals(middle_full), st)
+        (bosons, orbital, bit), st = iterate(occupied_modes(middle_full), st)
         @test bosons == 66
         @test orbital == 63
         @test bit == 63
-        @test isnothing(iterate(occupied_orbitals(middle_full), st))
+        @test isnothing(iterate(occupied_modes(middle_full), st))
     end
     @testset "Randomized tests" begin
         # Note: the random number for these tests will be the same everytime. This is still
@@ -211,7 +211,7 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
         # Should be exactly the same as onr, but slower.
         function onr2(bose::BoseFS{N,M}) where {N,M}
             result = zeros(MVector{M,Int32})
-            for (n, i, _) in occupied_orbitals(bose)
+            for (n, i, _) in occupied_modes(bose)
                 @assert n ≠ 0
                 result[i] = n
             end
@@ -237,27 +237,27 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
             o[j] += 1
             return BoseFS{N}(SVector(o)), (o[i] + 1) * (o[j])
         end
-        # Tests find_particle, find_site, and move_particle.
+        # Tests find_occupied_mode, find_mode, and move_particle.
         function test_move_particle(bose::BoseFS{N,M}) where {N,M}
             onrep = onr(bose)
-            for (i, idx) in enumerate(occupied_orbitals(bose))
+            for (i, idx) in enumerate(occupied_modes(bose))
                 for j in 1:M
-                    idx.site == j && continue # Don't test moving to the same spot
-                    correct = setindex(onrep, onrep[idx.site] - 1, idx.site)
+                    idx.mode == j && continue # Don't test moving to the same spot
+                    correct = setindex(onrep, onrep[idx.mode] - 1, idx.mode)
                     correct = typeof(bose)(setindex(correct, correct[j] + 1, j))
-                    correct_val = onrep[idx.site] * (onrep[j] + 1)
+                    correct_val = onrep[idx.mode] * (onrep[j] + 1)
 
-                    jdx = find_site(bose, j)
+                    jdx = find_mode(bose, j)
                     new_bose, val = move_particle(bose, idx, jdx)
 
-                    if jdx.site ≠ j
-                        error("jdx.site=$(jdx.site) ≠ $(j)")
+                    if jdx.mode ≠ j
+                        error("jdx.mode=$(jdx.mode) ≠ $(j)")
                     elseif new_bose ≠ correct
                         error("new_bose=$(new_bose) ≠ $(correct)")
                     elseif val ≠ correct_val
                         error("val=$(val) ≠ $(correct_val)")
-                    elseif find_particle(bose, i) ≠ idx
-                        error("find_particle(bose, i)=$(find_particle(bose, i)) ≠ $idx")
+                    elseif find_occupied_mode(bose, i) ≠ idx
+                        error("find_occupied_mode(bose, i)=$(find_occupied_mode(bose, i)) ≠ $idx")
                     end
                 end
             end
@@ -283,7 +283,7 @@ using Rimu.Hamiltonians: numberoccupiedsites, bose_hubbard_interaction, hopnextn
                     )
 
                     occupied = [
-                        find_particle(bose, i).site
+                        find_occupied_mode(bose, i).mode
                         for i in 1:numberoccupiedsites(bose)
                     ]
                     @test occupied == findall(!iszero, onr(bose))
@@ -314,11 +314,11 @@ end
         @test_throws ErrorException FermiFS((1, 2, 3))
         @test_throws ErrorException FermiFS{2,3}((1, 1, 1))
     end
-    @testset "occupied_orbitals" begin
+    @testset "occupied_modes" begin
         for o in (small, big, giant)
             f = FermiFS(o)
             sites = Int[]
-            foreach(occupied_orbitals(f)) do i
+            foreach(occupied_modes(f)) do i
                 push!(sites, i)
             end
             @test sites == findall(≠(0), onr(f))
@@ -330,7 +330,7 @@ end
         end
         function test_move_particle(fermi::FermiFS{<:Any,M}) where {M}
             onrep = onr(fermi)
-            for i in occupied_orbitals(fermi)
+            for i in occupied_modes(fermi)
                 for j in 1:M
                     i == j && continue # Don't test moving to the same spot
                     onrep[i] == 1 || error("onrep[$i] ≠ 1 in $onrep")
@@ -370,7 +370,7 @@ end
 
                     f = FermiFS(input)
                     sites = Int[]
-                    foreach(occupied_orbitals(f)) do i
+                    foreach(occupied_modes(f)) do i
                         push!(sites, i)
                     end
                     @test sites == findall(≠(0), onr(f))
