@@ -4,7 +4,7 @@
 Determine the number and type of chunks needed to store `B` bits.
 """
 function num_chunks(::Val{B}) where {B}
-    return if B ≤ 0
+    if B ≤ 0
         throw(ArgumentError("`B` must be positive!"))
     elseif B ≤ 8
         return 1, UInt8
