@@ -1,5 +1,5 @@
 """
-    BoseFS{N,M,S} <: AbstractFockAddress
+    BoseFS{N,M,S} <: SingleComponentFockAddress
 
 Address type that represents a Fock state of `N` spinless bosons in `M` modes
 by wrapping a bitstring of type `S <: BitString`.
@@ -15,9 +15,9 @@ by wrapping a bitstring of type `S <: BitString`.
 * `BoseFS{[N,M,S]}(onr)`: Create `BoseFS{N,M}` from [`onr`](@ref) representation. This is
   efficient as long as at least `N` is provided.
 
-See also: [`FermiFS`](@ref), [`BitString`](@ref).
+See also: [`SingleComponentFockAddress`](@ref), [`FermiFS`](@ref), [`BitString`](@ref).
 """
-struct BoseFS{N,M,S<:BitString} <: AbstractFockAddress
+struct BoseFS{N,M,S<:BitString} <: SingleComponentFockAddress{M}
     bs::S
 end
 
@@ -206,21 +206,6 @@ end
     return result
 end
 
-"""
-    num_occupied_modes(b::BoseFS)
-
-Return the number of occupied modes in address `b`, which is equal to the number of
-non-zeros in its ONR representation.
-
-# Example
-
-```jldoctest
-julia> num_occupied_modes(BoseFS((1, 0, 2)))
-2
-julia> num_occupied_modes(BoseFS((3, 0, 0)))
-1
-```
-"""
 function num_occupied_modes(b::BoseFS{<:Any,<:Any,S}) where S
     return num_occupied_modes(Val(num_chunks(S)), b)
 end
@@ -279,28 +264,10 @@ struct BoseFSIndex<:FieldVector{3,Int}
     offset::Int
 end
 
-struct BoseOccupiedModes{C,S}
+struct BoseOccupiedModes{C,S<:BoseFS}
     address::S
 end
 
-"""
-    occupied_modes(b::BoseFS)
-
-Iterate over occupied modes in `BoseFS` address. Iterates values of type
-[`BoseFSIndex`](@ref).
-
-# Example
-
-```jldoctest
-julia> b = BoseFS((1,5,0,4))
-julia> for (n, i, o) in occupied_modes(b)
-    @show n, i, o
-end
-(n, i, o) = (1, 1, 0)
-(n, i, o) = (5, 2, 2)
-(n, i, o) = (4, 4, 9)
-```
-"""
 function occupied_modes(b::BoseFS{<:Any,<:Any,S}) where {S}
     return BoseOccupiedModes{num_chunks(S),typeof(b)}(b)
 end
@@ -410,16 +377,6 @@ function find_occupied_mode(b::BoseFS, index, n=1)
     return BoseFSIndex(0, 0, 0)
 end
 
-"""
-    move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
-
-Move particle from [`BoseFSIndex`](@ref) `from` to the [`BoseFSIndex`](@ref) `to`.
-
-This is equivalent to applying a destruction operator followed by a creation operator to the
-address.
-
-Return the new Fock state and the product of the occupation numbers.
-"""
 function move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
     occ1 = from.occnum
     occ2 = to.occnum

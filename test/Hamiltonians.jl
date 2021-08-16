@@ -571,7 +571,7 @@ end
     os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
     @test Rimu.Hamiltonians.bose_hubbard_interaction(os) == 148
     @test Rimu.Hamiltonians.extended_bose_hubbard_interaction(os) == (53, 148)
-    @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
+    @test Rimu.Hamiltonians.num_occupied_modes(os) == 9
     hnnn = Rimu.Hamiltonians.hopnextneighbour(BoseFS{25,16}(BitString{40}(0xf342564fff)),3)
     bs = BoseFS(BitString{40}(0xf342564fff))
     hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3)

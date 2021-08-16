@@ -1,4 +1,23 @@
-struct FermiFS{N,M,S<:BitString{M}} <: AbstractFockAddress
+"""
+    FermiFS{N,M,S} <: SingleComponentFockAddress
+
+Address type that represents a Fock state of `N` fermions of the same spin in `M` modes
+by wrapping a bitstring of type `S <: BitString`.
+
+# Constructors
+
+* `FermiFS{N,M}(bs::BitString)`: Unsafe constructor. Does not check whether the number of
+  particles in `bs` is equal to `N`.
+
+* `FermiFS(::BitString)`: Automatically determine `N` and `M`. This constructor is not type
+  stable!
+
+* `FermiFS{[N,M,S]}(onr)`: Create `FermiFS{N,M}` from [`onr`](@ref) representation. This is
+  efficient as long as at least `N` is provided.
+
+See also: [`SingleComponentFockAddress`](@ref), [`BoseFS`](@ref), [`BitString`](@ref).
+"""
+struct FermiFS{N,M,S<:BitString{M}} <: SingleComponentFockAddress{M}
     bs::S
 
     FermiFS{N,M,S}(bs::S) where {N,M,S<:BitString{M}} = new{N,M,S}(bs)
@@ -40,6 +59,8 @@ Base.:(==)(a::FermiFS, b::FermiFS) = a.bs == b.bs
 num_particles(::Type{FermiFS{N,M,S}}) where {N,M,S} = N
 num_modes(::Type{FermiFS{N,M,S}}) where {N,M,S} = M
 num_components(::Type{<:FermiFS}) = 1
+num_occupied_modes(::FermiFS{N}) where {N} = N
+find_mode(::FermiFS, i) = i
 
 function near_uniform(::Type{FermiFS{N,M}}) where {N,M}
     return FermiFS([fill(1, N); fill(0, M - N)])
@@ -47,28 +68,15 @@ end
 
 onr(a::FermiFS) = SVector(m_onr(a))
 
+"""
+    FermiOccupiedModes
+
+Iterator over occupied modes in address. See [`occupied_modes`](@ref).
+"""
 struct FermiOccupiedModes{N,S}
     bs::S
 end
 
-"""
-    occupied_modes(f::FermiFS)
-
-Iterate over occupied modes in `FermiFS` address. Iterates values of type `Int`.
-
-# Example
-
-```jldoctest
-julia> f = FermiFS((1,1,0,1,0,0,1))
-julia> for i in occupied_modes(f)
-    @show i
-end
-i = 1
-i = 2
-i = 4
-i = 7
-```
-"""
 occupied_modes(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedModes{N,S}(a.bs)
 
 Base.length(::FermiOccupiedModes{N}) where {N} = N

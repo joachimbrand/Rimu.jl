@@ -43,7 +43,7 @@ end
 
 @testset "BoseHubbardMom1D" begin
     bfs= BoseFS((1,0,2,1,2,1,1,3))
-    @test Hamiltonians.numberoccupiedsites(bfs) == 7
+    @test Hamiltonians.num_occupied_modes(bfs) == 7
     @test Hamiltonians.num_singly_doubly_occupied_sites(bfs) == (7,3)
     @test Hamiltonians.num_singly_doubly_occupied_sites(onr(bfs)) == Hamiltonians.num_singly_doubly_occupied_sites(bfs)
 
@@ -323,8 +323,8 @@ end
 @testset "BoseFS2C" begin
     bfs2c = BoseFS2C(BoseFS((1,2,0,4)),BoseFS((4,0,3,1)))
     @test typeof(bfs2c) <: BoseFS2C{7,8,4}
-    @test Hamiltonians.numberoccupiedsites(bfs2c.bsa) == 3
-    @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
+    @test num_occupied_modes(bfs2c.bsa) == 3
+    @test num_occupied_modes(bfs2c.bsb) == 3
     @test onr(bfs2c.bsa) == [1,2,0,4]
     @test onr(bfs2c.bsb) == [4,0,3,1]
     @test Hamiltonians.bose_hubbard_2c_interaction(bfs2c) == 8 # n_a*n_b over all sites

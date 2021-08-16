@@ -30,14 +30,12 @@ function near_uniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return BoseFS2C(near_uniform(BoseFS{NA,M}), near_uniform(BoseFS{NB,M}))
 end
 
-const SingleFS{M} = Union{BoseFS{<:Any,M},FermiFS{<:Any,M}}
-
 """
     CompositeFS(addresses...) <: AbstractFockAddress
 
 Used to encode addresses for multi-component models.
 """
-struct CompositeFS{C,M,T<:NTuple{C,SingleFS{M}}} <: AbstractFockAddress
+struct CompositeFS{C,M,T<:NTuple{C,SingleComponentFockAddress{M}}} <: AbstractFockAddress
     components::T
 end
 
