@@ -53,6 +53,7 @@ function Base.show(io::IO, f::FermiFS{N,M}) where {N,M}
     print(io, "FermiFS{$N,$M}(", tuple(onr(f)...), ")")
 end
 
+Base.bitstring(a::FermiFS) = bitstring(a.bs)
 Base.isless(a::FermiFS, b::FermiFS) = isless(a.bs, b.bs)
 Base.hash(a::FermiFS,  h::UInt) = hash(a.bs, h)
 Base.:(==)(a::FermiFS, b::FermiFS) = a.bs == b.bs
