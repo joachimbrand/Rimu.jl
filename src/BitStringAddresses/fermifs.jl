@@ -154,7 +154,7 @@ function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitStrin
         new_chunk, value = _move_particle(a.bs.chunks[1], from % T, to % T)
         return typeof(a)(S(new_chunk)), value
     else
-        return a, 0
+        return a, ifelse(from==to, Int(is_occupied(a, from), 0)
     end
 end
 
@@ -162,7 +162,7 @@ function move_particle(a::FermiFS, from, to)
     if is_occupied(a, from) && !is_occupied(a, to)
         return _move_particle(a, from % UInt64, to % UInt64)
     else
-        return a, 0
+        return a,  ifelse(from==to, Int(is_occupied(a, from), 0)
     end
 end
 

@@ -330,12 +330,13 @@ Base.hash(b::BitString{<:Any,1}, h::UInt) = hash(b.chunks[1], h)
 Base.hash(b::BitString, h::UInt) = hash(b.chunks.data, h)
 
 """
-    partial_left_shift(chunk::Unsigned, i, j)
+    partial_left_shift(bs::BitString, i, j)
 
-Shift a part of the bitstring left or right by one place.
+Shift a part of the bitstring left by one place with boundaries `i < j`.
+In a `BoseFS` bitstring, it moves a particle at offset `i` to the position at
+offset `j`. 
 
-In a `BoseFS` bitstring, it moves a particle from the chunk at offset `j` to the position at
-offset `i`. See: [`bose_move`](@ref).
+See also: [`move_particle`](@ref), [`partial_right_shift`](@ref).
 """
 function partial_left_shift(chunk::T, i, j) where {T<:Unsigned}
     # Mask of one spanning from i to j
@@ -349,6 +350,16 @@ function partial_left_shift(chunk::T, i, j) where {T<:Unsigned}
 
     return shifted_part | intact_part | T(1) << T(i)
 end
+
+"""
+    partial_right_shift(bs::BitString, i, j)
+
+Shift a part of the bitstring right by one place with boundaries `i < j`.
+In a `BoseFS` bitstring, it moves a particle at offset `j` to the position at
+offset `i`. 
+
+See also: [`partial_left_shift`](@ref), [`move_particle`](@ref).
+"""
 function partial_right_shift(chunk::T, i, j) where {T<:Unsigned}
     # Mask of one spanning from i to j
     mask = (T(1) << T(j - i + 1) - T(1)) << T(i)

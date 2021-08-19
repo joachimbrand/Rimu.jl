@@ -31,9 +31,12 @@ function near_uniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
 end
 
 """
-    CompositeFS(addresses...) <: AbstractFockAddress
+    CompositeFS(addresses::SingleComponentFockAddress...) <: AbstractFockAddress
 
-Used to encode addresses for multi-component models.
+Used to encode addresses for multi-component models. All component addresses
+are expected have the same number of modes `M`.
+
+See also: [`BoseFS`](@ref), [`FermiFS`](@ref), [`SingleComponentFockAddress`](@ref), [`num_modes`](@ref)
 """
 struct CompositeFS{C,M,T<:NTuple{C,SingleComponentFockAddress{M}}} <: AbstractFockAddress
     components::T

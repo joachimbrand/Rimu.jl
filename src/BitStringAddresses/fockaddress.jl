@@ -138,10 +138,11 @@ i = 7
 occupied_modes
 
 """
-    move_particle(::SingleComponentFockAddress, i, j)
+    move_particle(add::SingleComponentFockAddress, i, j) -> nadd, α
 
-Move particle from mode `i` to mode `j`. Equivalent to ``a^{\\dagger}_i a_j``.
-Returns the square of the normalization factor.
+Move particle from mode `i` to mode `j`. Equivalent to ``a^{\\dagger}_i a_j |add\\rangle``.
+Returns the new Fock state address `nadd` and integer `α`. For `FermiFS` the factor `α` is the 
+correct (signed) amplitude, whereas for `BoseFS` the correct amplitude is ``\\sqrt{α}``.
 
 Note that the modes in [`BoseFS`](@ref) are indexed by [`BoseFSIndex`](@ref), while the ones
 in [`FermiFS`](@ref) are indexed by integers (see example below).
@@ -166,6 +167,9 @@ julia> j = find_mode(b, i.mode + 1)
 
 julia> move_particle(b, i, j)
 (BoseFS{5,4}((1, 0, 4, 0)), 4)
+
+julia> move_particle(b, j, j)
+(BoseFS{5,4}((1, 1, 3, 0)), 9)
 ```
 
 ```jldoctest

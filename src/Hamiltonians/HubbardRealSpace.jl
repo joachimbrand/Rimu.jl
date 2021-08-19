@@ -55,8 +55,9 @@ end
 """
     _interaction_col(a, bs::Tuple, us::Tuple)
 
-Compute all interacitons in a column (below the diagonal). `a` is the address on the left-hand
-side of the interaction, and `bs` and `us` are the right-hand side addresses and interactions.
+Sum the local interactions of the Fock state `a` with all states in `bs` using the 
+interaction constants in `us`. This is used to compute all interactions in the column 
+below the diagonal of the interaction matrix.
 """
 @inline _interaction_col(a, ::Tuple{}, ::Tuple{}) = 0
 @inline function _interaction_col(a, (b, bs...), (u, us...))
@@ -107,8 +108,8 @@ end
 """
     HubbardRealSpace(address; u=ones(C, C), t=ones(C), geometry=PeriodicBoundaries(M,))
 
-General Hubbard model in real space. Supports various different kinds of particle sizes and
-geometries.
+Hubbard model in real space. Supports single or multi-component Fock state 
+addresses (with `C` components) and various (rectangular) lattice geometries.
 
 ```math
 ```
