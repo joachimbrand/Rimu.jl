@@ -3,7 +3,7 @@
 
 Supertype representing a Fock state.
 """
-abstract type AbstractFockAddress end
+abstract type AbstractFockAddress{N,M} end
 
 """
     num_particles(::Type{<:AbstractFockAddress})
@@ -11,7 +11,8 @@ abstract type AbstractFockAddress end
 
 Number of particles represented by address.
 """
-num_particles(b::AbstractFockAddress) = num_particles(typeof(b))
+num_particles(a::AbstractFockAddress) = num_particles(typeof(a))
+num_particles(::Type{<:AbstractFockAddress{N}}) where {N} = N
 
 """
     num_modes(::Type{<:AbstractFockAddress})
@@ -19,7 +20,8 @@ num_particles(b::AbstractFockAddress) = num_particles(typeof(b))
 
 Number of modes represented by address.
 """
-num_modes(b::AbstractFockAddress) = num_modes(typeof(b))
+num_modes(a::AbstractFockAddress) = num_modes(typeof(a))
+num_modes(::Type{<:AbstractFockAddress{<:Any,M}}) where {M} = M
 
 """
     num_components(::Type{<:AbstractFockAddress})
@@ -28,7 +30,6 @@ num_modes(b::AbstractFockAddress) = num_modes(typeof(b))
 Number of components in address.
 """
 num_components(b::AbstractFockAddress) = num_components(typeof(b))
-num_components(::Type{<:AbstractFockAddress}) = 1
 
 """
     SingleComponentFockAddress{M}
@@ -46,7 +47,9 @@ Implemented subtypes: [`BoseFS`](@ref), [`FermiFS`](@ref).
 * [`move_particle`](@ref)
 
 """
-abstract type SingleComponentFockAddress{M} <: AbstractFockAddress end
+abstract type SingleComponentFockAddress{N,M} <: AbstractFockAddress{N,M} end
+
+num_components(::Type{<:SingleComponentFockAddress}) = 1
 
 """
     find_mode(::SingleComponentFockAddress, i)
@@ -141,7 +144,7 @@ occupied_modes
     move_particle(add::SingleComponentFockAddress, i, j) -> nadd, α
 
 Move particle from mode `i` to mode `j`. Equivalent to ``a^{\\dagger}_i a_j |add\\rangle``.
-Returns the new Fock state address `nadd` and integer `α`. For `FermiFS` the factor `α` is the 
+Returns the new Fock state address `nadd` and integer `α`. For `FermiFS` the factor `α` is the
 correct (signed) amplitude, whereas for `BoseFS` the correct amplitude is ``\\sqrt{α}``.
 
 Note that the modes in [`BoseFS`](@ref) are indexed by [`BoseFSIndex`](@ref), while the ones

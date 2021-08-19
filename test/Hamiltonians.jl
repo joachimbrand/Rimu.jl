@@ -458,24 +458,20 @@ end
         ###
         ### Define Hamiltonian from a matrix.
         ###
-        struct IntAddress <: AbstractFockAddress
-            v::Int
-        end
-
         struct MatrixHam{T} <: AbstractHamiltonian{T}
             arr::Matrix{T}
         end
 
-        Rimu.diagonal_element(m::MatrixHam, i) = m.arr[i.v, i.v]
+        Rimu.diagonal_element(m::MatrixHam, i) = m.arr[i, i]
         Rimu.num_offdiagonals(m::MatrixHam, i) = size(m.arr, 1) - 1
         function Rimu.get_offdiagonal(m::MatrixHam, i, j)
-            if j ≥ i.v # skip diagonal
+            if j ≥ i # skip diagonal
                 j += 1
             end
-            return IntAddress(j), m.arr[i.v, j]
+            return j, m.arr[i, j]
         end
 
-        Rimu.starting_address(::MatrixHam) = IntAddress(1)
+        Rimu.starting_address(::MatrixHam) = 1
 
         LinearAlgebra.adjoint(m::MatrixHam) = MatrixHam(collect(m.arr'))
         Hamiltonians.LOStructure(::Type{<:MatrixHam}) = AdjointKnown()

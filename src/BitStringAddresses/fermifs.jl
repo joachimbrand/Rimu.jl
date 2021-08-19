@@ -17,7 +17,7 @@ by wrapping a bitstring of type `S <: BitString`.
 
 See also: [`SingleComponentFockAddress`](@ref), [`BoseFS`](@ref), [`BitString`](@ref).
 """
-struct FermiFS{N,M,S<:BitString{M}} <: SingleComponentFockAddress{M}
+struct FermiFS{N,M,S<:BitString{M}} <: SingleComponentFockAddress{N,M}
     bs::S
 
     FermiFS{N,M,S}(bs::S) where {N,M,S<:BitString{M}} = new{N,M,S}(bs)
@@ -57,9 +57,6 @@ Base.bitstring(a::FermiFS) = bitstring(a.bs)
 Base.isless(a::FermiFS, b::FermiFS) = isless(a.bs, b.bs)
 Base.hash(a::FermiFS,  h::UInt) = hash(a.bs, h)
 Base.:(==)(a::FermiFS, b::FermiFS) = a.bs == b.bs
-num_particles(::Type{FermiFS{N,M,S}}) where {N,M,S} = N
-num_modes(::Type{FermiFS{N,M,S}}) where {N,M,S} = M
-num_components(::Type{<:FermiFS}) = 1
 num_occupied_modes(::FermiFS{N}) where {N} = N
 find_mode(::FermiFS, i) = i
 
@@ -149,20 +146,22 @@ function is_occupied(a::FermiFS{<:Any,M}, mode) where {M}
 end
 
 function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitString{<:Any,1,T}}
-    if is_occupied(a, from) && !is_occupied(a, to)
+    occ_from = is_occupied(a, from)
+    if occ_from && !is_occupied(a, to)
         from, to = minmax(from, to)
         new_chunk, value = _move_particle(a.bs.chunks[1], from % T, to % T)
         return typeof(a)(S(new_chunk)), value
     else
-        return a, ifelse(from==to, Int(is_occupied(a, from), 0)
+        return a, ifelse(from==to, Int(occ_from), 0)
     end
 end
 
 function move_particle(a::FermiFS, from, to)
-    if is_occupied(a, from) && !is_occupied(a, to)
+    occ_from = is_occupied(a, from)
+    if occ_from && !is_occupied(a, to)
         return _move_particle(a, from % UInt64, to % UInt64)
     else
-        return a,  ifelse(from==to, Int(is_occupied(a, from), 0)
+        return a, ifelse(from==to, Int(occ_from), 0)
     end
 end
 

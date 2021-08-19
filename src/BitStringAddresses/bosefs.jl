@@ -17,7 +17,7 @@ by wrapping a bitstring of type `S <: BitString`.
 
 See also: [`SingleComponentFockAddress`](@ref), [`FermiFS`](@ref), [`BitString`](@ref).
 """
-struct BoseFS{N,M,S<:BitString} <: SingleComponentFockAddress{M}
+struct BoseFS{N,M,S<:BitString} <: SingleComponentFockAddress{N,M}
     bs::S
 end
 
@@ -106,8 +106,6 @@ Base.bitstring(b::BoseFS) = bitstring(b.bs)
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.:(==)(a::BoseFS, b::BoseFS) = a.bs == b.bs
-num_particles(::Type{BoseFS{N,M,S}}) where {N,M,S} = N
-num_modes(::Type{BoseFS{N,M,S}}) where {N,M,S} = M
 
 """
     near_uniform_onr(N, M) -> onr::SVector{M,Int}

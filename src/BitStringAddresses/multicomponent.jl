@@ -6,14 +6,19 @@ Fock state with two components, e.g. two different species of bosons with partic
 number `NA` from species S and particle number `NB` from species B. The number of
 modes `M` is expected to be the same for both components.
 """
-struct BoseFS2C{NA,NB,M,SA,SB} <: AbstractFockAddress
+struct BoseFS2C{NA,NB,M,SA,SB,N} <: AbstractFockAddress{N,M}
     bsa::BoseFS{NA,M,SA}
     bsb::BoseFS{NB,M,SB}
+
 end
 
+function BoseFS2C(bsa::BoseFS{NA,M,SA}, bsb::BoseFS{NB,M,SB}) where {NA,NB,M,SA,SB}
+    N = NA + NB
+    return BoseFS2C{NA,NB,M,SA,SB,N}(bsa, bsb)
+end
 BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
 
-function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+function Base.show(io::IO, b::BoseFS2C)
     print(io, "BoseFS2C(")
     Base.show(io,b.bsa)
     print(io, ",")
@@ -21,8 +26,6 @@ function Base.show(io::IO, b::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     print(io, ")")
 end
 
-num_particles(::Type{<:BoseFS2C{NA,NB}}) where {NA,NB} = NA + NB
-num_modes(::Type{<:BoseFS2C{<:Any,<:Any,M}}) where {M} = M
 num_components(::Type{<:BoseFS2C}) = 2
 Base.isless(a::T, b::T) where {T<:BoseFS2C} = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
 
@@ -38,15 +41,25 @@ are expected have the same number of modes `M`.
 
 See also: [`BoseFS`](@ref), [`FermiFS`](@ref), [`SingleComponentFockAddress`](@ref), [`num_modes`](@ref)
 """
-struct CompositeFS{C,M,T<:NTuple{C,SingleComponentFockAddress{M}}} <: AbstractFockAddress
+struct CompositeFS{C,N,M,T} <: AbstractFockAddress{N,M}
     components::T
+
+    function CompositeFS{C,N,M,T}(adds::T) where {C,N,M,T}
+        return new{C,N,M,T}(adds)
+    end
 end
 
-CompositeFS(adds::Vararg{AbstractFockAddress}) = CompositeFS(adds)
+# Slow constructor - not to be used internallly
+function CompositeFS(adds::Vararg{AbstractFockAddress}) # CompositeFS(adds)
+    N = sum(num_particles, adds)
+    M1, M2 = extrema(num_modes, adds)
+    if M1 ≠ M2
+        error("all addresses must have the same number of modes")
+    end
+    return CompositeFS{length(adds),N,M1,typeof(adds)}(adds)
+end
 
 num_components(::CompositeFS{C}) where {C} = C
-num_modes(::CompositeFS{<:Any,M}) where {M} = M
-num_particles(c::CompositeFS) = sum(num_particles, c.components)
 Base.hash(c::CompositeFS, u::UInt) = hash(c.components, u)
 
 function Base.show(io::IO, c::CompositeFS{C}) where {C}
@@ -57,6 +70,12 @@ function Base.show(io::IO, c::CompositeFS{C}) where {C}
     print(io, ")")
 end
 
+"""
+    update_component(c::CompositeFS, new, ::Val{i})
+
+Replace the `i`-th component in `c` with `new`. Used for updating a single component in the
+address.
+"""
 function update_component(c::CompositeFS, new, ::Val{I}) where {I}
     return typeof(c)(_update_component(c.components, new, Val(I)))
 end
