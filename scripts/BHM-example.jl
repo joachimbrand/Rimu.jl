@@ -80,6 +80,7 @@ df, state = lomc!(Ĥ,svec;
             r_strat = r_strat,
             τ_strat = t_strat,
             post_step = post_step,
+            threading = false, # only for reproducible runs
 )
 println("Writing data to disk...")
 # Saving output data stored in `df` into a `.arrow` file which can be read in later:

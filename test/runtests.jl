@@ -5,6 +5,7 @@ using SafeTestsets
 using Statistics
 using Suppressor
 using Test
+using Rimu.StatsTools, Rimu.RimuIO
 
 # assuming VERSION ≥ v"1.6"
 # the following is needed because random numbers of collections are computed
@@ -409,4 +410,15 @@ end
     else
         @info "not testing MPI on CI"
     end
+end
+
+@testset "example script" begin
+    include("../scripts/BHM-example.jl")
+    df = load_df("fciqmcdata.arrow")
+    qmcdata = last(df,steps_measure)
+    (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
+    @test qmcShift ≈ -4.122605
+
+    # clean up
+    rm("fciqmcdata.arrow", force=true)
 end
