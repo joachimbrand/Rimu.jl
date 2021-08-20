@@ -55,10 +55,14 @@ Rimu.ConsistentRNG.seedCRNG!(17)
 params = RunTillLastStep(dτ = dτ, laststep = steps_equilibrate + steps_measure)
 # Strategy for updating the shift:
 s_strat = DoubleLogUpdate(targetwalkers = targetwalkers, ζ = 0.08)
-# Strategy for reporting info and setting projectors:
-r_strat = ReportDFAndInfo(k = k, i = 100, projector = copy(svec))
+# Strategy for reporting info:
+r_strat = ReportDFAndInfo(k = k, i = 100)
 # Strategy for updating dτ:
 t_strat = ConstantTimeStep()
+# set up the calculation and reporting of the projected energy
+# in this case we are projecting onto the starting vector,
+# which contains a single configuration
+post_step = ProjectedEnergy(Ĥ, copy(svec))
 
 # Print out info about what we are doing:
 println("Finding ground state for:")
@@ -74,7 +78,9 @@ df, state = lomc!(Ĥ,svec;
             laststep = steps_equilibrate + steps_measure,
             s_strat = s_strat,
             r_strat = r_strat,
-            τ_strat = t_strat);
+            τ_strat = t_strat,
+            post_step = post_step,
+)
 println("Writing data to disk...")
 # Saving output data stored in `df` into a `.arrow` file which can be read in later:
 save_df("fciqmcdata.arrow", df)
