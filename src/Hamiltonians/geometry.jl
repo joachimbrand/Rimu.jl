@@ -9,11 +9,8 @@ Currently only supported by [`HubbardRealSpace`](@ref).
 ## Interface to implement
 
 * `Base.size`: return the lattice size.
-
-* [`neighbour_site(::LatticeGeometry, ::Int, ::Int)`](@ref): find a neighbour of given
-  site.
-* [`num_neighbours`](::LatticeGeometry): return the number of neighbours a site in the
-  lattice has.
+* [`neighbour_site(::LatticeGeometry, ::Int, ::Int)`](@ref)
+* [`num_neighbours(::LatticeGeometry)`](@ref)
 
 ## Available implementations
 
@@ -39,6 +36,10 @@ neighbour_site
     num_neighbours(geom::LatticeGeometry)
 
 Return the number of neighbours each lattice site has in this geometry.
+
+Note that for efficiency reasons, all sites are expected to have the same number of
+neighbours. If some of the neighbours are invalid, this is handled by having
+[`neighbour_site`](@ref) return 0.
 """
 num_neighbours
 
@@ -46,9 +47,31 @@ num_neighbours
 """
     PeriodicBoundaries(size...) <: LatticeGeometry
 
-Lattice of size `size` with periodic boundary conditions.
+Rectangular lattice of any dimension with size `size` and periodic boundary conditions.
+
+The dimension of the lattice is controlled by the number of arguments given to its
+constructor.
 
 This is the default geometry used by [`HubbardRealSpace`](@ref).
+
+## Example
+
+```
+julia> lattice = PeriodicBoundaries(5, 4) # 2D lattice of size 5 × 4
+PeriodicBoundaries(5, 4)
+
+julia> neighbour_site(lattice, 1, 1)
+2
+
+julia> neighbour_site(lattice, 1, 2)
+5
+
+julia> neighbour_site(lattice, 1, 3)
+6
+
+julia> neighbour_site(lattice, 1, 4)
+16
+```
 
 ## See also
 
@@ -88,8 +111,25 @@ end
 """
     HardwallBoundaries
 
-Lattice of size `size` with hardwall boundary conditions. Sites next to the boundaries will
-return 0 for some neighbours.
+Rectangular lattice of any dimension with size `size` and hardwall boundary
+conditions. Sites next to the boundaries will return 0 for some of their neighbours.
+
+The dimension of the lattice is controlled by the number of arguments given to its
+constructor.
+
+## Example
+
+```
+julia> lattice = HardwallBoundaries(5) # 1D lattice of size 5
+HardwallBoundaries(5)
+
+julia> neighbour_site(lattice, 1, 1)
+2
+
+julia> neighbour_site(lattice, 1, 2)
+0
+
+```
 
 ## See also
 
@@ -131,6 +171,31 @@ Using this geometry is more efficient than using [`HardwallBoundaries`](@ref) wi
 
 In other dimensions, it behaves like its subgeometry, which can be any
 [`LatticeGeometry`](@ref).
+
+## Example
+
+```
+julia> lattice = LadderBoundaries(2, 3, 4) # 3D lattice of size 2 × 3 × 4
+LadderBoundaries(2, 3, 4)
+
+julia> num_neighbours(lattice)
+5
+
+julia> neighbour_site(lattice, 1, 1)
+2
+
+julia> neighbour_site(lattice, 1, 2)
+3
+
+julia> neighbour_site(lattice, 1, 3)
+5
+
+julia> neighbour_site(lattice, 1, 4)
+7
+
+julia> neighbour_site(lattice, 1, 5)
+19
+```
 
 ## See also
 

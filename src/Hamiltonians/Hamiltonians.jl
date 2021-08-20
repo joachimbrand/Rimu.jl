@@ -25,7 +25,7 @@ export GutzwillerSampling, GuidingVectorSampling
 export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 export G2Correlator
 
-export PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
+export PeriodicBoundaries, HardwallBoundaries, LadderBoundaries, num_neighbours, neighbour_site
 
 include("abstract.jl")
 include("offdiagonals.jl")
