@@ -67,6 +67,19 @@ struct QMCState{
     replica::RRS
 end
 
+"""
+    _n_walkers(v, s_strat)
+Returns an estimate of the expected number of walkers as an integer.
+"""
+function _n_walkers(v, s_strat)
+    n = if hasfield(typeof(s_strat), :targetwalkers)
+        s_strat.targetwalkers
+    else # e.g. for LogUpdate()
+        walkernumber(v)
+    end
+    return ceil(Int, max(real(n), imag(n)))
+end
+
 function QMCState(
     hamiltonian, v;
     laststep=nothing,
@@ -80,7 +93,7 @@ function QMCState(
     m_strat::MemoryStrategy=NoMemory(),
     replica::ReplicaStrategy=NoStats(),
     post_step=(),
-    maxlength=2 * max(real(s_strat.targetwalkers), imag(s_strat.targetwalkers)),
+    maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
 )
     # Set up default arguments
     r_strat = refine_r_strat(r_strat)
@@ -90,7 +103,7 @@ function QMCState(
     if !isnothing(dτ)
         params.dτ = dτ
     end
-    wm = default_working_memory(threading, v, s_strat)
+    wm = default_working_memory(threading, v, _n_walkers(v, s_strat))
     if !(post_step isa Tuple)
         post_step = (post_step,)
     end
@@ -144,9 +157,9 @@ function Base.setproperty!(state::QMCState, key::Symbol, value)
     end
 end
 
-function default_working_memory(threading, v, s_strat)
+function default_working_memory(threading, v, targetwalkers::Real)
     if threading == :auto
-        threading = max(real(s_strat.targetwalkers),imag(s_strat.targetwalkers)) ≥ 500
+        threading = targetwalkers ≥ 500
     end
     if threading && Threads.nthreads() > 1
         return threadedWorkingMemory(v)

@@ -42,8 +42,12 @@ using Statistics
         dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
-        walkers = lomc!(H, copy(dv); s_strat, laststep=1000).df.norm
+        v = copy(dv)
+        walkers = lomc!(H, v; s_strat, laststep=1000).df.norm
         @test median(walkers) ≈ 100 rtol=0.1
+        s_strat = LogUpdate(0.05)
+        walkers = lomc!(H, v; s_strat, laststep=1000).df.norm # continuation run
+        @test median(walkers) > 10 # essentially just test that it does not error
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=200)
         walkers = lomc!(H, copy(dv); s_strat, laststep=1000).df.norm
