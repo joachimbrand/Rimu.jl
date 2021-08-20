@@ -122,6 +122,12 @@ end
 Hubbard model in real space. Supports single or multi-component Fock state
 addresses (with `C` components) and various (rectangular) lattice geometries.
 
+```math
+  \\hat{H} = -\\sum_{\\langle i,j\\rangle,σ} t_σ a^†_{iσ} a_{jσ} +
+  \\frac{1}{2}\\sum_{i,σ} u_{σ,σ} n_{iσ} (n_{iσ} - 1) +
+  \\frac{1}{2}\\sum_{i,σ≠τ}u_{σ,τ} n_{iσ} n_{iτ}
+```
+
 ## Address types
 
 * [`BoseFS`](@ref): Single-component Bose-Hubbard model.

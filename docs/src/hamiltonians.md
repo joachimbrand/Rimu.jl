@@ -38,6 +38,7 @@ variants implemented of the one-dimensional Bose-Hubbard model real space as wel
 HubbardReal1D
 ExtendedHubbardReal1D
 HubbardMom1D
+HubbardRealSpace
 MatrixHamiltonian
 ```
 
