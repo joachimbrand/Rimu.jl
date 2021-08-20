@@ -169,10 +169,10 @@ julia> j = find_mode(b, i.mode + 1)
  4
 
 julia> move_particle(b, i, j)
-(BoseFS{5,4}((1, 0, 4, 0)), 4)
+(BoseFS{5,4}((1, 0, 4, 0)), 2.0)
 
 julia> move_particle(b, j, j)
-(BoseFS{5,4}((1, 1, 3, 0)), 9)
+(BoseFS{5,4}((1, 1, 3, 0)), 3.0)
 ```
 
 ```jldoctest
@@ -183,13 +183,13 @@ julia> i = find_occupied_mode(f, 2)
 6
 
 julia> move_particle(f, i, i + 1)
-(FermiFS{7,12}((1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0)), 0)
+(FermiFS{7,12}((1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0)), 0.0)
 
 julia> move_particle(f, i, i - 1)
-(FermiFS{7,12}((1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0)), 1)
+(FermiFS{7,12}((1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0)), 1.0)
 
 julia> move_particle(f, i, 12)
-(FermiFS{7,12}((1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1)), -1)
+(FermiFS{7,12}((1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1)), -1.0)
 ```
 """
 move_particle

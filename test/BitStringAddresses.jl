@@ -244,15 +244,21 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
             onrep = onr(bose)
             for (i, idx) in enumerate(occupied_modes(bose))
                 for j in 1:M
-                    idx.mode == j && continue # Don't test moving to the same spot
-                    correct = setindex(onrep, onrep[idx.mode] - 1, idx.mode)
-                    correct = typeof(bose)(setindex(correct, correct[j] + 1, j))
-                    correct_val = onrep[idx.mode] * (onrep[j] + 1)
+                    if idx.mode == j
+                        correct = bose
+                        correct_val = onrep[j]
+                    else
+                        correct = setindex(onrep, onrep[idx.mode] - 1, idx.mode)
+                        correct = typeof(bose)(setindex(correct, correct[j] + 1, j))
+                        correct_val = √(onrep[idx.mode] * (onrep[j] + 1))
+                    end
 
                     jdx = find_mode(bose, j)
                     new_bose, val = move_particle(bose, idx, jdx)
 
-                    if jdx.mode ≠ j
+                    if !(val isa Float64)
+                        error("`move_particle` must return a `Float64`")
+                    elseif jdx.mode ≠ j
                         error("jdx.mode=$(jdx.mode) ≠ $(j)")
                     elseif new_bose ≠ correct
                         error("new_bose=$(new_bose) ≠ $(correct)")
@@ -331,21 +337,27 @@ end
             onrep = onr(fermi)
             for i in occupied_modes(fermi)
                 for j in 1:M
-                    i == j && continue # Don't test moving to the same spot
-                    onrep[i] == 1 || error("onrep[$i] ≠ 1 in $onrep")
-
-                    if onrep[j] == 1
-                        # Illegal move
+                    if i == j
                         correct = fermi
-                        correct_sign = 0
+                        correct_sign = 1
                     else
-                        correct = FermiFS(setindex(setindex(onrep, 0, i), 1, j))
-                        l, u = minmax(i, j)
-                        correct_sign = (-1)^sum(onrep[l + 1:u - 1])
+                        onrep[i] == 1 || error("onrep[$i] ≠ 1 in $onrep")
+
+                        if onrep[j] == 1
+                            # Illegal move
+                            correct = fermi
+                            correct_sign = 0
+                        else
+                            correct = FermiFS(setindex(setindex(onrep, 0, i), 1, j))
+                            l, u = minmax(i, j)
+                            correct_sign = (-1)^sum(onrep[l + 1:u - 1])
+                        end
                     end
 
                     new_fermi, sign = move_particle(fermi, i, j)
-                    if new_fermi ≠ correct
+                    if !(sign isa Float64)
+                        error("`move_partice` must return a `Float64`")
+                    elseif new_fermi ≠ correct
                         error("new_fermi=$(new_fermi) ≠ $(correct) after moving $fermi $i to $j")
                     elseif sign ≠ correct_sign
                         error("sign=$(sign) ≠ $(correct_sign) for $fermi, $i, $j")

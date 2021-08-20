@@ -267,7 +267,7 @@ function Base.getindex(o::HubbardRealSpaceBoseOffdiagonals, chosen)
     else
         j = find_mode(o.address, target_site)
         new_address, onproduct = move_particle(o.address, i, j)
-        return new_address, -o.t * √onproduct
+        return new_address, -o.t * onproduct
     end
 end
 

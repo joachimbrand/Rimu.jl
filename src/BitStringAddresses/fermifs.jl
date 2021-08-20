@@ -152,7 +152,7 @@ function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitStrin
         new_chunk, value = _move_particle(a.bs.chunks[1], from % T, to % T)
         return typeof(a)(S(new_chunk)), value
     else
-        return a, ifelse(from==to, Int(occ_from), 0)
+        return a, ifelse(from==to, Float64(occ_from), 0.0)
     end
 end
 
@@ -161,7 +161,7 @@ function move_particle(a::FermiFS, from, to)
     if occ_from && !is_occupied(a, to)
         return _move_particle(a, from % UInt64, to % UInt64)
     else
-        return a, ifelse(from==to, Int(occ_from), 0)
+        return a, ifelse(from==to, Float64(occ_from), 0.0)
     end
 end
 
@@ -178,7 +178,7 @@ end
 
     chunk ⊻= from_mask | to_mask
     num_between = count_ones(chunk & between_mask)
-    return chunk, ifelse(iseven(num_between), 1, -1)
+    return chunk, ifelse(iseven(num_between), 1.0, -1.0)
 end
 @inline function _move_particle(a::FermiFS{<:Any,<:Any,S}, from::UInt64, to::UInt64) where {S}
     # Ensure they are ordered.
@@ -210,7 +210,7 @@ end
         for k in j+1:i-1
             count += count_ones(result[k])
         end
-        value = ifelse(iseven(count), 1, -1)
+        value = ifelse(iseven(count), 1.0, -1.0)
     end
     return typeof(a)(S(result)), value
 end
