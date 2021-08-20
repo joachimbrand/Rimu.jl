@@ -414,10 +414,10 @@ end
 
 @testset "example script" begin
     include("../scripts/BHM-example.jl")
-    df = load_df("fciqmcdata.arrow")
-    qmcdata = last(df,steps_measure)
+    dfr = load_df("fciqmcdata.arrow")
+    qmcdata = last(dfr,steps_measure)
     (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
-    @test qmcShift ≈ -4.122605
+    @test qmcShift ≈ -4.11255936332424
 
     # clean up
     rm("fciqmcdata.arrow", force=true)
