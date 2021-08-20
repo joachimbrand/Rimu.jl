@@ -9,7 +9,9 @@ Currently only supported by [`HubbardRealSpace`](@ref).
 ## Interface to implement
 
 * `Base.size`: return the lattice size.
-* [`neighbour_site(::LatticeGeometry, ::Int, ::Int)`](@ref): find the neighbour of given site.
+
+* [`neighbour_site(::LatticeGeometry, ::Int, ::Int)`](@ref): find a neighbour of given
+  site.
 * [`num_neighbours`](::LatticeGeometry): return the number of neighbours a site in the
   lattice has.
 

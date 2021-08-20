@@ -1,15 +1,26 @@
 """
-    real_space_interaction(::AbstractFockAddress, u)
-    real_space_interaction(::AbstractFockAddress, ::AbstractFockAddress, v)
+    local_interaction(::AbstractFockAddress, u)
+    local_interaction(::AbstractFockAddress, ::AbstractFockAddress, v)
 
-Return the real space interaction between one or two Fock states.
+Return the sum of (mode-wise) local interactions ``\\frac{u}{2} \\sum_i n_i(n_i-1)`` of a
+single component Fock state, or ``v \\sum_i n_{↑,i} n_{↓,i}`` between two Fock states. For a
+multi-component Fock state, return the eigenvalue of
+
+```math
+\\frac{1}{2}\\sum_{i, σ, τ} u_{σ,τ} a^†_{σ,i}a^†_{τ,i}a^†_{τ,i}a^†_{σ,i} ,
+```
+
+where `u::SMatrix` is a symmetric matrix of interaction constants, `i` is a mode index,
+and `σ`, `τ` are component indices.
+
+See also [`BoseFS`](@ref), [`FermiFS`](@ref), [`CompositeFS`](@ref).
 """
-real_space_interaction(b::BoseFS, u) = u * bose_hubbard_interaction(b) / 2
-real_space_interaction(f::FermiFS, _) = 0
-real_space_interaction(f::FermiFS, g::FermiFS, v) = v * count_ones(f.bs & g.bs)
-real_space_interaction(f::FermiFS, b::BoseFS, v) = real_space_interaction(b, f, v)
+local_interaction(b::BoseFS, u) = u * bose_hubbard_interaction(b) / 2
+local_interaction(f::FermiFS, _) = 0
+local_interaction(f::FermiFS, g::FermiFS, v) = v * count_ones(f.bs & g.bs)
+local_interaction(f::FermiFS, b::BoseFS, v) = local_interaction(b, f, v)
 
-function real_space_interaction(a::BoseFS, b::BoseFS, v)
+function local_interaction(a::BoseFS, b::BoseFS, v)
     occ_a = occupied_modes(a)
     occ_b = occupied_modes(b)
 
@@ -41,27 +52,27 @@ function real_space_interaction(a::BoseFS, b::BoseFS, v)
         end
     end
 end
-function real_space_interaction(b::BoseFS, f::FermiFS, v)
+function local_interaction(b::BoseFS, f::FermiFS, v)
     acc = 0
     for (n, i) in occupied_modes(b)
         acc += is_occupied(f, i) * n
     end
     return acc * v
 end
-function real_space_interaction(fs::CompositeFS, m)
+function local_interaction(fs::CompositeFS, m)
     _interactions(fs.components, m)
 end
 
 """
     _interaction_col(a, bs::Tuple, us::Tuple)
 
-Sum the local interactions of the Fock state `a` with all states in `bs` using the 
-interaction constants in `us`. This is used to compute all interactions in the column 
+Sum the local interactions of the Fock state `a` with all states in `bs` using the
+interaction constants in `us`. This is used to compute all interactions in the column
 below the diagonal of the interaction matrix.
 """
 @inline _interaction_col(a, ::Tuple{}, ::Tuple{}) = 0
 @inline function _interaction_col(a, (b, bs...), (u, us...))
-    return real_space_interaction(a, b, u) + _interaction_col(a, bs, us)
+    return local_interaction(a, b, u) + _interaction_col(a, bs, us)
 end
 
 """
@@ -75,9 +86,9 @@ The code is equivalent to the following.
 ```julia
 acc = 0.0
 for (i, a) in enumerate(addresses)
-    acc += real_space_interaction(a, interaction_matrix[i, i])
+    acc += local_interaction(a, interaction_matrix[i, i])
     for (j, b) in enumerate(addresses[i+1:end])
-        acc += real_space_interaction(a, b, interaction_matrix[i, j])
+        acc += local_interaction(a, b, interaction_matrix[i, j])
     end
 end
 return acc
@@ -95,7 +106,7 @@ It is implemented recursively to ensure type stability.
     rest = SMatrix{N-1,N-1}(view(m, 2:N, 2:N))
 
     # Get the self-interaction first.
-    self = real_space_interaction(a, u)
+    self = local_interaction(a, u)
     # Get the interactions for the rest of the row.
     row = _interaction_col(a, as, column)
     # Get the interaction for the rest of the rows.
@@ -108,11 +119,8 @@ end
 """
     HubbardRealSpace(address; u=ones(C, C), t=ones(C), geometry=PeriodicBoundaries(M,))
 
-Hubbard model in real space. Supports single or multi-component Fock state 
+Hubbard model in real space. Supports single or multi-component Fock state
 addresses (with `C` components) and various (rectangular) lattice geometries.
-
-```math
-```
 
 ## Address types
 
@@ -129,8 +137,12 @@ addresses (with `C` components) and various (rectangular) lattice geometries.
 
 ## Other parameters
 
-* `u`
-* `t`: the t parameters for
+* `u`: the interaction parameters. Must be a symmetric matrix. `u[i, j]` corresponds to the
+  interaction between the `i`-th and `j`-th component. `u[i, i]` corresponds to the
+  interaction of a component with itself. Note that `u[i,i]` must be zero for fermionic
+  components.
+* `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
+  vector corresponds to the hopping strength of the `i`-th component.
 
 """
 struct HubbardRealSpace{
@@ -208,8 +220,8 @@ function Base.show(io::IO, h::HubbardRealSpace)
 end
 
 starting_address(h::HubbardRealSpace) = h.address
-diagonal_element(h::HubbardRealSpace, address) = real_space_interaction(address, h.u)
-diagonal_element(h::HubbardRealSpace{1}, address) = real_space_interaction(address, h.u[1])
+diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u)
+diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1])
 
 ###
 ### Offdiagonals
