@@ -38,6 +38,8 @@ variants implemented of the one-dimensional Bose-Hubbard model real space as wel
 HubbardReal1D
 ExtendedHubbardReal1D
 HubbardMom1D
+BoseHubbardReal1D2C
+BoseHubbardMom1D2C
 HubbardRealSpace
 MatrixHamiltonian
 ```
@@ -65,4 +67,13 @@ need to be implemented efficiently and specifically for each model.
 num_offdiagonals
 get_offdiagonal
 diagonal_element
+```
+
+#### Geometry
+
+```@docs
+LatticeGeometry
+PeriodicBoundaries
+HardwallBoundaries
+LadderBoundaries
 ```
