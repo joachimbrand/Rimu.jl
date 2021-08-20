@@ -44,7 +44,6 @@ HubbardRealSpace
 MatrixHamiltonian
 ```
 
-
 ### Hamiltonians interface
 
 Behind the implementation of a particular model is a more abstract interface
