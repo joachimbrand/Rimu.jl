@@ -248,7 +248,7 @@ end
 """
     BoseFSIndex
 
-Convenience struct for indexing into a fock state.
+Convenience struct for indexing into a [`BoseFS`](@ref).
 
 ## Fields:
 
@@ -379,7 +379,7 @@ function move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
     occ1 = from.occnum
     occ2 = to.occnum
     if from == to
-        return b, occ1 * (occ1 - 1)
+        return b, occ1^2
     else
         return _move_particle(b, from.offset, to.offset), occ1 * (occ2 + 1)
     end
