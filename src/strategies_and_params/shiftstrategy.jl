@@ -94,6 +94,38 @@ end
 end
 
 """
+    DoubleLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
+Strategy for updating the shift: After `targetwalkers` is reached, update the
+shift according to the log formula with damping parameter `ζ` and `ξ`.
+See [`DoubleLogUpdate`](@ref).
+"""
+@with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
+    targetwalkers::Int
+    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
+end
+
+@inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
+                        shift, shiftMode,
+                        tnorm, pnorm, dτ, step, df, args...)
+    if shiftMode || real(tnorm) > s.targetwalkers
+            return update_shift(
+                DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ),
+                shift,
+                true,
+                tnorm,
+                pnorm,
+                dτ,
+                step,
+                df
+            )
+    end
+    return shift, false, tnorm, true
+end
+
+# more experimental strategies from here on:
+
+"""
     DoubleLogSumUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, α = 1/2) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameters `ζ` and `ξ`.
@@ -193,34 +225,4 @@ DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) = DoubleLogProje
     pp = s.projector⋅v_old
     new_shift = shift - s.ζ/dτ * log(tp/pp) - s.ξ/dτ * log(tp/s.target)
     return new_shift, true, tnorm, true
-end
-
-"""
-    DoubleLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
-Strategy for updating the shift: After `targetwalkers` is reached, update the
-shift according to the log formula with damping parameter `ζ` and `ξ`.
-See [`DoubleLogUpdate`](@ref).
-"""
-@with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
-    targetwalkers::Int
-    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
-end
-
-@inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
-                        shift, shiftMode,
-                        tnorm, pnorm, dτ, step, df, args...)
-    if shiftMode || real(tnorm) > s.targetwalkers
-            return update_shift(
-                DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ),
-                shift,
-                true,
-                tnorm,
-                pnorm,
-                dτ,
-                step,
-                df
-            )
-    end
-    return shift, false, tnorm, true
 end
