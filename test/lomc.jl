@@ -121,12 +121,28 @@ using Statistics
         dv = DVec(add => 1; style=IsStochasticInteger())
 
         # Only population is dead.
-        df = @suppress_err lomc!(H, copy(dv); laststep=100).df
+        params = RunTillLastStep(shift = 0.0)
+        df = @suppress_err lomc!(H, copy(dv); params, laststep=100).df
         @test size(df, 1) < 100
 
+        # population does not die with sensible default shift
+        df = lomc!(H, copy(dv); laststep=100).df
+        @test size(df, 1) == 100
+
         # Populations in replicas are dead.
-        df = @suppress_err lomc!(H, copy(dv); laststep=100, replica=NoStats(5)).df
+        params = RunTillLastStep(shift = 0.0)
+        df = @suppress_err lomc!(H, copy(dv); params, laststep=100, replica=NoStats(5)).df
         @test size(df, 1) < 100
+    end
+
+    @testset "Default DVec" begin
+        add = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(add; u=20)
+        df, state = lomc!(H; laststep=100)
+        @test StochasticStyle(state.replicas[1].v) isa IsStochasticInteger
+
+        df, state = lomc!(H; laststep=100, style = IsDeterministic())
+        @test StochasticStyle(state.replicas[1].v) isa IsDeterministic
     end
 
     @testset "Setting `maxlength`" begin

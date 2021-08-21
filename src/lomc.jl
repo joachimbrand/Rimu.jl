@@ -86,7 +86,13 @@ function QMCState(
     dτ=nothing,
     threading=:auto,
     wm=nothing,
-    params::FciqmcRunStrategy=RunTillLastStep{float(valtype(v))}(),
+    params::FciqmcRunStrategy=RunTillLastStep(
+        laststep = 100,
+        shift = diagonal_element(
+            hamiltonian,
+            starting_address(hamiltonian)
+        )/one(valtype(v))
+    ),
     s_strat::ShiftStrategy=DoubleLogUpdate(),
     r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
@@ -182,30 +188,36 @@ function Base.show(io::IO, st::QMCState)
 end
 
 """
-    lomc!(ham, v; kwargs...)
+    lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
+    lomc!(state::QMCState, [df]; kwargs...) -> df, state
 
-Linear operator Monte Carlo: Perform the FCIQMC algorithm for determining the lowest
-eigenvalue of `ham`. `v` can be a single starting vector of (wrapped) type
-`:<AbstractDVec`.
-
-Returns a `DataFrame` with various statistics and a `QMCState` containing all information
-required for continuation runs.
+Linear operator Monte Carlo: Perform a projector quantum Monte Carlo simulation for
+determining the lowest eigenvalue of `ham`. `v` can be a single starting vector. The default
+choice is
+```julia
+v = DVec(starting_address(ham) => 10; style=IsStochasticInteger())
+```
+and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
+[`StochasticStyle`](@ref).
 
 # Keyword arguments, defaults, and precedence:
 
+* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift = diagonal_element(ham, starting_address(ham)))` - basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
 * `laststep` - can be used to override information otherwise contained in `params`
+* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 100, ζ = 0.08, ξ = ζ^2/4)` - how to update the `shift`, see [`ShiftStrategy`](@ref)
+* `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when reached, `lomc!` will abort
+* `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused if `v` is specified.
+* `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g. [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
+* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulation, see [`ReplicaStrategy`](@ref).
+* `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see [`ReportingStrategy`](@ref)
+* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step dynamically, see [`TimeStepStrategy`](@ref)
+* `m_strat::MemoryStrategy = NoMemory()` - experimental: inject memory noise, see [`MemoryStrategy`](@ref)
 * `threading = :auto` - can be used to control the use of multithreading (overridden by `wm`)
   * `:auto` - use multithreading if `s_strat.targetwalkers ≥ 500`
   * `true` - use multithreading if available (set shell variable `JULIA_NUM_THREADS`!)
   * `false` - run on single thread
 * `wm` - working memory; if set, it controls the use of multithreading and overrides `threading`; is mutated
-* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100)` - contains basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
-* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000)` - see [`ShiftStrategy`](@ref)
-* `r_strat::ReportingStrategy = ReportDFAndInfo()` - see [`ReportingStrategy`](@ref)
-* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - see [`TimeStepStrategy`](@ref)
-* `m_strat::MemoryStrategy = NoMemory()` - see [`MemoryStrategy`](@ref)
-* `replica::ReplicaStrategy = NoStats(1)` - see [`ReplicaStrategy`](@ref).
-* `post_step::NTuple{N,<:PostStepStrategy} = ()` - see [`PostStepStrategy`](@ref).
+* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can be passed into `lomc!` that will be pushed into.
 
 # Return values
 
@@ -219,13 +231,11 @@ required for continuation runs.
 ```jldoctest
 julia> add = BoseFS((1,2,3));
 
-julia> H = HubbardReal1D(add);
+julia> hamiltonian = HubbardReal1D(add);
 
-julia> dv = DVec(add => 1);
+julia> df1, state = lomc!(hamiltonian);
 
-julia> df1, state = lomc!(H, dv);
-
-julia> df2, _ = lomc!(state, df1; laststep=200); # Contuniation run
+julia> df2, _ = lomc!(state, df1; laststep=200); # Continuation run
 
 julia> size(df1)
 (100, 12)
@@ -237,6 +247,10 @@ julia> size(df2)
 function lomc!(ham, v; df=DataFrame(), kwargs...)
     state = QMCState(ham, v; kwargs...)
     return lomc!(state, df)
+end
+function lomc!(ham; style=IsStochasticInteger(), kwargs...)
+    v = DVec(starting_address(ham)=>10; style)
+    return lomc!(ham, v; kwargs...)
 end
 # For continuation, you can pass a QMCState and a DataFrame
 function lomc!(state::QMCState, df=DataFrame(); laststep=0)

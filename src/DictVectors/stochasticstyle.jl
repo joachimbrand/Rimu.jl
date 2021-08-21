@@ -1,20 +1,30 @@
 """
     StochasticStyle(v)
-`StochasticStyle` specifies the native style of the generalised vector `v` that determines
-how simulations are to proceed. This can be fully stochastic (with `IsStochasticInteger`),
-fully deterministic (with `IsDeterministic`), or stochastic with floating point walker
-numbers and threshold (with [`IsStochasticWithThreshold`](@ref)).
+Abstract type. When called as a function it returns the native style of the
+generalised vector `v` that determines how simulations are to proceed.
+
+# Implemented styles
+* [`IsStochasticInteger`](@ref) - integer walker FCIQMC
+* [`IsDeterministic`](@ref) - perform deterministic variant of power method
+* [`IsStochasticWithThreshold`](@ref) - floating point walker FCIQMC
+* [`IsDynamicSemistochastic`](@ref)
+
+# Usage
+Concrete `StochasticStyle`s can be used for the `style` keyword argument of
+[`lomc!`](@ref) and [`DVec`](@ref).
+
+# Interface
 
 When defining a new `StochasticStyle`, subtype it as `MyStyle<:StochasticStyle{T}` where `T`
 is the concrete value type the style is designed to work with.
 
-For it to work with FCIQMC, a `StochasticStyle` must define the following:
+For it to work with [`lomc!`](@ref), a `StochasticStyle` must define the following:
 
 * [`fciqmc_col!(::StochasticStyle, w, H, address, value, shift, dτ)`](@ref)
 * [`step_stats(::StochasticStyle)`](@ref)
 
 Optionally, it can also define [`update_dvec!`](@ref), which can be used to perform arbitrary
-transformations on the `dvec` after the spawning step is complete.
+transformations on the generalised vector after the spawning step is complete.
 """
 abstract type StochasticStyle{T} end
 
