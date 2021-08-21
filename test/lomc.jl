@@ -197,6 +197,15 @@ using Statistics
 
     end
 
+    @testset "deprecated" begin
+        @test_throws ErrorException DelayedLogUpdateAfterTargetWalkers()
+        @test_throws ErrorException HistoryLogUpdate()
+        @test_throws ErrorException DelayedLogUpdate()
+        @test_throws ErrorException DelayedDoubleLogUpdateAfterTW()
+        @test_throws ErrorException DoubleLogUpdateAfterTargetWalkersSwitch()
+        @test_throws ErrorException DelayedDoubleLogUpdate()
+    end
+
     @testset "Setting `maxlength`" begin
         add = BoseFS{15,10}((0,0,0,0,0,15,0,0,0,0))
         H = HubbardMom1D(add; u=6.0)
