@@ -88,6 +88,7 @@ num_chunks(::Type{<:BitString{<:Any,N}}) where {N} = N
 
 """
     chunk_type(::Type{<:BitString})
+    chunk_type(s::BitString)
 
 Type of unsigned integer used to store the chunks.
 """
@@ -116,14 +117,14 @@ for f in (:num_chunks, :chunk_type, :num_bits, :top_chunk_bits)
 end
 
 """
-    chunks(::Type{<:BitString})
-    chunks(s)
+    chunks(s::BitString)
 
 `SVector` that stores the chunks of `s`.
 """
 chunks(s::BitString) = s.chunks
 
 """
+    chunks_bits(::Type{<:BitString}, i)
     chunks_bits(s, i)
 
 Number of bits in the `i`-th chunk of `s`.
@@ -141,7 +142,7 @@ function ghost_bit_mask(::Type{S}) where S<:BitString
 end
 
 """
-    remove_ghost_bits(s)
+    remove_ghost_bits(s::BitString)
 
 Remove set bits outside data field if any are present.
 
@@ -158,7 +159,7 @@ end
 end
 
 """
-    has_ghost_bits(s)
+    has_ghost_bits(s::BitString)
 
 Check for bits outside data field.
 
@@ -334,7 +335,7 @@ Base.hash(b::BitString, h::UInt) = hash(b.chunks.data, h)
 
 Shift a part of the bitstring left by one place with boundaries `i < j`.
 In a `BoseFS` bitstring, it moves a particle at offset `i` to the position at
-offset `j`. 
+offset `j`.
 
 See also: [`move_particle`](@ref), [`partial_right_shift`](@ref).
 """
@@ -356,7 +357,7 @@ end
 
 Shift a part of the bitstring right by one place with boundaries `i < j`.
 In a `BoseFS` bitstring, it moves a particle at offset `j` to the position at
-offset `i`. 
+offset `i`.
 
 See also: [`partial_left_shift`](@ref), [`move_particle`](@ref).
 """
