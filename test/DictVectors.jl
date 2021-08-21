@@ -287,8 +287,6 @@ end
     @test warning ≠ ""
     @test DVec2(:a => 1) isa DVec{Symbol,Int}
 
-    @test_throws ErrorException capacity(DVec(:a => 1))
-
     warning = @capture_err IsStochastic()
     @test warning ≠ ""
     @test IsStochastic() === IsStochasticInteger()
