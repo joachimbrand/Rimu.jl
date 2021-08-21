@@ -1,8 +1,11 @@
 """
-    MatrixHamiltonian(mat::AbstractMatrix{T}; starting_address=1) <: AbstractHamiltonian{T}
-Wrap an abstract matrix `mat` as an `AbstractHamiltonian` object for use with
-regular `Vector`s indexed by integers. Works with stochatic methods of
-[`lomc!()`](@ref). Optionally, a `starting_address` can be provided.
+    MatrixHamiltonian(
+        mat::AbstractMatrix{T};
+        starting_address::Int = starting_address(mat)
+    ) <: AbstractHamiltonian{T}
+Wrap an abstract matrix `mat` as an [`AbstractHamiltonian`](@ref) object for use with
+regular `Vector`s indexed by integers. Works with stochastic methods of
+[`lomc!()`](@ref). Optionally, a [`starting_address`](@ref) can be provided.
 
 Specialised methods are implemented for sparse matrices of type `AbstractSparseMatrixCSC`.
 """
@@ -11,7 +14,10 @@ struct MatrixHamiltonian{T,AM,H} <: AbstractHamiltonian{T}
     starting_index::Int
 end
 
-function MatrixHamiltonian(m::AM; starting_address=axes(m, 2)[1]) where AM <:AbstractMatrix
+function MatrixHamiltonian(
+    m::AM;
+    starting_address=starting_address(m)
+) where AM <:AbstractMatrix
     s = length.(axes(m))
     @assert s[1]==s[2] "Matrix needs to be square, got $s."
     i = Int(starting_address)
