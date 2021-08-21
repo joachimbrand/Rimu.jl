@@ -145,6 +145,38 @@ using Statistics
         @test StochasticStyle(state.replicas[1].v) isa IsDeterministic
     end
 
+    @testset "ShiftStrategy" begin
+        add = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(add; u=20)
+
+        # DontUpdate
+        s_strat = DontUpdate(targetwalkers = 100)
+        df = lomc!(H; s_strat, laststep=100).df
+        @test size(df, 1) < 100 # finish early without error
+
+        # LogUpdateAfterTargetWalkers
+        s_strat = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+        df, state  = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+        @test df.shiftMode[end] # finish in variable shift mode
+        @test df.norm[end] > 100
+
+        # LogUpdate
+        v = state.replicas[1].v
+        params = state.replicas[1].params
+        s_strat = LogUpdate()
+        df = lomc!(H, v; df, params, s_strat, laststep=200).df
+        @test size(df, 1) == 200
+        @test 500 > df.norm[end] > 100
+
+        # DoubleLogUpdateAfterTargetWalkers
+        s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = 100)
+        df, state  = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+        @test df.shiftMode[end] # finish in variable shift mode
+        @test df.norm[end] > 100
+    end
+
     @testset "Setting `maxlength`" begin
         add = BoseFS{15,10}((0,0,0,0,0,15,0,0,0,0))
         H = HubbardMom1D(add; u=6.0)

@@ -301,7 +301,8 @@ end
 Advance the `replica` by one step. The `state` is used only to access the various strategies
 involved. Steps, stats, and computed quantities are written to the `report`.
 
-Returns `true` if the step was successful.
+Returns `true` if the step was successful and calculation should proceed, `false` when
+it should terminate.
 """
 function advance!(
     report, state::QMCState, replica::ReplicaState{T}
@@ -322,7 +323,7 @@ function advance!(
     len = length(v)
 
     # Updates
-    shift, shiftMode, pnorm = update_shift(
+    shift, shiftMode, pnorm, proceed = update_shift(
         s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
@@ -359,5 +360,5 @@ function advance!(
         end
         return false
     end
-    return true
+    return proceed # Bool
 end
