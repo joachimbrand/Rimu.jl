@@ -22,10 +22,10 @@ export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 
-export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 export G2Correlator
 
-export PeriodicBoundaries, HardwallBoundaries, LadderBoundaries, num_neighbours, neighbour_site
+export PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
+export num_neighbours, neighbour_site
 
 include("abstract.jl")
 include("offdiagonals.jl")
@@ -46,11 +46,5 @@ include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
 
 include("TwoBodyCorrelation.jl")
-
-# deprecated:
-include("BoseHubbardReal1D.jl")
-include("BoseHubbardMom1D.jl")
-include("ExtendedBHReal1D.jl")
-
 
 end

@@ -49,7 +49,7 @@ setup_workers(4) # set up to run on 4 workers
 seedCRNGs_workers!(127) # seed random number generators for deterministic evolution
 
 add = BoseFS((1,1,0,1))
-ham = BoseHubbardReal1D(add, u=4.0)
+ham = HubbardReal1D(add, u=4.0)
 v = DVec(add => 2, capacity = 200)
 # run `lomc!()` for 20_100 time steps by
 # performing 4 parallel runs of `lomc!()` with 5_100 time steps each and
