@@ -26,7 +26,7 @@ of the model are then provided by the following methods:
  * [`offdiagonals(ham, add)`](@ref): iterator over off-diagonal matrix elements
  * [`random_offdiagonal(hops)`](@ref): choose random off-diagonal
  * [`dimension(T, ham)`](@ref): dimension of linear space
- * [`nearUniform(ham)`](@ref): configuration with particles spread across modes
+ * [`near_uniform(ham)`](@ref): configuration with particles spread across modes
  * [`starting_address(ham)`](@ref): address for accessing one of the diagonal elements of `ham`
 
 ### Model Hamiltonians

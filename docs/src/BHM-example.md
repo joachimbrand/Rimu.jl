@@ -22,7 +22,7 @@ m = n = 6
 Generating a configuration that particles are evenly distributed:
 
 ```@example BHM-example
-aIni = nearUniform(BoseFS{n,m})
+aIni = near_uniform(BoseFS{n,m})
 ```
 
 where `BoseFS` is used to create a bosonic system.
