@@ -1,42 +1,41 @@
-# script to be run from Bitbucket pipelines
+using Documenter
+using Rimu
+using Rimu.ConsistentRNG
+using Rimu.BitStringAddresses
+using Rimu.StatsTools
+using Literate
 
-include("build.jl") # generates the html pages
+EXAMPLES_OUTPUT = joinpath(@__DIR__, "src/generated")
 
-# For deploydocs, you need to set up the following TRAVIS_* environment variables.
-# withenv(
-#     # TRAVIS_REPO_SLUG is the only one that is repository-specific. This is because we are
-#     # actually deploying the HTML pages into a different repository.
-#     #"TRAVIS_REPO_SLUG" => "bitbucket.org/joachimbrand/joachimbrand.bitbucket.io",
-#     "TRAVIS_REPO_SLUG" => "github.com/myang04/rimudoc",
-#     "TRAVIS_PULL_REQUEST" => get(ENV, "BITBUCKET_BRANCH", nothing),
-#     "TRAVIS_BRANCH" => "feature/github-actions",
-#     "TRAVIS_TAG" => get(ENV, "BITBUCKET_TAG", nothing),
-#     "TRAVIS_PULL_REQUEST" => ("BITBUCKET_PR_ID" in keys(ENV)) ? "true" : "false",
-# ) do
+Literate.markdown("../scripts/BHM-example.jl", EXAMPLES_OUTPUT; documenter=true)
+Literate.markdown("../scripts/BHM-example-mpi.jl", EXAMPLES_OUTPUT; documenter=true)
 
-gitcheckbranch = `git rev-parse --abbrev-ref HEAD` # get the current branch name
-
-branchname = chomp(read(gitcheckbranch,String)) # remove the \n 
-
-if branchname == "develop"
-    devbranch = "develop"
-elseif branchname == "feature/github-actions"
-    devbranch = branchname
-else
-    devbranch = "master"
-end
+makedocs(;
+    modules=[Rimu,Rimu.ConsistentRNG],
+    format=Documenter.HTML(prettyurls = false),
+    pages=[
+        "Guide" => "index.md",
+        "Examples" => [
+            "1D Bose-Hubbard Model" => "generated/BHM-example.md",
+            "Using MPI" => "generated/BHM-example-mpi.md",
+        ],
+        "User documentation" => [
+            "StatsTools" => "statstools.md",
+        ],
+        "Developer documentation" => [
+            "Hamiltonians" => "hamiltonians.md",
+            "BitString addresses" => "addresses.md",
+            "Random Numbers" => "consistentrng.md",
+            "Documentation generation" => "documentation.md",
+            "Code testing" => "testing.md",
+        ],
+        "API" => "API.md",
+    ],
+    sitename="Rimu.jl",
+    authors="Joachim Brand <j.brand@massey.ac.nz>",
+)
 
 deploydocs(
-    # repo here needs to point to the BitBucket Pages repository
-    # repo = "bitbucket.org/joachimbrand/joachimbrand.bitbucket.io.git",
     repo = "github.com/joachimbrand/Rimu.jl.git",
-    # BitBucket pages are served from the master branch
-    devbranch = devbranch, # default master
-    # branch = "master"
-    # As BitBucket Pages are shared between all the repositories of a user or a team,
-    # it is best to deploy the docs to a subdirectory named after the package
-    # dirname = "Rimu.jl",
-    push_preview = true, # generate preview version
+    push_preview = true,
 )
-# end
-# @info "Documentation updated on https://joachimbrand.bitbucket.io/Rimu.jl/dev/ "
