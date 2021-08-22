@@ -67,7 +67,7 @@ julia> diagonal_element(H, addr)
 8.666666666666664
 ```
 """
-diagonal_element
+diagonal_element(m::AbstractMatrix, i) = m[i,i]
 
 """
     num_offdiagonals(ham, add)
@@ -175,7 +175,9 @@ BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(st
 """
     starting_address(h)
 
-Return a starting address for Hamiltonian `h`.
+Return the starting address for Hamiltonian `h`. Part of the [`AbstractHamiltonian`](@ref)
+interface. When called on an `AbstractMatrix` return the index of the lowest diagonal
+element.
 
 # Example
 
@@ -188,7 +190,7 @@ julia> addr == starting_address(H)
 true
 ```
 """
-starting_address
+starting_address(m::AbstractMatrix) = findmin(real.(diag(m)))[2]
 
 """
     Hamiltonians.LOStructure(op::AbstractHamiltonian)
