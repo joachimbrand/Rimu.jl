@@ -76,7 +76,7 @@ below the diagonal of the interaction matrix.
 end
 
 """
-    _interaction(addresses, interaction_matrix)
+    _interactions(addresses, interaction_matrix)
 
 Compute all pairwise interactions in a tuple of `addresses`. The `interaction_matrix` sets the
 intraction strengths.
@@ -120,7 +120,8 @@ end
     HubbardRealSpace(address; u=ones(C, C), t=ones(C), geometry=PeriodicBoundaries(M,))
 
 Hubbard model in real space. Supports single or multi-component Fock state
-addresses (with `C` components) and various (rectangular) lattice geometries.
+addresses (with `C` components) and various (rectangular) lattice geometries
+in arbitrary dimensions.
 
 ```math
   \\hat{H} = -\\sum_{\\langle i,j\\rangle,σ} t_σ a^†_{iσ} a_{jσ} +
@@ -132,7 +133,7 @@ addresses (with `C` components) and various (rectangular) lattice geometries.
 
 * [`BoseFS`](@ref): Single-component Bose-Hubbard model.
 * [`FermiFS`](@ref): Single-component Fermi-Hubbard model. This address only provides a
-  single species of Fermions. You probably want to use [`CompositeFS`](@ref).
+  single species of (non-interacting) fermions. You probably want to use [`CompositeFS`](@ref).
 * [`CompositeFS`](@ref): For multi-component models.
 
 ## Geometries
@@ -143,23 +144,23 @@ addresses (with `C` components) and various (rectangular) lattice geometries.
 
 ## Other parameters
 
-* `u`: the interaction parameters. Must be a symmetric matrix. `u[i, j]` corresponds to the
-  interaction between the `i`-th and `j`-th component. `u[i, i]` corresponds to the
-  interaction of a component with itself. Note that `u[i,i]` must be zero for fermionic
-  components.
+* `u`: the on-site interaction parameters. Must be a symmetric matrix. `u[i, j]` 
+  corresponds to the interaction between the `i`-th and `j`-th component. `u[i, i]` 
+  corresponds to the interaction of a component with itself. Note that `u[i,i]` must 
+  be zero for fermionic components.
 * `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
   vector corresponds to the hopping strength of the `i`-th component.
 
 """
 struct HubbardRealSpace{
-    C,A,G,
+    C,A,G, # C: components
     # The following need to be type params.
     T<:SVector{C,Float64},
     U<:SMatrix{C,C,Float64},
 } <: AbstractHamiltonian{Float64}
     address::A
-    u::U
-    t::T
+    u::U # interactions 
+    t::T # hopping strengths
     geometry::G
 end
 
@@ -201,14 +202,14 @@ function warn_fermi_interaction(address::CompositeFS, u)
     C = num_components(address)
     for c in 1:C
         if address.components[c] isa FermiFS && u ≠ ones(C,C) && u[c,c] ≠ 0
-            @warn "component $(c) is Fermionic, but was given a self-interaction " *
+            @warn "component $(c) is fermionic, but was given a self-interaction " *
                 "strength of $(u[c,c])" maxlog=1
         end
     end
 end
 function warn_fermi_interaction(address::FermiFS, u)
     if u ≠ ones(1, 1) && u[1, 1] ≠ 0
-        @warn "address is Fermionic, but was given a self-interaction " *
+        @warn "address is fermionic, but was given a self-interaction " *
             "strength of $(u[1,1])" maxlog=1
     end
 end
@@ -241,7 +242,7 @@ num_offdiagonals(h::HubbardRealSpace, add) = length(offdiagonals(h, add))
 """
     HubbardRealSpaceBoseOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
 
-Offdiagonals for a Bosonic part of a [`HubbardRealSpace`](@ref) model.
+Offdiagonals for a bosonic part of a [`HubbardRealSpace`](@ref) model.
 
 Used when the model's address is a [`BoseFS`](@ref), or a [`CompositeFS`](@ref) with a
 [`BoseFS`](@ref) component.
@@ -281,7 +282,7 @@ end
 """
     HubbardRealSpaceFermiOffdiagonals <: AbstractOffdiagonals
 
-Offdiagonals for a Fermionic part of a [`HubbardRealSpace`](@ref) model.
+Offdiagonals for a fermionic part of a [`HubbardRealSpace`](@ref) model.
 
 Used when the model's address is a [`FermiFS`](@ref), or a [`CompositeFS`](@ref) with a
 [`FermiFS`](@ref) component.

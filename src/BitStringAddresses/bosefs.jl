@@ -262,6 +262,10 @@ struct BoseFSIndex<:FieldVector{3,Int}
     offset::Int
 end
 
+"""
+    BoseOccupiedModes{C,S<:BoseFS}
+Iterator for occupied modes. `C` is the number of chunks. See [`occupied_modes`](@ref).
+"""
 struct BoseOccupiedModes{C,S<:BoseFS}
     address::S
 end

@@ -6,18 +6,17 @@ to be neighbours.
 
 Currently only supported by [`HubbardRealSpace`](@ref).
 
-## Interface to implement
-
-* `Base.size`: return the lattice size.
-* [`neighbour_site(::LatticeGeometry, ::Int, ::Int)`](@ref)
-* [`num_neighbours(::LatticeGeometry)`](@ref)
-
-## Available implementations
+# Available implementations
 
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
 * [`LadderBoundaries`](@ref)
 
+# Interface to implement
+
+* `Base.size`: return the lattice size.
+* [`neighbour_site(::LatticeGeometry, ::Int, ::Int)`](@ref)
+* [`num_neighbours(::LatticeGeometry)`](@ref)
 """
 abstract type LatticeGeometry end
 
@@ -47,7 +46,7 @@ num_neighbours
 """
     PeriodicBoundaries(size...) <: LatticeGeometry
 
-Rectangular lattice of any dimension with size `size` and periodic boundary conditions.
+Rectangular lattice with periodic boundary conditions of size `size`.
 
 The dimension of the lattice is controlled by the number of arguments given to its
 constructor.
@@ -59,6 +58,9 @@ This is the default geometry used by [`HubbardRealSpace`](@ref).
 ```
 julia> lattice = PeriodicBoundaries(5, 4) # 2D lattice of size 5 × 4
 PeriodicBoundaries(5, 4)
+
+julia> num_neighbours(lattice)
+4
 
 julia> neighbour_site(lattice, 1, 1)
 2
@@ -78,6 +80,8 @@ julia> neighbour_site(lattice, 1, 4)
 * [`LatticeGeometry`](@ref)
 * [`HardwallBoundaries`](@ref)
 * [`LadderBoundaries`](@ref)
+* [`num_neighbours`](@ref)
+* [`neighbour_site`](@ref)
 """
 struct PeriodicBoundaries{D} <: LatticeGeometry
     size::NTuple{D,Int}
@@ -111,8 +115,8 @@ end
 """
     HardwallBoundaries
 
-Rectangular lattice of any dimension with size `size` and hardwall boundary
-conditions. Sites next to the boundaries will return 0 for some of their neighbours.
+Rectangular lattice with hard wall boundary conditions of size `size`.
+[`neighbour_site()`](@ref) will return 0 for some neighbours of boundary sites.
 
 The dimension of the lattice is controlled by the number of arguments given to its
 constructor.
