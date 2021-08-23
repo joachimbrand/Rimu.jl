@@ -365,3 +365,7 @@ end
     # clean up
     rm("fciqmcdata.arrow", force=true)
 end
+
+@safetestset "doctests" begin
+    include("doctests.jl")
+end

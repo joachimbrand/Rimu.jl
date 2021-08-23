@@ -92,6 +92,13 @@ julia> find_occupied_mode(FermiFS((1, 1, 1, 0)), 2)
 find_occupied_mode
 
 """
+    is_occupied(::SingleComponentFockAddress, i)
+
+Return `true` if index `i` points to an occupied mode.
+"""
+is_occupied
+
+"""
     num_occupied_modes(::SingleComponentFockAddress)
 
 Get the number of occupied modes in address. Equivalent to
@@ -118,24 +125,22 @@ Iterate over all occupied modes in an address. Iterates [`BoseFSIndex`](@ref) fo
 # Example
 
 ```jldoctest
-julia> b = BoseFS((1,5,0,4))
-julia> for (n, i, m) in occupied_modes(b)
-    @show n, i, m
-end
-(n, i, m) = (1, 1, 0)
-(n, i, m) = (5, 2, 2)
-(n, i, m) = (4, 4, 9)
+julia> b = BoseFS((1,5,0,4));
+
+julia> foreach(println, occupied_modes(b))
+[1, 1, 0]
+[5, 2, 2]
+[4, 4, 9]
 ```
 
 ```jldoctest
-julia> f = FermiFS((1,1,0,1,0,0,1))
-julia> for i in occupied_modes(f)
-    @show i
-end
-i = 1
-i = 2
-i = 4
-i = 7
+julia> f = FermiFS((1,1,0,1,0,0,1));
+
+julia> foreach(println, occupied_modes(f))
+1
+2
+4
+7
 ```
 """
 occupied_modes

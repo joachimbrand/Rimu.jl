@@ -284,3 +284,14 @@ if mpi_rank() ≠ mpi_root
     redirect_stderr(stderr)
     redirect_stdout(stdout)
 end
+
+@testset "example script" begin
+    include("../scripts/BHM-example-mpi.jl")
+    dfr = load_df("result.arrow")
+    qmcdata = last(dfr, 5000)
+    (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
+    @test qmcShift ≈ -6.5 atol=0.5
+
+    # clean up
+    rm("result.arrow", force=true)
+end

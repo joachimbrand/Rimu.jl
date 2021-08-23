@@ -24,7 +24,7 @@ export GutzwillerSampling, GuidingVectorSampling
 
 export G2Correlator
 
-export PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
+export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export num_neighbours, neighbour_site
 
 include("abstract.jl")

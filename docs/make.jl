@@ -33,6 +33,7 @@ makedocs(;
     ],
     sitename="Rimu.jl",
     authors="Joachim Brand <j.brand@massey.ac.nz>",
+    doctest=false # Doctests are done while testing.
 )
 
 deploydocs(

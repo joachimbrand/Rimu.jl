@@ -80,7 +80,7 @@ end
 Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
 correlated time series. A blocking analysis with m-test is used to uncorrelate the time
 series, see [`blocking_analysis()`](@ref). The remaining standard error and correlation of the
-means is propagated using [`MonteCarloMeasurements`](@ref). The results are reported
+means is propagated using `MonteCarloMeasurements`. The results are reported
 as a [`RatioBlockingResult`](@ref).
 
 Robust estimates for the ratio

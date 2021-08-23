@@ -231,11 +231,15 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
 ```jldoctest
 julia> add = BoseFS((1,2,3));
 
+
 julia> hamiltonian = HubbardReal1D(add);
+
 
 julia> df1, state = lomc!(hamiltonian);
 
+
 julia> df2, _ = lomc!(state, df1; laststep=200); # Continuation run
+
 
 julia> size(df1)
 (100, 12)

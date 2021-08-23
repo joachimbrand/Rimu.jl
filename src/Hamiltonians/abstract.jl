@@ -36,8 +36,8 @@ Methods that need to be implemented:
 
 Optional methods to implement:
 
-* [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
-* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref)
+* [`Hamiltonians.LOStructure(::Type{<:AbstractHamiltonian})`](@ref)
+* [`dimension(::Type, ::AbstractHamiltonian)`](@ref)
 * [`offdiagonals(::AbstractHamiltonian, ::AbstractFockAddress)`](@ref)
 * [`momentum(::AbstractHamiltonian)`](@ref)
 """
@@ -61,7 +61,9 @@ address `add`.
 ```jldoctest
 julia> addr = BoseFS((3, 2, 1));
 
+
 julia> H = HubbardMom1D(addr);
+
 
 julia> diagonal_element(H, addr)
 8.666666666666664
@@ -79,7 +81,9 @@ Compute the number of number of reachable configurations from address `add`.
 ```jldoctest
 julia> addr = BoseFS((3, 2, 1));
 
+
 julia> H = HubbardMom1D(addr);
+
 
 julia> num_offdiagonals(H, addr)
 10
@@ -99,7 +103,9 @@ indexed by integer index `chosen`.
 ```jldoctest
 julia> addr = BoseFS((3, 2, 1));
 
+
 julia> H = HubbardMom1D(addr);
+
 
 julia> get_offdiagonal(H, addr, 3)
 (BoseFS{6,3}((2, 1, 3)), 1.0)
@@ -127,8 +133,9 @@ julia> dimension(HubbardMom1D(BoseFS((1,2,3))))
 28
 julia> dimension(HubbardMom1D(near_uniform(BoseFS{200,100})))
 
+
 julia> dimension(Float64, HubbardMom1D(near_uniform(BoseFS{200,100})))
-1.3862737677578232e81
+1.3862737677578234e81
 julia> dimension(BigInt, HubbardMom1D(near_uniform(BoseFS{200,100})))
 1386083821086188248261127842108801860093488668581216236221011219101585442774669540
 ```
@@ -184,7 +191,9 @@ element.
 ```jldoctest
 julia> addr = BoseFS((3, 2, 1));
 
+
 julia> H = HubbardMom1D(addr);
+
 
 julia> addr == starting_address(H)
 true
@@ -268,14 +277,18 @@ Note: `momentum` is currently only defined on [`HubbardMom1D`](@ref).
 ```jldoctest
 julia> add = BoseFS((1, 0, 2, 1, 2, 1, 1, 3));
 
+
 julia> ham = HubbardMom1D(add; u = 2.0, t = 1.0);
 
+
 julia> mom = momentum(ham);
+
 
 julia> diagonal_element(mom, add) # calculate the momentum of a single configuration
 -1.5707963267948966
 
 julia> v = DVec(add => 10; capacity=1000);
+
 
 julia> rayleigh_quotient(mom, v) # momentum expectation value for state vector `v`
 -1.5707963267948966

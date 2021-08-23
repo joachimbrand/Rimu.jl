@@ -135,10 +135,10 @@ a total of `N` particles. Specifying the bit address type `S` is optional.
 # Examples
 ```jldoctest
 julia> near_uniform(BoseFS{7,5,BitString{14}})
-BoseFS((2,2,1,1,1))
+BoseFS{7,5}((2, 2, 1, 1, 1))
 
 julia> near_uniform(BoseFS{7,5})
-BoseFS((2,2,1,1,1))
+BoseFS{7,5}((2, 2, 1, 1, 1))
 ```
 """
 function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
@@ -268,6 +268,10 @@ end
 
 function occupied_modes(b::BoseFS{<:Any,<:Any,S}) where {S}
     return BoseOccupiedModes{num_chunks(S),typeof(b)}(b)
+end
+
+function is_occupied(::BoseFS, i::BoseFSIndex)
+    return i.occnum > 0
 end
 
 Base.length(o::BoseOccupiedModes) = num_occupied_modes(o.address)

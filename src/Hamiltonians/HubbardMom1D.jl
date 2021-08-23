@@ -116,8 +116,10 @@ Compute diagonal interaction energy term.
 
 ```jldoctest
 julia> a = BoseFS{6,5}((1,2,3,0,0))
+BoseFS{6,5}((1, 2, 3, 0, 0))
 
 julia> H = HubbardMom1D(a);
+
 
 julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
 5.2
