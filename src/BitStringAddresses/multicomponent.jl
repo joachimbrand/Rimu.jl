@@ -43,7 +43,7 @@ See also: [`BoseFS`](@ref), [`FermiFS`](@ref), [`SingleComponentFockAddress`](@r
 """
 struct CompositeFS{C,N,M,T} <: AbstractFockAddress{N,M}
     components::T
-    # C: components, N: total particles, M: modes in each component, T: tuple type with constituent address types 
+    # C: components, N: total particles, M: modes in each component, T: tuple type with constituent address types
     function CompositeFS{C,N,M,T}(adds::T) where {C,N,M,T}
         return new{C,N,M,T}(adds)
     end
@@ -86,3 +86,7 @@ end
 end
 
 Base.isless(a::T, b::T) where {T<:CompositeFS} = isless(a.components, b.components)
+
+function onr(a::CompositeFS)
+    map(onr, a.components)
+end
