@@ -24,6 +24,13 @@ function Base.show(io::IO, geom::LatticeGeometry)
     print(io, nameof(typeof(geom)), size(geom))
 end
 
+function BitStringAddresses.onr(add, geom::LatticeGeometry)
+    return reshape(onr(add), size(geom))
+end
+function BitStringAddresses.onr(add::CompositeFS, geom::LatticeGeometry)
+    return map(fs -> onr(fs, geom), add.components)
+end
+
 """
     neighbour_site(geom::LatticeGeometry, site, i)
 
