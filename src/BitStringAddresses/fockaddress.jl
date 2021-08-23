@@ -152,7 +152,7 @@ occupied_modes
 Move particle from mode `i` to mode `j`. Returns the new Fock state address `nadd` and
 amplitude `α`. Equivalent to
 ```math
-a^{\\dagger}_i a_j |\\mathrm{add}\\rangle \to α|\\mathrm{nadd}\\rangle
+a^{\\dagger}_i a_j |\\mathrm{add}\\rangle \\to α|\\mathrm{nadd}\\rangle
 ```
 
 Note that the modes in [`BoseFS`](@ref) are indexed by [`BoseFSIndex`](@ref), while the ones
