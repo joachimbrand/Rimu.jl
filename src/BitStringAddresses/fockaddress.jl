@@ -74,7 +74,7 @@ find_mode
     find_occupied_mode(::SingleComponentFockAddress, k)
 
 Find the `k`-th occupied mode in address. Returns [`BoseFSIndex`](@ref) for
-[`BoseFS`](@ref), and an integer for [`FermiFS`](@ref). When unsuccessful it 
+[`BoseFS`](@ref), and an integer for [`FermiFS`](@ref). When unsuccessful it
 returns zero.
 
 # Example
@@ -149,12 +149,15 @@ occupied_modes
 """
     move_particle(add::SingleComponentFockAddress, i, j) -> nadd, α
 
-Move particle from mode `i` to mode `j`. Equivalent to ``a^{\\dagger}_i a_j |add\\rangle``.
-Returns the new Fock state address `nadd` and integer `α`. For `FermiFS` the factor `α` is the
-correct (signed) amplitude, whereas for `BoseFS` the correct amplitude is ``\\sqrt{α}``.
+Move particle from mode `i` to mode `j`. Returns the new Fock state address `nadd` and
+amplitude `α`. Equivalent to
+```math
+a^{\\dagger}_i a_j |\\mathrm{add}\\rangle \to α|\\mathrm{nadd}\\rangle
+```
 
 Note that the modes in [`BoseFS`](@ref) are indexed by [`BoseFSIndex`](@ref), while the ones
-in [`FermiFS`](@ref) are indexed by integers (see example below).
+in [`FermiFS`](@ref) are indexed by integers (see example below).  For illegal moves where `α
+== 0` the value of `nadd` is undefined.
 
 # Example
 

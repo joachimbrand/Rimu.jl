@@ -181,6 +181,7 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
         @test num_occupied_modes(middle_full) == 2
         @test num_occupied_modes(middle_empty) == 2
         @test num_occupied_modes(two_full) == 1
+        @test num_occupied_modes(BoseFS((0, 0, 0, 0))) == 0
     end
     @testset "bose_hubbard_interaction" begin
         @test bose_hubbard_interaction(middle_full) == 66 * 65

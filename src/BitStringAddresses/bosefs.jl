@@ -207,6 +207,10 @@ end
 function num_occupied_modes(b::BoseFS{<:Any,<:Any,S}) where S
     return num_occupied_modes(Val(num_chunks(S)), b)
 end
+# For vacuum state
+function num_occupied_modes(b::BoseFS{0})
+    return 0
+end
 
 @inline function num_occupied_modes(::Val{1}, b::BoseFS)
     chunk = b.bs.chunks[1]
