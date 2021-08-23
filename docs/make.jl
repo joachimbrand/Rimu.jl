@@ -7,8 +7,12 @@ using Literate
 
 EXAMPLES_OUTPUT = joinpath(@__DIR__, "src/generated")
 
-Literate.markdown("../scripts/BHM-example.jl", EXAMPLES_OUTPUT; documenter=true)
-Literate.markdown("../scripts/BHM-example-mpi.jl", EXAMPLES_OUTPUT; documenter=true)
+Literate.markdown(
+    joinpath(@__DIR__, "../scripts/BHM-example.jl"), EXAMPLES_OUTPUT; documenter=true
+)
+Literate.markdown(
+    joinpath(@__DIR__, "../scripts/BHM-example-mpi.jl"), EXAMPLES_OUTPUT; documenter=true
+)
 
 makedocs(;
     modules=[Rimu,Rimu.ConsistentRNG],
