@@ -434,6 +434,7 @@ end
         @test num_components(fs1) == 2
         @test num_particles(fs1) == 11
         @test eval(Meta.parse(repr(fs1))) == fs1
+        @test onr(fs1) == ([1, 1, 1, 0, 0, 0, 0], [1, 1, 1, 0, 5, 0, 0])
 
         fs2 = BoseFS2C(BoseFS((0,0,0,0,0,0,3)), BoseFS((0,2,1,0,5,0,0)))
         @test fs1 < fs2

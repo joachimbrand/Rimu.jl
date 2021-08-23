@@ -28,6 +28,8 @@ end
 
 num_components(::Type{<:BoseFS2C}) = 2
 Base.isless(a::T, b::T) where {T<:BoseFS2C} = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
+onr(b2::BoseFS2C) = (onr(b2.bsa), onr(b2.bsb))
+
 
 function near_uniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return BoseFS2C(near_uniform(BoseFS{NA,M}), near_uniform(BoseFS{NB,M}))
