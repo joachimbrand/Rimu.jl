@@ -37,13 +37,13 @@ end
     CompositeFS(addresses::SingleComponentFockAddress...) <: AbstractFockAddress
 
 Used to encode addresses for multi-component models. All component addresses
-are expected have the same number of modes `M`.
+are expected have the same number of modes.
 
 See also: [`BoseFS`](@ref), [`FermiFS`](@ref), [`SingleComponentFockAddress`](@ref), [`num_modes`](@ref)
 """
 struct CompositeFS{C,N,M,T} <: AbstractFockAddress{N,M}
     components::T
-
+    # C: components, N: total particles, M: modes in each component, T: tuple type with constituent address types 
     function CompositeFS{C,N,M,T}(adds::T) where {C,N,M,T}
         return new{C,N,M,T}(adds)
     end

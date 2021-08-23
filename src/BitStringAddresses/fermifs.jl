@@ -67,9 +67,9 @@ end
 onr(a::FermiFS) = SVector(m_onr(a))
 
 """
-    FermiOccupiedModes
+    FermiOccupiedModes{N,S<:BitString}
 
-Iterator over occupied modes in address. See [`occupied_modes`](@ref).
+Iterator over occupied modes in address. `N` is the number of fermions. See [`occupied_modes`](@ref).
 """
 struct FermiOccupiedModes{N,S}
     bs::S
@@ -128,7 +128,6 @@ end
 
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
     result = zero(MVector{M,Int32})
-    j = num_chunks(a.bs)
     @inbounds for mode in occupied_modes(a)
         result[mode] = 1
     end

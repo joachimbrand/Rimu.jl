@@ -55,7 +55,7 @@ num_components(::Type{<:SingleComponentFockAddress}) = 1
     find_mode(::SingleComponentFockAddress, i)
 
 Find the `i`-th mode in address. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and
-an integer for [`FermiFS`](@ref).
+an integer index for [`FermiFS`](@ref). Does not check bounds.
 
 ```jldoctest
 julia> find_mode(BoseFS((1, 0, 2)), 2)
@@ -74,7 +74,8 @@ find_mode
     find_occupied_mode(::SingleComponentFockAddress, k)
 
 Find the `k`-th occupied mode in address. Returns [`BoseFSIndex`](@ref) for
-[`BoseFS`](@ref), and an integer for [`FermiFS`](@ref).
+[`BoseFS`](@ref), and an integer for [`FermiFS`](@ref). When unsuccessful it 
+returns zero.
 
 # Example
 
