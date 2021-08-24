@@ -24,6 +24,12 @@ function Base.show(io::IO, geom::LatticeGeometry)
     print(io, nameof(typeof(geom)), size(geom))
 end
 
+"""
+    onr(add::AbstractFockAddress, geom::LatticeGeometry)
+Returns the occupation number representation of a Fock state address as an `SArray` 
+with the shape of the lattice geometry `geom`. For composite addresses, a tuple
+of `onr`s is returned.
+"""
 function BitStringAddresses.onr(add, geom::LatticeGeometry)
     return reshape(onr(add), size(geom))
 end
