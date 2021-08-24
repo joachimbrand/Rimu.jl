@@ -34,8 +34,10 @@ mutable struct MPIOneSided{T}  <: DistributeStrategy
     comm::MPI.Comm # MPI communicator
     DT_b::MPI.Datatype # datatype for data
     b_win::MPI.Win # window for data buffer
-    DT_l::MPI.Datatype # datatype for lengths of buffered data
+    # DT_l::MPI.Datatype # datatype for lengths of buffered data
     l_win::MPI.Win # window for length of buffered data
+    l_buf_ref::Ref{Int32} # for storing the outgoing data buffer length
+    l_buf::MPI.Buffer{Base.RefValue{Int32}} # outgoing buffer for data buffer length
     capacity::Int32 # capacity of buffer
     b_vec::Vector{T} # local array for MPI window b_win
     l_vec::Vector{Int32} # local array for MPI window l_win
@@ -46,10 +48,24 @@ mutable struct MPIOneSided{T}  <: DistributeStrategy
         l_vec = zeros(Int32,1)
         DT_b = MPI.Datatype(T)
         b_win = MPI.Win_create(b_vec, comm) # separate windows for buffer and length
-        DT_l = MPI.Datatype(Int32)
         l_win = MPI.Win_create(l_vec, comm)
+        l_buf_ref = Ref{Int32}() # for outgoing communication
+        l_buf = MPI.Buffer(l_buf_ref, 1, MPI.Datatype(Int32))
         mpiid = next_mpiID()
-        obj = new{T}(mpiid,nprocs,myrank,comm, DT_b,b_win, DT_l,l_win,capacity,b_vec,l_vec)
+        obj = new{T}(
+            mpiid,
+            nprocs,
+            myrank,
+            comm,
+            DT_b,
+            b_win,
+            l_win,
+            l_buf_ref,
+            l_buf,
+            capacity,
+            b_vec,
+            l_vec
+        )
         mpi_registry[mpiid] = Ref(obj) # register the object to avoid
         # arbitrary garbage collection
         # ccall(:jl_, Cvoid, (Any,), "installing finalizer on MPIOneSided")
@@ -114,8 +130,8 @@ Deposit a vector `buf` into the MPI window `s` on rank `targetrank`. If
         error("Not enough space left in buffer")
     b_buffer = MPI.Buffer(buf, len, s.DT_b)
     MPI.Put!(b_buffer, targetrank, s.b_win)
-    l_buffer = MPI.Buffer([len,], 1, s.DT_l)
-    MPI.Put!(l_buffer, targetrank, s.l_win)
+    s.l_buf_ref[] = len # set length inside send buffer
+    MPI.Put!(s.l_buf, targetrank, s.l_win) # communicate via send buffer
 end
 @inline function put(buf::Vector{T}, targetrank, s::MPIOneSided{T}) where T
     len = length(buf)
