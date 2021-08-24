@@ -57,7 +57,7 @@ Base.getproperty(h::BoseHubbardReal1D2C{<:Any,<:Any,<:Any,V}, ::Val{:v}) where {
 
 # number of excitations that can be made
 function num_offdiagonals(ham::BoseHubbardReal1D2C, add)
-    return 2*(numberoccupiedsites(add.bsa) + numberoccupiedsites(add.bsb))
+    return 2*(num_occupied_modes(add.bsa) + num_occupied_modes(add.bsb))
 end
 
 """
@@ -87,7 +87,7 @@ end
 
 function get_offdiagonal(ham::BoseHubbardReal1D2C, add, chosen)
     nhops = num_offdiagonals(ham,add)
-    nhops_a = 2*numberoccupiedsites(add.bsa)
+    nhops_a = 2 * num_occupied_modes(add.bsa)
     if chosen ≤ nhops_a
         naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen)
         elem = - ham.ha.t*sqrt(onproduct)

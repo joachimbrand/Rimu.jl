@@ -42,63 +42,6 @@ end
     include("Hamiltonians.jl")
 end
 
-@testset "BoseHubbardMom1D" begin
-    bfs= BoseFS((1,0,2,1,2,1,1,3))
-    @test Hamiltonians.numberoccupiedsites(bfs) == 7
-    @test Hamiltonians.num_singly_doubly_occupied_sites(bfs) == (7,3)
-    @test Hamiltonians.num_singly_doubly_occupied_sites(onr(bfs)) == Hamiltonians.num_singly_doubly_occupied_sites(bfs)
-
-    ham = Hamiltonians.BoseHubbardMom1D(bfs)
-    @test num_offdiagonals(ham,bfs) == 273
-    @test get_offdiagonal(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
-    @test diagonal_element(ham,bfs) ≈ 14.296572875253808
-    m = momentum(ham)
-    @test diagonal_element(m,bfs) ≈ -1.5707963267948966
-    v = DVec(Dict(bfs => 10))
-    @test rayleigh_quotient(m, v) ≈ -1.5707963267948966
-
-    ham = Hamiltonians.HubbardMom1D(bfs)
-    @test num_offdiagonals(ham,bfs) == 273
-    @test get_offdiagonal(ham, bfs, 205) == (BoseFS((1,0,2,1,3,0,0,4)), 0.21650635094610965)
-    @test diagonal_element(ham,bfs) ≈ 14.296572875253808
-    m = momentum(ham)
-    @test diagonal_element(m,bfs) ≈ -1.5707963267948966
-    v = DVec(Dict(bfs => 10))
-    @test rayleigh_quotient(m, v) ≈ -1.5707963267948966
-
-    fs = BoseFS((1,2,1,0)) # should be zero momentum
-    ham = BoseHubbardMom1D(fs,t=1.0)
-    m=momentum(ham) # define momentum operator
-    mom_fs = diagonal_element(m, fs) # get momentum value as diagonal matrix element of operator
-    @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
-    @test reduce(&,[isapprox(mom_fs, diagonal_element(m,h[1]), atol = sqrt(eps())) for h in offdiagonals(ham, fs)]) # check that momentum does not change for offdiagonals
-    # construct full matrix
-    smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
-    # compute its eigenvalues
-    eig = eigen(Matrix(smat))
-    # @test eig.values == [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]
-    @test reduce(&, map(isapprox, eig.values, [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]))
-
-    # for comparison check real-space Bose Hubbard chain - the eigenvalues should be the same
-    hamr = BoseHubbardReal1D(fs,t=1.0)
-    smatr, addsr = Hamiltonians.build_sparse_matrix_from_LO(hamr,fs)
-    eigr = eigen(Matrix(smatr))
-    @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
-
-    ham = Hamiltonians.HubbardMom1D(fs,t=1.0)
-    m=momentum(ham) # define momentum operator
-    mom_fs = diagonal_element(m, fs) # get momentum value as diagonal matrix element of operator
-    @test isapprox(mom_fs, 0.0, atol = sqrt(eps())) # check whether momentum is zero
-    @test reduce(&,[isapprox(mom_fs, diagonal_element(m,h[1]), atol = sqrt(eps())) for h in offdiagonals(ham, fs)]) # check that momentum does not change for offdiagonals
-    # construct full matrix
-    smat, adds = Hamiltonians.build_sparse_matrix_from_LO(ham,fs)
-    # compute its eigenvalues
-    eig = eigen(Matrix(smat))
-    # @test eig.values == [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]
-    @test reduce(&, map(isapprox, eig.values, [-6.681733497641263, -1.663545897706113, 0.8922390118623973, 1.000000000000007, 1.6458537005442135, 2.790321237291681, 3.000000000000001, 3.878480840626051, 7.266981109653349, 9.871403495369677]))
-    @test eigr.values[1] ≈ eig.values[1] # check equality for ground state energy
-end
-
 @safetestset "lomc!" begin
     include("lomc.jl")
 end
@@ -106,8 +49,8 @@ end
 @testset "MemoryStrategy" begin
     # Define the initial Fock state with n particles and m modes
     n = m = 9
-    add = nearUniform(BoseFS{n,m})
-    H = BoseHubbardReal1D(add; u = 6.0, t = 1.0)
+    add = near_uniform(BoseFS{n,m})
+    H = HubbardReal1D(add; u = 6.0, t = 1.0)
     dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
     s_strat = DoubleLogUpdate(targetwalkers=100)
 
@@ -230,8 +173,8 @@ using Rimu.Blocking
 
     # Define the initial Fock state with n particles and m modes
     n = m = 9
-    aIni = nearUniform(BoseFS{n,m})
-    ham = BoseHubbardReal1D(aIni; u = 6.0, t = 1.0)
+    aIni = near_uniform(BoseFS{n,m})
+    ham = HubbardReal1D(aIni; u = 6.0, t = 1.0)
     pa = RunTillLastStep(laststep = 1000)
 
     # standard fciqmc
@@ -305,7 +248,7 @@ using Rimu.EmbarrassinglyDistributed
 @testset "EmbarrassinglyDistributed" begin
     add = BoseFS((1,1,0,1))
     v = DVec(add => 2; capacity = 200)
-    ham = BoseHubbardReal1D(add, u=4.0)
+    ham = HubbardReal1D(add, u=4.0)
     @test setup_workers(4) == 4 # add workers and load code (Rimu and its modules)
     seedCRNGs_workers!(127)     # seed rgns on workers deterministically
     nt = d_lomc!(ham, v; eqsteps = 1_000, laststep = 21_000) # perform parallel lomc!
@@ -324,8 +267,8 @@ end
 @testset "BoseFS2C" begin
     bfs2c = BoseFS2C(BoseFS((1,2,0,4)),BoseFS((4,0,3,1)))
     @test typeof(bfs2c) <: BoseFS2C{7,8,4}
-    @test Hamiltonians.numberoccupiedsites(bfs2c.bsa) == 3
-    @test Hamiltonians.numberoccupiedsites(bfs2c.bsb) == 3
+    @test num_occupied_modes(bfs2c.bsa) == 3
+    @test num_occupied_modes(bfs2c.bsb) == 3
     @test onr(bfs2c.bsa) == [1,2,0,4]
     @test onr(bfs2c.bsb) == [4,0,3,1]
     @test Hamiltonians.bose_hubbard_2c_interaction(bfs2c) == 8 # n_a*n_b over all sites
@@ -421,4 +364,8 @@ end
 
     # clean up
     rm("fciqmcdata.arrow", force=true)
+end
+
+@safetestset "doctests" begin
+    include("doctests.jl")
 end

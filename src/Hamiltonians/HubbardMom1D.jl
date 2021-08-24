@@ -76,7 +76,7 @@ julia> Hamiltonians.num_singly_doubly_occupied_sites(BoseFS{3,3}((2, 0, 1)))
 function num_singly_doubly_occupied_sites(b::BoseFS)
     singlies = 0
     doublies = 0
-    for (n, _, _) in occupied_orbitals(b)
+    for (n, _, _) in occupied_modes(b)
         singlies += 1
         doublies += n > 1
     end
@@ -116,8 +116,10 @@ Compute diagonal interaction energy term.
 
 ```jldoctest
 julia> a = BoseFS{6,5}((1,2,3,0,0))
+BoseFS{6,5}((1, 2, 3, 0, 0))
 
 julia> H = HubbardMom1D(a);
+
 
 julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
 5.2
@@ -264,7 +266,6 @@ end
 ) where {M,A}
     svec, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
     return A(svec), ham.u/(2*M)*sqrt(onproduct)
-    # return new address and matrix element
 end
 
 ###

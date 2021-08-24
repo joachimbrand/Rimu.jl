@@ -59,7 +59,7 @@ using Statistics
     end
 
     @testset "Replicas" begin
-        add = nearUniform(BoseFS{5,15})
+        add = near_uniform(BoseFS{5,15})
         H = HubbardReal1D(add)
         dv = DVec(add => 1, style=IsDynamicSemistochastic())
 

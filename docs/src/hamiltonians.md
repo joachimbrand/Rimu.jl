@@ -26,42 +26,61 @@ of the model are then provided by the following methods:
  * [`offdiagonals(ham, add)`](@ref): iterator over off-diagonal matrix elements
  * [`random_offdiagonal(hops)`](@ref): choose random off-diagonal
  * [`dimension(T, ham)`](@ref): dimension of linear space
- * [`nearUniform(ham)`](@ref): configuration with particles spread across modes
+ * [`near_uniform(ham)`](@ref): configuration with particles spread across modes
  * [`starting_address(ham)`](@ref): address for accessing one of the diagonal elements of `ham`
 
 ### Model Hamiltonians
 
-Here is a list of fully implemented model Hamiltonians. So far there are two
-variants implemented of the one-dimensional Bose-Hubbard model real space as well as a momentum-space Hubbard chain.
+Here is a list of fully implemented model Hamiltonians. So far there are two variants
+implemented of the one-dimensional Bose-Hubbard model real space as well as a momentum-space
+Hubbard chain.
 
 ```@docs
 HubbardReal1D
 ExtendedHubbardReal1D
 HubbardMom1D
+BoseHubbardReal1D2C
+BoseHubbardMom1D2C
+HubbardRealSpace
 MatrixHamiltonian
 ```
 
-
 ### Hamiltonians interface
 
-Behind the implementation of a particular model is a more abstract interface
-for defining hamiltonians.
-If you want to define a new model you should make use of this interface.
-The most general form of a model Hamiltonian should subtype to
-`AbstractHamiltonian` and implement the relevant methods.
+Behind the implementation of a particular model is a more abstract interface for defining
+hamiltonians. If you want to define a new model you should make use of this interface. The
+most general form of a model Hamiltonian should subtype to `AbstractHamiltonian` and
+implement the relevant methods.
 
 ```@docs
 AbstractHamiltonian
 offdiagonals
-random_offdiagonal
+diagonal_element
+starting_address
 ```
-#### Core functions
 
-The following functions are part of the core functionality of a Hamiltonian and
-need to be implemented efficiently and specifically for each model.
+The following functions may be implemented instead of [`offdiagonals`](@ref).
 
 ```@docs
 num_offdiagonals
 get_offdiagonal
-diagonal_element
+```
+
+The following functions come with default implementations, but may be customized.
+
+```@docs
+random_offdiagonal
+Hamiltonians.LOStructure
+dimension
+```
+
+### Geometry
+
+```@docs
+LatticeGeometry
+PeriodicBoundaries
+HardwallBoundaries
+LadderBoundaries
+num_neighbours
+neighbour_site
 ```
