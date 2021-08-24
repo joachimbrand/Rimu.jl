@@ -78,7 +78,7 @@ end
 """
     free(obj::MPIOneSided)
 De-reference the object, call finalizer and the garbage collector immediately.
-This is a syncronizing MPI call. Make sure that the object is not used later.
+This is a syncronizing MPI call. Make sure that the object is not used later!
 MPI syncronizing.
 """
 function free(obj::MPIOneSided)
@@ -113,9 +113,9 @@ Deposit a vector `buf` into the MPI window `s` on rank `targetrank`. If
     @boundscheck len ≤ length(buf) && len ≤ s.capacity ||
         error("Not enough space left in buffer")
     b_buffer = MPI.Buffer(buf, len, s.DT_b)
-    MPI.Put(b_buffer, targetrank, s.b_win)
+    MPI.Put!(b_buffer, targetrank, s.b_win)
     l_buffer = MPI.Buffer([len,], 1, s.DT_l)
-    MPI.Put(l_buffer, targetrank, s.l_win)
+    MPI.Put!(l_buffer, targetrank, s.l_win)
 end
 @inline function put(buf::Vector{T}, targetrank, s::MPIOneSided{T}) where T
     len = length(buf)
