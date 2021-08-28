@@ -45,7 +45,7 @@ jobs:
           # echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
           # chmod +x $JULIA_MPIEXEC
           export JULIA_NUM_THREADS=1
-          julia --project -e 'ENV["JULIA_MPI_BINARY"]=""; using Pkg; Pkg.add(name = "MPI", rev = "sb/onesided"); Pkg.build("MPI"; verbose=true); using MPI; MPI.install_mpiexecjl()'
+          julia --project -e 'ENV["JULIA_MPI_BINARY"]=""; using Pkg; Pkg.add(name = "MPI", rev = "master"); Pkg.build("MPI"; verbose=true); using MPI; MPI.install_mpiexecjl()'
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           export PATH=$PATH:/home/runner/.julia/bin
