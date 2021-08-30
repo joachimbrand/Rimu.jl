@@ -341,6 +341,21 @@ end
     include("RMPI.jl")
 end
 
+@testset "example script" begin
+    include("../scripts/BHM-example.jl")
+    dfr = load_df("fciqmcdata.arrow")
+    qmcdata = last(dfr,steps_measure)
+    (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
+    @test qmcShift ≈ -4.11255936332424 rtol=0.01
+
+    # clean up
+    rm("fciqmcdata.arrow", force=true)
+end
+
+@safetestset "doctests" begin
+    include("doctests.jl")
+end
+
 # Note: This last test is set up to work on Pipelines, within a Docker
 # container, where everything runs as root. It should also work locally,
 # where typically mpi is not (to be) run as root.
@@ -359,19 +374,4 @@ end
     else
         @info "not testing MPI on CI"
     end
-end
-
-@testset "example script" begin
-    include("../scripts/BHM-example.jl")
-    dfr = load_df("fciqmcdata.arrow")
-    qmcdata = last(dfr,steps_measure)
-    (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
-    @test qmcShift ≈ -4.11255936332424
-
-    # clean up
-    rm("fciqmcdata.arrow", force=true)
-end
-
-@safetestset "doctests" begin
-    include("doctests.jl")
 end
