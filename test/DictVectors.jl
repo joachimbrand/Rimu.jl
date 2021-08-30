@@ -202,6 +202,7 @@ function test_dvec_interface(type, keys, vals, cap)
         @testset "projection" begin
             dvec = type(Dict(pairs))
             @test UniformProjector() ⋅ dvec == sum(dvec)
+            @test UniformProjector()[2] == 1
             if valtype(dvec) isa AbstractFloat
                 @test NormProjector() ⋅ dvec == norm(dvec, 1)
             end

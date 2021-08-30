@@ -434,6 +434,7 @@ end
             addr = starting_address(H)
             @test starting_address(G) == addr
             @test LOStructure(G) isa AdjointKnown
+            @test G == GuidingVectorSampling(H; vector = v, eps = 0.2) # call signature
 
             for i in 1:num_offdiagonals(G, addr)
                 addr2, me = get_offdiagonal(G, addr, i)

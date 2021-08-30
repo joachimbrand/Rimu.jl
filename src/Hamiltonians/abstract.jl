@@ -5,7 +5,7 @@
     AbstractHamiltonian{T}
 
 Supertype that provides an interface for linear operators over a linear space with scalar
-type `T` that are suitable for FCIQMC. Indexing is done with addresses (typically not
+type `T` that are suitable for FCIQMC (with [`lomc!`](@ref)). Indexing is done with addresses (typically not
 integers) from an address space that may be large (and will not need to be completely
 generated).
 
@@ -14,32 +14,32 @@ module `DictVectors` and work well with addresses of type [`AbstractFockAddress`
 the module `BitStringAddresses`. The type works well with the external package
 [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
 
-# Methods
+For available implementations see [`Hamiltonians`](@ref).
 
-Provides:
-
-* [`offdiagonals`](@ref): iterator over reachable off-diagonal matrix elements
-* [`random_offdiagonal`](@ref): function to generate random off-diagonal matrix element
-* [`dimension`](@ref): get the dimension of the address space.
-* `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes
-* `*(H, v)`: deterministic matrix-vector multiply.
-* `H(v)`: equivalent to `H * v`.
-* `mul!(w, H, v)`: mutating matrix-vector multiply.
-* [`dot(x, H, v)`](@ref): compute `x⋅(H*v)` minimizing allocations.
+# Interface
 
 Methods that need to be implemented:
 
 * [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
 * [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
-* [`diagonal_element(::AbstractHamiltonian, address)`](@ref)
+* [`StochasticStyles.diagonal_element(::AbstractHamiltonian, address)`](@ref)
 * [`starting_address(::AbstractHamiltonian)`](@ref)
 
 Optional methods to implement:
 
-* [`Hamiltonians.LOStructure(::Type{<:AbstractHamiltonian})`](@ref)
-* [`dimension(::Type, ::AbstractHamiltonian)`](@ref)
-* [`offdiagonals(::AbstractHamiltonian, ::AbstractFockAddress)`](@ref)
-* [`momentum(::AbstractHamiltonian)`](@ref)
+* [`LOStructure(::Type{typeof(lo)})`](@ref): defaults to `AdjointUnknown`
+* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref): defaults to dimension of address space
+* [`momentum(::AbstractHamiltonian)`](@ref): no default
+
+Provides:
+
+* [`offdiagonals`](@ref): iterator over reachable off-diagonal matrix elements
+* [`random_offdiagonal`](@ref): function to generate random off-diagonal matrix element
+* `*(H, v)`: deterministic matrix-vector multiply (allocating)
+* `H(v)`: equivalent to `H * v`.
+* `mul!(w, H, v)`: mutating matrix-vector multiply.
+* [`dot(x, H, v)`](@ref): compute `x⋅(H*v)` minimizing allocations.
+* `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes (slow!)
 """
 abstract type AbstractHamiltonian{T} end
 
