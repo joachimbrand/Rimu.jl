@@ -65,7 +65,7 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2907 atol=1
+        @test sum(df[:,:norm]) ≈ 2698 atol=1
     end
 
     @testset "DeltaMemory" begin
@@ -74,14 +74,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2907 atol=1
+        @test sum(df[:,:norm]) ≈ 2698 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2317 atol=1
+        @test sum(df[:,:norm]) ≈ 2005 atol=1
     end
 
     @testset "DeltaMemory2" begin
@@ -90,14 +90,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2907 atol=1
+        @test sum(df[:,:norm]) ≈ 2698 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2646 atol=1
+        @test sum(df[:,:norm]) ≈ 1848 atol=1
     end
 
     @testset "ShiftMemory" begin
@@ -106,14 +106,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2907 atol=1
+        @test sum(df[:,:norm]) ≈ 2698 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 1719 atol=1
+        @test sum(df[:,:norm]) ≈ 2811 atol=1
     end
 end
 
@@ -208,10 +208,10 @@ using Rimu.Blocking
         ham, vs; params = pa, s_strat = s, post_step, τ_strat, wm = similar(vs),
     ).df
     r = autoblock(rdfs, start=101)
-    @test r.s̄ ≈ -4.78 atol=0.1
+    @test r.s̄ ≈ -5.36 atol=0.1
     @test r.σs ≈ 0.27 atol=0.1
-    @test r.ē ≈ -5.81 atol=0.1
-    @test r.σe ≈ 0.39 atol=0.1
+    @test r.ē ≈ -7.46 atol=0.1
+    @test r.σe ≈ 0.58 atol=0.1
     @test r.k == 6
 
     g = growthWitness(rdfs, b=50)

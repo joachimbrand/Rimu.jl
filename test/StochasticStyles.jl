@@ -178,7 +178,7 @@ end
     # enough spawns to hopefully reach that average consistently.
     for (add, H) in [
         (BoseFS((0,0,0,3,1,1)), HubbardMom1D(BoseFS((0,0,0,3,1,1)); u=6.0)),
-        (BoseFS((5,0,0,5,0,0,0)), HubbardReal1D(nearUniform(BoseFS{10,7}); u=1.0)),
+        (BoseFS((5,0,0,5,0,0,0)), HubbardReal1D(near_uniform(BoseFS{10,7}); u=1.0)),
     ]
         exact = DVec(add => 1.0)
         vanilla = DVec(add => 1.0)
