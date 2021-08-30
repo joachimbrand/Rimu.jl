@@ -2,14 +2,6 @@
 # versions without dependence on MPI.jl
 using Base.Threads: nthreads
 
-"""
-    localpart(dv) -> AbstractDVec
-
-Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for
-`DictVector`s.
-"""
-localpart(dv) = dv # default for local data
-
 function threadedWorkingMemory(v)
     return Tuple(similar(localpart(v)) for _ in 1:nthreads())
 end
@@ -58,7 +50,6 @@ end
 
 Base.iterate(m::MultiScalar, args...) = iterate(m.tuple, args...)
 Base.length(m::MultiScalar) = length(m.tuple)
-
 
 # three-argument version
 """

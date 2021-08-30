@@ -22,7 +22,7 @@ localpart(dv) = dv # default for local data
 Return the raw storage associated with `dvec` as an `AbstractDict`. Used in MPI
 communication.
 """
-storage(v::AbstractVector) = Dict(pairs(v))
+storage(v::AbstractVector) = v
 
 StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
 

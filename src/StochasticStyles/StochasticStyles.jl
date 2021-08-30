@@ -42,13 +42,14 @@ using StatsBase
 using ..ConsistentRNG
 using ..Rimu: MultiScalar, localpart
 
-export deposit!, diagonal_element, offdiagonals, random_offdiagonal, default_style
-export fciqmc_col!, step_stats, update_dvec!
+using ..Interfaces
+import ..Interfaces:
+    deposit!, diagonal_element, offdiagonals, random_offdiagonal, default_style,
+    fciqmc_col!, step_stats, update_dvec!, compress!
 export
     StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
     IsDynamicSemistochastic, IsExplosive, StyleUnknown
 
-include("abstract.jl")
 include("spawning.jl")
 include("compression.jl")
 include("styles.jl")

@@ -28,6 +28,8 @@ transformations on the generalised vector after the spawning step is complete.
 """
 abstract type StochasticStyle{T} end
 
+StochasticStyle(::AbstractVector{T}) where T = default_style(T)
+
 Base.eltype(::Type{<:StochasticStyle{T}}) where {T} = T
 
 """
@@ -47,4 +49,80 @@ style is known.
 """
 default_style(::Type{T}) where T = StyleUnknown{T}()
 
-StochasticStyle(::AbstractVector{T}) where T = default_style(T)
+"""
+    CompressionStrategy
+
+The `CompressionStrategy` controls how a vector is compressed after a step. To use, define
+`CompressionStrategy(::StochasticStyle)`. The default implementation returns
+[`NoCompression`](@ref).
+"""
+abstract type CompressionStrategy end
+
+"""
+    NoCompression <: CompressionStrategy end
+
+Default [`CompressionStrategy`](@ref). Leaves the vector intact.
+"""
+struct NoCompression <: CompressionStrategy end
+
+CompressionStrategy(::StochasticStyle) = NoCompression()
+
+"""
+    compress!(::CompressionStrategy, v)
+
+Compress the vector `v` and return it.
+"""
+compress!(::NoCompression, v) = v
+
+"""
+    update_dvec!([::StochasticStyle,] dvec) -> dvec, nt
+
+Perform an arbitrary transformation on `dvec` after the spawning step is completed and
+report statistics to the `DataFrame`.
+
+Returns the new `dvec` and a `NamedTuple` `nt` of statistics to be reported.
+
+When extending this function for a custom [`StochasticStyle`](@ref), define a method
+for the two-argument call signature!
+
+The default implementation uses [`CompressionStrategy`](@ref) to compress the vector.
+
+Note: `update_dvec!` may return a new vector.
+"""
+update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
+update_dvec!(s::StochasticStyle, v) = update_dvec!(CompressionStrategy(s), v)
+update_dvec!(::NoCompression, v) = v, NamedTuple()
+function update_dvec!(c::CompressionStrategy, v)
+    len_before = length(v)
+    return compress!(c, v), (; len_before)
+end
+
+"""
+    step_stats(::StochasticStyle)
+
+Return a tuple of names (`Symbol` or `String`) and a tuple of zeros of values of the same
+length. These will be reported as columns in the `DataFrame` returned by [`lomc!`](@ref).
+"""
+step_stats(v, n) = step_stats(StochasticStyle(v), n)
+function step_stats(s::StochasticStyle, ::Val{N}) where N
+    if N == 1
+        return step_stats(s)
+    else
+        names, stats = step_stats(s)
+        return names, MVector(ntuple(_ -> stats, Val(N)))
+    end
+end
+
+"""
+    fciqmc_col!(w, ham, add, num, shift, dτ)
+    fciqmc_col!(::StochasticStyle, args...)
+
+Spawning and diagonal step of FCIQMC for single column of `ham`. In essence it computes
+
+`w .+= (1 .+ dτ.*(shift .- ham[:,add])).*num`.
+
+The [`StochasticStyle(w)`](@ref), picks the algorithm used.
+"""
+function fciqmc_col!(w, ham, add, num, shift, dτ)
+    return fciqmc_col!(StochasticStyle(w), w, ham, add, num, shift, dτ)
+end
