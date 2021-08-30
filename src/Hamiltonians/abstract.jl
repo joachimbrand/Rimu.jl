@@ -50,68 +50,6 @@ Base.eltype(::AbstractHamiltonian{T}) where {T} = T
 
 BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_address(h))
 
-"""
-    diagonal_element(ham, add)
-
-Compute the diagonal matrix element of the linear operator `ham` at
-address `add`.
-
-# Example
-
-```jldoctest
-julia> addr = BoseFS((3, 2, 1));
-
-
-julia> H = HubbardMom1D(addr);
-
-
-julia> diagonal_element(H, addr)
-8.666666666666664
-```
-"""
-diagonal_element(m::AbstractMatrix, i) = m[i,i]
-
-"""
-    num_offdiagonals(ham, add)
-
-Compute the number of number of reachable configurations from address `add`.
-
-# Example
-
-```jldoctest
-julia> addr = BoseFS((3, 2, 1));
-
-
-julia> H = HubbardMom1D(addr);
-
-
-julia> num_offdiagonals(H, addr)
-10
-```
-"""
-num_offdiagonals
-
-"""
-    newadd, me = get_offdiagonal(ham, add, chosen)
-
-Compute value `me` and new address `newadd` of a single (off-diagonal) matrix element in a
-Hamiltonian `ham`. The off-diagonal element is in the same column as address `add` and is
-indexed by integer index `chosen`.
-
-# Example
-
-```jldoctest
-julia> addr = BoseFS((3, 2, 1));
-
-
-julia> H = HubbardMom1D(addr);
-
-
-julia> get_offdiagonal(H, addr, 3)
-(BoseFS{6,3}((2, 1, 3)), 1.0)
-```
-"""
-get_offdiagonal
 
 """
 Approximate formula for log of binomial coefficient. [Source](https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas)
@@ -178,63 +116,6 @@ dimension(h::AbstractHamiltonian) = dimension(Int, h)
 dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
 
 BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(starting_address(h)))
-
-"""
-    starting_address(h)
-
-Return the starting address for Hamiltonian `h`. Part of the [`AbstractHamiltonian`](@ref)
-interface. When called on an `AbstractMatrix` return the index of the lowest diagonal
-element.
-
-# Example
-
-```jldoctest
-julia> addr = BoseFS((3, 2, 1));
-
-
-julia> H = HubbardMom1D(addr);
-
-
-julia> addr == starting_address(H)
-true
-```
-"""
-starting_address(m::AbstractMatrix) = findmin(real.(diag(m)))[2]
-
-"""
-    Hamiltonians.LOStructure(op::AbstractHamiltonian)
-    Hamiltonians.LOStructure(typeof(op))
-
-`LOStructure` speficies properties of the linear operator `op`. If a special structure is
-known this can speed up calculations. Implemented structures are:
-
-* `Hamiltonians.Hermitian`: The operator is complex and Hermitian or real and symmetric.
-* `Hamiltonians.AdjointKnown`: The operator is not Hermitian, but its [`adjoint`](@ref) is
-  implemented.
-* `Hamiltonians.AdjointUnknown`: [`adjoint`](@ref) for this operator is not implemented.
-
-In order to define this trait for a new linear operator type, define a method for
-`LOStructure(::Type{<:MyNewLOType}) = …`.
-
-"""
-abstract type LOStructure end
-
-struct Hermitian <: LOStructure end
-struct AdjointKnown <: LOStructure end
-struct AdjointUnknown <: LOStructure end
-
-# defaults
-LOStructure(op::AbstractHamiltonian) = LOStructure(typeof(op))
-LOStructure(::Type{<:AbstractHamiltonian}) = AdjointUnknown()
-
-"""
-    has_adjoint(op)
-
-Return true if `adjoint` is defined on `op`.
-"""
-has_adjoint(op::AbstractHamiltonian) = has_adjoint(LOStructure(op))
-has_adjoint(::AdjointUnknown) = false
-has_adjoint(::LOStructure) = true
 
 """
     rayleigh_quotient(H, v)

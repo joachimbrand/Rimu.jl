@@ -25,7 +25,7 @@ function MatrixHamiltonian(
     MatrixHamiltonian{eltype(m), AM, ishermitian(m)}(m, i)
 end
 
-LOStructure(::Type{<:MatrixHamiltonian{<:Any,<:Any,true}}) = Hermitian()
+LOStructure(::Type{<:MatrixHamiltonian{<:Any,<:Any,true}}) = IsHermitian()
 LOStructure(::Type{<:MatrixHamiltonian}) = AdjointKnown()
 LinearAlgebra.adjoint(mh::MatrixHamiltonian) = MatrixHamiltonian(mh.m')
 LinearAlgebra.adjoint(mh::MatrixHamiltonian{<:Any,<:Any,true}) = mh

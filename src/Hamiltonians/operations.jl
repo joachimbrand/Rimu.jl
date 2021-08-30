@@ -103,7 +103,7 @@ function LinearAlgebra.adjoint(::S, op) where {S<:LOStructure}
     )
 end
 
-LinearAlgebra.adjoint(::Hermitian, op) = op # adjoint is known
+LinearAlgebra.adjoint(::IsHermitian, op) = op # adjoint is known
 
 """
     sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)

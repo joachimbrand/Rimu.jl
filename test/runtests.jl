@@ -13,6 +13,10 @@ using Rimu.StatsTools, Rimu.RimuIO
 # for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
 @assert VERSION ≥ v"1.6"
 
+@safetestset "Interfaces" begin
+    include("Interfaces.jl")
+end
+
 @safetestset "StatsTools" begin
     include("StatsTools.jl")
 end

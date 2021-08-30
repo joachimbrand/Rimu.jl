@@ -144,9 +144,9 @@ in arbitrary dimensions.
 
 ## Other parameters
 
-* `u`: the on-site interaction parameters. Must be a symmetric matrix. `u[i, j]` 
-  corresponds to the interaction between the `i`-th and `j`-th component. `u[i, i]` 
-  corresponds to the interaction of a component with itself. Note that `u[i,i]` must 
+* `u`: the on-site interaction parameters. Must be a symmetric matrix. `u[i, j]`
+  corresponds to the interaction between the `i`-th and `j`-th component. `u[i, i]`
+  corresponds to the interaction of a component with itself. Note that `u[i,i]` must
   be zero for fermionic components.
 * `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
   vector corresponds to the hopping strength of the `i`-th component.
@@ -159,7 +159,7 @@ struct HubbardRealSpace{
     U<:SMatrix{C,C,Float64},
 } <: AbstractHamiltonian{Float64}
     address::A
-    u::U # interactions 
+    u::U # interactions
     t::T # hopping strengths
     geometry::G
 end
@@ -215,7 +215,7 @@ function warn_fermi_interaction(address::FermiFS, u)
 end
 warn_fermi_interaction(_, _) = nothing
 
-LOStructure(::Type{<:HubbardRealSpace}) = Hermitian()
+LOStructure(::Type{<:HubbardRealSpace}) = IsHermitian()
 
 function Base.show(io::IO, h::HubbardRealSpace)
     println(io, "HubbardRealSpace(")

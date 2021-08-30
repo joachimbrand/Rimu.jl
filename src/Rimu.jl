@@ -18,12 +18,16 @@ using ThreadsX
 
 @reexport using Distributed
 
+include("ConsistentRNG.jl")
+@reexport using .ConsistentRNG
+
+include("Interfaces/Interfaces.jl")
+@reexport using .Interfaces
+
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
 include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
-include("ConsistentRNG.jl")
-@reexport using .ConsistentRNG
 include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("RimuIO.jl")

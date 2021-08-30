@@ -13,9 +13,12 @@ using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
 
-export AbstractHamiltonian, TwoComponentBosonicHamiltonian, offdiagonals, random_offdiagonal
-export diagonal_element, num_offdiagonals, get_offdiagonal, dimension, starting_address
-export rayleigh_quotient, momentum
+using ..Interfaces
+import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
+    offdiagonals, random_offdiagonal, LOStructure
+
+export AbstractHamiltonian, TwoComponentBosonicHamiltonian
+export dimension, rayleigh_quotient, momentum
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
