@@ -4,7 +4,7 @@
 This module contains the bare-bones interfaces needed to implement new types of generalized
 vectors and Hamiltonians for use with [`lomc!`](@ref).
 
-For a generalized vector implement what would be needed for the `AbstractDict` interface
+For an [`AbstractDVec`](@ref) implement what would be needed for the `AbstractDict` interface
 (`pairs`, `keys`, `values`, `setindex!, getindex, delete!, length, haskey, empty!, isempty`)
 and, in addition:
 
@@ -14,7 +14,7 @@ and, in addition:
 * [`freeze`](@ref) (optional)
 * [`localpart`](@ref) (optional)
 
-For a Hamiltonian, implement the following functions:
+For an [AbstractHamiltonian](@ref), implement the following functions:
 
 * [`diagonal_element`](@ref)
 * [`num_offdiagonals`](@ref) and [`get_offdiagonal`](@ref), or [`offdiagonals`](@ref).
@@ -23,7 +23,7 @@ For a Hamiltonian, implement the following functions:
 * [`LOStructure`](@ref) (optional, but recommended)
 * [`random_offdiagonal`](@ref) (optional)
 
-A `StochasticStyle` controls how the FCIQMC computation is performed. It follows the
+A [`StochasticStyle`](@ref) controls how the FCIQMC computation is performed. It follows the
 following interface:
 
 * [`fciqmc_col!`](@ref)

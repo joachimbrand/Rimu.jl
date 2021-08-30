@@ -126,11 +126,13 @@ end
 """
     SpawningStrategy
 
-A `SpawningStrategy` is used to control how (offdiagonal) spawns are peformed.
+A `SpawningStrategy` is used to control how (offdiagonal) spawns are peformed. It is used
+by passing it as the first argument to [`spawn!`](@ref).
 
 The following methods are implemented:
 
 * [`Exact`](@ref)
+* [`SingleSpawn`](@ref)
 * [`WithReplacement`](@ref)
 * [`WithoutReplacement`](@ref)
 * [`Bernoulli`](@ref)

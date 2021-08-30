@@ -1,4 +1,4 @@
-## Module `BitStringAddresses.jl`
+# Module `BitStringAddresses`
 
 This module contains the implementations of [`BitString`](@ref) and various Fock addresses.
 The addresses serve as a basis for a Hamiltonian.
@@ -10,7 +10,7 @@ States](https://en.wikipedia.org/wiki/Fock_state).
 When implementing a new address type, care must be taken to make them space-efficient and
 stack-allocated - avoid using arrays to represent your addresses at all costs!
 
-### Fock addresses
+## Fock addresses
 
 Rimu provides a variety of address implementations (see below) that should make it
 straightforward to implement efficient Hamiltonians.
@@ -21,7 +21,7 @@ Currently, only single-particle operators are implemented directly (via
 implementation](../../src/Hamiltonians/HubbardMom1D.jl) of [`HubbardMom1D`](@ref) for an
 example.
 
-#### Fock address API
+### Fock address API
 
 ```@docs
 AbstractFockAddress
@@ -43,13 +43,13 @@ find_mode
 move_particle
 ```
 
-### BitStrings
+## BitStrings
 
 The atomic addresses, [`BoseFS`](@ref) and [`FermiFS`](@ref), are implemented as bitstrings.
 Using this approach over an occupation number representation makes the addresses much more
 space-efficient. The API for [`BitString`](@ref)s is as follows.
 
-#### BitString API
+### BitString API
 
 ```@docs
 BitString

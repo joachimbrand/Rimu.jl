@@ -42,7 +42,8 @@ end
 """
     localpart(dv) -> AbstractDVec
 
-Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for `DictVector`s.
+Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for
+`AbstractDVec`s.
 """
 localpart(dv) = dv # default for local data
 

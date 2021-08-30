@@ -48,7 +48,7 @@ import ..Interfaces:
     fciqmc_col!, step_stats, update_dvec!, compress!
 export
     StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
-    IsDynamicSemistochastic, IsExplosive, StyleUnknown
+    IsDynamicSemistochastic, StyleUnknown
 
 include("spawning.jl")
 include("compression.jl")

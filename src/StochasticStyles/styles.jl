@@ -33,6 +33,8 @@ complex walker numbers representing two populations of integer walkers.
 When using this style, make sure to set a complex target number walkers in the
 [`ShiftStrategy`](@ref)!
 
+This style is experimental and unexported.
+
 See also [`StochasticStyle`](@ref).
 """
 struct IsStochastic2Pop{T<:Complex{<:Integer}} <: StochasticStyle{T} end
@@ -210,6 +212,8 @@ Walkers with high walker numbers spawn as if [`IsDynamicSemistochastic`](@ref) w
 
 Like [`IsDynamicSemistochastic`](@ref), the vector is compressed after all spawning is
 performed.
+
+This style is experimental and unexported.
 
 ## Parameters
 

@@ -1,11 +1,11 @@
 """
-Module that provides data structures that behave similar to sparse vectors,
-but are indexed by arbitrary types (could be non-integers) similarly to
-dictionaries. The idea is to do linear algebra with data structures that are
-neither subtyped to `AbstractVector` nor to `AbstractDict` and are suitable
-for use with `KrylovKit.jl`. For this, the
-abstract type and interface [`AbstractDVec`](@ref) is provided, with the
-concrete implementation of [`DVec`](@ref)
+Module that provides data structures that behave similar to sparse vectors, but are indexed
+by arbitrary types (could be non-integers) similarly to dictionaries. The idea is to do
+linear algebra with data structures that are neither subtyped to `AbstractVector` nor to
+`AbstractDict` and are suitable for use with `KrylovKit.jl`.
+
+For this, the abstract type and interface [`AbstractDVec`](@ref) is provided, with the
+concrete implementations of [`DVec`](@ref) and [`InitiatorDVec`](@ref).
 """
 module DictVectors
 
@@ -16,7 +16,7 @@ import SplittablesBase
 using ..Interfaces
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze
 
-export zero!, add!, deposit!, storage, walkernumber, zero!
+export zero!, add!, deposit!, storage, walkernumber
 export DVec, InitiatorDVec
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 

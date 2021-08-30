@@ -1,5 +1,9 @@
 """
-Module for providing MPI functionality for `Rimu`.
+Module for providing MPI functionality for `Rimu`. This module is unexported. To use it, run
+
+```
+using Rimu.RMPI
+```
 """
 module RMPI
 

@@ -1,8 +1,10 @@
 """
     MPIData(data; kwargs...)
 
-Wrapper used for signaling that this data is part of a distributed
-data structure and communication should happen with MPI.
+Wrapper used for signaling that this data is part of a distributed data structure and
+communication should happen with MPI. `MPIData` can generally be used where an
+[`AbstractDVec`](@ref) would be used otherwise. Unlike [`AbstractDVec`](@ref)s, `MPIData`
+does not support indexing, or iteration over `keys`, `values`, and `pairs`.
 
 Keyword arguments:
 * `setup = mpi_point_to_point` - controls the communication stratgy

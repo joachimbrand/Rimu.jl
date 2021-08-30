@@ -147,7 +147,7 @@ the `initiator` keyword argument (see below).
 ## Keyword  arguments
 
 * `style`: A valid [`StochasticStyle`](@ref).  The default is selected based on the
-  `InitiatorDVec`'s [`valtype`](@ref) (see [`default_style`](@ref)). If a style is given and
+  `InitiatorDVec`'s `valtype` (see [`default_style`](@ref)). If a style is given and
   the `valtype` does not match the `style`'s `eltype`, the values are converted to an
   appropriate type.
 

@@ -1,15 +1,21 @@
 """
     StochasticStyle(v)
+
 Abstract type. When called as a function it returns the native style of the
 generalised vector `v` that determines how simulations are to proceed.
 
 # Implemented styles
+
 * [`IsStochasticInteger`](@ref) - integer walker FCIQMC
 * [`IsDeterministic`](@ref) - perform deterministic variant of power method
 * [`IsStochasticWithThreshold`](@ref) - floating point walker FCIQMC
-* [`IsDynamicSemistochastic`](@ref)
+* [`IsDynamicSemistochastic`](@ref) - floating point walker FCIQMC with smarter spawning and
+  vector compression
+* [`IsStochastic2Pop`](@ref)
+* [`IsExplosive`](@ref)
 
 # Usage
+
 Concrete `StochasticStyle`s can be used for the `style` keyword argument of
 [`lomc!`](@ref) and [`DVec`](@ref).
 
@@ -34,6 +40,7 @@ Base.eltype(::Type{<:StochasticStyle{T}}) where {T} = T
 
 """
     StyleUnknown{T}() <: StochasticStyle
+
 Trait for value types not (currently) compatible with FCIQMC. This style makes it possible to
 construct dict vectors with unsupported `valtype`s.
 

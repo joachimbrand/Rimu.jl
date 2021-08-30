@@ -1,10 +1,9 @@
-
-## Module `Rimu/StatsTools`
+# Module `Rimu/StatsTools`
 
 The  module `Rimu/StatsTools` contains helper function for analysis and post
 processing of Monte Carlo data.
 
-### Usage
+## Usage
 
 The module is not exported by default. In oder to use its functions without
 explicitly specifying the submodule, import the module with
@@ -13,7 +12,7 @@ explicitly specifying the submodule, import the module with
 using Rimu, Rimu.StatsTools
 ```
 
-### Blocking analysis
+## Blocking analysis
 
 For blocking analysis of a single time series use [`blocking_analysis`](@ref),
 or [`mean_and_se`](@ref).
@@ -21,7 +20,7 @@ or [`mean_and_se`](@ref).
 For blocking analysis of a couple of time series where the ration of means is
 the quantity of interest use [`ratio_of_means`](@ref).
 
-#### Exported
+### Exported
 ```@autodocs
 Modules = [StatsTools]
 Pages = ["StatsTools.jl", "blocking.jl", "ratio_of_means.jl", "convenience.jl",
@@ -30,7 +29,7 @@ Pages = ["StatsTools.jl", "blocking.jl", "ratio_of_means.jl", "convenience.jl",
 Private = false
 ```
 
-#### Additional docstrings
+### Additional docstrings
 ```@autodocs
 Modules = [StatsTools]
 Pages = ["StatsTools.jl", "blocking.jl", "ratio_of_means.jl", "convenience.jl",

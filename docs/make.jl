@@ -27,8 +27,12 @@ makedocs(;
             "StatsTools" => "statstools.md",
         ],
         "Developer documentation" => [
+            "Interfaces" => "interfaces.md",
             "Hamiltonians" => "hamiltonians.md",
+            "Dict vectors" => "dictvectors.md",
             "BitString addresses" => "addresses.md",
+            "Stochastic styles" => "stochasticstyles.md",
+            "RMPI" => "RMPI.md",
             "Random Numbers" => "consistentrng.md",
             "Documentation generation" => "documentation.md",
             "Code testing" => "testing.md",
