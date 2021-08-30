@@ -88,7 +88,7 @@ function QMCState(
     wm=nothing,
     params::FciqmcRunStrategy=RunTillLastStep(
         laststep = 100,
-        shift = valtype(v)(diagonal_element(
+        shift = float(valtype(v))(diagonal_element(
             hamiltonian,
             starting_address(hamiltonian)
         ))
