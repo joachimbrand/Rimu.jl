@@ -179,9 +179,8 @@ function IsDynamicSemistochastic{T}(
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
 
-function Base.show(io::IO, s::IsDynamicSemistochastic{T,C}) where {T,C}
-    spawning = nameof(typeof(s.spawning.strat))
-    print(io, "IsDynamicSemistochastic{$T}(", spawning, ", ", nameof(C), ")")
+function Base.show(io::IO, s::IsDynamicSemistochastic{T,C,S}) where {T,C,S}
+    print(io, "IsDynamicSemistochastic{$T,", nameof(C), ",", nameof(S), "}()")
 end
 
 CompressionStrategy(s::IsDynamicSemistochastic) = s.compression
