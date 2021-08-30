@@ -88,10 +88,10 @@ function QMCState(
     wm=nothing,
     params::FciqmcRunStrategy=RunTillLastStep(
         laststep = 100,
-        shift = diagonal_element(
+        shift = valtype(v)(diagonal_element(
             hamiltonian,
             starting_address(hamiltonian)
-        )/one(valtype(v))
+        ))
     ),
     s_strat::ShiftStrategy=DoubleLogUpdate(),
     r_strat::ReportingStrategy=ReportDFAndInfo(),
