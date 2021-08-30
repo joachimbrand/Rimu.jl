@@ -11,19 +11,18 @@ module DictVectors
 
 using Random
 using LinearAlgebra
-using StatsBase
-using ..StochasticStyles
-
-import ..StochasticStyles: deposit!
-import OrderedCollections: freeze
 import SplittablesBase
 
-export AbstractDVec, zero!, add!, storage, walkernumber, freeze
-export DVec, InitiatorDVec
-
+using ..Interfaces
+import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze
 
 export
+    AbstractDVec, zero!, add!, deposit!, storage, walkernumber, zero!
+export
+    DVec, InitiatorDVec
+export
     AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
+
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.

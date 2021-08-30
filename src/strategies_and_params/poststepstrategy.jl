@@ -78,17 +78,17 @@ struct ProjectedEnergy{H,P,Q} <: PostStepStrategy
 end
 
 function ProjectedEnergy(
-    hamiltonian::AbstractHamiltonian, projector;
+    hamiltonian, projector;
     vproj=:vproj, hproj=:hproj
 )
-    hproj_vec = compute_hproj(Hamiltonians.LOStructure(hamiltonian), hamiltonian, projector)
+    hproj_vec = compute_hproj(LOStructure(hamiltonian), hamiltonian, projector)
     return ProjectedEnergy(vproj, hproj, hamiltonian, freeze(projector), hproj_vec)
 end
-function compute_hproj(::Hamiltonians.AdjointUnknown, hamiltonian, projector)
+function compute_hproj(::AdjointUnknown, hamiltonian, projector)
     @warn "$(typeof(hamiltonian)) has an unknown adjoint. This will be slow."
     return nothing
 end
-function compute_hproj(::Hamiltonians.LOStructure, ham, projector)
+function compute_hproj(::LOStructure, ham, projector)
     return freeze(ham' * projector)
 end
 

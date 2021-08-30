@@ -10,7 +10,7 @@ Provides convenience functions:
 module RimuIO
 
 using ..DictVectors
-using ..Rimu
+using ..Interfaces
 
 using Arrow, DataFrames, BSON
 

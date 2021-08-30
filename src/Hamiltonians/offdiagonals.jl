@@ -24,35 +24,7 @@ abstract type AbstractOffdiagonals{A,T} <: AbstractVector{Tuple{A,T}} end
 
 Base.IndexStyle(::Type{<:AbstractOffdiagonals}) = IndexLinear()
 
-"""
-    offdiagonals(h::AbstractHamiltonian, address)
-
-Return an iterator over reachable off-diagonal matrix elements of type
-`<:AbstractOffdiagonals`. Defaults to returning `Offdiagonals(h, a)`
-
-# See also
-
-* [`Offdiagonals`](@ref)
-* [`AbstractOffdiagonals`](@ref)
-
-```jldoctest
-julia> addr = BoseFS((3,2,1));
-
-
-julia> H = HubbardReal1D(addr);
-
-
-julia> h = offdiagonals(H, addr)
-6-element Rimu.Hamiltonians.Offdiagonals{BoseFS{6, 3, BitString{8, 1, UInt8}}, Float64, HubbardReal1D{Float64, BoseFS{6, 3, BitString{8, 1, UInt8}}, 1.0, 1.0}}:
- (BoseFS{6,3}((2, 3, 1)), -3.0)
- (BoseFS{6,3}((2, 2, 2)), -2.449489742783178)
- (BoseFS{6,3}((3, 1, 2)), -2.0)
- (BoseFS{6,3}((4, 1, 1)), -2.8284271247461903)
- (BoseFS{6,3}((4, 2, 0)), -2.0)
- (BoseFS{6,3}((3, 3, 0)), -1.7320508075688772)
-```
-"""
-offdiagonals(h::AbstractHamiltonian, a) = Offdiagonals(h, a)
+offdiagonals(h, a) = Offdiagonals(h, a)
 
 """
     Offdiagonals(h, address)

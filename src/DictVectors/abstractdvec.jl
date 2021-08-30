@@ -1,3 +1,6 @@
+###
+### This file contains methods defined on `AbstractDVec`
+###
 """
     DictVectors.AbstractDVec{K,V}
 
@@ -13,7 +16,7 @@ number of stored elements, not the size of the vector space.
 
 They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in `FCIQMC`.
 
-To iterate over an `AbstractDVec`, use `pairs` or `values`.
+To iterate over an `AbstractDVec`, use `keys`, `pairs`, or `values`.
 
 # Interface
 
@@ -22,8 +25,9 @@ The interface is similar to the `AbstractDict` interface.
 Implement what would be needed for the `AbstractDict` interface (`pairs`, `keys`, `values`,
 `setindex!, getindex, delete!, length, haskey, empty!, isempty`) and, in addition:
 * [`StochasticStyle`](@ref)
-* [`storage(dv)`](@ref) returns an `AbstractDict` storing the raw data with possibly
+* [`storage`](@ref) returns an `AbstractDict` storing the raw data with possibly
   different `valtype` than `V`.
+* [`deposit`](@ref)
 """
 abstract type AbstractDVec{K,V} end
 
@@ -39,14 +43,6 @@ function Base.show(io::IO, dvec::AbstractDVec)
         end
     end
 end
-
-"""
-    storage(dvec) -> AbstractDict
-
-Return the raw storage associated with `dvec` as an `AbstractDict`. Used in MPI
-communication.
-"""
-storage
 
 ###
 ### Types
@@ -70,8 +66,8 @@ Base.ndims(::AbstractDVec) = 1
 Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types it means
 removing all non-zero elements. For `AbstractArrays`, it sets all of the values to zero.
 """
-zero!(v::AbstractDVec) = empty!(v)
 zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
+zero!(v::AbstractDVec) = empty!(v)
 
 Base.zero(dv::AbstractDVec) = empty(dv)
 
@@ -335,14 +331,6 @@ Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
 Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}
 Base.pairs(fd::FrozenDVec) = fd.pairs
 
-"""
-    freeze(dv)
-
-Create a "frozen" version of `dv` which can no longer be modified or used in the
-conventional manner, but supports faster dot products.
-
-If `dv` is an [`MPIData`](@ref), synchronize its contents among the ranks first.
-"""
 freeze(dv) = FrozenDVec(collect(pairs(dv)))
 
 freeze(p::AbstractProjector) = p

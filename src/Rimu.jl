@@ -19,10 +19,12 @@ using ThreadsX
 
 @reexport using Distributed
 
-include("helpers.jl")               # non MPI-dependent helper functions
+include("helpers.jl") # non MPI-dependent helper functions
 
 include("ConsistentRNG.jl")
 @reexport using .ConsistentRNG
+include("Interfaces/Interfaces.jl")
+@reexport using .Interfaces
 include("StochasticStyles/StochasticStyles.jl")
 @reexport using .StochasticStyles
 include("DictVectors/DictVectors.jl")

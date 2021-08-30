@@ -3,8 +3,6 @@ using LinearAlgebra
 using Rimu
 using Test
 
-using Rimu.Hamiltonians: LOStructure, Hermitian, AdjointKnown, AdjointUnknown
-
 """
     test_hamiltonian_interface(H, addr)
 
@@ -41,7 +39,7 @@ function test_hamiltonian_interface(H)
         end
         @testset "LOStructure" begin
             @test LOStructure(H) isa LOStructure
-            if LOStructure(H) isa Hermitian
+            if LOStructure(H) isa IsHermitian
                 @test H' == H
             elseif LOStructure(H) isa AdjointKnown
                 @test begin H'; true; end # make sure no error is thrown
@@ -108,7 +106,7 @@ end
             H = Hamiltonian(addr; t=1.0, u=2.0)
             @test H.t == 1.0
             @test H.u == 2.0
-            @test LOStructure(H) == Hermitian()
+            @test LOStructure(H) == IsHermitian()
             @test starting_address(H) == addr
             @test eval(Meta.parse(repr(H))) == H
         end
@@ -125,7 +123,7 @@ end
             H1 = BoseHubbardReal1D2C(addr1; ta=1.0, tb=2.0, ua=0.5, ub=0.7, v=0.2)
             H2 = BoseHubbardReal1D2C(addr2; ta=2.0, tb=1.0, ua=0.7, ub=0.5, v=0.2)
             @test starting_address(H1) == addr1
-            @test LOStructure(H1) == Hermitian()
+            @test LOStructure(H1) == IsHermitian()
 
             hops1 = collect(offdiagonals(H1, addr1))
             hops2 = collect(offdiagonals(H2, addr2))
@@ -521,8 +519,8 @@ end
 
     # wrap sparse matrix as MatrixHamiltonian
     mh =  MatrixHamiltonian(sm)
-    # adjoint Hermitian
-    @test LOStructure(mh) == Hermitian()
+    # adjoint IsHermitian
+    @test LOStructure(mh) == IsHermitian()
     @test mh' == mh
 
     @test starting_address(mh) == 1
