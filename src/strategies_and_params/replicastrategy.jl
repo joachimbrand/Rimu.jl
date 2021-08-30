@@ -64,19 +64,28 @@ function AllOverlaps(num_replicas=2, operator=nothing)
     return AllOverlaps{num_replicas, typeof(operators)}(operators)
 end
 
-function replica_stats(rs::AllOverlaps{N}, replicas) where {N}
-    T = promote_type((valtype(r.v) for r in replicas)..., eltype.(rs.operators)...)
+function replica_stats(rs::AllOverlaps, replicas)
+    return all_overlaps(rs.operators, getfield.(replicas, :v))
+end
+
+"""
+    all_overlaps(operators, vectors)
+
+Get all overlaps between vectors and operators. This function is overlpaded for `MPIData`.
+"""
+function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}) where {N}
+    T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]
     values = T[]
     for i in 1:N, j in i+1:N
         push!(names, "c$(i)_dot_c$(j)")
-        push!(values, dot(replicas[i].v, replicas[j].v))
-        for (k, op) in enumerate(rs.operators)
+        push!(values, dot(vecs[i], vecs[j]))
+        for (k, op) in enumerate(operators)
             push!(names, "c$(i)_Op$(k)_c$(j)")
-            push!(values, dot(replicas[i].v, op, replicas[j].v))
+            push!(values, dot(vecs[i], op, vecs[j]))
         end
     end
 
-    num_reports = (N * (N - 1) ÷ 2) * (length(rs.operators) + 1)
+    num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)
     return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
 end

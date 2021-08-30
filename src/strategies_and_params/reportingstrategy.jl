@@ -80,15 +80,14 @@ end
 """
     ReportingStrategy
 
-Abstract type for strategies for reporting data in a DataFrame with [`report!()`](@ref). It
-also affects the calculation and reporting of projected quantities in the DataFrame.
+Abstract type for strategies for reporting data in a DataFrame with [`report!()`](@ref).
 
 # Implemented strategies:
 
 * [`ReportDFAndInfo`](@ref)
 * [`ReportToFile`](@ref)
 
-# Interface
+# Interface:
 
 A `ReportingStrategy` can define any of the following:
 

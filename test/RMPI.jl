@@ -6,7 +6,7 @@ using Test
 
 @testset "RNG independence" begin
     m = n = 6
-    add = nearUniform(BoseFS{n,m})
+    add = near_uniform(BoseFS{n,m})
     svec = DVec(add => 2)
     dv = MPIData(svec)
     @test ConsistentRNG.check_crng_independence(dv) ==

@@ -3,9 +3,9 @@ using Rimu
 using Test
 
 @testset "Krylov eigsolve with BoseFS{6,6}" begin
-    ham = BoseHubbardReal1D(nearUniform(BoseFS{6,6}); u=6.0, t=1.0)
+    ham = HubbardReal1D(nearUniform(BoseFS{6,6}); u=6.0, t=1.0)
 
-    a_init = nearUniform(ham)
+    a_init = near_uniform(ham)
     c_init = DVec(a_init => 1.0)
 
     all_results = eigsolve(ham, c_init, 1, :SR; issymmetric = true)

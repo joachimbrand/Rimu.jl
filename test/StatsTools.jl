@@ -163,6 +163,9 @@ end
     ge = growth_estimator(df, h; E_r, skip=steps_equi)
     pcb_est = E_r - ge.E_gr # estimated PCB in the shift from reweighting
     @test 0.2 < median(pcb_est) < pcb
+    @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01; change_type = to_measurement)
+    # @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01)
+    # fails due to type instability in MonteCarloMeasurements
     # test w_lin()
     @test ge.E_gr ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights = w_lin).E_gr
     # projected energy
@@ -215,4 +218,14 @@ end
     γ = acos(√fid_os.ratio) # quantum angle or Fubini-Study metric
     @test γ ≈ α
     =#
+end
+
+@testset "convenience" begin
+    v, σ = 2.0, 0.2
+    m = Measurements.measurement(v, σ)
+    @test map((x,y)->isapprox(x,y),Tuple(med_and_errs(m)),(v, σ, σ, 2σ, 2σ))|>all
+    # @test med_and_errs(m) == (med = v, err1_l = σ, err1_u = σ, err2_l = σ, err2_u = σ)
+    mp = MonteCarloMeasurements.Particles(m)
+    @test map((x,y)->isapprox(x,y; atol=0.01),Tuple(med_and_errs(mp)),(v, σ, σ, 2σ, 2σ))|>all
+    @test m ≈ to_measurement(mp)
 end

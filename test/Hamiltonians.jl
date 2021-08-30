@@ -1,3 +1,4 @@
+using KrylovKit
 using LinearAlgebra
 using Rimu
 using Test
@@ -62,14 +63,17 @@ end
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
         ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
+        HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
+        HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
+        HubbardRealSpace(
+            CompositeFS(
+                FermiFS((1, 1, 1, 1, 1, 0, 0, 0)),
+                FermiFS((1, 1, 1, 1, 0, 0, 0, 0)),
+            ); t=[1, 2], u=[0 3; 3 0]
+        ),
 
         BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
         BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))),
-
-        BoseHubbardReal1D(n=5, m=5, AT=BoseFS{5,5}),
-        BoseHubbardMom1D(n=10, m=5, add=BoseFS((2, 2, 3, 3, 0))),
-
-        ExtendedBHReal1D(),
 
         GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6); g=0.3),
         GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3,2,1), (1,2,3)); ua=6); g=0.3),
@@ -97,7 +101,7 @@ end
 end
 
 @testset "1C model properties" begin
-    addr = nearUniform(BoseFS{100,100})
+    addr = near_uniform(BoseFS{100,100})
 
     for Hamiltonian in (HubbardReal1D, HubbardMom1D)
         @testset "$Hamiltonian" begin
@@ -113,8 +117,8 @@ end
 
 @testset "2C model properties" begin
     flip(b) = BoseFS2C(b.bsb, b.bsa)
-    addr1 = nearUniform(BoseFS2C{1,100,20})
-    addr2 = nearUniform(BoseFS2C{100,1,20})
+    addr1 = near_uniform(BoseFS2C{1,100,20})
+    addr2 = near_uniform(BoseFS2C{100,1,20})
 
     for Hamiltonian in (BoseHubbardReal1D2C, BoseHubbardMom1D2C)
         @testset "$Hamiltonian" begin
@@ -137,6 +141,239 @@ end
 
             @test eval(Meta.parse(repr(H1))) == H1
             @test eval(Meta.parse(repr(H2))) == H2
+        end
+    end
+end
+
+function exact_energy(ham)
+    dv = DVec(starting_address(ham) => 1.0)
+    all_results = eigsolve(ham, dv, 1, :SR; issymmetric = true)
+    return all_results[1][1]
+end
+
+@testset "HubbardRealSpace" begin
+    @testset "Constructor" begin
+        bose = BoseFS((1, 2, 3, 4, 5, 6))
+        @test_throws ErrorException HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
+        @test_throws ErrorException HubbardRealSpace(
+            bose; geometry=PeriodicBoundaries(3,2), t=[1, 2],
+        )
+        @test_throws ErrorException HubbardRealSpace(
+            bose; geometry=PeriodicBoundaries(3,2), u=[1 1; 1 1],
+        )
+
+        comp = CompositeFS(bose, bose)
+        @test_throws ErrorException HubbardRealSpace(
+            comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[1 2; 3 4],
+        )
+        @test_throws ErrorException HubbardRealSpace(
+            comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
+        )
+
+        @test_throws ErrorException HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
+
+        @test_logs (:warn,) HubbardRealSpace(FermiFS((1,0)), u=[2])
+        @test_logs (:warn,) HubbardRealSpace(
+            CompositeFS(BoseFS((1,1)), FermiFS((1,0))); u=[2 2; 2 2]
+        )
+
+        H = HubbardRealSpace(comp, t=[1,2], u=[1 2; 2 3])
+        @test eval(Meta.parse(repr(H))) == H
+    end
+    @testset "Offdiagonals" begin
+        f = near_uniform(FermiFS{3,12})
+
+        H = HubbardRealSpace(f, geometry=PeriodicBoundaries(3, 4))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 12
+        @test length(od_nonzeros) == 6
+
+        H = HubbardRealSpace(f, geometry=PeriodicBoundaries(4, 3))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 12
+        @test length(od_nonzeros) == 8
+
+        H = HubbardRealSpace(f, geometry=HardwallBoundaries(3, 4))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 12
+        @test length(od_nonzeros) == 3
+
+        H = HubbardRealSpace(f, geometry=HardwallBoundaries(4, 3))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 12
+        @test length(od_nonzeros) == 4
+
+        H = HubbardRealSpace(f, geometry=LadderBoundaries(2, 6))
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 9
+        @test length(od_nonzeros) == 5
+
+        hard_ladder = LadderBoundaries(2, 6, subgeometry=HardwallBoundaries)
+        H = HubbardRealSpace(f, geometry=hard_ladder)
+        od_values = last.(offdiagonals(H, f))
+        od_nonzeros = filter(!iszero, od_values)
+        @test length(od_values) == 9
+        @test length(od_nonzeros) == 3
+    end
+    @testset "1D Bosons (single)" begin
+        H1 = HubbardReal1D(BoseFS((1, 1, 1, 1, 1, 0)); u=2, t=3)
+        H2 = HubbardRealSpace(BoseFS((1, 1, 1, 1, 1, 0)); u=[2], t=[3])
+
+        @test exact_energy(H1) == exact_energy(H2)
+    end
+    @testset "1D Bosons (2-component)" begin
+        add1 = BoseFS2C(
+            (1, 1, 1, 0, 0, 0),
+            (1, 0, 0, 0, 0, 0),
+        )
+        H1 = BoseHubbardReal1D2C(add1, ua=2, v=3, tb=4)
+
+        add2 = CompositeFS(
+            BoseFS((1, 1, 1, 0, 0, 0)),
+            BoseFS((1, 0, 0, 0, 0, 0)),
+        )
+        H2 = HubbardRealSpace(add2, t=[1,4], u=[2 3; 3 0])
+
+        add3 = CompositeFS(
+            BoseFS((1, 1, 1, 0, 0, 0)),
+            FermiFS((1, 0, 0, 0, 0, 0)),
+        )
+        H3 = HubbardRealSpace(add3, t=[1,4], u=[2 3; 3 0])
+
+        add4 = CompositeFS(
+            BoseFS((1, 0, 0, 0, 0, 0)),
+            BoseFS((1, 1, 1, 0, 0, 0)),
+        )
+        H4 = HubbardRealSpace(add4, t=[4,1], u=[0 3; 3 2])
+
+        add5 = CompositeFS(
+            FermiFS((1, 0, 0, 0, 0, 0)),
+            BoseFS((1, 1, 1, 0, 0, 0)),
+        )
+        H5 = HubbardRealSpace(add5, t=[4,1], u=[0 3; 3 2])
+
+        E1 = exact_energy(H1)
+        E2 = exact_energy(H2)
+        E3 = exact_energy(H3)
+        E4 = exact_energy(H4)
+        E5 = exact_energy(H5)
+
+        @test E1 ≈ E2 rtol=0.0001
+        @test E2 ≈ E3 rtol=0.0001
+        @test E3 ≈ E4 rtol=0.0001
+        @test E4 ≈ E5 rtol=0.0001
+    end
+    @testset "1D Fermions" begin
+        H1 = HubbardRealSpace(FermiFS((1, 1, 1, 0, 0, 0)), t=[3.5])
+
+        # Kinetic energies [+1, -1, -2, -1, +1, +2] can be multiplied by t to get the exact
+        # energy.
+        @test exact_energy(H1) ≈ -14 rtol=0.0001
+
+        # Not interacting, we can sum the parts together.
+        H2 = HubbardRealSpace(
+            CompositeFS(FermiFS((1, 1, 1, 1, 0, 0)), FermiFS((1, 1, 0, 0, 0, 0))),
+            t=[1, 2], u=[0 0; 0 0],
+        )
+
+        @test exact_energy(H2) ≈ -3 + -6 rtol=0.0001
+
+        # Repulsive interactions increase energy.
+        H3 = HubbardRealSpace(
+            CompositeFS(FermiFS((1, 1, 1, 1, 0, 0)), FermiFS((1, 1, 0, 0, 0, 0))),
+            t=[1, 2], u=[0 1; 1 0],
+        )
+        @test exact_energy(H3) > -9
+
+        # Attractive interactions reduce energy.
+        H4 = HubbardRealSpace(
+            CompositeFS(FermiFS((1, 1, 1, 1, 0, 0)), FermiFS((1, 1, 0, 0, 0, 0))),
+            t=[1, 2], u=[0 -1; -1 0],
+        )
+        @test exact_energy(H4) < -9
+    end
+
+    @testset "2D Fermions" begin
+        @testset "2 × 2" begin
+            p22 = PeriodicBoundaries(2, 2)
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{1, 4}), geometry=p22, t=[2])
+            ) ≈ -8 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{2, 4}), geometry=p22, t=[2])
+            ) ≈ -8 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{3, 4}), geometry=p22, t=[2])
+            ) ≈ -8 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{4, 4}), geometry=p22, t=[2])
+            ) ≈ 0 rtol=0.001
+        end
+        @testset "4 × 4" begin
+            p44 = PeriodicBoundaries(4, 4)
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{1, 16}), geometry=p44)
+            ) ≈ -4 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{2, 16}), geometry=p44)
+            ) ≈ -6 rtol=0.001
+            @test exact_energy(
+                HubbardRealSpace(near_uniform(FermiFS{3, 16}), geometry=p44)
+            ) ≈ -8 rtol=0.001
+            # Note: a vector with only near_uniform is orthogonal to the ground state, so
+            # KrylovKit will give the wrong energy here.
+            @test exact_energy(
+                HubbardRealSpace(FermiFS((1,0,1,0,1,0,1,0,1,0,0,0,0,0,0,0)), geometry=p44)
+            ) ≈ -10 rtol=0.001
+        end
+        @testset "Two-component" begin
+            H1 = HubbardRealSpace(
+                CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
+                t=[1,2],
+                u=[0 0; 0 0],
+                geometry=PeriodicBoundaries(3, 3),
+            )
+            @test exact_energy(H1) ≈ -16 rtol=0.001
+
+            H2 = HubbardRealSpace(
+                CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
+                t=[1,2],
+                u=[0 1; 1 0],
+                geometry=PeriodicBoundaries(3, 3),
+            )
+            @test exact_energy(H2) > -16
+
+            H3 = HubbardRealSpace(
+                CompositeFS(near_uniform(FermiFS{3,9}), near_uniform(FermiFS{2,9}));
+                t=[1,2],
+                u=[0 -1; -1 0],
+                geometry=PeriodicBoundaries(3, 3),
+            )
+            @test exact_energy(H3) < -16
+        end
+        @testset "hardwall and ladder" begin
+            geom1 = LadderBoundaries(2, 3, subgeometry=HardwallBoundaries)
+            geom2 = HardwallBoundaries(2, 3)
+            geom3 = HardwallBoundaries(3, 2)
+            bose = BoseFS((1, 1, 1, 0, 0, 0))
+            fermi = FermiFS((1, 0, 0, 0, 1, 0))
+
+            H1 = HubbardRealSpace(bose, geometry=geom1)
+            H2 = HubbardRealSpace(bose, geometry=geom2)
+            H3 = HubbardRealSpace(bose, geometry=geom3)
+            @test exact_energy(H1) == exact_energy(H2)
+            @test exact_energy(H1) ≈ exact_energy(H3)
+
+            H1 = HubbardRealSpace(fermi, geometry=geom1)
+            H2 = HubbardRealSpace(fermi, geometry=geom2)
+            H3 = HubbardRealSpace(fermi, geometry=geom3)
+            @test exact_energy(H1) == exact_energy(H2)
+            @test exact_energy(H1) ≈ exact_energy(H3)
         end
     end
 end
@@ -216,24 +453,20 @@ end
         ###
         ### Define Hamiltonian from a matrix.
         ###
-        struct IntAddress <: AbstractFockAddress
-            v::Int
-        end
-
         struct MatrixHam{T} <: AbstractHamiltonian{T}
             arr::Matrix{T}
         end
 
-        Rimu.diagonal_element(m::MatrixHam, i) = m.arr[i.v, i.v]
+        Rimu.diagonal_element(m::MatrixHam, i) = m.arr[i, i]
         Rimu.num_offdiagonals(m::MatrixHam, i) = size(m.arr, 1) - 1
         function Rimu.get_offdiagonal(m::MatrixHam, i, j)
-            if j ≥ i.v # skip diagonal
+            if j ≥ i # skip diagonal
                 j += 1
             end
-            return IntAddress(j), m.arr[i.v, j]
+            return j, m.arr[i, j]
         end
 
-        Rimu.starting_address(::MatrixHam) = IntAddress(1)
+        Rimu.starting_address(::MatrixHam) = 1
 
         LinearAlgebra.adjoint(m::MatrixHam) = MatrixHam(collect(m.arr'))
         Hamiltonians.LOStructure(::Type{<:MatrixHam}) = AdjointKnown()
@@ -300,64 +533,13 @@ end
     d = lomc!(mh, ones(dim)).df
     @test d.shift ≈ a.shift
     # integer walkernumber triggers IsStochasticInteger algorithm
-    seedCRNG!(41)
+    seedCRNG!(13)
     e = lomc!(mh, ones(Int,dim)).df
     @test ≈(e.shift[end], a.shift[end], atol=0.3)
     # wrap full matrix as MatrixHamiltonian
     fmh =  MatrixHamiltonian(Matrix(sm))
     f = lomc!(fmh, ones(dim)).df
     @test f.shift ≈ a.shift
-end
-
-@testset "old tests" begin
-    ham = BoseHubbardReal1D(
-        n = 9,
-        m = 9,
-        u = 6.0,
-        t = 1.0,
-        AT = BoseFS{9,9})
-    @test dimension(ham) == 24310
-
-    aIni = Rimu.Hamiltonians.nearUniform(ham)
-    @test aIni == BoseFS{9,9}((1,1,1,1,1,1,1,1,1))
-
-    hp = offdiagonals(ham,aIni)
-    @test length(hp) == 18
-    @test hp[18][1] == BoseFS{9,9}(BitString{17}(0x000000000000d555))
-    @test hp[18][2] ≈ -√2
-    @test diagonal_element(ham,aIni) == 0
-    os = BoseFS([12,0,1,0,2,1,1,0,1,0,0,0,1,2,0,4])
-    @test Rimu.Hamiltonians.bose_hubbard_interaction(os) == 148
-    @test Rimu.Hamiltonians.extended_bose_hubbard_interaction(os) == (53, 148)
-    @test Rimu.Hamiltonians.numberoccupiedsites(os) == 9
-    hnnn = Rimu.Hamiltonians.hopnextneighbour(BoseFS{25,16}(BitString{40}(0xf342564fff)),3)
-    bs = BoseFS(BitString{40}(0xf342564fff))
-    hnnbs = Rimu.Hamiltonians.hopnextneighbour(bs,3)
-    @test hnnn == hnnbs
-
-    svec = DVec(Dict(aIni => 2.0))
-    v2 = ham(svec)
-    v3 = ham*v2
-    @test norm(v3,1) ≈ 1482.386824949077
-    @test v2 == mul!(similar(svec), ham, svec)
-    @test norm(v2) ≈ 12
-    @test v2 == ham*svec
-    @test dot(v2,ham,svec) == v2⋅(ham*svec) ≈ 144
-    @test -⋅(UniformProjector(),ham,svec)≈⋅(NormProjector(),ham,svec)≈norm(v2,1)
-    @test dot(Norm2Projector(),v2) ≈ norm(v2,2)
-    @test Hamiltonians.LOStructure(ham) == Hamiltonians.Hermitian()
-    aIni2 = nearUniform(BoseFS{9,9})
-    hamc = BoseHubbardReal1D(aIni2, u=6.0+0im, t=1.0+0im) # formally a complex operator
-    @test Hamiltonians.LOStructure(hamc) == Hamiltonians.AdjointUnknown()
-    @test dot(v3,ham,svec) ≈ dot(v3,hamc,svec) ≈ dot(svec,ham,v3) ≈ dot(svec,hamc,v3) ≈ 864
-    hamcc = BoseHubbardReal1D(aIni2, u=6.0+0.1im, t=1.0+2im) # a complex operator
-    vc2 = hamcc*svec
-    @test isreal(dot(vc2,hamcc,svec))
-    @test dot(vc2,hamc,svec) ≉ dot(svec,hamc,vc2)
-
-    @test adjoint(ham) == ham' == ham
-    @test Rimu.Hamiltonians.LOStructure(hamcc) == Rimu.Hamiltonians.AdjointUnknown()
-    @test_throws ErrorException hamcc'
 end
 
 @testset "G2Correlator" begin

@@ -57,8 +57,8 @@ Base.getproperty(h::BoseHubbardMom1D2C{<:Any,<:Any,<:Any,V}, ::Val{:v}) where {V
 
 function num_offdiagonals(ham::BoseHubbardMom1D2C, add::BoseFS2C)
     M = num_modes(add)
-    sa = numberoccupiedsites(add.bsa)
-    sb = numberoccupiedsites(add.bsb)
+    sa = num_occupied_modes(add.bsa)
+    sb = num_occupied_modes(add.bsb)
     return num_offdiagonals(ham.ha, add.bsa) + num_offdiagonals(ham.hb, add.bsb) + sa*(M-1)*sb
     # number of excitations that can be made
 end
@@ -146,8 +146,8 @@ function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
         return BoseFS2C(add.bsa, naddress_from_bsb), elem
     else
         chosen -= nhops_a + nhops_b
-        sa = numberoccupiedsites(add.bsa)
-        sb = numberoccupiedsites(add.bsb)
+        sa = num_occupied_modes(add.bsa)
+        sb = num_occupied_modes(add.bsb)
         new_bsa, new_bsb, onproduct_a, onproduct_b, _, _ = hop_across_two_addresses(
             add.bsa, add.bsb, chosen, sa, sb
         )
@@ -181,8 +181,8 @@ end
 function offdiagonals(h::BoseHubbardMom1D2C{T,<:Any,<:Any,V}, a::BoseFS2C) where {T,V}
     hops_a = num_offdiagonals(h.ha, a.bsa)
     hops_b = num_offdiagonals(h.hb, a.bsb)
-    occ_a = numberoccupiedsites(a.bsa)
-    occ_b = numberoccupiedsites(a.bsb)
+    occ_a = num_occupied_modes(a.bsa)
+    occ_b = num_occupied_modes(a.bsb)
     length = hops_a + hops_b + occ_a * (num_modes(a) - 1) * occ_b
 
     return OffdiagonalsBoseMom1D2C{typeof(a),T,V,typeof(h)}(

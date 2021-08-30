@@ -80,7 +80,7 @@ end
 Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
 correlated time series. A blocking analysis with m-test is used to uncorrelate the time
 series, see [`blocking_analysis()`](@ref). The remaining standard error and correlation of the
-means is propagated using [`MonteCarloMeasurements`](@ref). The results are reported
+means is propagated using `MonteCarloMeasurements`. The results are reported
 as a [`RatioBlockingResult`](@ref).
 
 Robust estimates for the ratio
@@ -150,6 +150,7 @@ function ratio_estimators(x, y; corrected = true, mc_samples = 10_000)
 
     # Monte Carlo sampling of correlated normal distribution of sample means for x and y
     x_y_ps = Particles(mc_samples, MvNormal([μ_x,μ_y],[var_x ρ; ρ var_y]))
+    # Note: type instability creeps in here through `Particles`
     r = x_y_ps[1]/x_y_ps[2] # MC sampled ratio of means
 
     # linear error propagation

@@ -37,12 +37,8 @@ include("RimuIO.jl")
 export lomc!
 export FciqmcRunStrategy, RunTillLastStep
 export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
-export ShiftUpdateStrategy, LogUpdate, LogUpdateAfterTargetWalkers
-export DontUpdate, DelayedLogUpdate, DelayedLogUpdateAfterTargetWalkers
-export DoubleLogUpdate, DelayedDoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
-export DelayedDoubleLogUpdateAfterTW
-export DoubleLogUpdateAfterTargetWalkersSwitch
-export HistoryLogUpdate
+export ShiftStrategy, LogUpdate, LogUpdateAfterTargetWalkers
+export DontUpdate, DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
 export ReportingStrategy, ReportDFAndInfo, ReportToFile
 export ReplicaStrategy, NoStats, AllOverlaps
 export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness, Timer
@@ -56,6 +52,7 @@ include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
+include("strategies_and_params/deprecated.jl")
 
 include("apply_memory_noise.jl")
 include("fciqmc_step.jl")           # second level

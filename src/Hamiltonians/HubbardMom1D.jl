@@ -76,7 +76,7 @@ julia> Hamiltonians.num_singly_doubly_occupied_sites(BoseFS{3,3}((2, 0, 1)))
 function num_singly_doubly_occupied_sites(b::BoseFS)
     singlies = 0
     doublies = 0
-    for (n, _, _) in occupied_orbitals(b)
+    for (n, _, _) in occupied_modes(b)
         singlies += 1
         doublies += n > 1
     end
@@ -116,8 +116,10 @@ Compute diagonal interaction energy term.
 
 ```jldoctest
 julia> a = BoseFS{6,5}((1,2,3,0,0))
+BoseFS{6,5}((1, 2, 3, 0, 0))
 
 julia> H = HubbardMom1D(a);
+
 
 julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
 5.2
@@ -184,7 +186,7 @@ and the change in momentum.
     return SVector(onrep), onproduct, -q
 end
 function double_hole(onrep::SVector{M}, double) where {M}
-    m_onrep = MVector(onrep...)
+    m_onrep = MVector(onrep)
     double, q = fldmod1(double, M - 1)
     p = k = 0
     onproduct = 1
@@ -204,7 +206,7 @@ function double_hole(onrep::SVector{M}, double) where {M}
     return SVector(m_onrep), onproduct, p, q, k
 end
 function single_hole(onrep::SVector{M}, chosen, singlies) where {M}
-    m_onrep = MVector(onrep...)
+    m_onrep = MVector(onrep)
     # c_k c_p
     pair, q = fldmod1(chosen, M - 2)
     p = k = 0
@@ -244,7 +246,7 @@ function single_hole(onrep::SVector{M}, chosen, singlies) where {M}
     return SVector(m_onrep), onproduct, p, q, k
 end
 function creation_operators(onrep::SVector{M}, onproduct, p, q, k) where {M}
-    m_onrep = MVector(onrep...)
+    m_onrep = MVector(onrep)
     # c^†_k-q
     kmq = mod1(k - q, M)
     @inbounds occ = m_onrep[kmq]
@@ -264,7 +266,6 @@ end
 ) where {M,A}
     svec, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
     return A(svec), ham.u/(2*M)*sqrt(onproduct)
-    # return new address and matrix element
 end
 
 ###

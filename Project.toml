@@ -1,7 +1,7 @@
 name = "Rimu"
 uuid = "c53c40cc-bd84-11e9-2cf4-a9fde2b9386e"
 authors = ["Joachim Brand <j.brand@massey.ac.nz>"]
-version = "0.4.0"
+version = "0.5.1-dev"
 
 [deps]
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
@@ -32,7 +32,8 @@ ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 
 [compat]
 Arrow = "^1.5"
-MPI = "0.18"
+MPI = "0.18, 0.19"
+RandomNumbers = "^1.5.2"
 julia = "1.6"
 
 [extras]

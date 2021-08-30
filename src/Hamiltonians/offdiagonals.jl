@@ -38,10 +38,12 @@ Return an iterator over reachable off-diagonal matrix elements of type
 ```jldoctest
 julia> addr = BoseFS((3,2,1));
 
+
 julia> H = HubbardReal1D(addr);
 
+
 julia> h = offdiagonals(H, addr)
-6-element Rimu.Hamiltonians.Offdiagonals{Float64,BoseFS{6,3,BitString{8,1}},HubbardReal1D{Float64,BoseFS{6,3,BitString{8,1}},1.0,1.0}}:
+6-element Rimu.Hamiltonians.Offdiagonals{BoseFS{6, 3, BitString{8, 1, UInt8}}, Float64, HubbardReal1D{Float64, BoseFS{6, 3, BitString{8, 1, UInt8}}, 1.0, 1.0}}:
  (BoseFS{6,3}((2, 3, 1)), -3.0)
  (BoseFS{6,3}((2, 2, 2)), -2.449489742783178)
  (BoseFS{6,3}((3, 1, 2)), -2.0)
@@ -90,67 +92,10 @@ Base.size(s::Offdiagonals) = (s.length,)
 ### Internal functions common to several different bosonic Hamiltonians
 ###
 """
-    numberoccupiedsites(b::BoseFS)
-
-Return the number of occupied sites in address `b`, which is equal to the number of
-non-zeros in its ONR representation.
-
-# Example
-
-```jldoctest
-julia> using Rimu.Hamiltonians: numberoccupiedsites
-
-julia> numberoccupiedsites(BoseFS((1, 0, 2)))
-2
-julia> numberoccupiedsites(BoseFS((3, 0, 0)))
-1
-```
-"""
-function numberoccupiedsites(b::BoseFS{<:Any,<:Any,S}) where S
-    return numberoccupiedsites(Val(num_chunks(S)), b)
-end
-
-@inline function numberoccupiedsites(::Val{1}, b::BoseFS)
-    chunk = b.bs.chunks[1]
-    result = 0
-    while true
-        chunk >>= (trailing_zeros(chunk) % UInt)
-        chunk >>= (trailing_ones(chunk) % UInt)
-        result += 1
-        iszero(chunk) && break
-    end
-    return result
-end
-
-@inline function numberoccupiedsites(_, b::BoseFS)
-    # This version is faster than using the occupied_orbital iterator
-    address = b.bs
-    result = 0
-    K = num_chunks(address)
-    last_mask = UInt64(1) << 63 # = 0b100000...
-    prev_top_bit = false
-    # This loop compiles away for address<:BSAdd*
-    for i in K:-1:1
-        chunk = chunks(address)[i]
-        # This part handles sites that span across chunk boundaries.
-        # If the previous top bit and the current bottom bit are both 1, we have to subtract
-        # 1 from the result or the mode will be counted twice.
-        result -= (chunk & prev_top_bit) % Int
-        prev_top_bit = (chunk & last_mask) > 0
-        while !iszero(chunk)
-            chunk >>>= trailing_zeros(chunk)
-            chunk >>>= trailing_ones(chunk)
-            result += 1
-        end
-    end
-    return result
-end
-
-"""
     new_address, product = hopnextneighbour(add, chosen)
 
 Compute the new address of a hopping event for the Bose-Hubbard model. Returns the new
-address and the product of occupation numbers of the involved orbitals.
+address and the product of occupation numbers of the involved modes.
 
 The off-diagonals are indexed as follows:
 
@@ -172,6 +117,7 @@ julia> hopnextneighbour(BoseFS((1, 0, 1)), 4)
 """
 function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
     address = b.bs
+    T = chunk_type(address)
     site = (chosen + 1) >>> 0x1
     if isodd(chosen) # Hopping to the right
         next = 0
@@ -179,7 +125,7 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
         offset = 0
         sc = 0
         reached_end = false
-        for (i, (num, sn, bit)) in enumerate(occupied_orbitals(b))
+        for (i, (num, sn, bit)) in enumerate(occupied_modes(b))
             next = num * (sn == sc + 1) # only set next to > 0 if sites are neighbours
             reached_end = i == site + 1
             reached_end && break
@@ -188,31 +134,31 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
             sc = sn
         end
         if sc == M
-            new_address = (address << 0x1) | A(UInt64(1))
+            new_address = (address << 0x1) | A(T(1))
             prod = curr * (trailing_ones(address) + 1) # mul occupation num of first obital
         else
             next *= reached_end
-            new_address = address ⊻ A(UInt64(3)) << ((offset - 1) % UInt)
+            new_address = address ⊻ A(T(3)) << ((offset - 1) % T)
             prod = curr * (next + 1)
         end
     else # Hopping to the left
         if site == 1 && isodd(address)
             # For leftmost site, we shift the whole address circularly by one bit.
-            new_address = (address >>> 0x1) | A(UInt64(1)) << ((N + M - 2) % UInt)
+            new_address = (address >>> 0x1) | A(T(1)) << ((N + M - 2) % T)
             prod = trailing_ones(address) * leading_ones(new_address)
         else
             prev = 0
             curr = 0
             offset = 0
             sp = 0
-            for (i, (num, sc, bit)) in enumerate(occupied_orbitals(b))
+            for (i, (num, sc, bit)) in enumerate(occupied_modes(b))
                 prev = curr * (sc == sp + 1) # only set prev to > 0 if sites are neighbours
                 curr = num
                 offset = bit
                 i == site && break
                 sp = sc
             end
-            new_address = address ⊻ A(UInt64(3)) << ((offset - 1) % UInt)
+            new_address = address ⊻ A(T(3)) << ((offset - 1) % T)
             prod = curr * (prev + 1)
         end
     end

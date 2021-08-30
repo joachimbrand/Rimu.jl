@@ -21,7 +21,7 @@ const SUITE = @benchmarkset "Rimu" begin
         lomc!(ham, dv; s_strat, replica, laststep=2000)
     end seconds=150
     @case "(50, 50) Real space" begin
-        add = nearUniform(BoseFS{50,50})
+        add = near_uniform(BoseFS{50,50})
         ham = HubbardReal1D(add, u=6.0)
         dv = DVec(add => 1.0; style=IsDynamicSemistochastic())
         s_strat = DoubleLogUpdate(targetwalkers=50_000)

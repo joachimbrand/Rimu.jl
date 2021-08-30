@@ -1,14 +1,13 @@
 # # Example: 1D Bose-Hubbard Model
 
 # This is an example calculation finding the ground state of
-# a 1D Bose-Hubbard chain with 6 particles in 6 lattice site.
+# a 1D Bose-Hubbard chain with 6 particles in 6 lattice sites.
 # The Julia run-able script is in [`scripts/BHM-example.jl`](../../scripts/BHM-example.jl).
 
 # Firstly, we load all needed modules.
 # `Rimu` for FCIQMC calculation;
 
 using Rimu
-
 
 # Now we define the physical problem:
 # Setting the number of lattice sites `m = 6`;
@@ -55,10 +54,14 @@ Rimu.ConsistentRNG.seedCRNG!(17)
 params = RunTillLastStep(dτ = dτ, laststep = steps_equilibrate + steps_measure)
 # Strategy for updating the shift:
 s_strat = DoubleLogUpdate(targetwalkers = targetwalkers, ζ = 0.08)
-# Strategy for reporting info and setting projectors:
-r_strat = ReportDFAndInfo(k = k, i = 100, projector = copy(svec))
+# Strategy for reporting info:
+r_strat = ReportDFAndInfo(k = k, i = 100)
 # Strategy for updating dτ:
 t_strat = ConstantTimeStep()
+# set up the calculation and reporting of the projected energy
+# in this case we are projecting onto the starting vector,
+# which contains a single configuration
+post_step = ProjectedEnergy(Ĥ, copy(svec))
 
 # Print out info about what we are doing:
 println("Finding ground state for:")
@@ -67,15 +70,18 @@ println("Strategies for run:")
 println(params, s_strat)
 println(t_strat)
 
-
 # Finally, we can start the main FCIQMC loop:
 df, state = lomc!(Ĥ,svec;
             params = params,
             laststep = steps_equilibrate + steps_measure,
             s_strat = s_strat,
             r_strat = r_strat,
-            τ_strat = t_strat);
+            τ_strat = t_strat,
+            post_step = post_step,
+            threading = false, # only for reproducible runs
+)
 println("Writing data to disk...")
+
 # Saving output data stored in `df` into a `.arrow` file which can be read in later:
 save_df("fciqmcdata.arrow", df)
 
@@ -83,11 +89,14 @@ save_df("fciqmcdata.arrow", df)
 # Loading the equilibrated data:
 qmcdata = last(df,steps_measure)
 using Rimu.StatsTools
+
 # For the shift, it's easy to use `mean_and_se` from `Rimu.StatsTools`
 (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
+
 # For the projected energy, it a bit more complicated as it's a ratio of two means:
 r = ratio_of_means(qmcdata.hproj,qmcdata.vproj)
 rwe = ratio_with_errs(r)
+
 # Here we use the 95% CI for the lower and upper error bars:
 (eProj,eProjErrLower,eProjErrUpper) = (rwe.ratio, rwe.err2_l, rwe.err2_u)
 

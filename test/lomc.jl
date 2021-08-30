@@ -44,8 +44,12 @@ using Statistics
         dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
-        walkers = lomc!(H, copy(dv); s_strat, laststep=1000).df.norm
+        v = copy(dv)
+        walkers = lomc!(H, v; s_strat, laststep=1000).df.norm
         @test median(walkers) ≈ 100 rtol=0.1
+        s_strat = LogUpdate(0.05)
+        walkers = lomc!(H, v; s_strat, laststep=1000).df.norm # continuation run
+        @test median(walkers) > 10 # essentially just test that it does not error
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=200)
         walkers = lomc!(H, copy(dv); s_strat, laststep=1000).df.norm
@@ -57,7 +61,7 @@ using Statistics
     end
 
     @testset "Replicas" begin
-        add = nearUniform(BoseFS{5,15})
+        add = near_uniform(BoseFS{5,15})
         H = HubbardReal1D(add)
         dv = DVec(add => 1, style=IsDynamicSemistochastic())
 
@@ -119,12 +123,89 @@ using Statistics
         dv = DVec(add => 1; style=IsStochasticInteger())
 
         # Only population is dead.
-        df = @suppress_err lomc!(H, copy(dv); laststep=100).df
+        params = RunTillLastStep(shift = 0.0)
+        df = @suppress_err lomc!(H, copy(dv); params, laststep=100).df
         @test size(df, 1) < 100
 
+        # population does not die with sensible default shift
+        df = lomc!(H, copy(dv); laststep=100).df
+        @test size(df, 1) == 100
+
         # Populations in replicas are dead.
-        df = @suppress_err lomc!(H, copy(dv); laststep=100, replica=NoStats(5)).df
+        params = RunTillLastStep(shift = 0.0)
+        df = @suppress_err lomc!(H, copy(dv); params, laststep=100, replica=NoStats(5)).df
         @test size(df, 1) < 100
+    end
+
+    @testset "Default DVec" begin
+        add = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(add; u=20)
+        df, state = lomc!(H; laststep=100)
+        @test StochasticStyle(state.replicas[1].v) isa IsStochasticInteger
+
+        df, state = lomc!(H; laststep=100, style = IsDeterministic())
+        @test StochasticStyle(state.replicas[1].v) isa IsDeterministic
+    end
+
+    @testset "ShiftStrategy" begin
+        add = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(add; u=20)
+
+        # DontUpdate
+        s_strat = DontUpdate(targetwalkers = 100)
+        df = lomc!(H; s_strat, laststep=100).df
+        @test size(df, 1) < 100 # finish early without error
+
+        # LogUpdateAfterTargetWalkers
+        s_strat = LogUpdateAfterTargetWalkers(targetwalkers = 100)
+        df, state  = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+        @test df.shiftMode[end] # finish in variable shift mode
+        @test df.norm[end] > 100
+
+        # LogUpdate
+        v = state.replicas[1].v
+        params = state.replicas[1].params
+        s_strat = LogUpdate()
+        df = lomc!(H, v; df, params, s_strat, laststep=200).df
+        @test size(df, 1) == 200
+        @test 500 > df.norm[end] > 100
+
+        # DoubleLogUpdateAfterTargetWalkers
+        s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = 100)
+        df, state  = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+        @test df.shiftMode[end] # finish in variable shift mode
+        @test df.norm[end] > 100
+
+        # test unexported strategies
+        # DoubleLogSumUpdate
+        s_strat = Rimu.DoubleLogSumUpdate(targetwalkers = 100)
+        df, state  = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+        @test df.shiftMode[end] # finish in variable shift mode
+
+        # TripleLogUpdate
+        s_strat = Rimu.TripleLogUpdate(targetwalkers = 100)
+        df, state  = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+        @test df.shiftMode[end] # finish in variable shift mode
+
+        # DoubleLogProjected
+        s_strat = Rimu.DoubleLogProjected(target = 100.0, projector=UniformProjector())
+        df, state  = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+        @test df.shiftMode[end] # finish in variable shift mode
+
+    end
+
+    @testset "deprecated" begin
+        @test_throws ErrorException DelayedLogUpdateAfterTargetWalkers()
+        @test_throws ErrorException HistoryLogUpdate()
+        @test_throws ErrorException DelayedLogUpdate()
+        @test_throws ErrorException DelayedDoubleLogUpdateAfterTW()
+        @test_throws ErrorException DoubleLogUpdateAfterTargetWalkersSwitch()
+        @test_throws ErrorException DelayedDoubleLogUpdate()
     end
 
     @testset "Setting `maxlength`" begin
@@ -248,6 +329,8 @@ using Statistics
         end
 
         @testset "SignCoherence" begin
+            ConsistentRNG.seedCRNG!(1337)
+
             ref = eigsolve(H, dv, 1, :SR; issymmetric=true)[2][1]
             post_step = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
             df, _ = lomc!(H, copy(dv); post_step)
@@ -261,6 +344,8 @@ using Statistics
         end
 
         @testset "WalkerLoneliness" begin
+            ConsistentRNG.seedCRNG!(1337)
+
             post_step = WalkerLoneliness()
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.loneliness[1] == 1

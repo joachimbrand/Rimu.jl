@@ -36,8 +36,8 @@ Methods that need to be implemented:
 
 Optional methods to implement:
 
-* [`Hamiltonians.LOStructure(::Type{typeof(lo)})`](@ref)
-* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref)
+* [`Hamiltonians.LOStructure(::Type{<:AbstractHamiltonian})`](@ref)
+* [`dimension(::Type, ::AbstractHamiltonian)`](@ref)
 * [`offdiagonals(::AbstractHamiltonian, ::AbstractFockAddress)`](@ref)
 * [`momentum(::AbstractHamiltonian)`](@ref)
 """
@@ -61,13 +61,15 @@ address `add`.
 ```jldoctest
 julia> addr = BoseFS((3, 2, 1));
 
+
 julia> H = HubbardMom1D(addr);
+
 
 julia> diagonal_element(H, addr)
 8.666666666666664
 ```
 """
-diagonal_element
+diagonal_element(m::AbstractMatrix, i) = m[i,i]
 
 """
     num_offdiagonals(ham, add)
@@ -79,7 +81,9 @@ Compute the number of number of reachable configurations from address `add`.
 ```jldoctest
 julia> addr = BoseFS((3, 2, 1));
 
+
 julia> H = HubbardMom1D(addr);
+
 
 julia> num_offdiagonals(H, addr)
 10
@@ -99,7 +103,9 @@ indexed by integer index `chosen`.
 ```jldoctest
 julia> addr = BoseFS((3, 2, 1));
 
+
 julia> H = HubbardMom1D(addr);
+
 
 julia> get_offdiagonal(H, addr, 3)
 (BoseFS{6,3}((2, 1, 3)), 1.0)
@@ -125,56 +131,75 @@ Stirling formula may be returned instead.
 ```jldoctest
 julia> dimension(HubbardMom1D(BoseFS((1,2,3))))
 28
-julia> dimension(HubbardMom1D(nearUniform(BoseFS{200,100})))
+julia> dimension(HubbardMom1D(near_uniform(BoseFS{200,100})))
 
-julia> dimension(Float64, HubbardMom1D(nearUniform(BoseFS{200,100})))
-1.3862737677578232e81
-julia> dimension(BigInt, HubbardMom1D(nearUniform(BoseFS{200,100})))
+
+julia> dimension(Float64, HubbardMom1D(near_uniform(BoseFS{200,100})))
+1.3862737677578234e81
+julia> dimension(BigInt, HubbardMom1D(near_uniform(BoseFS{200,100})))
 1386083821086188248261127842108801860093488668581216236221011219101585442774669540
 ```
 """
 function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:Integer}
+    return try_binomial(T(N + M - 1), T(N))
+end
+function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
+    return approximate_binomial(T(N + M - 1), T(N))
+end
+function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:Integer}
+    return try_binomial(T(M), T(N))
+end
+function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:AbstractFloat}
+    return approximate_binomial(T(M), T(N))
+end
+function dimension(::Type{T}, b::BoseFS2C) where {T}
+    return dimension(T, b.bsa) * dimension(T, b.bsb)
+end
+function dimension(::Type{T}, c::CompositeFS) where {T}
+    return prod(x -> dimension(T, x), c.components)
+end
+
+function try_binomial(n::T, k::T) where {T}
     try
-        return T(binomial(T(N + M - 1), T(N)))
+        return T(binomial(n, k))
     catch
         return nothing
     end
 end
-function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
-    n = N + M - 1
-    k = N
+function approximate_binomial(n::T, k::T) where {T}
     try
         T(binomial(Int128(n), Int128(k)))
     catch
         T(exp(logbinomialapprox(n, k)))
     end
 end
-function dimension(::Type{T}, b::BoseFS2C) where T
-    return dimension(T, b.bsa) * dimension(T, b.bsb)
-end
 
 dimension(h::AbstractHamiltonian) = dimension(Int, h)
 dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
 
-BitStringAddresses.nearUniform(h::AbstractHamiltonian) = nearUniform(typeof(starting_address(h)))
+BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(starting_address(h)))
 
 """
     starting_address(h)
 
-Return a starting address for Hamiltonian `h`.
+Return the starting address for Hamiltonian `h`. Part of the [`AbstractHamiltonian`](@ref)
+interface. When called on an `AbstractMatrix` return the index of the lowest diagonal
+element.
 
 # Example
 
 ```jldoctest
 julia> addr = BoseFS((3, 2, 1));
 
+
 julia> H = HubbardMom1D(addr);
+
 
 julia> addr == starting_address(H)
 true
 ```
 """
-starting_address
+starting_address(m::AbstractMatrix) = findmin(real.(diag(m)))[2]
 
 """
     Hamiltonians.LOStructure(op::AbstractHamiltonian)
@@ -252,14 +277,18 @@ Note: `momentum` is currently only defined on [`HubbardMom1D`](@ref).
 ```jldoctest
 julia> add = BoseFS((1, 0, 2, 1, 2, 1, 1, 3));
 
+
 julia> ham = HubbardMom1D(add; u = 2.0, t = 1.0);
 
+
 julia> mom = momentum(ham);
+
 
 julia> diagonal_element(mom, add) # calculate the momentum of a single configuration
 -1.5707963267948966
 
 julia> v = DVec(add => 10; capacity=1000);
+
 
 julia> rayleigh_quotient(mom, v) # momentum expectation value for state vector `v`
 -1.5707963267948966

@@ -68,8 +68,8 @@ num_offdiagonals(g::G2Correlator{2},add::BoseFS2C) = num_offdiagonals(g, add.bsb
 
 function num_offdiagonals(g::G2Correlator{3}, add::BoseFS2C)
     m = num_modes(add)
-    sa = numberoccupiedsites(add.bsa)
-    sb = numberoccupiedsites(add.bsb)
+    sa = num_occupied_modes(add.bsa)
+    sb = num_occupied_modes(add.bsb)
     return sa*(m-1)*sb
     # number of excitations that can be made
 end
@@ -134,8 +134,8 @@ function get_offdiagonal(
     g::G2Correlator{3},
     add::A,
     chosen,
-    sa=numberoccupiedsites(add.bsa),
-    sb=numberoccupiedsites(add.bsb),
+    sa=num_occupied_modes(add.bsa),
+    sb=num_occupied_modes(add.bsb),
 )::Tuple{A,ComplexF64} where {A<:BoseFS2C}
 
     m = num_modes(add)

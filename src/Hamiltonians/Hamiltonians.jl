@@ -21,21 +21,25 @@ export diagonal_element, num_offdiagonals, get_offdiagonal, dimension, starting_
 export rayleigh_quotient, momentum
 
 export MatrixHamiltonian
-export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D
+export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 
-export BoseHubbardReal1D, ExtendedBHReal1D, BoseHubbardMom1D
 export G2Correlator
+
+export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
+export num_neighbours, neighbour_site
 
 include("abstract.jl")
 include("offdiagonals.jl")
 include("operations.jl")
+include("geometry.jl")
 
 include("MatrixHamiltonian.jl")
 
 include("HubbardReal1D.jl")
 include("HubbardMom1D.jl")
+include("HubbardRealSpace.jl")
 include("ExtendedHubbardReal1D.jl")
 
 include("BoseHubbardReal1D2C.jl")
@@ -45,11 +49,5 @@ include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
 
 include("TwoBodyCorrelation.jl")
-
-# deprecated:
-include("BoseHubbardReal1D.jl")
-include("BoseHubbardMom1D.jl")
-include("ExtendedBHReal1D.jl")
-
 
 end

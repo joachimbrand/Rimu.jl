@@ -1,13 +1,19 @@
 """
     num_chunks(::Val{B})
 
-Determine the number of chunks needed to store `B` bits.
+Determine the number and type of chunks needed to store `B` bits.
 """
 function num_chunks(::Val{B}) where {B}
-    return if B ≤ 0
+    if B ≤ 0
         throw(ArgumentError("`B` must be positive!"))
-    else # Turns out it's never worth using anything other than UInt64 here.
-        return (B - 1) ÷ 64 + 1
+    elseif B ≤ 8
+        return 1, UInt8
+    elseif B ≤ 16
+        return 1, UInt16
+    elseif B ≤ 32
+        return 1, UInt32
+    else
+        return (B - 1) ÷ 64 + 1, UInt64
     end
 end
 
@@ -16,45 +22,56 @@ end
 
 Check if number of bits `B` is consistent with number of chunks `N`. Throw an error if not.
 """
-function check_bitstring_typeparams(::Val{B}, ::Val{N}) where {B,N}
+function check_bitstring_typeparams(::Val{B}, ::Val{N}, ::Type{UInt64}) where {B,N}
     if B > N * 64
-        s = N == 1 ? "" : "s"
-        error("$B bits do not fit into $N 64-bit chunk$s")
+        error("$B bits do not fit into $N 64-bit chunks")
     elseif B ≤ (N - 1) * 64
-        s = N == 2 ? "" : "s"
-        error("$B bits fit into $(N - 1) 64-bit chunk$s, but $N chunks were provided")
+        error("$B bits fit into $(N - 1) 64-bit chunks, but $N chunks were provided")
     end
+end
+function check_bitstring_typeparams(::Val{B}, ::Val{1}, ::Type{T}) where {B,T}
+    if B > sizeof(T) * 8
+        error("$B bits do not fit into a $(sizeof(T) * 8)-bit chunk")
+    end
+end
+function check_bitstring_typeparams(::Val{B}, ::Val{1}, ::Type{UInt64}) where {B}
+    if B > 64
+        error("$B bits do not fit into a 64-bit chunk")
+    end
+end
+function check_bitstring_typeparams(::Val{B}, ::Val{N}, ::Type{T}) where {B,N,T}
+    error("Only `UInt64` is supported for multi-bit chunks")
 end
 
 """
-    BitString{B,N} <: AbstractBitString
+    BitString{B,N,T<:Unsigned}
 
 Type for storing bitstrings of static size. Holds `B` bits in `N` chunks, where each chunk is
-an `UInt64`
+of type `T`.
 
 `N` is chosen automatically to accommodate `B` bits as efficiently as possible.
 
 # Constructors
 
-* `BitString{B,N}(::SVector{N,T})`: unsafe constructor. Does not check for ghost bits.
+* `BitString{B,N,T}(::SVector{N,T})`: unsafe constructor. Does not check for ghost bits.
 
-* `BitString{B,N}(i::UInt64)`: as above, but sets `i` as the rightmost chunk.
+* `BitString{B,N,T}(i::T)`: as above, but sets `i` as the rightmost chunk.
 
 * `BitString{B}(::Integer)`: Convert integer to `BitString`. Integer is truncated to the
   correct number of bits.
 
 """
-struct BitString{B,N}
-    chunks::SVector{N,UInt64}
+struct BitString{B,N,T<:Unsigned}
+    chunks::SVector{N,T}
 
     # This constructor is only to be used internally. It doesn't check for ghost bits.
-    function BitString{B,N}(s::SVector{N,UInt64}) where {B,N}
-        check_bitstring_typeparams(Val(B), Val(N))
-        return new{B,N}(s)
+    function BitString{B,N,T}(s::SVector{N,T}) where {B,N,T}
+        check_bitstring_typeparams(Val(B), Val(N), T)
+        return new{B,N,T}(s)
     end
-    function BitString{B,N}(i::UInt64) where {B,N}
-        check_bitstring_typeparams(Val(B), Val(N))
-        return new{B,N}(setindex(zero(SVector{N,UInt64}), i, N))
+    function BitString{B,N,T}(i::T) where {B,N,T<:Unsigned}
+        check_bitstring_typeparams(Val(B), Val(N), T)
+        return new{B,N,T}(setindex(zero(SVector{N,UInt64}), i, N))
     end
 end
 
@@ -68,6 +85,14 @@ end
 Number of chunks in bitstring. Equivalent to `length(chunks(s))`.
 """
 num_chunks(::Type{<:BitString{<:Any,N}}) where {N} = N
+
+"""
+    chunk_type(::Type{<:BitString})
+    chunk_type(s::BitString)
+
+Type of unsigned integer used to store the chunks.
+"""
+chunk_type(::Type{<:BitString{<:Any,<:Any,T}}) where {T} = T
 
 """
     num_bits(::Type{<:BitString})
@@ -87,18 +112,19 @@ function top_chunk_bits(::Type{<:BitString{B}}) where B
     return B % 64 == 0 ? 64 : B % 64
 end
 
-for f in (:num_chunks, :num_bits, :top_chunk_bits)
+for f in (:num_chunks, :chunk_type, :num_bits, :top_chunk_bits)
     @eval $f(s::BitString) = $f(typeof(s))
 end
 
 """
-    chunks(::Type{<:BitString})
-    chunks(s)
+    chunks(s::BitString)
 
 `SVector` that stores the chunks of `s`.
 """
 chunks(s::BitString) = s.chunks
+
 """
+    chunks_bits(::Type{<:BitString}, i)
     chunks_bits(s, i)
 
 Number of bits in the `i`-th chunk of `s`.
@@ -110,12 +136,13 @@ function chunk_bits(::Type{S}, i) where {S<:BitString}
 end
 
 function ghost_bit_mask(::Type{S}) where S<:BitString
-    unused_bits = 64 - top_chunk_bits(S)
-    return ~zero(UInt64) >>> unused_bits
+    T = chunk_type(S)
+    unused_bits = sizeof(T) * 8 - top_chunk_bits(S)
+    return ~zero(T) >>> unused_bits
 end
 
 """
-    remove_ghost_bits(s)
+    remove_ghost_bits(s::BitString)
 
 Remove set bits outside data field if any are present.
 
@@ -132,7 +159,7 @@ end
 end
 
 """
-    has_ghost_bits(s)
+    has_ghost_bits(s::BitString)
 
 Check for bits outside data field.
 
@@ -151,35 +178,35 @@ function BitString{B}(i::Union{Int128,Int64,Int32,Int16,Int8}) where {B}
     return remove_ghost_bits(BitString{B}(unsigned(i)))
 end
 function BitString{B}(i::Union{UInt64,UInt32,UInt16,UInt8}) where {B}
-    N = num_chunks(Val(B))
-    s = setindex(zero(SVector{N,UInt64}), UInt64(i), N)
-    return remove_ghost_bits(BitString{B,N}(s))
+    N, T = num_chunks(Val(B))
+    s = setindex(zero(SVector{N,T}), T(i), N)
+    return remove_ghost_bits(BitString{B,N,T}(s))
 end
 function BitString{B}(i::UInt128) where {B}
-    N = num_chunks(Val(B))
-    left = i >>> 0x40 % UInt64
-    right = i & typemax(UInt64) % UInt64
+    N, T = num_chunks(Val(B))
+    left = i >>> 0x40 % T # left will only be used if T == UInt64 and N > 1
+    right = i  % T
     s = ntuple(Val(N)) do i
-        i == N ? right : i == N - 1 ? left : zero(UInt64)
+        i == N ? right : i == N - 1 ? left : zero(T)
     end
-    return remove_ghost_bits(BitString{B,N}(SVector{N,UInt64}(s)))
+    return remove_ghost_bits(BitString{B,N,T}(SVector{N,T}(s)))
 end
 function BitString{B}(i::BigInt) where {B}
-    N = num_chunks(Val(B))
-    s = zero(SVector{N,UInt64})
+    N, T = num_chunks(Val(B))
+    s = zero(SVector{N,T})
     j = N
     while i ≠ 0
-        chunk = i & typemax(UInt64) % UInt64
-        i >>>= 64
+        chunk = i & typemax(T) % T
+        i >>>= 64 # Can use 64 here, as only 1-chunk addresses can be smaller
         s = setindex(s, chunk, j)
         j -= 1
     end
-    return remove_ghost_bits(BitString{B,N}(s))
+    return remove_ghost_bits(BitString{B,N,T}(s))
 end
 
 function Base.zero(S::Type{<:BitString{B}}) where {B}
-    N = num_chunks(Val(B))
-    BitString{B,N}(zero(SVector{N,UInt64}))
+    N, T = num_chunks(Val(B))
+    BitString{B,N,T}(zero(SVector{N,T}))
 end
 Base.zero(s::BitString) = zero(typeof(s))
 
@@ -220,8 +247,9 @@ function _trailing(f, s::BitString)
 end
 
 function _leading(f, s::BitString)
+    N = sizeof(chunk_type(s)) * 8
     # First chunk is a special case - we have to ignore the empty space before the string.
-    result = min(f(s.chunks[1] << (64 - top_chunk_bits(s))), top_chunk_bits(s))
+    result = min(f(s.chunks[1] << (N - top_chunk_bits(s))), top_chunk_bits(s))
 
     # This gets compiled away if N=1
     if num_chunks(s) > 1 && result == top_chunk_bits(s)
@@ -286,7 +314,6 @@ Base.:>>(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .>>
 Base.:>>(s::S, k::Unsigned) where S<:BitString{<:Any,1} = S(s.chunks .>> k)
 Base.:<<(s::S, k) where S<:BitString{<:Any,1} = remove_ghost_bits(S(s.chunks .<< k))
 
-# Is this ordering needed?
 function Base.isless(s1::B, s2::B) where {B<:BitString}
     for i in 1:num_chunks(B)
         if chunks(s1)[i] ≠ chunks(s2)[i]
@@ -302,3 +329,127 @@ Base.iseven(s::BitString) = iseven(chunks(s)[end])
 # tests fail.
 Base.hash(b::BitString{<:Any,1}, h::UInt) = hash(b.chunks[1], h)
 Base.hash(b::BitString, h::UInt) = hash(b.chunks.data, h)
+
+"""
+    partial_left_shift(bs::BitString, i, j)
+
+Shift a part of the bitstring left by one place with boundaries `i < j`.
+In a `BoseFS` bitstring, it moves a particle at offset `i` to the position at
+offset `j`.
+
+See also: [`move_particle`](@ref), [`partial_right_shift`](@ref).
+"""
+function partial_left_shift(chunk::T, i, j) where {T<:Unsigned}
+    # Mask of one spanning from i to j
+    mask = (T(1) << T(j - i + 1) - T(1)) << T(i)
+    # Shift the part of the string that needs to be shifted, ensure a one is added at the end
+    # swap shift to move in other direction
+    #println(bitstring(mask))
+    shifted_part = ((chunk & mask) << 0x1) & mask
+    # Leave the rest intact
+    intact_part = chunk & ~mask
+
+    return shifted_part | intact_part | T(1) << T(i)
+end
+
+"""
+    partial_right_shift(bs::BitString, i, j)
+
+Shift a part of the bitstring right by one place with boundaries `i < j`.
+In a `BoseFS` bitstring, it moves a particle at offset `j` to the position at
+offset `i`.
+
+See also: [`partial_left_shift`](@ref), [`move_particle`](@ref).
+"""
+function partial_right_shift(chunk::T, i, j) where {T<:Unsigned}
+    # Mask of one spanning from i to j
+    mask = (T(1) << T(j - i + 1) - T(1)) << T(i)
+    # Shift the part of the string that needs to be shifted, ensure a one is added at the end
+    # swap shift to move in other direction
+    shifted_part = ((chunk & mask) >> 0x1) & mask
+    # Leave the rest intact
+    intact_part = chunk & ~mask
+    #println(lpad("↑" * " "^j, length(bitstring(chunk))))
+
+    return shifted_part | intact_part | T(1) << T(j)
+end
+
+function partial_left_shift(bs::S, i, j) where {S<:BitString{<:Any,1}}
+    return S(partial_left_shift(bs.chunks[1], i, j))
+end
+
+function partial_right_shift(bs::S, i, j) where {S<:BitString{<:Any,1}}
+    return S(partial_right_shift(bs.chunks[1], i, j))
+end
+
+function partial_left_shift(bs::S, i, j) where {N,S<:BitString{<:Any,N}}
+    result = MVector(bs.chunks)
+    lo_idx = N - (i >>> 0x6)
+    hi_idx = N - (j >>> 0x6)
+    lo_off = i & 63
+    hi_off = j & 63
+    @inbounds if hi_idx == lo_idx
+        result[hi_idx] = partial_left_shift(result[hi_idx], lo_off, hi_off)
+    else
+        # Top part first.
+        chunk = result[hi_idx]
+        chunk = partial_left_shift(chunk, 0, hi_off)
+        # Carry bit.
+        chunk &= -UInt(1) << 0x1
+        chunk |= result[hi_idx + 1] >> 63
+        result[hi_idx] = chunk
+
+        idx = hi_idx + 1
+        while idx < lo_idx
+            chunk = result[idx]
+            chunk <<= 0x1
+            chunk |= result[idx + 1] >> 63
+            result[idx] = chunk
+            idx += 1
+        end
+
+        # Bottom part.
+        chunk = result[lo_idx]
+        chunk = partial_left_shift(chunk, lo_off, 64)
+        result[lo_idx] = chunk
+    end
+    return S(SVector(result))
+end
+
+function partial_right_shift(bs::S, i, j) where {N,S<:BitString{<:Any,N}}
+    result = MVector(bs.chunks)
+    lo_idx = N - (i >>> 0x6)
+    hi_idx = N - (j >>> 0x6)
+    lo_off = i & 63
+    hi_off = j & 63
+    @inbounds if hi_idx == lo_idx
+        result[hi_idx] = partial_right_shift(result[hi_idx], lo_off, hi_off)
+    else
+        # Bottom first
+        chunk = result[lo_idx]
+        chunk = partial_right_shift(chunk, lo_off, 64)
+        # Carry bit.
+        chunk &= -UInt(1) >> 0x1
+        chunk |= result[lo_idx - 1] << 63
+        result[lo_idx] = chunk
+
+        idx = lo_idx - 1
+        while idx > hi_idx
+            chunk = result[idx]
+            chunk >>= 0x1
+            chunk |= result[idx - 1] << 63
+            result[idx] = chunk
+            idx -= 1
+        end
+
+        # Top part.
+        chunk = result[hi_idx]
+        chunk = partial_right_shift(chunk, 0, hi_off)
+        result[hi_idx] = chunk
+    end
+    return S(SVector(result))
+end
+
+function bit_mask(bs::BitString, i, j)
+
+end
