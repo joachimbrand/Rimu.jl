@@ -1,61 +1,14 @@
-###
-### This file contains abstract types, interfaces and traits.
-###
-"""
-    AbstractHamiltonian{T}
-
-Supertype that provides an interface for linear operators over a linear space with scalar
-type `T` that are suitable for FCIQMC (with [`lomc!`](@ref)). Indexing is done with addresses (typically not
-integers) from an address space that may be large (and will not need to be completely
-generated).
-
-`AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) from the
-module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref) from
-the module `BitStringAddresses`. The type works well with the external package
-[KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
-
-For available implementations see [`Hamiltonians`](@ref).
-
-# Interface
-
-Methods that need to be implemented:
-
-* [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
-* [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
-* [`StochasticStyles.diagonal_element(::AbstractHamiltonian, address)`](@ref)
-* [`starting_address(::AbstractHamiltonian)`](@ref)
-
-Optional methods to implement:
-
-* [`LOStructure(::Type{typeof(lo)})`](@ref): defaults to `AdjointUnknown`
-* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref): defaults to dimension of address space
-* [`momentum(::AbstractHamiltonian)`](@ref): no default
-
-Provides:
-
-* [`offdiagonals`](@ref): iterator over reachable off-diagonal matrix elements
-* [`random_offdiagonal`](@ref): function to generate random off-diagonal matrix element
-* `*(H, v)`: deterministic matrix-vector multiply (allocating)
-* `H(v)`: equivalent to `H * v`.
-* `mul!(w, H, v)`: mutating matrix-vector multiply.
-* [`dot(x, H, v)`](@ref): compute `x⋅(H*v)` minimizing allocations.
-* `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes (slow!)
-"""
-abstract type AbstractHamiltonian{T} end
-
-Base.eltype(::AbstractHamiltonian{T}) where {T} = T
-
 (h::AbstractHamiltonian)(v) = h * v
 (h::AbstractHamiltonian)(w, v) = mul!(w, h, v)
 
 BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_address(h))
 
-
 """
+    logbinomialapprox(n, k)
+
 Approximate formula for log of binomial coefficient. [Source](https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas)
 """
-logbinomialapprox(n,k) =
-    (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2π*k)
+logbinomialapprox(n,k) = (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2π*k)
 
 """
     dimension(::Type{T}, h)

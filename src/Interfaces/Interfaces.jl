@@ -42,12 +42,12 @@ import OrderedCollections: freeze
 export
     StochasticStyle, default_style, StyleUnknown, fciqmc_col!, step_stats, update_dvec!,
     CompressionStrategy, NoCompression, compress!
-
 export
-    deposit!, storage, localpart, freeze
+    AbstractDVec, deposit!, storage, localpart, freeze
 export
-    diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals, random_offdiagonal,
-    starting_address, LOStructure, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
+    AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
+    random_offdiagonal, starting_address,
+    LOStructure, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
 
 include("stochasticstyles.jl")
 include("dictvectors.jl")

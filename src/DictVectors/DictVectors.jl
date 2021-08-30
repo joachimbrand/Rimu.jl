@@ -16,12 +16,9 @@ import SplittablesBase
 using ..Interfaces
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze
 
-export
-    AbstractDVec, zero!, add!, deposit!, storage, walkernumber, zero!
-export
-    DVec, InitiatorDVec
-export
-    AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
+export zero!, add!, deposit!, storage, walkernumber, zero!
+export DVec, InitiatorDVec
+export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 
 
 # The idea is to do linear algebra with data structures that are not
