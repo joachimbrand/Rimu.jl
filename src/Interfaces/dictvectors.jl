@@ -24,12 +24,14 @@ communication.
 """
 storage(v::AbstractVector) = Dict(pairs(v))
 
-"""
-    zero!(v)
-
-Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types it means
-removing all non-zero elements. For `AbstractArrays`, it sets all of the values to zero.
-"""
-zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
-
 StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
+
+"""
+    freeze(dv)
+
+Create a "frozen" version of `dv` which can no longer be modified or used in the
+conventional manner, but supports faster dot products.
+
+If `dv` is an [`MPIData`](@ref), synchronize its contents among the ranks first.
+"""
+freeze(v::AbstractVector) = copy(v)

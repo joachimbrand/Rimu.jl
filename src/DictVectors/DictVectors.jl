@@ -10,14 +10,13 @@ concrete implementation of [`DVec`](@ref)
 module DictVectors
 
 using Random, LinearAlgebra
-import OrderedCollections: freeze
 import SplittablesBase
 
 using ..Interfaces
-import ..Interfaces: deposit!, storage, StochasticStyle, default_style, zero!
+import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze
 
 export
-    AbstractDVec, zero!, add!, deposit!, storage, walkernumber, freeze
+    AbstractDVec, zero!, add!, deposit!, storage, walkernumber, zero!
 export
     DVec, InitiatorDVec
 export

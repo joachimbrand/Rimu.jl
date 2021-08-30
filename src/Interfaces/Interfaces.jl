@@ -8,10 +8,10 @@ For a generalized vector implement what would be needed for the `AbstractDict` i
 (`pairs`, `keys`, `values`, `setindex!, getindex, delete!, length, haskey, empty!, isempty`)
 and, in addition:
 
-* [`random_offdiagonal`](@ref) (optional)
 * [`StochasticStyle`](@ref)
 * [`storage`](@ref)
 * [`deposit!`](@ref) (optional)
+* [`freeze`](@ref) (optional)
 * [`localpart`](@ref) (optional)
 
 For a Hamiltonian, implement the following functions:
@@ -19,6 +19,7 @@ For a Hamiltonian, implement the following functions:
 * [`diagonal_element`](@ref)
 * [`num_offdiagonals`](@ref) and [`get_offdiagonal`](@ref), or [`offdiagonals`](@ref).
 * [`starting_address`](@ref)
+* [`random_offdiagonal`](@ref) (optional)
 * [`LOStructure`](@ref) (optional, but recommended)
 * [`random_offdiagonal`](@ref) (optional)
 
@@ -27,9 +28,10 @@ module Interfaces
 
 using ..ConsistentRNG
 using LinearAlgebra
+import OrderedCollections: freeze
 
 export StochasticStyle, default_style, StyleUnknown
-export deposit!, storage, localpart, zero!
+export deposit!, storage, localpart, freeze
 export diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals, random_offdiagonal, starting_address
 export LOStructure, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
 

@@ -39,8 +39,10 @@ end
            0 0 1 1 2;
            0 1 0 1 0]
     vector = ones(5)
-    df, st = lomc!(ham, vector; laststep=1000)
+    post_step = ProjectedEnergy(ham, vector)
+    df, st = lomc!(ham, vector; laststep=10_000, post_step)
     eigs = eigen(ham)
     @test df.shift[end] ≈ eigs.values[1] rtol=0.01
+    @test df.hproj[end] / df.vproj[end] ≈ eigs.values[1] rtol=0.01
     @test normalize(st.replicas[1].v) ≈ eigs.vectors[:, 1] rtol=0.01
 end

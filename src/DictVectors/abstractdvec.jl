@@ -60,6 +60,13 @@ Base.ndims(::AbstractDVec) = 1
 ###
 ### copy*, zero*
 ###
+"""
+    zero!(v)
+
+Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types it means
+removing all non-zero elements. For `AbstractArrays`, it sets all of the values to zero.
+"""
+zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
 zero!(v::AbstractDVec) = empty!(v)
 
 Base.zero(dv::AbstractDVec) = empty(dv)
@@ -324,14 +331,6 @@ Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
 Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}
 Base.pairs(fd::FrozenDVec) = fd.pairs
 
-"""
-    freeze(dv)
-
-Create a "frozen" version of `dv` which can no longer be modified or used in the
-conventional manner, but supports faster dot products.
-
-If `dv` is an [`MPIData`](@ref), synchronize its contents among the ranks first.
-"""
 freeze(dv) = FrozenDVec(collect(pairs(dv)))
 
 freeze(p::AbstractProjector) = p
