@@ -37,6 +37,6 @@ const SUITE = @benchmarkset "Rimu" begin
         dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic())
         s_strat = DoubleLogUpdate(targetwalkers=10_000)
 
-        lomc!(ham, dv; s_strat, laststep=15_000, dτ=1e-3)
+        lomc!(ham, dv; s_strat, laststep=15_000, dτ=1e-2)
     end seconds=150
 end
