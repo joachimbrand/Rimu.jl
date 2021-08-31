@@ -123,14 +123,14 @@ IsStochasticWithThreshold{T}(t=1.0) where {T} = IsStochasticWithThreshold{T}(T(t
 function step_stats(::IsStochasticWithThreshold{T}) where {T}
     z = zero(T)
     return (
-        (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(z, z, z, z, z)
+        (:spawns, :deaths, :clones, :zombies),
+        MultiScalar(z, z, z, z)
     )
 end
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham, add, val, shift, dτ)
-    deaths, clones, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
-    spawns, ann_o = spawn!(WithReplacement(s.threshold), w, ham, add, val, dτ)
-    return (spawns, deaths, clones, zombies, ann_d + ann_o)
+    deaths, clones, zombies, _ = diagonal_step!(w, ham, add, val, dτ, shift)
+    spawns, _ = spawn!(WithReplacement(s.threshold), w, ham, add, val, dτ)
+    return (spawns, deaths, clones, zombies)
 end
 
 """
@@ -190,14 +190,14 @@ CompressionStrategy(s::IsDynamicSemistochastic) = s.compression
 function step_stats(::IsDynamicSemistochastic{T}) where {T}
     z = zero(T)
     return (
-        (:exact_steps, :inexact_steps, :spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(0, 0, z, z, z, z, z),
+        (:exact_steps, :inexact_steps, :spawns, :deaths, :clones, :zombies),
+        MultiScalar(0, 0, z, z, z, z),
     )
 end
 function fciqmc_col!(s::IsDynamicSemistochastic, w, ham, add, val, shift, dτ)
-    clones, deaths, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift)
-    exact, inexact, spawns, ann_o = spawn!(s.spawning, w, ham, add, val, dτ)
-    return (exact, inexact, spawns, deaths, clones, zombies, ann_d + ann_o)
+    clones, deaths, zombies, _ = diagonal_step!(w, ham, add, val, dτ, shift)
+    exact, inexact, spawns, _ = spawn!(s.spawning, w, ham, add, val, dτ)
+    return (exact, inexact, spawns, deaths, clones, zombies)
 end
 
 """

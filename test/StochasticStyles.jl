@@ -133,7 +133,7 @@ end
         dv = DVec(add => 0.0)
         st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10)
         @test st[2] == 1
-        @test st[3] == 4.5
+        #@test st[3] == 4.5 # <- annihilations disabled for now
         @test dv[BoseFS((2,0,1))] == -4.5
     end
     @testset "Projected" begin

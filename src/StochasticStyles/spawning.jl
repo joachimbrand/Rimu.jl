@@ -6,11 +6,18 @@ an `Integer`, values are stochastically rounded.
 
 Returns the value deposited and the number of annihilations.
 """
-function projected_deposit!(w, add, val, parent, threshold=0)
-    return projected_deposit!(valtype(w), w, add, val, parent, threshold)
+function projected_deposit!(
+    w, add, val, parent, threshold=0,
+    report_annihilations=!(valtype(w) isa AbstractFloat) # Don't report for float walkers
+)
+    return projected_deposit!(
+        valtype(w), w, add, val, parent, threshold, report_annihilations
+    )
 end
 # Non-integer
-function projected_deposit!(::Type{T}, w, add, value, parent, thresh) where {T}
+function projected_deposit!(
+    ::Type{T}, w, add, value, parent, thresh, report_annihilations=false
+) where {T}
     # ensure type stability.
     threshold = T(thresh)
     val = T(value)
@@ -25,9 +32,11 @@ function projected_deposit!(::Type{T}, w, add, value, parent, thresh) where {T}
     end
     annihilations = zero(T)
     if !iszero(val)
-        prev = w[add]
-        if sign(prev) ≠ sign(val)
-            annihilations = min(abs(prev), abs(val))
+        if report_annihilations
+            prev = w[add]
+            if sign(prev) ≠ sign(val)
+                annihilations = min(abs(prev), abs(val))
+            end
         end
         deposit!(w, add, val, parent)
     end
@@ -35,21 +44,25 @@ function projected_deposit!(::Type{T}, w, add, value, parent, thresh) where {T}
     return abs(val), annihilations
 end
 # Round to integer
-function projected_deposit!(::Type{T}, w, add, val, parent, _) where {T<:Integer}
+function projected_deposit!(
+    ::Type{T}, w, add, val, parent, ::Any, report_annihilations=true
+) where {T<:Integer}
     intval = T(sign(val)) * floor(T, abs(val) + cRand())
     annihilations = zero(T)
     if !iszero(intval)
-        prev = w[add]
-        if sign(prev) ≠ sign(intval)
-            annihilations = min(abs(prev), abs(intval))
+        if report_annihilations
+            prev = w[add]
+            if sign(prev) ≠ sign(intval)
+                annihilations = min(abs(prev), abs(intval))
+            end
+            deposit!(w, add, intval, parent)
         end
-        deposit!(w, add, intval, parent)
     end
     return abs(intval), annihilations
 end
 # Complex/Int
 function projected_deposit!(
-    ::Type{T}, w, add, val, parent, _,
+    ::Type{T}, w, add, val, parent, ::Any, report_annihilations=true
 ) where {I<:Integer,T<:Complex{I}}
 
     r_val, i_val = reim(val)
