@@ -28,4 +28,15 @@ const SUITE = @benchmarkset "Rimu" begin
 
         lomc!(ham, dv; s_strat, dτ=1e-4, laststep=2000)
     end seconds=150
+    @case "(5+3, 12) Real space fermions in a 4×3 lattice with initiator" begin
+        add = CompositeFS(
+            near_uniform(FermiFS{5,12}),
+            near_uniform(FermiFS{3,12}),
+        )
+        ham = HubbardRealSpace(add, geometry=PeriodicBoundaries(4, 3))
+        dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic())
+        s_strat = DoubleLogUpdate(targetwalkers=10_000)
+
+        lomc!(ham, dv; s_strat, laststep=15_000, dτ=1e-2)
+    end seconds=150
 end
