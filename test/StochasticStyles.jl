@@ -3,7 +3,8 @@ using Test
 using Rimu.StochasticStyles
 
 using Rimu.StochasticStyles: projected_deposit!, diagonal_step!, spawn!
-using Rimu.StochasticStyles: Exact, SingleSpawn, WithReplacement, WithoutReplacement, Bernoulli, DynamicSemistochastic
+using Rimu.StochasticStyles:
+    Exact, SingleSpawn, WithReplacement, WithoutReplacement, Bernoulli, DynamicSemistochastic
 
 @testset "Generic Hamiltonian-free functions" begin
     matrix = [1 2 3; 4 5 6; 7 8 9]
@@ -25,9 +26,9 @@ using Rimu.StochasticStyles: Exact, SingleSpawn, WithReplacement, WithoutReplace
     @test StochasticStyle(Float32.(vec)) == IsDeterministic{Float32}()
 
     names, values = step_stats(vec, Val(2))
-    @test names == (:spawns, :deaths, :clones, :zombies, :annihilations)
+    @test names == (:spawn_attempts, :spawns, :deaths, :clones, :zombies, :annihilations)
     @test length(values) == 2
-    @test values[1] == values[2] == Rimu.MultiScalar((0, 0, 0, 0, 0))
+    @test values[1] == values[2] == Rimu.MultiScalar((0, 0, 0, 0, 0, 0))
 
     w = [1.0, 2.0, 3.0]
 

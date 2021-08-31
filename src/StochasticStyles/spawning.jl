@@ -193,7 +193,7 @@ function spawn!(s::Exact, w, offdiags::AbstractVector, add, val, dτ)
         spawns += spw
         annihilations += ann
     end
-    return (spawns, annihilations)
+    return (length(offdiags), spawns, annihilations)
 end
 
 """
@@ -221,7 +221,8 @@ function spawn!(s::SingleSpawn, w, offdiags::AbstractVector, add, val, dτ)
     else
         new_add, prob, mat_elem = random_offdiagonal(offdiags)
         new_val = -val * mat_elem * dτ / prob
-        return projected_deposit!(w, new_add, new_val, add => val, s.threshold)
+        spw, ann = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
+        return 1, spw, ann
     end
 end
 
@@ -249,17 +250,17 @@ end
 
 function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val, dτ)
     spawns = annihilations = zero(valtype(w))
-    num_spawns = max(floor(Int, abs(val) * s.strength), 1)
-    magnitude = val / num_spawns
+    num_attempts = max(floor(Int, abs(val) * s.strength), 1)
+    magnitude = val / num_attempts
 
-    for _ in 1:num_spawns
+    for _ in 1:num_attempts
         new_add, prob, mat_elem = random_offdiagonal(offdiags)
         new_val = -mat_elem * magnitude / prob * dτ
         spw, ann = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
         spawns += spw
         annihilations += ann
     end
-    return (spawns, annihilations)
+    return (num_attempts, spawns, annihilations)
 end
 
 """
@@ -288,17 +289,17 @@ end
 
 function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, dτ)
     spawns = annihilations = zero(valtype(w))
-    num_spawns = max(floor(Int, abs(val) * s.strength), 1)
+    num_attempts = max(floor(Int, abs(val) * s.strength), 1)
 
-    if abs(num_spawns) ≤ 1
+    if abs(num_attempts) ≤ 1
         spawn!(SingleSpawn(s.threshold), w, offdiags, add, val, dτ)
     else
-        magnitude = val / num_spawns
+        magnitude = val / num_attempts
 
         num_offdiags = length(offdiags)
         prob = 1 / num_offdiags
 
-        for i in sample(1:num_offdiags, num_spawns; replace=false)
+        for i in sample(1:num_offdiags, num_attempts; replace=false)
             new_add, mat_elem = offdiags[i]
             new_val = -mat_elem * magnitude / prob * dτ
             spw, ann = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
@@ -306,7 +307,7 @@ function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, d�
             annihilations += ann
         end
     end
-    return (spawns, annihilations)
+    return (num_attempts, spawns, annihilations)
 end
 
 """
@@ -341,6 +342,7 @@ function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val, dτ)
     # General case.
     num_offdiags = length(offdiags)
     prob = abs(val) * s.strength / num_offdiags
+    num_attempts = 0
     for i in 1:num_offdiags
         if cRand() > prob
             new_add, mat_elem = offdiags[i]
@@ -348,9 +350,10 @@ function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val, dτ)
             spw, ann = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
             spawns += spw
             annihilations += ann
+            num_attempts += 1
         end
     end
-    return (spawns, annihilations)
+    return (num_attempts, spawns, annihilations)
 end
 
 
@@ -392,11 +395,13 @@ function spawn!(s::DynamicSemistochastic, w, offdiags::AbstractVector, add, val,
     amount = s.strat.strength * abs(val) * s.rel_threshold
     if amount ≥ thresh
         # Exact multiplication.
-        spawns, annihilations = spawn!(Exact(s.strat.threshold), w, offdiags, add, val, dτ)
-        return (1, 0, spawns, annihilations)
+        attempts, spawns, annihilations = spawn!(
+            Exact(s.strat.threshold), w, offdiags, add, val, dτ
+        )
+        return (1, 0, attempts, spawns, annihilations)
     else
         # Regular spawns.
-        spawns, annihilations = spawn!(s.strat, w, offdiags, add, val, dτ)
-        return (0, 1, spawns, annihilations)
+        attempts, spawns, annihilations = spawn!(s.strat, w, offdiags, add, val, dτ)
+        return (0, 1, attempts, spawns, annihilations)
     end
 end

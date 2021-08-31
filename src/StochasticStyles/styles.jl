@@ -12,16 +12,16 @@ IsStochasticInteger() = IsStochasticInteger{Int}()
 function step_stats(::IsStochasticInteger{T}) where {T}
     z = zero(T)
     return (
-        (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(z, z, z, z, z),
+        (:spawn_attempts, :spawns, :deaths, :clones, :zombies, :annihilations),
+        MultiScalar(0, z, z, z, z, z),
     )
 end
 function fciqmc_col!(
     ::IsStochasticInteger, w, ham, add, num::Real, shift, dτ
 )
     clones, deaths, zombies, ann_diag = diagonal_step!(w, ham, add, num, dτ, shift)
-    spawns, ann_offdiag = spawn!(WithReplacement(), w, ham, add, num, dτ)
-    return (spawns, deaths, clones, zombies, ann_diag + ann_offdiag)
+    attempts, spawns, ann_offdiag = spawn!(WithReplacement(), w, ham, add, num, dτ)
+    return (attempts, spawns, deaths, clones, zombies, ann_diag + ann_offdiag)
 end
 
 """
@@ -41,9 +41,10 @@ struct IsStochastic2Pop{T<:Complex{<:Integer}} <: StochasticStyle{T} end
 IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 
 function step_stats(::IsStochastic2Pop{T}) where {T}
+    z = zero(T)
     return (
         (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(ntuple(_ -> zero(T), Val(5))),
+        MultiScalar(z, z, z, z, z)
     )
 end
 function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
@@ -123,14 +124,14 @@ IsStochasticWithThreshold{T}(t=1.0) where {T} = IsStochasticWithThreshold{T}(T(t
 function step_stats(::IsStochasticWithThreshold{T}) where {T}
     z = zero(T)
     return (
-        (:spawns, :deaths, :clones, :zombies),
-        MultiScalar(z, z, z, z)
+        (:spawn_attempts, :spawns, :deaths, :clones, :zombies),
+        MultiScalar(0, z, z, z, z)
     )
 end
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham, add, val, shift, dτ)
     deaths, clones, zombies, _ = diagonal_step!(w, ham, add, val, dτ, shift)
-    spawns, _ = spawn!(WithReplacement(s.threshold), w, ham, add, val, dτ)
-    return (spawns, deaths, clones, zombies)
+    attempts, spawns, _ = spawn!(WithReplacement(s.threshold), w, ham, add, val, dτ)
+    return (attempts, spawns, deaths, clones, zombies)
 end
 
 """
@@ -190,14 +191,14 @@ CompressionStrategy(s::IsDynamicSemistochastic) = s.compression
 function step_stats(::IsDynamicSemistochastic{T}) where {T}
     z = zero(T)
     return (
-        (:exact_steps, :inexact_steps, :spawns, :deaths, :clones, :zombies),
-        MultiScalar(0, 0, z, z, z, z),
+        (:exact_steps, :inexact_steps, :spawn_attempts, :spawns, :deaths, :clones, :zombies),
+        MultiScalar(0, 0, 0, z, z, z, z),
     )
 end
 function fciqmc_col!(s::IsDynamicSemistochastic, w, ham, add, val, shift, dτ)
     clones, deaths, zombies, _ = diagonal_step!(w, ham, add, val, dτ, shift)
-    exact, inexact, spawns, _ = spawn!(s.spawning, w, ham, add, val, dτ)
-    return (exact, inexact, spawns, deaths, clones, zombies)
+    exact, inexact, attempts, spawns, _ = spawn!(s.spawning, w, ham, add, val, dτ)
+    return (exact, inexact, attempts, spawns, deaths, clones, zombies)
 end
 
 """
@@ -250,7 +251,7 @@ CompressionStrategy(s::IsExplosive) = s.compression
 function step_stats(::IsExplosive{T}) where {T}
     z = zero(T)
     return (
-        (:explosions, :ticks, :normal_steps,
+        (:explosions, :ticks, :normal_steps, :spawn_attempts,
          :explosive_spawns, :normal_spawns,
          :clones, :deaths, :zombies
          ),
@@ -261,11 +262,12 @@ function fciqmc_col!(s::IsExplosive{T}, w, ham, add, val, shift, dτ) where {T}
     explosions = normal_steps = ticks = 0
     explosive_spawns = normal_spawns = zero(T)
     clones = deaths = zombies = zero(T)
+    attempts = 0
 
     pd = dτ * (diagonal_element(ham, add) - shift)
     if abs(val) ≤ s.explosion_threshold && 0 ≤ pd < 1
         if cRand() < pd
-            _, _, explosive_spawns, _ = spawn!(
+            _, _, attempts, explosive_spawns, _ = spawn!(
                 DynamicSemistochastic(strat=WithReplacement(zero(T), s.splatter_factor)),
                 w, ham, add, val / pd, dτ,
             )
@@ -276,15 +278,14 @@ function fciqmc_col!(s::IsExplosive{T}, w, ham, add, val, shift, dτ) where {T}
         end
     else
         clones, deaths, zombies, _ = diagonal_step!(w, ham, add, val, dτ, shift)
-        _, _, normal_spawns, _ = spawn!(
+        _, _, attempts, normal_spawns, _ = spawn!(
             DynamicSemistochastic(strat=WithReplacement()), w, ham, add, val, dτ,
         )
         normal_steps = 1
     end
 
     return (
-        explosions, ticks, normal_steps,
-        explosive_spawns, normal_spawns,
+        explosions, ticks, normal_steps, attempts, explosive_spawns, normal_spawns,
         clones, deaths, zombies,
     )
 end
