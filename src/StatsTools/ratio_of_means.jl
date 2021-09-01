@@ -43,8 +43,8 @@ function Statistics.quantile(r::RatioBlockingResult{<:Complex}, args...)
 end
 
 function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Real, P}
-    q = quantile(r.ratio, [0.16,0.5,0.84])
-    qr95 = quantile(r.ratio, [0.025,0.975])
+    q = pquantile(r.ratio, [0.16,0.5,0.84])
+    qr95 = pquantile(r.ratio, [0.025,0.975])
     println(io, "RatioBlockingResult{$T,$P}")
     println(io, f"  ratio = \%g(q[2]) ± (\%g(q[3]-q[2]), \%g(q[2]-q[1])) (MC)")
     println(io, f"  95% confidence interval: [\%g(qr95[1]), \%g(qr95[2])]) (MC)")
@@ -58,12 +58,12 @@ function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Real, P}
 end
 
 function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Complex, P}
-    qr = quantile(real(r.ratio), [0.16,0.5,0.84])
-    qi = quantile(imag(r.ratio), [0.16,0.5,0.84])
+    qr = pquantile(real(r.ratio), [0.16,0.5,0.84])
+    qi = pquantile(imag(r.ratio), [0.16,0.5,0.84])
     println(io, "RatioBlockingResult{$T,$P}")
     println(io, f"  ratio = \%g(qr[2]) ± (\%g(qr[3]-qr[2]), \%g(qr[2]-qr[1])) + [\%g(qi[2]) ± (\%g(qi[3]-qi[2]), \%g(qi[2]-qi[1]))]*im (MC)")
-    qr95 = quantile(real(r.ratio), [0.025,0.975])
-    qi95 = quantile(imag(r.ratio), [0.025,0.975])
+    qr95 = pquantile(real(r.ratio), [0.025,0.975])
+    qi95 = pquantile(imag(r.ratio), [0.025,0.975])
     println(io, f"  95% confidence interval real: [\%g(qr95[1]), \%g(qr95[2])] (MC)")
     println(io, f"  95% confidence interval imag: [\%g(qi95[1]), \%g(qi95[2])] (MC)")
     println(io, "  linear error propagation: ($(r.f)) ± ($(r.σ_f))")

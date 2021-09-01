@@ -70,7 +70,7 @@ julia> res_df = DataFrame(res_w_errs) # results as DataFrame with lower an upper
 ```
 """
 function med_and_errs(p)
-    q = quantile(p, [0.025, 0.16, 0.5, 0.84, 0.975])
+    q = pquantile(p, [0.025, 0.16, 0.5, 0.84, 0.975])
     med = q[3]
     err1_l = med - q[2]
     err1_u = q[4] - med
@@ -83,7 +83,7 @@ function med_and_errs(p::Measurements.Measurement)
     err1_l = err1_u = Measurements.uncertainty(p)
     err2_l = err2_u = 2err1_l
     return (; med, err1_l, err1_u, err2_l, err2_u)
-end   
+end
 
 """
     ratio_with_errs(r::RatioBlockingResult)
@@ -126,7 +126,7 @@ Convert an uncertain number from `MonteCarloMeasurements` to `Measurements` form
 point. The new `±` boundaries will include the 68% quantile around the median.
 """
 function to_measurement(p::MonteCarloMeasurements.Particles)
-        q = quantile(p, [0.16, 0.5, 0.84])
-        σ = max(q[3]-q[2],q[2]-q[1]) # take the larger one 
+        q = pquantile(p, [0.16, 0.5, 0.84])
+        σ = max(q[3]-q[2],q[2]-q[1]) # take the larger one
         return Measurements.measurement(q[2],σ)
 end

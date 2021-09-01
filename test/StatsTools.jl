@@ -64,7 +64,7 @@ using Rimu.StatsTools: x_by_y_linear
 
     # badly behaved example of Cauchy distribution for ratio
     r = ratio_of_means(randn(2000),randn(2000))
-    q95 = quantile(r.ratio, [0.025,0.975])
+    q95 = MonteCarloMeasurements.pquantile(r.ratio, [0.025,0.975])
     @test q95[1] < 0 < q95[2]
 
     r = ratio_of_means(randn(ComplexF64,2000),randn(ComplexF64,2000))
