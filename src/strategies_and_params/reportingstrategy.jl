@@ -127,8 +127,8 @@ end
 """
     report_after_step(::ReportingStrategy, step, report, state)
 
-This function is called exactly once at the very end of a step. For example, it can be used to
-print some information to `stdout`.
+This function is called exactly once at the very end of a step. For example, it can be used
+to print some information to `stdout`.
 """
 function report_after_step(::ReportingStrategy, args...)
     return nothing
@@ -137,7 +137,8 @@ end
 """
     finalize_report!(::ReportingStrategy, report)
 
-Finalize the report. This function is called after all steps in [`lomc!`](@ref) have finished.
+Finalize the report. This function is called after all steps in [`lomc!`](@ref) have
+finished.
 """
 function finalize_report!(::ReportingStrategy, report)
     DataFrame(report)
@@ -157,7 +158,7 @@ end
 The default [`ReportingStrategy`](@ref). Report every `k`th step to a `DataFrame` and write
 info message to `io` every `i`th step (unless `writeinfo == false`). The flag `writeinfo` is
 useful for controlling info messages in MPI codes, e.g. by setting
-`writeinfo=is_mpi_root()`.
+`writeinfo =`[`is_mpi_root()`](@ref).
 """
 @with_kw struct ReportDFAndInfo <: ReportingStrategy
     k::Int = 1
@@ -187,17 +188,17 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 * `chunk_size = 1000`: the size of each chunk that is written to the file. A `DataFrame` of
   this size is collected in memory and written to disk. When saving, an info message is also
   printed to `io`.
-* `save_if = true`: if this value is true, save the report, otherwise ignore it. Use
-  `save_if=is_mpi_root()` when running MPI jobs.
-* `return_df`: if this value is true, read the file and return the data frame at the end of
-  computation. Otherwise, an empty `DataFrame` is returned.
-* `io=stdout`: The `IO` to print messages to. Set to `devnull` if you don't want to see
+* `save_if =`[`is_mpi_root()`](@ref): if this value is true, save the report, otherwise
+  ignore it.
+* `return_df = false`: if this value is true, read the file and return the data frame at the
+  end of computation. Otherwise, an empty `DataFrame` is returned.
+* `io = stdout`: The `IO` to print messages to. Set to `devnull` if you don't want to see
   messages printed out.
 """
 @with_kw struct ReportToFile <: ReportingStrategy
     filename::String
     chunk_size::Int = 1000
-    save_if::Bool = true
+    save_if::Bool = RMPI.is_mpi_root()
     return_df::Bool = false
     io::IO = stdout
 end
