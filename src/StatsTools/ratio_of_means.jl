@@ -26,18 +26,18 @@ end
 # Base.iterate(r::RatioBlockingResult, args...) = iterate(r.ratio, args...)
 # Base.length(r::RatioBlockingResult) = length(r.ratio)
 # Base.eltype(r::RatioBlockingResult) = eltype(r.ratio)
-MacroTools.@forward RatioBlockingResult.ratio Statistics.median, Statistics.quantile
-MacroTools.@forward RatioBlockingResult.ratio Statistics.middle, Base.iterate, Base.extrema
-MacroTools.@forward RatioBlockingResult.ratio Base.minimum, Base.maximum
-MacroTools.@forward RatioBlockingResult.ratio Statistics.mean, Statistics.cov
+MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pmedian, MonteCarloMeasurements.pquantile
+MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pmiddle, MonteCarloMeasurements.piterate, MonteCarloMeasurements.pextrema
+MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pminimum, MonteCarloMeasurements.pmaximum
+MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pmean, MonteCarloMeasurements.pcov
 
-function Statistics.median(r::RatioBlockingResult{<:Complex})
-    complex(median(real(r.ratio)), median(imag(r.ratio)))
+function MonteCarloMeasurements.pmedian(r::RatioBlockingResult{<:Complex})
+    complex(pmedian(real(r.ratio)), pmedian(imag(r.ratio)))
 end
-function Statistics.quantile(r::RatioBlockingResult{<:Complex}, args...)
+function MonteCarloMeasurements.pquantile(r::RatioBlockingResult{<:Complex}, args...)
     throw(ErrorException("""
-    `quantile(r, args...)` called with `Complex` data type.
-    Try `quantile(real(r.ratio), args...)` and `quantile(imag(r.ratio), args...)`!
+    `pquantile(r, args...)` called with `Complex` data type.
+    Try `pquantile(real(r.ratio), args...)` and `pquantile(imag(r.ratio), args...)`!
     """
     ))
 end
@@ -84,8 +84,8 @@ means is propagated using `MonteCarloMeasurements`. The results are reported
 as a [`RatioBlockingResult`](@ref).
 
 Robust estimates for the ratio
-are obtained from [`median(r)`](@ref) and confidence intervals from [`quantile()`](@ref),
-e.g. `quantile(r, [0.025, 0.975])` for the 95% confidence interval.
+are obtained from [`pmedian(r)`](@ref) and confidence intervals from [`pquantile()`](@ref),
+e.g. `pquantile(r, [0.025, 0.975])` for the 95% confidence interval.
 
 Estimates from linear uncertainty propagation are returned as `r.f` and `r.σ_f` using
 [`x_by_y_linear()`](@ref).
