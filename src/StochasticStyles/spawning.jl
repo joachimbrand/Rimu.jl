@@ -8,7 +8,7 @@ Returns the value deposited and the number of annihilations.
 """
 function projected_deposit!(
     w, add, val, parent, threshold=0,
-    report_annihilations=!(valtype(w) isa AbstractFloat) # Don't report for float walkers
+    report_annihilations=!(valtype(w) <: AbstractFloat) # Don't report for float walkers
 )
     return projected_deposit!(
         valtype(w), w, add, val, parent, threshold, report_annihilations
@@ -16,7 +16,7 @@ function projected_deposit!(
 end
 # Non-integer
 function projected_deposit!(
-    ::Type{T}, w, add, value, parent, thresh, report_annihilations=false
+    ::Type{T}, w, add, value, parent, thresh, report_annihilations
 ) where {T}
     # ensure type stability.
     threshold = T(thresh)
@@ -45,7 +45,7 @@ function projected_deposit!(
 end
 # Round to integer
 function projected_deposit!(
-    ::Type{T}, w, add, val, parent, ::Any, report_annihilations=true
+    ::Type{T}, w, add, val, parent, ::Any, report_annihilations
 ) where {T<:Integer}
     intval = T(sign(val)) * floor(T, abs(val) + cRand())
     annihilations = zero(T)
@@ -62,7 +62,7 @@ function projected_deposit!(
 end
 # Complex/Int
 function projected_deposit!(
-    ::Type{T}, w, add, val, parent, ::Any, report_annihilations=true
+    ::Type{T}, w, add, val, parent, ::Any, report_annihilations
 ) where {I<:Integer,T<:Complex{I}}
 
     r_val, i_val = reim(val)

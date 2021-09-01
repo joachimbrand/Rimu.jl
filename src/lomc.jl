@@ -242,10 +242,10 @@ julia> df2, _ = lomc!(state, df1; laststep=200); # Continuation run
 
 
 julia> size(df1)
-(100, 12)
+(100, 13)
 
 julia> size(df2)
-(200, 12)
+(200, 13)
 ```
 """
 function lomc!(ham, v; df=DataFrame(), kwargs...)

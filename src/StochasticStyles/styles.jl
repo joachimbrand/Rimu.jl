@@ -255,7 +255,7 @@ function step_stats(::IsExplosive{T}) where {T}
          :explosive_spawns, :normal_spawns,
          :clones, :deaths, :zombies
          ),
-        MultiScalar(0, 0, 0, z, z, z, z, z),
+        MultiScalar(0, 0, 0, 0, z, z, z, z, z),
     )
 end
 function fciqmc_col!(s::IsExplosive{T}, w, ham, add, val, shift, dτ) where {T}
