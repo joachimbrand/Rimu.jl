@@ -118,7 +118,7 @@ end
     @testset "Exact" begin
         # nothing happens - one annihilation
         dv = DVec(add => -1.0)
-        @test diagonal_step!(dv, H, add, 1, 1e-5, 0) == (0, 0, 0, 1)
+        @test diagonal_step!(dv, H, add, 1, 1e-5, 0) == (0, 0, 0, 0)
         @test dv[add] == 0
         # clones
         dv = DVec(add => 0.0)
