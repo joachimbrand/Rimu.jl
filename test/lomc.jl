@@ -460,7 +460,7 @@ end
 
         @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_st)
         @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_cx)
-        @test ("spawns", "deaths") ⊆ names(df_th)
+        @test "spawns" ∈ names(df_th)
         @test ("exact_steps", "inexact_steps", "spawns") ⊆ names(df_dy)
         @test "exact_steps" ∈ names(df_de)
 
