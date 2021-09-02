@@ -32,6 +32,7 @@ ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 
 [compat]
 Arrow = "^1.5"
+MonteCarloMeasurements = "0.10"
 MPI = "0.18, 0.19"
 RandomNumbers = "^1.5.2"
 julia = "1.6"

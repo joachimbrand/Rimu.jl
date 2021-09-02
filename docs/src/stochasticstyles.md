@@ -27,6 +27,7 @@ fciqmc_col!
 update_dvec!
 CompressionStrategy
 compress!
+default_style
 ```
 
 ## Spawning strategies and convenience functions

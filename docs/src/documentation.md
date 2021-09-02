@@ -17,7 +17,7 @@ Rimu$ julia --project=docs docs/build.jl
 
 on the shell prompt from the `Rimu/` folder. A complete image of the static documentation
 web site will be generated in the folder `docs/build/`. It can be viewed locally by pointing
-a web browser to file `docs/build/index.html`, or by deploying it to the Bitbucket pages web
+a web browser to file `docs/build/index.html`, or by deploying it to the GitHub pages web
 server.
 
 ## Automatic documentation generation and deployment

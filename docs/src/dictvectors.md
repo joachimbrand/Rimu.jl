@@ -17,8 +17,6 @@ InitiatorDVec
 ```@docs
 deposit!
 storage
-StochasticStyle
-default_style
 freeze
 localpart
 ```

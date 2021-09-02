@@ -10,6 +10,7 @@ after an FCIQMC step is finished and report the results.
 * [`Projector`](@ref)
 * [`SignCoherence`](@ref)
 * [`WalkerLoneliness`](@ref)
+* [`Timer`](@ref)
 
 Note: A tuple of multiple strategies can be passed to [`lomc!`](@ref). In that case, all
 reported column names must be distinct.
@@ -172,7 +173,7 @@ function loneliness(::Type{<:Complex}, vector, threshold)
 end
 
 """
-    Timer
+    Timer <: PostStepStrategy
 
 Record current time after every step. See [`Base.time`](@ref) for information on what time
 is recorded.
