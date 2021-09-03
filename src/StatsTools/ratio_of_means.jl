@@ -12,6 +12,9 @@ Result of [`ratio_of_means()`](@ref).
 - `k::Int`: k-1 blocking steps were used to uncorrelate time series
 - `blocks::Int`: number of data values after blocking
 - `success::Bool`: false if any of the blocking steps failed
+
+Note: to compute statistics on the `RatioBlockingResult`, use functions `pmedian`,
+`pquantile`, `pmiddle`, `piterate`, `pextrema`, `pminimum`, `pmaximum`, `pmean`, and `pcov`.
 """
 struct RatioBlockingResult{T,P}
     ratio::P    # ratio with uncertainties propagated by MonteCarloMeasurements
@@ -99,6 +102,9 @@ Robust estimates for the ratio are obtained from `pmedian(r)` and confidence int
 
 Estimates from linear uncertainty propagation are returned as `r.f` and `r.σ_f` using
 [`x_by_y_linear()`](@ref).
+
+Note: to compute statistics on the [`RatioBlockingResult`](@ref), use functions `pmedian`,
+`pquantile`, `pmiddle`, `piterate`, `pextrema`, `pminimum`, `pmaximum`, `pmean`, and `pcov`.
 """
 function ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = 10_000)
     # determine how many blocking steps are needed to uncorrelate data
