@@ -313,9 +313,12 @@ function advance!(
     step += 1
 
     # Step
-    v, w, step_stat_values, step_stat_names, shift_noise = fciqmc_step!(
-        t_strat, w, hamiltonian, v, shift, dτ, pnorm, m_strat
+    step_stat_names, raw_step_stats = fciqmc_step!(
+        t_strat, w, hamiltonian, v, shift, dτ
     )
+    shift_noise = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat)
+    v, w, step_stat_values = sort_into_targets!(v, w, raw_step_stats)
+
     v, update_dvec_stats = update_dvec!(v)
 
     # Stats
@@ -341,7 +344,10 @@ function advance!(
     )
     report!(r_strat, step, report, step_stat_names, step_stat_values, id)
     report!(r_strat, step, report, update_dvec_stats, id)
-    report!(r_strat, step, report, (;shift_noise), id)
+    # Ignore shift_noise for NoMemory
+    if !(m_strat isa NoMemory)
+        report!(r_strat, step, report, (;shift_noise), id)
+    end
     report!(state.r_strat, step, report, post_step_stats, id)
 
     if len == 0
