@@ -231,7 +231,7 @@ end
                 s_low, s_high = Es - 2σs, Es + 2σs
                 # Projected estimate.
                 r = ratio_of_means(df.hproj[2000:end], df.vproj[2000:end])
-                p_low, p_high = quantile(r, [0.0015, 0.9985])
+                p_low, p_high = pquantile(r, [0.0015, 0.9985])
 
                 @test s_low < E0 < s_high
                 @test p_low < E0 < p_high

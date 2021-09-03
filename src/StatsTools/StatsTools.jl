@@ -25,6 +25,7 @@ export blocking_analysis, mean_and_se
 export ratio_of_means
 export replica_fidelity, med_and_errs, ratio_with_errs, to_measurement
 export growth_estimator, mixed_estimator, w_lin, w_exp
+export pmedian, pquantile, pmiddle, piterate, pextrema, pminimum, pmaximum, pmean, pcov
 
 include("growth_witness.jl")
 include("variances.jl")
