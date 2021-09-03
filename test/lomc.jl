@@ -352,6 +352,58 @@ using Statistics
             @test df.loneliness isa Vector{ComplexF64}
         end
     end
+
+
+    @testset "Threading" begin
+        add = BoseFS((0,0,0,0,10,0,0,0,0,0))
+        H = HubbardMom1D(add)
+        s_strat = DoubleLogUpdate(targetwalkers=10_000)
+        laststep = 1000
+
+        @test_throws ErrorException lomc!(H; threading=:something, laststep, s_strat)
+
+        df1, s1 = lomc!(H; threading=:auto, laststep, s_strat)
+        df2, s2 = lomc!(H; threading=true, laststep, s_strat)
+        df3, s3 = lomc!(H; threading=false, laststep, s_strat)
+        df4, s4 = lomc!(H; threading=Rimu.NoThreading(), laststep, s_strat)
+        df5, s5 = lomc!(H; threading=Rimu.ThreadsThreading(), laststep, s_strat)
+        df6, s6 = lomc!(H; threading=Rimu.SplittablesThreading(), laststep, s_strat)
+        df7, s7 = lomc!(H; threading=Rimu.ThreadsXSumThreading(), laststep, s_strat)
+        df8, s8 = lomc!(H; threading=Rimu.ThreadsXForeachThreading(), laststep, s_strat)
+
+        @test s1.t_strat == Rimu.SplittablesThreading()
+        @test s2.t_strat == Rimu.SplittablesThreading()
+        @test s3.t_strat == Rimu.NoThreading()
+
+        # Check that working memory was selected correctly.
+        N = Threads.nthreads()
+        @test s1.replicas[1].w isa NTuple{N,DVec}
+        @test s2.replicas[1].w isa NTuple{N,DVec}
+        @test s3.replicas[1].w isa DVec
+        @test s4.replicas[1].w isa DVec
+        @test s5.replicas[1].w isa NTuple{N,DVec}
+        @test s6.replicas[1].w isa NTuple{N,DVec}
+        @test s7.replicas[1].w isa NTuple{N,DVec}
+        @test s8.replicas[1].w isa NTuple{N,DVec}
+
+        # Check energies.
+        E1, _ = mean_and_se(df1.shift[900:end])
+        E2, _ = mean_and_se(df2.shift[900:end])
+        E3, _ = mean_and_se(df3.shift[900:end])
+        E4, _ = mean_and_se(df4.shift[900:end])
+        E5, _ = mean_and_se(df5.shift[900:end])
+        E6, _ = mean_and_se(df6.shift[900:end])
+        E7, _ = mean_and_se(df7.shift[900:end])
+        E8, _ = mean_and_se(df8.shift[900:end])
+
+        @test E1 ≈ E2 rtol=0.1
+        @test E2 ≈ E3 rtol=0.1
+        @test E3 ≈ E4 rtol=0.1
+        @test E4 ≈ E5 rtol=0.1
+        @test E5 ≈ E6 rtol=0.1
+        @test E6 ≈ E7 rtol=0.1
+        @test E7 ≈ E8 rtol=0.1
+    end
 end
 
 @testset "Ground state energy estimates" begin

@@ -4,11 +4,21 @@ using Base.Threads: @spawn, nthreads, threadid
 """
     abstract type ThreadingStrategy
 
-Controls how threading is performed in [`lomc!`](@ref). Must overload the following
-functions:
+Controls how threading is performed in [`lomc!`](@ref).
+
+# Interface
 
 * [`fciqmc_step!`](@ref)
 * [`working_memory`](@ref)
+
+# Implemented Strategies
+
+* [`NoThreading`](@ref)
+* [`ThreadsThreading`](@ref)
+* [`SplittablesThreading`](@ref)
+* [`ThreadsXSumThreading`](@ref)
+* [`ThreadsXForeachThreading`](@ref)
+
 """
 abstract type ThreadingStrategy end
 
@@ -99,9 +109,8 @@ function fciqmc_step!(
     zero!.(ws)
     @sync for btr in Iterators.partition(pairs(v), batchsize)
         Threads.@spawn for (add, num) in btr
-            stats[Threads.threadid()] .+= fciqmc_col!(
-                ws[Threads.threadid()], ham, add, num, shift, dτ
-            )
+            ss = fciqmc_col!(ws[Threads.threadid()], ham, add, num, shift, dτ)
+            stats[Threads.threadid()] += SVector(ss)
         end
     end
     r = apply_memory_noise!(ws, v, shift, dτ, pnorm, m_strat)
@@ -168,45 +177,44 @@ function fciqmc_step!(
     v = localpart(dv)
     zero!.(ws)
 
-    stats = ThreadsX.sum(
-        SVector(fciqmc_col!(ws[Threads.threadid()], ham, add, val, shift, dτ)) for (add, val) in pairs(v)
-    )
+    stat_names, _ = step_stats(v, Val(1))
+
+    stats = ThreadsX.sum(pairs(v)) do (add, val)
+        SVector(fciqmc_col!(ws[Threads.threadid()], ham, add, val, shift, dτ))
+    end
     r = apply_memory_noise!(ws, v, shift, dτ, pnorm, m_strat)
-    return (sort_into_targets!(dv, ws, stats)... , r)
+    return (sort_into_targets!(dv, ws, stats)..., stat_names, r)
 end
 
 """
-    ThreadsXMapThreading <: ThreadingStrategy
+    ThreadsXForeachThreading <: ThreadingStrategy
 
 [`ThreadingStrategy`](@ref) based on [`ThreadsX`](https://github.com/tkf/ThreadsX.jl)`.map`.
 """
-struct ThreadsXMapThreading <: ThreadingStrategy end
+struct ThreadsXForeachThreading <: ThreadingStrategy end
 
-working_memory(::ThreadsXMapThreading, dv) = ntuple_working_memory(dv)
+working_memory(::ThreadsXForeachThreading, dv) = ntuple_working_memory(dv)
 
 function fciqmc_step!(
-    ::ThreadsXMapThreading, ws::NTuple{N}, ham, dv, shift, dτ, pnorm, m_strat
+    ::ThreadsXForeachThreading, ws::NTuple{N}, ham, dv, shift, dτ, pnorm, m_strat
 ) where {N}
     # multithreaded version; should also work with MPI
     @assert N == Threads.nthreads() "`nthreads()` not matching dimension of `ws`"
     v = localpart(dv)
 
-    statss = step_stats(v, Val(N))
+    stat_names, stats = step_stats(v, Val(N))
     zero!.(ws) # clear working memory
 
-    function col!(p) # take a pair address -> value and run `fciqmc_col!()` on it
-        statss[threadid()] .+= fciqmc_col!(
-            ws[threadid()], ham, p.first, p.second, shift, dτ
-        )
-        return nothing
+    # parallel execution happens here:
+    ThreadsX.foreach(pairs(v)) do (add, val)
+        tid = Threads.threadid()
+        ss = fciqmc_col!(ws[tid], ham, add, val, shift, dτ)
+        stats[tid] += SVector(ss)
     end
 
-    # parallel execution happens here:
-    ThreadsX.map(col!, pairs(v))
-
     # return ws, stats
-    r = apply_memory_noise!(ws, v, shift, dτ, pnorm, m_strat) # memory noise
-    return (sort_into_targets!(dv, ws, statss)... , r) # MPI syncronizing
+    r = apply_memory_noise!(ws, v, shift, dτ, pnorm, m_strat)
+    return (sort_into_targets!(dv, ws, stats)..., stat_names, r)
 end
 
 """
