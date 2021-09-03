@@ -94,9 +94,8 @@ series, see [`blocking_analysis()`](@ref). The remaining standard error and corr
 means is propagated using `MonteCarloMeasurements`. The results are reported
 as a [`RatioBlockingResult`](@ref).
 
-Robust estimates for the ratio
-are obtained from [`pmedian(r)`](@ref) and confidence intervals from [`pquantile()`](@ref),
-e.g. `pquantile(r, [0.025, 0.975])` for the 95% confidence interval.
+Robust estimates for the ratio are obtained from `pmedian(r)` and confidence intervals from
+`pquantile()`, e.g. `pquantile(r, [0.025, 0.975])` for the 95% confidence interval.
 
 Estimates from linear uncertainty propagation are returned as `r.f` and `r.σ_f` using
 [`x_by_y_linear()`](@ref).
