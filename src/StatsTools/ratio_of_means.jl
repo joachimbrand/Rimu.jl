@@ -31,6 +31,17 @@ MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pmiddle, Mo
 MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pminimum, MonteCarloMeasurements.pmaximum
 MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pmean, MonteCarloMeasurements.pcov
 
+import Statistics: median, quantile, mean, cov
+import Base: iterate, extrema, minimum, maximum
+@deprecate median(r::RatioBlockingResult) pmedian(r)
+@deprecate quantile(r::RatioBlockingResult, args...) pquantile(r, args...)
+@deprecate iterate(r::RatioBlockingResult, args...) piterate(r, args...)
+@deprecate extrema(r::RatioBlockingResult) pextrema(r)
+@deprecate minimum(r::RatioBlockingResult) pminimum(r)
+@deprecate maximum(r::RatioBlockingResult) pmaximum(r)
+@deprecate mean(r::RatioBlockingResult) pmean(r)
+@deprecate cov(r::RatioBlockingResult) pcov(r)
+
 function MonteCarloMeasurements.pmedian(r::RatioBlockingResult{<:Complex})
     complex(pmedian(real(r.ratio)), pmedian(imag(r.ratio)))
 end
