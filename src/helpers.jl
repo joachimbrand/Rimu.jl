@@ -2,15 +2,6 @@
 # versions without dependence on MPI.jl
 using Base.Threads: nthreads
 
-threadedWorkingMemory(dv) = threadedWorkingMemory(localpart(dv))
-function threadedWorkingMemory(v::AbstractDVec)
-    return Tuple(similar(v) for _ in 1:nthreads())
-end
-function threadedWorkingMemory(v::AbstractVector)
-    return Tuple(similar(v) for _ in 1:nthreads())
-end
-
-
 # three-argument version
 """
     sort_into_targets!(target, source, stats) -> agg, wm, agg_stats
