@@ -2,8 +2,9 @@ using Rimu, Rimu.StatsTools
 using Statistics, DataFrames, Random, Distributions
 using Test
 using KrylovKit, LinearAlgebra
+using MonteCarloMeasurements
 
-import MonteCarloMeasurements, Measurements
+import Measurements
 
 @testset "smoothen" begin
     noisy = randn(1000)
@@ -62,17 +63,24 @@ using Rimu.StatsTools: x_by_y_linear
     @test br.blocks * 2^(br.k-1) ≤ n_samples
     @test begin show(br); true; end # does not throw error
 
+    # Make sure all other exported functions work.
+    for f in (
+        pmedian, pmiddle, piterate, pextrema, pminimum, pmaximum, pmean, pcov
+    )
+        @test f(br) == f(br.ratio)
+    end
+
     # badly behaved example of Cauchy distribution for ratio
     r = ratio_of_means(randn(2000),randn(2000))
-    q95 = quantile(r.ratio, [0.025,0.975])
+    q95 = pquantile(r.ratio, [0.025,0.975])
     @test q95[1] < 0 < q95[2]
 
     r = ratio_of_means(randn(ComplexF64,2000),randn(ComplexF64,2000))
-    qr95 = quantile(real(r.ratio), [0.025,0.975])
+    qr95 = pquantile(real(r.ratio), [0.025,0.975])
     @test qr95[1] < 0 < qr95[2]
-    qi95 = quantile(imag(r.ratio), [0.025,0.975])
+    qi95 = pquantile(imag(r.ratio), [0.025,0.975])
     @test qi95[1] < 0 < qi95[2]
-    @test_throws ErrorException quantile(r, [0.025,0.975])
+    @test_throws ErrorException pquantile(r, [0.025,0.975])
     @test begin show(r); true; end # does not throw error
 
     # well behaved real example
@@ -88,7 +96,11 @@ using Rimu.StatsTools: x_by_y_linear
     # consistency with error propagation from MonteCarloMeasurements.jl
     amc = MonteCarloMeasurements.:±(μ_a, σ_a)
     bmc = MonteCarloMeasurements.:±(μ_b, σ_b)
-    @test isapprox([f-σ_f, f, f+σ_f], quantile(amc / bmc, [0.16,0.5,0.84]), rtol = 2/√2000)
+    @test isapprox(
+        [f-σ_f, f, f+σ_f], pquantile(amc / bmc, [0.16,0.5,0.84]),
+        rtol = 2/√2000
+    )
+
     # add correlation for testing `ratio_of_means`
     ρ = 0.02
     f, σ_f = x_by_y_linear(μ_a, μ_b, σ_a, σ_b, ρ) # expected ratio and std
@@ -99,8 +111,8 @@ using Rimu.StatsTools: x_by_y_linear
     r = ratio_of_means(a,b)
     @test r.k < 3 # uncorrelated samples
     @test isapprox(μ_a/μ_b, r.f; atol = 2σ_f)
-    @test isapprox(μ_a/μ_b, median(r.ratio); atol = 2σ_f)
-    q = quantile(r.ratio, [0.16,0.5,0.84])
+    @test isapprox(μ_a/μ_b, pmedian(r.ratio); atol = 2σ_f)
+    q = pquantile(r.ratio, [0.16,0.5,0.84])
     @test isapprox(q[3]-q[2], σ_f; rtol = 4/√n_samples)
     @test isapprox(q[2]-q[1], σ_f; rtol = 4/√n_samples)
     @test isapprox(r.σ_f, σ_f; rtol = 4/√n_samples)
@@ -109,7 +121,7 @@ using Rimu.StatsTools: x_by_y_linear
     rs = ratio_of_means(smoothen(a, 2^3), smoothen(b, 2^6))
     @test 6 ≤ rs.k ≤ 8 # ideally k==7 for 6 blocking steps to decorrelate
     # quantiles after blocking stay the same
-    @test isapprox(q, quantile(rs.ratio, [0.16,0.5,0.84]); atol = 2σ_f)
+    @test isapprox(q, pquantile(rs.ratio, [0.16,0.5,0.84]); atol = 2σ_f)
     @test isapprox(μ_a/μ_b, rs.f; atol = 2σ_f)
     @test isapprox(rs.σ_f, σ_f; atol = 2σ_f)
 
@@ -126,15 +138,16 @@ using Rimu.StatsTools: x_by_y_linear
 
     @test r.k < 3 # uncorrelated samples
     @test isapprox(μ_a/μ_b, r.f; atol = abs(2σ_f))
-    @test isapprox(μ_a/μ_b, median(r); atol = abs(2σ_f))
-    qr = quantile(real(r.ratio), [0.16,0.5,0.84])
-    qi = quantile(imag(r.ratio), [0.16,0.5,0.84])
+    @test isapprox(μ_a/μ_b, pmedian(r); atol = abs(2σ_f))
+    qr = pquantile(real(r.ratio), [0.16,0.5,0.84])
+    qi = pquantile(imag(r.ratio), [0.16,0.5,0.84])
     # Is this the correct way to test against linear error propagation?
     @test qr[3]-qr[2] < 2abs(σ_f)
     @test qi[3]-qi[2] < 2abs(σ_f)
     @test qr[2]-qr[1] < 2abs(σ_f)
     @test qi[2]-qi[1] < 2abs(σ_f)
     @test isapprox(r.σ_f, σ_f; rtol = 4/√n_samples)
+
 end
 
 @testset "Reweighting" begin
@@ -162,7 +175,7 @@ end
     E_r = bs.mean # set up reference energy
     ge = growth_estimator(df, h; E_r, skip=steps_equi)
     pcb_est = E_r - ge.E_gr # estimated PCB in the shift from reweighting
-    @test 0.2 < median(pcb_est) < pcb
+    @test 0.2 < pmedian(pcb_est) < pcb
     @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01; change_type = to_measurement)
     # @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01)
     # fails due to type instability in MonteCarloMeasurements
@@ -171,7 +184,7 @@ end
     # projected energy
     bp = ratio_of_means(df.hproj[steps_equi+1:end],df.vproj[steps_equi+1:end])
     bp_intervals = ratio_with_errs(bp)
-    @test median(bp) ≈ bp_intervals.ratio
+    @test pmedian(bp) ≈ bp_intervals.ratio
     me = mixed_estimator(df, h; skip=steps_equi, E_r)
     @test me.ratio≈bp.ratio # reweighting has not significantly improved the projected energy
 end
