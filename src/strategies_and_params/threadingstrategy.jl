@@ -154,23 +154,24 @@ end
 
 struct SplittablesThreadingMK2 <: ThreadingStrategy end
 
-working_memory(::SplittablesThreading, dv) = ntuple_working_memory(dv)
+working_memory(::SplittablesThreadingMK2, dv) = ntuple_working_memory(dv)
 
-struct StepInfo
-    batchsize::Int
+struct StepInfo{H,T,U,W}
+    batchsize::Float64
     ham::H
     shift::T
     dτ::U
+    ws::W
 end
 
 function _loop_configs!(info::StepInfo, pairs, stats)
-    if amount(ps) > batchsize
+    if amount(pairs) > info.batchsize
         two_halves = halve(pairs)
-        first_half = @spawn _loop_configs!(two_halves[1])
-        _loop_configs!(two_halves[2])
-        wait(fh)
+        first_half = @spawn _loop_configs!(info, two_halves[1], stats)
+        _loop_configs!(info, two_halves[2], stats)
+        wait(first_half)
     else
-        ham, shift, dτ = @unpack info
+        ham, shift, dτ, ws = info.ham, info.shift, info.dτ, info.ws
         for (add, num) in pairs
             ss = fciqmc_col!(ws[threadid()], ham, add, num, shift, dτ)
             stats[threadid()] += SVector(ss)
@@ -186,7 +187,7 @@ function fciqmc_step!(::SplittablesThreadingMK2, ws::NTuple{N}, ham, dv, shift, 
     stat_names, stats = step_stats(v, Val(N))
     batchsize = max(100.0, min(amount(pairs(v))/N, sqrt(amount(pairs(v)))*10))
 
-    step_info = StepInfo(batchsize, ham, shift, dτ)
+    step_info = StepInfo(batchsize, ham, shift, dτ, ws)
     zero!.(ws)
     _loop_configs!(step_info, pairs(v), stats)
 
