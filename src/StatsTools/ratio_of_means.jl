@@ -12,6 +12,9 @@ Result of [`ratio_of_means()`](@ref).
 - `k::Int`: k-1 blocking steps were used to uncorrelate time series
 - `blocks::Int`: number of data values after blocking
 - `success::Bool`: false if any of the blocking steps failed
+
+Note: to compute statistics on the `RatioBlockingResult`, use functions `pmedian`,
+`pquantile`, `pmiddle`, `piterate`, `pextrema`, `pminimum`, `pmaximum`, `pmean`, and `pcov`.
 """
 struct RatioBlockingResult{T,P}
     ratio::P    # ratio with uncertainties propagated by MonteCarloMeasurements
@@ -26,25 +29,36 @@ end
 # Base.iterate(r::RatioBlockingResult, args...) = iterate(r.ratio, args...)
 # Base.length(r::RatioBlockingResult) = length(r.ratio)
 # Base.eltype(r::RatioBlockingResult) = eltype(r.ratio)
-MacroTools.@forward RatioBlockingResult.ratio Statistics.median, Statistics.quantile
-MacroTools.@forward RatioBlockingResult.ratio Statistics.middle, Base.iterate, Base.extrema
-MacroTools.@forward RatioBlockingResult.ratio Base.minimum, Base.maximum
-MacroTools.@forward RatioBlockingResult.ratio Statistics.mean, Statistics.cov
+MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pmedian, MonteCarloMeasurements.pquantile
+MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pmiddle, MonteCarloMeasurements.piterate, MonteCarloMeasurements.pextrema
+MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pminimum, MonteCarloMeasurements.pmaximum
+MacroTools.@forward RatioBlockingResult.ratio MonteCarloMeasurements.pmean, MonteCarloMeasurements.pcov
 
-function Statistics.median(r::RatioBlockingResult{<:Complex})
-    complex(median(real(r.ratio)), median(imag(r.ratio)))
+import Statistics: median, quantile, mean, cov
+import Base: iterate, extrema, minimum, maximum
+@deprecate median(r::RatioBlockingResult) pmedian(r)
+@deprecate quantile(r::RatioBlockingResult, args...) pquantile(r, args...)
+@deprecate iterate(r::RatioBlockingResult, args...) piterate(r, args...)
+@deprecate extrema(r::RatioBlockingResult) pextrema(r)
+@deprecate minimum(r::RatioBlockingResult) pminimum(r)
+@deprecate maximum(r::RatioBlockingResult) pmaximum(r)
+@deprecate mean(r::RatioBlockingResult) pmean(r)
+@deprecate cov(r::RatioBlockingResult) pcov(r)
+
+function MonteCarloMeasurements.pmedian(r::RatioBlockingResult{<:Complex})
+    complex(pmedian(real(r.ratio)), pmedian(imag(r.ratio)))
 end
-function Statistics.quantile(r::RatioBlockingResult{<:Complex}, args...)
+function MonteCarloMeasurements.pquantile(r::RatioBlockingResult{<:Complex}, args...)
     throw(ErrorException("""
-    `quantile(r, args...)` called with `Complex` data type.
-    Try `quantile(real(r.ratio), args...)` and `quantile(imag(r.ratio), args...)`!
+    `pquantile(r, args...)` called with `Complex` data type.
+    Try `pquantile(real(r.ratio), args...)` and `pquantile(imag(r.ratio), args...)`!
     """
     ))
 end
 
 function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Real, P}
-    q = quantile(r.ratio, [0.16,0.5,0.84])
-    qr95 = quantile(r.ratio, [0.025,0.975])
+    q = pquantile(r.ratio, [0.16,0.5,0.84])
+    qr95 = pquantile(r.ratio, [0.025,0.975])
     println(io, "RatioBlockingResult{$T,$P}")
     println(io, f"  ratio = \%g(q[2]) ± (\%g(q[3]-q[2]), \%g(q[2]-q[1])) (MC)")
     println(io, f"  95% confidence interval: [\%g(qr95[1]), \%g(qr95[2])]) (MC)")
@@ -58,12 +72,12 @@ function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Real, P}
 end
 
 function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Complex, P}
-    qr = quantile(real(r.ratio), [0.16,0.5,0.84])
-    qi = quantile(imag(r.ratio), [0.16,0.5,0.84])
+    qr = pquantile(real(r.ratio), [0.16,0.5,0.84])
+    qi = pquantile(imag(r.ratio), [0.16,0.5,0.84])
     println(io, "RatioBlockingResult{$T,$P}")
     println(io, f"  ratio = \%g(qr[2]) ± (\%g(qr[3]-qr[2]), \%g(qr[2]-qr[1])) + [\%g(qi[2]) ± (\%g(qi[3]-qi[2]), \%g(qi[2]-qi[1]))]*im (MC)")
-    qr95 = quantile(real(r.ratio), [0.025,0.975])
-    qi95 = quantile(imag(r.ratio), [0.025,0.975])
+    qr95 = pquantile(real(r.ratio), [0.025,0.975])
+    qi95 = pquantile(imag(r.ratio), [0.025,0.975])
     println(io, f"  95% confidence interval real: [\%g(qr95[1]), \%g(qr95[2])] (MC)")
     println(io, f"  95% confidence interval imag: [\%g(qi95[1]), \%g(qi95[2])] (MC)")
     println(io, "  linear error propagation: ($(r.f)) ± ($(r.σ_f))")
@@ -83,12 +97,14 @@ series, see [`blocking_analysis()`](@ref). The remaining standard error and corr
 means is propagated using `MonteCarloMeasurements`. The results are reported
 as a [`RatioBlockingResult`](@ref).
 
-Robust estimates for the ratio
-are obtained from [`median(r)`](@ref) and confidence intervals from [`quantile()`](@ref),
-e.g. `quantile(r, [0.025, 0.975])` for the 95% confidence interval.
+Robust estimates for the ratio are obtained from `pmedian(r)` and confidence intervals from
+`pquantile()`, e.g. `pquantile(r, [0.025, 0.975])` for the 95% confidence interval.
 
 Estimates from linear uncertainty propagation are returned as `r.f` and `r.σ_f` using
 [`x_by_y_linear()`](@ref).
+
+Note: to compute statistics on the [`RatioBlockingResult`](@ref), use functions `pmedian`,
+`pquantile`, `pmiddle`, `piterate`, `pextrema`, `pminimum`, `pmaximum`, `pmean`, and `pcov`.
 """
 function ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = 10_000)
     # determine how many blocking steps are needed to uncorrelate data
