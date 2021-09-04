@@ -348,8 +348,13 @@ end
     run(`which $mpiexec`)
 
     if is_local
-        rr = run(`$mpiexec -np 2 $juliaexec -t 1 mpi_runtests.jl`)
-        @test rr.exitcode == 0
+        mpi_test_filename = isfile("mpi_runtests.jl") ?  "mpi_runtests.jl" : "test/mpi_runtests.jl"
+        if isfile(mpi_test_filename)
+            rr = run(`$mpiexec -np 2 $juliaexec -t 1 $mpi_test_filename`)
+            @test rr.exitcode == 0
+        else
+            @warn "Could not find mpi_runtests.jl. Not testing MPI."
+        end
     else
         @info "not testing MPI on CI"
     end
