@@ -90,7 +90,7 @@ function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Complex, P}
 end
 
 """
-    ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = 10_000) -> r
+    ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = nothing) -> r
 Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
 correlated time series. A blocking analysis with m-test is used to uncorrelate the time
 series, see [`blocking_analysis()`](@ref). The remaining standard error and correlation of the
@@ -103,10 +103,14 @@ Robust estimates for the ratio are obtained from `pmedian(r)` and confidence int
 Estimates from linear uncertainty propagation are returned as `r.f` and `r.σ_f` using
 [`x_by_y_linear()`](@ref).
 
+The keyword `mc_samples` controls the number of samples used for error propagation
+by `MonteCarloMeasurements`. Use `nothing` for the default and `Val(1000)` to set the number
+to 1000 samples in a type-consistent way.
+
 Note: to compute statistics on the [`RatioBlockingResult`](@ref), use functions `pmedian`,
 `pquantile`, `pmiddle`, `piterate`, `pextrema`, `pminimum`, `pmaximum`, `pmean`, and `pcov`.
 """
-function ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = 10_000)
+function ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = nothing)
     # determine how many blocking steps are needed to uncorrelate data
     bt_num = blocking_analysis(num; α)
     bt_den = blocking_analysis(denom; α)
@@ -141,6 +145,18 @@ function x_by_y_linear(μ_x, μ_y, σ_x, σ_y, ρ)
 end
 
 """
+    particles(samples, d)
+    particles(::Nothing, d)
+    particles(::Val{T}, d) where T
+Return `Particles` object from  `MonteCarloMeasurements` using  a type-stable constructor
+if possible. Pass `nothing` for the default number of particles or `Val(1_000)` for using
+1000 particles in a type-stable manner.
+"""
+particles(samples, d) = particles(Val(samples),d)
+particles(::Nothing, d) = Particles(d)
+particles(::Val{T}, d) where T = Particles{eltype(d),T}(Random.GLOBAL_RNG,d)
+
+"""
     ratio_estimators(x, y, [k]; corrected=true, mc_samples=10_000) -> (; r, f, σ_f, δ_y, n)
 Estimators for the ratio of means `mean(x)/mean(y)`.
 If `k` is given, `k-1` blocking steps are performed to remove internal correlations in
@@ -155,7 +171,7 @@ account.
 - `δ_y = std(y)/mean(y)` coefficient of variation; < 0.1 for normal approximation to work
 - `n`: number of uncorrelated data used for uncertainty estimation
 """
-function ratio_estimators(x, y; corrected = true, mc_samples = 10_000)
+function ratio_estimators(x, y; corrected = true, mc_samples = nothing)
     n = length(x)
     @assert n == length(y)
     μ_x = mean(x)
@@ -165,7 +181,7 @@ function ratio_estimators(x, y; corrected = true, mc_samples = 10_000)
     ρ = cov(x, y; corrected)/n # estimated correlation of sample means μ_x and μ_y
 
     # Monte Carlo sampling of correlated normal distribution of sample means for x and y
-    x_y_ps = Particles(mc_samples, MvNormal([μ_x,μ_y],[var_x ρ; ρ var_y]))
+    x_y_ps = particles(mc_samples, MvNormal([μ_x,μ_y],[var_x ρ; ρ var_y]))
     # Note: type instability creeps in here through `Particles`
     r = x_y_ps[1]/x_y_ps[2] # MC sampled ratio of means
 
@@ -178,7 +194,7 @@ function ratio_estimators(x, y; corrected = true, mc_samples = 10_000)
     return (; r, f, σ_f, δ_y, n)
 end
 
-function ratio_estimators(num, denom, k; corrected = true, mc_samples = 10_000)
+function ratio_estimators(num, denom, k; corrected = true, mc_samples = nothing)
     for i in 1:(k-1) # decorrelate time series by `k-1` blocking steps
         num = blocker(num)
         denom = blocker(denom)
@@ -188,7 +204,7 @@ end
 
 function ratio_estimators(
     x::AbstractVector{<:Complex}, y::AbstractVector{<:Complex};
-    corrected = true, mc_samples = 10_000
+    corrected = true, mc_samples = nothing,
 )
     n = length(x)
     @assert n == length(y)
@@ -205,7 +221,7 @@ function ratio_estimators(
         cov(imag(y), real(x); corrected) cov(imag(y), imag(x); corrected) cov(imag(y), real(y); corrected) var(imag(y); corrected)
     ]/n
     # Monte Carlo sampling of correlated normal distribution of sample means for x and y
-    x_y_ps = Particles(
+    x_y_ps = particles(
         mc_samples, MvNormal([real(μ_x), imag(μ_x), real(μ_y), imag(μ_y)], Σ)
     )
     r = (x_y_ps[1] + im*x_y_ps[2]) / (x_y_ps[3] + im*x_y_ps[4]) # MC sampled ratio of means

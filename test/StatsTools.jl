@@ -55,7 +55,7 @@ using Rimu.StatsTools: blocker
     @test blocking_analysis([1]).k == -1 == blocking_analysis(Int[]).k
 end
 
-using Rimu.StatsTools: x_by_y_linear
+using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
 @testset "ratio_of_means" begin
     Random.seed!(17) # make sure the tests don't trip over rare fluctuations
     n_samples = 2000
@@ -148,6 +148,17 @@ using Rimu.StatsTools: x_by_y_linear
     @test qi[2]-qi[1] < 2abs(σ_f)
     @test isapprox(r.σ_f, σ_f; rtol = 4/√n_samples)
 
+    # type stability of Particles
+    d = MvNormal([1.0,1.0],[0.1 0.01;0.01 0.1])
+    @test typeof(particles(100, d)) == typeof(particles(Val(100), d))
+    @inferred particles(nothing, d)
+    @inferred particles(Val(100), d)
+    @inferred ratio_estimators(rand(100),rand(100),2; mc_samples = Val(100))
+    @inferred ratio_estimators(
+        rand(ComplexF64,100),rand(ComplexF64,100), 2;
+        mc_samples = Val(100),
+    )
+    @inferred ratio_of_means(rand(1000), 100 .+ rand(1000))
 end
 
 @testset "Reweighting" begin
@@ -177,7 +188,7 @@ end
     pcb_est = E_r - ge.E_gr # estimated PCB in the shift from reweighting
     @test 0.2 < pmedian(pcb_est) < pcb
     @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01; change_type = to_measurement)
-    # @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01)
+    @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01)
     # fails due to type instability in MonteCarloMeasurements
     # test w_lin()
     @test ge.E_gr ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights = w_lin).E_gr
@@ -185,7 +196,10 @@ end
     bp = ratio_of_means(df.hproj[steps_equi+1:end],df.vproj[steps_equi+1:end])
     bp_intervals = ratio_with_errs(bp)
     @test pmedian(bp) ≈ bp_intervals.ratio
-    me = mixed_estimator(df, h; skip=steps_equi, E_r)
+    me = @inferred mixed_estimator(
+        df.hproj, df.vproj, df.shift, h, df.dτ[end];
+        skip=steps_equi, E_r
+    )
     @test me.ratio≈bp.ratio # reweighting has not significantly improved the projected energy
 end
 
