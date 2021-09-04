@@ -203,6 +203,7 @@ end
     @test me.ratio≈bp.ratio # reweighting has not significantly improved the projected energy
 end
 
+using Rimu.StatsTools: replica_fidelity
 @testset "Fidelity" begin
     ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
 
@@ -232,11 +233,10 @@ end
     @time rr = lomc!(ham, v; params=p, s_strat, post_step, replica=AllOverlaps()).df
 
     # check fidelity with ground state
-    fid_gs = StatsTools.replica_fidelity(rr; p_field=:vproj, skip=steps_equi)
+    fid_gs = replica_fidelity(rr; p_field=:vproj, skip=steps_equi)
     @test fid_gs.ratio ≈ 1
     re = ratio_with_errs(fid_gs) # extract errors from quantiles
     @test re.err1_l < 0.03 && re.err1_u < 0.03 # errors are small
-
     # TODO
     #=
     # check fidelity with oblique state
@@ -248,7 +248,6 @@ end
 end
 
 comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tuple(b))
-using Rimu.StatsTools: val_and_errs, errs
 @testset "convenience" begin
     v, σ = 2.0, 0.2
     m = Measurements.measurement(v, σ)
@@ -260,6 +259,9 @@ using Rimu.StatsTools: val_and_errs, errs
     # @test map((x,y)->isapprox(x,y; atol=0.01),Tuple(med_and_errs(mp)),(v, σ, σ, 2σ, 2σ))|>all
     @test m ≈ to_measurement(mp)
 
+    @test val(2.0) == 2.0
+    @test val(m) == v
+    @test val(mp) == pmedian(mp)
     @test errs(2.0) == (err_l=0, err_u=0)
     @test val_and_errs(2; name="x") == (x=2, x_l=0, x_u=0)
     @test comp_tuples(val_and_errs(m, p=0.954499736104), (v, 2σ, 2σ))
