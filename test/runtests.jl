@@ -330,9 +330,7 @@ end
     end
 end
 
-# Note: This last test is set up to work on Pipelines, within a Docker
-# container, where everything runs as root. It should also work locally,
-# where typically mpi is not (to be) run as root.
+# Note: This test is only for local testing, as MPI is tested separately on CI
 @testset "MPI" begin
     # read name of mpi executable from environment variable if defined
     # necessary for allow-run-as root workaround for Pipelines
