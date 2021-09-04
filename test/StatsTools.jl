@@ -247,12 +247,27 @@ end
     =#
 end
 
+comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tuple(b))
+using Rimu.StatsTools: val_and_errs, errs
 @testset "convenience" begin
     v, σ = 2.0, 0.2
     m = Measurements.measurement(v, σ)
-    @test map((x,y)->isapprox(x,y),Tuple(med_and_errs(m)),(v, σ, σ, 2σ, 2σ))|>all
+    @test comp_tuples(med_and_errs(m), (v, σ, σ, 2σ, 2σ))
+    # @test map((x,y)->isapprox(x,y),Tuple(med_and_errs(m)),(v, σ, σ, 2σ, 2σ))|>all
     # @test med_and_errs(m) == (med = v, err1_l = σ, err1_u = σ, err2_l = σ, err2_u = σ)
     mp = MonteCarloMeasurements.Particles(m)
-    @test map((x,y)->isapprox(x,y; atol=0.01),Tuple(med_and_errs(mp)),(v, σ, σ, 2σ, 2σ))|>all
+    @test comp_tuples(med_and_errs(mp), (v, σ, σ, 2σ, 2σ); atol=0.01)
+    # @test map((x,y)->isapprox(x,y; atol=0.01),Tuple(med_and_errs(mp)),(v, σ, σ, 2σ, 2σ))|>all
     @test m ≈ to_measurement(mp)
+
+    @test errs(2.0) == (err_l=0, err_u=0)
+    @test val_and_errs(2; name="x") == (x=2, x_l=0, x_u=0)
+    @test comp_tuples(val_and_errs(m, p=0.954499736104), (v, 2σ, 2σ))
+    @test comp_tuples(val_and_errs(m, n=2), (v, 2σ, 2σ))
+    @test comp_tuples(val_and_errs(mp, n=2), (v, 2σ, 2σ); atol=0.01)
+
+    r = ratio_of_means(randn(2000),randn(2000))
+    @test comp_tuples(val_and_errs(r), (v = val(r), errs(r)...))
+    br = blocking_analysis(rand(2000))
+    @test comp_tuples(val_and_errs(br), (v = val(br), errs(br)...))
 end

@@ -13,6 +13,8 @@ Result of [`ratio_of_means()`](@ref).
 - `blocks::Int`: number of data values after blocking
 - `success::Bool`: false if any of the blocking steps failed
 
+Has methods for [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref).
+
 Note: to compute statistics on the `RatioBlockingResult`, use functions `pmedian`,
 `pquantile`, `pmiddle`, `piterate`, `pextrema`, `pminimum`, `pmaximum`, `pmean`, and `pcov`.
 """

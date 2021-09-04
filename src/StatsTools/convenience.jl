@@ -130,3 +130,76 @@ function to_measurement(p::MonteCarloMeasurements.Particles)
         σ = max(q[3]-q[2],q[2]-q[1]) # take the larger one
         return Measurements.measurement(q[2],σ)
 end
+
+"""
+    val(x)
+Return the best estimate value for an uncertain `x`. Defaults to the `median`
+for uncertain `x` represented by a (sampled) distribution. Supports `MonteCarloMeasurements`
+and `Measurements`.
+
+See [`errs`](@ref), [`BlockingResult`](@ref), [`RatioBlockingResult`](@ref).
+"""
+val(x) = x
+val(m::Measurements.Measurement) = Measurements.value(m)
+val(p::AbstractParticles) = pmedian(p)
+val(r::BlockingResult) = r.mean
+val(r::RatioBlockingResult) = pmedian(r)
+
+import Measurements: Measurement, uncertainty, value
+"""
+    val_and_errs(x; n=1, p=nothing, name=:val) -> (;val, val_l, val_u)
+Return the median and the lower and upper error bar for the uncertain value `x`. The
+interval `[val(x)-val_l, val(x)+val_u]` represents the confidence interval at level `n*σ`,
+or at probability `p`. Setting `p` overrides `n`. Supports `MonteCarloMeasurements`
+and `Measurements`. The names in the `NamedTuple` can be changed with `name`.
+
+See [`val`](@ref), [`errs`](@ref), [`BlockingResult`](@ref), [`RatioBlockingResult`](@ref).
+"""
+function val_and_errs(x; name=:val, kwargs...)
+    return (; Symbol(name) => x, Symbol(name, :_l) => zero(x), Symbol(name, :_u) => zero(x))
+end
+function val_and_errs(
+    m::T; p=nothing, n=1, name=:val
+) where T <:Union{Measurement, AbstractParticles}
+    return _errs(p, m, n, name)
+end
+function _errs(::Nothing, m::Measurement, n, name)
+    σ = uncertainty(m)
+    return (; Symbol(name) => value(m), Symbol(name, :_l) => n*σ, Symbol(name, :_u) => n*σ)
+end
+function _errs(p, m::Measurement, _, name)
+    d = Normal(value(m), uncertainty(m))
+    cp1 = (1-p)/2
+    cp2 = 1-cp1
+    q1, q2 = quantile(d, cp1), quantile(d, cp2)
+    return (;
+        Symbol(name) => value(m),
+        Symbol(name, :_l) => value(m) - q1,
+        Symbol(name, :_u) => q2 - value(m),
+    )
+end
+function _errs(::Nothing, m::AbstractParticles, n, name)
+    p = erf(n/√2)
+    return _errs(p, m, n, name)
+end
+function _errs(p, m::AbstractParticles, _, name)
+    cp1 = (1-p)/2
+    cp2 = 1-cp1
+    q1, q2, q3 = pquantile(m, (cp1, 0.5, cp2))
+    return (;Symbol(name) => q2, Symbol(name, :_l) => q2 - q1, Symbol(name, :_u) => q3 - q2)
+end
+function val_and_errs(r::BlockingResult; kwargs...)
+    return val_and_errs(measurement(r.mean, r.err); kwargs...)
+end
+val_and_errs(r::RatioBlockingResult; kwargs...) = val_and_errs(r.ratio; kwargs...)
+
+"""
+    errs(x; n=1, p=nothing, name=:err) -> (; err_l, err_u)
+Return the lower and upper error bar for the uncertain value `x`.
+
+See [`val_and_errs`](@ref).
+"""
+function errs(args...; name=:err, kwargs...)
+    _, err_l, err_u = val_and_errs(args...; kwargs...)
+    return (; Symbol(name, :_l) => err_l, Symbol(name, :_u) => err_u)
+end
