@@ -108,8 +108,8 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     ab = rand(MvNormal([μ_a, μ_b], [σ_a^2 ρ; ρ σ_b^2]*n_samples), n_samples)
     a = ab[1,:]
     b = ab[2,:]
-    r = ratio_of_means(a,b)
-    @test r.k < 3 # uncorrelated samples
+    r = ratio_of_means(a,b) #; mc_samples = Val(10_000))
+    @test 1 < r.k ≤ 4 # weakly correlated samples
     @test isapprox(μ_a/μ_b, r.f; atol = 2σ_f)
     @test isapprox(μ_a/μ_b, pmedian(r.ratio); atol = 2σ_f)
     q = pquantile(r.ratio, [0.16,0.5,0.84])
