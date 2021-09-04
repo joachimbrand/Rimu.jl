@@ -54,8 +54,10 @@ julia> res_df = DataFrame(res_w_errs) # results as DataFrame with lower an upper
 ─────┼────────────────────────────────────────────────────
    1 │ 1.01325  0.0173805  0.0183057  0.034042  0.0366713
 ```
+**Note:** This function will be deprecated soon. Use [`val_and_errs()`](@ref) instead.
 """
 function med_and_errs(p)
+    @warn "med_and_errs() will be deprecated soon. Use val_and_errs() instead!" maxlog=1
     q = pquantile(p, [0.025, 0.16, 0.5, 0.84, 0.975])
     med = q[3]
     err1_l = med - q[2]
@@ -65,6 +67,7 @@ function med_and_errs(p)
     return (; med, err1_l, err1_u, err2_l, err2_u)
 end
 function med_and_errs(p::Measurements.Measurement)
+    @warn "med_and_errs() will be deprecated soon. Use val_and_errs() instead!" maxlog=1
     med = Measurements.value(p)
     err1_l = err1_u = Measurements.uncertainty(p)
     err2_l = err2_u = 2err1_l
@@ -89,9 +92,11 @@ julia> res_df = DataFrame(res_w_errs) # results as DataFrame with lower an upper
 ─────┼───────────────────────────────────────────────────────────────────────────────────────────────────
    1 │ 1.01325  0.0173805  0.0183057  0.034042  0.0366713  1.01361  0.0181869  0.0128806      2     true
 ```
+**Note:** This function will be deprecated soon. Use [`val_and_errs()`](@ref) instead.
 """
 function ratio_with_errs(r::RatioBlockingResult)
     med, err1_l, err1_u, err2_l, err2_u = med_and_errs(r.ratio)
+    @warn "ratio_with_errs() will be deprecated soon. Use to_nt() instead!" maxlog=1
     return (;
         ratio=med,
         err1_l,
@@ -135,11 +140,28 @@ import Measurements: Measurement, uncertainty, value
 """
     val_and_errs(x; n=1, p=nothing, name=:val) -> (;val, val_l, val_u)
 Return the median and the lower and upper error bar for the uncertain value `x`. The
-interval `[val(x)-val_l, val(x)+val_u]` represents the confidence interval at level `n*σ`,
+interval `[val - val_l, val + val_u]` represents the confidence interval at level `n*σ`,
 or at probability `p`. Setting `p` overrides `n`. Supports `MonteCarloMeasurements`
 and `Measurements`. The names in the `NamedTuple` can be changed with `name`.
 
-See [`val`](@ref), [`errs`](@ref), [`BlockingResult`](@ref), [`RatioBlockingResult`](@ref).
+**Example:**
+```jldoctest
+julia> results = [blocking_analysis(i:0.1:2i+20) for i in 1:3]; # mock results
+
+julia> v = val_and_errs.(results, name="res"); # Vector of NamedTuple's with standard errors
+
+julia> DataFrame(v)
+3×3 DataFrame
+ Row │ res      res_l    res_u
+     │ Float64  Float64  Float64
+─────┼───────────────────────────
+   1 │    11.5  1.7282   1.7282
+   2 │    13.0  1.7282   1.7282
+   3 │    14.5  1.78885  1.78885
+```
+
+See [`to_nt`](@ref), [`val`](@ref), [`errs`](@ref), [`BlockingResult`](@ref),
+[`RatioBlockingResult`](@ref).
 """
 function val_and_errs(x; name=:val, kwargs...)
     return (; Symbol(name) => x, Symbol(name, :_l) => zero(x), Symbol(name, :_u) => zero(x))
@@ -188,4 +210,60 @@ See [`val_and_errs`](@ref).
 function errs(args...; name=:err, kwargs...)
     _, err_l, err_u = val_and_errs(args...; kwargs...)
     return (; Symbol(name, :_l) => err_l, Symbol(name, :_u) => err_u)
+end
+
+"""
+    to_nt(x; n=1, p=nothing, name=:val) -> nt::NamedTuple
+Return a named tuple with value and error bars (see [`val_and_errs`](@ref)) as well
+as additional numerical fields relevant for `x`.
+
+**Example:**
+```jldoctest
+julia> results = [blocking_analysis(i:0.1:2i+20) for i in 1:3]; # mock results
+
+julia> df = to_nt.(results, name=:res)|>DataFrame
+3×7 DataFrame
+ Row │ res      res_l    res_u    res_err_err  res_p_cov  res_k  res_blocks
+     │ Float64  Float64  Float64  Float64      Float64    Int64  Int64
+─────┼──────────────────────────────────────────────────────────────────────
+   1 │    11.5  1.7282   1.7282      0.352767    2.98667      5          13
+   2 │    13.0  1.7282   1.7282      0.352767    2.98667      5          13
+   3 │    14.5  1.78885  1.78885     0.350823    3.2          5          14
+
+julia> rbs = ratio_of_means(1 .+sin.(1:0.1:11),2 .+sin.(2:0.1:12)); # more mock results
+
+julia> [to_nt(rbs),]|>DataFrame
+1×9 DataFrame
+ Row │ val       val_l      val_u      val_f     val_σ_f    val_δ_y    val_k  val_blocks  val_success
+     │ Float64   Float64    Float64    Float64   Float64    Float64    Int64  Int64       Bool
+─────┼────────────────────────────────────────────────────────────────────────────────────────────────
+   1 │ 0.581549  0.0925669  0.0812292  0.560532  0.0875548  0.0875548      4          12         true
+
+```
+
+See [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref), [`BlockingResult`](@ref),
+[`RatioBlockingResult`](@ref).
+"""
+to_nt(args...; kwargs...) = val_and_errs(args...; kwargs...)
+function to_nt(r::BlockingResult; name=:val, kwargs...)
+    vae =  val_and_errs(r; name, kwargs...)
+    br_info = (;
+        Symbol(name, :_err_err) => r.err_err,
+        Symbol(name, :_p_cov) => r.p_cov,
+        Symbol(name, :_k) => r.k,
+        Symbol(name, :_blocks) => r.blocks,
+    )
+    return (; vae..., br_info...)
+end
+function to_nt(r::RatioBlockingResult; name=:val, kwargs...)
+    vae =  val_and_errs(r; name, kwargs...)
+    br_info = (;
+        Symbol(name, :_f) => r.f,
+        Symbol(name, :_σ_f) => r.σ_f,
+        Symbol(name, :_δ_y) => r.σ_f,
+        Symbol(name, :_k) => r.k,
+        Symbol(name, :_blocks) => r.blocks,
+        Symbol(name, :_success) => r.success,
+    )
+    return (; vae..., br_info...)
 end
