@@ -185,13 +185,13 @@ end
     h = 2^(bs.k-1) # approximate number of steps to decorrelate the shift
     E_r = bs.mean # set up reference energy
     ge = growth_estimator(df, h; E_r, skip=steps_equi)
-    pcb_est = E_r - ge.E_gr # estimated PCB in the shift from reweighting
+    pcb_est = E_r - ge.ratio # estimated PCB in the shift from reweighting
     @test 0.2 < pmedian(pcb_est) < pcb
     @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01; change_type = to_measurement)
     @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01)
     # fails due to type instability in MonteCarloMeasurements
     # test w_lin()
-    @test ge.E_gr ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights = w_lin).E_gr
+    @test ge.ratio ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights = w_lin).ratio
     # projected energy
     bp = ratio_of_means(df.hproj[steps_equi+1:end],df.vproj[steps_equi+1:end])
     bp_intervals = ratio_with_errs(bp)

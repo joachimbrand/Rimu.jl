@@ -150,11 +150,17 @@ end
     particles(::Val{T}, d) where T
 Return `Particles` object from  `MonteCarloMeasurements` using  a type-stable constructor
 if possible. Pass `nothing` for the default number of particles or `Val(1_000)` for using
-1000 particles in a type-stable manner.
+1000 particles in a type-stable manner. If `d` is a `Particles` object it is passed through
+without re-sampling.
 """
-particles(samples, d) = particles(Val(samples),d)
-particles(::Nothing, d) = Particles(d)
-particles(::Val{T}, d) where T = Particles{eltype(d),T}(Random.GLOBAL_RNG,d)
+particles(samples, d::Distribution) = particles(Val(samples),d)
+particles(::Nothing, d::Distribution) = Particles(d)
+particles(::Val{T}, d::Distribution) where T = Particles{eltype(d),T}(Random.GLOBAL_RNG,d)
+function particles(samples, m::Measurements.Measurement)
+    particles(samples, Normal(Measurements.value(m),Measurements.uncertainty(m)))
+end
+particles(_, p::Particles) = p # don't re-sample if it is already a Particles object
+
 
 """
     ratio_estimators(x, y, [k]; corrected=true, mc_samples=10_000) -> (; r, f, σ_f, δ_y, n)

@@ -62,7 +62,7 @@ end
         weights = w_exp,
         change_type = identity,
         kwargs...,
-    ) -> (; E_gr::Particles, k, blocks, success)
+    ) -> r::RatioBlockingResult
     growth_estimator(df::DataFrame, h; kwargs ...)
 Compute the growth estimator with reference energy `E_r` by the reweighting
 technique described in [Umirgar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195),
@@ -79,17 +79,17 @@ E_{gr} = E_r - \\frac{1}{dτ}\\ln
         {\\sum_m w_{h}^{(m)} N_\\mathrm{w}^{(m)}}
 ```
 When `h` is greater than the autocorrelation time scale of the `shift`,
-then `E_gr` is an unbiased but approximate estimator for the ground state energy
-``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased confidence intervals
-compared to the (biased) shift estimator.
-Error propagation is done with [`MonteCarloMeasurements`](@ref). Progagation through the logarithm
-can be modified by setting `change_type` to [`to_measurement`](@ref) in order to avoid `NaN` results 
-from negative outliers.
- 
+then `E_gr` (returned as `r.ratio`) is an unbiased but approximate estimator for the ground
+state energy ``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased
+confidence intervals compared to the (biased) shift estimator.
+Error propagation is done with [`MonteCarloMeasurements`](@ref). Progagation through the
+logarithm can be modified by setting `change_type` to [`to_measurement`](@ref) in order
+to avoid `NaN` results from negative outliers.
+
 If `success==true` the
 blocking analysis was successful in `k-1` steps, using `blocks` uncorrelated data points.
 
-See also [`mixed_estimator()`](@ref).
+See also [`mixed_estimator()`](@ref) and [`RatioBlockingResult`](@ref).
 """
 function growth_estimator(
     shift, wn, h, dτ;
@@ -97,6 +97,7 @@ function growth_estimator(
     E_r = mean(shift[skip+1:end]),
     weights = w_exp,
     change_type = identity,
+    mc_samples = nothing,
     kwargs...,
 )
     T = promote_type(eltype(shift), eltype(wn))
@@ -104,11 +105,21 @@ function growth_estimator(
     numerator = weights(shift[2:end], h+1, dτ; E_r, skip) .* wn[skip+2:end]
     # W_{t}^{(n)} .* wn^{(n)}
     denominator = weights(shift[1:end-1], h, dτ; E_r, skip) .* wn[skip+1:end-1]
-    nt = ratio_of_means(numerator, denominator; kwargs...)
-    r = nt.ratio::MonteCarloMeasurements.Particles{T,<:Any}
+    rbr = ratio_of_means(numerator, denominator; mc_samples, kwargs...)
+    r = rbr.ratio::MonteCarloMeasurements.Particles{T,<:Any}
     r = change_type(r)
     E_gr = E_r - log(r)/dτ # MonteCarloMeasurements propagates the uncertainty
-    return (; E_gr, k=nt.k, blocks = nt.blocks, success = nt.success)
+    E_gr_f = E_r - log(Measurements.measurement(rbr.f, rbr.σ_f))/dτ # linear error prop
+    return RatioBlockingResult(
+        particles(mc_samples, E_gr),
+        Measurements.value(E_gr_f),
+        Measurements.uncertainty(E_gr_f),
+        rbr.δ_y,
+        rbr.k,
+        rbr.blocks,
+        rbr.success
+    )
+    # return (; E_gr, k=rbr.k, blocks = rbr.blocks, success = rbr.success)
 end
 function growth_estimator(df::DataFrame, h; kwargs...)
     return growth_estimator(df.shift, df.norm, h, df.dτ[end]; kwargs...)
