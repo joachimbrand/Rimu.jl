@@ -3,10 +3,17 @@ Tools for the statistical analysis of Monte Carlo data.
 
 ### Exports:
 - [`blocking_analysis`](@ref)
-- [`mean_and_se`](@ref)
 - [`ratio_of_means`](@ref)
 - [`growth_witness`](@ref)
 - [`smoothen`](@ref)
+- [`shift_estimator`](@ref)
+- [`projected_energy`](@ref)
+- [`growth_estimator`](@ref)
+- [`mixed_estimator`](@ref)
+- [`to_nt`](@ref)
+- [`val_and_errs`](@ref)
+- [`val`](@ref)
+- [`mean_and_se`](@ref)
 """
 module StatsTools
 
