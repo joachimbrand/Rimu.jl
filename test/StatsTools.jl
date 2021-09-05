@@ -23,7 +23,9 @@ end
     shift = rand(200)
     dτ = 0.01*ones(200)
     df = DataFrame(; norm=nor, shift, dτ)
-    @test mean(growth_witness(df, 10); skip=10) ≈ mean(growth_witness(shift, nor, dτ[1]; skip=10))
+    m = mean(growth_witness(shift, nor, dτ[1]; skip=10))
+    @test mean(growth_witness(df, 10; skip=10)) ≈ m
+    @test mean(growth_witness(df; skip=10)) ≈ m
 end
 
 using Rimu.StatsTools: blocker
