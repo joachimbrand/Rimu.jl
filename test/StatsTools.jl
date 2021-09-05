@@ -18,11 +18,12 @@ end
 
 @testset "growth_witness" begin
     @test_throws AssertionError growth_witness(rand(10),rand(11),0.01)
+    @test_throws AssertionError growth_witness(rand(5),rand(5),0.01; skip=10)
     nor = rand(200)
     shift = rand(200)
     dτ = 0.01*ones(200)
     df = DataFrame(; norm=nor, shift, dτ)
-    @test mean(growth_witness(df, 10)) ≈ mean(growth_witness(nor, shift, dτ[1]))
+    @test mean(growth_witness(df, 10)) ≈ mean(growth_witness(shift, nor, dτ[1]))
 end
 
 using Rimu.StatsTools: blocker
