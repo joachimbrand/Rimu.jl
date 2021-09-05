@@ -97,7 +97,7 @@ working_memory(::ThreadsThreading, dv) = ntuple_working_memory(dv)
 
 function fciqmc_step!(::ThreadsThreading, ws::NTuple{N}, ham, dv, shift, dτ) where {N}
     nthreads = Threads.nthreads()
-    batchsize = max(100, min(length(dv)÷nthreads, round(Int,sqrt(length(dv))*10)))
+    batchsize = max(100, min(length(dv) ÷ nthreads, round(Int, sqrt(length(dv)) * 10)))
     @assert N == nthreads "`nthreads()` not matching dimension of `ws`"
     v = localpart(dv)
     stat_names, stats = step_stats(v, Val(N))
@@ -120,58 +120,17 @@ struct SplittablesThreading <: ThreadingStrategy end
 
 working_memory(::SplittablesThreading, dv) = ntuple_working_memory(dv)
 
-function fciqmc_step!(::SplittablesThreading, ws::NTuple{N}, ham, dv, shift, dτ) where {N}
-    @assert N == nthreads() "`nthreads()` not matching dimension of `ws`"
-    @assert N > 1 "attempted to run threaded code with one thread"
-    v = localpart(dv)
-    stat_names, stats = step_stats(v, Val(N))
-
-    batchsize = max(100.0, min(amount(pairs(v))/N, sqrt(amount(pairs(v)))*10))
-
-    # define recursive dispatch function that loops two halves in parallel
-    function loop_configs!(ps) # recursively spawn threads
-        if amount(ps) > batchsize
-            two_halves = halve(ps) #
-            fh = @spawn loop_configs!(two_halves[1]) # runs in parallel
-            loop_configs!(two_halves[2])           # with second half
-            wait(fh)                             # wait for fist half to finish
-        else # run serial
-            # id = threadid() # specialise to which thread we are running on here
-            # serial_loop_configs!(ps, ws[id], statss[id], trng())
-            for (add, num) in ps
-                ss = fciqmc_col!(ws[threadid()], ham, add, num, shift, dτ)
-                stats[threadid()] += SVector(ss)
-            end
-        end
-        return nothing
-    end
-
-    zero!.(ws)
-    loop_configs!(pairs(v))
-
-    return stat_names, stats
-end
-
-struct SplittablesThreadingMK2 <: ThreadingStrategy end
-
-working_memory(::SplittablesThreadingMK2, dv) = ntuple_working_memory(dv)
-
-struct StepInfo{H,T,U,W}
-    batchsize::Float64
-    ham::H
-    shift::T
-    dτ::U
-    ws::W
-end
-
-function _loop_configs!(info::StepInfo, pairs, stats)
-    if amount(pairs) > info.batchsize
+@inline function _loop_configs!(ws, stats, ham, pairs, shift, dτ, batchsize)
+    if amount(pairs) > batchsize
         two_halves = halve(pairs)
-        first_half = @spawn _loop_configs!(info, two_halves[1], stats)
-        _loop_configs!(info, two_halves[2], stats)
+        first_half = @spawn _loop_configs!(
+            ws, stats, ham, two_halves[1], shift, dτ, batchsize
+        )
+        _loop_configs!(
+            ws, stats, ham, two_halves[2], shift, dτ, batchsize
+        )
         wait(first_half)
     else
-        ham, shift, dτ, ws = info.ham, info.shift, info.dτ, info.ws
         for (add, num) in pairs
             ss = fciqmc_col!(ws[threadid()], ham, add, num, shift, dτ)
             stats[threadid()] += SVector(ss)
@@ -180,16 +139,14 @@ function _loop_configs!(info::StepInfo, pairs, stats)
     return nothing
 end
 
-function fciqmc_step!(::SplittablesThreadingMK2, ws::NTuple{N}, ham, dv, shift, dτ) where {N}
-    @assert N == nthreads() "`nthreads()` not matching dimension of `ws`"
+function fciqmc_step!(::SplittablesThreading, ws::NTuple{N}, ham, dv, shift, dτ) where {N}
     @assert N > 1 "attempted to run threaded code with one thread"
     v = localpart(dv)
     stat_names, stats = step_stats(v, Val(N))
-    batchsize = max(100.0, min(amount(pairs(v))/N, sqrt(amount(pairs(v)))*10))
+    batchsize = max(100.0, min(amount(pairs(v))/N, sqrt(amount(pairs(v))) * 10))
 
-    step_info = StepInfo(batchsize, ham, shift, dτ, ws)
     zero!.(ws)
-    _loop_configs!(step_info, pairs(v), stats)
+    depth = _loop_configs!(ws, stats, ham, pairs(dv), shift, dτ, batchsize)
 
     return stat_names, stats
 end
