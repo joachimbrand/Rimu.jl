@@ -34,6 +34,7 @@ include("variances.jl")
 include("blocking.jl")
 include("ratio_of_means.jl")
 include("convenience.jl")
+include("fidelity.jl")
 include("reweighting.jl")
 
 end  # module StatsTools
