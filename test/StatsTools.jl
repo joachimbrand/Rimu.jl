@@ -263,13 +263,14 @@ comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tu
     @test val(m) == v
     @test val(mp) == pmedian(mp)
     @test errs(2.0) == (err_l=0, err_u=0)
-    @test val_and_errs(2; name="x") == (x=2, x_l=0, x_u=0)
+    @test val_and_errs(2; name="x") == (x=2, x_l=0, x_u=0) == to_nt(2; name="x")
     @test comp_tuples(val_and_errs(m, p=0.954499736104), (v, 2σ, 2σ))
     @test comp_tuples(val_and_errs(m, n=2), (v, 2σ, 2σ))
     @test comp_tuples(val_and_errs(mp, n=2), (v, 2σ, 2σ); atol=0.01)
 
     r = ratio_of_means(randn(2000),randn(2000))
     @test comp_tuples(val_and_errs(r), (v = val(r), errs(r)...))
+    @test to_nt(r).val_k == r.k
     br = blocking_analysis(rand(2000))
     @test comp_tuples(val_and_errs(br), (v = val(br), errs(br)...))
 end

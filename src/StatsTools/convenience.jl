@@ -229,7 +229,8 @@ julia> df = to_nt.(results, name=:res)|>DataFrame
    1 │    11.5  1.7282   1.7282      0.352767    2.98667      5          13
    2 │    13.0  1.7282   1.7282      0.352767    2.98667      5          13
    3 │    14.5  1.78885  1.78885     0.350823    3.2          5          14
-
+```
+```julia-repl
 julia> rbs = ratio_of_means(1 .+sin.(1:0.1:11),2 .+sin.(2:0.1:12)); # more mock results
 
 julia> [to_nt(rbs),]|>DataFrame
