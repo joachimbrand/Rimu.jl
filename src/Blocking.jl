@@ -5,6 +5,8 @@ Module that contains functions performing the Flyvbjerg-Petersen
 (J. Chem. Phys. 91, 461 (1989)) blocking analysis for evaluating
 the standard error on a correlated data set. A "M-test" is also
 implemented based on Jonsson (Phys. Rev. E 98, 043304, (2018)).
+
+Note: This module will be deprecated soon. Use [`StatsTools`](@ref) instead.
 """
 module Blocking
 
