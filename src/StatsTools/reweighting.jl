@@ -143,7 +143,7 @@ E_\\mathrm{mix} = \\frac{\\sum_n w_{h}^{(n)}  (Ĥ'\\mathrm{v})⋅\\mathrm{c}^{(
 ```
 where the time series `hproj ==` ``(Ĥ'\\mathrm{v})⋅\\mathrm{c}^{(n)}`` and
 `vproj ==` ``\\mathrm{v}⋅\\mathrm{c}^{(m)}`` have the same length as `shift`
-(See [`ReportingStrategy`](@ref) on how to set these up).
+(See [`ProjectedEnergy`](@ref) on how to set these up).
 Reweighting is done over `h`
 time steps and `length(shift) - skip` time steps are used for the blocking analysis done
 with [`ratio_of_means()`](@ref). `dτ` is the time step and `weights` a function that
@@ -175,3 +175,24 @@ end
 function mixed_estimator(df::DataFrame, h; kwargs...)
     return mixed_estimator(df.hproj, df.vproj, df.shift, h, df.dτ[end]; kwargs...)
 end
+
+"""
+    projected_energy(df::DataFrame; skip=0, kwargs...) -> r::RatioBlockingResult
+Compute the projected energy estimator
+```math
+E_\\mathrm{p} = \\frac{\\sum_n  \\mathrm{v}⋅Ĥ\\mathrm{c}^{(n)}}
+        {\\sum_m \\mathrm{v}⋅\\mathrm{c}^{(m)}} ,
+```
+where the time series `df.hproj ==` ``\\mathrm{v}⋅Ĥ\\mathrm{c}^{(n)}`` and
+`df.vproj ==` ``\\mathrm{v}⋅\\mathrm{c}^{(m)}`` are taken from `df`, skipping the first
+`skip` entries (use `post_step = `[`ProjectedEnergy()`](@ref) to set these up in
+[`lomc!()`](@ref)).
+
+`projected_energy` is equivalent to [`mixed_estimator`](@ref) with `h=0`. `kwargs` are
+passed on to [`ratio_of_means`](@ref).
+
+Returns a [`RatioBlockingResult`](@ref).
+See [`to_nt`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref) for processing
+results.
+"""
+projected_energy(df::DataFrame; kwargs...) = mixed_estimator(df, 0; kwargs...)

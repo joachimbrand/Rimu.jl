@@ -23,7 +23,7 @@ end
     shift = rand(200)
     dτ = 0.01*ones(200)
     df = DataFrame(; norm=nor, shift, dτ)
-    @test mean(growth_witness(df, 10)) ≈ mean(growth_witness(shift, nor, dτ[1]))
+    @test mean(growth_witness(df, 10); skip=10) ≈ mean(growth_witness(shift, nor, dτ[1]; skip=10))
 end
 
 using Rimu.StatsTools: blocker
@@ -202,6 +202,7 @@ end
         skip=steps_equi, E_r
     )
     @test me.ratio≈bp.ratio # reweighting has not significantly improved the projected energy
+    val(projected_energy(df; skip=steps_equi)) ≈ val(mixed_estimator(df,0; skip=steps_equi))
 end
 
 using Rimu.StatsTools: replica_fidelity
