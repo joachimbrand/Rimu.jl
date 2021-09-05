@@ -52,7 +52,7 @@ struct QMCState{
     RS<:ReportingStrategy,
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
-    THS<:ThreadingStrategy,
+    TH<:ThreadingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
 }
@@ -64,7 +64,7 @@ struct QMCState{
     r_strat::RS
     s_strat::SS
     τ_strat::TS
-    t_strat::THS
+    threading::TH
     post_step::PS
     replica::RRS
 end
@@ -113,8 +113,8 @@ function QMCState(
     end
 
     # Set up threading
-    t_strat = select_threading_strategy(threading, _n_walkers(v, s_strat))
-    wm = working_memory(t_strat, v)
+    threading = select_threading_strategy(threading, _n_walkers(v, s_strat))
+    wm = working_memory(threading, v)
 
     # Set up post_step
     if !(post_step isa Tuple)
@@ -133,7 +133,7 @@ function QMCState(
 
     return QMCState(
         hamiltonian, replicas, Ref(maxlength),
-        m_strat, r_strat, s_strat, τ_strat, t_strat, post_step, replica
+        m_strat, r_strat, s_strat, τ_strat, threading, post_step, replica
     )
 end
 
@@ -307,18 +307,17 @@ it should terminate.
 function advance!(
     report, state::QMCState, replica::ReplicaState{T}
 ) where {T}
-    @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat, t_strat = state
+    @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat, threading = state
     @unpack v, w, pnorm, params, id = replica
     @unpack step, shiftMode, shift, dτ = params
     step += 1
 
     # Step
     step_stat_names, raw_step_stats = fciqmc_step!(
-        t_strat, w, hamiltonian, v, shift, dτ
+        threading, w, hamiltonian, v, shift, dτ
     )
     shift_noise = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat)
     v, w, step_stat_values = sort_into_targets!(v, w, raw_step_stats)
-
     v, update_dvec_stats = update_dvec!(v)
 
     # Stats

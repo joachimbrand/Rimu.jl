@@ -371,9 +371,9 @@ using Statistics
         df7, s7 = lomc!(H; threading=Rimu.ThreadsXSumThreading(), laststep, s_strat)
         df8, s8 = lomc!(H; threading=Rimu.ThreadsXForeachThreading(), laststep, s_strat)
 
-        @test s1.t_strat == Rimu.SplittablesThreading()
-        @test s2.t_strat == Rimu.SplittablesThreading()
-        @test s3.t_strat == Rimu.NoThreading()
+        @test s1.threading == Rimu.SplittablesThreading()
+        @test s2.threading == Rimu.SplittablesThreading()
+        @test s3.threading == Rimu.NoThreading()
 
         # Check that working memory was selected correctly.
         N = Threads.nthreads()
