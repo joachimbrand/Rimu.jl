@@ -180,7 +180,8 @@ end
     s_strat = DoubleLogUpdate(targetwalkers=10)
     seedCRNG!(173)
     @time df = lomc!(ham, v; params=p, s_strat, post_step).df
-    bs = blocking_analysis(df.shift[steps_equi+1:end])
+    bs = shift_estimator(df; skip=steps_equi)
+    @test bs == blocking_analysis(df.shift[steps_equi+1:end])
     pcb = bs.mean - exact_energy
     # TODO
     @test pcb > 0.0 # the shift has a large population control bias

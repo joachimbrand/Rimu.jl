@@ -196,3 +196,14 @@ See [`to_nt`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref) for p
 results.
 """
 projected_energy(df::DataFrame; kwargs...) = mixed_estimator(df, 0; kwargs...)
+
+"""
+    shift_estimator(df::DataFrame; kwargs...) -> r::BlockingResult
+Return the shift estimator from the data in `df.shift`. Keyword arguments are passed on to
+[`blocking_analysis`](@ref). Returns a [`BlockingResult`](@ref).
+
+See also [`growth_estimator`](@ref), [`projected_energy`](@ref).
+"""
+function shift_estimator(df::DataFrame; kwargs...)
+    return blocking_analysis(df.shift; kwargs...)
+end

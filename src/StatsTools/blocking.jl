@@ -116,7 +116,7 @@ for `k`.
 `corrected` controls whether
 bias correction for variances is used.
 
-See [`BlockingResult`](@ref).
+See [`BlockingResult`](@ref), [`shift_estimator`](@ref), [`ratio_of_means`](ref).
 """
 function blocking_analysis(v::AbstractVector; α = 0.01, corrected::Bool=true, skip=0)
     T = float(eltype(v))
