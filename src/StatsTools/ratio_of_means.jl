@@ -92,12 +92,12 @@ function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Complex, P}
 end
 
 """
-    ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = nothing) -> r
+    ratio_of_means(num, denom; α=0.01, corrected=true, mc_samples=nothing, skip=0) -> r
 Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
-correlated time series. A blocking analysis with m-test is used to uncorrelate the time
-series, see [`blocking_analysis()`](@ref). The remaining standard error and correlation of the
-means is propagated using `MonteCarloMeasurements`. The results are reported
-as a [`RatioBlockingResult`](@ref).
+correlated time series, skipping the first `skip` elements. A blocking analysis with 
+m-test is used to uncorrelate the time series, see [`blocking_analysis()`](@ref). The
+remaining standard error and correlation of the means is propagated using
+`MonteCarloMeasurements`. The results are reported as a [`RatioBlockingResult`](@ref).
 
 Robust estimates for the ratio are obtained from `pmedian(r)` and confidence intervals from
 `pquantile()`, e.g. `pquantile(r, [0.025, 0.975])` for the 95% confidence interval.
@@ -112,7 +112,9 @@ to 1000 samples in a type-consistent way.
 Note: to compute statistics on the [`RatioBlockingResult`](@ref), use functions `pmedian`,
 `pquantile`, `pmiddle`, `piterate`, `pextrema`, `pminimum`, `pmaximum`, `pmean`, and `pcov`.
 """
-function ratio_of_means(num, denom; α = 0.01, corrected = true, mc_samples = nothing)
+function ratio_of_means(num, denom; α=0.01, corrected=true, mc_samples=nothing, skip=0)
+    num = @view num[skip+1:end]
+    denom = @view denom[skip+1:end]
     # determine how many blocking steps are needed to uncorrelate data
     bt_num = blocking_analysis(num; α)
     bt_den = blocking_analysis(denom; α)
