@@ -67,7 +67,7 @@ working_memory
 """
     NoThreading <: ThreadingStrategy
 
-`ThreadingStrategy` that disables threading.
+[`ThreadingStrategy`](@ref) that disables threading.
 """
 struct NoThreading <: ThreadingStrategy end
 
@@ -112,9 +112,9 @@ function fciqmc_step!(::ThreadsThreading, ws::NTuple{N}, ham, dv, shift, dτ) wh
 end
 
 """
-    SplittablesThreading <: TheradingStrategy
+    SplittablesThreading <: ThreadingStrategy
 
-`ThreadingStrategy` based on [SplittablesBase](https://github.com/JuliaFolds/SplittablesBase.jl).
+[`ThreadingStrategy`](@ref) based on [SplittablesBase](https://github.com/JuliaFolds/SplittablesBase.jl).
 """
 struct SplittablesThreading <: ThreadingStrategy end
 
@@ -146,7 +146,7 @@ function fciqmc_step!(::SplittablesThreading, ws::NTuple{N}, ham, dv, shift, dτ
     batchsize = max(100.0, min(amount(pairs(v))/N, sqrt(amount(pairs(v))) * 10))
 
     zero!.(ws)
-    depth = _loop_configs!(ws, stats, ham, pairs(dv), shift, dτ, batchsize)
+    depth = _loop_configs!(ws, stats, ham, pairs(v), shift, dτ, batchsize)
 
     return stat_names, stats
 end
@@ -176,7 +176,7 @@ end
 """
     ThreadsXForeachThreading <: ThreadingStrategy
 
-[`ThreadingStrategy`](@ref) based on [`ThreadsX`](https://github.com/tkf/ThreadsX.jl)`.map`.
+[`ThreadingStrategy`](@ref) based on [`ThreadsX`](https://github.com/tkf/ThreadsX.jl)`.foreach`.
 """
 struct ThreadsXForeachThreading <: ThreadingStrategy end
 
