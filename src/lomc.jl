@@ -343,10 +343,7 @@ function advance!(
     )
     report!(r_strat, step, report, step_stat_names, step_stat_values, id)
     report!(r_strat, step, report, update_dvec_stats, id)
-    # Ignore shift_noise for NoMemory
-    if !(m_strat isa NoMemory)
-        report!(r_strat, step, report, (;shift_noise), id)
-    end
+    report!(r_strat, step, report, (;shift_noise), id)
     report!(state.r_strat, step, report, post_step_stats, id)
 
     if len == 0
