@@ -132,6 +132,7 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     @test isapprox(μ_a/μ_b, rs.f; atol = 2σ_f)
     @test isapprox(rs.σ_f, σ_f; atol = 2σ_f)
 
+    Random.seed!(1234) # make sure the tests don't trip over rare fluctuations
     # well behaved complex example
     n_samples = 2000
     μ_a, μ_b = 2.0 + 1.0im, 3.0 - 2.0im
