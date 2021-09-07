@@ -94,7 +94,7 @@ end
 """
     ratio_of_means(num, denom; α=0.01, corrected=true, mc_samples=nothing, skip=0) -> r
 Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
-correlated time series, skipping the first `skip` elements. A blocking analysis with 
+correlated time series, skipping the first `skip` elements. A blocking analysis with
 m-test is used to uncorrelate the time series, see [`blocking_analysis()`](@ref). The
 remaining standard error and correlation of the means is propagated using
 `MonteCarloMeasurements`. The results are reported as a [`RatioBlockingResult`](@ref).
@@ -164,7 +164,22 @@ function particles(samples, m::Measurements.Measurement)
     particles(samples, Normal(Measurements.value(m),Measurements.uncertainty(m)))
 end
 particles(_, p::Particles) = p # don't re-sample if it is already a Particles object
-
+"""
+    particles(samples, (μ_x, μ_y, var_x, var_y, ρ))
+Return bivariate `Particles` object from `MonteCarloMeasurements` taking into account
+correlations. Zero variance parameters are supported.
+"""
+function particles(samples, (μ_x, μ_y, var_x, var_y, ρ))
+    if var_x < √eps(var_x) || var_y < √eps(var_y)
+        return [    # ignore covariance
+            particles(samples, Normal(μ_x, √var_x)),
+            particles(samples, Normal(μ_y, √var_y))
+        ]
+    else
+        ρ = min(ρ, abs(√(var_x * var_y) - √eps(var_y)))
+        particles(samples, MvNormal([μ_x,μ_y],[var_x ρ; ρ var_y]))
+    end
+end
 
 """
     ratio_estimators(x, y, [k]; corrected=true, mc_samples=10_000) -> (; r, f, σ_f, δ_y, n)
@@ -191,7 +206,7 @@ function ratio_estimators(x, y; corrected = true, mc_samples = nothing)
     ρ = cov(x, y; corrected)/n # estimated correlation of sample means μ_x and μ_y
 
     # Monte Carlo sampling of correlated normal distribution of sample means for x and y
-    x_y_ps = particles(mc_samples, MvNormal([μ_x,μ_y],[var_x ρ; ρ var_y]))
+    x_y_ps = particles(mc_samples, (μ_x, μ_y, var_x, var_y, ρ))
     # Note: type instability creeps in here through `Particles`
     r = x_y_ps[1]/x_y_ps[2] # MC sampled ratio of means
 

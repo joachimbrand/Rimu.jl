@@ -86,6 +86,10 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     @test_throws ErrorException pquantile(r, [0.025,0.975])
     @test begin show(r); true; end # does not throw error
 
+    # zero variance example
+    r = ratio_of_means([0,0,0,0,0,0], [1,1,1,1,1,2])
+    @test Tuple(val_and_errs(r)) == (0,0,0)
+
     # well behaved real example
     n_samples = 2000
     μ_a, μ_b = 2.0, 3.0
