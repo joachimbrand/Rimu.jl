@@ -60,7 +60,8 @@ fciqmc_step!
 """
     working_memory(t_strat::ThreadingStrategy, dv)
 
-Create a working memory instance compatible with `t_strat`.
+Create a working memory instance compatible with `t_strat`. The working memory must be
+compatible with [`sort_into_targets!`](@ref).
 """
 working_memory
 
