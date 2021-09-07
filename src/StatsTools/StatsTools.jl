@@ -10,7 +10,6 @@ Tools for the statistical analysis of Monte Carlo data.
 - [`projected_energy`](@ref)
 - [`growth_estimator`](@ref)
 - [`mixed_estimator`](@ref)
-- [`to_nt`](@ref)
 - [`val_and_errs`](@ref)
 - [`val`](@ref)
 - [`mean_and_se`](@ref)
@@ -26,7 +25,7 @@ import Measurements
 import Statistics: cov
 import Measurements: measurement
 import MonteCarloMeasurements: Particles
-import Base: show
+import Base: show, NamedTuple
 
 export growth_witness, smoothen
 export blocking_analysis, mean_and_se
@@ -34,7 +33,7 @@ export ratio_of_means
 export replica_fidelity, med_and_errs, ratio_with_errs, to_measurement
 export growth_estimator, mixed_estimator, w_lin, w_exp, projected_energy, shift_estimator
 export pmedian, pquantile, pmiddle, piterate, pextrema, pminimum, pmaximum, pmean, pcov
-export val_and_errs, errs, val, to_nt
+export val_and_errs, errs, val
 
 include("growth_witness.jl")
 include("variances.jl")

@@ -192,7 +192,7 @@ where the time series `df.hproj ==` ``\\mathrm{v}⋅Ĥ\\mathrm{c}^{(n)}`` and
 passed on to [`ratio_of_means`](@ref).
 
 Returns a [`RatioBlockingResult`](@ref).
-See [`to_nt`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref) for processing
+See [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref) for processing
 results.
 """
 projected_energy(df::DataFrame; kwargs...) = mixed_estimator(df, 0; kwargs...)
