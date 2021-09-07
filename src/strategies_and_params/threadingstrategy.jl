@@ -147,7 +147,7 @@ function fciqmc_step!(::SplittablesThreading, ws::NTuple{N}, ham, dv, shift, dτ
     batchsize = max(100.0, min(amount(pairs(v))/N, sqrt(amount(pairs(v))) * 10))
 
     zero!.(ws)
-    depth = _loop_configs!(ws, stats, ham, pairs(v), shift, dτ, batchsize)
+    _loop_configs!(ws, stats, ham, pairs(v), shift, dτ, batchsize)
 
     return stat_names, stats
 end
