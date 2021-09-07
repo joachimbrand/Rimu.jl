@@ -14,7 +14,7 @@ Result of [`blocking_analysis()`](@ref).
 - `k::Int`: k-1 blocking steps were used to uncorrelate time series
 - `blocks::Int`: number of uncorrelated values after blocking
 
-Has methods for [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref),
+Has methods for [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref),
 [`mean_and_se`](@ref), `Measurements.:±`,
 `MonteCarloMeasurements.Particles`, and
 `Statistics.cov` for `Complex` data.

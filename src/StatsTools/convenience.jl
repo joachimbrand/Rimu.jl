@@ -62,7 +62,7 @@ instead.
 """
 function ratio_with_errs(r::RatioBlockingResult)
     med, err1_l, err1_u, err2_l, err2_u = med_and_errs(r.ratio)
-    @warn "ratio_with_errs() is deprecated and will be removed soon. Use to_nt() instead!" maxlog=1
+    @warn "ratio_with_errs() is deprecated and will be removed soon. Use NamedTuple() instead!" maxlog=1
     return (;
         ratio=med,
         err1_l,
@@ -105,7 +105,8 @@ val(r::RatioBlockingResult) = pmedian(r)
 import Measurements: Measurement, uncertainty, value
 """
     val_and_errs(x; n=1, p=nothing, name=:val) -> (;val, val_l, val_u)
-Return the median and the lower and upper error bar for the uncertain value `x`. The
+Return the median and the lower and upper error bar for the uncertain value `x` as a
+`NamedTuple`. This is useful for plotting scripts. The
 interval `[val - val_l, val + val_u]` represents the confidence interval at level `n*σ`,
 or at probability `p`. Setting `p` overrides `n`. Supports `MonteCarloMeasurements`
 and `Measurements`. The names in the `NamedTuple` can be changed with `name`.
@@ -126,7 +127,7 @@ julia> DataFrame(v)
    3 │    14.5  1.78885  1.78885
 ```
 
-See [`to_nt`](@ref), [`val`](@ref), [`errs`](@ref), [`BlockingResult`](@ref),
+See [`NamedTuple`](@ref), [`val`](@ref), [`errs`](@ref), [`BlockingResult`](@ref),
 [`RatioBlockingResult`](@ref).
 """
 function val_and_errs(x; name=:val, kwargs...)
@@ -179,7 +180,8 @@ function errs(args...; name=:err, kwargs...)
 end
 
 """
-    to_nt(x; n=1, p=nothing, name=:val) -> nt::NamedTuple
+    NamedTuple(x::BlockingResult; n=1, p=nothing, name=:val)
+    NamedTuple(x::RatioBlockingResult; n=1, p=nothing, name=:val)
 Return a named tuple with value and error bars (see [`val_and_errs`](@ref)) as well
 as additional numerical fields relevant for `x`.
 
@@ -187,7 +189,7 @@ as additional numerical fields relevant for `x`.
 ```jldoctest
 julia> results = [blocking_analysis(i:0.1:2i+20) for i in 1:3]; # mock results
 
-julia> df = to_nt.(results, name=:res)|>DataFrame
+julia> df = NamedTuple.(results, name=:res)|>DataFrame
 3×7 DataFrame
  Row │ res      res_l    res_u    res_err_err  res_p_cov  res_k  res_blocks
      │ Float64  Float64  Float64  Float64      Float64    Int64  Int64
@@ -199,7 +201,7 @@ julia> df = to_nt.(results, name=:res)|>DataFrame
 ```julia-repl
 julia> rbs = ratio_of_means(1 .+sin.(1:0.1:11),2 .+sin.(2:0.1:12)); # more mock results
 
-julia> [to_nt(rbs),]|>DataFrame
+julia> [NamedTuple(rbs),]|>DataFrame
 1×9 DataFrame
  Row │ val       val_l      val_u      val_f     val_σ_f    val_δ_y    val_k  val_blocks  val_success
      │ Float64   Float64    Float64    Float64   Float64    Float64    Int64  Int64       Bool
@@ -211,8 +213,7 @@ julia> [to_nt(rbs),]|>DataFrame
 See [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref), [`BlockingResult`](@ref),
 [`RatioBlockingResult`](@ref).
 """
-to_nt(args...; kwargs...) = val_and_errs(args...; kwargs...)
-function to_nt(r::BlockingResult; name=:val, kwargs...)
+function Base.NamedTuple(r::BlockingResult; name=:val, kwargs...)
     vae =  val_and_errs(r; name, kwargs...)
     br_info = (;
         Symbol(name, :_err_err) => r.err_err,
@@ -222,7 +223,7 @@ function to_nt(r::BlockingResult; name=:val, kwargs...)
     )
     return (; vae..., br_info...)
 end
-function to_nt(r::RatioBlockingResult; name=:val, kwargs...)
+function Base.NamedTuple(r::RatioBlockingResult; name=:val, kwargs...)
     vae =  val_and_errs(r; name, kwargs...)
     br_info = (;
         Symbol(name, :_f) => r.f,
