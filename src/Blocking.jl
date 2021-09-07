@@ -6,7 +6,7 @@ Module that contains functions performing the Flyvbjerg-Petersen
 the standard error on a correlated data set. A "M-test" is also
 implemented based on Jonsson (Phys. Rev. E 98, 043304, (2018)).
 
-Note: This module will be deprecated soon. Use [`StatsTools`](@ref) instead.
+Note: This module is deprecated and will be removed soon. Use [`StatsTools`](@ref) instead.
 """
 module Blocking
 

@@ -19,10 +19,10 @@ julia> res_df = DataFrame(res_w_errs) # results as DataFrame with lower an upper
 ─────┼────────────────────────────────────────────────────
    1 │ 1.01325  0.0173805  0.0183057  0.034042  0.0366713
 ```
-**Note:** This function will be deprecated soon. Use [`val_and_errs()`](@ref) instead.
+**Note:** This function is deprecated and will be removed soon. Use [`val_and_errs()`](@ref) instead.
 """
 function med_and_errs(p)
-    @warn "med_and_errs() will be deprecated soon. Use val_and_errs() instead!" maxlog=1
+    @warn "med_and_errs() is deprecated and will be removed soon. Use val_and_errs() instead!" maxlog=1
     q = pquantile(p, [0.025, 0.16, 0.5, 0.84, 0.975])
     med = q[3]
     err1_l = med - q[2]
@@ -32,7 +32,7 @@ function med_and_errs(p)
     return (; med, err1_l, err1_u, err2_l, err2_u)
 end
 function med_and_errs(p::Measurements.Measurement)
-    @warn "med_and_errs() will be deprecated soon. Use val_and_errs() instead!" maxlog=1
+    @warn "med_and_errs() is deprecated and will be removed soon. Use val_and_errs() instead!" maxlog=1
     med = Measurements.value(p)
     err1_l = err1_u = Measurements.uncertainty(p)
     err2_l = err2_u = 2err1_l
@@ -57,11 +57,12 @@ julia> res_df = DataFrame(res_w_errs) # results as DataFrame with lower an upper
 ─────┼───────────────────────────────────────────────────────────────────────────────────────────────────
    1 │ 1.01325  0.0173805  0.0183057  0.034042  0.0366713  1.01361  0.0181869  0.0128806      2     true
 ```
-**Note:** This function will be deprecated soon. Use [`val_and_errs()`](@ref) instead.
+**Note:** This function is deprecated and will be removed soon. Use [`val_and_errs()`](@ref)
+instead.
 """
 function ratio_with_errs(r::RatioBlockingResult)
     med, err1_l, err1_u, err2_l, err2_u = med_and_errs(r.ratio)
-    @warn "ratio_with_errs() will be deprecated soon. Use to_nt() instead!" maxlog=1
+    @warn "ratio_with_errs() is deprecated and will be removed soon. Use to_nt() instead!" maxlog=1
     return (;
         ratio=med,
         err1_l,
