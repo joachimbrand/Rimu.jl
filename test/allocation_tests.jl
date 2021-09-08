@@ -78,14 +78,15 @@ using Test
 
                     r = only(st.replicas)
                     p = r.params
+                    t = Rimu.NoThreading()
 
                     # Warmup for step!
-                    fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
-                    fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
-                    fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
-                    fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
+                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
+                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
+                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
+                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
 
-                    allocs_step = @allocated fciqmc_step!(H, r.v, p.shift, dτ, r.pnorm, r.w)
+                    allocs_step = @allocated fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
                     @test allocs_step ≤ 512
 
                     dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())

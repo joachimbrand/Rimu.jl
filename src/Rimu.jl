@@ -47,12 +47,12 @@ include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
+include("strategies_and_params/threadingstrategy.jl")
 include("strategies_and_params/deprecated.jl")
 
 include("helpers.jl")               # non MPI-dependent helper functions
 include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
-include("fciqmc_step.jl")           # second level
 include("update_dvec.jl")
 include("lomc.jl")                  # top level
 
