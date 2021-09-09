@@ -18,7 +18,7 @@ module StatsTools
 
 using Statistics, MonteCarloMeasurements, Distributions, DataFrames
 using StrLiterals, StrFormat # for Base.show() methods
-using Random, SpecialFunctions
+using Random, SpecialFunctions, LinearAlgebra
 import MacroTools
 import Measurements
 

@@ -89,8 +89,11 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     # zero variance example
     r = ratio_of_means([0,0,0,0,0,0], [1,1,1,1,1,2])
     @test Tuple(val_and_errs(r)) == (0,0,0)
+    r = ratio_of_means(complex.(ones(2000)),complex.(ones(2000)))
+    @test pvar(real(r.ratio)) == 0 == pvar(imag(r.ratio))
 
     # well behaved real example
+    Random.seed!(17) # make sure the tests don't trip over rare fluctuations
     n_samples = 2000
     μ_a, μ_b = 2.0, 3.0
     σ_a, σ_b = 0.5, 0.1 # std of sample means
@@ -109,6 +112,7 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     )
 
     # add correlation for testing `ratio_of_means`
+    Random.seed!(17) # make sure the tests don't trip over rare fluctuations
     ρ = 0.02
     f, σ_f = x_by_y_linear(μ_a, μ_b, σ_a, σ_b, ρ) # expected ratio and std
     @test f ≈ μ_a/μ_b
@@ -159,6 +163,7 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     # type stability of Particles
     d = MvNormal([1.0,1.0],[0.1 0.01;0.01 0.1])
     @test typeof(particles(100, d)) == typeof(particles(Val(100), d))
+    @test typeof(particles(100, d)) == typeof(particles(100, [1.0,1.0],[0.1 0.01;0.01 0.1]))
     @inferred particles(nothing, d)
     @inferred particles(Val(100), d)
     @inferred ratio_estimators(rand(100),rand(100),2; mc_samples = Val(100))
@@ -167,6 +172,8 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
         mc_samples = Val(100),
     )
     @inferred ratio_of_means(rand(1000), 100 .+ rand(1000))
+    p = @inferred particles(nothing,[1.0,1.0],[0.1 0.01;0.01 0.0])
+    @test pvar.(p)[2] == 0
 end
 
 @testset "Reweighting" begin
