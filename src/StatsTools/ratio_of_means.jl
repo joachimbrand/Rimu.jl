@@ -160,8 +160,8 @@ without re-sampling.
 particles(samples, d::Distribution) = particles(Val(samples),d)
 particles(::Nothing, d::Distribution) = Particles(d)
 particles(::Val{T}, d::Distribution) where T = Particles{eltype(d),T}(Random.GLOBAL_RNG,d)
-function particles(samples, m::Measurement)
-    particles(samples, value(m), uncertainty(m))
+function particles(samples, m::Measurements.Measurement)
+    particles(samples, Measurements.value(m), Measurements.uncertainty(m))
 end
 particles(_, p::Particles) = p # don't re-sample if it is already a Particles object
 """
