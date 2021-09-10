@@ -297,4 +297,7 @@ comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tu
     r = ratio_of_means(randn(ComplexF64, 2000), randn(ComplexF64, 2000))
     nt = val_and_errs(r)
     @test imag(nt.val_l) ≠ 0 ≠ real(nt.val_l)
+    r = blocking_analysis(rand(ComplexF64,2000))
+    nt = val_and_errs(r)
+    @test imag(nt.val_l) ≠ 0 ≠ real(nt.val_l)
 end
