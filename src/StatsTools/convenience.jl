@@ -135,14 +135,14 @@ function val_and_errs(x; name=:val, kwargs...)
 end
 function val_and_errs(
     m::T; p=nothing, n=1, name=:val
-) where T <:Union{Measurement, AbstractParticles}
+) where T <:Union{Measurement, AbstractParticles, Complex{<:AbstractParticles}}
     return _errs(p, m, n, name)
 end
 function _errs(::Nothing, m::Measurement, n, name)
     σ = uncertainty(m)
     return (; Symbol(name) => value(m), Symbol(name, :_l) => n*σ, Symbol(name, :_u) => n*σ)
 end
-function _errs(p, m::Measurement, _, name)
+function _errs(p::AbstractFloat, m::Measurement, _, name)
     d = Normal(value(m), uncertainty(m))
     cp1 = (1-p)/2
     cp2 = 1-cp1
@@ -153,15 +153,28 @@ function _errs(p, m::Measurement, _, name)
         Symbol(name, :_u) => q2 - value(m),
     )
 end
-function _errs(::Nothing, m::AbstractParticles, n, name)
+function _errs(
+    ::Nothing, m::T, n, name
+) where T <:Union{AbstractParticles, Complex{<:AbstractParticles}}
     p = erf(n/√2)
     return _errs(p, m, n, name)
 end
-function _errs(p, m::AbstractParticles, _, name)
+function _errs(p::T, m::AbstractParticles, _, name) where T <: AbstractFloat
     cp1 = (1-p)/2
     cp2 = 1-cp1
-    q1, q2, q3 = pquantile(m, (cp1, 0.5, cp2))
+    q1, q2, q3 = pquantile(m, (cp1, one(T)/2, cp2))
     return (;Symbol(name) => q2, Symbol(name, :_l) => q2 - q1, Symbol(name, :_u) => q3 - q2)
+end
+function _errs(p::T, m::Complex{<:AbstractParticles}, _, name) where T <: AbstractFloat
+    cp1 = (1-p)/2
+    cp2 = 1-cp1
+    q1r, q2r, q3r = pquantile(real(m), (cp1, one(T)/2, cp2))
+    q1i, q2i, q3i = pquantile(imag(m), (cp1, one(T)/2, cp2))
+    return (;
+        Symbol(name) => complex(q2r, q2i),
+        Symbol(name, :_l) => complex(q2r - q1r, q2i - q1i),
+        Symbol(name, :_u) => complex(q3r - q2r, q3i - q2i),
+    )
 end
 function val_and_errs(r::BlockingResult; kwargs...)
     return val_and_errs(measurement(r.mean, r.err); kwargs...)

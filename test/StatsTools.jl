@@ -292,4 +292,9 @@ comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tu
     br = blocking_analysis(rand(2000))
     @test comp_tuples(val_and_errs(br), (v = val(br), errs(br)...))
     @test NamedTuple(br).val_blocks == br.blocks
+
+    # complex time series
+    r = ratio_of_means(randn(ComplexF64, 2000), randn(ComplexF64, 2000))
+    nt = val_and_errs(r)
+    @test imag(nt.val_l) ≠ 0 ≠ real(nt.val_l)
 end
