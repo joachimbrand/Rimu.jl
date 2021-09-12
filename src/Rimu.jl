@@ -28,6 +28,8 @@ include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("RimuIO.jl")
 @reexport using .RimuIO
+include("StatsTools/StatsTools.jl")
+@reexport using .StatsTools
 
 export lomc!
 export FciqmcRunStrategy, RunTillLastStep
@@ -61,9 +63,8 @@ include("RMPI/RMPI.jl")
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
 
-# analysis tools not reexported
+# analysis tool not reexported (to be deprecated)
 include("Blocking.jl")
-include("StatsTools/StatsTools.jl")
 
 include("deprecated.jl")
 

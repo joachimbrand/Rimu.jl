@@ -14,9 +14,19 @@ Result of [`blocking_analysis()`](@ref).
 - `k::Int`: k-1 blocking steps were used to uncorrelate time series
 - `blocks::Int`: number of uncorrelated values after blocking
 
-Has methods for [`mean_and_se`](@ref), [`Measurements.:±`](@ref),
-`MonteCarloMeasurements.`[`Particles`](@ref), and
-`Statistics.`[`cov`](@ref) for `Complex` data.
+Has methods for [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref),
+[`mean_and_se`](@ref), `Measurements.:±`,
+`MonteCarloMeasurements.Particles`, and
+`Statistics.cov` for `Complex` data.
+
+**Example:**
+```jldoctest; setup = :(Random.seed!(1234))
+julia> blocking_analysis(smoothen(randn(2^10), 2^5))
+BlockingResult{Float64}
+  mean = -0.025 ± 0.025
+  with uncertainty of ± 0.00311966837382259
+  from 32 blocks after 5 transformations (k = 6).
+```
 """
 struct BlockingResult{T}
     mean::T
@@ -97,7 +107,7 @@ end
 MonteCarloMeasurements.:±(r::BlockingResult) = Particles(r)
 
 """
-    blocking_analysis(v::AbstractVector; α = 0.01, corrected = true)
+    blocking_analysis(v::AbstractVector; α = 0.01, corrected = true, skip=0)
     -> BlockingResult(mean, err, err_err, p_cov, k, blocks)
 Compute the sample mean `mean` and estimate the standard deviation of the mean
 (standard error) `err` of a correlated time series using the blocking algorithm from
@@ -106,7 +116,8 @@ and the M test of Jonsson
 [PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304) at significance level
 ``1-α``. `k` is the number of
 blocking transformations required to pass the hypothesis test for an uncorrelated time
-series and `err_err` the estimated standard error or `err`.
+series and `err_err` the estimated standard error or `err`. Use `skip` to skip the first
+`skip` elements in `v`.
 
 If decorrelating the
 time series fails according to the M test, `NaN` is returned as the standard error and `-1`
@@ -114,10 +125,11 @@ for `k`.
 `corrected` controls whether
 bias correction for variances is used.
 
-See [`BlockingResult`](@ref).
+See [`BlockingResult`](@ref), [`shift_estimator`](@ref), [`ratio_of_means`](ref).
 """
-function blocking_analysis(v::AbstractVector; α = 0.01, corrected::Bool=true)
+function blocking_analysis(v::AbstractVector; α = 0.01, corrected::Bool=true, skip=0)
     T = float(eltype(v))
+    v = @view v[skip+1:end]
     if length(v) == 0
         @error "Attempted blocking on an empty vector"
         return BlockingResult(zero(T), NaN, NaN, T(NaN), -1, 0)
@@ -130,14 +142,14 @@ function blocking_analysis(v::AbstractVector; α = 0.01, corrected::Bool=true)
 end
 
 """
-    mean_and_se(v::AbstractVector; α = 0.01, corrected::Bool=true) -> mean, err
+    mean_and_se(v::AbstractVector; α = 0.01, corrected::Bool=true, skip=0) -> mean, err
     mean_and_se(r::BlockingResult) -> mean, err
 Return the mean and standard error (as a tuple) of a time series obtained from
 [`blocking_analysis`](@ref). See also [`BlockingResult`](@ref).
 """
 mean_and_se(r::BlockingResult) = r.mean, r.err
-function mean_and_se(v::AbstractVector; α = 0.01, corrected::Bool=true)
-    return mean_and_se(blocking_analysis(v; α, corrected))
+function mean_and_se(v::AbstractVector; kwargs...)
+    return mean_and_se(blocking_analysis(v; kwargs...))
 end
 
 """

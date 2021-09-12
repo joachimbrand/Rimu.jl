@@ -330,9 +330,7 @@ end
     end
 end
 
-# Note: This last test is set up to work on Pipelines, within a Docker
-# container, where everything runs as root. It should also work locally,
-# where typically mpi is not (to be) run as root.
+# Note: This test is only for local testing, as MPI is tested separately on CI
 @testset "MPI" begin
     # read name of mpi executable from environment variable if defined
     # necessary for allow-run-as root workaround for Pipelines
@@ -348,8 +346,13 @@ end
     run(`which $mpiexec`)
 
     if is_local
-        rr = run(`$mpiexec -np 2 $juliaexec -t 1 mpi_runtests.jl`)
-        @test rr.exitcode == 0
+        mpi_test_filename = isfile("mpi_runtests.jl") ?  "mpi_runtests.jl" : "test/mpi_runtests.jl"
+        if isfile(mpi_test_filename)
+            rr = run(`$mpiexec -np 2 $juliaexec -t 1 $mpi_test_filename`)
+            @test rr.exitcode == 0
+        else
+            @warn "Could not find mpi_runtests.jl. Not testing MPI."
+        end
     else
         @info "not testing MPI on CI"
     end
