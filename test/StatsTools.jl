@@ -78,6 +78,7 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     q95 = pquantile(r.ratio, [0.025,0.975])
     @test q95[1] < 0 < q95[2]
 
+    # complex time series
     r = ratio_of_means(randn(ComplexF64,2000),randn(ComplexF64,2000))
     qr95 = pquantile(real(r.ratio), [0.025,0.975])
     @test qr95[1] < 0 < qr95[2]
@@ -85,6 +86,12 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     @test qi95[1] < 0 < qi95[2]
     @test_throws ErrorException pquantile(r, [0.025,0.975])
     @test begin show(r); true; end # does not throw error
+
+    # mixed real and complex
+    r = @inferred ratio_of_means(randn(1000),randn(ComplexF64,1000))
+    @test r.k ≤ 4
+    r = @inferred ratio_of_means(randn(ComplexF64,1000),randn(1000))
+    @test r.k ≤ 4
 
     # zero variance example
     r = ratio_of_means([0,0,0,0,0,0], [1,1,1,1,1,2])

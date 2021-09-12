@@ -211,7 +211,10 @@ account.
 - `δ_y = std(y)/mean(y)` coefficient of variation; < 0.1 for normal approximation to work
 - `n`: number of uncorrelated data used for uncertainty estimation
 """
-function ratio_estimators(x, y; corrected = true, mc_samples = nothing)
+function ratio_estimators(
+    x::AbstractVector{<:Real}, y::AbstractVector{<:Real};
+    corrected = true, mc_samples = nothing,
+)
     n = length(x)
     @assert n == length(y)
     μ_x = mean(x)
@@ -243,10 +246,8 @@ function ratio_estimators(num, denom, k; corrected = true, mc_samples = nothing)
     return ratio_estimators(num, denom; corrected, mc_samples)
 end
 
-function ratio_estimators(
-    x::AbstractVector{<:Complex}, y::AbstractVector{<:Complex};
-    corrected = true, mc_samples = nothing,
-)
+# x or y could be complex
+function ratio_estimators(x, y; corrected = true, mc_samples = nothing)
     n = length(x)
     @assert n == length(y)
     μ_x = mean(x)
@@ -273,6 +274,7 @@ function ratio_estimators(
 
     # coefficient of variation, should be <0.1 for normal approximation
     # [Kuethe(2000), Diaz-Frances & Rubio (2013)]
-    δ_y = √var_y/μ_y
+    T = promote_type(typeof(μ_x),typeof(μ_y))
+    δ_y = T(√var_y/μ_y)
     return (; r, f, σ_f, δ_y, n)
 end
