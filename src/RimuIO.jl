@@ -13,7 +13,7 @@ using ..DictVectors
 
 using Arrow, DataFrames, BSON
 
-export save_df, load_df
+export save_df, load_df, save_dvec, load_dvec
 
 const COMPLEX = Symbol("JuliaLang.Complex")
 ArrowTypes.arrowname(::Type{<:Complex}) = COMPLEX
