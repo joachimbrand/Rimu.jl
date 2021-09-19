@@ -2,35 +2,51 @@
 # smoothen()
 
 """
-    growth_witness(norm::AbstractArray, shift::AbstractArray, dt, [b]) -> g
-    growth_witness(df::DataFrame, [b]) -> g
+    growth_witness(shift::AbstractArray, norm::AbstractArray, dt, [b]; skip=0) -> g
+    growth_witness(df::DataFrame, [b]; skip=0) -> g
 Compute the growth witness
 ```math
-G^{(n)} = S^{(n)} - \\frac{\\vert\\mathbf{c}^{(n+1)}\\vert - \\vert\\mathbf{c}^{(n)}\\vert}{\\vert\\mathbf{c}^{(n)}\\vert d\\tau},
+G^{(n)} = S^{(n)} - \\frac{\\vert\\mathbf{c}^{(n+1)}\\vert -
+          \\vert\\mathbf{c}^{(n)}\\vert}{\\vert\\mathbf{c}^{(n)}\\vert d\\tau},
 ```
 where `S` is the `shift` and \$\\vert\\mathbf{c}^{(n)}\\vert ==\$ `norm[n, 1]`.
 Setting `b ≥ 1` a sliding average over `b` time steps is computed using
-[`smoothen()`](@ref).
+[`smoothen()`](@ref). The first `skip` time steps are skipped.
+`mean(growth_witness)` is approximately the same as [`growth_estimator`](@ref) with `h=0`.
+
+See also [`growth_estimator`](@ref).
 """
-function growth_witness(norm::AbstractArray, shift::AbstractArray, dt)
+function growth_witness(shift::AbstractArray, norm::AbstractArray, dt; skip = 0)
     l = length(norm)
-    @assert length(shift) == l "`norm` and `shift` arrays need to have the same length."
+    @assert length(shift) == l "`shift` and `norm` arrays need to have the same length."
+    l =  l-skip
+    @assert l > 0 "`skip` must be larger than length of `shift` and `norm`"
     n = l - 1
     g = Vector{eltype(shift)}(undef, l)
     for i in 1:n
-        g[i] = shift[i] - (norm[i+1] - norm[i])/(dt*norm[i])
+        g[i] = shift[skip+i] - (norm[skip+i+1] - norm[skip+i])/(dt*norm[skip+i])
     end
     # pad the vector g at the end
     g[n+1] = @views mean(g[1:n])
     return g
 end
-function growth_witness(norm::AbstractArray, shift::AbstractArray, dt, b)
-    g_raw = growth_witness(norm, shift, dt)
+function growth_witness(shift::AbstractArray, norm::AbstractArray, dt, b; kwargs...)
+    g_raw = growth_witness(shift, norm, dt; kwargs...)
     return smoothen(g_raw, b)
 end
-growth_witness(df::DataFrame) = growth_witness(df.norm, df.shift, df.dτ[end])
-function growth_witness(df::DataFrame, b)
-    return growth_witness(df.norm, df.shift, df.dτ[1], b)
+"""
+    growth_witness(df::DataFrame, [b]; shift=:shift, norm=:norm, dτ=df.dτ[end], skip=0)
+Calculate the growth witness directly from a `DataFrame` returned by
+[`lomc!`](@ref). The keyword arguments `shift` and `norm`
+can be used to change the names of the relevant columns.
+"""
+function growth_witness(
+    df::DataFrame, b=Val(0);
+    shift=:shift, norm=:norm, dτ=df.dτ[end], kwargs...
+)
+    shift_vec = getproperty(df, Symbol(shift))
+    norm_vec = getproperty(df, Symbol(norm))
+    return growth_witness(shift_vec, norm_vec, dτ, b; kwargs...)
 end
 
 """
@@ -50,3 +66,4 @@ function smoothen(noisy::AbstractVector, b::Integer)
     end
     return smooth
 end
+smoothen(noisy::AbstractVector, ::Val{0}) = noisy
