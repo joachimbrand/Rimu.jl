@@ -1,8 +1,8 @@
 """
-    projected_deposit!(w, add, val, parent, threshold=0)
+    projected_deposit!(w, add, val, parent, threshold=0, [report_annihilations::Bool])
 
-Like [`deposit!`](@ref), but performs threshold projection before spawning. If `eltype(w)` is
-an `Integer`, values are stochastically rounded.
+Like [`deposit!`](@ref), but performs threshold projection before spawning. If `eltype(w)`
+is an `Integer`, values are stochastically rounded.
 
 Returns the value deposited and the number of annihilations.
 """
@@ -90,6 +90,7 @@ end
 
 """
     diagonal_step!(w, ham, add, val, dτ, shift, threshold=0, report_stats=false)
+    -> (clones, deaths, zombies, annihilations)
 
 Perform diagonal step on a walker `add => val`. Optional argument `threshold` sets the
 projection threshold. If `eltype(w)` is an `Integer`, the `val` is rounded to the nearest
@@ -148,10 +149,11 @@ end
 """
     SpawningStrategy
 
-A `SpawningStrategy` is used to control how (offdiagonal) spawns are peformed. It is used
-by passing it as the first argument to [`spawn!`](@ref).
+A `SpawningStrategy` is used to control how spawns (multiplies with off-diagonal part of the
+column vector) are performed and can be passed to some of the [`StochasticStyle`](@ref)s as
+keyword arguments.
 
-The following methods are implemented:
+The following concrete implementations are provided:
 
 * [`Exact`](@ref)
 * [`SingleSpawn`](@ref)
@@ -159,6 +161,10 @@ The following methods are implemented:
 * [`WithoutReplacement`](@ref)
 * [`Bernoulli`](@ref)
 * [`DynamicSemistochastic`](@ref)
+
+## Interface
+
+In order to implement a new `SpawningStrategy`, define a method for [`spawn`](@ref).
 """
 abstract type SpawningStrategy end
 
@@ -170,6 +176,8 @@ Perform stochastic spawns to `w` from address `add` with `val` walkers. `dτ` is
 multiplied to every spawns, while `val` also controls the number of spawns performed.
 
 This function should be overloaded in the second form, with `offdiags` as an argument.
+
+See [`SpawningStrategy`](@ref).
 """
 @inline function spawn!(s::SpawningStrategy, w, ham, add, val, dτ)
     return spawn!(s, w, offdiagonals(ham, add), add, val, dτ)
@@ -368,7 +376,7 @@ end
 
 
 """
-    DynamicSemistochastic(; start, rel_threshold, abs_threshold) <: SpawningStrategy
+    DynamicSemistochastic(; strat, rel_threshold, abs_threshold) <: SpawningStrategy
 
 [`SpawningStrategy`](@ref) that behaves like `strat` when the number of walkers is low, but
 performs exact steps when it is high. What "high" means is controlled by the two thresholds

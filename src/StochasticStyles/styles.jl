@@ -1,13 +1,15 @@
 """
     IsStochasticInteger{T=Int}() <: StochasticStyle{T}
 
-Trait for generalised vector of configurations indicating stochastic propagation as seen in
-the original FCIQMC algorithm.
+FCIQMC algorithm with integer walkers as in
+[Booth *et al.* (2009)](https://doi.org/10.1063/1.3193710). During the vector matrix product
+each individual diagonal and spawning step is rounded stochastically to a nearby integer
+value.
 
 See also [`StochasticStyle`](@ref).
 """
 struct IsStochasticInteger{T<:Integer} <: StochasticStyle{T} end
-IsStochasticInteger() = IsStochasticInteger{Int}()
+IsStochasticInteger() =  IsStochasticInteger{Int}()
 
 function step_stats(::IsStochasticInteger{T}) where {T}
     z = zero(T)
@@ -27,13 +29,13 @@ end
 """
     IsStochastic2Pop{T=Complex{Int}}() <: StochasticStyle{T}
 
-Trait for generalised vector of configurations indicating stochastic propagation with
-complex walker numbers representing two populations of integer walkers.
+Stochastic propagation with complex walker numbers representing two populations of integer
+walkers.
 
 When using this style, make sure to set a complex target number walkers in the
 [`ShiftStrategy`](@ref)!
 
-This style is experimental and unexported.
+This style is experimental.
 
 See also [`StochasticStyle`](@ref).
 """
@@ -63,18 +65,20 @@ function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
 end
 
 """
-    IsDeterministic{T=Float64}() <: StochasticStyle{T}
+    IsDeterministic{T=Float64}(compression=NoCompression()) <: StochasticStyle{T}
 
-Trait for generalised vector of configuration indicating deterministic propagation of
-walkers. The optional [`compression`](@ref) argument can set a
-[`CompressionStrategy`](@ref).
+Propagate with deterministic vector matrix multiplications. Stochastic compression of the
+resultant vector (after annihilations) can be triggered by setting the optional
+`compression` argument to a relevant [`CompressionStrategy`](@ref).
 
 See also [`StochasticStyle`](@ref).
 """
 struct IsDeterministic{T<:AbstractFloat,C<:CompressionStrategy} <: StochasticStyle{T}
     compression::C
 end
-IsDeterministic{T}(compression::C=NoCompression()) where {T,C} = IsDeterministic{T,C}(compression)
+function IsDeterministic{T}(compression::C=NoCompression()) where {T,C}
+    return IsDeterministic{T,C}(compression)
+end
 IsDeterministic(args...) = IsDeterministic{Float64}(args...)
 
 CompressionStrategy(s::IsDeterministic) = s.compression
@@ -107,11 +111,9 @@ end
 """
     IsStochasticWithThreshold{T=Float64}(threshold=1.0) <: StochasticStyle{T}
 
-Trait for generalised vector of configurations indicating stochastic propagation with real
-walker numbers and cutoff `threshold`.
-
-During stochastic propagation, walker numbers small than `threshold` will be stochastically
-projected to either zero or `threshold`.
+Stochastic propagation with floating point walker numbers. During the vector matrix product
+each individual diagonal and spawning result is rounded stochastically if smaller than
+`threshold` (before annihilations).
 
 See also [`StochasticStyle`](@ref).
 """
@@ -137,13 +139,16 @@ end
 """
     IsDynamicSemistochastic{T=Float64}(; kwargs...) <: StochasticStyle{T}
 
-QMC propagation with non-integer walker numbers and reduced noise. All possible spawns are
-performed deterministically when number of walkers in a configuration is high. Unlike with
-[`IsStochasticInteger`](@ref) or [`IsStochasticWithThreshold`](@ref), where spawns are
-projected on the fly, stochastic vector compression is applied after spawning and diagonal
-death steps.
+QMC propagation with floating-point walker numbers and reduced noise. All possible spawns
+(offdiagonal elements in vector-matrix multiplication)
+are performed deterministically when number of walkers in a configuration is high, as
+controlled by the `rel_threshold` and `abs_threshold` keywords. Stochastic selection of
+spawns is controlled  by the `spawning` keyword.
 
-Note: if you want `IsDynamicSemistochastic` to project spawns as they are being performed, set a threshold to `spawning`, and set `compression` to [`NoCompression`](@ref).
+By default, a stochastic vector compression is applied after annihilations are completed.
+This behaviour can be changed to on-the-fly projection (as in [`IsStochasticInteger`](@ref)
+or [`IsStochasticWithThreshold`](@ref)) by setting a threshold to `spawning` and
+setting `compression` to [`NoCompression`](@ref).
 
 ## Parameters:
 
@@ -156,9 +161,10 @@ Note: if you want `IsDynamicSemistochastic` to project spawns as they are being 
   `abs_threshold = 0.1 * target_walkers`.
 
 * `proj_threshold = 1.0`: Values below this number are stochastically projected to this
-  value or zero. See also [`IsStochasticWithThreshold`](@ref).
+  value or zero. See also [`ThresholdCompression`](@ref).
 
-* `spawning = WithReplacement()`: [`SpawningStrategy`](@ref) to use for the non-exact spawns.
+* `spawning = WithReplacement()`: [`SpawningStrategy`](@ref) to use for the non-exact
+  spawns. See [`WithReplacement`](@ref) for behaviour and possible arguments.
 
 * `compression = ThresholdCompression(proj_threshold)`: [`CompressionStartegy`](@ref) used
   to compress the vector after a step. Overrides `proj_threshold`.
@@ -202,7 +208,11 @@ function fciqmc_col!(s::IsDynamicSemistochastic, w, ham, add, val, shift, dτ)
 end
 
 """
-    IsExplosive{T=Float64}(; splatter_factor, explosion_threshold, compression) <: StochasticStyle{T}
+    IsExplosive{T=Float64}(;
+        splatter_factor,
+        explosion_threshold,
+        compression
+    ) <: StochasticStyle{T}
 
 QMC propagation with explosive walkers. Walkers with small walker numbers do not perform the
 standard death/spawning steps. Instead, a walker will either die completely and spawn with a
@@ -214,7 +224,7 @@ Walkers with high walker numbers spawn as if [`IsDynamicSemistochastic`](@ref) w
 Like [`IsDynamicSemistochastic`](@ref), the vector is compressed after all spawning is
 performed.
 
-This style is experimental and unexported.
+This style is experimental.
 
 ## Parameters
 
@@ -223,7 +233,8 @@ This style is experimental and unexported.
 * `explosion_threshold = 1.0`: Entries smaller or equal than this value will attempt to
   explode.
 
-* `proj_threshold = 1.0`: Threshold to use in vector compression.
+* `proj_threshold = 1.0`: Threshold to use in vector compression. See
+  [`ThresholdCompression`](@ref).
 
 * `compression = ThresholdCompression(proj_threshold)`: [`CompressionStrategy`](@ref) to use
   to compress the vector. Overrides `proj_threshold`.
