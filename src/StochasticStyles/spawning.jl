@@ -246,7 +246,8 @@ end
 """
     WithReplacement(threshold=0.0, strength=1.0) <: SpawningStrategy
 
-[`SpawningStrategy`](@ref) where spawn targets are sampled with replacement. This is the default spawning strategy for most of the [`StochasticStyle`](@ref)s.
+[`SpawningStrategy`](@ref) where spawn targets are sampled with replacement. This is the
+default spawning strategy for most of the [`StochasticStyle`](@ref)s.
 
 ## Parameters
 
@@ -286,7 +287,9 @@ end
 
 [`SpawningStrategy`](@ref) where spawn targets are sampled without replacement.
 
-Only to be used with [`DynamicSemistochastic`](@ref).
+If the number of spawn attempts is greater than the number of offdiagonals, this functions
+like [`Exact`](@ref), but is less efficient. For best performance, this strategy is to be
+used as a substrategy of [`DynamicSemistochastic`](@ref).
 
 ## Parameters
 
@@ -335,7 +338,9 @@ Perform Bernoulli sampling. A spawn is attempted on each offdiagonal element wit
 probability that results in an expected number of spawns equal to the number of walkers on
 the spawning configuration.
 
-Only to be used with [`DynamicSemistochastic`](@ref).
+If the number of spawn attempts is greater than the number of offdiagonals, this functions
+like [`Exact`](@ref), but is less efficient. For best performance, this strategy is to be
+used as a substrategy of [`DynamicSemistochastic`](@ref).
 
 ## Parameters
 
