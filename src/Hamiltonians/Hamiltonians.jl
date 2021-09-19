@@ -1,11 +1,8 @@
 """
     module Hamiltonians
 
-This module defines Hamiltonian types, interfaces, and functions for working with
+This module defines Hamiltonian types and functions for working with
 Hamiltonians.
-
-## Interface for working with Hamiltonians
-- [`AbstractHamiltonian`](@ref)
 
 ## Exported concrete Hamiltonian types include
 - [`MatrixHamiltonian`](@ref)
@@ -21,6 +18,9 @@ Hamiltonians.
 
 ## Other
 - [`G2Correlator`](@ref)
+
+## Interface for working with Hamiltonians
+- [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)
 """
 module Hamiltonians
 

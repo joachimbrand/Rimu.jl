@@ -41,6 +41,8 @@ Provides:
 * `mul!(w, H, v)`: mutating matrix-vector multiply.
 * [`dot(x, H, v)`](@ref): compute `x⋅(H*v)` minimizing allocations.
 * `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes (slow!)
+
+See also [`Hamiltonians`](@ref), [`Interfaces`](@ref).
 """
 abstract type AbstractHamiltonian{T} end
 

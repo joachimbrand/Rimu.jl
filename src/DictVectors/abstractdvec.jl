@@ -1,5 +1,6 @@
 ###
 ### This file contains methods defined on `AbstractDVec`
+### The type definition and relevant methods are found in the file "src/Interfaces/dictvectors.jl"
 ###
 function Base.show(io::IO, dvec::AbstractDVec)
     summary(io, dvec)

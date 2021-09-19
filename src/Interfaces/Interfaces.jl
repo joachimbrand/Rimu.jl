@@ -1,35 +1,36 @@
 """
     module Interfaces
 
-This module contains the bare-bones interfaces needed to implement new types of generalized
-vectors and Hamiltonians for use with [`lomc!`](@ref).
+This module contains interfaces that can be used to extend and modify the algorithms and behaviours of `Rimu`.
 
-For an [`AbstractDVec`](@ref) implement what would be needed for the `AbstractDict` interface
-(`pairs`, `keys`, `values`, `setindex!, getindex, delete!, length, haskey, empty!, isempty`)
-and, in addition:
+# Interfaces
+Follow the links for the definitions of the interfaces!
+* [`AbstractHamiltonian`](@ref) for defining [`Hamiltonians`](@ref)
+* [`AbstractDVec`](@ref) for defining data structures for `Rimu` as in [`DictVectors`}(@ref)
+* [`StochasticStyle`](@ref) for controlling the stochastic algorithms used by [`lomc!`](@ref)
+  as implemented in [`StochasticStyles`](@ref)
 
-* [`StochasticStyle`](@ref)
-* [`storage`](@ref)
-* [`deposit!`](@ref) (optional)
-* [`freeze`](@ref) (optional)
-* [`localpart`](@ref) (optional)
+# Additonal exports
 
-For an [AbstractHamiltonian](@ref), implement the following functions:
-
+## Interface functions for[`AbstractHamiltonian`](@ref)s:
 * [`diagonal_element`](@ref)
-* [`num_offdiagonals`](@ref) and [`get_offdiagonal`](@ref), or [`offdiagonals`](@ref).
+* [`num_offdiagonals`](@ref)
+* [`get_offdiagonal`](@ref)
+* [`offdiagonals`](@ref).
+* [`random_offdiagonal`](@ref) 
 * [`starting_address`](@ref)
-* [`random_offdiagonal`](@ref) (optional)
-* [`LOStructure`](@ref) (optional, but recommended)
-* [`random_offdiagonal`](@ref) (optional)
+* [`LOStructure`](@ref)
 
-A [`StochasticStyle`](@ref) controls how the FCIQMC computation is performed. It follows the
-following interface:
+## working with  [`AbstractDVec`](@ref)s and [`StochasticStyle`](@ref)
+* [`deposit!`](@ref)
+* [`default_style`](@ref)
+* [`CompressionStrategy`](@ref)
+
+## Functions Rimu.jl uses to do FCIQMC:
 
 * [`fciqmc_col!`](@ref)
 * [`step_stats`](@ref)
-* [`update_dvec!`](@ref) or [`CompressionStrategy`](@ref) (optional)
-
+* [`update_dvec!`](@ref)
 """
 module Interfaces
 

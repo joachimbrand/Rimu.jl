@@ -1,11 +1,10 @@
 """
-Module that provides data structures that behave similar to sparse vectors, but are indexed
-by arbitrary types (could be non-integers) similarly to dictionaries. The idea is to do
-linear algebra with data structures that are neither subtyped to `AbstractVector` nor to
-`AbstractDict` and are suitable for use with `KrylovKit.jl`.
+Module that provides concrete implementations of the [`AbstractDVec`](@ref) interface.
 
-For this, the abstract type and interface [`AbstractDVec`](@ref) is provided, with the
-concrete implementations of [`DVec`](@ref) and [`InitiatorDVec`](@ref).
+- [`DVec`](@ref): basic [`AbstractDVec`](@ref)
+- [`InitiatorDVec`](@ref): allows storing information about initiator status
+
+See [`Interfaces`](@ref).
 """
 module DictVectors
 

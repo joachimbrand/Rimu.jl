@@ -29,8 +29,11 @@ For it to work with [`lomc!`](@ref), a `StochasticStyle` must define the followi
 * [`fciqmc_col!(::StochasticStyle, w, H, address, value, shift, dτ)`](@ref)
 * [`step_stats(::StochasticStyle)`](@ref)
 
-Optionally, it can also define [`update_dvec!`](@ref), which can be used to perform arbitrary
-transformations on the generalised vector after the spawning step is complete.
+and optionally
+* [`CompressionStrategy(::StochasticStyle)`](@ref) for vector compression after annihilations,
+* [`update_dvec!`](@ref) for arbitrary transformations after the spawning step.
+
+See also [`StochasticStyles`](@ref), [`Interfaces`](@ref).
 """
 abstract type StochasticStyle{T} end
 
@@ -59,9 +62,23 @@ default_style(::Type{T}) where T = StyleUnknown{T}()
 """
     CompressionStrategy
 
-The `CompressionStrategy` controls how a vector is compressed after a step. To use, define
-`CompressionStrategy(::StochasticStyle)`. The default implementation returns
-[`NoCompression`](@ref).
+The `CompressionStrategy` controls how a vector is compressed after a step. 
+
+## Standard implementations (subtypes):
+* [`NoCompression`](@ref): no vector compression
+* [`ThresholdCompression`](@ref): compress elements below a threshold
+
+## Usage
+A subtype of `CompressionStrategy` can be passed as a keyword argument to the
+constructors for some [`StochasticStyle`](@ref)s. Calling
+`CompressionStrategy(s::StochasticStyle)` returns a relevant subtype. The
+default is [`NoCompression`](@ref).
+
+## Interface
+When defining a new `CompressionStrategy`, subtype it as 
+`MyCompressionStrategy <: CompressionStrategy` and define
+a method for 
+* [`compress!(s::MyCompressionStrategy, v)`](@ref)
 """
 abstract type CompressionStrategy end
 

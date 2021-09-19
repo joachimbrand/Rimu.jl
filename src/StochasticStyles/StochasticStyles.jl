@@ -1,24 +1,9 @@
 """
-This module defines [`StochasticStyle`](@ref)s, which tell Rimu which algorithm to use when
-doing stochastic matrix-vector multiplication.
+This module provides concrete implementations of [`StochasticStyle`](@ref)s, which
+specify the algorithm used by [`lomc!`](@ref) when
+performing stochastic matrix-vector multiplication.
 
-Exports:
-
-Interface functions for generalized vectors and Hamiltonians:
-
-* [`deposit!`](@ref)
-* [`diagonal_element`](@ref)
-* [`offdiagonals`](@ref)
-* [`random_offdiagonal`](@ref)
-* [`default_style`](@ref)
-
-Functions Rimu.jl uses to do FCIQMC:
-
-* [`fciqmc_col!`](@ref)
-* [`step_stats`](@ref)
-* [`update_dvec!`](@ref)
-
-Stochastic styles:
+# Stochastic styles:
 
 * [`StochasticStyle`](@ref)
 * [`IsStochasticInteger`](@ref)

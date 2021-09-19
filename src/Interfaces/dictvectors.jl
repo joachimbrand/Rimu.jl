@@ -1,11 +1,17 @@
 """
     AbstractDVec{K,V}
 
-Abstract type for sparse vectors with `valtype` `V` based on dictionary-like structures. The
-vectors are designed to work well with FCIQMC and
+Abstract type for data structures that behave similar to sparse vectors, but are indexed
+by an arbitrary type `V` (could be non-integers) similarly to dictionaries. `AbstractDVec`s 
+are  designed to work well with [`lomc!`](@ref) and
 [KrylovKit](https://github.com/Jutho/KrylovKit.jl).
 
-They lie somewhere between `AbstractDict`s and sparse `AbstractVector`s, generally behaving
+Concrete implementations are available as [`DVec`](@ref)
+and [`InitiatorDVec`](@ref).
+
+`AbstractDvec`s lie somewhere between `AbstractDict`s and sparse `AbstractVector`s, while
+being subtyped to neither.
+Generally they behave
 like a dictionary, while supportting various linear algebra functionality. Indexing with a
 value not stored in the dictionary returns `zero(V)`. Setting a stored value to 0 or below
 `eps(V::AbstractFloat)` removes the value from the dictionary. Their `length` signals the
@@ -17,14 +23,16 @@ To iterate over an `AbstractDVec`, use `keys`, `pairs`, or `values`.
 
 # Interface
 
-The interface is similar to the `AbstractDict` interface.
-
+The interface is similar to the `AbstractDict` interface, but with the changed behaviour
+as noted above.
 Implement what would be needed for the `AbstractDict` interface (`pairs`, `keys`, `values`,
 `setindex!, getindex, delete!, length, haskey, empty!, isempty`) and, in addition:
 * [`StochasticStyle`](@ref)
 * [`storage`](@ref) returns an `AbstractDict` storing the raw data with possibly
   different `valtype` than `V`.
 * [`deposit`](@ref)
+
+See also [`DictVectors`](@ref), [`Interfaces`](@ref).
 """
 abstract type AbstractDVec{K,V} end
 
