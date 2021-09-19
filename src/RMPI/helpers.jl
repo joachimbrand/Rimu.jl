@@ -95,7 +95,7 @@ function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) whe
         add!(lwm, ws[i])
     end
     mpi_combine_walkers!(dtarget,lwm) # combine walkers from different MPI ranks
-    stats = sum(statss) # combine stats from all threads
+    stats = Rimu.combine_stats(statss) # combine stats from all threads
     res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
     return dtarget, ws, res_stats
 end

@@ -52,6 +52,7 @@ struct QMCState{
     RS<:ReportingStrategy,
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
+    TH<:ThreadingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
 }
@@ -63,6 +64,7 @@ struct QMCState{
     r_strat::RS
     s_strat::SS
     τ_strat::TS
+    threading::TH
     post_step::PS
     replica::RRS
 end
@@ -84,7 +86,6 @@ function QMCState(
     hamiltonian, v;
     laststep=nothing,
     dτ=nothing,
-    threading=:auto,
     wm=nothing,
     params::FciqmcRunStrategy=RunTillLastStep(
         laststep = 100,
@@ -96,12 +97,13 @@ function QMCState(
     s_strat::ShiftStrategy=DoubleLogUpdate(),
     r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
+    threading=:auto,
     m_strat::MemoryStrategy=NoMemory(),
     replica::ReplicaStrategy=NoStats(),
     post_step=(),
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
 )
-    # Set up default arguments
+    # Set up r_strat and params
     r_strat = refine_r_strat(r_strat)
     if !isnothing(laststep)
         params.laststep = laststep
@@ -109,10 +111,16 @@ function QMCState(
     if !isnothing(dτ)
         params.dτ = dτ
     end
-    wm = default_working_memory(threading, v, _n_walkers(v, s_strat))
+
+    # Set up threading
+    threading = select_threading_strategy(threading, _n_walkers(v, s_strat))
+    wm = working_memory(threading, v)
+
+    # Set up post_step
     if !(post_step isa Tuple)
         post_step = (post_step,)
     end
+
     # Set up replicas
     nreplicas = num_replicas(replica)
     if nreplicas > 1
@@ -125,7 +133,7 @@ function QMCState(
 
     return QMCState(
         hamiltonian, replicas, Ref(Int(maxlength)),
-        m_strat, r_strat, s_strat, τ_strat, post_step, replica
+        m_strat, r_strat, s_strat, τ_strat, threading, post_step, replica
     )
 end
 
@@ -160,17 +168,6 @@ function Base.setproperty!(state::QMCState, key::Symbol, value)
     else
         # This will error
         return setfield!(state, key, value)
-    end
-end
-
-function default_working_memory(threading, v, targetwalkers::Real)
-    if threading == :auto
-        threading = targetwalkers ≥ 500
-    end
-    if threading && Threads.nthreads() > 1
-        return threadedWorkingMemory(v)
-    else
-        return similar(localpart(v))
     end
 end
 
@@ -270,8 +267,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
         @assert replica.params.step == step
         @assert replica.params.laststep == laststep
     end
-    # Get we will use the first replica's step to keep track of the step. Perhaps step should
-    # be moved to QMCState?
+
     while step < laststep
         step += 1
         report!(state.r_strat, step, report, :steps, step)
@@ -311,15 +307,17 @@ it should terminate.
 function advance!(
     report, state::QMCState, replica::ReplicaState{T}
 ) where {T}
-    @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat = state
+    @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat, threading = state
     @unpack v, w, pnorm, params, id = replica
     @unpack step, shiftMode, shift, dτ = params
     step += 1
 
     # Step
-    v, w, step_stat_values, step_stat_names, shift_noise = fciqmc_step!(
-        hamiltonian, v, shift, dτ, pnorm, w, 1.0; m_strat
+    step_stat_names, raw_step_stats = fciqmc_step!(
+        threading, w, hamiltonian, v, shift, dτ
     )
+    shift_noise = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat)
+    v, w, step_stat_values = sort_into_targets!(v, w, raw_step_stats)
     v, update_dvec_stats = update_dvec!(v)
 
     # Stats

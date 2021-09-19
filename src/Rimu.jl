@@ -54,10 +54,10 @@ include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
+include("strategies_and_params/threadingstrategy.jl")
 include("strategies_and_params/deprecated.jl")
 
 include("apply_memory_noise.jl")
-include("fciqmc_step.jl")           # second level
 include("lomc.jl")                  # top level
 
 include("RMPI/RMPI.jl")

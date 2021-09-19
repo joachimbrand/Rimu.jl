@@ -2,10 +2,6 @@
 # versions without dependence on MPI.jl
 using Base.Threads: nthreads
 
-function threadedWorkingMemory(v)
-    return Tuple(similar(localpart(v)) for _ in 1:nthreads())
-end
-
 """
     MultiScalar
 
@@ -42,9 +38,17 @@ MultiScalar(v::SVector) = MultiScalar(Tuple(v))
 MultiScalar(m::MultiScalar) = m
 MultiScalar(arg) = MultiScalar((arg,))
 
+const SVecOrTuple = Union{SVector,Tuple}
+
 for op in (:+, :*, :max, :min)
     @eval function Base.$op(a::MultiScalar{T}, b::MultiScalar{T}) where {T}
         return MultiScalar($op.(a.tuple, b.tuple))
+    end
+    @eval function Base.$op(a::MultiScalar, b::SVecOrTuple)
+        return $op(a, MultiScalar(b))
+    end
+    @eval function Base.$op(a::SVecOrTuple, b::MultiScalar)
+        return $op(MultiScalar(a), b)
     end
 end
 

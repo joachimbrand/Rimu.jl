@@ -373,7 +373,7 @@ using Statistics
             # Wrapping over `fciqmc_step!` ensure nothing gets allocated unnecessarily.
             # Without a wrapper a small allocation is made for the return value.
             function wrap(H, dv, dw)
-                Rimu.fciqmc_step!(H, dv, 0, 0.01, 1, dw, 1.0)
+                Rimu.fciqmc_step!(Rimu.NoThreading(), dw, H, dv, 0, 0.01)
                 return nothing
             end
 
@@ -396,6 +396,76 @@ using Statistics
                     @test @allocated(wrap(H, dv, dw)) == 0
                 end
             end
+        end
+    end
+
+
+    @testset "Threading" begin
+        add = BoseFS((0,0,0,0,10,0,0,0,0,0))
+        H = HubbardMom1D(add)
+        s_strat = DoubleLogUpdate(targetwalkers=10_000)
+        laststep = 1000
+        for dv in (DVec(add => 1), InitiatorDVec(add => 1), MPIData(DVec(add => 1)))
+            @test_throws ErrorException lomc!(H; threading=:something, laststep, s_strat)
+
+            df1, s1 = lomc!(
+                H, deepcopy(dv); threading=:auto, laststep, s_strat
+            )
+            df2, s2 = lomc!(
+                H, deepcopy(dv); threading=true, laststep, s_strat
+            )
+            df3, s3 = lomc!(
+                H, deepcopy(dv); threading=false, laststep, s_strat
+            )
+            df4, s4 = lomc!(
+                H, deepcopy(dv); threading=Rimu.NoThreading(), laststep, s_strat
+            )
+            df5, s5 = lomc!(
+                H, deepcopy(dv); threading=Rimu.ThreadsThreading(), laststep, s_strat
+            )
+            df6, s6 = lomc!(
+                H, deepcopy(dv); threading=Rimu.SplittablesThreading(), laststep, s_strat
+            )
+            df7, s7 = lomc!(
+                H, deepcopy(dv); threading=Rimu.ThreadsXSumThreading(), laststep, s_strat
+            )
+            df8, s8 = lomc!(
+                H, deepcopy(dv); threading=Rimu.ThreadsXForeachThreading(), laststep, s_strat
+            )
+
+            @test s1.threading == Rimu.SplittablesThreading()
+            @test s2.threading == Rimu.SplittablesThreading()
+            @test s3.threading == Rimu.NoThreading()
+
+            # Check that working memory was selected correctly.
+            N = Threads.nthreads()
+            D = typeof(localpart(dv))
+            @test s1.replicas[1].w isa NTuple{N,D}
+            @test s2.replicas[1].w isa NTuple{N,D}
+            @test s3.replicas[1].w isa D
+            @test s4.replicas[1].w isa D
+            @test s5.replicas[1].w isa NTuple{N,D}
+            @test s6.replicas[1].w isa NTuple{N,D}
+            @test s7.replicas[1].w isa NTuple{N,D}
+            @test s8.replicas[1].w isa NTuple{N,D}
+
+            # Check energies.
+            E1, _ = mean_and_se(df1.shift[900:end])
+            E2, _ = mean_and_se(df2.shift[900:end])
+            E3, _ = mean_and_se(df3.shift[900:end])
+            E4, _ = mean_and_se(df4.shift[900:end])
+            E5, _ = mean_and_se(df5.shift[900:end])
+            E6, _ = mean_and_se(df6.shift[900:end])
+            E7, _ = mean_and_se(df7.shift[900:end])
+            E8, _ = mean_and_se(df8.shift[900:end])
+
+            @test E1 ≈ E2 rtol=0.1
+            @test E2 ≈ E3 rtol=0.1
+            @test E3 ≈ E4 rtol=0.1
+            @test E4 ≈ E5 rtol=0.1
+            @test E5 ≈ E6 rtol=0.1
+            @test E6 ≈ E7 rtol=0.1
+            @test E7 ≈ E8 rtol=0.1
         end
     end
 end
