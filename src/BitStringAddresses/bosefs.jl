@@ -396,11 +396,67 @@ function move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
         return _move_particle(b, from.offset, to.offset), √(occ1 * (occ2 + 1))
     end
 end
-
 function _move_particle(b::BoseFS, from, to)
     if to < from
         return typeof(b)(partial_left_shift(b.bs, to, from))
     else
         return typeof(b)(partial_right_shift(b.bs, from, to - 1))
+    end
+end
+
+###
+### Multiple excitation stuff
+###
+# Fix offsets that changed after performing a move.
+@inline function _fix_offset(pair, index::BoseFSIndex)
+    fst, snd = pair[1], pair[2]
+    if fst.offset < snd.offset
+        return @set index.offset -= fst.offset < index.offset ≤ snd.offset
+    else
+        return @set index.offset += fst.offset ≥ index.offset > snd.offset
+    end
+end
+_fix_offset(pair) = Base.Fix1(_fix_offset, pair)
+
+# Move multiple particles. This does not care about values, so it performs moves in an
+# arbitrary order (from left to right in pairs).
+@inline function _move_particles(b::BoseFS, (c,)::NTuple{1}, (d,)::NTuple{1})
+    return _move_particle(b, d.offset, c.offset)
+end
+@inline function _move_particles(b::BoseFS, (c, cs...), (d, ds...))
+    b = _move_particle(b, d.offset, c.offset)
+    fix = _fix_offset(c => d)
+    b = _move_particles(b, map(fix, cs), map(fix, ds))
+    return b
+end
+
+# Apply destruction operator to BoseFSIndex.
+@inline _destroy(d, index) = @set index.occnum -= (d.mode == index.mode)
+@inline _destroy(d) = Base.Fix1(_destroy, d)
+# Apply creation operator to BoseFSIndex.
+@inline _create(c, index) = @set index.occnum += (c.mode == index.mode)
+@inline _create(c) = Base.Fix1(_create, c)
+
+# Compute the value of an excitation. Starts by applying all destruction operators, and
+# then applying all creation operators. The operators must be given in reverse order.
+# Will return 0 if move is illegal.
+@inline _compute_value(::Tuple{}, ::Tuple{}) = 1
+@inline function _compute_value((c, cs...), ::Tuple{})
+    return _compute_value(map(_create(c), cs), ()) * (c.occnum + 1)
+end
+@inline function _compute_value(creations, (d, ds...))
+    return _compute_value(map(_destroy(d), creations), map(_destroy(d), ds)) * d.occnum
+end
+
+function excitation(b::BoseFS, creations::NTuple{N}, destructions::NTuple{N}) where N
+    # We start by computing the value. This is where the check if the move is even legal
+    # is done.
+    value = _compute_value(reverse(creations), reverse(destructions))
+    if iszero(value)
+        return b, 0.0
+    else
+        # Now that we know the value and that the move is legal, we can apply the moves
+        # without worrying about doing something weird.
+        return _move_particles(b, creations, destructions), √value
     end
 end

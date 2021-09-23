@@ -202,3 +202,28 @@ julia> move_particle(f, i, 12)
 ```
 """
 move_particle
+
+"""
+    excitation(a::SingleComponentFockAddress, creations::NTuple{N}, destructions::NTuple{N})
+
+Generate an excitation on address `a` by applying `creations` and `destructions`, which are
+tuples of the appropriate address indices (i.e. integers for fermions and `BoseFSIndex` for
+bosons).
+
+Returns the new address and the value. If the excitations is illegal, returns an arbitrary
+address and 0.0.
+
+# Example
+
+```jldoctest
+julia> f = FermiFS((1,1,0,0,1,1,1,1))
+FermiFS{6,8}((1, 1, 0, 0, 1, 1, 1, 1))
+
+julia> excitation(f, (3,4), (2,5))
+(FermiFS{6,8}((1, 0, 1, 1, 0, 1, 1, 1)), -1.0)
+
+julia> excitation(f, (3,4), (2,2))
+(FermiFS{6,8}((1, 1, 0, 0, 1, 1, 1, 1)), 0.0)
+```
+"""
+excitation

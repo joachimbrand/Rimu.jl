@@ -15,7 +15,7 @@ export find_occupied_mode, find_mode, move_particle
 
 export AbstractFockAddress, SingleComponentFockAddress, BoseFS, BoseFS2C, FermiFS, CompositeFS
 export num_particles, num_modes, num_components
-export onr, near_uniform, occupied_modes, is_occupied, num_occupied_modes
+export onr, near_uniform, occupied_modes, is_occupied, num_occupied_modes, excitation
 
 include("bitstring.jl")
 include("fockaddress.jl")

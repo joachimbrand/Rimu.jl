@@ -144,7 +144,9 @@ function is_occupied(a::FermiFS{<:Any,M}, mode) where {M}
     return a.bs.chunks[end + 1 - j] & (UInt(1) << UInt(i - 1)) > 0
 end
 
-function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitString{<:Any,1,T}}
+function move_particle(
+    a::FermiFS{<:Any,<:Any,S}, from::Integer, to::Integer
+) where {T,S<:BitString{<:Any,1,T}}
     occ_from = is_occupied(a, from)
     if occ_from && !is_occupied(a, to)
         from, to = minmax(from, to)
@@ -155,7 +157,7 @@ function move_particle(a::FermiFS{<:Any,<:Any,S}, from, to) where {T,S<:BitStrin
     end
 end
 
-function move_particle(a::FermiFS, from, to)
+function move_particle(a::FermiFS, from::Integer, to::Integer)
     occ_from = is_occupied(a, from)
     if occ_from && !is_occupied(a, to)
         return _move_particle(a, from % UInt64, to % UInt64)
@@ -212,4 +214,53 @@ end
         value = ifelse(iseven(count), 1.0, -1.0)
     end
     return typeof(a)(S(result)), value
+end
+
+"""
+    _flip_count(bs::BitString, k)
+
+Count the number of ones before the `k`-th mode, flip the `k`th bit. Return the new
+bitstring, count, and the value of the bit after the flip.
+"""
+@inline function _flip_count(bs::BitString{<:Any,1,T}, k::Unsigned) where {T}
+    chunk = bs.chunks[1]
+    # highlights the k-th bit
+    kmask = one(T) << k
+
+    count = count_ones((kmask - 0x1) & chunk)
+    chunk = chunk ⊻ kmask
+    val = chunk & kmask > 0
+    return typeof(bs)(chunk), count, val
+end
+@inline function _flip_count(bs::BitString, k::Unsigned)
+    j, i = fldmod(k % Int, UInt(64))
+    j = length(bs.chunks) - j
+    chunk = bs.chunks[j]
+
+    kmask = one(UInt64) << i
+
+    count = count_ones((kmask - 0x1) & chunk)
+    chunk = chunk ⊻ kmask
+    val = chunk & kmask > 0
+
+    count += sum(count_ones, bs.chunks[j + 1:end])
+    return typeof(bs)(setindex(bs.chunks, chunk, j)), count, val
+end
+
+function excitation(a::FermiFS, creations::NTuple{N}, destructions::NTuple{N}) where {N}
+    bs = a.bs
+    count = 0
+    for i in N:-1:1
+        d = destructions[i]
+        bs, x, val = _flip_count(bs, UInt(d - 0x1))
+        val && return a, 0.0
+        count += x
+    end
+    for i in N:-1:1
+        c = creations[i]
+        bs, x, val = _flip_count(bs, UInt(c - 0x1))
+        !val && return a, 0.0
+        count += x
+    end
+    return typeof(a)(bs), ifelse(iseven(count), 1.0, -1.0)
 end
