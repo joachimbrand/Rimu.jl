@@ -155,12 +155,25 @@ keyword arguments.
 
 The following concrete implementations are provided:
 
-* [`Exact`](@ref)
-* [`SingleSpawn`](@ref)
-* [`WithReplacement`](@ref)
-* [`WithoutReplacement`](@ref)
-* [`Bernoulli`](@ref)
-* [`DynamicSemistochastic`](@ref)
+* [`Exact`](@ref): Perform exact spawns. Used by [`IsDeterministic`](@ref).
+
+* [`WithReplacement`](@ref): The default stochastic spawning strategy. Spawns are chosen with
+  replacement.
+
+* [`DynamicSemistochastic`](@ref): Behave like [`Exact`](@ref) when the number of spawns
+  performed is high, and like a different substrategy otherwise. Used by
+  [`IsDynamicSemistochastic`](@ref).
+
+* [`SingleSpawn`](@ref): Perform a single spawn only. Used as a building block for other
+  strategies.
+
+* [`WithoutReplacement`](@ref): Similar to [`WithReplacement`](@ref), but ensures each spawn
+  is only performed once. Only to be used as a substrategy of
+  [`DynamicSemistochastic`](@ref).
+
+* [`Bernoulli`](@ref): Each spawn is attempted with a fixed probability. Only to be used as
+  a substrategy of [`DynamicSemistochastic`](@ref).
+
 
 ## Interface
 
