@@ -1,10 +1,9 @@
-
-## Module `Rimu/StatsTools`
+# Module `Rimu/StatsTools`
 
 The  module `Rimu/StatsTools` contains helper function for analysis and post
 processing of Monte Carlo data.
 
-### Blocking analysis
+## Blocking analysis
 
 After equilibration, FCIQMC produces information about observables through
 correlated time series. In order to estimate the statistical errors the
@@ -23,9 +22,9 @@ Many convenience functions are implemented for directly analysing data
 obtained from [`lomc!`](@ref) as a `DataFrame`. See, e.g.,
 [`shift_estimator`](@ref) and [`projected_energy`](@ref). Asymptotically
 unbiased estimators are implemented as [`mixed_estimator`](@ref) and
-[`growth_estimator`](@ref). 
+[`growth_estimator`](@ref).
 
-#### Exported
+## Exported
 ```@autodocs
 Modules = [StatsTools]
 Pages = ["StatsTools.jl", "blocking.jl", "ratio_of_means.jl", "convenience.jl",
@@ -34,7 +33,7 @@ Pages = ["StatsTools.jl", "blocking.jl", "ratio_of_means.jl", "convenience.jl",
 Private = false
 ```
 
-#### Additional docstrings
+## Additional docstrings
 ```@autodocs
 Modules = [StatsTools]
 Pages = ["StatsTools.jl", "blocking.jl", "ratio_of_means.jl", "convenience.jl",
@@ -43,7 +42,7 @@ Pages = ["StatsTools.jl", "blocking.jl", "ratio_of_means.jl", "convenience.jl",
 Public = false
 ```
 
-#### Index
+## Index
 ```@index
 Pages   = ["statstools.md"]
 ```

@@ -53,6 +53,7 @@ function report!(report::Report, key::SymbolOrString, value, postfix::SymbolOrSt
     report!(report, Symbol(key, postfix), value)
 end
 function report!(report::Report, keys, vals, postfix::SymbolOrString="")
+    @assert length(keys) == length(vals)
     for (k, v) in zip(keys, vals)
         report!(report, k, v, postfix)
     end

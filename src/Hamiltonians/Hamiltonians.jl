@@ -1,21 +1,43 @@
 """
     module Hamiltonians
 
-This module defines Hamiltonian types, interfaces, and functions for working with
+This module defines Hamiltonian types and functions for working with
 Hamiltonians.
+
+## Exported concrete Hamiltonian types include
+- [`MatrixHamiltonian`](@ref)
+- [`HubbardReal1D`](@ref)
+- [`ExtendedHubbardReal1D`](@ref)
+- [`HubbardMom1D`](@ref)
+- [`BoseHubbardMom1D2C`](@ref)
+- [`BoseHubbardReal1D2C`](@ref)
+
+## Wrappers
+- [`GutzwillerSampling`](@ref)
+- [`GuidingVectorSampling`](@ref)
+
+## Other
+- [`G2Correlator`](@ref)
+
+## Interface for working with Hamiltonians
+- [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)
 """
 module Hamiltonians
 
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 using Setfield
 
+using ..StochasticStyles
 using ..DictVectors
 using ..BitStringAddresses
 using ..ConsistentRNG
 
-export AbstractHamiltonian, TwoComponentBosonicHamiltonian, offdiagonals, random_offdiagonal
-export diagonal_element, num_offdiagonals, get_offdiagonal, dimension, starting_address
-export rayleigh_quotient, momentum
+using ..Interfaces
+import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
+    offdiagonals, random_offdiagonal, LOStructure
+
+export AbstractHamiltonian, TwoComponentBosonicHamiltonian
+export dimension, rayleigh_quotient, momentum
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace

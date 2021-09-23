@@ -82,7 +82,7 @@ function fciqmc_step!(::NoThreading, w, ham, dv, shift, dτ)
 
     stat_names, stats = step_stats(v, Val(1))
     for (add, val) in pairs(v)
-        stats += SVector(fciqmc_col!(w, ham, add, val, shift, dτ))
+        stats += fciqmc_col!(w, ham, add, val, shift, dτ)
     end
     return stat_names, stats
 end
@@ -106,7 +106,7 @@ function fciqmc_step!(::ThreadsThreading, ws::NTuple{N}, ham, dv, shift, dτ) wh
     @sync for btr in Iterators.partition(pairs(v), batchsize)
         Threads.@spawn for (add, num) in btr
             ss = fciqmc_col!(ws[Threads.threadid()], ham, add, num, shift, dτ)
-            stats[Threads.threadid()] += SVector(ss)
+            stats[Threads.threadid()] += ss
         end
     end
     return stat_names, stats
@@ -133,8 +133,7 @@ working_memory(::SplittablesThreading, dv) = ntuple_working_memory(dv)
         wait(first_half)
     else
         for (add, num) in pairs
-            ss = fciqmc_col!(ws[threadid()], ham, add, num, shift, dτ)
-            stats[threadid()] += SVector(ss)
+            stats[threadid()] += fciqmc_col!(ws[threadid()], ham, add, num, shift, dτ)
         end
     end
     return nothing
@@ -169,7 +168,7 @@ function fciqmc_step!(::ThreadsXSumThreading, ws::NTuple{N}, ham, dv, shift, dτ
     stat_names, _ = step_stats(v, Val(1))
 
     stats = ThreadsX.sum(pairs(v)) do (add, val)
-        SVector(fciqmc_col!(ws[Threads.threadid()], ham, add, val, shift, dτ))
+        MultiScalar(fciqmc_col!(ws[Threads.threadid()], ham, add, val, shift, dτ))
     end
     return stat_names, stats
 end
@@ -194,8 +193,7 @@ function fciqmc_step!(::ThreadsXForeachThreading, ws::NTuple{N}, ham, dv, shift,
     # parallel execution happens here:
     ThreadsX.foreach(pairs(v)) do (add, val)
         tid = Threads.threadid()
-        ss = fciqmc_col!(ws[tid], ham, add, val, shift, dτ)
-        stats[tid] += SVector(ss)
+        stats[tid] += fciqmc_col!(ws[tid], ham, add, val, shift, dτ)
     end
     return stat_names, stats
 end

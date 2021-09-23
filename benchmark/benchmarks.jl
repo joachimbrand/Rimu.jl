@@ -14,7 +14,7 @@ const SUITE = @benchmarkset "Rimu" begin
     @case "(4+1, 11) 2C Mom space with G2Correlators" begin
         add = BoseFS2C(ntuple(i -> ifelse(i == 5, 4, 0), 11), ntuple(==(5), 11))
         ham = BoseHubbardMom1D2C(add, v=0.1)
-        dv = DVec(add => 1.0; style=IsDynamicSemistochastic())
+        dv = DVec(add => 1.0f0; style=IsDynamicSemistochastic{Float32}())
         s_strat = DoubleLogUpdate(targetwalkers=10_000)
         replica = AllOverlaps(2, ntuple(i -> G2Correlator(i - 1), 7))
 

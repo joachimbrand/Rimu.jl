@@ -14,7 +14,7 @@ using Rimu
 # and the number of particles `n = 6`:
 m = n = 6
 # Generating a configuration that particles are evenly distributed:
-aIni = nearUniform(BoseFS{n,m})
+aIni = near_uniform(BoseFS{n,m})
 # where `BoseFS` is used to create a bosonic system.
 # The Hamiltonian is defined based on the configuration `aIni`,
 # with additional onsite interaction strength `u = 6.0`
@@ -40,7 +40,7 @@ dτ = 0.001
 k = 1
 
 # Now we prepare initial state and allocate memory.
-# The initial address is defined above as `aIni = nearUniform(Ĥ)`.
+# The initial address is defined above as `aIni = near_uniform(Ĥ)`.
 # Define the initial number of walkers per rank:
 nIni = 1
 # Putting the `nIni` number of walkers into the initial address `aIni`

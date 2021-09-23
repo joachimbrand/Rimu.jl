@@ -1,32 +1,7 @@
-"""
-    DictVectors.AbstractDVec{K,V}
-
-Abstract type for sparse vectors with `valtype` `V` based on dictionary-like structures. The
-vectors are designed to work well with FCIQMC and
-[KrylovKit](https://github.com/Jutho/KrylovKit.jl).
-
-They lie somewhere between `AbstractDict`s and sparse `AbstractVector`s, generally behaving
-like a dictionary, while supportting various linear algebra functionality. Indexing with a
-value not stored in the dictionary returns `zero(V)`. Setting a stored value to 0 or below
-`eps(V::AbstractFloat)` removes the value from the dictionary. Their `length` signals the
-number of stored elements, not the size of the vector space.
-
-They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in `FCIQMC`.
-
-To iterate over an `AbstractDVec`, use `pairs` or `values`.
-
-# Interface
-
-The interface is similar to the `AbstractDict` interface.
-
-Implement what would be needed for the `AbstractDict` interface (`pairs`, `keys`, `values`,
-`setindex!, getindex, delete!, length, haskey, empty!, isempty`) and, in addition:
-* [`StochasticStyle`](@ref)
-* [`storage(dv)`](@ref) returns an `AbstractDict` storing the raw data with possibly
-  different `valtype` than `V`.
-"""
-abstract type AbstractDVec{K,V} end
-
+###
+### This file contains methods defined on `AbstractDVec`
+### The type definition and relevant methods are found in the file "src/Interfaces/dictvectors.jl"
+###
 function Base.show(io::IO, dvec::AbstractDVec)
     summary(io, dvec)
     limit, _ = displaysize()
@@ -39,25 +14,6 @@ function Base.show(io::IO, dvec::AbstractDVec)
         end
     end
 end
-
-"""
-    deposit!(w::AbstractDVec, add, val, parent::Pair)
-
-Add `val` into `w` at address `add`, taking into account initiator rules if applicable.
-`parent` contains the `address => value` pair from which the pair `add => val`
-was created. [`InitiatorDVec`](@ref) can intercept this and add its own functionality.
-"""
-function deposit!(w, add, val, _)
-    w[add] += convert(valtype(w), val)
-end
-
-"""
-    storage(dvec) -> AbstractDict
-
-Return the raw storage associated with `dvec` as an `AbstractDict`. Used in MPI
-communication.
-"""
-storage
 
 ###
 ### Types
@@ -81,8 +37,8 @@ Base.ndims(::AbstractDVec) = 1
 Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types it means
 removing all non-zero elements. For `AbstractArrays`, it sets all of the values to zero.
 """
-zero!(v::AbstractDVec) = empty!(v)
 zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
+zero!(v::AbstractDVec) = empty!(v)
 
 Base.zero(dv::AbstractDVec) = empty(dv)
 
@@ -234,6 +190,7 @@ struct UniformProjector <: AbstractProjector end
 LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(values(y))
 # a specialised fast and non-allocating method for
 # `dot(::UniformProjector, A::AbstractHamiltonian, y)` is defined in `Hamiltonians.jl`
+Base.getindex(::UniformProjector, add) = 1
 
 """
     NormProjector()
@@ -334,13 +291,6 @@ walkernumber(::StochasticStyle, w) = dot(Norm1ProjectorPPop(), w)
 # the following default is fast and generic enough to be good for real walkers and
 
 """
-    localpart(dv) -> AbstractDVec
-
-Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for `DictVector`s.
-"""
-localpart(dv) = dv # default for local data
-
-"""
     FrozenDVec
 
 See: [`freeze`](@ref).
@@ -353,14 +303,6 @@ Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
 Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}
 Base.pairs(fd::FrozenDVec) = fd.pairs
 
-"""
-    freeze(dv)
-
-Create a "frozen" version of `dv` which can no longer be modified or used in the
-conventional manner, but supports faster dot products.
-
-If `dv` is an [`MPIData`](@ref), synchronize its contents among the ranks first.
-"""
 freeze(dv) = FrozenDVec(collect(pairs(dv)))
 
 freeze(p::AbstractProjector) = p

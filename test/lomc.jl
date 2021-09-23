@@ -1,6 +1,8 @@
 using Rimu
 using Test
-using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, IsStochastic2Pop
+using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator
+using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement, IsExplosive
+using Rimu.StochasticStyles: DoubleOrNothing, ThresholdCompression
 using Rimu.StatsTools
 using Rimu.ConsistentRNG: seedCRNG!
 using Rimu.RMPI
@@ -79,7 +81,7 @@ using Statistics
 
         @testset "AllOverlaps" begin
             # column names are of the form c{i}_dot_c{j} and c{i}_Op{k}_c{j}.
-            num_stats(df) = length(filter(startswith('c'), names(df)))
+            num_stats(df) = length(filter(x -> match(r"^c[0-9]", x) ≠ nothing, names(df)))
 
             # No operator: N choose 2 reports.
             df, _ = lomc!(H, dv; replica=AllOverlaps(4))
@@ -210,6 +212,8 @@ using Statistics
         add = BoseFS{15,10}((0,0,0,0,0,15,0,0,0,0))
         H = HubbardMom1D(add; u=6.0)
         dv = DVec(add => 1; style=IsDynamicSemistochastic())
+
+        seedCRNG!(1336)
 
         df = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4).df
         @test all(df.len[1:end-1] .≤ 10)
@@ -351,6 +355,48 @@ using Statistics
             df, _ = lomc!(H, cdv; post_step)
             @test df.loneliness isa Vector{ComplexF64}
         end
+
+        @testset "Timer" begin
+            post_step = Rimu.Timer()
+            time_before = time()
+            df, _ = lomc!(H, copy(dv); post_step)
+            time_after = time()
+            @test df.time[1] > time_before
+            @test df.time[end] < time_after
+            @test issorted(df.time)
+        end
+    end
+
+    # This test is only run locally; check-bounds=yes is used when running Julia on CI.
+    if !haskey(ENV, "CI")
+        @testset "fciqmc_step! does not allocate" begin
+            # Wrapping over `fciqmc_step!` ensure nothing gets allocated unnecessarily.
+            # Without a wrapper a small allocation is made for the return value.
+            function wrap(H, dv, dw)
+                Rimu.fciqmc_step!(Rimu.NoThreading(), dw, H, dv, 0, 0.01)
+                return nothing
+            end
+
+            for H in (
+                HubbardReal1D(BoseFS((1,1,2))),
+                BoseHubbardReal1D2C(BoseFS2C((1,2,2), (0,1,0))),
+                BoseHubbardMom1D2C(BoseFS2C((0,1), (1,0))),
+            ), style in (
+                IsStochasticInteger(),
+                IsStochasticWithThreshold(),
+                IsDynamicSemistochastic(),
+            )
+                @testset "$H with $style" begin
+                    add = starting_address(H)
+                    dw = DVec(add => 1; style, capacity=1000)
+                    dv = DVec(add => 1; style, capacity=1000)
+
+                    # Precompile
+                    wrap(H, dv, dw)
+                    @test @allocated(wrap(H, dv, dw)) == 0
+                end
+            end
+        end
     end
 
 
@@ -458,37 +504,76 @@ end
         seedCRNG!(1234)
         dv_st = DVec(add => 1; style=IsStochasticInteger())
         dv_th = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
-        dv_cx = DVec(add => 1; style=IsStochastic2Pop())
+        dv_cx = DVec(add => 1 + im; style=IsStochastic2Pop())
         dv_dy = DVec(add => 1; style=IsDynamicSemistochastic())
         dv_de = DVec(add => 1; style=IsDeterministic())
+        dv_dp = DVec(add => 1; style=IsDeterministic(ThresholdCompression()))
+        dv_ex = DVec(add => 1; style=IsExplosive())
+
+        dv_dn = DVec(add => 10; style=IsDynamicSemistochastic(compression=DoubleOrNothing()))
+        dv_nr = DVec(add => 1; style=IsDynamicSemistochastic(spawning=WithoutReplacement()))
+        dv_br = DVec(add => 1; style=IsDynamicSemistochastic(spawning=Bernoulli()))
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
+        s_strat_cx = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100 + 100im)
         df_st = lomc!(H, dv_st; s_strat, laststep=2500).df
         df_th = lomc!(H, dv_th; s_strat, laststep=2500).df
-        df_cx = lomc!(H, dv_cx; s_strat, laststep=2500).df
+        df_cx = lomc!(H, dv_cx; s_strat=s_strat_cx, laststep=2500).df
         df_dy = lomc!(H, dv_dy; s_strat, laststep=2500).df
         df_de = lomc!(H, dv_de; s_strat, laststep=2500).df
+        df_dp = lomc!(H, dv_dp; s_strat, laststep=2500).df
+        df_ex = lomc!(H, dv_ex; s_strat, laststep=2500).df
 
-        @test ("spawns", "deaths", "clones", "antiparticles", "annihilations") ⊆ names(df_st)
-        @test ("spawns", "deaths", "clones", "antiparticles", "annihilations") ⊆ names(df_cx)
-        @test ("spawns", "deaths") ⊆ names(df_th)
+        df_dn = lomc!(H, dv_dn; s_strat, laststep=2500).df
+        df_nr = lomc!(H, dv_nr; s_strat, laststep=2500).df
+        df_br = lomc!(H, dv_br; s_strat, laststep=2500).df
+
+        @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_st)
+        @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_cx)
+        @test "spawns" ∈ names(df_th)
         @test ("exact_steps", "inexact_steps", "spawns") ⊆ names(df_dy)
-        @test ("exact_steps",) ⊆ names(df_de)
+        @test "exact_steps" ∈ names(df_de)
+
+        @test ("explosions", "ticks", "normal_steps",
+               "explosive_spawns", "normal_spawns") ⊆ names(df_ex)
+        @test ("exact_steps", "len_before") ⊆ names(df_dp)
+        @test ("exact_steps", "len_before") ⊆ names(df_br)
+        @test ("exact_steps", "len_before") ⊆ names(df_nr)
+        @test ("exact_steps", "len_before") ⊆ names(df_dn)
+        @test "len_before" ∉ names(df_st)
+        @test "len_before" ∉ names(df_th)
+        @test "len_before" ∉ names(df_cx)
+        @test "len_before" ∉ names(df_de)
 
         E_st, σ_st = mean_and_se(df_st.shift[500:end])
         E_th, σ_th = mean_and_se(df_th.shift[500:end])
-        E_cx, σ_cx = mean_and_se(df_cx.shift[500:end])
+        E_cx, σ_cx = mean_and_se(real.(df_cx.shift[500:end]))
         E_dy, σ_dy = mean_and_se(df_dy.shift[500:end])
         E_de, σ_de = mean_and_se(df_de.shift[500:end])
+        E_dp, σ_dp = mean_and_se(df_dp.shift[500:end])
+        E_ex, σ_ex = mean_and_se(df_dp.shift[500:end])
 
-        # Stochastic noise depends on the method.
-        @test σ_cx > σ_st > σ_th > σ_dy > σ_de
+        E_dn, σ_dn = mean_and_se(df_dn.shift[500:end])
+        E_nr, σ_nr = mean_and_se(df_nr.shift[500:end])
+        E_br, σ_br = mean_and_se(df_br.shift[500:end])
+
+        # Stochastic noise depends on the method. Sampling without replacement makes a
+        # small difference and is not consistently lower, so is not included here. A similar
+        # thing happens with deterministic with compression and explosive spawns.
+        @test σ_st > σ_th > σ_dn > σ_dy > σ_de
         # All estimates are fairly good.
         @test E_st ≈ E0 atol=3σ_st
         @test E_th ≈ E0 atol=3σ_th
         @test E_cx ≈ E0 atol=3σ_cx
         @test E_dy ≈ E0 atol=3σ_dy
         @test E_de ≈ E0 atol=3σ_de
+        @test E_dp ≈ E0 atol=3σ_dp
+        @test E_ex ≈ E0 atol=3σ_ex
+        @test E_nr ≈ E0 atol=3σ_nr
+        @test E_dn ≈ E0 atol=3σ_dn
+
+        # For some reason, Bernoulli requires more walkers
+        @test_broken E_br ≈ E0 atol=3σ_br
     end
 
     @testset "Initiator energies" begin

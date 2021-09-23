@@ -35,8 +35,8 @@ julia> dv = DVec(:a => 1)
 DVec{Symbol,Int64} with 1 entries, style = IsStochasticInteger{Int64}()
   :a => 1
 
-julia> dv = DVec(:a => 2, :b => 3; style=IsDynamicSemistochastic())
-DVec{Symbol,Float64} with 2 entries, style = IsDynamicSemistochastic{Float64, true}(1.0, Inf, 1.0)
+julia> dv = DVec(:a => 2, :b => 3; style=IsDeterministic())
+DVec{Symbol,Float64} with 2 entries, style = IsDeterministic{Float64}()
   :a => 2.0
   :b => 3.0
 ```

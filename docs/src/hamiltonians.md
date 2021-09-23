@@ -1,4 +1,4 @@
-## Module `Hamiltionians.jl`
+# Module `Hamiltionians`
 
 This module contains definitions of Hamiltonians, in particular specific
 physical models of interest. These are organised by means of an interface
@@ -8,7 +8,8 @@ around the abstract type [`AbstractHamiltonian`](@ref), in the spirit of the
 ```@docs
 Hamiltonians
 ```
-#### Relation to other parts of the `Rimu` code
+
+### Relation to other parts of the `Rimu` code
 
 In order to define a specific model Hamiltonian with relevant parameters
 for the model, instantiate the model like this in the input file:
@@ -29,7 +30,7 @@ of the model are then provided by the following methods:
  * [`near_uniform(ham)`](@ref): configuration with particles spread across modes
  * [`starting_address(ham)`](@ref): address for accessing one of the diagonal elements of `ham`
 
-### Model Hamiltonians
+## Model Hamiltonians
 
 Here is a list of fully implemented model Hamiltonians. So far there are two variants
 implemented of the one-dimensional Bose-Hubbard model real space as well as a momentum-space
@@ -45,7 +46,7 @@ HubbardRealSpace
 MatrixHamiltonian
 ```
 
-### Hamiltonians interface
+## Hamiltonians interface
 
 Behind the implementation of a particular model is a more abstract interface for defining
 hamiltonians. If you want to define a new model you should make use of this interface. The
@@ -74,7 +75,7 @@ Hamiltonians.LOStructure
 dimension
 ```
 
-### Geometry
+## Geometry
 
 ```@docs
 LatticeGeometry

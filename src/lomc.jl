@@ -89,10 +89,10 @@ function QMCState(
     wm=nothing,
     params::FciqmcRunStrategy=RunTillLastStep(
         laststep = 100,
-        shift = diagonal_element(
+        shift = float(valtype(v))(diagonal_element(
             hamiltonian,
             starting_address(hamiltonian)
-        )/one(valtype(v))
+        ))
     ),
     s_strat::ShiftStrategy=DoubleLogUpdate(),
     r_strat::ReportingStrategy=ReportDFAndInfo(),
@@ -132,7 +132,7 @@ function QMCState(
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(maxlength),
+        hamiltonian, replicas, Ref(Int(maxlength)),
         m_strat, r_strat, s_strat, τ_strat, threading, post_step, replica
     )
 end
@@ -239,10 +239,10 @@ julia> df2, _ = lomc!(state, df1; laststep=200); # Continuation run
 
 
 julia> size(df1)
-(100, 12)
+(100, 13)
 
 julia> size(df2)
-(200, 12)
+(200, 13)
 ```
 """
 function lomc!(ham, v; df=DataFrame(), kwargs...)

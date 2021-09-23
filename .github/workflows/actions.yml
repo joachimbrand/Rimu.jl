@@ -51,7 +51,7 @@ jobs:
           export PATH=$PATH:/home/runner/.julia/bin
 
           # Run regular tests
-          julia -t2 --project=@. -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
+          julia --project=@. -t2 -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
           # Run mpi tests
           mpiexecjl -n 2 julia --depwarn=yes --project=@. test/mpi_runtests.jl
 

@@ -14,16 +14,23 @@ using Reexport
 using Setfield
 using SplittablesBase
 using StaticArrays
+using StatsBase
 using ThreadsX
 
 @reexport using Distributed
 
+include("helpers.jl") # non MPI-dependent helper functions
+
+include("ConsistentRNG.jl")
+@reexport using .ConsistentRNG
+include("Interfaces/Interfaces.jl")
+@reexport using .Interfaces
+include("StochasticStyles/StochasticStyles.jl")
+@reexport using .StochasticStyles
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
 include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
-include("ConsistentRNG.jl")
-@reexport using .ConsistentRNG
 include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
 include("RimuIO.jl")
@@ -38,7 +45,7 @@ export ShiftStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
 export ReportingStrategy, ReportDFAndInfo, ReportToFile
 export ReplicaStrategy, NoStats, AllOverlaps
-export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness
+export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness, Timer
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
 
@@ -52,10 +59,7 @@ include("strategies_and_params/timestepstrategy.jl")
 include("strategies_and_params/threadingstrategy.jl")
 include("strategies_and_params/deprecated.jl")
 
-include("helpers.jl")               # non MPI-dependent helper functions
-include("fciqmc_col.jl")            # third level
 include("apply_memory_noise.jl")
-include("update_dvec.jl")
 include("lomc.jl")                  # top level
 
 include("RMPI/RMPI.jl")
@@ -65,7 +69,5 @@ include("EmbarrassinglyDistributed.jl")
 
 # analysis tool not reexported (to be deprecated)
 include("Blocking.jl")
-
-include("deprecated.jl")
 
 end # module

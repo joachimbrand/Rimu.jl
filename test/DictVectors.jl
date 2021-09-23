@@ -2,7 +2,7 @@ using LinearAlgebra
 using Random
 using Rimu
 using Rimu.DictVectors
-using Rimu.DictVectors: IsStochastic2Pop
+using Rimu.StochasticStyles: IsStochastic2Pop
 using StaticArrays
 using Suppressor
 using Test
@@ -202,6 +202,7 @@ function test_dvec_interface(type, keys, vals, cap)
         @testset "projection" begin
             dvec = type(Dict(pairs))
             @test UniformProjector() ⋅ dvec == sum(dvec)
+            @test UniformProjector()[2] == 1
             if valtype(dvec) isa AbstractFloat
                 @test NormProjector() ⋅ dvec == norm(dvec, 1)
             end
@@ -277,17 +278,4 @@ end
         dvec4 = InitiatorDVec(:a => 1.0, style=IsStochastic2Pop())
         @test !isreal(dvec4)
     end
-end
-
-@testset "deprecations" begin
-    warning = @capture_err copytight(DVec(:a => 1))
-    @test warning ≠ ""
-
-    warning = @capture_err DVec2(:a => 1)
-    @test warning ≠ ""
-    @test DVec2(:a => 1) isa DVec{Symbol,Int}
-
-    warning = @capture_err IsStochastic()
-    @test warning ≠ ""
-    @test IsStochastic() === IsStochasticInteger()
 end

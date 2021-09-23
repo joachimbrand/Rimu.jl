@@ -1,25 +1,24 @@
 """
-Module that provides data structures that behave similar to sparse vectors,
-but are indexed by arbitrary types (could be non-integers) similarly to
-dictionaries. The idea is to do linear algebra with data structures that are
-neither subtyped to `AbstractVector` nor to `AbstractDict` and are suitable
-for use with `KrylovKit.jl`. For this, the
-abstract type and interface [`AbstractDVec`](@ref) is provided, with the
-concrete implementation of [`DVec`](@ref)
+Module that provides concrete implementations of the [`AbstractDVec`](@ref) interface.
+
+- [`DVec`](@ref): basic [`AbstractDVec`](@ref)
+- [`InitiatorDVec`](@ref): allows storing information about initiator status
+
+See [`Interfaces`](@ref).
 """
 module DictVectors
 
-using Random, LinearAlgebra
-import OrderedCollections: freeze
+using Random
+using LinearAlgebra
 import SplittablesBase
-export AbstractDVec, zero!, add!, deposit!, storage, walkernumber, localpart, freeze
-export DVec, InitiatorDVec
 
-export
-    AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
-export
-    StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
-    IsDynamicSemistochastic, StyleUnknown
+using ..Interfaces
+import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze
+
+export zero!, add!, deposit!, storage, walkernumber
+export DVec, InitiatorDVec
+export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
+
 
 # The idea is to do linear algebra with data structures that are not
 # subtyped to AbstractVector, much in the spirit of KrylovKit.jl.
@@ -47,10 +46,8 @@ export
 # fill!(v, α)
 
 include("delegate.jl")
-include("stochasticstyle.jl")
 include("abstractdvec.jl")
 include("dvec.jl")
 include("initiators.jl")
-include("deprecated.jl")
 
 end # module

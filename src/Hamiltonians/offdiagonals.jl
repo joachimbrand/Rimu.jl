@@ -24,55 +24,7 @@ abstract type AbstractOffdiagonals{A,T} <: AbstractVector{Tuple{A,T}} end
 
 Base.IndexStyle(::Type{<:AbstractOffdiagonals}) = IndexLinear()
 
-"""
-    offdiagonals(h::AbstractHamiltonian, address)
-
-Return an iterator over reachable off-diagonal matrix elements of type
-`<:AbstractOffdiagonals`. Defaults to returning `Offdiagonals(h, a)`
-
-# See also
-
-* [`Offdiagonals`](@ref)
-* [`AbstractOffdiagonals`](@ref)
-
-```jldoctest
-julia> addr = BoseFS((3,2,1));
-
-
-julia> H = HubbardReal1D(addr);
-
-
-julia> h = offdiagonals(H, addr)
-6-element Rimu.Hamiltonians.Offdiagonals{BoseFS{6, 3, BitString{8, 1, UInt8}}, Float64, HubbardReal1D{Float64, BoseFS{6, 3, BitString{8, 1, UInt8}}, 1.0, 1.0}}:
- (BoseFS{6,3}((2, 3, 1)), -3.0)
- (BoseFS{6,3}((2, 2, 2)), -2.449489742783178)
- (BoseFS{6,3}((3, 1, 2)), -2.0)
- (BoseFS{6,3}((4, 1, 1)), -2.8284271247461903)
- (BoseFS{6,3}((4, 2, 0)), -2.0)
- (BoseFS{6,3}((3, 3, 0)), -1.7320508075688772)
-```
-"""
 offdiagonals(h, a) = Offdiagonals(h, a)
-
-"""
-    random_offdiagonal(offdiagonals::AbstractOffdiagonals)
-    random_offdiagonal(ham::AbstractHamiltonian, add)
-
-Generate a single random excitation, i.e. choose from one of the accessible off-diagonal
-elements in the column corresponding to address `add` of the Hamiltonian matrix represented
-by `ham`. Alternatively, pass as argument an iterator over the accessible matrix elements.
-
-"""
-function random_offdiagonal(offdiagonals::AbstractOffdiagonals)
-    nl = length(offdiagonals) # check how many sites we could get_offdiagonal to
-    chosen = cRand(1:nl) # choose one of them
-    naddress, melem = offdiagonals[chosen]
-    return naddress, 1.0/nl, melem
-end
-
-function random_offdiagonal(ham::AbstractHamiltonian, add)
-    return random_offdiagonal(offdiagonals(ham, add))
-end
 
 """
     Offdiagonals(h, address)

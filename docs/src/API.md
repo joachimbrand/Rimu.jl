@@ -8,26 +8,25 @@ Modules = [Rimu]
 
 ## Hamiltonians
 
-Link to [Module `Hamiltionians.jl`](@ref)
+See [Module `Hamiltionians`](@ref)
 
 ## BitStringAddresses
 
-Link to [Module `BitStringAddresses.jl`](@ref)
+See [Module `BitStringAddresses`](@ref)
 
 ## DictVectors
-```@autodocs
-Modules = [DictVectors]
-```
+
+See [Module `DictVectors`](@ref)
 
 ## ConsistentRNG
 
-Link to [Module `ConsistentRNG.jl`](@ref)
+See [Module `ConsistentRNG`](@ref)
 
 # Unexported Submodules
 
 ## StatsTools
 
-Link to [Module `Rimu/StatsTools`](@ref)
+See [Module `Rimu/StatsTools`](@ref)
 
 ## Blocking
 
@@ -37,9 +36,7 @@ Modules = [Rimu.Blocking]
 
 ## RMPI
 
-```@autodocs
-Modules = [Rimu.RMPI]
-```
+See [Module `RMPI`](@ref)
 
 # Index
 

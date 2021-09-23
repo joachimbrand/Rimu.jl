@@ -2,6 +2,7 @@ using DataFrames
 using Rimu
 using LinearAlgebra
 using SafeTestsets
+using StaticArrays
 using Statistics
 using Suppressor
 using Test
@@ -13,6 +14,10 @@ using Rimu.StatsTools, Rimu.RimuIO
 # for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
 @assert VERSION ≥ v"1.6"
 
+@safetestset "Interfaces" begin
+    include("Interfaces.jl")
+end
+
 @safetestset "StatsTools" begin
     include("StatsTools.jl")
 end
@@ -21,12 +26,8 @@ end
     include("BitStringAddresses.jl")
 end
 
-@safetestset "DictVectors.jl" begin
-    include("DictVectors.jl")
-end
-
 using Rimu.ConsistentRNG
-@testset "ConsistentRNG.jl" begin
+@testset "ConsistentRNG" begin
     seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
     @test cRand(UInt128) == 0x50f0f296b239b257a8c2ac2f11d6d2cb
 
@@ -38,7 +39,15 @@ using Rimu.ConsistentRNG
     @test ConsistentRNG.check_crng_independence(0) == Threads.nthreads()
 end
 
-@testset "Hamiltonians.jl" begin
+@safetestset "StochasticStyles" begin
+    include("StochasticStyles.jl")
+end
+
+@safetestset "DictVectors" begin
+    include("DictVectors.jl")
+end
+
+@testset "Hamiltonians" begin
     include("Hamiltonians.jl")
 end
 
@@ -60,7 +69,7 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2907 atol=1
+        @test sum(df[:,:norm]) ≈ 2698 atol=1
     end
 
     @testset "DeltaMemory" begin
@@ -69,14 +78,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2907 atol=1
+        @test sum(df[:,:norm]) ≈ 2698 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2317 atol=1
+        @test sum(df[:,:norm]) ≈ 2005 atol=1
     end
 
     @testset "DeltaMemory2" begin
@@ -85,14 +94,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2907 atol=1
+        @test sum(df[:,:norm]) ≈ 2698 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2646 atol=1
+        @test sum(df[:,:norm]) ≈ 1848 atol=1
     end
 
     @testset "ShiftMemory" begin
@@ -101,14 +110,14 @@ end
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 2907 atol=1
+        @test sum(df[:,:norm]) ≈ 2698 atol=1
 
         seedCRNG!(12345)
         df = lomc!(
             H, copy(dv);
             laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
         ).df
-        @test sum(df[:,:norm]) ≈ 1719 atol=1
+        @test sum(df[:,:norm]) ≈ 2811 atol=1
     end
 end
 
@@ -128,21 +137,33 @@ end
 end
 
 @testset "helpers" begin
-    v = [1,2,3]
-    @test walkernumber(v) == norm(v,1)
-    dvc= DVec(:a=>2-5im)
-    @test StochasticStyle(dvc) isa DictVectors.IsStochastic2Pop
-    @test walkernumber(dvc) == 2.0 + 5.0im
-    Rimu.purge_negative_walkers!(dvc)
-    @test walkernumber(dvc) == 2.0 + 0.0im
-    dvi= DVec(:a=>Complex{Int32}(2-5im))
-    @test StochasticStyle(dvi) isa DictVectors.IsStochastic2Pop
-    dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
-    @test walkernumber(dvr) ≈ norm(dvr,1)
+    @testset "walkernumber" begin
+        v = [1,2,3]
+        @test walkernumber(v) == norm(v,1)
+        dvc = DVec(:a => 2-5im)
+        @test StochasticStyle(dvc) isa StochasticStyles.IsStochastic2Pop
+        @test walkernumber(dvc) == 2.0 + 5.0im
+        Rimu.purge_negative_walkers!(dvc)
+        @test walkernumber(dvc) == 2.0 + 0.0im
+        dvi= DVec(:a=>Complex{Int32}(2-5im))
+        @test StochasticStyle(dvi) isa StochasticStyles.IsStochastic2Pop
+        dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
+        @test walkernumber(dvr) ≈ norm(dvr,1)
+    end
+    @testset "MultiScalar" begin
+        a = Rimu.MultiScalar(1, 1.0, SVector(1))
+        b = Rimu.MultiScalar(SVector(2, 3.0, SVector(4)))
+        c = Rimu.MultiScalar((3, 4.0, SVector(5)))
+        @test a + b == c
+        @test_throws MethodError a + Rimu.MultiScalar(1, 1, 1)
+
+        @test Rimu.combine_stats(a) == a
+        @test Rimu.combine_stats([a, b]) == c
+    end
 end
 
 using Rimu.Blocking
-@testset "Blocking.jl" begin
+@testset "Blocking" begin
     n=10
     a = rand(n)
     m = mean(a)
@@ -191,10 +212,10 @@ using Rimu.Blocking
         ham, vs; params = pa, s_strat = s, post_step, τ_strat, wm = similar(vs),
     ).df
     r = autoblock(rdfs, start=101)
-    @test r.s̄ ≈ -4.78 atol=0.1
+    @test r.s̄ ≈ -5.36 atol=0.1
     @test r.σs ≈ 0.27 atol=0.1
-    @test r.ē ≈ -5.81 atol=0.1
-    @test r.σe ≈ 0.39 atol=0.1
+    @test r.ē ≈ -7.46 atol=0.1
+    @test r.σe ≈ 0.58 atol=0.1
     @test r.k == 6
 
     g = growthWitness(rdfs, b=50)
@@ -218,29 +239,32 @@ end
         rm(file)
     end
     @testset "save_dvec, load_dvec" begin
-        file1 = joinpath(@__DIR__, "tmp1.bson")
-        file2 = joinpath(@__DIR__, "tmp2.bson")
-        rm(file1; force=true)
-        rm(file2; force=true)
+        # BSON is currently broken on 1.8
+        if VERSION ≤ v"1.7"
+            file1 = joinpath(@__DIR__, "tmp1.bson")
+            file2 = joinpath(@__DIR__, "tmp2.bson")
+            rm(file1; force=true)
+            rm(file2; force=true)
 
-        add = BoseFS2C((1,1,0,1), (1,1,0,0))
-        dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic(abs_threshold=3.5))
-        H = BoseHubbardMom1D2C(add)
+            add = BoseFS2C((1,1,0,1), (1,1,0,0))
+            dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic(abs_threshold=3.5))
+            H = BoseHubbardMom1D2C(add)
 
-        _, state = lomc!(H, dv; replica=NoStats(2))
-        RimuIO.save_dvec(file1, state.replicas[1].v)
-        RimuIO.save_dvec(file2, state.replicas[2].v)
+            _, state = lomc!(H, dv; replica=NoStats(2))
+            RimuIO.save_dvec(file1, state.replicas[1].v)
+            RimuIO.save_dvec(file2, state.replicas[2].v)
 
-        dv1 = RimuIO.load_dvec(file1)
-        dv2 = RimuIO.load_dvec(file2)
+            dv1 = RimuIO.load_dvec(file1)
+            dv2 = RimuIO.load_dvec(file2)
 
-        @test dv1 == state.replicas[1].v
-        @test typeof(dv2) == typeof(state.replicas[1].v)
-        @test StochasticStyle(dv1) == StochasticStyle(state.replicas[1].v)
-        @test storage(dv2) == storage(state.replicas[2].v)
+            @test dv1 == state.replicas[1].v
+            @test typeof(dv2) == typeof(state.replicas[1].v)
+            @test StochasticStyle(dv1) == StochasticStyle(state.replicas[1].v)
+            @test storage(dv2) == storage(state.replicas[2].v)
 
-        rm(file1; force=true)
-        rm(file2; force=true)
+            rm(file1; force=true)
+            rm(file2; force=true)
+        end
     end
 end
 
@@ -317,17 +341,19 @@ end
     include("RMPI.jl")
 end
 
-@testset "deprecated" begin
-    @test @capture_err(EveryTimeStep()) ≠ ""
-    @test @capture_err(EveryKthStep()) ≠ ""
-    @suppress_err begin
-        @test EveryTimeStep().k == 1
-        @test EveryTimeStep().writeinfo == false
+@testset "example script" begin
+    include("../scripts/BHM-example.jl")
+    dfr = load_df("fciqmcdata.arrow")
+    qmcdata = last(dfr,steps_measure)
+    (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
+    @test qmcShift ≈ -4.11255936332424 rtol=0.01
 
-        @test EveryKthStep(k=1000).k == 1000
-        @test EveryKthStep().k == 10
-        @test EveryKthStep().writeinfo == false
-    end
+    # clean up
+    rm("fciqmcdata.arrow", force=true)
+end
+
+@safetestset "doctests" begin
+    include("doctests.jl")
 end
 
 # Note: This test is only for local testing, as MPI is tested separately on CI
@@ -337,13 +363,7 @@ end
     mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
     is_local = !haskey(ENV, "CI")
 
-    # use user installed julia executable if available
-    if isfile(joinpath(homedir(),"bin/julia"))
-        juliaexec = joinpath(homedir(),"bin/julia")
-    else
-        juliaexec = "julia"
-    end
-    run(`which $mpiexec`)
+    juliaexec = Base.julia_cmd()
 
     if is_local
         mpi_test_filename = isfile("mpi_runtests.jl") ?  "mpi_runtests.jl" : "test/mpi_runtests.jl"
@@ -356,19 +376,4 @@ end
     else
         @info "not testing MPI on CI"
     end
-end
-
-@testset "example script" begin
-    include("../scripts/BHM-example.jl")
-    dfr = load_df("fciqmcdata.arrow")
-    qmcdata = last(dfr,steps_measure)
-    (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
-    @test qmcShift ≈ -4.11255936332424
-
-    # clean up
-    rm("fciqmcdata.arrow", force=true)
-end
-
-@safetestset "doctests" begin
-    include("doctests.jl")
 end
