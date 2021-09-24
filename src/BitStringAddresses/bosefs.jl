@@ -397,7 +397,9 @@ function move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
     end
 end
 function _move_particle(b::BoseFS, from, to)
-    if to < from
+    if to == from
+        return b
+    elseif to < from
         return typeof(b)(partial_left_shift(b.bs, to, from))
     else
         return typeof(b)(partial_right_shift(b.bs, from, to - 1))
@@ -411,9 +413,9 @@ end
 @inline function _fix_offset(pair, index::BoseFSIndex)
     fst, snd = pair[1], pair[2]
     if fst.offset < snd.offset
-        return @set index.offset -= fst.offset < index.offset ≤ snd.offset
+        return @set index.offset += fst.offset < index.offset ≤ snd.offset
     else
-        return @set index.offset += fst.offset ≥ index.offset > snd.offset
+        return @set index.offset -= fst.offset > index.offset > snd.offset
     end
 end
 _fix_offset(pair) = Base.Fix1(_fix_offset, pair)
@@ -451,12 +453,13 @@ end
 function excitation(b::BoseFS, creations::NTuple{N}, destructions::NTuple{N}) where N
     # We start by computing the value. This is where the check if the move is even legal
     # is done.
-    value = _compute_value(reverse(creations), reverse(destructions))
+    creations_rev = reverse(creations)
+    value = _compute_value(creations_rev, reverse(destructions))
     if iszero(value)
         return b, 0.0
     else
         # Now that we know the value and that the move is legal, we can apply the moves
         # without worrying about doing something weird.
-        return _move_particles(b, creations, destructions), √value
+        return _move_particles(b, creations_rev, destructions), √value
     end
 end

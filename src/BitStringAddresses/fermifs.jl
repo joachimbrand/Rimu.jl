@@ -243,7 +243,7 @@ end
     chunk = chunk ⊻ kmask
     val = chunk & kmask > 0
 
-    count += sum(count_ones, bs.chunks[j + 1:end])
+    count += mapreduce(count_ones, +, bs.chunks[j + 1:end]; init=0)
     return typeof(bs)(setindex(bs.chunks, chunk, j)), count, val
 end
 
