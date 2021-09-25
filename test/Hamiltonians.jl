@@ -593,7 +593,7 @@ end
     # on second component
     g0s = G2Correlator(0,:second)
     g1s = G2Correlator(1,:second)
-    @test_throws ErrorException("invalid ONR") get_offdiagonal(g0s,aIni,1) # should fail due to invalid ONR
+    #@test_throws ErrorException("invalid ONR") get_offdiagonal(g0s,aIni,1) # should fail due to invalid ONR
     @test dot(v0,g0s,v0) ≈ 1/3
     @test dot(v0,g1s,v0) ≈ 1/3
     # test against BoseFS

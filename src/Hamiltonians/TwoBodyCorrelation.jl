@@ -148,13 +148,12 @@ end
 function get_offdiagonal(
     g::G2Correlator,
     add::A,
-    chosen
+    chosen,
 )::Tuple{A,ComplexF64} where {A<:BoseFS}
 
     m = num_modes(add)
     singlies, doublies = num_singly_doubly_occupied_sites(add)
-    new_add, onproduct, Δp = momentum_transfer_excitation(add, chosen, singlies, doublies)
-    gamma = sqrt(onproduct)
+    new_add, gamma, Δp = momentum_transfer_excitation(add, chosen, singlies, doublies)
     gd = exp(-im*g.d*Δp*2π/m)*gamma
-    return A(new_add), ComplexF64(gd/m)
+    return new_add, ComplexF64(gd/m)
 end

@@ -151,7 +151,7 @@ julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
 ) where {M,I}
     # now compute diagonal interaction energy
     onproduct = zero(I) # Σ_kp < c^†_p c^†_k c_k c_p >
-    # Not having @inbounds here is faster?
+    # Note: because of the double for-loop, this is more efficient if done with ONR
     for p in 1:M
         iszero(onrep[p]) && continue
         onproduct += onrep[p] * (onrep[p] - one(I))
@@ -163,7 +163,7 @@ julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
 end
 
 function kinetic_energy(h::HubbardMom1D, add::AbstractFockAddress)
-    onrep = BitStringAddresses.m_onr(add)
+    onrep = onr(add)
     return kinetic_energy(h, onrep)
 end
 
@@ -190,103 +190,44 @@ Internal function used in [`get_offdiagonal`](@ref) for [`HubbardMom1D`](@ref)
 and [`G2Correlator`](@ref). Returns the new address, the onproduct,
 and the change in momentum.
 """
-@inline function momentum_transfer_excitation(add, chosen, singlies, doublies)
-    M = num_modes(add)
-    onrep = onr(add)
+@inline function momentum_transfer_excitation(
+    add::SingleComponentFockAddress{<:Any,M}, chosen, singlies, doublies
+) where {M}
     double = chosen - singlies * (singlies - 1) * (M - 2)
-    # Start by making holes as the action of two annihilation operators.
+
     if double > 0
-        # Need to choose doubly occupied site for double hole.
-        onrep, onproduct, p, q, k = double_hole(onrep, double)
+        # Both moves from the same mode.
+        double, mom_change = fldmod1(double, M - 1)
+        idx = find_occupied_mode(add, double, 2)
+        src_indices = (idx, idx)
     else
-        # Need to punch two single holes.
-        onrep, onproduct, p, q, k = single_hole(onrep, chosen, singlies)
-    end
-
-    onrep, onproduct = creation_operators(onrep, onproduct, p, q, k)
-    return SVector(onrep), onproduct, -q
-end
-function double_hole(onrep::SVector{M}, double) where {M}
-    m_onrep = MVector(onrep)
-    double, q = fldmod1(double, M - 1)
-    p = k = 0
-    onproduct = 1
-    # q is momentum transfer
-    for (i, occ) in enumerate(onrep)
-        if occ > 1
-            double -= 1
-            if double == 0
-                onproduct *= occ * (occ - 1)
-                @inbounds m_onrep[i] = occ - 2
-                # annihilate two particles in onrep
-                p = k = i # remember where we make the holes
-                break
-            end
+        # Moves from different modes.
+        pair, mom_change = fldmod1(chosen, M - 2)
+        first, second = fldmod1(pair, singlies - 1) # where the holes are to be made
+        if second < first # put them in ascending order
+            f_hole = second
+            s_hole = first
+        else
+            f_hole = first
+            s_hole = second + 1 # as we are counting through all singlies
+        end
+        src_indices = find_occupied_mode(add, (f_hole, s_hole))
+        f_mode, s_mode = src_indices[1].mode, src_indices[2].mode
+        if mom_change ≥ s_mode - f_mode
+            mom_change += 1 # to avoid putting particles back into the holes
         end
     end
-    return SVector(m_onrep), onproduct, p, q, k
-end
-function single_hole(onrep::SVector{M}, chosen, singlies) where {M}
-    m_onrep = MVector(onrep)
-    # c_k c_p
-    pair, q = fldmod1(chosen, M - 2)
-    p = k = 0
-    onproduct = 1
-
-    first, second = fldmod1(pair, singlies - 1) # where the holes are to be made
-    if second < first # put them in ascending order
-        f_hole = second
-        s_hole = first
-    else
-        f_hole = first
-        s_hole = second + 1 # as we are counting through all singlies
-    end
-
-    counter = 0
-    for (i, occ) in enumerate(onrep)
-        if occ > 0
-            counter += 1
-            if counter == f_hole
-                onproduct *= occ
-                @inbounds m_onrep[i] = occ - 1
-                # punch first hole
-                p = i # location of first hole
-            elseif counter == s_hole
-                onproduct *= occ
-                @inbounds m_onrep[i] = occ - 1
-                # punch second hole
-                k = i # location of second hole
-                break
-            end
-        end
-    end
-    # we have p<k and 1 < q < ham.m - 2
-    if q ≥ k-p
-        q += 1 # to avoid putting particles back into the holes
-    end
-    return SVector(m_onrep), onproduct, p, q, k
-end
-function creation_operators(onrep::SVector{M}, onproduct, p, q, k) where {M}
-    m_onrep = MVector(onrep)
-    # c^†_k-q
-    kmq = mod1(k - q, M)
-    @inbounds occ = m_onrep[kmq]
-    onproduct *= occ + 1
-    @inbounds m_onrep[kmq] = occ + 1
-    # c^†_p+q
-    ppq = mod1(p + q, M)
-    @inbounds occ = m_onrep[ppq]
-    onproduct *= occ + 1
-    @inbounds m_onrep[ppq] = occ + 1
-
-    return SVector(m_onrep), onproduct
+    # For higher dimensions, replace mod1 here with some geometry.
+    dst_modes = mod1.(getindex.(src_indices, 2) .+ (mom_change, -mom_change), M)
+    dst_indices = find_mode(add, dst_modes)
+    return excitation(add, dst_indices, src_indices)..., -mom_change
 end
 
 @inline function get_offdiagonal(
     ham::HubbardMom1D{<:Any,M,A}, add, chosen, singlies, doublies
 ) where {M,A}
-    svec, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
-    return A(svec), ham.u/(2*M)*sqrt(onproduct)
+    add, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
+    return add, ham.u/(2*M)*onproduct
 end
 
 ###
