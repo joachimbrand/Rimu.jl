@@ -227,3 +227,52 @@ julia> excitation(f, (3,4), (2,2))
 ```
 """
 excitation
+
+"""
+    offset_excitation(a::SingleComponentFockAddress, indices, offsets; periodic=true)
+
+Excitation of the form
+
+```math
+a^†_{p + k}a^†_{q + l}...a_{q}a_{p},
+```
+
+where ``p,q,... ∈`` `indices` and ``k,q... ∈`` `offsets`. If `periodic=true`, boundary
+conditions are periodic, otherwise zeros are returned for moves that would have moved a
+particle out of bounds.
+
+The `periodic` should be replaced by a `Geometry`.
+
+```jldoctest
+julia> b = BoseFS((1,2,3,4,5))
+
+BoseFS{15,5}((1, 2, 3, 4, 5))
+
+julia> offset_excitation(b, (2, 3), (-1, 1))
+(BoseFS{15,5}((2, 1, 2, 5, 5)), 7.745966692414834)
+
+julia> offset_excitation(b, (2, 3), (-2, 2))
+(BoseFS{15,5}((1, 1, 2, 4, 7)), 6.48074069840786)
+
+julia> offset_excitation(b, (2, 3), (-2, 2); periodic=false)
+(BoseFS{15,5}((1, 2, 3, 4, 5)), 0.0)
+
+```
+"""
+function offset_excitation(
+    a::SingleComponentFockAddress{<:Any,M}, indices, offsets; periodic=true
+) where {M}
+    src_indices = find_occupied_mode(a, indices)
+    dst_modes = mode.(src_indices) .+ offsets
+    if periodic
+        dst_modes = mod1.(dst_modes, M)
+    elseif any(i -> i > M || i ≤ 0, dst_modes)
+        return a, 0.0
+    end
+    dst_indices = find_mode(a, dst_modes)
+    return excitation(a, dst_indices, src_indices)
+end
+export offset_excitation, mode
+
+mode(i::BoseFSIndex) = i.mode
+mode(i::Integer) = i

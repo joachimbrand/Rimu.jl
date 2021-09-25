@@ -58,7 +58,7 @@ Base.isless(a::FermiFS, b::FermiFS) = isless(a.bs, b.bs)
 Base.hash(a::FermiFS,  h::UInt) = hash(a.bs, h)
 Base.:(==)(a::FermiFS, b::FermiFS) = a.bs == b.bs
 num_occupied_modes(::FermiFS{N}) where {N} = N
-find_mode(::FermiFS, i) = i
+find_mode(::FermiFS, i) = i # Also works for multiple modes
 
 function near_uniform(::Type{FermiFS{N,M}}) where {N,M}
     return FermiFS([fill(1, N); fill(0, M - N)])
@@ -118,12 +118,34 @@ function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}, st) w
     return index, (chunk >> (zeros % T), index + zeros)
 end
 
-function find_occupied_mode(a::FermiFS, i)
+function find_occupied_mode(a::FermiFS, i::Integer)
     for k in occupied_modes(a)
         i -= 1
         i == 0 && return k
     end
     return 0
+end
+function find_occupied_mode(a::FermiFS, indices::NTuple{N}) where {N}
+    # Idea is to find permutation, then use the permutation to find indices in order
+    perm = sortperm(SVector(indices))
+    # Index into permutation, is in 1:N
+    perm_i = 1
+    # Points to result and indices
+    curr_i = perm[1]
+    # Current occupied mode index
+    index = 0
+    result = ntuple(_ -> 0, Val(N))
+    for k in occupied_modes(a)
+        index += 1
+        # While loop handles duplicates in indices
+        while index == indices[curr_i]
+            @set! result[curr_i] = k
+            perm_i += 1
+            perm_i > N && return result
+            curr_i = perm[perm_i]
+        end
+    end
+    return result
 end
 
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
@@ -217,12 +239,12 @@ end
 end
 
 """
-    _flip_count(bs::BitString, k)
+    _flip_and_count(bs::BitString, k)
 
 Count the number of ones before the `k`-th mode, flip the `k`th bit. Return the new
 bitstring, count, and the value of the bit after the flip.
 """
-@inline function _flip_count(bs::BitString{<:Any,1,T}, k::Unsigned) where {T}
+@inline function _flip_and_count(bs::BitString{<:Any,1,T}, k::Unsigned) where {T}
     chunk = bs.chunks[1]
     # highlights the k-th bit
     kmask = one(T) << k
@@ -232,7 +254,7 @@ bitstring, count, and the value of the bit after the flip.
     val = chunk & kmask > 0
     return typeof(bs)(chunk), count, val
 end
-@inline function _flip_count(bs::BitString, k::Unsigned)
+@inline function _flip_and_count(bs::BitString, k::Unsigned)
     j, i = fldmod(k % Int, UInt(64))
     j = length(bs.chunks) - j
     chunk = bs.chunks[j]
@@ -252,13 +274,13 @@ function excitation(a::FermiFS, creations::NTuple{N}, destructions::NTuple{N}) w
     count = 0
     for i in N:-1:1
         d = destructions[i]
-        bs, x, val = _flip_count(bs, UInt(d - 0x1))
+        bs, x, val = _flip_and_count(bs, UInt(d - 0x1))
         val && return a, 0.0
         count += x
     end
     for i in N:-1:1
         c = creations[i]
-        bs, x, val = _flip_count(bs, UInt(c - 0x1))
+        bs, x, val = _flip_and_count(bs, UInt(c - 0x1))
         !val && return a, 0.0
         count += x
     end
