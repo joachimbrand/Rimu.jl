@@ -263,11 +263,10 @@ function ratio_estimators(x, y; corrected = true, mc_samples = nothing)
         cov(imag(y), real(x); corrected) cov(imag(y), imag(x); corrected) cov(imag(y), real(y); corrected) var(imag(y); corrected)
     ]/n
     # Monte Carlo sampling of correlated normal distribution of sample means for x and y
-    # x_y_ps = particles(
-    #     mc_samples, MvNormal([real(μ_x), imag(μ_x), real(μ_y), imag(μ_y)], Σ)
-    # )
     x_y_ps = particles(mc_samples, [real(μ_x), imag(μ_x), real(μ_y), imag(μ_y)], Σ)
-    r = (x_y_ps[1] + im*x_y_ps[2]) / (x_y_ps[3] + im*x_y_ps[4]) # MC sampled ratio of means
+    # MC sampled ratio of means
+    r = Base.FastMath.div_fast(x_y_ps[1] + im*x_y_ps[2], x_y_ps[3] + im*x_y_ps[4])
+    # r = (x_y_ps[1] + im*x_y_ps[2]) / (x_y_ps[3] + im*x_y_ps[4])
 
     # linear error propagation
     f, σ_f = x_by_y_linear(μ_x, μ_y, √var_x, √var_y, ρ)
