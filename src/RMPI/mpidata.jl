@@ -87,6 +87,7 @@ function Base.mapreduce(f, op, it::MPIDataIterator; kwargs...)
     return MPI.Allreduce(res, op, it.data.comm)
 end
 
+Base.IteratorSize(::MPIDataIterator) = Base.SizeUnknown()
 Base.pairs(data::MPIData) = MPIDataIterator(pairs(localpart(data)), data)
 Base.keys(data::MPIData) = MPIDataIterator(keys(localpart(data)), data)
 Base.values(data::MPIData) = MPIDataIterator(values(localpart(data)), data)
