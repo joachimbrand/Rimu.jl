@@ -96,6 +96,23 @@ end
     @test diagonal_element(HRu0, bs2) == 0
     @test all(iszero, e for (_, e) in offdiagonals(HMu0, bs1))
     @test all(iszero, e for (_, e) in offdiagonals(HRt0, bs2))
+
+    t = 1
+    bs3 = BoseFS((0,3,0))
+    HM3Cu0 =HubbardMom1D(bs3; u=0, t, dispersion=continuum_dispersion)
+    HM3Hu0 =HubbardMom1D(bs3; u=0, t, dispersion=hubbard_dispersion)
+    @test HubbardMom1D(bs3; u=0, t) == HM3Hu0
+    @test diagonal_element(HM3Cu0, bs3) == 0
+    @test 2t*num_particles(bs3) + diagonal_element(HM3Hu0, bs3) == 0
+
+    HM2Cu0 =HubbardMom1D(bs2; u=0, t, dispersion=continuum_dispersion)
+    HM2Hu0 =HubbardMom1D(bs2; u=0, t, dispersion=hubbard_dispersion)
+    @test diagonal_element(HM2Cu0, bs2) > 2t*num_particles(bs2)+diagonal_element(HM2Hu0,bs2)
+    @test diagonal_element(HM2Cu0, bs2) ≈ 6*t*(2pi/num_modes(bs2))^2
+
+    HM3Ct0 =HubbardMom1D(bs3; t=0, dispersion=continuum_dispersion)
+    HM3Ht0 =HubbardMom1D(bs3; t=0, dispersion=hubbard_dispersion)
+    @test offdiagonals(HM3Ht0,bs3) == offdiagonals(HM3Ht0,bs3)
 end
 
 @testset "1C model properties" begin

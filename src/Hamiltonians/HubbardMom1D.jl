@@ -28,7 +28,7 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 * `address`: the starting address, defines number of particles and sites.
 * `u`: the interaction parameter.
 * `t`: the hopping strength.
-* `dispersion`: defines ``ϵ_k``
+* `dispersion`: defines ``ϵ_k =``` t*dispersion(k)`
     - [`hubbard_dispersion`](@ref): ``ϵ_k = -2t \\cos(k)``
     - [`continuum_dispersion`](@ref): ``ϵ_k = tk^2``
 
