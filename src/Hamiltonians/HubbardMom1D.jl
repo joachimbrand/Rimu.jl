@@ -1,11 +1,26 @@
 """
-    HubbardMom1D(address; u=1.0, t=1.0)
+    hubbard_dispersion(k)
+Dispersion relation for [`HubbardMom1D`](@ref). Returns `-2cos(k)`.
+
+See also [`continuum_dispersion`](@ref).
+"""
+hubbard_dispersion(k) = -2cos(k)
+
+"""
+    continuum_dispersion(k)
+Dispersion relation for [`HubbardMom1D`](@ref). Returns `k^2`.
+
+See also [`hubbard_dispersion`](@ref).
+"""
+continuum_dispersion(k) = k^2
+
+"""
+    HubbardMom1D(address; u=1.0, t=1.0, dispersion=hubbard_dispersion)
 
 Implements a one-dimensional Bose Hubbard chain in momentum space.
 
 ```math
-\\hat{H} =  \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}\\\\
-ϵ_k = -2t \\cos(k)
+\\hat{H} =  \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}
 ```
 
 # Arguments
@@ -13,12 +28,14 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 * `address`: the starting address, defines number of particles and sites.
 * `u`: the interaction parameter.
 * `t`: the hopping strength.
+* `dispersion`: defines ``ϵ_k =``` t*dispersion(k)`
+    - [`hubbard_dispersion`](@ref): ``ϵ_k = -2t \\cos(k)``
+    - [`continuum_dispersion`](@ref): ``ϵ_k = tk^2``
 
 # See also
 
 * [`HubbardReal1D`](@ref)
 * [`ExtendedHubbardReal1D`](@ref)
-
 """
 struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
     add::AD # default starting address, should have N particles and M modes
@@ -26,7 +43,10 @@ struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
     kes::SVector{M,TT} # values for kinetic energy
 end
 
-function HubbardMom1D(add::BoseFS{<:Any,M}; u=1.0, t=1.0) where {M}
+function HubbardMom1D(
+    add::BoseFS{<:Any,M};
+    u=1.0, t=1.0, dispersion = hubbard_dispersion,
+) where {M}
     U, T = promote(float(u), float(t))
     step = 2π/M
     if isodd(M)
@@ -36,7 +56,8 @@ function HubbardMom1D(add::BoseFS{<:Any,M}; u=1.0, t=1.0) where {M}
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    kes = SVector{M}(-2T*cos.(kr))
+    # kes = SVector{M}(-2T*cos.(kr))
+    kes = SVector{M}(T .* dispersion.(kr))
     return HubbardMom1D{typeof(U),M,typeof(add),U,T}(add, ks, kes)
 end
 

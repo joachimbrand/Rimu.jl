@@ -1,7 +1,8 @@
 """
-    BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
+    BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, kwargs...)
 
-Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
+Implements a one-dimensional Bose Hubbard chain in momentum space with a two-component
+Bose gas.
 
 ```math
 \\hat{H} = \\hat{H}_a + \\hat{H}_b + \\frac{V}{M}\\sum_{kpqr} b^†_{r} a^†_{q} b_p a_k δ_{r+q,p+k}
@@ -15,10 +16,11 @@ Implements a two-component one-dimensional Bose Hubbard chain in momentum space.
 * `ta`: the `t` parameter for Hamiltonian a.
 * `tb`: the `t` parameter for Hamiltonian b.
 * `v`: the inter-species interaction parameter V.
+Further keyword arguments are passed on to the constructor of [`HubbardMom1D`](@ref).
 
 # See also
 
-* [`HubbardMom1D`](@ref)
+* [`BoseFS2C`](@ref)
 * [`BoseHubbardReal1D2C`](@ref)
 
 """
@@ -27,9 +29,9 @@ struct BoseHubbardMom1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
     hb::HB
 end
 
-function BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0)
-    ha = HubbardMom1D(add.bsa;u=ua,t=ta)
-    hb = HubbardMom1D(add.bsb;u=ub,t=tb)
+function BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, args...)
+    ha = HubbardMom1D(add.bsa; u=ua, t=ta, args...)
+    hb = HubbardMom1D(add.bsb; u=ub, t=tb, args...)
     T = promote_type(eltype(ha), eltype(hb))
     return BoseHubbardMom1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
