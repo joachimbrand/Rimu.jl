@@ -8,7 +8,7 @@ hubbard_dispersion(k) = -2cos(k)
 
 """
     continuum_dispersion(k)
-Dispersion relation for [`HubbardMom1D`](@ref). Returns `2k`.
+Dispersion relation for [`HubbardMom1D`](@ref). Returns `k^2`.
 
 See also [`hubbard_dispersion`](@ref).
 """
