@@ -44,6 +44,7 @@ export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
 export HubbardReal1DEP, shift_lattice, shift_lattice_inv
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
+export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
 
 export G2Correlator
@@ -69,6 +70,8 @@ include("BoseHubbardMom1D2C.jl")
 
 include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
+
+include("Transcorrelated1D.jl")
 
 include("TwoBodyCorrelation.jl")
 
