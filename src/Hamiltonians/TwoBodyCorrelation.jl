@@ -139,9 +139,10 @@ function get_offdiagonal(
 )::Tuple{A,ComplexF64} where {A<:BoseFS2C}
 
     m = num_modes(add)
-    new_bsa, new_bsb, onproduct_a, onproduct_b, p, q = momentum_transfer_excitation(add.bsa, add.bsb, chosen, ma, mb)
-    gamma = sqrt(onproduct_a*onproduct_b)
-    gd = exp(-im*g.d*(p-q)*2π/m)*gamma
+    new_bsa, new_bsb, gamma, _, _, Δp = momentum_transfer_excitation(
+        add.bsa, add.bsb, chosen, ma, mb
+    )
+    gd = exp(-im*g.d*Δp*2π/m)*gamma
     return A(new_bsa, new_bsb), ComplexF64(gd/m)
 end
 

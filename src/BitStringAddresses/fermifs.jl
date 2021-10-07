@@ -77,7 +77,7 @@ end
 Base.show(io::IO, ::MIME"text/plain", i::FermiFSIndex) = show(io, i)
 
 find_mode(f::FermiFS, i) = FermiFSIndex(Int(is_occupied(f, i)), i)
-find_mode(f::FermiFS, is::Tuple) = map(find_mode, is)
+find_mode(f::FermiFS, is::Tuple) = map(i -> find_mode(f, i), is)
 
 """
     FermiOccupiedModes{N,S<:BitString}

@@ -1,6 +1,17 @@
 using Rimu
 using Rimu.Hamiltonians: hopnextneighbour
 
+"""
+    real_space_excitation(add, chosen, map, geometry)
+
+Apply a real space hop operator:
+
+```math
+a^†_{p} a_q
+```
+
+where `p` and `q` are neighbour sites in `geometry`.
+"""
 @inline function real_space_excitation(add, chosen, map, geometry)
     neighbours = num_neighbours(geometry)
     particle, neigh = fldmod1(chosen, neighbours)
@@ -15,10 +26,20 @@ using Rimu.Hamiltonians: hopnextneighbour
 end
 
 """
-    momentum_transfer_excitation(add, chosen, singlies, doublies)
-Internal function used in [`get_offdiagonal`](@ref) for [`HubbardMom1D`](@ref)
-and [`G2Correlator`](@ref). Returns the new address, the onproduct,
-and the change in momentum.
+    momentum_transfer_excitation(add, chosen, map; fold=true)
+    momentum_transfer_excitation(add1, add2, chosen, map1, map2; fold=true)
+
+Apply the momentum transfer operator to Fock address (or pair of addresses) `add` (or
+`add1`, `add2`):
+
+```math
+a^†_{p + k} a^†{q - k} a_q a_p
+```
+
+The `fold` argument controls whether the terms `p + k` and `q - k` are done modulo M. If
+not, zero is returned when either of those terms is less than 1 or larger than M.
+
+Return the new address(es), the value, modes `p` and `q`, and the momentum change `-k`.
 """
 @inline function momentum_transfer_excitation(
     add::BoseFS, chosen, map::OccupiedModeMap; fold=true
@@ -59,18 +80,19 @@ and the change in momentum.
         end
     end
     # For higher dimensions, replace mod1 here with some geometry.
-    dst_modes = getproperty.(src_indices, :mode) .+ (mom_change, -mom_change)
+    src_modes = getproperty.(src_indices, :mode)
+    dst_modes = src_modes .+ (mom_change, -mom_change)
     if fold
         dst_modes = mod1.(dst_modes, M)
     elseif !all(1 .≤ dst_modes .≤ M)
-        return add, 0.0, -mom_change
+        return add, 0.0, src_modes..., -mom_change
     end
     dst_indices = find_mode(add, dst_modes)
-    return excitation(add, dst_indices, src_indices)..., -mom_change
+    return excitation(add, dst_indices, src_indices)..., src_modes..., -mom_change
 end
 
-function momentum_transfer_excitation(add::FermiFS, chosen, map; fold=true)
-    return add, 0.0, 0
+function momentum_transfer_excitation(add::FermiFS, chosen::Integer, map; fold=true)
+    return add, 0.0, 0, 0, 0
 end
 
 @inline function momentum_transfer_excitation(
@@ -79,32 +101,36 @@ end
     M = num_modes(add_a)
 
     src_a, remainder = fldmod1(chosen, (M - 1) * length(map_b))
-    p, src_b = fldmod1(remainder, length(map_b))
+    dst_a, src_b = fldmod1(remainder, length(map_b))
 
     src_a_index = map_a[src_a]
     src_b_index = map_b[src_b]
-    r = src_a_index.mode
+    src_a_mode = src_a_index.mode
 
-    if p ≥ r
-        p += 1 # to skip the src_a
+    if dst_a ≥ src_a_mode
+        dst_a += 1 # to skip the src_a
     end
-    ΔP = p - r # change in momentun
-    dst_a_index = find_mode(add_a, p)
-    q = src_b_index.mode
+    mom_change = dst_a - src_a_mode # change in momentun
+    dst_a_index = find_mode(add_a, dst_a)
+    src_b_mode = src_b_index.mode
+    dst_b = src_b_mode - mom_change
+
+    # Additional info returned with result:
+    params = (src_a_mode, src_b_mode, -mom_change)
 
     if fold
-        s = mod1(q - ΔP, M)
-        p = mod1(p, M) # enforce periodic boundary condition
-    elseif s > M || p > M || s < 1 || p < 1
-        return add_a, add_b, 0.0, q, s
+        dst_a = mod1(dst_a, M)
+        dst_b = mod1(dst_b, M) # enforce periodic boundary condition
+    elseif !(0 < dst_a ≤ M) || !(0 < dst_b ≤ M)
+        return add_a, add_b, 0.0, params...
     end
 
-    dst_b_index = find_mode(add_b, s)
+    dst_b_index = find_mode(add_b, dst_b)
 
     new_add_a, val_a = excitation(add_a, (dst_a_index,), (src_a_index,))
     new_add_b, val_b = excitation(add_b, (dst_b_index,), (src_b_index,))
 
-    return new_add_a, new_add_b, val_a * val_b, p, q, s
+    return new_add_a, new_add_b, val_a * val_b, params...
 end
 
 """
@@ -116,23 +142,26 @@ Apply the following operator to two addresses:
 a^†_{p+k,1} a^†_{q+l,1} a^†_{s-k-l,2} a_{s,2} a_{q,1} a_{p,1}
 ```
 
-Return new addresses, value, `k`, and `l`.
+Return new addresses, value, `k`, and `l`. Note: if either `k` or `l` are zero, the
+function returns zero.
 """
 function transcorrelated_three_body_excitation(
-    f1::FermiFS{N1,M}, f2::FermiFS{N2,M}, i
+    f1::FermiFS{N1,M}, f2::FermiFS{N2,M}, i, map1, map2
 ) where {N1,N2,M}
     p, q, s, p_k, q_l = Tuple(CartesianIndices((N1, N1, N2, M, M))[i])
 
-    p_index, q_index = find_occupied_mode(f1, (p, q))
-    k = p_index - p_k
-    l = q_l - q_index
-    s_index = find_occupied_mode(f2, s)
-    s_kl = s_index + k - l
+    p_index = map1[p]
+    q_index = map1[q]
+    s_index = map2[s]
+
+    k = p_index.mode - p_k
+    l = q_l - q_index.mode
+    s_kl = s_index.mode + k - l
 
     if k == 0 || l == 0
         # Zero because Q_kl == 0
         return f1, f2, 0.0, k,l
-    elseif p_index == q_l && q_index == p_k
+    elseif p_index.mode == q_l && q_index.mode == p_k
         # Diagonal
         return f1, f2, 0.0, k,l
     elseif s_kl > M || s_kl < 1

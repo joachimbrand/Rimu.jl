@@ -168,13 +168,15 @@ end
 function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
     offdiags = Tuple{F,Float64}[]
     c1, c2 = add.components
-    N1 = num_occupied_modes(c1)
-    N2 = num_occupied_modes(c2)
+    map1 = OccupiedModeMap(c1)
+    map2 = OccupiedModeMap(c2)
+    N1 = length(map1)
+    N2 = length(map2)
 
     # Second term
-    for i in 1:N1*N2*M
-        new_c1, new_c2, value, k, p, q = momentum_transfer_excitation(
-            c1, c2, i; fold=false
+    for i in 1:N1*N2*(M - 1)
+        new_c1, new_c2, value, p, q, k = momentum_transfer_excitation(
+            c1, c2, i, map1, map2; fold=false
         )
         iszero(value) && continue
         @assert new_c1 ≠ c1 || new_c2 ≠ c2
@@ -185,7 +187,9 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
 
     # Third term
     for i in 1:N1 * N1 * N2 * M * M
-        new_c1, new_c2, value, k, l = transcorrelated_three_body_excitation(c1, c2, i)
+        new_c1, new_c2, value, k, l = transcorrelated_three_body_excitation(
+            c1, c2, i, map1, map2
+        )
         value *= q_function(h, k, l)
         iszero(value) && continue
         @assert new_c1 ≠ c1 || new_c2 ≠ c2
@@ -193,7 +197,9 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
         push!(offdiags, (new_c, value))
     end
     for i in 1:N2 * N2 * N1 * M * M
-        new_c2, new_c1, value, k, l = transcorrelated_three_body_excitation(c2, c1, i)
+        new_c2, new_c1, value, k, l = transcorrelated_three_body_excitation(
+            c2, c1, i, map2, map1
+        )
         value *= q_function(h, k, l)
         iszero(value) && continue
         @assert new_c1 ≠ c1 || new_c2 ≠ c2

@@ -65,6 +65,7 @@ function AllOverlaps(num_replicas=2, operator=nothing)
 end
 
 function replica_stats(rs::AllOverlaps, replicas::NTuple{N}) where {N}
+    # Not using broadcasting because it wasn't inferred properly.
     vecs = ntuple(i -> replicas[i].v, Val(N))
     return all_overlaps(rs.operators, vecs)
 end
