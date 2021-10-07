@@ -58,13 +58,26 @@ Base.isless(a::FermiFS, b::FermiFS) = isless(a.bs, b.bs)
 Base.hash(a::FermiFS,  h::UInt) = hash(a.bs, h)
 Base.:(==)(a::FermiFS, b::FermiFS) = a.bs == b.bs
 num_occupied_modes(::FermiFS{N}) where {N} = N
-find_mode(::FermiFS, i) = i # Also works for multiple modes
 
 function near_uniform(::Type{FermiFS{N,M}}) where {N,M}
     return FermiFS([fill(1, N); fill(0, M - N)])
 end
 
 onr(a::FermiFS) = SVector(m_onr(a))
+
+struct FermiFSIndex<:FieldVector{2,Int}
+    occnum::Int
+    mode::Int
+end
+
+function Base.show(io::IO, i::FermiFSIndex)
+    @unpack occnum, mode = i
+    print(io, "FermiFSIndex(occnum=$occnum, mode=$mode)")
+end
+Base.show(io::IO, ::MIME"text/plain", i::FermiFSIndex) = show(io, i)
+
+find_mode(f::FermiFS, i) = FermiFSIndex(Int(is_occupied(f, i)), i)
+find_mode(f::FermiFS, is::Tuple) = map(find_mode, is)
 
 """
     FermiOccupiedModes{N,S<:BitString}
@@ -78,7 +91,7 @@ end
 occupied_modes(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedModes{N,S}(a.bs)
 
 Base.length(::FermiOccupiedModes{N}) where {N} = N
-Base.eltype(::FermiOccupiedModes) = Int
+Base.eltype(::FermiOccupiedModes) = FermiFSIndex
 
 function Base.iterate(o::FermiOccupiedModes)
     c = 0
@@ -101,7 +114,7 @@ function Base.iterate(o::FermiOccupiedModes, st)
     zeros = trailing_zeros(chunk % Int)
     index += zeros
     chunk >>= zeros
-    return index + 1, (chunk >> 1, index + 1, c)
+    return FermiFSIndex(1, index + 1), (chunk >> 1, index + 1, c)
 end
 
 function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}) where {T}
@@ -115,7 +128,7 @@ function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}, st) w
     chunk >>= 0x1
     index += 1
     zeros = trailing_zeros(chunk % Int)
-    return index, (chunk >> (zeros % T), index + zeros)
+    return FermiFSIndex(1, index), (chunk >> (zeros % T), index + zeros)
 end
 
 function find_occupied_mode(a::FermiFS, i::Integer)
@@ -123,7 +136,7 @@ function find_occupied_mode(a::FermiFS, i::Integer)
         i -= 1
         i == 0 && return k
     end
-    return 0
+    return FermiFSIndex(0, 0)
 end
 function find_occupied_mode(a::FermiFS, indices::NTuple{N}) where {N}
     # Idea is to find permutation, then use the permutation to find indices in order
@@ -134,7 +147,7 @@ function find_occupied_mode(a::FermiFS, indices::NTuple{N}) where {N}
     curr_i = perm[1]
     # Current occupied mode index
     index = 0
-    result = ntuple(_ -> 0, Val(N))
+    result = ntuple(_ -> FermiFSIndex(0, 0), Val(N))
     for k in occupied_modes(a)
         index += 1
         # While loop handles duplicates in indices
@@ -150,7 +163,7 @@ end
 
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
     result = zero(MVector{M,Int32})
-    @inbounds for mode in occupied_modes(a)
+    @inbounds for (_, mode) in occupied_modes(a)
         result[mode] = 1
     end
     return result
@@ -167,22 +180,24 @@ function is_occupied(a::FermiFS{<:Any,M}, mode) where {M}
 end
 
 function move_particle(
-    a::FermiFS{<:Any,<:Any,S}, from::Integer, to::Integer
+    a::FermiFS{<:Any,<:Any,S}, from::FermiFSIndex, to::FermiFSIndex
 ) where {T,S<:BitString{<:Any,1,T}}
-    occ_from = is_occupied(a, from)
-    if occ_from && !is_occupied(a, to)
-        from, to = minmax(from, to)
-        new_chunk, value = _move_particle(a.bs.chunks[1], from % T, to % T)
+    occ_from = Bool(from.occnum)
+    occ_to = Bool(to.occnum)
+    if occ_from && !occ_to
+        from_mode, to_mode = minmax(from.mode, to.mode) .% T
+        new_chunk, value = _move_particle(a.bs.chunks[1], from_mode, to_mode)
         return typeof(a)(S(new_chunk)), value
     else
         return a, ifelse(from==to, Float64(occ_from), 0.0)
     end
 end
 
-function move_particle(a::FermiFS, from::Integer, to::Integer)
-    occ_from = is_occupied(a, from)
-    if occ_from && !is_occupied(a, to)
-        return _move_particle(a, from % UInt64, to % UInt64)
+function move_particle(a::FermiFS, from::FermiFSIndex, to::FermiFSIndex)
+    occ_from = Bool(from.occnum)
+    occ_to = Bool(to.occnum)
+    if occ_from && !occ_to
+        return _move_particle(a, from.mode % UInt64, to.mode % UInt64)
     else
         return a, ifelse(from==to, Float64(occ_from), 0.0)
     end
@@ -273,13 +288,13 @@ function excitation(a::FermiFS, creations::NTuple{N}, destructions::NTuple{N}) w
     bs = a.bs
     count = 0
     for i in N:-1:1
-        d = destructions[i]
+        d = destructions[i].mode
         bs, x, val = _flip_and_count(bs, UInt(d - 0x1))
         val && return a, 0.0
         count += x
     end
     for i in N:-1:1
-        c = creations[i]
+        c = creations[i].mode
         bs, x, val = _flip_and_count(bs, UInt(c - 0x1))
         !val && return a, 0.0
         count += x

@@ -298,7 +298,7 @@ end
         for o in (small, big, giant)
             f = FermiFS(o)
             sites = collect(occupied_modes(f))
-            @test sites == findall(≠(0), onr(f))
+            @test getproperty.(sites, :mode) == findall(≠(0), onr(f))
         end
     end
     @testset "Randomized Tests" begin
@@ -322,7 +322,7 @@ end
                     f = FermiFS(input)
                     sites = Int[]
                     foreach(occupied_modes(f)) do i
-                        push!(sites, i)
+                        push!(sites, i.mode)
                     end
                     @test sites == findall(≠(0), onr(f))
                 end

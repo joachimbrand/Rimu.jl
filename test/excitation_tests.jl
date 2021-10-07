@@ -74,13 +74,10 @@ end
 Wrapper of `excitation` that takes mode indices as integers as `creations` and
 `destructions`.
 """
-function excitation_direct(b::BoseFS, creations, destructions)
-    d_indices = find_mode.(Ref(b), destructions)
-    c_indices = find_mode.(Ref(b), creations)
-    return excitation(b, c_indices, d_indices)
-end
-function excitation_direct(f::FermiFS, creations, destructions)
-    return excitation(f, creations, destructions)
+function excitation_direct(add, creations, destructions)
+    d_indices = find_mode.(Ref(add), destructions)
+    c_indices = find_mode.(Ref(add), creations)
+    return excitation(add, c_indices, d_indices)
 end
 
 """

@@ -266,6 +266,12 @@ struct BoseFSIndex<:FieldVector{3,Int}
     offset::Int
 end
 
+function Base.show(io::IO, i::BoseFSIndex)
+    @unpack occnum, mode, offset = i
+    print(io, "BoseFSIndex(occnum=$occnum, mode=$mode, offset=$offset)")
+end
+Base.show(io::IO, ::MIME"text/plain", i::BoseFSIndex) = show(io, i)
+
 """
     BoseOccupiedModes{C,S<:BoseFS}
 Iterator for occupied modes. `C` is the number of chunks. See [`occupied_modes`](@ref).

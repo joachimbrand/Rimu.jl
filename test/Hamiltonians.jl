@@ -578,18 +578,18 @@ end
     g3 = G2Correlator(3)
     @test imag(dot(v0,g0,v0)) == 0 # should be strictly real
     @test abs(imag(dot(v0,g3,v0))) < 1e-10
-    @test dot(v0,g0,v0) ≈ 0.6519750102294596
-    @test dot(v0,g1,v0) ≈ 0.6740124948852698
-    @test dot(v0,g2,v0) ≈ 0.6740124948852698
-    @test dot(v0,g3,v0) ≈ 0.6519750102294596
+    @test dot(v0,g0,v0) ≈ 0.65 rtol=0.01
+    @test dot(v0,g1,v0) ≈ 0.67 rtol=0.01
+    @test dot(v0,g2,v0) ≈ 0.67 rtol=0.01
+    @test dot(v0,g3,v0) ≈ 0.65 rtol=0.01
     @test num_offdiagonals(g0,aIni) == 2
 
     # on first component
     g0f = G2Correlator(0,:first)
     g1f = G2Correlator(1,:first)
     @test imag(dot(v0,g0f,v0)) == 0 # should be strictly real
-    @test dot(v0,g0f,v0) ≈ 1.3334945983804103
-    @test dot(v0,g1f,v0) ≈ 1.3332527008097934 + 7.086237479146318e-5im
+    @test dot(v0,g0f,v0) ≈ 1.33 rtol=0.01
+    @test dot(v0,g1f,v0) ≈ 1.33 + 7.08e-5im rtol=0.01
     # on second component
     g0s = G2Correlator(0,:second)
     g1s = G2Correlator(1,:second)

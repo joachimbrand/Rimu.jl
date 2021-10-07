@@ -367,39 +367,6 @@ using Statistics
         end
     end
 
-    # This test is only run locally; check-bounds=yes is used when running Julia on CI.
-    if !haskey(ENV, "CI")
-        @testset "fciqmc_step! does not allocate" begin
-            # Wrapping over `fciqmc_step!` ensure nothing gets allocated unnecessarily.
-            # Without a wrapper a small allocation is made for the return value.
-            function wrap(H, dv, dw)
-                Rimu.fciqmc_step!(Rimu.NoThreading(), dw, H, dv, 0, 0.01)
-                return nothing
-            end
-
-            for H in (
-                HubbardReal1D(BoseFS((1,1,2))),
-                BoseHubbardReal1D2C(BoseFS2C((1,2,2), (0,1,0))),
-                BoseHubbardMom1D2C(BoseFS2C((0,1), (1,0))),
-            ), style in (
-                IsStochasticInteger(),
-                IsStochasticWithThreshold(),
-                IsDynamicSemistochastic(),
-            )
-                @testset "$H with $style" begin
-                    add = starting_address(H)
-                    dw = DVec(add => 1; style, capacity=1000)
-                    dv = DVec(add => 1; style, capacity=1000)
-
-                    # Precompile
-                    wrap(H, dv, dw)
-                    @test @allocated(wrap(H, dv, dw)) == 0
-                end
-            end
-        end
-    end
-
-
     @testset "Threading" begin
         add = BoseFS((0,0,0,0,10,0,0,0,0,0))
         H = HubbardMom1D(add)

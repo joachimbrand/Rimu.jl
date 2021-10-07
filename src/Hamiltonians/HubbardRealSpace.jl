@@ -238,7 +238,6 @@ diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h
 get_offdiagonal(h::HubbardRealSpace, add, i) = offdiagonals(h, add)[i]
 num_offdiagonals(h::HubbardRealSpace, add) = length(offdiagonals(h, add))
 
-# Bosonic part
 """
     HubbardRealSpaceBoseOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
 
@@ -247,74 +246,29 @@ Offdiagonals for a bosonic part of a [`HubbardRealSpace`](@ref) model.
 Used when the model's address is a [`BoseFS`](@ref), or a [`CompositeFS`](@ref) with a
 [`BoseFS`](@ref) component.
 """
-struct HubbardRealSpaceBoseOffdiagonals{G,A<:BoseFS} <: AbstractOffdiagonals{A,Float64}
+struct HubbardRealSpaceCompOffdiagonals{
+    G,A,O<:OccupiedModeMap
+} <: AbstractOffdiagonals{A,Float64}
     geometry::G
     address::A
     t::Float64
     length::Int
+    map::O
 end
 
-function offdiagonals(h::HubbardRealSpace, comp, add::BoseFS)
+function offdiagonals(h::HubbardRealSpace, comp, add)
     neighbours = num_neighbours(h.geometry)
-    return HubbardRealSpaceBoseOffdiagonals(
-        h.geometry, add, h.t[comp], num_occupied_modes(add) * neighbours,
+    map = OccupiedModeMap(add)
+    return HubbardRealSpaceCompOffdiagonals(
+        h.geometry, add, h.t[comp], length(map) * neighbours, map
     )
 end
 
-Base.size(o::HubbardRealSpaceBoseOffdiagonals) = (o.length,)
+Base.size(o::HubbardRealSpaceCompOffdiagonals) = (o.length,)
 
-function Base.getindex(o::HubbardRealSpaceBoseOffdiagonals, chosen)
-    neighbours = num_neighbours(o.geometry)
-    particle, neigh = fldmod1(chosen, neighbours)
-    i = find_occupied_mode(o.address, particle)
-    target_site = neighbour_site(o.geometry, i.mode, neigh)
-    if iszero(target_site)
-        # Move is illegal in specified geometry.
-        return o.address, 0.0
-    else
-        j = find_mode(o.address, target_site)
-        new_address, onproduct = move_particle(o.address, i, j)
-        return new_address, -o.t * onproduct
-    end
-end
-
-# Fermi part
-"""
-    HubbardRealSpaceFermiOffdiagonals <: AbstractOffdiagonals
-
-Offdiagonals for a fermionic part of a [`HubbardRealSpace`](@ref) model.
-
-Used when the model's address is a [`FermiFS`](@ref), or a [`CompositeFS`](@ref) with a
-[`FermiFS`](@ref) component.
-"""
-struct HubbardRealSpaceFermiOffdiagonals{G,A<:FermiFS} <: AbstractOffdiagonals{A,Float64}
-    geometry::G
-    address::A
-    t::Float64
-    length::Int
-end
-
-function offdiagonals(h::HubbardRealSpace, comp, add::FermiFS{N}) where {N}
-    neighbours = num_neighbours(h.geometry)
-    return HubbardRealSpaceFermiOffdiagonals(
-        h.geometry, add, h.t[comp], N * neighbours,
-    )
-end
-
-Base.size(o::HubbardRealSpaceFermiOffdiagonals) = (o.length,)
-
-function Base.getindex(o::HubbardRealSpaceFermiOffdiagonals, chosen)
-    @boundscheck 1 ≤ chosen ≤ length(o) || throw(BoundsError(o, chosen))
-    neighbours = num_neighbours(o.geometry)
-    particle, neigh = fldmod1(chosen, neighbours)
-    source_site = find_occupied_mode(o.address, particle)
-    target_site = neighbour_site(o.geometry, source_site, neigh)
-    if iszero(target_site)
-        return o.address, 0.0
-    else
-        new_address, sign = move_particle(o.address, source_site, target_site)
-        return new_address, -o.t * sign
-    end
+function Base.getindex(o::HubbardRealSpaceCompOffdiagonals, i)
+    new_add, value = real_space_excitation(o.address, i, o.map, o.geometry)
+    return new_add, -o.t * value
 end
 
 # For simple models with one component.

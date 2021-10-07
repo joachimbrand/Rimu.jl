@@ -162,71 +162,52 @@ julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
     return h.u / 2M * onproduct
 end
 
+@inline function interaction_energy_diagonal(h::HubbardMom1D{<:Any,M}, map::OccupiedModeMap) where {M}
+    onproduct = 0
+    for i in 1:length(map)
+        occ_i = map[i].occnum
+        onproduct += occ_i * (occ_i - 1)
+        for j in 1:i-1
+            occ_j = map[j].occnum
+            onproduct += 4 * occ_i * occ_j
+        end
+    end
+    return h.u / 2M * onproduct
+end
+
 function kinetic_energy(h::HubbardMom1D, add::AbstractFockAddress)
     onrep = onr(add)
     return kinetic_energy(h, onrep)
+end
+
+@inline function kinetic_energy(h::HubbardMom1D, map::OccupiedModeMap)
+    energy = 0.0
+    for index in map
+        energy += index.occnum * h.kes[index.mode]
+    end
+    return energy
 end
 
 @inline function kinetic_energy(h::HubbardMom1D, onrep::StaticVector)
     return onrep ⋅ h.kes # safe as onrep is Real
 end
 
-@inline function diagonal_element(h::HubbardMom1D, add)
-    onrep = BitStringAddresses.m_onr(add)
-    return diagonal_element(h, onrep)
+@inline function diagonal_element(h::HubbardMom1D, add::BoseFS)
+    map = OccupiedModeMap(add)
+    return diagonal_element(h, map)
 end
 
 @inline function diagonal_element(h::HubbardMom1D, onrep::StaticVector)
     return kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
 end
-
-@inline function get_offdiagonal(ham::HubbardMom1D, add, chosen)
-    get_offdiagonal(ham, add, chosen, num_singly_doubly_occupied_sites(add)...)
-end
-
-"""
-    momentum_transfer_excitation(add, chosen, singlies, doublies)
-Internal function used in [`get_offdiagonal`](@ref) for [`HubbardMom1D`](@ref)
-and [`G2Correlator`](@ref). Returns the new address, the onproduct,
-and the change in momentum.
-"""
-@inline function momentum_transfer_excitation(
-    add::SingleComponentFockAddress{<:Any,M}, chosen, singlies, doublies
-) where {M}
-    double = chosen - singlies * (singlies - 1) * (M - 2)
-
-    if double > 0
-        # Both moves from the same mode.
-        double, mom_change = fldmod1(double, M - 1)
-        idx = find_occupied_mode(add, double, 2)
-        src_indices = (idx, idx)
-    else
-        # Moves from different modes.
-        pair, mom_change = fldmod1(chosen, M - 2)
-        first, second = fldmod1(pair, singlies - 1) # where the holes are to be made
-        if second < first # put them in ascending order
-            f_hole = second
-            s_hole = first
-        else
-            f_hole = first
-            s_hole = second + 1 # as we are counting through all singlies
-        end
-        src_indices = find_occupied_mode(add, (f_hole, s_hole))
-        f_mode, s_mode = src_indices[1].mode, src_indices[2].mode
-        if mom_change ≥ s_mode - f_mode
-            mom_change += 1 # to avoid putting particles back into the holes
-        end
-    end
-    # For higher dimensions, replace mod1 here with some geometry.
-    dst_modes = mod1.(getindex.(src_indices, 2) .+ (mom_change, -mom_change), M)
-    dst_indices = find_mode(add, dst_modes)
-    return excitation(add, dst_indices, src_indices)..., -mom_change
+@inline function diagonal_element(h::HubbardMom1D, map::OccupiedModeMap)
+    return kinetic_energy(h, map) + interaction_energy_diagonal(h, map)
 end
 
 @inline function get_offdiagonal(
-    ham::HubbardMom1D{<:Any,M,A}, add, chosen, singlies, doublies
+    ham::HubbardMom1D{<:Any,M,A}, add::A, chosen, map=OccupiedModeMap(add)
 ) where {M,A}
-    add, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
+    add, onproduct, _ = momentum_transfer_excitation(add, chosen, map)
     return add, ham.u/(2*M)*onproduct
 end
 
@@ -240,26 +221,27 @@ Specialized [`AbstractOffdiagonals`](@ref) that keeps track of singly and doubly
 sites in current address.
 """
 struct OffdiagonalsBoseMom1D{
-    A<:BoseFS,T,H<:AbstractHamiltonian{T}
+    A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
 } <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int
-    singlies::Int
-    doublies::Int
+    map::O
 end
 
 function offdiagonals(h::HubbardMom1D, a::BoseFS)
-    singlies, doublies = num_singly_doubly_occupied_sites(a)
+    map = OccupiedModeMap(a)
+    singlies = length(map)
+    doublies = count(i -> i.occnum ≥ 2, map)
     num = num_offdiagonals(h, a, singlies, doublies)
-    return OffdiagonalsBoseMom1D(h, a, num, singlies, doublies)
+    return OffdiagonalsBoseMom1D(h, a, num, map)
 end
 
 function Base.getindex(s::OffdiagonalsBoseMom1D{A,T}, i)::Tuple{A,T} where {A,T}
     @boundscheck begin
         1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     end
-    new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i, s.singlies, s.doublies)
+    new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i, s.map)
     return (new_address, matrix_element)
 end
 

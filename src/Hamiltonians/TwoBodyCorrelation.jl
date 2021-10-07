@@ -134,12 +134,12 @@ function get_offdiagonal(
     g::G2Correlator{3},
     add::A,
     chosen,
-    sa=num_occupied_modes(add.bsa),
-    sb=num_occupied_modes(add.bsb),
+    ma=OccupiedModeMap(add.bsa),
+    mb=OccupiedModeMap(add.bsb),
 )::Tuple{A,ComplexF64} where {A<:BoseFS2C}
 
     m = num_modes(add)
-    new_bsa, new_bsb, onproduct_a, onproduct_b, p, q = hop_across_two_addresses(add.bsa, add.bsb, chosen, sa, sb)
+    new_bsa, new_bsb, onproduct_a, onproduct_b, p, q = momentum_transfer_excitation(add.bsa, add.bsb, chosen, ma, mb)
     gamma = sqrt(onproduct_a*onproduct_b)
     gd = exp(-im*g.d*(p-q)*2π/m)*gamma
     return A(new_bsa, new_bsb), ComplexF64(gd/m)
@@ -150,10 +150,8 @@ function get_offdiagonal(
     add::A,
     chosen,
 )::Tuple{A,ComplexF64} where {A<:BoseFS}
-
-    m = num_modes(add)
-    singlies, doublies = num_singly_doubly_occupied_sites(add)
-    new_add, gamma, Δp = momentum_transfer_excitation(add, chosen, singlies, doublies)
-    gd = exp(-im*g.d*Δp*2π/m)*gamma
-    return new_add, ComplexF64(gd/m)
+    M = num_modes(add)
+    new_add, gamma, Δp = momentum_transfer_excitation(add, chosen, OccupiedModeMap(add))
+    gd = exp(-im*g.d*Δp*2π/M)*gamma
+    return new_add, ComplexF64(gd/M)
 end

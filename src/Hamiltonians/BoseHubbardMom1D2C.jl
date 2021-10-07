@@ -83,83 +83,8 @@ function diagonal_element(ham::BoseHubbardMom1D2C, add::BoseFS2C)
     )
 end
 
-"""
-    hop_across_two_addresses(add_a, add_b, chosen[, sa, sb])
-      -> new_add_a, new_add_b, onproduct_a, onproduct_b, p, q
-
-Perform a hop across two addresses (in momentum space). Optional arguments `sa` and `sb`
-should equal the numbers of occupied sites in the respective components. It returns updated
-addresses and products of occupation numbers for computing off-diagonal elements.
-`p` and `q` are the momenta returned for calculating [`G2Correlator`](@ref).
-"""
-@inline function hop_across_two_addresses(
-    add_a::BoseFS{NA,M}, add_b::BoseFS{NB,M}, chosen, sa, sb
-) where {NA,NB,M}
-    onrep_a = onr(add_a)
-    onrep_b = onr(add_b)
-    # b†_s b_q a†_p a_r
-    hole_a, remainder = fldmod1(chosen, (M - 1) * sb) # hole_a: position for hole_a
-    p, hole_b = fldmod1(remainder, sb) # hole_b: position for hole_b
-    # annihilate an A boson:
-    onrep_a, r, onproduct_a = annihilate_boson(onrep_a, hole_a)
-
-    if p ≥ r
-        p += 1 # to skip the hole_a
-    end
-    # create an A boson:
-    ΔP = p - r # change in momentun
-    p = mod1(p, M) # enforce periodic boundary condition
-    @inbounds onrep_a = setindex(onrep_a, onrep_a[p] + 1, p)
-    @inbounds onproduct_a *= onrep_a[p] # record the normalisation factor after creation
-
-    # annihilate a B boson:
-    onrep_b, q, onproduct_b = annihilate_boson(onrep_b, hole_b)
-
-    s = mod1(q-ΔP, M) # compute s with periodic boundary condition
-    # create a B boson:
-    @inbounds onrep_b = setindex(onrep_b, onrep_b[s] + 1, s) # create a B boson: b†_s
-    @inbounds onproduct_b *= onrep_b[s] # record the normalisation factor after creation
-
-    return BoseFS{NA,M}(onrep_a), BoseFS{NB,M}(onrep_b), onproduct_a, onproduct_b, s, q
-end
-function annihilate_boson(onrep, hole)
-    q = onproduct = 0
-    for (i, occ) in enumerate(onrep)
-        hole -= occ > 0
-        if hole == 0
-            onproduct = occ
-            q = i
-            break
-        end
-    end
-    return setindex(onrep, onproduct - 1, q), q, onproduct
-end
-
 function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
-    M = num_modes(add)
-    nhops_a = num_offdiagonals(ham.ha, add.bsa)
-    nhops_b = num_offdiagonals(ham.hb, add.bsb)
-    if chosen ≤ nhops_a
-        naddress_from_bsa, elem = get_offdiagonal(ham.ha, add.bsa, chosen)
-        return BoseFS2C(naddress_from_bsa, add.bsb), elem
-    elseif nhops_a < chosen ≤ nhops_a + nhops_b
-        chosen -= nhops_a
-        naddress_from_bsb, elem = get_offdiagonal(ham.hb, add.bsb, chosen)
-        return BoseFS2C(add.bsa, naddress_from_bsb), elem
-    else
-        chosen -= nhops_a + nhops_b
-        sa = num_occupied_modes(add.bsa)
-        sb = num_occupied_modes(add.bsb)
-        new_bsa, new_bsb, onproduct_a, onproduct_b, _, _ = hop_across_two_addresses(
-            add.bsa, add.bsb, chosen, sa, sb
-        )
-        new_add = BoseFS2C(new_bsa, new_bsb)
-        # return new_add, elem
-        elem = ham.v/M * sqrt(onproduct_a * onproduct_b)
-        new_add = BoseFS2C(new_bsa, new_bsb)
-        return new_add, elem
-    end
-    # return new address and matrix element
+    return offdiagonals(ham, add)[chosen]
 end
 
 """
@@ -169,45 +94,49 @@ Specialized [`AbstractOffdiagonals`](@ref) that keep track of number of off-diag
 number of occupied sites in both components of the address.
 """
 struct OffdiagonalsBoseMom1D2C{
-    A<:BoseFS2C,T,V,H<:TwoComponentHamiltonian{T}
+    A<:BoseFS2C,T,V,H<:TwoComponentHamiltonian{T},O1,O2,M<:OccupiedModeMap
 } <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int
-    num_hops_a::Int
-    num_hops_b::Int
-    num_occupied_a::Int
-    num_occupied_b::Int
+    offdiags_a::O1
+    offdiags_b::O2
+    map_a::M
+    map_b::M
 end
 
 function offdiagonals(h::BoseHubbardMom1D2C{T,<:Any,<:Any,V}, a::BoseFS2C) where {T,V}
-    hops_a = num_offdiagonals(h.ha, a.bsa)
-    hops_b = num_offdiagonals(h.hb, a.bsb)
-    occ_a = num_occupied_modes(a.bsa)
-    occ_b = num_occupied_modes(a.bsb)
-    length = hops_a + hops_b + occ_a * (num_modes(a) - 1) * occ_b
+    offdiags_a = offdiagonals(h.ha, a.bsa)
+    offdiags_b = offdiagonals(h.hb, a.bsb)
+    map_a = OccupiedModeMap(a.bsa)
+    map_b = OccupiedModeMap(a.bsb)
+    occ_a = length(map_a)
+    occ_b = length(map_b)
+    len = length(offdiags_a) + length(offdiags_b) + occ_a * (num_modes(a) - 1) * occ_b
 
-    return OffdiagonalsBoseMom1D2C{typeof(a),T,V,typeof(h)}(
-        h, a, length, hops_a, hops_b, occ_a, occ_b
-    )
+    return OffdiagonalsBoseMom1D2C{
+        typeof(a),T,V,typeof(h),typeof(offdiags_a),typeof(offdiags_b),typeof(map_a)
+    }(h, a, len, offdiags_a, offdiags_b, map_a, map_b)
 end
 
 function Base.getindex(s::OffdiagonalsBoseMom1D2C{A,T,V}, i)::Tuple{A,T} where {A,T,V}
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
-    if i ≤ s.num_hops_a
-        new_a, matrix_element = get_offdiagonal(s.hamiltonian.ha, s.address.bsa, i)
+    num_hops_a = length(s.offdiags_a)
+    num_hops_b = length(s.offdiags_b)
+    if i ≤ num_hops_a
+        new_a, matrix_element = s.offdiags_a[i]
         new_add = A(new_a, s.address.bsb)
-    elseif i ≤ s.num_hops_a + s.num_hops_b
-        i -= s.num_hops_a
-        new_b, matrix_element = get_offdiagonal(s.hamiltonian.hb, s.address.bsb, i)
+    elseif i ≤ num_hops_a + num_hops_b
+        i -= num_hops_a
+        new_b, matrix_element = s.offdiags_b[i]
         new_add = A(s.address.bsa, new_b)
     else
-        i -= s.num_hops_a + s.num_hops_b
-        new_a, new_b, prod_a, prod_b = hop_across_two_addresses(
-            s.address.bsa, s.address.bsb, i, s.num_occupied_a, s.num_occupied_b
+        i -= num_hops_a + num_hops_b
+        new_a, new_b, val = momentum_transfer_excitation(
+            s.address.bsa, s.address.bsb, i, s.map_a, s.map_b
         )
         new_add = A(new_a, new_b)
-        matrix_element = V/num_modes(new_add) * sqrt(prod_a * prod_b)
+        matrix_element = V/num_modes(new_add) * val
     end
     return new_add, matrix_element
 end

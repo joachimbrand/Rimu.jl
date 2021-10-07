@@ -50,12 +50,13 @@ export hubbard_dispersion, continuum_dispersion
 export G2Correlator
 
 export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
-export num_neighbours, neighbour_site
+export num_neighbours, neighbour_site, difference, add_offset
 
 include("abstract.jl")
 include("offdiagonals.jl")
 include("operations.jl")
 include("geometry.jl")
+include("excitations.jl")
 
 include("MatrixHamiltonian.jl")
 

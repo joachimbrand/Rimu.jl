@@ -173,7 +173,9 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
 
     # Second term
     for i in 1:N1*N2*M
-        new_c1, new_c2, value, k, p, q = momentum_transfer_excitation(c1, c2, i)
+        new_c1, new_c2, value, k, p, q = momentum_transfer_excitation(
+            c1, c2, i; fold=false
+        )
         iszero(value) && continue
         @assert new_c1 ≠ c1 || new_c2 ≠ c2
         value *= t_function(h, p, q, k)
@@ -200,65 +202,4 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
     end
 
     return offdiags
-end
-
-# TODO : this is momentum_transfer_excitation with hardwall
-function momentum_transfer_excitation(f1::FermiFS{N1,M}, f2::FermiFS{N2,M}, i) where {N1,N2,M}
-    p, q, p_k = Tuple(CartesianIndices((N1, N2, M))[i])
-
-    p_index = find_occupied_mode(f1, p)
-    q_index = find_occupied_mode(f2, q)
-    k = p_index - p_k
-    q_k = q_index + k
-
-    if k == 0 || q_k > M || q_k < 1
-        return f1, f2, 0.0, k, p_index, q_index
-    end
-
-    p_k_index = find_mode(f1, p_k)
-    q_k_index = find_mode(f2, q_k)
-    new_f1, val1 = excitation(f1, (p_k_index,), (p_index,))
-    new_f2, val2 = excitation(f2, (q_k_index,), (q_index,))
-    return new_f1, new_f2, val1 * val2, k, p_index, q_index
-end
-
-"""
-    transcorrelated_three_body_excitation(f1::FermiFS{N1,M}, f2::FermiFS{N2,M}, i)
-
-Apply the following operator to two addresses:
-
-```math
-a^†_{p+k,1} a^†_{q+l,1} a^†_{s-k-l,2} a_{s,2} a_{q,1} a_{p,1}
-```
-
-Return new addresses, value, `k`, and `l`.
-"""
-function transcorrelated_three_body_excitation(
-    f1::FermiFS{N1,M}, f2::FermiFS{N2,M}, i
-) where {N1,N2,M}
-    p, q, s, p_k, q_l = Tuple(CartesianIndices((N1, N1, N2, M, M))[i])
-    # TODO index pruning
-
-    p_index, q_index = find_occupied_mode(f1, (p, q))
-    k = p_index - p_k
-    l = q_l - q_index
-    s_index = find_occupied_mode(f2, s)
-    s_kl = s_index + k - l
-
-    if k == 0 || l == 0
-        # Zero because Q_kl == 0
-        return f1, f2, 0.0, k,l
-    elseif p_index == q_l && q_index == p_k
-        # Diagonal
-        return f1, f2, 0.0, k,l
-    elseif s_kl > M || s_kl < 1
-        # Out of bounds
-        return f1, f2, 0.0, k,l
-    end
-    p_k_index, q_l_index = find_mode(f1, (p_k, q_l))
-    s_kl_index = find_mode(f1, s_kl)
-    new_f1, val1 = excitation(f1, (p_k_index, q_l_index), (q_index, p_index))
-    new_f2, val2 = excitation(f2, (s_kl_index,), (s_index,))
-
-    return new_f1, new_f2, val1 * val2, k,l
 end
