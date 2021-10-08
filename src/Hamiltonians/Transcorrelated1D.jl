@@ -43,10 +43,19 @@ k \\tilde{u}(k) = {-2/k \\mathrm{\\ if\\ } |k| ≥ k_c; 0 \\mathrm{\\ otherwise\
 where ``k = π + 2πn/M``.
 """
 function correlation_factor(n, cutoff, M)
-    return ifelse(abs(n) ≥ cutoff, -1/2n_to_k(n, M), 0.0)
+    if abs(n) ≥ cutoff
+        -1/2n_to_k(n, M)
+    else
+        0.0
+    end
 end
 function correlation_factor(h::Transcorrelated1D{M}, n) where {M}
-    return correlation_factor(n, h.cutoff, M)
+    absn = abs(n)
+    if absn > 0
+        return sign(n) * h.us[absn]
+    else
+        return 0.0
+    end
 end
 
 """
@@ -165,6 +174,15 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
         transcorrelated_diagonal(h, onr1, onr2) + transcorrelated_diagonal(h, onr2, onr1)
 end
 
+struct Transcorrelated1DOffdiagonals{H,A,B,O<:OccupiedModeMap}<:AbstractOffdiagonals{A,Float64}
+    hamiltonian::H
+    c1::A
+    c2::B
+    map1::O
+    map2::O
+    length::Int
+end
+
 function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
     offdiags = Tuple{F,Float64}[]
     c1, c2 = add.components
@@ -172,40 +190,62 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
     map2 = OccupiedModeMap(c2)
     N1 = length(map1)
     N2 = length(map2)
+    n_mom = N1 * N2 * (M - 1)
+    n_trans1 = N1 * (N1 - 1) * N2 * M * M
+    n_trans2 = N2 * (N2 - 1) * N1 * M * M
+    len = n_mom + n_trans1 + n_trans2
+    return Transcorrelated1DOffdiagonals(h, c1, c2, map1, map2, len)
+end
 
-    # Second term
-    for i in 1:N1*N2*(M - 1)
+Base.size(od::Transcorrelated1DOffdiagonals) = (od.length,)
+
+function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
+    @unpack c1, c2, map1, map2 = od
+    h = od.hamiltonian
+    N1 = length(map1)
+    N2 = length(map2)
+    M = num_modes(c1)
+
+    n_mom = N1 * N2 * (M - 1)
+    n_trans1 = N1 * (N1 - 1) * N2 * M * M
+    n_trans2 = N2 * (N2 - 1) * N1 * M * M
+
+    # Fallback on zeros
+    new_c = CompositeFS(c1, c2)
+
+    if i ≤ n_mom
         new_c1, new_c2, value, p, q, k = momentum_transfer_excitation(
             c1, c2, i, map1, map2; fold=false
         )
-        iszero(value) && continue
-        @assert new_c1 ≠ c1 || new_c2 ≠ c2
-        value *= t_function(h, p, q, k)
-        new_c = CompositeFS(new_c1, new_c2)
-        push!(offdiags, (new_c, value))
-    end
+        if !iszero(value)
+            @assert new_c1 ≠ c1 || new_c2 ≠ c2
+            value *= t_function(h, p, q, k)
+            new_c = CompositeFS(new_c1, new_c2)
+        end
+    elseif i ≤ n_mom + n_trans1
+        i -= n_mom
 
-    # Third term
-    for i in 1:N1 * N1 * N2 * M * M
         new_c1, new_c2, value, k, l = transcorrelated_three_body_excitation(
             c1, c2, i, map1, map2
         )
         value *= q_function(h, k, l)
-        iszero(value) && continue
-        @assert new_c1 ≠ c1 || new_c2 ≠ c2
-        new_c = CompositeFS(new_c1, new_c2)
-        push!(offdiags, (new_c, value))
-    end
-    for i in 1:N2 * N2 * N1 * M * M
+        if !iszero(value)
+            @assert new_c1 ≠ c1 || new_c2 ≠ c2
+            new_c = CompositeFS(new_c1, new_c2)
+        end
+    elseif i ≤ n_mom + n_trans1 + n_trans2
+        i -= n_mom + n_trans1
+
         new_c2, new_c1, value, k, l = transcorrelated_three_body_excitation(
             c2, c1, i, map2, map1
         )
         value *= q_function(h, k, l)
-        iszero(value) && continue
-        @assert new_c1 ≠ c1 || new_c2 ≠ c2
-        new_c = CompositeFS(new_c1, new_c2)
-        push!(offdiags, (new_c, value))
+        if !iszero(value)
+            @assert new_c1 ≠ c1 || new_c2 ≠ c2
+            new_c = CompositeFS(new_c1, new_c2)
+        end
+    else
+        throw(BoundsError(od, i))
     end
-
-    return offdiags
+    return new_c, value
 end

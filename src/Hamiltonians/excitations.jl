@@ -145,10 +145,19 @@ a^†_{p+k,1} a^†_{q+l,1} a^†_{s-k-l,2} a_{s,2} a_{q,1} a_{p,1}
 Return new addresses, value, `k`, and `l`. Note: if either `k` or `l` are zero, the
 function returns zero.
 """
-function transcorrelated_three_body_excitation(
-    f1::FermiFS{N1,M}, f2::FermiFS{N2,M}, i, map1, map2
-) where {N1,N2,M}
-    p, q, s, p_k, q_l = Tuple(CartesianIndices((N1, N1, N2, M, M))[i])
+function transcorrelated_three_body_excitation(add1, add2, i, map1, map2)
+    N1 = length(map1)
+    N2 = length(map2)
+    M = num_modes(add1)
+
+    if add1 isa FermiFS # TODO: this is better done in the same way as momentum transfer
+        p, q, s, p_k, q_l = Tuple(CartesianIndices((N1, N1 - 1, N2, M, M))[i])
+        if q ≥ p
+            q += 1
+        end
+    else
+        p, q, s, p_k, q_l = Tuple(CartesianIndices((N1, N1, N2, M, M))[i])
+    end
 
     p_index = map1[p]
     q_index = map1[q]
@@ -160,18 +169,18 @@ function transcorrelated_three_body_excitation(
 
     if k == 0 || l == 0
         # Zero because Q_kl == 0
-        return f1, f2, 0.0, k,l
+        return add1, add2, 0.0, k,l
     elseif p_index.mode == q_l && q_index.mode == p_k
         # Diagonal
-        return f1, f2, 0.0, k,l
+        return add1, add2, 0.0, k,l
     elseif s_kl > M || s_kl < 1
         # Out of bounds
-        return f1, f2, 0.0, k,l
+        return add1, add2, 0.0, k,l
     end
-    p_k_index, q_l_index = find_mode(f1, (p_k, q_l))
-    s_kl_index = find_mode(f1, s_kl)
-    new_f1, val1 = excitation(f1, (p_k_index, q_l_index), (q_index, p_index))
-    new_f2, val2 = excitation(f2, (s_kl_index,), (s_index,))
+    p_k_index, q_l_index = find_mode(add1, (p_k, q_l))
+    s_kl_index = find_mode(add1, s_kl)
+    new_add1, val1 = excitation(add1, (p_k_index, q_l_index), (q_index, p_index))
+    new_add2, val2 = excitation(add2, (s_kl_index,), (s_index,))
 
-    return new_f1, new_f2, val1 * val2, k,l
+    return new_add1, new_add2, val1 * val2, k,l
 end
