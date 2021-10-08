@@ -117,6 +117,7 @@ function build_sparse_matrix_from_LO(
     ham::AbstractHamiltonian, fs=starting_address(ham); nnzs = 0
 )
     adds = [fs] # list of addresses of length linear dimension of matrix
+    index = Dict(fs => 1)
     I = Int[]         # row indices, length nnz
     J = Int[]         # column indices, length nnz
     V = eltype(ham)[] # values, length nnz
@@ -137,11 +138,12 @@ function build_sparse_matrix_from_LO(
         push!(J, i)
         push!(V, melem)
         for (nadd, melem) in offdiagonals(ham, add) # loop over rows
-            j = findnext(a -> a == nadd, adds, 1) # find index of `nadd` in `adds`
-            if isnothing(j)
+            j = get(index, nadd, 0)
+            if iszero(j)
                 # new address: increase dimension of matrix by adding a row
                 push!(adds, nadd)
                 j = length(adds) # row index points to the new element in `adds`
+                index[nadd] = j
             end
             # new nonzero matrix element
             push!(I, i)

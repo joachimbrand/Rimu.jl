@@ -174,10 +174,9 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
         transcorrelated_diagonal(h, onr1, onr2) + transcorrelated_diagonal(h, onr2, onr1)
 end
 
-struct Transcorrelated1DOffdiagonals{H,A,B,O<:OccupiedModeMap}<:AbstractOffdiagonals{A,Float64}
+struct Transcorrelated1DOffdiagonals{H,A,O<:OccupiedModeMap}<:AbstractOffdiagonals{A,Float64}
     hamiltonian::H
-    c1::A
-    c2::B
+    address::A
     map1::O
     map2::O
     length::Int
@@ -194,13 +193,14 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
     n_trans1 = N1 * (N1 - 1) * N2 * M * M
     n_trans2 = N2 * (N2 - 1) * N1 * M * M
     len = n_mom + n_trans1 + n_trans2
-    return Transcorrelated1DOffdiagonals(h, c1, c2, map1, map2, len)
+    return Transcorrelated1DOffdiagonals(h, add, map1, map2, len)
 end
 
 Base.size(od::Transcorrelated1DOffdiagonals) = (od.length,)
 
 function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
-    @unpack c1, c2, map1, map2 = od
+    @unpack address, map1, map2 = od
+    c1, c2 = address.components
     h = od.hamiltonian
     N1 = length(map1)
     N2 = length(map2)
