@@ -292,15 +292,16 @@ julia> OccupiedModeMap(f)
  FermiFSIndex(occnum=1, mode=9)
 ```
 """
-struct OccupiedModeMap{M,T} <: AbstractVector{T}
-    indices::SVector{M,T}
+struct OccupiedModeMap{N,T} <: AbstractVector{T}
+    indices::SVector{N,T}
     length::Int
 end
 
-function OccupiedModeMap(add::SingleComponentFockAddress{<:Any,M}) where {M}
+function OccupiedModeMap(add::SingleComponentFockAddress{N}) where {N}
     modes = occupied_modes(add)
     T = eltype(modes)
-    indices = MVector{M,T}(undef)
+    # There are at most N occupied modes. This could be @generated for cases where N > M
+    indices = MVector{N,T}(undef)
     i = 0
     for index in modes
         i += 1

@@ -94,18 +94,18 @@ Specialized [`AbstractOffdiagonals`](@ref) that keep track of number of off-diag
 number of occupied sites in both components of the address.
 """
 struct OffdiagonalsBoseMom1D2C{
-    A<:BoseFS2C,T,V,H<:TwoComponentHamiltonian{T},O1,O2,M<:OccupiedModeMap
+    A<:BoseFS2C,T,H<:TwoComponentHamiltonian{T},O1,O2,M1,M2
 } <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int
     offdiags_a::O1
     offdiags_b::O2
-    map_a::M
-    map_b::M
+    map_a::M1
+    map_b::M2
 end
 
-function offdiagonals(h::BoseHubbardMom1D2C{T,<:Any,<:Any,V}, a::BoseFS2C) where {T,V}
+function offdiagonals(h::BoseHubbardMom1D2C{T}, a::BoseFS2C) where {T}
     offdiags_a = offdiagonals(h.ha, a.bsa)
     offdiags_b = offdiagonals(h.hb, a.bsb)
     map_a = OccupiedModeMap(a.bsa)
@@ -114,12 +114,10 @@ function offdiagonals(h::BoseHubbardMom1D2C{T,<:Any,<:Any,V}, a::BoseFS2C) where
     occ_b = length(map_b)
     len = length(offdiags_a) + length(offdiags_b) + occ_a * (num_modes(a) - 1) * occ_b
 
-    return OffdiagonalsBoseMom1D2C{
-        typeof(a),T,V,typeof(h),typeof(offdiags_a),typeof(offdiags_b),typeof(map_a)
-    }(h, a, len, offdiags_a, offdiags_b, map_a, map_b)
+    return OffdiagonalsBoseMom1D2C(h, a, len, offdiags_a, offdiags_b, map_a, map_b)
 end
 
-function Base.getindex(s::OffdiagonalsBoseMom1D2C{A,T,V}, i)::Tuple{A,T} where {A,T,V}
+function Base.getindex(s::OffdiagonalsBoseMom1D2C{A,T}, i)::Tuple{A,T} where {A,T}
     @boundscheck 1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     num_hops_a = length(s.offdiags_a)
     num_hops_b = length(s.offdiags_b)
@@ -136,7 +134,7 @@ function Base.getindex(s::OffdiagonalsBoseMom1D2C{A,T,V}, i)::Tuple{A,T} where {
             s.address.bsa, s.address.bsb, i, s.map_a, s.map_b
         )
         new_add = A(new_a, new_b)
-        matrix_element = V/num_modes(new_add) * val
+        matrix_element = s.hamiltonian.v/num_modes(new_add) * val
     end
     return new_add, matrix_element
 end

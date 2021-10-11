@@ -92,3 +92,7 @@ Base.isless(a::T, b::T) where {T<:CompositeFS} = isless(a.components, b.componen
 function onr(a::CompositeFS)
     map(onr, a.components)
 end
+
+# Convenience
+const FermiFS2C{N1,N2,M,N,F1,F2} =
+    CompositeFS{2,N,M,Tuple{F1,F2}} where {F1<:FermiFS{N1,M},F2<:FermiFS{N2,M}}

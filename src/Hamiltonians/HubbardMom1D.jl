@@ -44,9 +44,10 @@ struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
 end
 
 function HubbardMom1D(
-    add::BoseFS{<:Any,M};
+    add::Union{BoseFS,FermiFS2C};
     u=1.0, t=1.0, dispersion = hubbard_dispersion,
-) where {M}
+)
+    M = num_modes(add)
     U, T = promote(float(u), float(t))
     step = 2π/M
     if isodd(M)
@@ -127,9 +128,13 @@ end
     M = num_modes(ham)
     return singlies * (singlies - 1) * (M - 2) + doublies * (M - 1)
 end
+@inline function num_offdiagonals(ham::HubbardMom1D, add::FermiFS2C{N1,N2}) where {N1,N2}
+    M = num_modes(ham)
+    return N1 * N2 * (M - 1)
+end
 
 """
-    interaction_energy_diagonal(H, onr)
+    interaction_energy_diagonal(H, map::OccupiedModeMap)
 
 Compute diagonal interaction energy term.
 
@@ -146,69 +151,44 @@ julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
 5.2
 ```
 """
-@inline function interaction_energy_diagonal(
-    h::HubbardMom1D{<:Any,M,<:BoseFS}, onrep::StaticVector{M,I}
-) where {M,I}
-    # now compute diagonal interaction energy
-    onproduct = zero(I) # Σ_kp < c^†_p c^†_k c_k c_p >
-    # Note: because of the double for-loop, this is more efficient if done with ONR
-    for p in 1:M
-        iszero(onrep[p]) && continue
-        onproduct += onrep[p] * (onrep[p] - one(I))
-        for k in 1:p-1
-            onproduct += I(4) * onrep[k] * onrep[p]
-        end
-    end
-    return h.u / 2M * onproduct
+@inline function momentum_transfer_diagonal(
+    h::HubbardMom1D{<:Any,M,<:BoseFS}, map
+) where {M}
+    return h.u / 2M * momentum_transfer_diagonal(map)
 end
-
-@inline function interaction_energy_diagonal(h::HubbardMom1D{<:Any,M}, map::OccupiedModeMap) where {M}
-    onproduct = 0
-    for i in 1:length(map)
-        occ_i = map[i].occnum
-        onproduct += occ_i * (occ_i - 1)
-        for j in 1:i-1
-            occ_j = map[j].occnum
-            onproduct += 4 * occ_i * occ_j
-        end
-    end
-    return h.u / 2M * onproduct
-end
-
-function kinetic_energy(h::HubbardMom1D, add::AbstractFockAddress)
-    onrep = onr(add)
-    return kinetic_energy(h, onrep)
-end
-
-@inline function kinetic_energy(h::HubbardMom1D, map::OccupiedModeMap)
-    energy = 0.0
-    for index in map
-        energy += index.occnum * h.kes[index.mode]
-    end
-    return energy
-end
-
-@inline function kinetic_energy(h::HubbardMom1D, onrep::StaticVector)
-    return onrep ⋅ h.kes # safe as onrep is Real
+@inline function momentum_transfer_diagonal(
+    h::HubbardMom1D{<:Any,M,<:FermiFS2C}, map_a, map_b
+) where {M}
+    return h.u / 2M * momentum_transfer_diagonal(map_a, map_b)
 end
 
 @inline function diagonal_element(h::HubbardMom1D, add::BoseFS)
     map = OccupiedModeMap(add)
-    return diagonal_element(h, map)
+    return kinetic_energy(h.kes, map) + momentum_transfer_diagonal(h, map)
 end
-
-@inline function diagonal_element(h::HubbardMom1D, onrep::StaticVector)
-    return kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
-end
-@inline function diagonal_element(h::HubbardMom1D, map::OccupiedModeMap)
-    return kinetic_energy(h, map) + interaction_energy_diagonal(h, map)
+@inline function diagonal_element(h::HubbardMom1D, add::FermiFS2C)
+    map_a = OccupiedModeMap(add.components[1])
+    map_b = OccupiedModeMap(add.components[2])
+    return kinetic_energy(h.kes, map_a) +
+        kinetic_energy(h.kes, map_b) +
+        momentum_transfer_diagonal(h, map_a, map_b)
 end
 
 @inline function get_offdiagonal(
     ham::HubbardMom1D{<:Any,M,A}, add::A, chosen, map=OccupiedModeMap(add)
-) where {M,A}
-    add, onproduct, _ = momentum_transfer_excitation(add, chosen, map)
+) where {M,A<:BoseFS}
+    add, onproduct = momentum_transfer_excitation(add, chosen, map)
     return add, ham.u/(2*M)*onproduct
+end
+@inline function get_offdiagonal(
+    ham::HubbardMom1D{<:Any,M,A}, add::A, chosen,
+    map_a=OccupiedModeMap(add.components[1]), map_b=OccupiedModeMap(add.components[2])
+) where {M,A<:FermiFS2C}
+    add_a, add_b = add.components
+    new_add_a, new_add_b, onproduct = momentum_transfer_excitation(
+        add_a, add_b, chosen, map_a, map_b
+    )
+    return CompositeFS(new_add_a, new_add_b), ham.u/M * onproduct
 end
 
 ###
@@ -246,6 +226,36 @@ function Base.getindex(s::OffdiagonalsBoseMom1D{A,T}, i)::Tuple{A,T} where {A,T}
 end
 
 Base.size(s::OffdiagonalsBoseMom1D) = (s.length,)
+
+struct OffdiagonalsFermiMom1D2C{
+    F<:FermiFS2C,T,H<:AbstractHamiltonian{T},O1,O2
+} <: AbstractOffdiagonals{F,T}
+    hamiltonian::H
+    address::F
+    length::Int
+    map_a::O1
+    map_b::O2
+end
+
+function offdiagonals(h::HubbardMom1D, f::FermiFS2C)
+    comp_a, comp_b = f.components
+    map_a = OccupiedModeMap(comp_a)
+    map_b = OccupiedModeMap(comp_b)
+    num = num_offdiagonals(h, f)
+    return OffdiagonalsFermiMom1D2C(h, f, num, map_a, map_b)
+end
+
+Base.size(s::OffdiagonalsFermiMom1D2C) = (s.length,)
+
+function Base.getindex(s::OffdiagonalsFermiMom1D2C{A,T}, i)::Tuple{A,T} where {A,T}
+    @boundscheck begin
+        i ≤ i ≤ s.length || throw(BoundsError(s, i))
+    end
+    new_address, matrix_element = get_offdiagonal(
+        s.hamiltonian, s.address, i, s.map_a, s.map_b
+    )
+    return (new_address, matrix_element)
+end
 
 ###
 ### momentum

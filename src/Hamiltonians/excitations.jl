@@ -1,6 +1,9 @@
 using Rimu
 using Rimu.Hamiltonians: hopnextneighbour
 
+const BoseOccupiedModeMap{N} = OccupiedModeMap{N,BitStringAddresses.BoseFSIndex}
+const FermiOccupiedModeMap{N} = OccupiedModeMap{N,BitStringAddresses.FermiFSIndex}
+
 """
     real_space_excitation(add, chosen, map, geometry)
 
@@ -27,10 +30,10 @@ end
 
 """
     momentum_transfer_excitation(add, chosen, map; fold=true)
-    momentum_transfer_excitation(add1, add2, chosen, map1, map2; fold=true)
+    momentum_transfer_excitation(add_a, add_b, chosen, map_a, map_b; fold=true)
 
 Apply the momentum transfer operator to Fock address (or pair of addresses) `add` (or
-`add1`, `add2`):
+`add_a`, `add_b`):
 
 ```math
 a^†_{p + k} a^†{q - k} a_q a_p
@@ -133,6 +136,35 @@ end
     return new_add_a, new_add_b, val_a * val_b, params...
 end
 
+function momentum_transfer_diagonal(map::BoseOccupiedModeMap)
+    onproduct = 0
+    for i in 1:length(map)
+        occ_i = map[i].occnum
+        onproduct += occ_i * (occ_i - 1)
+        for j in 1:i-1
+            occ_j = map[j].occnum
+            onproduct += 4 * occ_i * occ_j
+        end
+    end
+    return float(onproduct)
+end
+function momentum_transfer_diagonal(
+    map_a::FermiOccupiedModeMap, map_b::FermiOccupiedModeMap
+)
+    onproduct = 0
+    n1 = length(map_a)
+    n2 = length(map_b)
+
+    return float(2 * n1 * n2)
+end
+function kinetic_energy(kes, map)
+    value = 0.0
+    for index in map
+        value += kes[index.mode] * index.occnum
+    end
+    return value
+end
+
 """
     transcorrelated_three_body_excitation(f1::FermiFS{N1,M}, f2::FermiFS{N2,M}, i)
 
@@ -145,12 +177,12 @@ a^†_{p+k,1} a^†_{q+l,1} a^†_{s-k-l,2} a_{s,2} a_{q,1} a_{p,1}
 Return new addresses, value, `k`, and `l`. Note: if either `k` or `l` are zero, the
 function returns zero.
 """
-function transcorrelated_three_body_excitation(add1, add2, i, map1, map2)
-    N1 = length(map1)
-    N2 = length(map2)
-    M = num_modes(add1)
+function transcorrelated_three_body_excitation(add_a, add_b, i, map_a, map_b)
+    N1 = length(map_a)
+    N2 = length(map_b)
+    M = num_modes(add_a)
 
-    if add1 isa FermiFS # TODO: this is better done in the same way as momentum transfer
+    if add_a isa FermiFS # TODO: this is better done in the same way as momentum transfer
         p, q, s, p_k, q_l = Tuple(CartesianIndices((N1, N1 - 1, N2, M, M))[i])
         if q ≥ p
             q += 1
@@ -159,9 +191,9 @@ function transcorrelated_three_body_excitation(add1, add2, i, map1, map2)
         p, q, s, p_k, q_l = Tuple(CartesianIndices((N1, N1, N2, M, M))[i])
     end
 
-    p_index = map1[p]
-    q_index = map1[q]
-    s_index = map2[s]
+    p_index = map_a[p]
+    q_index = map_a[q]
+    s_index = map_b[s]
 
     k = p_index.mode - p_k
     l = q_l - q_index.mode
@@ -169,18 +201,18 @@ function transcorrelated_three_body_excitation(add1, add2, i, map1, map2)
 
     if k == 0 || l == 0
         # Zero because Q_kl == 0
-        return add1, add2, 0.0, k,l
+        return add_a, add_b, 0.0, k,l
     elseif p_index.mode == q_l && q_index.mode == p_k
         # Diagonal
-        return add1, add2, 0.0, k,l
+        return add_a, add_b, 0.0, k,l
     elseif s_kl > M || s_kl < 1
         # Out of bounds
-        return add1, add2, 0.0, k,l
+        return add_a, add_b, 0.0, k,l
     end
-    p_k_index, q_l_index = find_mode(add1, (p_k, q_l))
-    s_kl_index = find_mode(add1, s_kl)
-    new_add1, val1 = excitation(add1, (p_k_index, q_l_index), (q_index, p_index))
-    new_add2, val2 = excitation(add2, (s_kl_index,), (s_index,))
+    p_k_index, q_l_index = find_mode(add_a, (p_k, q_l))
+    s_kl_index = find_mode(add_a, s_kl)
+    new_add_a, val1 = excitation(add_a, (p_k_index, q_l_index), (q_index, p_index))
+    new_add_b, val2 = excitation(add_b, (s_kl_index,), (s_index,))
 
-    return new_add1, new_add2, val1 * val2, k,l
+    return new_add_a, new_add_b, val1 * val2, k,l
 end

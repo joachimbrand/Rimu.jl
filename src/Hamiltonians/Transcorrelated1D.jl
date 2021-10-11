@@ -1,3 +1,4 @@
+# TODO: disabling three-body terms
 struct Transcorrelated1D{
     M,F<:CompositeFS{2,<:Any,M,<:Tuple{FermiFS,FermiFS}} # TODO: relax this to allow bosons
 } <: AbstractHamiltonian{Float64}
@@ -6,6 +7,7 @@ struct Transcorrelated1D{
     v::Float64
     t::Float64
     ks::SVector{M,Float64}
+    kes::SVector{M,Float64}
     ws::SVector{M,Float64}
     us::SVector{M,Float64}
 end
@@ -14,10 +16,11 @@ function Transcorrelated1D(address; t=1.0, v=1.0, cutoff=1)
     M = num_modes(address)
     cutoff < 1 && error("`cutoff` must be a positive integer")
     ks = SVector{M}(i_to_k.(1:M, M))
+    kes = t .* ks.^2
     ws = SVector{M}(w_function.(0:M-1, cutoff, M, v, t))
     us = SVector{M}(correlation_factor.(1:M, cutoff, M))
 
-    return Transcorrelated1D{M,typeof(address)}(address, cutoff, v, t, ks, ws, us)
+    return Transcorrelated1D{M,typeof(address)}(address, cutoff, v, t, ks, kes, ws, us)
 end
 
 function Base.show(io::IO, h::Transcorrelated1D)
@@ -117,17 +120,6 @@ end
 starting_address(ham::Transcorrelated1D) = ham.address
 
 """
-First term,
-
-```math
-t \\sum_{kσ} k^2 n_{k,σ}
-```
-"""
-function kinetic_energy(h::Transcorrelated1D{M}, onr1, onr2) where {M}
-    return h.t * sum(h.ks[i]^2 * (onr1[i] + onr2[i]) for i in 1:M)
-end
-
-"""
 Diagonal contribution from second term (where ``k = 0``),
 
 ```math
@@ -140,45 +132,39 @@ and third term where ``k = k' = p - q`` (two ways).
 \\sum_{pqsσσ'} Q_{kk} n_{p,σ} n_{q,σ} n_{s,σ'}
 ```
 """
-# Fermion version
-function interaction_energy_diagonal(h::Transcorrelated1D{M}, onr1, onr2) where {M}
+function momentum_transfer_diagonal(h::Transcorrelated1D{M}, map1, map2) where {M}
     @unpack v, t = h
-    N2 = sum(onr2)
-    onproduct = 0
-    for p in 1:M
-        onproduct += N2 * onr1[p]
-    end
-    return onproduct * (v/M + 2v^2/t * w_function(h, 0))
+    return momentum_transfer_diagonal(map1, map2) * (v/M + 2v^2/t * w_function(h, 0))
 end
-function transcorrelated_diagonal(h::Transcorrelated1D{M}, onr1, onr2) where {M}
+function transcorrelated_diagonal(h::Transcorrelated1D{M}, map1, map2) where {M}
     value = 0.0
-    for p in 1:M
-        onr1[p] == 0 && continue
+    for p in 1:length(map1)
         for q in 1:p-1
-            onr1[q] == 0 && continue
-            k = p - q
+            k = map1[p].mode - map1[q].mode
             qkk = q_function(h, -k, k)
-            @assert onr1[p] == onr1[q] == 1
-            for s in 1:M
-                # factor of 2 because we skipped half of the loop
-                value += 2 * qkk * onr2[s]
-            end
+            value += 2 * qkk * length(map2)
         end
     end
     return value
 end
 
 function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
-    onr1, onr2 = onr(add)
-    return kinetic_energy(h, onr1, onr2) + interaction_energy_diagonal(h, onr1, onr2) +
-        transcorrelated_diagonal(h, onr1, onr2) + transcorrelated_diagonal(h, onr2, onr1)
+    c1, c2 = add.components
+    map1 = OccupiedModeMap(c1)
+    map2 = OccupiedModeMap(c2)
+
+    return kinetic_energy(map1) +
+        kinetic_energy(map2) +
+        momentum_transfer_diagonal(h, map1, map2) +
+        transcorrelated_diagonal(h, map1, map2) +
+        transcorrelated_diagonal(h, map2, map1)
 end
 
-struct Transcorrelated1DOffdiagonals{H,A,O<:OccupiedModeMap}<:AbstractOffdiagonals{A,Float64}
+struct Transcorrelated1DOffdiagonals{H,A,O1,O2}<:AbstractOffdiagonals{A,Float64}
     hamiltonian::H
     address::A
-    map1::O
-    map2::O
+    map1::O1
+    map2::O2
     length::Int
 end
 
