@@ -58,6 +58,7 @@ end
 @testset "Interface tests" begin
     for H in (
         HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
+        HubbardReal1DEP(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0, v_ho=3.0),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
         ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
@@ -611,7 +612,7 @@ using Rimu.Hamiltonians: build_sparse_matrix_from_LO
 @testset "HubbardReal1DEP" begin
     m = 100 # number of lattice sites, i.e. L in units of the lattice parameter alpha
     n = 1 # number of particles
-    addr = BoseFS(Tuple(i == cld(m,2) ? n : 0 for i in 1:m)) # at the bottom of potential
+    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m)) # at the bottom of potential
     l0 = 10 # harmonic oscillator length in units of alpha; 1 << l0 << m
     v_ho = 0.5/l0^2 # energies now in units of hbar omega
     t = 0.5*l0^2 # energies now in units of hbar omega
@@ -621,6 +622,7 @@ using Rimu.Hamiltonians: build_sparse_matrix_from_LO
     sm, basis = build_sparse_matrix_from_LO(h)
     energies = eigvals(Matrix(sm)) .+ 2n*t # shifted by bottom of Hubbard dispersion
     @test energies[1:3] ≈ 0.5:1.0:2.5 atol=0.005 # first few eigenvalues
+    # # Here is a quick plot script that shows eigenvalues to deviate around n = 10
     # using Plots
     # r = 1:15
     # scatter(r .-1, energies[r], label="Hubbard with ho potential", legend=:bottomright)

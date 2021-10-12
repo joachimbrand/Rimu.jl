@@ -41,7 +41,7 @@ export dimension, rayleigh_quotient, momentum
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
-export HubbardReal1DEP
+export HubbardReal1DEP, shift_lattice, shift_lattice_inv
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 export hubbard_dispersion, continuum_dispersion

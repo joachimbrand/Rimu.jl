@@ -1,4 +1,22 @@
 """
+    shift_lattice(is)
+Circular shift contiguous indices `is` in interval `[M÷2, M÷2)` such that set starts with 0,
+where `M=length(is)`.
+
+Inverse operation: [`shift_lattice_inv`](@ref).
+"""
+shift_lattice(is) = circshift(is, cld(length(is),2))
+
+"""
+    shift_lattice_inv(js)
+Circular shift indices starting with 0 into a contiguous set in interval `[M÷2, M÷2)`,
+where `M=length(js)`.
+
+Inverse operation of [`shift_lattice`](@ref).
+"""
+shift_lattice_inv(js) = circshift(js, fld(length(js),2))
+
+"""
     HubbardReal1DEP(address; u=1.0, t=1.0, v_ho=1.0)
 
 Implements a one-dimensional Bose Hubbard chain in real space with external potential.
@@ -13,7 +31,9 @@ Implements a one-dimensional Bose Hubbard chain in real space with external pote
 * `address`: the starting address, defines number of particles and sites.
 * `u`: the interaction parameter.
 * `t`: the hopping strength.
-* `v_ho`: strength of the external harmonic oscillator potential ``ϵ_i = v_{ho} i^2``
+* `v_ho`: strength of the external harmonic oscillator potential ``ϵ_i = v_{ho} i^2``.
+The first index is `i=0` and the maximum of the potential occurs in the centre of the
+lattice.
 
 # See also
 
@@ -29,7 +49,9 @@ end
 
 function HubbardReal1DEP(addr::BoseFS{<:Any,M}; u=1.0, t=1.0, v_ho=1.0) where M
     U, T, V = promote(float(u), float(t), float(v_ho))
-    js = range(1-cld(M,2); length=M)
+    # js = range(1-cld(M,2); length=M)
+    is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
+    js = shift_lattice(is) # shifted such that is[1] = 0
     potential = SVector{M}(V*j^2 for j in js)
     return HubbardReal1DEP{typeof(U),typeof(addr),U,T,M}(addr, potential)
 end
