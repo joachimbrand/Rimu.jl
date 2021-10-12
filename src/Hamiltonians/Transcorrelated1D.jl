@@ -134,7 +134,7 @@ and third term where ``k = k' = p - q`` (two ways).
 """
 function momentum_transfer_diagonal(h::Transcorrelated1D{M}, map1, map2) where {M}
     @unpack v, t = h
-    return momentum_transfer_diagonal(map1, map2) * (v/M + 2v^2/t * w_function(h, 0))
+    return momentum_transfer_diagonal(map1, map2) * (v/M + 2v^2/t * w_function(h, 0)) / 2
 end
 function transcorrelated_diagonal(h::Transcorrelated1D{M}, map1, map2) where {M}
     value = 0.0
