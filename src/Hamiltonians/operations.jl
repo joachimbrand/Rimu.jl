@@ -138,6 +138,9 @@ function build_sparse_matrix_from_LO(
         push!(J, i)
         push!(V, melem)
         for (nadd, melem) in offdiagonals(ham, add) # loop over rows
+            if iszero(melem)
+                continue
+            end
             j = get(index, nadd, 0)
             if iszero(j)
                 # new address: increase dimension of matrix by adding a row
