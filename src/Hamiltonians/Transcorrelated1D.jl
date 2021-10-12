@@ -153,8 +153,8 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
     map1 = OccupiedModeMap(c1)
     map2 = OccupiedModeMap(c2)
 
-    return kinetic_energy(map1) +
-        kinetic_energy(map2) +
+    return kinetic_energy(h.kes, map1) +
+        kinetic_energy(h.kes, map2) +
         momentum_transfer_diagonal(h, map1, map2) +
         transcorrelated_diagonal(h, map1, map2) +
         transcorrelated_diagonal(h, map2, map1)
