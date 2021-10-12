@@ -41,6 +41,7 @@ export dimension, rayleigh_quotient, momentum
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
+export HubbardReal1DEP
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 export hubbard_dispersion, continuum_dispersion
@@ -58,6 +59,7 @@ include("geometry.jl")
 include("MatrixHamiltonian.jl")
 
 include("HubbardReal1D.jl")
+include("HubbardReal1DEP.jl")
 include("HubbardMom1D.jl")
 include("HubbardRealSpace.jl")
 include("ExtendedHubbardReal1D.jl")

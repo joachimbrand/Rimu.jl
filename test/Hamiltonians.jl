@@ -606,3 +606,26 @@ end
     @test diagonal_element(g0s,bfs1) == 4/3
     @test diagonal_element(g0s,bfs2) == 1/3
 end
+
+using Rimu.Hamiltonians: build_sparse_matrix_from_LO
+@testset "HubbardReal1DEP" begin
+    m = 100 # number of lattice sites, i.e. L in units of the lattice parameter alpha
+    n = 1 # number of particles
+    addr = BoseFS(Tuple(i == cld(m,2) ? n : 0 for i in 1:m)) # at the bottom of potential
+    l0 = 10 # harmonic oscillator length in units of alpha; 1 << l0 << m
+    v_ho = 0.5/l0^2 # energies now in units of hbar omega
+    t = 0.5*l0^2 # energies now in units of hbar omega
+    h = HubbardReal1DEP(addr; t, v_ho)
+    # all particles at the bottom of potential well
+    @test diagonal_element(h, addr) == 0 == h.ep⋅onr(addr)
+    sm, basis = build_sparse_matrix_from_LO(h)
+    energies = eigvals(Matrix(sm)) .+ 2n*t # shifted by bottom of Hubbard dispersion
+    @test energies[1:3] ≈ 0.5:1.0:2.5 atol=0.005 # first few eigenvalues
+    # using Plots
+    # r = 1:15
+    # scatter(r .-1, energies[r], label="Hubbard with ho potential", legend=:bottomright)
+    # plot!(n->n+0.5, r .-1, label="n + 1/2")
+    # ylabel!("Energy")
+    # xlabel!("ho quantum number n")
+    # title!("Harmonic oscillator in Hubbard, M = $m, l_0 = $l0")
+end
