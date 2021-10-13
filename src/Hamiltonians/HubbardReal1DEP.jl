@@ -51,7 +51,7 @@ function HubbardReal1DEP(addr::BoseFS{<:Any,M}; u=1.0, t=1.0, v_ho=1.0) where M
     U, T, V = promote(float(u), float(t), float(v_ho))
     # js = range(1-cld(M,2); length=M)
     is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
-    js = shift_lattice(is) # shifted such that is[1] = 0
+    js = shift_lattice(is) # shifted such that js[1] = 0
     potential = SVector{M}(V*j^2 for j in js)
     return HubbardReal1DEP{typeof(U),typeof(addr),U,T,M}(addr, potential)
 end

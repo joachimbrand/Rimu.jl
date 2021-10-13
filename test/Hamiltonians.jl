@@ -610,6 +610,12 @@ end
 
 using Rimu.Hamiltonians: build_sparse_matrix_from_LO
 @testset "HubbardReal1DEP" begin
+    for M in [3,4]
+        is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
+        js = shift_lattice(is) # shifted such that js[1] = 0
+        @test js[1] == 0
+        @test shift_lattice_inv(js) == is
+    end
     m = 100 # number of lattice sites, i.e. L in units of the lattice parameter alpha
     n = 1 # number of particles
     addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m)) # at the bottom of potential
