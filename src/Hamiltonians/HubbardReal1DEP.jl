@@ -57,7 +57,7 @@ function HubbardReal1DEP(addr::BoseFS{<:Any,M}; u=1.0, t=1.0, v_ho=1.0) where M
 end
 
 function Base.show(io::IO, h::HubbardReal1DEP)
-    print(io, "HubbardReal1DEP($(h.add); u=$(h.u), t=$(h.t))")
+    print(io, "HubbardReal1DEP($(h.add); u=$(h.u), t=$(h.t), v_ho=$(h.ep[2]))")
 end
 
 LOStructure(::Type{<:HubbardReal1DEP{<:Real}}) = IsHermitian()
