@@ -38,6 +38,7 @@ import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starti
 
 export AbstractHamiltonian, TwoComponentBosonicHamiltonian
 export dimension, rayleigh_quotient, momentum
+export BasisSetRep
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
