@@ -162,22 +162,32 @@ to prevent memory overflow. Set `sizelim = Inf` in order to disable this behavio
 ## Fields
 * `sm`: sparse matrix representing `h` in the basis `basis`
 * `basis`: vector of addresses
+* `h`
+
+Has methods for [`dimension`](@ref), `SparseArrays.sparse`, `LinearAlgebra.Matrix`.
 """
-struct BasisSetRep{A,SM,V}
+struct BasisSetRep{A,SM,H}
     sm::SM
-    basis::V
+    basis::Vector{A}
+    h::H
 end
 
-function BasisSetRep(sm::SM, basis::V) where {SM<:AbstractMatrix, V}
-    A = eltype(basis)
-    return BasisSetRep{A,SM,V}(sm, basis)
-end
 function BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
     check_address_type(h, addr)
     sm, basis = build_sparse_matrix_from_LO(h, addr)
-    return BasisSetRep(sm,basis)
+    return BasisSetRep(sm, basis, h)
 end
+
+function Base.show(io::IO, b::BasisSetRep)
+    print(io, "BasisSetRep($(b.h)) with dimension $(dimension(b)) and $(nnz(b.sm)) stored entries:")
+    show(io, b.sm)
+end
+
+dimension(bsr::BasisSetRep) = dimension(Int, bsr)
+dimension(::Type{T}, bsr::BasisSetRep) where {T} = T(length(bsr.basis))
+SparseArrays.sparse(bsr::BasisSetRep) = bsr.sm
+LinearAlgebra.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
 """
     check_address_type(h::AbstractHamiltonian, addr)
