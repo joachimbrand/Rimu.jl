@@ -637,3 +637,12 @@ using Rimu.Hamiltonians: build_sparse_matrix_from_LO
     # xlabel!("ho quantum number n")
     # title!("Harmonic oscillator in Hubbard, M = $m, l_0 = $l0")
 end
+
+@testset "BasisSetRep" begin
+    m = 100
+    n = 100
+    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m)) # at the bottom of potential
+    ham = HubbardReal1D(addr)
+    bsr = BasisSetRep(ham)
+
+end

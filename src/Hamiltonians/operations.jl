@@ -152,3 +152,37 @@ function build_sparse_matrix_from_LO(
     # when the index `(i,j)` occurs mutiple times in `I` and `J` the elements are added.
     return sparse(I, J, V), adds
 end
+
+"""
+    BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
+Eagerly construct the basis set representation of the operator `h` with all addresses
+reachable from `addr`. An `ArgumentError` is thrown if `dimension(h) > sizelim` in order
+to prevent memory overflow. Set `sizelim = Inf` in order to disable this behaviour.
+
+## Fields
+* `sm`: sparse matrix representing `h` in the basis `basis`
+* `basis`: vector of addresses
+"""
+struct BasisSetRep{A,SM,V}
+    sm::SM
+    basis::V
+end
+
+function BasisSetRep(sm::SM, basis::V) where {SM<:AbstractMatrix, V}
+    A = eltype(basis)
+    return BasisSetRep{A,SM,V}(sm, basis)
+end
+function BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
+    dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
+    check_address_type(h, addr)
+    sm, basis = build_sparse_matrix_from_LO(h, addr)
+    return BasisSetRep(sm,basis)
+end
+
+"""
+    check_address_type(h::AbstractHamiltonian, addr)
+Throw an `ArgumentError` if the type of `addr` is not compatible with `h`.
+"""
+function check_address_type(h::AbstractHamiltonian, addr::A) where A
+    typeof(starting_address(h)) == A || throw(ArgumentError("adress type mismatch"))
+end
