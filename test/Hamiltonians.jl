@@ -641,14 +641,18 @@ end
 @testset "BasisSetRep" begin
     m = 100
     n = 100
-    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m)) # at the bottom of potential
+    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
     ham = HubbardReal1D(addr)
     @test_throws ArgumentError BasisSetRep(ham) # dimension too large
     m = 2
     n = 10
-    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m)) # at the bottom of potential
+    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
     ham = HubbardReal1D(addr)
     bsr = BasisSetRep(ham)
-    @test length(bsr.basis) == dimension(ham)
+    @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
     @test_throws ArgumentError BasisSetRep(ham, BoseFS((1,2,3))) # wrong address type
+    @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
+    @test sparse(bsr) == bsr.sm == sparse(ham)
+    addr2 = bsr.basis[2]
+    @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
 end
