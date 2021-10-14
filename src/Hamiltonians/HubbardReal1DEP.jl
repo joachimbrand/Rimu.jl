@@ -74,8 +74,12 @@ function num_offdiagonals(::HubbardReal1DEP, address::BoseFS)
     return 2 * num_occupied_modes(address)
 end
 
-function diagonal_element(h::HubbardReal1DEP, address::BoseFS)
-    h.u * bose_hubbard_interaction(address) / 2 + onr(address)⋅h.ep
+function diagonal_element(h::HubbardReal1DEP, address::BoseFS
+    sum(occupied_modes(address)) do index
+        occnum, mode = index
+        h.u * occnum * (occnum - 1) / 2 + h.ep[mode] * occnum
+    end
+end
 end
 
 function get_offdiagonal(h::HubbardReal1DEP, add::BoseFS, chosen)
