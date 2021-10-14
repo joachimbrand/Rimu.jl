@@ -225,7 +225,7 @@ DVec{BoseFS{1, 3, BitString{3, 1, UInt8}},Float64} with 3 entries, style = IsDet
   BoseFS{1,3}((0, 1, 0)) => -0.5773502691896255
   BoseFS{1,3}((1, 0, 0)) => -0.5773502691896257
 ```
-Has methods for [`dimension`](@ref), `SparseArrays.sparse`, `LinearAlgebra.Matrix`,
+Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 [`starting_address`](@ref).
 """
 struct BasisSetRep{A,SM,H}
@@ -275,7 +275,7 @@ to disable this behaviour.
 
 See [`BasisSetRep`](@ref).
 """
-function LinearAlgebra.Matrix(h::AbstractHamiltonian, args...; kwargs...)
+function Base.Matrix(h::AbstractHamiltonian, args...; kwargs...)
     return Matrix(BasisSetRep(h, args...; kwargs...))
 end
-LinearAlgebra.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
+Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)

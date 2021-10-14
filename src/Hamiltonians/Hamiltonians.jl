@@ -52,6 +52,8 @@ export G2Correlator
 export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export num_neighbours, neighbour_site
 
+export sparse # from SparseArrays
+
 include("abstract.jl")
 include("offdiagonals.jl")
 include("operations.jl")
