@@ -80,7 +80,6 @@ function diagonal_element(h::HubbardReal1DEP, address::BoseFS)
         h.u * occnum * (occnum - 1) / 2 + h.ep[mode] * occnum
     end
 end
-end
 
 function get_offdiagonal(h::HubbardReal1DEP, add::BoseFS, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
