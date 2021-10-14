@@ -517,7 +517,8 @@ end
     # lomc!() with AbstractMatrix
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
-    sm, basis = Rimu.Hamiltonians.build_sparse_matrix_from_LO(ham, starting_address(ham))
+    bsr = BasisSetRep(ham, starting_address(ham))
+    sm, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
     # run lomc! in deterministic mode with Matrix and Vector
     a = lomc!(sm, ones(dim); threading=true).df # no actual threading is done, though
@@ -608,7 +609,6 @@ end
     @test diagonal_element(g0s,bfs2) == 1/3
 end
 
-using Rimu.Hamiltonians: build_sparse_matrix_from_LO
 @testset "HubbardReal1DEP" begin
     for M in [3,4]
         is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
@@ -625,8 +625,7 @@ using Rimu.Hamiltonians: build_sparse_matrix_from_LO
     h = HubbardReal1DEP(addr; t, v_ho)
     # all particles at the bottom of potential well
     @test diagonal_element(h, addr) == 0 == h.ep⋅onr(addr)
-    sm, basis = build_sparse_matrix_from_LO(h)
-    energies = eigvals(Matrix(sm)) .+ 2n*t # shifted by bottom of Hubbard dispersion
+    energies = eigvals(Matrix(h)) .+ 2n*t # shifted by bottom of Hubbard dispersion
     @test energies[1:3] ≈ 0.5:1.0:2.5 atol=0.005 # first few eigenvalues
     # # Here is a quick plot script that shows eigenvalues to deviate around n = 10
     # using Plots
