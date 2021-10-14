@@ -207,23 +207,23 @@ BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
 
-julia> using LinearAlgebra; eigvals(Matrix(bsr))
-3-element Vector{Float64}:
- -1.9999999999999998
-  1.0
-  1.0000000000000004
+ julia> using LinearAlgebra; round.(eigvals(Matrix(bsr)); digits=13)
+ 3-element Vector{Float64}:
+  -2.0
+   1.0
+   1.0
 
-julia> ev = eigvecs(Matrix(bsr))[:,1] # ground state eigenvector
+julia> ev = round.(eigvecs(Matrix(bsr))[:,1]; digits=13) # ground state eigenvector
 3-element Vector{Float64}:
- -0.5773502691896257
- -0.5773502691896255
- -0.5773502691896257
+ -0.5773502691896
+ -0.5773502691896
+ -0.5773502691896
 
 julia> DVec(zip(bsr.basis,ev)) # ground state as DVec
 DVec{BoseFS{1, 3, BitString{3, 1, UInt8}},Float64} with 3 entries, style = IsDeterministic{Float64}()
-  BoseFS{1,3}((0, 0, 1)) => -0.5773502691896257
-  BoseFS{1,3}((0, 1, 0)) => -0.5773502691896255
-  BoseFS{1,3}((1, 0, 0)) => -0.5773502691896257
+  BoseFS{1,3}((0, 0, 1)) => -0.5773502691896
+  BoseFS{1,3}((0, 1, 0)) => -0.5773502691896
+  BoseFS{1,3}((1, 0, 0)) => -0.5773502691896
 ```
 Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 [`starting_address`](@ref).
