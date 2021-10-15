@@ -22,7 +22,7 @@ Methods that need to be implemented:
 
 * [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
 * [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
-* [`StochasticStyles.diagonal_element(::AbstractHamiltonian, address)`](@ref)
+* [`diagonal_element(::AbstractHamiltonian, address)`](@ref)
 * [`starting_address(::AbstractHamiltonian)`](@ref)
 
 Optional methods to implement:
