@@ -206,8 +206,8 @@ BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
- ```
- ```julia-repl
+```
+```julia-repl
  julia> using LinearAlgebra; eigvals(Matrix(bsr))
  3-element Vector{Float64}:
   -2.0
