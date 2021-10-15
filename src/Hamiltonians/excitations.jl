@@ -216,3 +216,26 @@ function transcorrelated_three_body_excitation(add_a, add_b, i, map_a, map_b)
 
     return new_add_a, new_add_b, val1 * val2, k,l
 end
+
+function momentum_external_potential_excitation(ep, add, i, map)
+    M = num_modes(add)
+    p, q = fldmod1(i, M - 1)
+    p_index = map[p]
+    q += q ≥ p_index.mode
+    q_index = find_mode(add, q)
+    k = p_index.mode - q # change in momentum
+    factor = 1/M * ep[abs(k) + 1]
+    new_add, value = excitation(add, (q_index,), (p_index,))
+    return new_add, value * factor, p_index.mode, q_index.mode, k
+end
+
+function momentum_external_potential_diagonal(ep, add, map)
+    # Includes:
+    # number operator on each particle * ep[1]
+
+    M = num_modes(add)
+    onproduct = sum(map) do index
+        index.occnum
+    end
+    return onproduct * 1/M * ep[1]
+end

@@ -25,6 +25,7 @@ Hamiltonians.
 module Hamiltonians
 
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
+using FFTW
 using Setfield
 
 using ..StochasticStyles
@@ -42,6 +43,7 @@ export dimension, rayleigh_quotient, momentum
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
 export HubbardReal1DEP, shift_lattice, shift_lattice_inv
+export HubbardMom1DEP
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 export Transcorrelated1D
@@ -63,6 +65,7 @@ include("MatrixHamiltonian.jl")
 include("HubbardReal1D.jl")
 include("HubbardReal1DEP.jl")
 include("HubbardMom1D.jl")
+include("HubbardMom1DEP.jl")
 include("HubbardRealSpace.jl")
 include("ExtendedHubbardReal1D.jl")
 
