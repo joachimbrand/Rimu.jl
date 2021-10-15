@@ -206,14 +206,15 @@ BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
-
- julia> using LinearAlgebra; round.(eigvals(Matrix(bsr)); digits=13)
+ ```
+ ```julia-repl
+ julia> using LinearAlgebra; eigvals(Matrix(bsr))
  3-element Vector{Float64}:
   -2.0
    1.0
    1.0
 
-julia> ev = round.(eigvecs(Matrix(bsr))[:,1]; digits=13) # ground state eigenvector
+julia> ev = eigvecs(Matrix(bsr))[:,1] # ground state eigenvector
 3-element Vector{Float64}:
  -0.5773502691896
  -0.5773502691896
