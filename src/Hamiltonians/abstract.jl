@@ -145,6 +145,8 @@ Create a sparse matrix `sm` of all reachable matrix elements of a linear operato
 starting from the address `add`. The vector `basis` contains the addresses of basis
 configurations.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
+
+See [`BasisSetRep`](@ref).
 """
 function build_sparse_matrix_from_LO(
     ham::AbstractHamiltonian, fs=starting_address(ham); nnzs = 0
@@ -187,10 +189,11 @@ function build_sparse_matrix_from_LO(
 end
 
 """
-    BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
+    BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, nnzs = 0)
 Eagerly construct the basis set representation of the operator `h` with all addresses
 reachable from `addr`. An `ArgumentError` is thrown if `dimension(h) > sizelim` in order
 to prevent memory overflow. Set `sizelim = Inf` in order to disable this behaviour.
+Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 
 ## Fields
 * `sm`: sparse matrix representing `h` in the basis `basis`
@@ -235,10 +238,13 @@ struct BasisSetRep{A,SM,H}
     h::H
 end
 
-function BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
+function BasisSetRep(
+    h::AbstractHamiltonian, addr=starting_address(h);
+    sizelim=10^4, nnzs = 0
+)
     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
     check_address_type(h, addr)
-    sm, basis = build_sparse_matrix_from_LO(h, addr)
+    sm, basis = build_sparse_matrix_from_LO(h, addr; nnzs)
     return BasisSetRep(sm, basis, h)
 end
 

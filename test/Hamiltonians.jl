@@ -647,7 +647,7 @@ end
     n = 10
     addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
     ham = HubbardReal1D(addr)
-    bsr = BasisSetRep(ham)
+    bsr = BasisSetRep(ham; nnzs = dimension(ham))
     @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
     @test_throws ArgumentError BasisSetRep(ham, BoseFS((1,2,3))) # wrong address type
     @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
