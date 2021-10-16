@@ -3,7 +3,7 @@
 Throw an `ArgumentError` if the type of `addr` is not compatible with `h`.
 """
 function check_address_type(h::AbstractHamiltonian, addr::A) where A
-    typeof(starting_address(h)) == A || throw(ArgumentError("adress type mismatch"))
+    typeof(starting_address(h)) == A || throw(ArgumentError("address type mismatch"))
 end
 
 (h::AbstractHamiltonian)(v) = h * v
