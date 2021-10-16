@@ -198,7 +198,7 @@ Providing the number `nnzs` of expected calculated matrix elements may improve p
 ## Fields
 * `sm`: sparse matrix representing `h` in the basis `basis`
 * `basis`: vector of addresses
-* `h`
+* `h`: the Hamiltonian
 
 ## Example
 ```jldoctest
