@@ -39,6 +39,7 @@ import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starti
 
 export AbstractHamiltonian, TwoComponentBosonicHamiltonian
 export dimension, rayleigh_quotient, momentum
+export BasisSetRep
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
@@ -53,6 +54,8 @@ export G2Correlator
 
 export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export num_neighbours, neighbour_site, difference, add_offset
+
+export sparse # from SparseArrays
 
 include("abstract.jl")
 include("offdiagonals.jl")

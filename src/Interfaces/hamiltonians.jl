@@ -22,7 +22,7 @@ Methods that need to be implemented:
 
 * [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
 * [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
-* [`StochasticStyles.diagonal_element(::AbstractHamiltonian, address)`](@ref)
+* [`diagonal_element(::AbstractHamiltonian, address)`](@ref)
 * [`starting_address(::AbstractHamiltonian)`](@ref)
 
 Optional methods to implement:
@@ -41,6 +41,8 @@ Provides:
 * `mul!(w, H, v)`: mutating matrix-vector multiply.
 * [`dot(x, H, v)`](@ref): compute `x⋅(H*v)` minimizing allocations.
 * `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes (slow!)
+* [`BasisSetRep`](@ref): construct a basis set repesentation
+* [`sparse`](@ref), [`Matrix`](@ref): construct a (sparse) matrix representation
 
 See also [`Hamiltonians`](@ref), [`Interfaces`](@ref).
 """
