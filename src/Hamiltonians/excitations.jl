@@ -229,6 +229,9 @@ function momentum_external_potential_excitation(ep, add, i, map)
     return new_add, value * factor, p_index.mode, q_index.mode, k
 end
 
+function momentum_external_potential_diagonal(::Nothing, add, map)
+    return 0.0
+end
 function momentum_external_potential_diagonal(ep, add, map)
     M = num_modes(add)
     onproduct = sum(map) do index

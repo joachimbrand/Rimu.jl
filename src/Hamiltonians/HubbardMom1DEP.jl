@@ -102,13 +102,14 @@ end
         momentum_external_potential_diagonal(h.ep, add, map)
 end
 @inline function diagonal_element(h::HubbardMom1DEP, add::FermiFS2C)
-    map_a = OccupiedModeMap(add.components[1])
-    map_b = OccupiedModeMap(add.components[2])
+    c1, c2 = add.components
+    map_a = OccupiedModeMap(c1)
+    map_b = OccupiedModeMap(c2)
     return kinetic_energy(h.kes, map_a) +
         kinetic_energy(h.kes, map_b) +
         momentum_transfer_diagonal(h, map_a, map_b) +
-        momentum_external_potential_diagonal(h.ep, map_a) +
-        momentum_external_potential_diagonal(h.ep, map_b)
+        momentum_external_potential_diagonal(h.ep, c1, map_a) +
+        momentum_external_potential_diagonal(h.ep, c2, map_b)
 end
 
 ###
@@ -147,6 +148,62 @@ function Base.getindex(s::OffdiagonalsBoseMom1DEP{A,T}, i)::Tuple{A,T} where {A,
         new_address, matrix_element = momentum_external_potential_excitation(
             s.hamiltonian.ep, s.address, i, s.map
         )
+    end
+    return (new_address, matrix_element)
+end
+
+Base.size(s::OffdiagonalsBoseMom1DEP) = (s.num_mom + s.num_ep,)
+
+struct OffdiagonalsFermiMom1D2CEP{
+    A<:FermiFS2C,T,H<:AbstractHamiltonian{T},O1,O2
+} <: AbstractOffdiagonals{A,T}
+    hamiltonian::H
+    address::A
+    num_mom::Int
+    num_ep_a::Int
+    num_ep_b::Int
+    map_a::O1
+    map_b::O2
+end
+
+function offdiagonals(h::HubbardMom1DEP, a::FermiFS2C)
+    M = num_modes(a)
+    comp_a, comp_b = a.components
+    N1 = num_particles(comp_a)
+    N2 = num_particles(comp_b)
+    map_a = OccupiedModeMap(comp_a)
+    map_b = OccupiedModeMap(comp_b)
+    num_mom = N1 * N2 * (M - 1)
+    num_ep_a = N1 * (M - 1)
+    num_ep_b = N2 * (M - 1)
+
+    return OffdiagonalsFermiMom1D2CEP(h, a, num_mom, num_ep_a, num_ep_b, map_a, map_b)
+end
+
+Base.size(s::OffdiagonalsFermiMom1D2CEP) = (s.num_mom + s.num_ep_a + s.num_ep_b,)
+
+function Base.getindex(s::OffdiagonalsFermiMom1D2CEP{A,T}, i)::Tuple{A,T} where {A,T}
+    @boundscheck begin
+        1 ≤ i ≤ length(s) || throw(BoundsError(s, i))
+    end
+    c1, c2 = s.address.components
+    M = num_modes(s.address)
+    if i ≤ s.num_mom
+        new_c1, new_c2, onproduct = momentum_transfer_excitation(c1, c2, i, s.map_a, s.map_b)
+        new_address = CompositeFS(new_c1, new_c2)
+        matrix_element = s.hamiltonian.u/(2*M) * onproduct
+    elseif i ≤ s.num_mom + s.num_ep_a
+        i -= s.num_mom
+        new_c1, matrix_element = momentum_external_potential_excitation(
+            s.hamiltonian.ep, c1, i, s.map_a
+        )
+        new_address = CompositeFS(new_c1, c2)
+    else
+        i -= s.num_mom + s.num_ep_a
+        new_c2, matrix_element = momentum_external_potential_excitation(
+            s.hamiltonian.ep, c2, i, s.map_b
+        )
+        new_address = CompositeFS(c1, new_c2)
     end
     return (new_address, matrix_element)
 end

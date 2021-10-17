@@ -1,26 +1,39 @@
 # TODO: disabling three-body terms
+"""
+
+"""
 struct Transcorrelated1D{
-    M,F<:CompositeFS{2,<:Any,M,<:Tuple{FermiFS,FermiFS}} # TODO: relax this to allow bosons
+    M,F<:CompositeFS{2,<:Any,M,<:Tuple{FermiFS,FermiFS}}, # TODO: relax this to allow bosons
+    P<:Union{Nothing,SVector{M,Float64}}
 } <: AbstractHamiltonian{Float64}
     address::F
     cutoff::Int
     v::Float64
     t::Float64
+    v_ho::Float64
     ks::SVector{M,Float64}
     kes::SVector{M,Float64}
     ws::SVector{M,Float64}
     us::SVector{M,Float64}
+    potential::P
 end
 
-function Transcorrelated1D(address; t=1.0, v=1.0, cutoff=1)
+function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1)
     M = num_modes(address)
     cutoff < 1 && error("`cutoff` must be a positive integer")
     ks = SVector{M}(i_to_k.(1:M, M))
     kes = t .* ks.^2
     ws = SVector{M}(w_function.(0:M-1, cutoff, M, v, t))
     us = SVector{M}(correlation_factor.(1:M, cutoff, M))
+    if iszero(v_ho)
+        potential = nothing
+    else
+        potential = momentum_space_harmonic_potential(M, v_ho)
+    end
 
-    return Transcorrelated1D{M,typeof(address)}(address, cutoff, v, t, ks, kes, ws, us)
+    return Transcorrelated1D{M,typeof(address),typeof(potential)}(
+        address, cutoff, float(v), float(t), float(v_ho), ks, kes, ws, us, potential
+    )
 end
 
 function Base.show(io::IO, h::Transcorrelated1D)
@@ -157,7 +170,9 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
         kinetic_energy(h.kes, map2) +
         momentum_transfer_diagonal(h, map1, map2) +
         transcorrelated_diagonal(h, map1, map2) +
-        transcorrelated_diagonal(h, map2, map1)
+        transcorrelated_diagonal(h, map2, map1) +
+        momentum_external_potential_diagonal(h.potential, c1, map1) +
+        momentum_external_potential_diagonal(h.potential, c2, map2)
 end
 
 struct Transcorrelated1DOffdiagonals{H,A,O1,O2}<:AbstractOffdiagonals{A,Float64}
@@ -178,7 +193,14 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
     n_mom = N1 * N2 * (M - 1)
     n_trans1 = N1 * (N1 - 1) * N2 * M * M
     n_trans2 = N2 * (N2 - 1) * N1 * M * M
-    len = n_mom + n_trans1 + n_trans2
+    if !isnothing(h.potential)
+        n_pot1 = N1 * (M - 1)
+        n_pot2 = N2 * (M - 1)
+    else
+        n_pot1 = 0
+        n_pot2 = 0
+    end
+    len = n_mom + n_trans1 + n_trans2 + n_pot1 + n_pot2
     return Transcorrelated1DOffdiagonals(h, add, map1, map2, len)
 end
 
@@ -196,10 +218,20 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
     n_trans1 = N1 * (N1 - 1) * N2 * M * M
     n_trans2 = N2 * (N2 - 1) * N1 * M * M
 
-    # Fallback on zeros
+    # This should be efficient as it depends on the type of the potential
+    if !isnothing(od.hamiltonian.potential)
+        n_pot1 = N1 * (M - 1)
+        n_pot2 = N2 * (M - 1)
+    else
+        n_pot1 = 0
+        n_pot2 = 0
+    end
+
+    # Fallback on zero values
     new_c = CompositeFS(c1, c2)
 
     if i ≤ n_mom
+        # Momentum transfer
         new_c1, new_c2, value, p, q, k = momentum_transfer_excitation(
             c1, c2, i, map1, map2; fold=false
         )
@@ -209,6 +241,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
             new_c = CompositeFS(new_c1, new_c2)
         end
     elseif i ≤ n_mom + n_trans1
+        # Transcorrelated excitation from first to second component
         i -= n_mom
 
         new_c1, new_c2, value, k, l = transcorrelated_three_body_excitation(
@@ -220,6 +253,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
             new_c = CompositeFS(new_c1, new_c2)
         end
     elseif i ≤ n_mom + n_trans1 + n_trans2
+        # Transcorrelated excitation from second to first component
         i -= n_mom + n_trans1
 
         new_c2, new_c1, value, k, l = transcorrelated_three_body_excitation(
@@ -229,6 +263,26 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         if !iszero(value)
             @assert new_c1 ≠ c1 || new_c2 ≠ c2
             new_c = CompositeFS(new_c1, new_c2)
+        end
+    elseif i ≤ n_mom + n_trans1 + n_trans2 + n_pot1
+        # Potential acting on first component
+        i -= n_mom + n_trans1 + n_trans2
+
+        new_c1, value = momentum_external_potential_excitation(
+            od.hamiltonian.potential, c1, i, map1
+        )
+        if !iszero(value)
+            new_c = CompositeFS(new_c1, c2)
+        end
+    elseif i ≤ n_mom + n_trans1 + n_trans2 + n_pot1 + n_pot2
+        # Potential acting on second component
+        i -= n_mom + n_trans1 + n_trans2 + n_pot1
+
+        new_c2, value = momentum_external_potential_excitation(
+            od.hamiltonian.potential, c2, i, map1
+        )
+        if !iszero(value)
+            new_c = CompositeFS(c1, new_c2)
         end
     else
         throw(BoundsError(od, i))
