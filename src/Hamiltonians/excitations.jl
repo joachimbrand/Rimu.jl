@@ -224,15 +224,12 @@ function momentum_external_potential_excitation(ep, add, i, map)
     q += q ≥ p_index.mode
     q_index = find_mode(add, q)
     k = p_index.mode - q # change in momentum
-    factor = 1/M * ep[abs(k) + 1]
+    factor = 1/M * ep[mod(k, M) + 1]
     new_add, value = excitation(add, (q_index,), (p_index,))
     return new_add, value * factor, p_index.mode, q_index.mode, k
 end
 
 function momentum_external_potential_diagonal(ep, add, map)
-    # Includes:
-    # number operator on each particle * ep[1]
-
     M = num_modes(add)
     onproduct = sum(map) do index
         index.occnum

@@ -1,4 +1,19 @@
 """
+    momentum_space_harmonic_potential(M, v)
+
+Set up a harmonic potential for use with momentum space Hamiltonians.
+"""
+function momentum_space_harmonic_potential(M, v)
+    # Set up potential like in Real1DEP
+    is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
+    js = shift_lattice(is) # shifted such that js[1] = 0
+    real_potential = [v*j^2 for j in js]
+    mom_potential = fft(real_potential)
+    @assert isreal(mom_potential)
+    return SVector{M}(real.(mom_potential))
+end
+
+"""
     HubbardMom1DEP(address; u=1.0, t=1.0, v_ho=1.0, dispersion=hubbard_dispersion)
 
 Implements a one-dimensional Bose Hubbard chain in momentum space with harmonic external
@@ -43,15 +58,9 @@ function HubbardMom1DEP(
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    # kes = SVector{M}(-2T*cos.(kr))
     kes = SVector{M}(T .* dispersion.(kr))
 
-    # Set up potential like in Real1DEP
-    is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
-    js = shift_lattice(is) # shifted such that js[1] = 0
-    real_potential = [V*j^2 for j in js]
-    @assert all(isreal, fft(real_potential))
-    potential = SVector{M}(real.(fft(real_potential)))
+    potential = momentum_space_harmonic_potential(M, V)
 
     return HubbardMom1DEP{typeof(U),M,typeof(add),U,T}(add, ks, kes, potential)
 end
