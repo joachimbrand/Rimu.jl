@@ -134,7 +134,7 @@ end
 end
 
 """
-    interaction_energy_diagonal(H, map::OccupiedModeMap)
+    momentum_transfer_diagonal(H, map::OccupiedModeMap)
 
 Compute diagonal interaction energy term.
 
@@ -146,8 +146,7 @@ BoseFS{6,5}((1, 2, 3, 0, 0))
 
 julia> H = HubbardMom1D(a);
 
-
-julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
+julia> Hamiltonians.momentum_transfer_diagonal(H, OccupiedModeMap(a))
 5.2
 ```
 """

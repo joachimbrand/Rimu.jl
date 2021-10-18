@@ -199,8 +199,8 @@ ERROR: MethodError: no method matching -(::Rimu.BitStringAddresses.FermiFSIndex,
 For element-wise subtraction, use broadcasting with dot syntax: array .- scalar
 Closest candidates are:
   -(!Matched::T, ::T) where T<:Union{Int128, Int16, Int32, Int64, Int8, UInt128, UInt16, UInt32, UInt64, UInt8} at int.jl:86
-  -(!Matched::MonteCarloMeasurements.Particles{T, N}, ::Real...) where {T, N} at /home/m/.julia/packages/MonteCarloMeasurements/sgUSp/src/register_primitive.jl:44
   -(!Matched::ChainRulesCore.AbstractThunk, ::Any) at /home/m/.julia/packages/ChainRulesCore/ChM7X/src/differentials/thunks.jl:30
+  -(!Matched::Base.TwicePrecision, ::Number) at twiceprecision.jl:281
   ...
 Stacktrace:
  [1] top-level scope
@@ -275,7 +275,7 @@ julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
 BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
 
 julia> OccupiedModeMap(b)
-3-element OccupiedModeMap{7, Rimu.BitStringAddresses.BoseFSIndex}:
+3-element OccupiedModeMap{13, Rimu.BitStringAddresses.BoseFSIndex}:
  BoseFSIndex(occnum=10, mode=1, offset=0)
  BoseFSIndex(occnum=2, mode=5, offset=14)
  BoseFSIndex(occnum=1, mode=7, offset=18)
@@ -284,7 +284,7 @@ julia> f = FermiFS((1,1,1,1,0,0,0,0,1))
 FermiFS{5,9}((1, 1, 1, 1, 0, 0, 0, 0, 1))
 
 julia> OccupiedModeMap(f)
-5-element OccupiedModeMap{9, Rimu.BitStringAddresses.FermiFSIndex}:
+5-element OccupiedModeMap{5, Rimu.BitStringAddresses.FermiFSIndex}:
  FermiFSIndex(occnum=1, mode=1)
  FermiFSIndex(occnum=1, mode=2)
  FermiFSIndex(occnum=1, mode=3)
