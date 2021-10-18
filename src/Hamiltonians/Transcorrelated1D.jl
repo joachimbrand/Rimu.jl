@@ -61,7 +61,7 @@ function Base.show(io::IO, h::Transcorrelated1D)
     end
 end
 
-LOStructure(::Type{<:HubbardMom1DEP{<:Real}}) = AdjointUnknown()
+LOStructure(::Type{<:Transcorrelated1D}) = AdjointUnknown()
 
 function get_offdiagonal(h::Transcorrelated1D{<:Any,F}, add::F, i) where {F}
     return offdiagonals(h, add)[i]
