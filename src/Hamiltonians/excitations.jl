@@ -5,30 +5,6 @@ const BoseOccupiedModeMap{N} = OccupiedModeMap{N,BitStringAddresses.BoseFSIndex}
 const FermiOccupiedModeMap{N} = OccupiedModeMap{N,BitStringAddresses.FermiFSIndex}
 
 """
-    real_space_excitation(add, chosen, map, geometry)
-
-Apply a real space hop operator:
-
-```math
-a^†_{p} a_q
-```
-
-where `p` and `q` are neighbour sites in `geometry`.
-"""
-@inline function real_space_excitation(add, chosen, map, geometry)
-    neighbours = num_neighbours(geometry)
-    particle, neigh = fldmod1(chosen, neighbours)
-    src_index = map[particle]
-    neigh = neighbour_site(geometry, src_index.mode, neigh)
-    if neigh == 0
-        return add, 0.0
-    else
-        dst_index = find_mode(add, neigh)
-        return move_particle(add, src_index, dst_index)
-    end
-end
-
-"""
     momentum_transfer_excitation(add, chosen, map; fold=true)
     momentum_transfer_excitation(add_a, add_b, chosen, map_a, map_b; fold=true)
 

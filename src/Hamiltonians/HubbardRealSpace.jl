@@ -266,9 +266,19 @@ end
 
 Base.size(o::HubbardRealSpaceCompOffdiagonals) = (o.length,)
 
-function Base.getindex(o::HubbardRealSpaceCompOffdiagonals, i)
-    new_add, value = real_space_excitation(o.address, i, o.map, o.geometry)
-    return new_add, -o.t * value
+@inline function Base.getindex(o::HubbardRealSpaceCompOffdiagonals, chosen)
+    neighbours = num_neighbours(o.geometry)
+    particle, neigh = fldmod1(chosen, neighbours)
+    src_index = find_occupied_mode(o.address, particle)
+    neigh = neighbour_site(o.geometry, src_index.mode, neigh)
+
+    if neigh == 0
+        return o.address, 0.0
+    else
+        dst_index = find_mode(o.address, neigh)
+        new_add, value = excitation(o.address, (dst_index,), (src_index,))
+        return new_add, -o.t * value
+    end
 end
 
 # For simple models with one component.
