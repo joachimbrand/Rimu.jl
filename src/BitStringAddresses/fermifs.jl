@@ -138,28 +138,6 @@ function find_occupied_mode(a::FermiFS, i::Integer)
     end
     return FermiFSIndex(0, 0)
 end
-function find_occupied_mode(a::FermiFS, indices::NTuple{N}) where {N}
-    # Idea is to find permutation, then use the permutation to find indices in order
-    perm = sortperm(SVector(indices))
-    # Index into permutation, is in 1:N
-    perm_i = 1
-    # Points to result and indices
-    curr_i = perm[1]
-    # Current occupied mode index
-    index = 0
-    result = ntuple(_ -> FermiFSIndex(0, 0), Val(N))
-    for k in occupied_modes(a)
-        index += 1
-        # While loop handles duplicates in indices
-        while index == indices[curr_i]
-            @set! result[curr_i] = k
-            perm_i += 1
-            perm_i > N && return result
-            curr_i = perm[perm_i]
-        end
-    end
-    return result
-end
 
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}
     result = zero(MVector{M,Int32})

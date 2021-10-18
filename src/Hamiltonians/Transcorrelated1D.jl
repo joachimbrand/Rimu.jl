@@ -53,7 +53,21 @@ function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1)
 end
 
 function Base.show(io::IO, h::Transcorrelated1D)
-    print(io, "Transcorrelated1D(", starting_address(h), ", t=$(h.t), v=$(h.v))")
+    print(io, "Transcorrelated1D(", starting_address(h), ", t=$(h.t), v=$(h.v)")
+    if !iszero(h.v_ho)
+        print(io, ", v_ho=$(h.v_ho))")
+    else
+        print(io, ")")
+    end
+end
+
+LOStructure(::Type{<:HubbardMom1DEP{<:Real}}) = AdjointUnknown()
+
+function get_offdiagonal(h::Transcorrelated1D{<:Any,F}, add::F, i) where {F}
+    return offdiagonals(h, add)[i]
+end
+function num_offdiagonals(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
+    return length(offdiagonals(h, add))
 end
 
 # Note: n starts at 0 in the middle of the address, and can be positive or negative
@@ -61,7 +75,6 @@ end
 @inline i_to_n(i, M) = i - M ÷ 2 - isodd(M)
 @inline n_to_i(n, M) = n + M ÷ 2 + isodd(M)
 @inline n_to_k(n, M) = i_to_k(n_to_i(n, M), M)
-@inline cutoff_to_kc(cutoff, M) = cutoff * 2π/M
 
 """
     correlation_factor(n, cutoff)

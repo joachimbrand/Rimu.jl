@@ -86,6 +86,12 @@ end
 
         MatrixHamiltonian([1 2;2 0]),
         GutzwillerSampling(MatrixHamiltonian([1.0 2.0;2.0 0.0]); g=0.3),
+
+        Transcorrelated1D(CompositeFS(FermiFS((0,0,1,1,0)), FermiFS((0,1,1,0,0))); t=2),
+        Transcorrelated1D(CompositeFS(FermiFS((0,0,1,0)), FermiFS((0,1,1,0))); v=3, v_ho=1),
+
+        HubbardMom1DEP(BoseFS((0,0,5,0,0))),
+        HubbardMom1DEP(CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((0,0,1,0,0))), v_ho=5),
     )
         test_hamiltonian_interface(H)
     end

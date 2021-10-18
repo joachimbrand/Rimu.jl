@@ -72,6 +72,12 @@ end
 function starting_address(h::HubbardMom1DEP)
     return h.add
 end
+function get_offdiagonal(h::HubbardMom1DEP{<:Any,<:Any,F}, add::F, i) where {F}
+    return offdiagonals(h, add)[i]
+end
+function num_offdiagonals(h::HubbardMom1DEP{<:Any,<:Any,F}, add::F) where {F}
+    return length(offdiagonals(h, add))
+end
 
 LOStructure(::Type{<:HubbardMom1DEP{<:Real}}) = IsHermitian()
 

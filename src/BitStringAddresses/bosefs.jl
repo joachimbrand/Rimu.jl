@@ -436,30 +436,6 @@ function find_occupied_mode(b::BoseFS, index::Integer, n=1)
     end
     return BoseFSIndex(0, 0, 0)
 end
-# Find multiple in a single pass.
-function find_occupied_mode(b::BoseFS, indices::NTuple{N}, n=1) where {N}
-    # Idea is similar to find_mode, i.e. find permutation, then use the permutation to find
-    # indices
-    perm = sortperm(SVector(indices))
-    # Index into permutation, is in 1:N
-    perm_i = 1
-    # Points to result and indices
-    curr_i = perm[1]
-    # Current occupied mode index.
-    index = 0
-    result = ntuple(_ -> BoseFSIndex(0, 0, 0), Val(N))
-    @inbounds for (occnum, mode, offset) in occupied_modes(b)
-        index += occnum ≥ n
-        # While loop handles duplicates in indices
-        while index == indices[curr_i]
-            @set! result[curr_i] = BoseFSIndex(occnum, mode, offset)
-            perm_i += 1
-            perm_i > N && return result
-            curr_i = perm[perm_i]
-        end
-    end
-    return result # not reached if all modes asked for exist
-end
 
 function move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
     occ1 = from.occnum
