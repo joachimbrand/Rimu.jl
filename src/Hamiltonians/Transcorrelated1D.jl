@@ -279,7 +279,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         i -= n_mom + n_trans1 + n_trans2 + n_pot1
 
         new_c2, value = momentum_external_potential_excitation(
-            od.hamiltonian.potential, c2, i, map1
+            od.hamiltonian.potential, c2, i, map2
         )
         if !iszero(value)
             new_c = CompositeFS(c1, new_c2)

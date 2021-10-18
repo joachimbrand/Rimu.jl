@@ -136,6 +136,11 @@ end
     return new_add_a, new_add_b, val_a * val_b, params...
 end
 
+"""
+    momentum_transfer_diagonal(map)
+
+The diagonal part of [`momentum_transfer_excitation`](@ref).
+"""
 function momentum_transfer_diagonal(map::BoseOccupiedModeMap)
     onproduct = 0
     for i in 1:length(map)
@@ -217,6 +222,18 @@ function transcorrelated_three_body_excitation(add_a, add_b, i, map_a, map_b)
     return new_add_a, new_add_b, val1 * val2, k,l
 end
 
+"""
+    momentum_external_potential_excitation(ep, add, i, map)
+
+The momentum space version of an external potential. `ep` must be the output a DFT of a
+potential.
+
+```math
+ep[p - q mod M + 1] a^†_{p} a_{q}
+```
+
+Return the new address, and the value.
+"""
 function momentum_external_potential_excitation(ep, add, i, map)
     M = num_modes(add)
     p, q = fldmod1(i, M - 1)
@@ -226,9 +243,14 @@ function momentum_external_potential_excitation(ep, add, i, map)
     k = p_index.mode - q # change in momentum
     factor = 1/M * ep[mod(k, M) + 1]
     new_add, value = excitation(add, (q_index,), (p_index,))
-    return new_add, value * factor, p_index.mode, q_index.mode, k
+    return new_add, value * factor
 end
 
+"""
+    momentum_external_potential_diagonal(ep, add, map)
+
+The diagonal part of [`momentum_external_potential_excitation`](@ref).
+"""
 function momentum_external_potential_diagonal(::Nothing, add, map)
     return 0.0
 end

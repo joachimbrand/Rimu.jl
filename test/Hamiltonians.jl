@@ -3,6 +3,12 @@ using LinearAlgebra
 using Rimu
 using Test
 
+function exact_energy(ham)
+    dv = DVec(starting_address(ham) => 1.0)
+    all_results = eigsolve(ham, dv, 1, :SR; issymmetric = LOStructure(ham) == IsHermitian())
+    return all_results[1][1]
+end
+
 """
     test_hamiltonian_interface(H, addr)
 
@@ -159,12 +165,6 @@ end
             @test eval(Meta.parse(repr(H2))) == H2
         end
     end
-end
-
-function exact_energy(ham)
-    dv = DVec(starting_address(ham) => 1.0)
-    all_results = eigsolve(ham, dv, 1, :SR; issymmetric = true)
-    return all_results[1][1]
 end
 
 @testset "HubbardRealSpace" begin
@@ -635,6 +635,119 @@ end
     # ylabel!("Energy")
     # xlabel!("ho quantum number n")
     # title!("Harmonic oscillator in Hubbard, M = $m, l_0 = $l0")
+end
+
+@testset "HubbardMom1D(FermiFS2C)" begin
+    @testset "Two fermions vs two bosons" begin
+        bose = HubbardMom1D(BoseFS((0,0,2,0,0)))
+        fermi = HubbardMom1D(CompositeFS(FermiFS((0,0,1,0,0)), FermiFS((0,0,1,0,0))))
+
+        @test exact_energy(bose) ≈ exact_energy(fermi)
+    end
+    @testset "Comparison with HubbardRealSpace" begin
+        c = CompositeFS(FermiFS((0,1,1,1,0)), FermiFS((0,0,1,0,0)))
+        h_real = HubbardRealSpace(c; u=[0 0.5; 0.5 0])
+        h_mom = HubbardMom1D(c; u=0.5)
+
+        @test exact_energy(h_real) ≈ exact_energy(h_mom)
+    end
+end
+
+@testset "HubbardMom1DEP" begin
+    @testset "Comparison with real space" begin
+        h_real = HubbardReal1DEP(BoseFS((1,1,1,1,1)); v_ho=2, t=2, u=1.2)
+        h_mom = HubbardMom1DEP(BoseFS((0,0,5,0,0)); v_ho=2, t=2, u=1.2)
+
+        @test exact_energy(h_real) ≈ exact_energy(h_mom)
+    end
+    @testset "no potential/fermions" begin
+        c = CompositeFS(FermiFS((0,1,0,1,0,0)), FermiFS((0,0,1,0,0,0)))
+        h_real = HubbardMom1D(c, u=2)
+        h_mom = HubbardMom1DEP(c, v_ho=0, u=2)
+
+        @test Matrix(h_real) == Matrix(h_mom)
+    end
+    @testset "Two fermions vs two bosons" begin
+        for dispersion in (continuum_dispersion, hubbard_dispersion)
+            bose = HubbardMom1DEP(BoseFS((0,0,2,0,0)); v_ho=1.5, dispersion)
+            fermi = HubbardMom1DEP(
+                CompositeFS(FermiFS((0,0,1,0,0)), FermiFS((0,0,1,0,0)));
+                v_ho=1.5, dispersion
+            )
+            @test exact_energy(bose) ≈ exact_energy(fermi)
+        end
+    end
+end
+
+"""
+    compare_to_bethe(g, nf, m)
+
+Compare transcorrelated numbers to numbers you get form Bethe ansatz.
+"""
+function compare_to_bethe(g, nf, m)
+    if nf == 2
+        f1 = f2 = FermiFS([i == cld(m, 2) ? 1 : 0 for i in 1:m])
+        exact = g == 10 ? 5.2187287509452015 : g == -10 ? -25.640329369393125 : error()
+    elseif nf == 3
+        f1 = FermiFS([i == cld(m, 2) || i == cld(m, 2) + 1 ? 1 : 0 for i in 1:m])
+        f2 = FermiFS([i == cld(m, 2) ? 1 : 0 for i in 1:m])
+        exact = g == -10 ? -15.151863462651115 : error()
+    elseif nf == 6
+        f1 = f2 = FermiFS([abs(i - cld(m, 2)) ≤ 1 ? 1 : 0 for i in 1:m])
+        exact = g == 10 ? 148.90448481827905 : g == -10 ? -43.819879567678 : error()
+    else
+        error()
+    end
+
+    t = m^2/2
+    v = t*2/m*g
+    c = CompositeFS(f1,f2)
+    h_trans = Transcorrelated1D(c; t, v)
+    energy = eigen(Matrix(h_trans)).values[1]
+    return abs(energy - exact)
+end
+
+@testset "Transcorrelated1D" begin
+    @testset "Bethe ansatz energies" begin
+        @test compare_to_bethe(10, 2, 7) < 0.03
+        @test compare_to_bethe(-10, 2, 7) ≤ 0.02
+        @test compare_to_bethe(-10, 3, 7) ≤ 0.06
+        @test compare_to_bethe(10, 6, 7) < 1.5
+        @test compare_to_bethe(-10, 6, 7) < 0.4
+
+        @test compare_to_bethe(-10, 3, 6) < compare_to_bethe(-10, 3, 7)
+    end
+    @testset "very high cutoff" begin
+        # When setting a high cutoff, the differences between
+        # Transcorrelated and HubbardMom1D become small.
+        f1 = FermiFS((0,1,0,1,0))
+        f2 = FermiFS((0,0,1,0,0))
+        c = CompositeFS(f1, f2)
+        h_trans_cut = Transcorrelated1D(c; cutoff=100_000, v=15)
+        h_trans = Transcorrelated1D(c; v=15)
+        h_mom = HubbardMom1D(c; u=15, dispersion=continuum_dispersion)
+
+        @test exact_energy(h_trans) ≉ exact_energy(h_mom)
+        @test exact_energy(h_trans_cut) ≈ exact_energy(h_mom)
+    end
+    @testset "non-interacting with potential" begin
+        f1 = FermiFS((0,0,1,0,1,0))
+        f2 = FermiFS((0,0,0,1,0,1))
+        c = CompositeFS(f1, f2)
+        h_trans = Transcorrelated1D(c; v=0, v_ho=4)
+        h_mom = HubbardMom1DEP(c; u=0, dispersion=continuum_dispersion, v_ho=4)
+
+        @test exact_energy(h_trans) ≈ exact_energy(h_mom)
+    end
+    @testset "matrix size / folding" begin
+        f1 = FermiFS((0,1,0,1,0,0)) # using even number of sites: folding changes things
+        f2 = FermiFS((0,0,1,0,1,0))
+        c = CompositeFS(f1, f2)
+        h_trans = Transcorrelated1D(c; v=-3)
+        h_mom = HubbardMom1D(c; u=-3, dispersion=continuum_dispersion)
+
+        @test size(sparse(h_trans))[1] < size(sparse(h_mom))[1]
+    end
 end
 
 @testset "BasisSetRep" begin

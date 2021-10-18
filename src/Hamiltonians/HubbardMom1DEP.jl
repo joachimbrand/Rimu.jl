@@ -191,7 +191,7 @@ function Base.getindex(s::OffdiagonalsFermiMom1D2CEP{A,T}, i)::Tuple{A,T} where 
     if i ≤ s.num_mom
         new_c1, new_c2, onproduct = momentum_transfer_excitation(c1, c2, i, s.map_a, s.map_b)
         new_address = CompositeFS(new_c1, new_c2)
-        matrix_element = s.hamiltonian.u/(2*M) * onproduct
+        matrix_element = s.hamiltonian.u/M * onproduct
     elseif i ≤ s.num_mom + s.num_ep_a
         i -= s.num_mom
         new_c1, matrix_element = momentum_external_potential_excitation(
@@ -207,5 +207,3 @@ function Base.getindex(s::OffdiagonalsFermiMom1D2CEP{A,T}, i)::Tuple{A,T} where 
     end
     return (new_address, matrix_element)
 end
-
-Base.size(s::OffdiagonalsBoseMom1DEP) = (s.num_mom + s.num_ep,)
