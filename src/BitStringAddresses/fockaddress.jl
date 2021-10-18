@@ -182,7 +182,7 @@ FermiFSIndex(occnum=1, mode=6)
 julia> j = find_mode(f, i.mode - 1)
 FermiFSIndex(occnum=0, mode=5)
 
-julia> move_particle(f, i, i + 1)
+julia> move_particle(f, i, j)
 ERROR: MethodError: no method matching +(::Rimu.BitStringAddresses.FermiFSIndex, ::Int64)
 For element-wise addition, use broadcasting with dot syntax: array .+ scalar
 Closest candidates are:
@@ -194,26 +194,6 @@ Stacktrace:
  [1] top-level scope
    @ none:1
 
-julia> move_particle(f, i, i - 1)
-ERROR: MethodError: no method matching -(::Rimu.BitStringAddresses.FermiFSIndex, ::Int64)
-For element-wise subtraction, use broadcasting with dot syntax: array .- scalar
-Closest candidates are:
-  -(!Matched::T, ::T) where T<:Union{Int128, Int16, Int32, Int64, Int8, UInt128, UInt16, UInt32, UInt64, UInt8} at int.jl:86
-  -(!Matched::ChainRulesCore.AbstractThunk, ::Any) at /home/m/.julia/packages/ChainRulesCore/ChM7X/src/differentials/thunks.jl:30
-  -(!Matched::Base.TwicePrecision, ::Number) at twiceprecision.jl:281
-  ...
-Stacktrace:
- [1] top-level scope
-   @ none:1
-
-julia> move_particle(f, i, 12)
-ERROR: MethodError: no method matching move_particle(::FermiFS{7, 12, BitString{12, 1, UInt16}}, ::Rimu.BitStringAddresses.FermiFSIndex, ::Int64)
-Closest candidates are:
-  move_particle(::FermiFS{var"#s28", var"#s27", S} where {var"#s28", var"#s27"}, ::Rimu.BitStringAddresses.FermiFSIndex, !Matched::Rimu.BitStringAddresses.FermiFSIndex) where {T, S<:(BitString{var"#s29", 1, T} where var"#s29")} at /home/m/phys/Rimu.jl/src/BitStringAddresses/fermifs.jl:182
-  move_particle(::FermiFS, ::Rimu.BitStringAddresses.FermiFSIndex, !Matched::Rimu.BitStringAddresses.FermiFSIndex) at /home/m/phys/Rimu.jl/src/BitStringAddresses/fermifs.jl:196
-Stacktrace:
- [1] top-level scope
-   @ none:1
 ```
 """
 move_particle
@@ -234,7 +214,9 @@ address and 0.0.
 julia> f = FermiFS((1,1,0,0,1,1,1,1))
 FermiFS{6,8}((1, 1, 0, 0, 1, 1, 1, 1))
 
-julia> excitation(f, (3,4), (2,5))
+julia> i, j, k, l = find_mode(f, (3,4,2,5))
+
+julia> excitation(f, (i,j), (k,l))
 ERROR: type Int64 has no field mode
 Stacktrace:
  [1] getproperty(x::Int64, f::Symbol)
@@ -244,15 +226,6 @@ Stacktrace:
  [3] top-level scope
    @ none:1
 
-julia> excitation(f, (3,4), (2,2))
-ERROR: type Int64 has no field mode
-Stacktrace:
- [1] getproperty(x::Int64, f::Symbol)
-   @ Base ./Base.jl:33
- [2] excitation(a::FermiFS{6, 8, BitString{8, 1, UInt8}}, creations::Tuple{Int64, Int64}, destructions::Tuple{Int64, Int64})
-   @ Rimu.BitStringAddresses ~/phys/Rimu.jl/src/BitStringAddresses/fermifs.jl:291
- [3] top-level scope
-   @ none:1
 ```
 """
 excitation

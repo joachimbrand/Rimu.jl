@@ -270,7 +270,6 @@ function Base.show(io::IO, i::BoseFSIndex)
     @unpack occnum, mode, offset = i
     print(io, "BoseFSIndex(occnum=$occnum, mode=$mode, offset=$offset)")
 end
-Base.show(io::IO, ::MIME"text/plain", i::BoseFSIndex) = show(io, i)
 
 """
     BoseOccupiedModes{C,S<:BoseFS}
@@ -537,44 +536,4 @@ function excitation(b::BoseFS, creations::NTuple{N}, destructions::NTuple{N}) wh
         # without worrying about doing something weird.
         return _move_particles(b, creations_rev, destructions), √value
     end
-end
-
-function find_occupied_modes_with_offsets(
-    b::BoseFS, indices::NTuple{N}, offsets::NTuple{N}
-) where {N}
-    i = 0
-    left = N
-    result_idx = ntuple(_ -> BoseFSIndex(0, 0, 0), Val(N))
-    for boseindex in occupied_modes(b)
-        i += 1
-        for j in 1:N
-            if indices[j] == i
-                @set! result_idx[j] = boseindex
-                left -= 1
-            end
-        end
-        left == 0 && break
-    end
-    left ≠ 0 && error("Some indices not found")
-
-    left = N
-    result_off = ntuple(_ -> BoseFSIndex(0, 0, 0), Val(N))
-    target_modes = getindex.(result_idx, 2) .+ offsets
-    last_occnum = last_mode = last_offset = 0
-    for (occnum, mode, offset) in occupied_modes(b)
-        dists = target_modes .- mode
-        for j in 1:N
-            !iszero(result_off[j]) && continue
-            if dists[j] == 0
-                @set! result_off[j] = BoseFSIndex(occnum, mode, offset)
-                left -= 1
-            elseif dists[j] < 0
-                @set! result_off[j] = BoseFSIndex(0, target_modes[j], offset + dists[j])
-                left -= 1
-            end
-        end
-        left == 0 && break
-    end
-    left ≠ 0 && error("Some offsets not found")
-    return result_idx, result_off
 end
