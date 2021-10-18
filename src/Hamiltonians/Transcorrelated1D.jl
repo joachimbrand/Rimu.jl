@@ -1,6 +1,22 @@
 # TODO: disabling three-body terms
 """
+    Transcorrelated1D(address; t=1.0, u=1.0, v_ho=1.0, cutoff=1)
 
+Implements a transcorrelated Hamiltonian for two component fermionic addresses with optional
+harmonic potential.
+
+# Arguments
+
+* `address`: the starting address, defines number of particles and sites.
+* `v`: the interaction parameter
+* `t`: the hopping strength
+* `v_ho`: strength of the external harmonic oscillator potential ``ϵ_i = v_{ho} i^2``.
+* `cutoff`: a high `cutoff` reduces the number of three-body terms in the Hamiltonian.
+
+# See also
+
+* [`HubbardMom1D`](@ref)
+* [`HubbardMom1DEP`](@ref)
 """
 struct Transcorrelated1D{
     M,F<:CompositeFS{2,<:Any,M,<:Tuple{FermiFS,FermiFS}}, # TODO: relax this to allow bosons

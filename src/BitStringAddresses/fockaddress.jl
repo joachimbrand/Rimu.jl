@@ -59,7 +59,10 @@ an integer index for [`FermiFS`](@ref). Does not check bounds.
 
 ```jldoctest
 julia> find_mode(BoseFS((1, 0, 2)), 2)
-BoseFSIndex(occnum=0, mode=2, offset=2)
+3-element Rimu.BitStringAddresses.BoseFSIndex with indices SOneTo(3):
+ 0
+ 2
+ 2
 
 julia> find_mode(FermiFS((1, 1, 1, 0)), 2)
 FermiFSIndex(occnum=1, mode=2)
@@ -78,7 +81,10 @@ returns zero.
 
 ```jldoctest
 julia> find_occupied_mode(BoseFS((1, 0, 2)), 2)
-BoseFSIndex(occnum=2, mode=3, offset=3)
+3-element Rimu.BitStringAddresses.BoseFSIndex with indices SOneTo(3):
+ 2
+ 3
+ 3
 
 julia> find_occupied_mode(FermiFS((1, 1, 1, 0)), 2)
 FermiFSIndex(occnum=1, mode=2)
@@ -160,10 +166,16 @@ julia> b = BoseFS((1, 1, 3, 0))
 BoseFS{5,4}((1, 1, 3, 0))
 
 julia> i = find_occupied_mode(b, 2)
-BoseFSIndex(occnum=1, mode=2, offset=2)
+3-element Rimu.BitStringAddresses.BoseFSIndex with indices SOneTo(3):
+ 1
+ 2
+ 2
 
 julia> j = find_mode(b, i.mode + 1)
-BoseFSIndex(occnum=3, mode=3, offset=4)
+3-element Rimu.BitStringAddresses.BoseFSIndex with indices SOneTo(3):
+ 3
+ 3
+ 4
 
 julia> move_particle(b, i, j)
 (BoseFS{5,4}((1, 0, 4, 0)), 2.0)
@@ -183,16 +195,7 @@ julia> j = find_mode(f, i.mode - 1)
 FermiFSIndex(occnum=0, mode=5)
 
 julia> move_particle(f, i, j)
-ERROR: MethodError: no method matching +(::Rimu.BitStringAddresses.FermiFSIndex, ::Int64)
-For element-wise addition, use broadcasting with dot syntax: array .+ scalar
-Closest candidates are:
-  +(::Any, ::Any, !Matched::Any, !Matched::Any...) at operators.jl:560
-  +(!Matched::T, ::T) where T<:Union{Int128, Int16, Int32, Int64, Int8, UInt128, UInt16, UInt32, UInt64, UInt8} at int.jl:87
-  +(!Matched::Union{InitialValues.NonspecificInitialValue, InitialValues.SpecificInitialValue{typeof(+)}}, ::Any) at /home/m/.julia/packages/InitialValues/EPz1F/src/InitialValues.jl:153
-  ...
-Stacktrace:
- [1] top-level scope
-   @ none:1
+(FermiFS{7,12}((1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0)), 1.0)
 
 ```
 """
@@ -215,16 +218,10 @@ julia> f = FermiFS((1,1,0,0,1,1,1,1))
 FermiFS{6,8}((1, 1, 0, 0, 1, 1, 1, 1))
 
 julia> i, j, k, l = find_mode(f, (3,4,2,5))
+(FermiFSIndex(occnum=0, mode=3), FermiFSIndex(occnum=0, mode=4), FermiFSIndex(occnum=1, mode=2), FermiFSIndex(occnum=1, mode=5))
 
 julia> excitation(f, (i,j), (k,l))
-ERROR: type Int64 has no field mode
-Stacktrace:
- [1] getproperty(x::Int64, f::Symbol)
-   @ Base ./Base.jl:33
- [2] excitation(a::FermiFS{6, 8, BitString{8, 1, UInt8}}, creations::Tuple{Int64, Int64}, destructions::Tuple{Int64, Int64})
-   @ Rimu.BitStringAddresses ~/phys/Rimu.jl/src/BitStringAddresses/fermifs.jl:291
- [3] top-level scope
-   @ none:1
+(FermiFS{6,8}((1, 0, 1, 1, 0, 1, 1, 1)), -1.0)
 
 ```
 """
