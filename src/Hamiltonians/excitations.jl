@@ -24,7 +24,7 @@ where `p` and `q` are neighbour sites in `geometry`.
         return add, 0.0
     else
         dst_index = find_mode(add, neigh)
-        return excitation(add, (dst_index,), (src_index,))
+        return move_particle(add, src_index, dst_index)
     end
 end
 
