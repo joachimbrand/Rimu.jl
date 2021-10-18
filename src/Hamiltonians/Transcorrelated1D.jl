@@ -118,9 +118,17 @@ end
 w_function(h::Transcorrelated1D, i) = h.ws[abs(i) + 1]
 
 """
+    t_function(h::Transcorrelated1D, p, q, k)
+
+Compute
+
 ```math
-T_{pqk}
+T_{pqk} = \\frac{v}{M} + \\frac{2t}{M}(k^2\\tilde{u}(k) - (p - q)k\\tilde{u}(k) +
+\\frac{W(k)}{M})
 ```
+
+where ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref) and ``W(k)`` is the
+[`w_function`](@ref).
 """
 function t_function(h::Transcorrelated1D{M}, p, q, k) where {M}
     @unpack t, v = h
@@ -132,11 +140,15 @@ function t_function(h::Transcorrelated1D{M}, p, q, k) where {M}
 end
 
 """
-Compute the
+    q_function(h::Transcorrelated1D, k, l)
+
+Compute
 
 ```math
-Q_{kl}
+Q_{kl} = -\\frac{t}{M^2}kl \\tilde{u}(k)\\tilde{u}(l),
 ```
+
+where ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref).
 """
 function q_function(h::Transcorrelated1D{M}, k, l) where {M}
     @unpack t, v = h
@@ -148,23 +160,16 @@ end
 
 starting_address(ham::Transcorrelated1D) = ham.address
 
-"""
-Diagonal contribution from second term (where ``k = 0``),
-
-```math
-\\sum_{pqσσ'} T_{pq0} n_{p,σ} n_{q,σ'}
-```
-
-and third term where ``k = k' = p - q`` (two ways).
-
-```math
-\\sum_{pqsσσ'} Q_{kk} n_{p,σ} n_{q,σ} n_{s,σ'}
-```
-"""
 function momentum_transfer_diagonal(h::Transcorrelated1D{M}, map1, map2) where {M}
     @unpack v, t = h
     return momentum_transfer_diagonal(map1, map2) * (v/M + 2v^2/t * w_function(h, 0)) / 2
 end
+
+"""
+    transcorrelated_diagonal(h::Transcorrelated1D, map1, map2)
+
+The diagonal part of [`transcorrelated_three_body_excitation`](@ref).
+"""
 function transcorrelated_diagonal(h::Transcorrelated1D{M}, map1, map2) where {M}
     value = 0.0
     for p in 1:length(map1)
