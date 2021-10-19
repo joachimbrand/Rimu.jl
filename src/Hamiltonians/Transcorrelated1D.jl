@@ -32,10 +32,12 @@ Q_{kl} = -\\frac{t}{M^2}kl \\tilde{u}(k)\\tilde{u}(l).
 * `t`: the hopping strength. Default: 1
 * `v_ho`: strength of the external harmonic oscillator potential ``ϵ_i = v_{ho}
   i^2``. Default: 0
-* `cutoff`: a high `cutoff` reduces the number of three-body terms in the
-  Hamiltonian. Default: 1
-* `three_body_term`: Use the three body term of the Hamiltonian. If set to false, generating
-  three body excitations is skipped. Default: true
+* `cutoff`: Controls ``k_c`` in equations above. Note: skipping generating
+  off-diagonal elements below the cutoff is not implemented - zero-valued elements
+  are returned instead. Default: 1
+* `three_body_term`: If set to false, generating three body excitations is skipped.
+  Note: when disabling three body terms, cutoff should be set to a higher value for
+  best results. Default: true
 
 # See also
 

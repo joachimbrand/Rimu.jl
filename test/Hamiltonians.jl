@@ -690,7 +690,7 @@ end
 
 Compare transcorrelated numbers to numbers you get form Bethe ansatz.
 """
-function compare_to_bethe(g, nf, m; kwargs...)
+function compare_to_bethe(g, nf, m; hamiltonian=Transcorrelated1D, kwargs...)
     if nf == 2
         f1 = f2 = FermiFS([i == cld(m, 2) ? 1 : 0 for i in 1:m])
         exact = g == 10 ? 5.2187287509452015 : g == -10 ? -25.640329369393125 : error()
@@ -708,8 +708,14 @@ function compare_to_bethe(g, nf, m; kwargs...)
     t = m^2/2
     v = t*2/m*g
     c = CompositeFS(f1,f2)
-    h_trans = Transcorrelated1D(c; t, v, kwargs...)
-    energy = eigen(Matrix(h_trans)).values[1]
+    if hamiltonian == Transcorrelated1D
+        ham = Transcorrelated1D(c; t, v, kwargs...)
+    elseif hamiltonian == HubbardMom1D
+        ham = HubbardMom1D(c; t, u=v, dispersion=continuum_dispersion, kwargs...)
+    else
+        error()
+    end
+    energy = eigen(Matrix(ham)).values[1]
     return abs(energy - exact)
 end
 
@@ -736,7 +742,9 @@ end
         @test exact_energy(h_trans) ≉ exact_energy(h_mom)
         @test exact_energy(h_trans_cut) ≈ exact_energy(h_mom)
 
-        @test compare_to_bethe(10, 6, 7) < compare_to_bethe(10, 6, 7; cutoff=3)
+        normal_error = compare_to_bethe(10, 6, 7)
+        cutoff_error = compare_to_bethe(10, 6, 7; cutoff=3)
+        @test normal_error < cutoff_error < 2 * normal_error
     end
     @testset "no three body term" begin
         f1 = FermiFS((0,1,0,1,0))
@@ -747,7 +755,10 @@ end
 
         @test length(offdiagonals(h_trans, c)) > length(offdiagonals(h_trans_no3b, c))
 
-        @test compare_to_bethe(-10, 6, 7) < compare_to_bethe(-10, 6, 7; three_body_term=false)
+        @test compare_to_bethe(-10, 3, 20) <
+            compare_to_bethe(-10, 3, 20; three_body_term=false, cutoff=4) <
+            compare_to_bethe(-10, 3, 20; three_body_term=false, cutoff=3) <
+            compare_to_bethe(-10, 3, 20; hamiltonian=HubbardMom1D)
     end
     @testset "non-interacting with potential" begin
         f1 = FermiFS((0,0,1,0,1,0))
