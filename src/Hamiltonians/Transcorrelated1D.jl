@@ -3,15 +3,39 @@
     Transcorrelated1D(address; t=1.0, u=1.0, v_ho=1.0, cutoff=1)
 
 Implements a transcorrelated Hamiltonian for two component fermionic addresses with optional
-harmonic potential.
+harmonic potential:
+
+```math
+\\tilde{H} = J\\sum_{kσ}k^2 n_{k,σ} +
+              \\sum_{pqkσσ'} T_{pqk} a^†_{p-k,σ} a^†_{q+k,σ'} a_{q,σ'} a_{p,σ} +
+              \\sum_{pqskk'σσ'} Q_{kk'}a^†_{p-k,σ} a^†_{q+k,σ} a^†_{s+k-k',σ'}
+                                       a_{s,σ'} a_{q,σ} a_{p,σ},
+```
+
+where
+
+```math
+\\tilde{u}(k) = {-2/k^2 \\mathrm{\\ if\\ } |k| ≥ k_c; 0 \\mathrm{\\ otherwise\\ }}
+
+W(k) = \\sum_{k′} (k - k′)k′ \\tilde{u}(k′)\\tilde{u}(k - k′),
+
+T_{pqk} = \\frac{v}{M} + \\frac{2t}{M}(k^2\\tilde{u}(k) - (p - q)k\\tilde{u}(k) +
+\\frac{W(k)}{M}),
+
+Q_{kl} = -\\frac{t}{M^2}kl \\tilde{u}(k)\\tilde{u}(l).
+```
 
 # Arguments
 
 * `address`: the starting address, defines number of particles and sites.
-* `v`: the interaction parameter
-* `t`: the hopping strength
-* `v_ho`: strength of the external harmonic oscillator potential ``ϵ_i = v_{ho} i^2``.
-* `cutoff`: a high `cutoff` reduces the number of three-body terms in the Hamiltonian.
+* `v`: the interaction parameter. Default: 1
+* `t`: the hopping strength. Default: 1
+* `v_ho`: strength of the external harmonic oscillator potential ``ϵ_i = v_{ho}
+  i^2``. Default: 0
+* `cutoff`: a high `cutoff` reduces the number of three-body terms in the
+  Hamiltonian. Default: 1
+* `three_body_term`: Use the three body term of the Hamiltonian. If set to false, generating
+  three body excitations is skipped. Default: true
 
 # See also
 
