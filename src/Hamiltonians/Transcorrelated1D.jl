@@ -32,9 +32,10 @@ struct Transcorrelated1D{
     ws::SVector{M,Float64}
     us::SVector{M,Float64}
     potential::P
+    three_body_term::Bool
 end
 
-function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1)
+function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true)
     M = num_modes(address)
     cutoff < 1 && error("`cutoff` must be a positive integer")
     ks = SVector{M}(i_to_k.(1:M, M))
@@ -48,7 +49,8 @@ function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1)
     end
 
     return Transcorrelated1D{M,typeof(address),typeof(potential)}(
-        address, cutoff, float(v), float(t), float(v_ho), ks, kes, ws, us, potential
+        address, cutoff, float(v), float(t), float(v_ho), ks, kes, ws, us, potential,
+        three_body_term
     )
 end
 
@@ -200,13 +202,19 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
     map1 = OccupiedModeMap(c1)
     map2 = OccupiedModeMap(c2)
 
-    return kinetic_energy(h.kes, map1) +
+    value = kinetic_energy(h.kes, map1) +
         kinetic_energy(h.kes, map2) +
-        momentum_transfer_diagonal(h, map1, map2) +
-        transcorrelated_diagonal(h, map1, map2) +
-        transcorrelated_diagonal(h, map2, map1) +
-        momentum_external_potential_diagonal(h.potential, c1, map1) +
-        momentum_external_potential_diagonal(h.potential, c2, map2)
+        momentum_transfer_diagonal(h, map1, map2)
+    if h.three_body_term
+        value += transcorrelated_diagonal(h, map1, map2) +
+            transcorrelated_diagonal(h, map2, map1)
+    end
+    if !isnothing(h.potential)
+        value += momentum_external_potential_diagonal(h.potential, c1, map1) +
+            momentum_external_potential_diagonal(h.potential, c2, map2)
+    end
+
+    return value
 end
 
 struct Transcorrelated1DOffdiagonals{H,A,O1,O2}<:AbstractOffdiagonals{A,Float64}
@@ -225,8 +233,11 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
     N1 = length(map1)
     N2 = length(map2)
     n_mom = N1 * N2 * (M - 1)
-    n_trans1 = N1 * (N1 - 1) * N2 * M * M
-    n_trans2 = N2 * (N2 - 1) * N1 * M * M
+
+    three_body_term = h.three_body_term
+    n_trans1 = three_body_term ? N1 * (N1 - 1) * N2 * M * M : 0
+    n_trans2 = three_body_term ? N2 * (N2 - 1) * N1 * M * M : 0
+
     if !isnothing(h.potential)
         n_pot1 = N1 * (M - 1)
         n_pot2 = N2 * (M - 1)
@@ -249,8 +260,9 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
     M = num_modes(c1)
 
     n_mom = N1 * N2 * (M - 1)
-    n_trans1 = N1 * (N1 - 1) * N2 * M * M
-    n_trans2 = N2 * (N2 - 1) * N1 * M * M
+    three_body_term = od.hamiltonian.three_body_term
+    n_trans1 = three_body_term ? N1 * (N1 - 1) * N2 * M * M : 0
+    n_trans2 = three_body_term ? N2 * (N2 - 1) * N1 * M * M : 0
 
     # This should be efficient as it depends on the type of the potential
     if !isnothing(od.hamiltonian.potential)
