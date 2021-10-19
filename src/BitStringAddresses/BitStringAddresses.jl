@@ -12,12 +12,11 @@ using Base.Cartesian
 
 export BitString
 export num_bits, num_chunks, chunk_type, chunks, chunk_bits, top_chunk_bits
-export find_occupied_mode, find_mode, move_particle
 
 export AbstractFockAddress, SingleComponentFockAddress, BoseFS, BoseFS2C, FermiFS, CompositeFS, FermiFS2C
 export num_particles, num_modes, num_components
-export onr, near_uniform, occupied_modes, is_occupied, num_occupied_modes, excitation
-export OccupiedModeMap
+export find_occupied_mode, find_mode, occupied_modes, is_occupied, num_occupied_modes
+export excitation, onr, near_uniform, OccupiedModeMap
 
 include("bitstring.jl")
 include("fockaddress.jl")

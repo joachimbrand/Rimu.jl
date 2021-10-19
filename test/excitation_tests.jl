@@ -98,25 +98,6 @@ function excitations_correct(add, cs, ds)
 end
 
 """
-    move_particle_correct(add, src, dst)
-
-Compare the result of `move_particle` and `excitation_direct` and return true if they give
-the same result. Note: this should be called after ensuring `excitation_direct` is correct.
-"""
-function move_particle_correct(add, src, dst)
-    res_direct = excitation_direct(add, (dst,), (src,))
-    res_move = move_particle(add, find_mode(add, src), find_mode(add, dst))
-    if res_direct[2] == 0 && res_move[2] == 0
-        return true
-    elseif res_direct ≠ res_move
-        @error "Failed" add src dst res_direct res_move
-        return false
-    else
-        return true
-    end
-end
-
-"""
     rand_subset(M, num)
 
 Get a random subset of the range `1:M` of length `num`.
@@ -141,7 +122,6 @@ function check_single_excitations(add, num=Inf)
         M = num_modes(add)
         for i in rand_subset(M, num), j in rand_subset(M, num)
             @test excitations_correct(add, (i,), (j,))
-            @test move_particle_correct(add, j, i)
         end
     end
 end

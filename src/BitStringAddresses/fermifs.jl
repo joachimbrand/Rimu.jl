@@ -157,85 +157,11 @@ function is_occupied(a::FermiFS{<:Any,M}, mode) where {M}
     return a.bs.chunks[end + 1 - j] & (UInt(1) << UInt(i - 1)) > 0
 end
 
-function move_particle(
-    a::FermiFS{<:Any,<:Any,S}, from::FermiFSIndex, to::FermiFSIndex
-) where {T,S<:BitString{<:Any,1,T}}
-    occ_from = Bool(from.occnum)
-    occ_to = Bool(to.occnum)
-    if occ_from && !occ_to
-        from_mode, to_mode = minmax(from.mode, to.mode) .% T
-        new_chunk, value = _move_particle(a.bs.chunks[1], from_mode, to_mode)
-        return typeof(a)(S(new_chunk)), value
-    else
-        return a, ifelse(from==to, Float64(occ_from), 0.0)
-    end
-end
-
-function move_particle(a::FermiFS, from::FermiFSIndex, to::FermiFSIndex)
-    occ_from = Bool(from.occnum)
-    occ_to = Bool(to.occnum)
-    if occ_from && !occ_to
-        return _move_particle(a, from.mode % UInt64, to.mode % UInt64)
-    else
-        return a, ifelse(from==to, Float64(occ_from), 0.0)
-    end
-end
-
-# Note: the methods with underscores accept unsigned from/to and assume they are ordered.
-# This allows us to not worry about converting types and swapping all the time. It also
-# assumes from and to are valid positions in the bitstring.
-@inline function _move_particle(chunk::T, from::T, to::T) where {T<:Unsigned}
-    # Masks that locate positions `from` and `to`.
-    from_mask = T(1) << (from - T(1))
-    to_mask = T(1) << (to - T(1))
-
-    # Mask for counting how many particles lie between them.
-    between_mask = ((T(1) << (to - from - T(1))) - T(1)) << from
-
-    chunk ⊻= from_mask | to_mask
-    num_between = count_ones(chunk & between_mask)
-    return chunk, ifelse(iseven(num_between), 1.0, -1.0)
-end
-@inline function _move_particle(a::FermiFS{<:Any,<:Any,S}, from::UInt64, to::UInt64) where {S}
-    # Ensure they are ordered.
-    from, to = minmax(from, to)
-    result = a.bs.chunks
-
-    # Get chunk and offset.
-    i, from_offset = divrem(from - 1, 64)
-    j, to_offset = divrem(to - 1, 64)
-    # Indexing from right -> make it from left
-    i = UInt64(lastindex(result)) - i
-    j = UInt64(lastindex(result)) - j
-
-    if i == j
-        new_chunk, value = _move_particle(
-            result[i], from_offset + UInt64(1), to_offset + UInt64(1)
-        )
-        result = setindex(result, new_chunk, i % Int)
-    else
-        from_mask = UInt64(1) << from_offset
-        to_mask = UInt64(1) << to_offset
-        result = setindex(result, result[i] ⊻ from_mask, i % Int)
-        result = setindex(result, result[j] ⊻ to_mask, j % Int)
-
-        count = (
-            count_ones(result[i] & (-UInt64(1) << (from_offset + UInt(1)))) +
-            count_ones(result[j] & ~(-UInt64(1) << to_offset))
-        )
-        for k in j+1:i-1
-            count += count_ones(result[k])
-        end
-        value = ifelse(iseven(count), 1.0, -1.0)
-    end
-    return typeof(a)(S(result)), value
-end
-
 """
     _flip_and_count(bs::BitString, k)
 
 Count the number of ones before the `k`-th mode, flip the `k`th bit. Return the new
-bitstring, count, and the value of the bit after the flip.
+bitstring, the count, and the value of the bit after the flip.
 """
 @inline function _flip_and_count(bs::BitString{<:Any,1,T}, k::Unsigned) where {T}
     chunk = bs.chunks[1]

@@ -44,7 +44,8 @@ Implemented subtypes: [`BoseFS`](@ref), [`FermiFS`](@ref).
 * [`find_occupied_mode`](@ref)
 * [`num_occupied_modes`](@ref)
 * [`occupied_modes`](@ref)
-* [`move_particle`](@ref)
+* [`excitation`](@ref)
+* [`OccupiedModeMap`](@ref)
 
 """
 abstract type SingleComponentFockAddress{N,M} <: AbstractFockAddress{N,M} end
@@ -147,61 +148,6 @@ FermiFSIndex(occnum=1, mode=7)
 occupied_modes
 
 """
-    move_particle(add::SingleComponentFockAddress, i, j) -> nadd, α
-
-Move particle from mode `i` to mode `j`. Returns the new Fock state address `nadd` and
-amplitude `α`. Equivalent to
-```math
-a^{\\dagger}_i a_j |\\mathrm{add}\\rangle \\to α|\\mathrm{nadd}\\rangle
-```
-
-Note that the modes in [`BoseFS`](@ref) are indexed by [`BoseFSIndex`](@ref), while the ones
-in [`FermiFS`](@ref) are indexed by integers (see example below).  For illegal moves where `α
-== 0` the value of `nadd` is undefined.
-
-# Example
-
-```jldoctest
-julia> b = BoseFS((1, 1, 3, 0))
-BoseFS{5,4}((1, 1, 3, 0))
-
-julia> i = find_occupied_mode(b, 2)
-3-element Rimu.BitStringAddresses.BoseFSIndex with indices SOneTo(3):
- 1
- 2
- 2
-
-julia> j = find_mode(b, i.mode + 1)
-3-element Rimu.BitStringAddresses.BoseFSIndex with indices SOneTo(3):
- 3
- 3
- 4
-
-julia> move_particle(b, i, j)
-(BoseFS{5,4}((1, 0, 4, 0)), 2.0)
-
-julia> move_particle(b, j, j)
-(BoseFS{5,4}((1, 1, 3, 0)), 3.0)
-```
-
-```jldoctest
-julia> f = FermiFS((1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0))
-FermiFS{7,12}((1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0))
-
-julia> i = find_occupied_mode(f, 2)
-FermiFSIndex(occnum=1, mode=6)
-
-julia> j = find_mode(f, i.mode - 1)
-FermiFSIndex(occnum=0, mode=5)
-
-julia> move_particle(f, i, j)
-(FermiFS{7,12}((1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0)), 1.0)
-
-```
-"""
-move_particle
-
-"""
     excitation(a::SingleComponentFockAddress, creations::NTuple{N}, destructions::NTuple{N})
 
 Generate an excitation on address `a` by applying `creations` and `destructions`, which are
@@ -231,12 +177,16 @@ excitation
     OccupiedModeMap(add)
 
 Get a map of occupied modes in address as an `AbstractVector` of indices compatible with
-[`excitation`](@ref) or [`move_particle`](@ref).
+[`excitation`](@ref) - [`BoseFSIndex`](@ref) or [`FermiFSIndex`](@ref).
+
+It is implemented as a view into `SVector{N}` where `N` is the particle number of the
+address.
 
 `OccupiedModeMap(add)[i]` contains the index for the `i`-th occupied mode.
 
-This is useful because repeatedly looking for occupied modes with `find_occupied_mode` can
-be time-consuming.
+This is useful because repeatedly looking for occupied modes with
+[`find_occupied_mode`](@ref) can be time-consuming.
+
 
 # Example
 
@@ -270,7 +220,7 @@ end
 function OccupiedModeMap(add::SingleComponentFockAddress{N}) where {N}
     modes = occupied_modes(add)
     T = eltype(modes)
-    # There are at most N occupied modes. This could be @generated for cases where N > M
+    # There are at most N occupied modes. This could be also @generated for cases where N ≫ M
     indices = MVector{N,T}(undef)
     i = 0
     for index in modes

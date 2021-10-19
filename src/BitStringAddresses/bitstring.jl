@@ -337,7 +337,7 @@ Shift a part of the bitstring left by one place with boundaries `i < j`.
 In a `BoseFS` bitstring, it moves a particle at offset `i` to the position at
 offset `j`.
 
-See also: [`move_particle`](@ref), [`partial_right_shift`](@ref).
+See also: [`excitation`](@ref), [`partial_right_shift`](@ref).
 """
 function partial_left_shift(chunk::T, i, j) where {T<:Unsigned}
     # Mask of one spanning from i to j
@@ -359,7 +359,7 @@ Shift a part of the bitstring right by one place with boundaries `i < j`.
 In a `BoseFS` bitstring, it moves a particle at offset `j` to the position at
 offset `i`.
 
-See also: [`partial_left_shift`](@ref), [`move_particle`](@ref).
+See also: [`partial_left_shift`](@ref), [`excitation`](@ref).
 """
 function partial_right_shift(chunk::T, i, j) where {T<:Unsigned}
     # Mask of one spanning from i to j
