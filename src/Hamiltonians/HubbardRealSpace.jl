@@ -246,21 +246,17 @@ Offdiagonals for a bosonic part of a [`HubbardRealSpace`](@ref) model.
 Used when the model's address is a [`BoseFS`](@ref), or a [`CompositeFS`](@ref) with a
 [`BoseFS`](@ref) component.
 """
-struct HubbardRealSpaceCompOffdiagonals{
-    G,A,O<:OccupiedModeMap
-} <: AbstractOffdiagonals{A,Float64}
+struct HubbardRealSpaceCompOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
     geometry::G
     address::A
     t::Float64
     length::Int
-    map::O
 end
 
 function offdiagonals(h::HubbardRealSpace, comp, add)
     neighbours = num_neighbours(h.geometry)
-    map = OccupiedModeMap(add)
     return HubbardRealSpaceCompOffdiagonals(
-        h.geometry, add, h.t[comp], length(map) * neighbours, map
+        h.geometry, add, h.t[comp], num_occupied_modes(add) * neighbours
     )
 end
 
