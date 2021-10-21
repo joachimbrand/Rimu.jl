@@ -10,7 +10,9 @@ function momentum_space_harmonic_potential(M, v)
     real_potential = [v*j^2 for j in js]
     mom_potential = fft(real_potential)
     # This should never fail for a harmonic oscillator, but it's best to check just in case.
-    @assert all(abs.(imag.(mom_potential) ./ real.(mom_potential)) .< sqrt(eps(Float64)))
+    for v in mom_potential
+        @assert iszero(real(v)) || abs(imag(v) / real(v)) < sqrt(eps(Float64))
+    end
     # Make sure it's completely symmetric. It should be, but round-off errors can sometimes
     # make it non-symmetric.
     for i in 1:M÷2
