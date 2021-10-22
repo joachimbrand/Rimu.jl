@@ -28,7 +28,14 @@ Implements a one-dimensional Bose Hubbard chain in momentum space with harmonic 
 potential.
 
 ```math
-\\hat{H} =  \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}
+\\hat{H} =  \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k} +
+            \\sum_{p,q} w(p - q mod M + 1) a^†_{p} a_q
+```
+
+where
+
+```
+w(n) = DFT[V_{ext}](n),
 ```
 
 # Arguments
@@ -39,11 +46,12 @@ potential.
 * `dispersion`: defines ``ϵ_k =``` t*dispersion(k)`
     - [`hubbard_dispersion`](@ref): ``ϵ_k = -2t \\cos(k)``
     - [`continuum_dispersion`](@ref): ``ϵ_k = tk^2``
+* `v_ho`: strength of the external harmonic oscillator potential ``V_{ext}(i) = v_{ho} i^2``.
 
 # See also
 
-* [`HubbardReal1D`](@ref)
-* [`ExtendedHubbardReal1D`](@ref)
+* [`HubbardMom1D`](@ref)
+* [`HubbardReal1DEP`](@ref)
 """
 struct HubbardMom1DEP{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
     add::AD # default starting address, should have N particles and M modes
