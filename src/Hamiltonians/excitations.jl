@@ -142,13 +142,6 @@ function momentum_transfer_diagonal(
 
     return float(2 * n1 * n2)
 end
-function kinetic_energy(kes, map)
-    value = 0.0
-    for index in map
-        value += kes[index.mode] * index.occnum
-    end
-    return value
-end
 
 """
     transcorrelated_three_body_excitation(add↑, add↓, i, map↑, map↓)

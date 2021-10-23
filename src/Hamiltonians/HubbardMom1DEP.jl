@@ -120,15 +120,14 @@ end
 
 @inline function diagonal_element(h::HubbardMom1DEP, add::BoseFS)
     map = OccupiedModeMap(add)
-    return kinetic_energy(h.kes, map) + momentum_transfer_diagonal(h, map) +
+    return dot(h.kes, map) + momentum_transfer_diagonal(h, map) +
         momentum_external_potential_diagonal(h.ep, add, map)
 end
 @inline function diagonal_element(h::HubbardMom1DEP, add::FermiFS2C)
     c1, c2 = add.components
     map_a = OccupiedModeMap(c1)
     map_b = OccupiedModeMap(c2)
-    return kinetic_energy(h.kes, map_a) +
-        kinetic_energy(h.kes, map_b) +
+    return dot(h.kes, map_a) + dot(h.kes, map_b) +
         momentum_transfer_diagonal(h, map_a, map_b) +
         momentum_external_potential_diagonal(h.ep, c1, map_a) +
         momentum_external_potential_diagonal(h.ep, c2, map_b)
