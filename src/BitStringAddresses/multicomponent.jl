@@ -94,5 +94,10 @@ function onr(a::CompositeFS)
 end
 
 # Convenience
+"""
+    FermiFS2C
+
+Alias for [`CompositeFS`](@ref) with two [`FermiFS`](@ref) components.
+"""
 const FermiFS2C{N1,N2,M,N,F1,F2} =
     CompositeFS{2,N,M,Tuple{F1,F2}} where {F1<:FermiFS{N1,M},F2<:FermiFS{N2,M}}

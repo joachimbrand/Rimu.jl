@@ -151,11 +151,15 @@ occupied_modes
     excitation(a::SingleComponentFockAddress, creations::NTuple{N}, destructions::NTuple{N})
 
 Generate an excitation on address `a` by applying `creations` and `destructions`, which are
-tuples of the appropriate address indices (i.e. integers for fermions and `BoseFSIndex` for
-bosons).
+tuples of the appropriate address indices (i.e. [`BoseFSIndex`](@ref) for bosons, or [`FermiFSIndex`](@ref) for fermions).
 
-Returns the new address and the value. If the excitations is illegal, returns an arbitrary
-address and 0.0.
+```math
+a^†_{c_1} a^†_{c_2} \\ldots a_{d_1} a_{d_2} \\ldots |\\mathrm{a}\\rangle \\to
+α|\\mathrm{nadd}\\rangle
+```
+
+Returns the new address `nadd` and the value `α`. If the excitation is illegal, returns an
+arbitrary address and the value `0.0`.
 
 # Example
 
@@ -187,29 +191,37 @@ address.
 This is useful because repeatedly looking for occupied modes with
 [`find_occupied_mode`](@ref) can be time-consuming.
 
-
 # Example
 
 ```jldoctest
 julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
 BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
 
-julia> OccupiedModeMap(b)
+julia> mb = OccupiedModeMap(b)
 3-element OccupiedModeMap{13, Rimu.BitStringAddresses.BoseFSIndex}:
  BoseFSIndex(occnum=10, mode=1, offset=0)
  BoseFSIndex(occnum=2, mode=5, offset=14)
  BoseFSIndex(occnum=1, mode=7, offset=18)
 
-julia> f = FermiFS((1,1,1,1,0,0,0,0,1))
-FermiFS{5,9}((1, 1, 1, 1, 0, 0, 0, 0, 1))
+julia> f = FermiFS((1,1,1,1,0,0,1,0,0))
+FermiFS{5,9}((1, 1, 1, 1, 0, 0, 1, 0, 0))
 
-julia> OccupiedModeMap(f)
+julia> mf = OccupiedModeMap(f)
 5-element OccupiedModeMap{5, Rimu.BitStringAddresses.FermiFSIndex}:
  FermiFSIndex(occnum=1, mode=1)
  FermiFSIndex(occnum=1, mode=2)
  FermiFSIndex(occnum=1, mode=3)
  FermiFSIndex(occnum=1, mode=4)
- FermiFSIndex(occnum=1, mode=9)
+ FermiFSIndex(occnum=1, mode=7)
+
+julia> dot(mf, mf)
+5
+
+julia> dot(mf, mb)
+11
+
+julia> dot(mf, 1:20)
+17
 ```
 """
 struct OccupiedModeMap{N,T} <: AbstractVector{T}
@@ -234,4 +246,34 @@ Base.size(om::OccupiedModeMap) = (om.length,)
 function Base.getindex(om::OccupiedModeMap, i)
     @boundscheck 1 ≤ i ≤ om.length || throw(BoundsError(om, i))
     return om.indices[i]
+end
+
+function LinearAlgebra.dot(map::OccupiedModeMap, vec::AbstractVector)
+    value = zero(eltype(vec))
+    for index in map
+        value += vec[index.mode] * index.occnum
+    end
+    return value
+end
+LinearAlgebra.dot(vec::AbstractVector, map::OccupiedModeMap) = dot(map, vec)
+
+# Defined for consistency. Could also be used to compute cross-component interactions in
+# real space.
+function LinearAlgebra.dot(map1::OccupiedModeMap, map2::OccupiedModeMap)
+    i = j = 1
+    value = 0
+    while i ≤ length(map1) && j ≤ length(map2)
+        index1 = map1[i]
+        index2 = map2[j]
+        if index1.mode == index2.mode
+            value += index1.occnum * index2.occnum
+            i += 1
+            j += 1
+        elseif index1.mode < index2.mode
+            i += 1
+        else
+            j += 1
+        end
+    end
+    return value
 end

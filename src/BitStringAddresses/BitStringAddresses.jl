@@ -4,6 +4,7 @@ Module with types and methods pertaining to bitstring addresses.
 ```
 module BitStringAddresses
 
+using LinearAlgebra
 using StaticArrays
 using Setfield
 using Parameters
