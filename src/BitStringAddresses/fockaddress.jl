@@ -60,10 +60,7 @@ an integer index for [`FermiFS`](@ref). Does not check bounds.
 
 ```jldoctest
 julia> find_mode(BoseFS((1, 0, 2)), 2)
-3-element Rimu.BitStringAddresses.BoseFSIndex with indices SOneTo(3):
- 0
- 2
- 2
+BoseFSIndex(occnum=0, mode=2, offset=2)
 
 julia> find_mode(FermiFS((1, 1, 1, 0)), 2)
 FermiFSIndex(occnum=1, mode=2)
@@ -82,10 +79,7 @@ returns zero.
 
 ```jldoctest
 julia> find_occupied_mode(BoseFS((1, 0, 2)), 2)
-3-element Rimu.BitStringAddresses.BoseFSIndex with indices SOneTo(3):
- 2
- 3
- 3
+BoseFSIndex(occnum=2, mode=3, offset=3)
 
 julia> find_occupied_mode(FermiFS((1, 1, 1, 0)), 2)
 FermiFSIndex(occnum=1, mode=2)
@@ -186,7 +180,7 @@ Get a map of occupied modes in address as an `AbstractVector` of indices compati
 `OccupiedModeMap(add)[i]` contains the index for the `i`-th occupied mode.
 This is useful because repeatedly looking for occupied modes with
 [`find_occupied_mode`](@ref) can be time-consuming.
-`OccupiedModeMap(add)` is an eager version of the iterator returned by 
+`OccupiedModeMap(add)` is an eager version of the iterator returned by
 [`occupied_modes`](@ref).
 
 # Example
