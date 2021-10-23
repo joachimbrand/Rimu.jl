@@ -1,7 +1,15 @@
 """
-    momentum_space_harmonic_potential(M::Integer, v::Real)
+    momentum_space_harmonic_potential(M::Integer, v_ho::Real) -> w
 
-Set up a harmonic potential for use with momentum space Hamiltonians.
+Set up a harmonic potential for use with momentum space Hamiltonians:
+```math
+\\begin{aligned}
+w(k) & =  \\mathrm{DFT}[V_{ext}]_{k}  ,\\\\
+V_\\mathrm{ext}(x) &= v_\\mathrm{ho} \\,x^2 ,
+\\end{aligned}
+```
+where
+``\\mathrm{DFT}[…]_k`` is a discrete Fourier transform performed by `fft()[k%M + 1]`.
 """
 function momentum_space_harmonic_potential(M::Integer, v::Real)
     v = float(v)
@@ -29,15 +37,20 @@ Implements a one-dimensional Bose Hubbard chain in momentum space with harmonic 
 potential.
 
 ```math
-\\hat{H} =  \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k} +
-            \\sum_{p,q} w(p - q mod M + 1) a^†_{p} a_q
+Ĥ = \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}
+            + V̂_\\mathrm{ho} ,
 ```
-
 where
-
+```math
+\\begin{aligned}
+V̂_\\mathrm{ho} & = \\sum_{p,q}  \\mathrm{DFT}[V_{ext}]_{p-q} \\,
+                    a^†_{p} a_q ,\\\\
+V_\\mathrm{ext}(x) &= v_\\mathrm{ho} \\,x^2 ,
+\\end{aligned}
 ```
-w(n) = DFT[V_{ext}](n),
-```
+is an external harmonic potential in momentum space,
+``\\mathrm{DFT}[…]_k`` is a discrete Fourier transform performed by `fft()[k%M + 1]`, and
+`M == num_modes(address)`.
 
 # Arguments
 
@@ -47,12 +60,10 @@ w(n) = DFT[V_{ext}](n),
 * `dispersion`: defines ``ϵ_k =``` t*dispersion(k)`
     - [`hubbard_dispersion`](@ref): ``ϵ_k = -2t \\cos(k)``
     - [`continuum_dispersion`](@ref): ``ϵ_k = tk^2``
-* `v_ho`: strength of the external harmonic oscillator potential ``V_{ext}(i) = v_{ho} i^2``.
+* `v_ho`: strength of the external harmonic oscillator potential ``v_\\mathrm{ho}``.
 
-# See also
-
-* [`HubbardMom1D`](@ref)
-* [`HubbardReal1DEP`](@ref)
+See also [`HubbardMom1D`](@ref), [`HubbardReal1DEP`](@ref),
+[`Transcorrelated1D`](@ref), [`Hamiltonians`](@ref).
 """
 struct HubbardMom1DEP{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
     add::AD # default starting address, should have N particles and M modes
