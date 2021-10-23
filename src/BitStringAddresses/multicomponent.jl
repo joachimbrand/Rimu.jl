@@ -1,5 +1,6 @@
 """
     BoseFS2C{NA,NB,M,AA,AB} <: AbstractFockAddress
+    BoseFS2C(onr_a, onr_b)
 
 Address type that constructed with two [`BoseFS{N,M,S}`](@ref). It represents a
 Fock state with two components, e.g. two different species of bosons with particle
@@ -41,7 +42,8 @@ end
 Used to encode addresses for multi-component models. All component addresses
 are expected have the same number of modes.
 
-See also: [`BoseFS`](@ref), [`FermiFS`](@ref), [`SingleComponentFockAddress`](@ref), [`num_modes`](@ref)
+See also: [`BoseFS`](@ref), [`FermiFS`](@ref), [`SingleComponentFockAddress`](@ref),
+[`num_modes`](@ref), [`FermiFS2C`](@ref).
 """
 struct CompositeFS{C,N,M,T} <: AbstractFockAddress{N,M}
     components::T
@@ -95,9 +97,13 @@ end
 
 # Convenience
 """
-    FermiFS2C
+    FermiFS2C <: AbstractFockAddress
+    FermiFS2C(onr_a, onr_b)
 
-Alias for [`CompositeFS`](@ref) with two [`FermiFS`](@ref) components.
+Alias for [`CompositeFS`](@ref) with two [`FermiFS`](@ref) components. Construct by
+specifying either two compatible [`FermiFS`](@ref)s or [`onr`](@ref)s.
 """
 const FermiFS2C{N1,N2,M,N,F1,F2} =
     CompositeFS{2,N,M,Tuple{F1,F2}} where {F1<:FermiFS{N1,M},F2<:FermiFS{N2,M}}
+FermiFS2C(onr_a, onr_b) = CompositeFS(FermiFS(onr_a), FermiFS(onr_b))
+FermiFS2C(f1::FermiFS{<:Any,M}, f2::FermiFS{<:Any,M}) where {M} = CompositeFS(f1, f2)
