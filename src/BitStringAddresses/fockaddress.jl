@@ -42,11 +42,12 @@ Implemented subtypes: [`BoseFS`](@ref), [`FermiFS`](@ref).
 
 * [`find_mode`](@ref)
 * [`find_occupied_mode`](@ref)
+* [`is_occupied`](@ref)
 * [`num_occupied_modes`](@ref)
-* [`occupied_modes`](@ref)
-* [`excitation`](@ref)
-* [`OccupiedModeMap`](@ref)
-
+* [`occupied_modes`](@ref): Lazy iterator.
+* [`OccupiedModeMap`](@ref): `AbstractVector` with eager construction.
+* [`excitation`](@ref): Create a new address.
+* [`BoseFSIndex`](@ref) and [`FermiFSIndex`](@ref) for indexing.
 """
 abstract type SingleComponentFockAddress{N,M} <: AbstractFockAddress{N,M} end
 
@@ -65,6 +66,8 @@ BoseFSIndex(occnum=0, mode=2, offset=2)
 julia> find_mode(FermiFS((1, 1, 1, 0)), (2,3))
 (FermiFSIndex(occnum=1, mode=2), FermiFSIndex(occnum=1, mode=3))
 ```
+
+See [`SingleComponentFockAddress`](@ref).
 """
 find_mode
 
@@ -84,6 +87,9 @@ BoseFSIndex(occnum=2, mode=3, offset=3)
 julia> find_occupied_mode(FermiFS((1, 1, 1, 0)), 2)
 FermiFSIndex(occnum=1, mode=2)
 ```
+
+See also [`occupied_modes`](@ref), [`OccupiedModeMap`](@ref),
+[`SingleComponentFockAddress`](@ref).
 """
 find_occupied_mode
 
@@ -91,6 +97,8 @@ find_occupied_mode
     is_occupied(::SingleComponentFockAddress, i)
 
 Return `true` if index `i` points to an occupied mode.
+
+See [`SingleComponentFockAddress`](@ref).
 """
 is_occupied
 
@@ -109,14 +117,17 @@ julia> num_occupied_modes(BoseFS((1, 0, 2)))
 julia> num_occupied_modes(FermiFS((1, 1, 1, 0)))
 3
 ```
+
+See [`SingleComponentFockAddress`](@ref).
 """
 num_occupied_modes
 
 """
     occupied_modes(::SingleComponentFockAddress)
 
-Iterate over all occupied modes in an address. Iterates over [`BoseFSIndex`](@ref)s for
-[`BoseFS`](@ref), and over [`FermiFSIndex`](@ref)s for [`FermiFS`](@ref).
+Return a lazy iterater over all occupied modes in an address. Iterates over
+[`BoseFSIndex`](@ref)s for [`BoseFS`](@ref), and over [`FermiFSIndex`](@ref)s for
+[`FermiFS`](@ref). See [`OccupiedModeMap`](@ref) for an eager version.
 
 # Example
 
@@ -138,6 +149,8 @@ FermiFSIndex(occnum=1, mode=2)
 FermiFSIndex(occnum=1, mode=4)
 FermiFSIndex(occnum=1, mode=7)
 ```
+See also [`find_occupied_mode`](@ref),
+[`SingleComponentFockAddress`](@ref).
 """
 occupied_modes
 
@@ -145,7 +158,8 @@ occupied_modes
     excitation(a::SingleComponentFockAddress, creations::NTuple{N}, destructions::NTuple{N})
 
 Generate an excitation on address `a` by applying `creations` and `destructions`, which are
-tuples of the appropriate address indices (i.e. [`BoseFSIndex`](@ref) for bosons, or [`FermiFSIndex`](@ref) for fermions).
+tuples of the appropriate address indices (i.e. [`BoseFSIndex`](@ref) for bosons, or
+[`FermiFSIndex`](@ref) for fermions).
 
 ```math
 a^†_{c_1} a^†_{c_2} \\ldots a_{d_1} a_{d_2} \\ldots |\\mathrm{a}\\rangle \\to
@@ -166,13 +180,14 @@ julia> i, j, k, l = find_mode(f, (3,4,2,5))
 
 julia> excitation(f, (i,j), (k,l))
 (FermiFS{6,8}((1, 0, 1, 1, 0, 1, 1, 1)), -1.0)
-
 ```
+
+See [`SingleComponentFockAddress`](@ref).
 """
 excitation
 
 """
-    OccupiedModeMap(add)
+    OccupiedModeMap(add) <: AbstractVector
 
 Get a map of occupied modes in address as an `AbstractVector` of indices compatible with
 [`excitation`](@ref) - [`BoseFSIndex`](@ref) or [`FermiFSIndex`](@ref).
@@ -181,7 +196,7 @@ Get a map of occupied modes in address as an `AbstractVector` of indices compati
 This is useful because repeatedly looking for occupied modes with
 [`find_occupied_mode`](@ref) can be time-consuming.
 `OccupiedModeMap(add)` is an eager version of the iterator returned by
-[`occupied_modes`](@ref).
+[`occupied_modes`](@ref). It is similar to [`onr`](@ref) but contains more information.
 
 # Example
 
@@ -206,8 +221,8 @@ julia> mf = OccupiedModeMap(f)
  FermiFSIndex(occnum=1, mode=4)
  FermiFSIndex(occnum=1, mode=7)
 
-julia> dot(mf, mf)
-5
+julia> mf == collect(occupied_modes(f))
+true
 
 julia> dot(mf, mb)
 11
@@ -215,6 +230,7 @@ julia> dot(mf, mb)
 julia> dot(mf, 1:20)
 17
 ```
+See also [`dot`](@ref), [`SingleComponentFockAddress`](@ref).
 """
 struct OccupiedModeMap{N,T} <: AbstractVector{T}
     indices::SVector{N,T} # N = min(N, M)
@@ -240,6 +256,30 @@ function Base.getindex(om::OccupiedModeMap, i)
     return om.indices[i]
 end
 
+"""
+    dot(map::OccupiedModeMap, vec::AbstractVector)
+    dot(map1::OccupiedModeMap, map2::OccupiedModeMap)
+Dot product extracting mode occupation numbers from an [`OccupiedModeMap`](@ref) similar
+to [`onr`](@ref).
+
+```jldoctest
+julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
+BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
+
+julia> mb = OccupiedModeMap(b)
+3-element OccupiedModeMap{7, Rimu.BitStringAddresses.BoseFSIndex}:
+ BoseFSIndex(occnum=10, mode=1, offset=0)
+ BoseFSIndex(occnum=2, mode=5, offset=14)
+ BoseFSIndex(occnum=1, mode=7, offset=18)
+
+julia> dot(mb, 1:7)
+27
+
+julia> mb⋅(1:7) == onr(b)⋅(1:7)
+true
+```
+See also [`SingleComponentFockAddress`](@ref).
+"""
 function LinearAlgebra.dot(map::OccupiedModeMap, vec::AbstractVector)
     value = zero(eltype(vec))
     for index in map
