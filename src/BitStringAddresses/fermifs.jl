@@ -65,6 +65,17 @@ end
 
 onr(a::FermiFS) = SVector(m_onr(a))
 
+"""
+    FermiFSIndex
+
+Struct used for indexing and performing [`excitation`](@ref)s on a [`FermiFS`](@ref).
+
+## Fields:
+
+* `occnum`: the occupation number.
+* `mode`: the index of the mode.
+
+"""
 struct FermiFSIndex<:FieldVector{2,Int}
     occnum::Int
     mode::Int

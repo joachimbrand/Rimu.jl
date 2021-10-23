@@ -252,7 +252,7 @@ end
 """
     BoseFSIndex
 
-Convenience struct for indexing into a [`BoseFS`](@ref).
+Struct used for indexing and performing [`excitation`](@ref)s on a [`BoseFS`](@ref).
 
 ## Fields:
 
