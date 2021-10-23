@@ -66,10 +66,10 @@ See also [`HubbardMom1D`](@ref), [`HubbardReal1DEP`](@ref),
 [`Transcorrelated1D`](@ref), [`Hamiltonians`](@ref).
 """
 struct HubbardMom1DEP{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
-    add::AD # default starting address, should have N particles and M modes
+    add::AD # default starting address, should have M modes, U and T are model parameters
     ks::SVector{M,TT} # values for k
     kes::SVector{M,TT} # values for kinetic energy
-    ep::SVector{M,TT}
+    ep::SVector{M,TT} # external potential
 end
 
 function HubbardMom1DEP(
