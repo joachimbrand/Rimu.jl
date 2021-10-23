@@ -229,11 +229,11 @@ struct OccupiedModeMap{N,T} <: AbstractVector{T}
     length::Int
 end
 
-function OccupiedModeMap(add::SingleComponentFockAddress{N}) where {N}
+function OccupiedModeMap(add::SingleComponentFockAddress{N,M}) where {N,M}
     modes = occupied_modes(add)
     T = eltype(modes)
     # There are at most N occupied modes. This could be also @generated for cases where N ≫ M
-    indices = MVector{N,T}(undef)
+    indices = MVector{min(N,M),T}(undef)
     i = 0
     for index in modes
         i += 1
