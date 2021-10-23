@@ -100,10 +100,21 @@ end
     FermiFS2C <: AbstractFockAddress
     FermiFS2C(onr_a, onr_b)
 
-Alias for [`CompositeFS`](@ref) with two [`FermiFS`](@ref) components. Construct by
-specifying either two compatible [`FermiFS`](@ref)s or [`onr`](@ref)s.
+Fock state address with two fermionic (spin) components. Alias for [`CompositeFS`](@ref)
+with two [`FermiFS`](@ref) components.
+Construct by specifying either two compatible [`FermiFS`](@ref)s or [`onr`](@ref)s.
+```jldoctest
+julia> f2c = FermiFS2C((1,0,0),(0,1,1))
+CompositeFS(
+  FermiFS{1,3}((1, 0, 0)),
+  FermiFS{2,3}((0, 1, 1)),
+)
+
+julia> f2c isa FermiFS2C
+true
+```
 """
 const FermiFS2C{N1,N2,M,N,F1,F2} =
     CompositeFS{2,N,M,Tuple{F1,F2}} where {F1<:FermiFS{N1,M},F2<:FermiFS{N2,M}}
-FermiFS2C(onr_a, onr_b) = CompositeFS(FermiFS(onr_a), FermiFS(onr_b))
 FermiFS2C(f1::FermiFS{<:Any,M}, f2::FermiFS{<:Any,M}) where {M} = CompositeFS(f1, f2)
+FermiFS2C(onr_a, onr_b) = FermiFS2C(FermiFS(onr_a), FermiFS(onr_b))
