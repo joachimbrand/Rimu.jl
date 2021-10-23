@@ -76,7 +76,7 @@ function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body
     cutoff < 1 && throw(ArgumentError("`cutoff` must be a positive integer"))
     ks = SVector{M}(i_to_k.(1:M, M))
     kes = t .* ks.^2
-    ws = SVector{M}(w_function.(0:M-1, cutoff, M, v, t))
+    ws = SVector{M}(w_function.(0:M-1, cutoff))
     us = SVector{M}(correlation_factor.(1:M, cutoff, M))
     if iszero(v_ho)
         potential = nothing
@@ -148,18 +148,19 @@ function correlation_factor(h::Transcorrelated1D{M}, n) where {M}
 end
 
 """
-    w_function(n::Integer, nc::Integer, M, v, t)
+    w_function(n::Integer, nc::Integer)
     w_function(h::Transcorrelated1D, n::Integer)
 
 Compute the (dimensionless) function
 ```math
 W(k) = \\frac{1}{M^2}\\sum_{q} (k - q)q\\, \\tilde{u}(q)\\,\\tilde{u}(k - q) .
 ```
-where ``k = π + 2πn/M``, and ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref).
+where ``k = π + 2πn/M``,  `k_c = π + 2π/M * nc`,
+and ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref).
 
 See also [`Transcorrelated1D`](@ref).
 """
-function w_function(n, nc, M, v, t)
+function w_function(n::Integer, nc::Integer)
     prefactor = -1 / (8π^2)
     n = abs(n)
 
@@ -174,7 +175,7 @@ function w_function(n, nc, M, v, t)
 
     return prefactor * x
 end
-w_function(h::Transcorrelated1D, i) = h.ws[abs(i) + 1]
+w_function(h::Transcorrelated1D, n::Integer) = h.ws[abs(n) + 1]
 
 """
     t_function(h::Transcorrelated1D, p, q, k)
