@@ -239,12 +239,10 @@ get_offdiagonal(h::HubbardRealSpace, add, i) = offdiagonals(h, add)[i]
 num_offdiagonals(h::HubbardRealSpace, add) = length(offdiagonals(h, add))
 
 """
-    HubbardRealSpaceBoseOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
+    HubbardRealSpaceCompOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
 
-Offdiagonals for a bosonic part of a [`HubbardRealSpace`](@ref) model.
-
-Used when the model's address is a [`BoseFS`](@ref), or a [`CompositeFS`](@ref) with a
-[`BoseFS`](@ref) component.
+Offdiagonals for a single address component. Used with [`HubbardRealSpace`](@ref) model
+with a [`BoseFS`](@ref) address, or a component of a [`CompositeFS`](@ref).
 """
 struct HubbardRealSpaceCompOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
     geometry::G
