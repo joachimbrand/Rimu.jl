@@ -121,8 +121,8 @@ num_occupied_modes
 """
     occupied_modes(::SingleComponentFockAddress)
 
-Iterate over all occupied modes in an address. Iterates [`BoseFSIndex`](@ref) for
-[`BoseFS`](@ref), and an integers for [`FermiFS`](@ref).
+Iterate over all occupied modes in an address. Iterates over [`BoseFSIndex`](@ref)s for
+[`BoseFS`](@ref), and over [`FermiFSIndex`](@ref)s for [`FermiFS`](@ref).
 
 # Example
 
