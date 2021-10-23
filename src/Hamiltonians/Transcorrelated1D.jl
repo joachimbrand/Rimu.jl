@@ -6,7 +6,7 @@ Implements a transcorrelated Hamiltonian for two component fermionic addresses w
 harmonic potential:
 
 ```math
-\\tilde{H} = J\\sum_{kσ}k^2 n_{k,σ} +
+\\tilde{H} = \\mathtt{t}\\sum_{kσ}k^2 n_{k,σ} +
               \\sum_{pqkσσ'} T_{pqk} a^†_{p-k,σ} a^†_{q+k,σ'} a_{q,σ'} a_{p,σ} +
               \\sum_{pqskk'σσ'} Q_{kk'}a^†_{p-k,σ} a^†_{q+k,σ} a^†_{s+k-k',σ'}
                                        a_{s,σ'} a_{q,σ} a_{p,σ},
@@ -15,14 +15,19 @@ harmonic potential:
 where
 
 ```math
-\\tilde{u}(k) = {-2/k^2 \\mathrm{\\ if\\ } |k| ≥ k_c; 0 \\mathrm{\\ otherwise\\ }}
+\\begin{aligned}
+\\tilde{u}(k) &= \\begin{cases} -\\frac{2}{k^2} &\\mathrm{if\\ } |k| ≥ k_c\\\\
+0 & \\mathrm{otherwise}
+\\end{cases}
+\\\\
 
-W(k) = \\sum_{k′} (k - k′)k′ \\tilde{u}(k′)\\tilde{u}(k - k′),
+W(k) &= \\sum_{q} (k - q)q\\, \\tilde{u}(q)\\,\\tilde{u}(k - q), \\\\
 
-T_{pqk} = \\frac{v}{M} + \\frac{2t}{M}(k^2\\tilde{u}(k) - (p - q)k\\tilde{u}(k) +
-\\frac{W(k)}{M}),
+T_{pqk} &= \\frac{v}{M} + \\frac{2t}{M}\\left[k^2\\tilde{u}(k) - (p - q)k\\,\\tilde{u}(k) +
+\\frac{W(k)}{M}\\right], \\\\
 
-Q_{kl} = -\\frac{t}{M^2}kl \\tilde{u}(k)\\tilde{u}(l).
+Q_{kl} &= -\\frac{t}{M^2}kl\\, \\tilde{u}(k)\\,\\tilde{u}(l).
+\\end{aligned}
 ```
 
 # Arguments
