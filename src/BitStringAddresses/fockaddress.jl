@@ -210,7 +210,7 @@ julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
 BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
 
 julia> mb = OccupiedModeMap(b)
-3-element OccupiedModeMap{7, Rimu.BitStringAddresses.BoseFSIndex}:
+3-element OccupiedModeMap{7, BoseFSIndex}:
  BoseFSIndex(occnum=10, mode=1, offset=0)
  BoseFSIndex(occnum=2, mode=5, offset=14)
  BoseFSIndex(occnum=1, mode=7, offset=18)
@@ -219,7 +219,7 @@ julia> f = FermiFS((1,1,1,1,0,0,1,0,0))
 FermiFS{5,9}((1, 1, 1, 1, 0, 0, 1, 0, 0))
 
 julia> mf = OccupiedModeMap(f)
-5-element OccupiedModeMap{5, Rimu.BitStringAddresses.FermiFSIndex}:
+5-element OccupiedModeMap{5, FermiFSIndex}:
  FermiFSIndex(occnum=1, mode=1)
  FermiFSIndex(occnum=1, mode=2)
  FermiFSIndex(occnum=1, mode=3)
@@ -272,7 +272,7 @@ julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
 BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
 
 julia> mb = OccupiedModeMap(b)
-3-element OccupiedModeMap{7, Rimu.BitStringAddresses.BoseFSIndex}:
+3-element OccupiedModeMap{7, BoseFSIndex}:
  BoseFSIndex(occnum=10, mode=1, offset=0)
  BoseFSIndex(occnum=2, mode=5, offset=14)
  BoseFSIndex(occnum=1, mode=7, offset=18)
