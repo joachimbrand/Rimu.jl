@@ -1,15 +1,20 @@
 # TODO: disabling three-body terms
 """
-    Transcorrelated1D(address; t=1.0, u=1.0, v_ho=1.0, cutoff=1)
+    Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1)
 
-Implements a transcorrelated Hamiltonian for two component fermionic addresses with optional
-harmonic potential:
+Implements a transcorrelated Hamiltonian for contact interactions in one dimensional
+momentum space from [Jeszenski *et al.* (2018)](http://arxiv.org/abs/1806.11268).
+Currently limited to two component fermionic addresses.
 
 ```math
-\\tilde{H} = \\mathtt{t}\\sum_{kσ}k^2 n_{k,σ} +
-              \\sum_{pqkσσ'} T_{pqk} a^†_{p-k,σ} a^†_{q+k,σ'} a_{q,σ'} a_{p,σ} +
-              \\sum_{pqskk'σσ'} Q_{kk'}a^†_{p-k,σ} a^†_{q+k,σ} a^†_{s+k-k',σ'}
-                                       a_{s,σ'} a_{q,σ} a_{p,σ},
+\\begin{aligned}
+
+\\tilde{H} &= t \\sum_{kσ}k^2 n_{k,σ} \\\\
+    &\\quad + \\sum_{pqkσσ'} T_{pqk} a^†_{p-k,σ} a^†_{q+k,σ'} a_{q,σ'} a_{p,σ} \\\\
+    &\\quad + \\sum_{pqskk'σσ'} Q_{kk'}a^†_{p-k,σ} a^†_{q+k,σ} a^†_{s+k-k',σ'}
+                                       a_{s,σ'} a_{q,σ} a_{p,σ} \\\\
+    &\\quad + V̂_\\mathrm{ho}
+\\end{aligned}
 ```
 
 where
@@ -35,8 +40,8 @@ Q_{kl} &= -\\frac{t}{M^2}kl\\, \\tilde{u}(k)\\,\\tilde{u}(l).
 * `address`: the starting address, defines number of particles and sites.
 * `v`: the interaction parameter. Default: 1
 * `t`: the hopping strength. Default: 1
-* `v_ho`: strength of the external harmonic oscillator potential ``ϵ_i = v_{ho}
-  i^2``. Default: 0
+* `v_ho`: strength of the external harmonic oscillator potential ``V̂_\\mathrm{ho}``;
+  see [`HubbardMom1DEP`](@ref).
 * `cutoff`: Controls ``k_c`` in equations above. Note: skipping generating
   off-diagonal elements below the cutoff is not implemented - zero-valued elements
   are returned instead. Default: 1
@@ -58,17 +63,17 @@ struct Transcorrelated1D{
     v::Float64
     t::Float64
     v_ho::Float64
-    ks::SVector{M,Float64}
-    kes::SVector{M,Float64}
-    ws::SVector{M,Float64}
-    us::SVector{M,Float64}
-    potential::P
+    ks::SVector{M,Float64} # wave numbers
+    kes::SVector{M,Float64} # single-particle dispersion
+    ws::SVector{M,Float64} # pre-computed W(k)
+    us::SVector{M,Float64} # correlation factor
+    potential::P # external potential
     three_body_term::Bool
 end
 
 function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true)
     M = num_modes(address)
-    cutoff < 1 && error("`cutoff` must be a positive integer")
+    cutoff < 1 && throw(ArgumentError("`cutoff` must be a positive integer"))
     ks = SVector{M}(i_to_k.(1:M, M))
     kes = t .* ks.^2
     ws = SVector{M}(w_function.(0:M-1, cutoff, M, v, t))
@@ -110,15 +115,21 @@ end
 @inline n_to_k(n, M) = i_to_k(n_to_i(n, M), M)
 
 """
-    correlation_factor(n, cutoff)
+    correlation_factor(n, cutoff, M)
 
-Compute the (dimensionless) correlation factor multiplied by ``k``, ``k\\tilde{u}(k)``.
+Compute the (dimensionless) correlation factor multiplied by ``k``:
 
 ```math
-k \\tilde{u}(k) = {-2/k \\mathrm{\\ if\\ } |k| ≥ k_c; 0 \\mathrm{\\ otherwise\\ }}
+\\begin{aligned}
+k \\tilde{u}(k) &= \\begin{cases} -\\frac{2}{k} &\\mathrm{if\\ } |k| ≥ k_c \\\\
+0 & \\mathrm{otherwise}
+\\end{cases}
+\\end{aligned}
 ```
 
-where ``k = π + 2πn/M``.
+where ``k = π + 2πn/M`` and `k_c = π + 2π/M * cutoff`.
+
+See also [`Transcorrelated1D`](@ref).
 """
 function correlation_factor(n, cutoff, M)
     if abs(n) ≥ cutoff
@@ -137,14 +148,16 @@ function correlation_factor(h::Transcorrelated1D{M}, n) where {M}
 end
 
 """
-    w_function(i::Integer, nc::Integer, M, v, t)
-    w_function(h::Transcorrelated1D, i::Integer)
+    w_function(n::Integer, nc::Integer, M, v, t)
+    w_function(h::Transcorrelated1D, n::Integer)
 
-Compute the (dimensionless) function ``\tilde{W}(k) = t^2/u^2 W(k)``.
-
+Compute the (dimensionless) function
 ```math
-W(k) = \\sum_{k′} (k - k′)k′ \\tilde{u}(k′)\\tilde{u}(k - k′)
+W(k) = \\frac{1}{M^2}\\sum_{q} (k - q)q\\, \\tilde{u}(q)\\,\\tilde{u}(k - q) .
 ```
+where ``k = π + 2πn/M``, and ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref).
+
+See also [`Transcorrelated1D`](@ref).
 """
 function w_function(n, nc, M, v, t)
     prefactor = -1 / (8π^2)
@@ -169,12 +182,14 @@ w_function(h::Transcorrelated1D, i) = h.ws[abs(i) + 1]
 Compute
 
 ```math
-T_{pqk} = \\frac{v}{M} + \\frac{2t}{M}(k^2\\tilde{u}(k) - (p - q)k\\tilde{u}(k) +
-\\frac{W(k)}{M})
+T_{pqk} = \\frac{v}{M} + \\frac{2t}{M}(k^2\\tilde{u}(k) - (p - q)k\\tilde{u}(k)) +
+\\frac{2v^2}{t}W(k)
 ```
 
 where ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref) and ``W(k)`` is the
 [`w_function`](@ref).
+
+See also [`Transcorrelated1D`](@ref).
 """
 function t_function(h::Transcorrelated1D{M}, p, q, k) where {M}
     @unpack t, v = h
@@ -191,10 +206,12 @@ end
 Compute
 
 ```math
-Q_{kl} = -\\frac{t}{M^2}kl \\tilde{u}(k)\\tilde{u}(l),
+Q_{kl} = -\\frac{v^2}{t M^2}k \\tilde{u}(k)\\,l\\tilde{u}(l),
 ```
 
 where ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref).
+
+See also [`Transcorrelated1D`](@ref).
 """
 function q_function(h::Transcorrelated1D{M}, k, l) where {M}
     @unpack t, v = h
@@ -233,7 +250,8 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
     map1 = OccupiedModeMap(c1)
     map2 = OccupiedModeMap(c2)
 
-    value = dot(h.kes, map1) + dot(h.kes, map2) +
+    value = kinetic_energy(h.kes, map1) +
+        kinetic_energy(h.kes, map2) +
         momentum_transfer_diagonal(h, map1, map2)
     if h.three_body_term
         value += transcorrelated_diagonal(h, map1, map2) +
