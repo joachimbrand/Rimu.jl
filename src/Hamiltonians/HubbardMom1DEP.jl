@@ -1,17 +1,18 @@
 """
-    momentum_space_harmonic_potential(M, v)
+    momentum_space_harmonic_potential(M::Integer, v::Real)
 
 Set up a harmonic potential for use with momentum space Hamiltonians.
 """
-function momentum_space_harmonic_potential(M, v)
+function momentum_space_harmonic_potential(M::Integer, v::Real)
+    v = float(v)
     # Set up potential like in Real1DEP
     is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
     js = shift_lattice(is) # shifted such that js[1] = 0
     real_potential = [v*j^2 for j in js]
     mom_potential = fft(real_potential)
     # This should never fail for a harmonic oscillator, but it's best to check just in case.
-    for v in mom_potential
-        @assert iszero(real(v)) || abs(imag(v) / real(v)) < sqrt(eps(Float64))
+    for x in mom_potential
+        @assert iszero(real(x)) || abs(imag(x) / real(x)) < sqrt(eps(v))
     end
     # Make sure it's completely symmetric. It should be, but round-off errors can sometimes
     # make it non-symmetric.
