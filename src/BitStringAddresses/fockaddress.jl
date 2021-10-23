@@ -183,13 +183,11 @@ excitation
 Get a map of occupied modes in address as an `AbstractVector` of indices compatible with
 [`excitation`](@ref) - [`BoseFSIndex`](@ref) or [`FermiFSIndex`](@ref).
 
-It is implemented as a view into `SVector{N}` where `N` is the particle number of the
-address.
-
 `OccupiedModeMap(add)[i]` contains the index for the `i`-th occupied mode.
-
 This is useful because repeatedly looking for occupied modes with
 [`find_occupied_mode`](@ref) can be time-consuming.
+`OccupiedModeMap(add)` is an eager version of the iterator returned by 
+[`occupied_modes`](@ref).
 
 # Example
 
@@ -225,7 +223,7 @@ julia> dot(mf, 1:20)
 ```
 """
 struct OccupiedModeMap{N,T} <: AbstractVector{T}
-    indices::SVector{N,T}
+    indices::SVector{N,T} # N = min(N, M)
     length::Int
 end
 
