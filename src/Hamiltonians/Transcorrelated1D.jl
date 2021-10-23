@@ -1,6 +1,6 @@
 # TODO: disabling three-body terms
 """
-    Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1)
+    Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true)
 
 Implements a transcorrelated Hamiltonian for contact interactions in one dimensional
 momentum space from [Jeszenski *et al.* (2018)](http://arxiv.org/abs/1806.11268).
@@ -26,28 +26,26 @@ where
 \\end{cases}
 \\\\
 
-W(k) &= \\sum_{q} (k - q)q\\, \\tilde{u}(q)\\,\\tilde{u}(k - q), \\\\
-
-T_{pqk} &= \\frac{v}{M} + \\frac{2t}{M}\\left[k^2\\tilde{u}(k) - (p - q)k\\,\\tilde{u}(k) +
-\\frac{W(k)}{M}\\right], \\\\
-
-Q_{kl} &= -\\frac{t}{M^2}kl\\, \\tilde{u}(k)\\,\\tilde{u}(l).
+T_{pqk} &= \\frac{v}{M} + \\frac{2v}{M}\\left[k^2\\tilde{u}(k)
+          - (p - q)k\\tilde{u}(k)\\right] + \\frac{2v^2}{t}W(k)\\\\
+W(k) &= \\frac{1}{M^2}\\sum_{q} (k - q)q\\, \\tilde{u}(q)\\,\\tilde{u}(k - q) \\\\
+Q_{kl} &= -\\frac{v^2}{t M^2}k \\tilde{u}(k)\\,l\\tilde{u}(l),
 \\end{aligned}
 ```
 
 # Arguments
 
-* `address`: the starting address, defines number of particles and sites.
-* `v`: the interaction parameter. Default: 1
-* `t`: the hopping strength. Default: 1
-* `v_ho`: strength of the external harmonic oscillator potential ``V̂_\\mathrm{ho}``;
-  see [`HubbardMom1DEP`](@ref).
-* `cutoff`: Controls ``k_c`` in equations above. Note: skipping generating
+* `address`: The starting address, defines number of particles and sites.
+* `v`: The interaction parameter.
+* `t`: The kinetic energy prefactor.
+* `v_ho`: Strength of the external harmonic oscillator potential ``V̂_\\mathrm{ho}``.
+  See [`HubbardMom1DEP`](@ref).
+* `cutoff` controls ``k_c`` in equations above. Note: skipping generating
   off-diagonal elements below the cutoff is not implemented - zero-valued elements
-  are returned instead. Default: 1
+  are returned instead.
 * `three_body_term`: If set to false, generating three body excitations is skipped.
   Note: when disabling three body terms, cutoff should be set to a higher value for
-  best results. Default: true
+  best results.
 
 # See also
 
@@ -155,7 +153,7 @@ Compute the (dimensionless) function
 ```math
 W(k) = \\frac{1}{M^2}\\sum_{q} (k - q)q\\, \\tilde{u}(q)\\,\\tilde{u}(k - q) .
 ```
-where ``k = π + 2πn/M``,  `k_c = π + 2π/M * nc`,
+where ``k = π + 2π\\mathtt{n}/M``,  ``k_c = π + 2π\\mathtt{nc}/M``,
 and ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref).
 
 See also [`Transcorrelated1D`](@ref).
@@ -183,8 +181,8 @@ w_function(h::Transcorrelated1D, n::Integer) = h.ws[abs(n) + 1]
 Compute
 
 ```math
-T_{pqk} = \\frac{v}{M} + \\frac{2t}{M}(k^2\\tilde{u}(k) - (p - q)k\\tilde{u}(k)) +
-\\frac{2v^2}{t}W(k)
+T_{pqk} = \\frac{v}{M} + \\frac{2v}{M}\\left[k^2\\tilde{u}(k)
+          - (p - q)k\\tilde{u}(k)\\right] + \\frac{2v^2}{t}W(k)
 ```
 
 where ``k\\tilde{u}(k)`` is the [`correlation_factor`](@ref) and ``W(k)`` is the
