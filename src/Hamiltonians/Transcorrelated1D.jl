@@ -166,7 +166,7 @@ function w_function(n::Integer, nc::Integer)
         x = π^2/6 - sum(1/(np^2) for np in 1:nc-1; init=0.0)
     elseif 2nc > n > 0
         x = 1/n * sum(1/np for np in nc:n+nc-1)
-    elseif n ≥ nc
+    else
         x = 1/n * sum(1/np for np in nc:n+nc-1) -
             1/2 * sum(1/(np * (n - np)) for np in nc:n-nc)
     end
