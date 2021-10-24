@@ -57,7 +57,8 @@ num_components(::Type{<:SingleComponentFockAddress}) = 1
     find_mode(::SingleComponentFockAddress, i)
 
 Find the `i`-th mode in address. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and
-an integer index for [`FermiFS`](@ref). Can work on a tuple of modes. Does not check bounds.
+[`FermiFSIndex`](@ref) for [`FermiFS`](@ref). Can work on a tuple of modes. Does not check
+bounds.
 
 ```jldoctest
 julia> find_mode(BoseFS((1, 0, 2)), 2)
@@ -76,9 +77,8 @@ find_mode
     find_occupied_mode(::BoseFS, k, [n])
 
 Find the `k`-th occupied mode in address (with at least `n` particles).
-Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and an integer for [`FermiFS`](@ref).
-When unsuccessful it
-returns zero.
+Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and [`FermiFSIndex`](@ref) for
+[`FermiFS`](@ref). When unsuccessful it returns a zero index.
 
 # Example
 
@@ -130,7 +130,7 @@ num_occupied_modes
 """
     occupied_modes(::SingleComponentFockAddress)
 
-Return a lazy iterater over all occupied modes in an address. Iterates over
+Return a lazy iterator over all occupied modes in an address. Iterates over
 [`BoseFSIndex`](@ref)s for [`BoseFS`](@ref), and over [`FermiFSIndex`](@ref)s for
 [`FermiFS`](@ref). See [`OccupiedModeMap`](@ref) for an eager version.
 
