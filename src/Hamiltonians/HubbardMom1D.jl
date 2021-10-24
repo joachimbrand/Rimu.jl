@@ -44,9 +44,10 @@ struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
 end
 
 function HubbardMom1D(
-    add::BoseFS{<:Any,M};
+    add::Union{BoseFS,FermiFS2C};
     u=1.0, t=1.0, dispersion = hubbard_dispersion,
-) where {M}
+)
+    M = num_modes(add)
     U, T = promote(float(u), float(t))
     step = 2π/M
     if isodd(M)
@@ -127,9 +128,13 @@ end
     M = num_modes(ham)
     return singlies * (singlies - 1) * (M - 2) + doublies * (M - 1)
 end
+@inline function num_offdiagonals(ham::HubbardMom1D, add::FermiFS2C{N1,N2}) where {N1,N2}
+    M = num_modes(ham)
+    return N1 * N2 * (M - 1)
+end
 
 """
-    interaction_energy_diagonal(H, onr)
+    momentum_transfer_diagonal(H, map::OccupiedModeMap)
 
 Compute diagonal interaction energy term.
 
@@ -141,152 +146,47 @@ BoseFS{6,5}((1, 2, 3, 0, 0))
 
 julia> H = HubbardMom1D(a);
 
-
-julia> Hamiltonians.interaction_energy_diagonal(H, onr(a))
+julia> Hamiltonians.momentum_transfer_diagonal(H, OccupiedModeMap(a))
 5.2
 ```
 """
-@inline function interaction_energy_diagonal(
-    h::HubbardMom1D{<:Any,M,<:BoseFS}, onrep::StaticVector{M,I}
-) where {M,I}
-    # now compute diagonal interaction energy
-    onproduct = zero(I) # Σ_kp < c^†_p c^†_k c_k c_p >
-    # Not having @inbounds here is faster?
-    for p in 1:M
-        iszero(onrep[p]) && continue
-        onproduct += onrep[p] * (onrep[p] - one(I))
-        for k in 1:p-1
-            onproduct += I(4) * onrep[k] * onrep[p]
-        end
-    end
-    return h.u / 2M * onproduct
+@inline function momentum_transfer_diagonal(
+    h::HubbardMom1D{<:Any,M,<:BoseFS}, map
+) where {M}
+    return h.u / 2M * momentum_transfer_diagonal(map)
+end
+@inline function momentum_transfer_diagonal(
+    h::HubbardMom1D{<:Any,M,<:FermiFS2C}, map_a, map_b
+) where {M}
+    return h.u / 2M * momentum_transfer_diagonal(map_a, map_b)
 end
 
-function kinetic_energy(h::HubbardMom1D, add::AbstractFockAddress)
-    onrep = BitStringAddresses.m_onr(add)
-    return kinetic_energy(h, onrep)
+@inline function diagonal_element(h::HubbardMom1D, add::BoseFS)
+    map = OccupiedModeMap(add)
+    return dot(h.kes, map) + momentum_transfer_diagonal(h, map)
 end
-
-@inline function kinetic_energy(h::HubbardMom1D, onrep::StaticVector)
-    return onrep ⋅ h.kes # safe as onrep is Real
-end
-
-@inline function diagonal_element(h::HubbardMom1D, add)
-    onrep = BitStringAddresses.m_onr(add)
-    return diagonal_element(h, onrep)
-end
-
-@inline function diagonal_element(h::HubbardMom1D, onrep::StaticVector)
-    return kinetic_energy(h, onrep) + interaction_energy_diagonal(h, onrep)
-end
-
-@inline function get_offdiagonal(ham::HubbardMom1D, add, chosen)
-    get_offdiagonal(ham, add, chosen, num_singly_doubly_occupied_sites(add)...)
-end
-
-"""
-    momentum_transfer_excitation(add, chosen, singlies, doublies)
-Internal function used in [`get_offdiagonal`](@ref) for [`HubbardMom1D`](@ref)
-and [`G2Correlator`](@ref). Returns the new address, the onproduct,
-and the change in momentum.
-"""
-@inline function momentum_transfer_excitation(add, chosen, singlies, doublies)
-    M = num_modes(add)
-    onrep = onr(add)
-    double = chosen - singlies * (singlies - 1) * (M - 2)
-    # Start by making holes as the action of two annihilation operators.
-    if double > 0
-        # Need to choose doubly occupied site for double hole.
-        onrep, onproduct, p, q, k = double_hole(onrep, double)
-    else
-        # Need to punch two single holes.
-        onrep, onproduct, p, q, k = single_hole(onrep, chosen, singlies)
-    end
-
-    onrep, onproduct = creation_operators(onrep, onproduct, p, q, k)
-    return SVector(onrep), onproduct, -q
-end
-function double_hole(onrep::SVector{M}, double) where {M}
-    m_onrep = MVector(onrep)
-    double, q = fldmod1(double, M - 1)
-    p = k = 0
-    onproduct = 1
-    # q is momentum transfer
-    for (i, occ) in enumerate(onrep)
-        if occ > 1
-            double -= 1
-            if double == 0
-                onproduct *= occ * (occ - 1)
-                @inbounds m_onrep[i] = occ - 2
-                # annihilate two particles in onrep
-                p = k = i # remember where we make the holes
-                break
-            end
-        end
-    end
-    return SVector(m_onrep), onproduct, p, q, k
-end
-function single_hole(onrep::SVector{M}, chosen, singlies) where {M}
-    m_onrep = MVector(onrep)
-    # c_k c_p
-    pair, q = fldmod1(chosen, M - 2)
-    p = k = 0
-    onproduct = 1
-
-    first, second = fldmod1(pair, singlies - 1) # where the holes are to be made
-    if second < first # put them in ascending order
-        f_hole = second
-        s_hole = first
-    else
-        f_hole = first
-        s_hole = second + 1 # as we are counting through all singlies
-    end
-
-    counter = 0
-    for (i, occ) in enumerate(onrep)
-        if occ > 0
-            counter += 1
-            if counter == f_hole
-                onproduct *= occ
-                @inbounds m_onrep[i] = occ - 1
-                # punch first hole
-                p = i # location of first hole
-            elseif counter == s_hole
-                onproduct *= occ
-                @inbounds m_onrep[i] = occ - 1
-                # punch second hole
-                k = i # location of second hole
-                break
-            end
-        end
-    end
-    # we have p<k and 1 < q < ham.m - 2
-    if q ≥ k-p
-        q += 1 # to avoid putting particles back into the holes
-    end
-    return SVector(m_onrep), onproduct, p, q, k
-end
-function creation_operators(onrep::SVector{M}, onproduct, p, q, k) where {M}
-    m_onrep = MVector(onrep)
-    # c^†_k-q
-    kmq = mod1(k - q, M)
-    @inbounds occ = m_onrep[kmq]
-    onproduct *= occ + 1
-    @inbounds m_onrep[kmq] = occ + 1
-    # c^†_p+q
-    ppq = mod1(p + q, M)
-    @inbounds occ = m_onrep[ppq]
-    onproduct *= occ + 1
-    @inbounds m_onrep[ppq] = occ + 1
-
-    return SVector(m_onrep), onproduct
+@inline function diagonal_element(h::HubbardMom1D, add::FermiFS2C)
+    map_a = OccupiedModeMap(add.components[1])
+    map_b = OccupiedModeMap(add.components[2])
+    return dot(h.kes, map_a) + dot(h.kes, map_b) +
+        momentum_transfer_diagonal(h, map_a, map_b)
 end
 
 @inline function get_offdiagonal(
-    ham::HubbardMom1D{<:Any,M,A}, add, chosen, singlies, doublies
-) where {M,A}
-    svec, onproduct, _ = momentum_transfer_excitation(add, chosen, singlies, doublies)
-    return A(svec), ham.u/(2*M)*sqrt(onproduct)
+    ham::HubbardMom1D{<:Any,M,A}, add::A, chosen, map=OccupiedModeMap(add)
+) where {M,A<:BoseFS}
+    add, onproduct = momentum_transfer_excitation(add, chosen, map)
+    return add, ham.u/(2*M)*onproduct
+end
+@inline function get_offdiagonal(
+    ham::HubbardMom1D{<:Any,M,A}, add::A, chosen,
+    map_a=OccupiedModeMap(add.components[1]), map_b=OccupiedModeMap(add.components[2])
+) where {M,A<:FermiFS2C}
+    add_a, add_b = add.components
+    new_add_a, new_add_b, onproduct = momentum_transfer_excitation(
+        add_a, add_b, chosen, map_a, map_b
+    )
+    return CompositeFS(new_add_a, new_add_b), ham.u/M * onproduct
 end
 
 ###
@@ -299,30 +199,61 @@ Specialized [`AbstractOffdiagonals`](@ref) that keeps track of singly and doubly
 sites in current address.
 """
 struct OffdiagonalsBoseMom1D{
-    A<:BoseFS,T,H<:AbstractHamiltonian{T}
+    A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
 } <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int
-    singlies::Int
-    doublies::Int
+    map::O
 end
 
 function offdiagonals(h::HubbardMom1D, a::BoseFS)
-    singlies, doublies = num_singly_doubly_occupied_sites(a)
+    map = OccupiedModeMap(a)
+    singlies = length(map)
+    doublies = count(i -> i.occnum ≥ 2, map)
     num = num_offdiagonals(h, a, singlies, doublies)
-    return OffdiagonalsBoseMom1D(h, a, num, singlies, doublies)
+    return OffdiagonalsBoseMom1D(h, a, num, map)
 end
 
 function Base.getindex(s::OffdiagonalsBoseMom1D{A,T}, i)::Tuple{A,T} where {A,T}
     @boundscheck begin
         1 ≤ i ≤ s.length || throw(BoundsError(s, i))
     end
-    new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i, s.singlies, s.doublies)
+    new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i, s.map)
     return (new_address, matrix_element)
 end
 
 Base.size(s::OffdiagonalsBoseMom1D) = (s.length,)
+
+struct OffdiagonalsFermiMom1D2C{
+    F<:FermiFS2C,T,H<:AbstractHamiltonian{T},O1,O2
+} <: AbstractOffdiagonals{F,T}
+    hamiltonian::H
+    address::F
+    length::Int
+    map_a::O1
+    map_b::O2
+end
+
+function offdiagonals(h::HubbardMom1D, f::FermiFS2C)
+    comp_a, comp_b = f.components
+    map_a = OccupiedModeMap(comp_a)
+    map_b = OccupiedModeMap(comp_b)
+    num = num_offdiagonals(h, f)
+    return OffdiagonalsFermiMom1D2C(h, f, num, map_a, map_b)
+end
+
+Base.size(s::OffdiagonalsFermiMom1D2C) = (s.length,)
+
+function Base.getindex(s::OffdiagonalsFermiMom1D2C{A,T}, i)::Tuple{A,T} where {A,T}
+    @boundscheck begin
+        i ≤ i ≤ s.length || throw(BoundsError(s, i))
+    end
+    new_address, matrix_element = get_offdiagonal(
+        s.hamiltonian, s.address, i, s.map_a, s.map_b
+    )
+    return (new_address, matrix_element)
+end
 
 ###
 ### momentum

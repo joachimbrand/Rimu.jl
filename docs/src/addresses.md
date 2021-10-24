@@ -15,12 +15,6 @@ stack-allocated - avoid using arrays to represent your addresses at all costs!
 Rimu provides a variety of address implementations (see below) that should make it
 straightforward to implement efficient Hamiltonians.
 
-Currently, only single-particle operators are implemented directly (via
-[`move_particle`](@ref)). To implement multi-particle operators, convert the address to the
-[`onr`](@ref) representation and back. See [the
-implementation](../../src/Hamiltonians/HubbardMom1D.jl) of [`HubbardMom1D`](@ref) for an
-example.
-
 ### Fock address API
 
 ```@docs
@@ -40,7 +34,7 @@ is_occupied
 num_occupied_modes
 find_occupied_mode
 find_mode
-move_particle
+excitation
 ```
 
 ## BitStrings

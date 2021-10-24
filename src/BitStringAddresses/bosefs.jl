@@ -252,7 +252,7 @@ end
 """
     BoseFSIndex
 
-Convenience struct for indexing into a [`BoseFS`](@ref).
+Struct used for indexing and performing [`excitation`](@ref)s on a [`BoseFS`](@ref).
 
 ## Fields:
 
@@ -265,6 +265,12 @@ struct BoseFSIndex<:FieldVector{3,Int}
     mode::Int
     offset::Int
 end
+
+function Base.show(io::IO, i::BoseFSIndex)
+    @unpack occnum, mode, offset = i
+    print(io, "BoseFSIndex(occnum=$occnum, mode=$mode, offset=$offset)")
+end
+Base.show(io::IO, ::MIME"text/plain", i::BoseFSIndex) = show(io, i)
 
 """
     BoseOccupiedModes{C,S<:BoseFS}
@@ -376,8 +382,53 @@ function find_mode(b::BoseFS, index)
     offset = last_offset + last_occnum + index - last_mode
     return BoseFSIndex(0, index, offset)
 end
+# Multiple in a single pass
+function find_mode(b::BoseFS, indices::NTuple{N}) where {N}
+    # Idea: find permutation, then use the permutation to find indices in order even though
+    # they are not sorted.
+    perm = sortperm(SVector(indices))
+    # perm_i is the index in permutation and goes from 1:N.
+    perm_i = 1
+    # curr_i points to indices and result
+    curr_i = perm[1]
+    # index is the current index we are looking for.
+    index = indices[curr_i]
 
-function find_occupied_mode(b::BoseFS, index, n=1)
+    result = ntuple(_ -> BoseFSIndex(0, 0, 0), Val(N))
+    last_occnum = last_mode = last_offset = 0
+    @inbounds for (occnum, mode, offset) in occupied_modes(b)
+        dist = index - mode
+        # While loop handles duplicate entries in indices.
+        while dist ≤ 0
+            if dist == 0
+                @set! result[curr_i] = BoseFSIndex(occnum, mode, offset)
+            else
+                @set! result[curr_i] = BoseFSIndex(0, index, offset + dist)
+            end
+            perm_i += 1
+            perm_i > N && return result
+            curr_i = perm[perm_i]
+            index = indices[curr_i]
+            dist = index - mode
+        end
+        last_occnum = occnum
+        last_mode = mode
+        last_offset = offset
+    end
+    # Now we have to find all indices that appear after the last occupied site.
+    # While true because we break out of the loop early anyway.
+    @inbounds while true
+        offset = last_offset + last_occnum + index - last_mode
+        @set! result[curr_i] = BoseFSIndex(0, index, offset)
+        perm_i += 1
+        perm_i > N && return result
+        curr_i = perm[perm_i]
+        index = indices[curr_i]
+    end
+    return result # not reached
+end
+
+function find_occupied_mode(b::BoseFS, index::Integer, n=1)
     for (occnum, mode, offset) in occupied_modes(b)
         index -= occnum ≥ n
         if index == 0
@@ -387,20 +438,70 @@ function find_occupied_mode(b::BoseFS, index, n=1)
     return BoseFSIndex(0, 0, 0)
 end
 
-function move_particle(b::BoseFS, from::BoseFSIndex, to::BoseFSIndex)
-    occ1 = from.occnum
-    occ2 = to.occnum
-    if from == to
-        return b, Float64(occ1)
-    else
-        return _move_particle(b, from.offset, to.offset), √(occ1 * (occ2 + 1))
-    end
-end
-
 function _move_particle(b::BoseFS, from, to)
-    if to < from
+    if to == from
+        return b
+    elseif to < from
         return typeof(b)(partial_left_shift(b.bs, to, from))
     else
         return typeof(b)(partial_right_shift(b.bs, from, to - 1))
+    end
+end
+
+###
+### Multiple excitation stuff
+###
+# Fix offsets that changed after performing a move.
+@inline function _fix_offset(pair, index::BoseFSIndex)
+    fst, snd = pair[1], pair[2]
+    if fst.offset < snd.offset
+        return @set index.offset += fst.offset < index.offset ≤ snd.offset
+    else
+        return @set index.offset -= fst.offset > index.offset > snd.offset
+    end
+end
+_fix_offset(pair) = Base.Fix1(_fix_offset, pair)
+
+# Move multiple particles. This does not care about values, so it performs moves in an
+# arbitrary order (from left to right in pairs).
+@inline function _move_particles(b::BoseFS, (c,)::NTuple{1}, (d,)::NTuple{1})
+    return _move_particle(b, d.offset, c.offset)
+end
+@inline function _move_particles(b::BoseFS, (c, cs...), (d, ds...))
+    b = _move_particle(b, d.offset, c.offset)
+    fix = _fix_offset(c => d)
+    b = _move_particles(b, map(fix, cs), map(fix, ds))
+    return b
+end
+
+# Apply destruction operator to BoseFSIndex.
+@inline _destroy(d, index) = @set index.occnum -= (d.mode == index.mode)
+@inline _destroy(d) = Base.Fix1(_destroy, d)
+# Apply creation operator to BoseFSIndex.
+@inline _create(c, index) = @set index.occnum += (c.mode == index.mode)
+@inline _create(c) = Base.Fix1(_create, c)
+
+# Compute the value of an excitation. Starts by applying all destruction operators, and
+# then applying all creation operators. The operators must be given in reverse order.
+# Will return 0 if move is illegal.
+@inline _compute_value(::Tuple{}, ::Tuple{}) = 1
+@inline function _compute_value((c, cs...), ::Tuple{})
+    return _compute_value(map(_create(c), cs), ()) * (c.occnum + 1)
+end
+@inline function _compute_value(creations, (d, ds...))
+    return _compute_value(map(_destroy(d), creations), map(_destroy(d), ds)) * d.occnum
+end
+
+function excitation(b::BoseFS, creations::NTuple{N}, destructions::NTuple{N}) where N
+    # We start by computing the value. This is where the check if the move is even legal
+    # is done.
+    creations_rev = reverse(creations)
+    value = _compute_value(creations_rev, reverse(destructions))
+    if iszero(value)
+        return b, 0.0
+    else
+        # Now that we know the value and that the move is legal, we can apply the moves
+        # without worrying about doing something weird.
+        return _move_particles(b, creations_rev, destructions), √value
     end
 end

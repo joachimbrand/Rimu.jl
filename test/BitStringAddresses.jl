@@ -6,6 +6,8 @@ using Random
 using StaticArrays
 using Test
 
+include("excitation_tests.jl")
+
 @testset "BitString" begin
     @testset "num_chunks for Val(B)" begin
         @test_throws ArgumentError num_chunks(Val(0))
@@ -240,39 +242,6 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
             o[j] += 1
             return BoseFS{N}(SVector(o)), (o[i] + 1) * (o[j])
         end
-        # Tests find_occupied_mode, find_mode, and move_particle.
-        function test_move_particle(bose::BoseFS{N,M}) where {N,M}
-            onrep = onr(bose)
-            for (i, idx) in enumerate(occupied_modes(bose))
-                for j in 1:M
-                    if idx.mode == j
-                        correct = bose
-                        correct_val = onrep[j]
-                    else
-                        correct = setindex(onrep, onrep[idx.mode] - 1, idx.mode)
-                        correct = typeof(bose)(setindex(correct, correct[j] + 1, j))
-                        correct_val = √(onrep[idx.mode] * (onrep[j] + 1))
-                    end
-
-                    jdx = find_mode(bose, j)
-                    new_bose, val = move_particle(bose, idx, jdx)
-
-                    if !(val isa Float64)
-                        error("`move_particle` must return a `Float64`")
-                    elseif jdx.mode ≠ j
-                        error("jdx.mode=$(jdx.mode) ≠ $(j)")
-                    elseif new_bose ≠ correct
-                        error("new_bose=$(new_bose) ≠ $(correct)")
-                    elseif val ≠ correct_val
-                        error("val=$(val) ≠ $(correct_val)")
-                    elseif find_occupied_mode(bose, i) ≠ idx
-                        error("find_occupied_mode(bose, i)=$(find_occupied_mode(bose, i)) ≠ $idx")
-                    end
-                end
-            end
-            return true
-        end
-
         for (N, M) in ((16, 16), (10, 32), (64, 32), (200, 200), (200, 20), (20, 200))
             @testset "$N, $M" begin
                 for _ in 1:10
@@ -297,7 +266,9 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
                     ]
                     @test occupied == findall(!iszero, onr(bose))
 
-                    @test test_move_particle(bose)
+                    check_single_excitations(bose, 64)
+                    check_double_excitations(bose, 8)
+                    check_triple_excitations(bose, 4)
 
                     # This test checks that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(bose))) == bose
@@ -327,47 +298,13 @@ end
         for o in (small, big, giant)
             f = FermiFS(o)
             sites = collect(occupied_modes(f))
-            @test sites == findall(≠(0), onr(f))
+            @test getproperty.(sites, :mode) == findall(≠(0), onr(f))
         end
     end
     @testset "Randomized Tests" begin
         function rand_onr_fermi(N, M)
             return SVector{M}(shuffle([ones(Int,N); zeros(Int,M - N)]))
         end
-        function test_move_particle(fermi::FermiFS{<:Any,M}) where {M}
-            onrep = onr(fermi)
-            for i in occupied_modes(fermi)
-                for j in 1:M
-                    if i == j
-                        correct = fermi
-                        correct_sign = 1
-                    else
-                        onrep[i] == 1 || error("onrep[$i] ≠ 1 in $onrep")
-
-                        if onrep[j] == 1
-                            # Illegal move
-                            correct = fermi
-                            correct_sign = 0
-                        else
-                            correct = FermiFS(setindex(setindex(onrep, 0, i), 1, j))
-                            l, u = minmax(i, j)
-                            correct_sign = (-1)^sum(onrep[l + 1:u - 1])
-                        end
-                    end
-
-                    new_fermi, sign = move_particle(fermi, i, j)
-                    if !(sign isa Float64)
-                        error("`move_partice` must return a `Float64`")
-                    elseif new_fermi ≠ correct
-                        error("new_fermi=$(new_fermi) ≠ $(correct) after moving $fermi $i to $j")
-                    elseif sign ≠ correct_sign
-                        error("sign=$(sign) ≠ $(correct_sign) for $fermi, $i, $j")
-                    end
-                end
-            end
-            return true
-        end
-
         for (N, M) in ((15, 16), (10, 29), (32, 60), (180, 200), (10, 200), (1, 20))
             @testset "$N, $M" begin
                 for _ in 1:10
@@ -378,12 +315,14 @@ end
                     @test num_modes(fermi) == M
                     @test onr(fermi) == input
 
-                    @test test_move_particle(fermi)
+                    check_single_excitations(fermi, 64)
+                    check_double_excitations(fermi, 8)
+                    check_triple_excitations(fermi, 4)
 
                     f = FermiFS(input)
                     sites = Int[]
                     foreach(occupied_modes(f)) do i
-                        push!(sites, i)
+                        push!(sites, i.mode)
                     end
                     @test sites == findall(≠(0), onr(f))
                 end

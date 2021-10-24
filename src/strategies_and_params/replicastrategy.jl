@@ -64,8 +64,10 @@ function AllOverlaps(num_replicas=2, operator=nothing)
     return AllOverlaps{num_replicas, typeof(operators)}(operators)
 end
 
-function replica_stats(rs::AllOverlaps, replicas)
-    return all_overlaps(rs.operators, getfield.(replicas, :v))
+function replica_stats(rs::AllOverlaps, replicas::NTuple{N}) where {N}
+    # Not using broadcasting because it wasn't inferred properly.
+    vecs = ntuple(i -> replicas[i].v, Val(N))
+    return all_overlaps(rs.operators, vecs)
 end
 
 """
