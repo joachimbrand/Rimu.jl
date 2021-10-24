@@ -226,7 +226,7 @@ function momentum_external_potential_excitation(ep, add, i, map::OccupiedModeMap
     q += q ≥ p_index.mode # leave out diagonal matrix element
     q_index = find_mode(add, q) # q-th mode in add (not counting p)
     k = p_index.mode - q # change in momentum
-    factor = 1/M * ep[mod(k, M) + 1]
+    factor = ep[mod(k, M) + 1]
     new_add, value = excitation(add, (q_index,), (p_index,)) # a_q^† a_p |add⟩
     return new_add, value * factor
 end
@@ -237,9 +237,8 @@ end
 The diagonal part of [`momentum_external_potential_excitation`](@ref).
 """
 function momentum_external_potential_diagonal(ep, add, map::OccupiedModeMap)
-    M = num_modes(add)
     onproduct = sum(map) do index
         index.occnum
     end
-    return onproduct * 1/M * ep[1]
+    return onproduct * ep[1]
 end

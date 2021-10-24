@@ -4,7 +4,7 @@
 Set up a harmonic potential for use with momentum space Hamiltonians:
 ```math
 \\begin{aligned}
-w(k) & =  \\mathrm{DFT}[V_{ext}]_{k}  ,\\\\
+w(k) & =  1/M \\mathrm{DFT}[V_{ext}]_{k}  ,\\\\
 V_\\mathrm{ext}(x) &= v_\\mathrm{ho} \\,x^2 ,
 \\end{aligned}
 ```
@@ -27,7 +27,7 @@ function momentum_space_harmonic_potential(M::Integer, v::Real)
     for i in 1:M÷2
         mom_potential[M - i + 1] = mom_potential[i + 1]
     end
-    return SVector{M}(real.(mom_potential))
+    return SVector{M}(1/M .* real.(mom_potential))
 end
 
 """
@@ -43,7 +43,7 @@ Ĥ = \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k 
 where
 ```math
 \\begin{aligned}
-V̂_\\mathrm{ho} & = \\sum_{p,q}  \\mathrm{DFT}[V_{ext}]_{p-q} \\,
+V̂_\\mathrm{ho} & = 1/M \\sum_{p,q}  \\mathrm{DFT}[V_{ext}]_{p-q} \\,
                     a^†_{p} a_q ,\\\\
 V_\\mathrm{ext}(x) &= v_\\mathrm{ho} \\,x^2 ,
 \\end{aligned}
