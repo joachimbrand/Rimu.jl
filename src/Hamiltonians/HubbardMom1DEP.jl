@@ -4,7 +4,7 @@
 Set up a harmonic potential for use with momentum space Hamiltonians:
 ```math
 \\begin{aligned}
-w(k) & =  1/M \\mathrm{DFT}[V_{ext}]_{k}  ,\\\\
+w(k) & =  \\frac{1}{M} \\mathrm{DFT}[V_{ext}]_{k}  ,\\\\
 V_\\mathrm{ext}(x) &= v_\\mathrm{ho} \\,x^2 ,
 \\end{aligned}
 ```
@@ -43,7 +43,7 @@ Ĥ = \\sum_{k} ϵ_k n_k + \\frac{u}{M}\\sum_{kpqr} a^†_{r} a^†_{q} a_p a_k 
 where
 ```math
 \\begin{aligned}
-V̂_\\mathrm{ho} & = 1/M \\sum_{p,q}  \\mathrm{DFT}[V_{ext}]_{p-q} \\,
+V̂_\\mathrm{ho} & = \\frac{1}{M} \\sum_{p,q}  \\mathrm{DFT}[V_{ext}]_{p-q} \\,
                     a^†_{p} a_q ,\\\\
 V_\\mathrm{ext}(x) &= v_\\mathrm{ho} \\,x^2 ,
 \\end{aligned}
