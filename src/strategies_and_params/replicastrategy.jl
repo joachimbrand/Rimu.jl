@@ -21,15 +21,19 @@ num_replicas(::ReplicaStrategy{N}) where {N} = N
 """
     replica_stats(::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
 
-Return the names and values of statistics reported by `ReplicaStrategy`. `names` should be
-a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same length.
+Return the names and values of statistics reported by [`ReplicaStrategy`](@ref). `names`
+should be a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same
+length.
 """
 replica_stats
 
 """
     NoStats(N=1) <: ReplicaStrategy{N}
 
-The default [`ReplicaStrategy`](@ref). `N` replicas are run, but no statistics are collected.
+The default [`ReplicaStrategy`](@ref). `N` replicas are run, but no statistics are
+collected.
+
+See also [`lomc!`](@ref).
 """
 struct NoStats{N} <: ReplicaStrategy{N} end
 NoStats(N=1) = NoStats{N}()
@@ -46,8 +50,8 @@ of operators, the overlaps are computed for all operators.
 Column names in the report are of the form c{i}_dot_c{j} for vector-vector overlaps, and
 c{i}_Op{k}_c{j} for operator overlaps.
 
-See [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an interface for
-implementing operators).
+See [`lomc!`](@ref), [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an
+interface for implementing operators).
 """
 struct AllOverlaps{N,O} <: ReplicaStrategy{N}
     operators::O
