@@ -195,7 +195,9 @@ end
     chunk = chunk ⊻ kmask
     val = chunk & kmask > 0
 
-    count += mapreduce(count_ones, +, bs.chunks[j + 1:end]; init=0)
+    for k in j + 1:num_chunks(bs)
+        count += count_ones(bs.chunks[k])
+    end
     return typeof(bs)(setindex(bs.chunks, chunk, j)), count, val
 end
 
