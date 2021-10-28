@@ -46,6 +46,22 @@ using Test
         HubbardRealSpace(CompositeFS(f1, f1)),
         HubbardRealSpace(CompositeFS(f2, f2)),
         HubbardRealSpace(CompositeFS(f3, f3)),
+
+        HubbardReal1DEP(b1),
+        HubbardReal1DEP(b2),
+        HubbardReal1DEP(b3),
+
+        HubbardMom1DEP(b1),
+        HubbardMom1DEP(b2),
+        HubbardMom1DEP(b3),
+
+        HubbardMom1DEP(CompositeFS(f1, f1)),
+        HubbardMom1DEP(CompositeFS(f2, f2)),
+        HubbardMom1DEP(CompositeFS(f3, f3)),
+
+        Transcorrelated1D(CompositeFS(f1, f1)),
+        Transcorrelated1D(CompositeFS(f2, f2)),
+        Transcorrelated1D(CompositeFS(f3, f3)),
     )
         add = starting_address(H)
         for dv_type in (DVec, InitiatorDVec)
