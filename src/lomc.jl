@@ -13,6 +13,9 @@ Can be advanced a step forward with [`advance!`](@ref).
 * `pnorm`: previous walker number (see [`walkernumber`](@ref)).
 * `params`: the [`FCIQMCRunStrategy`](@ref).
 * `id`: appended to reported columns.
+
+See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
+[`lomc!`](@ref).
 """
 mutable struct ReplicaState{H,T,V,W,R<:FciqmcRunStrategy{T}}
     hamiltonian::H
@@ -41,8 +44,9 @@ end
 """
     QMCState
 
-Holds all information needed to run FCIQMC, except the data frame. Holds a `NTuple` of
-`ReplicaState`s and various strategies that control the algorithm.
+Holds all information needed to run [`lomc!`](@ref), except the dataframe. Holds an
+`NTuple` of [`ReplicaState`](@ref)s, the Hamiltonian, and various strategies that control
+the algorithm. Constructed and returned by [`lomc!`](@ref).
 """
 struct QMCState{
     H,
@@ -199,22 +203,35 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
 
 # Keyword arguments, defaults, and precedence:
 
-* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift = diagonal_element(ham, starting_address(ham)))` - basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
+* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
+  diagonal_element(ham, starting_address(ham)))` -
+  basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
 * `laststep` - can be used to override information otherwise contained in `params`
-* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 100, ζ = 0.08, ξ = ζ^2/4)` - how to update the `shift`, see [`ShiftStrategy`](@ref)
-* `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when reached, `lomc!` will abort
-* `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused if `v` is specified.
-* `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g. [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
-* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulation, see [`ReplicaStrategy`](@ref).
-* `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see [`ReportingStrategy`](@ref)
-* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step dynamically, see [`TimeStepStrategy`](@ref)
-* `m_strat::MemoryStrategy = NoMemory()` - experimental: inject memory noise, see [`MemoryStrategy`](@ref)
-* `threading = :auto` - can be used to control the use of multithreading (overridden by `wm`)
+* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 100, ζ = 0.08, ξ = ζ^2/4)` -
+  how to update the `shift`, see [`ShiftStrategy`](@ref)
+* `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
+  reached, `lomc!` will abort
+* `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused
+  if `v` is specified.
+* `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
+  [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
+* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulation, see
+  [`ReplicaStrategy`](@ref).
+* `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see
+  [`ReportingStrategy`](@ref)
+* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step dynamically, see
+  [`TimeStepStrategy`](@ref)
+* `m_strat::MemoryStrategy = NoMemory()` - experimental: inject memory noise, see
+  [`MemoryStrategy`](@ref)
+* `threading = :auto` - can be used to control the use of multithreading (overridden by
+  `wm`)
   * `:auto` - use multithreading if `s_strat.targetwalkers ≥ 500`
   * `true` - use multithreading if available (set shell variable `JULIA_NUM_THREADS`!)
   * `false` - run on single thread
-* `wm` - working memory; if set, it controls the use of multithreading and overrides `threading`; is mutated
-* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can be passed into `lomc!` that will be pushed into.
+* `wm` - working memory; if set, it controls the use of multithreading and overrides
+  `threading`; is mutated
+* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
+  be passed into `lomc!` that will be pushed into.
 
 # Return values
 

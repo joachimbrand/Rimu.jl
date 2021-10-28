@@ -1,29 +1,37 @@
 """
     ReplicaStrategy{N}
 
-An abstract type that controles how [`lomc!`](@ref) uses replicas. A subtype of
-`ReplicaStrategy{N}` operates on `N` replicas and must implement the following function:
+Supertype for strategies that can be passed to [`lomc!`](@ref) and control how many
+replicas are used, and what information is computed and returned. The number of replicas
+is `N`.
 
-* [`replica_stats(::ReplicaStrategy{N}, ::NTuple{N,ReplicaState})`](@ref) - return a tuple
-  of `String`s or `Symbols` of replica statistic names and a tuple of the values.  These
-  will be reported to the `DataFrame` returned by [`lomc!`](@ref)
-
-Concrete implementations:
+## Concrete implementations
 
 * [`NoStats`](@ref): run (possibly one) replica(s), but don't report any additional info.
 * [`AllOverlaps`](@ref): report overlaps between all pairs of replica vectors.
 
+## Interface
+
+A subtype of `ReplicaStrategy{N}` must implement the following
+function:
+
+* [`Rimu.replica_stats`](@ref) - return a
+  tuple of `String`s or `Symbols` of names for replica statistics and a tuple of the values.
+  These will be reported to the `DataFrame` returned by [`lomc!`](@ref).
 """
 abstract type ReplicaStrategy{N} end
 
 num_replicas(::ReplicaStrategy{N}) where {N} = N
 
 """
-    replica_stats(::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
+    replica_stats(RS::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
 
-Return the names and values of statistics reported by [`ReplicaStrategy`](@ref). `names`
+Return the names and values of statistics related to `N` replicas consistent with the
+[`ReplicaStrategy`](@ref) `RS`. `names`
 should be a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same
-length.
+length. This fuction will be called once per time step from [`lomc!`](@ref).
+
+Part of the [`ReplicaStrategy`](@ref) interface. See also [`ReplicaState`](@ref).
 """
 replica_stats
 
