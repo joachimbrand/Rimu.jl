@@ -216,6 +216,8 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
 * `wm` - working memory; if set, it controls the use of multithreading and overrides `threading`; is mutated
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can be passed into `lomc!` that will be pushed into.
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
+* `terminallogging::Bool` - enable terminal progress bar (via `TerminalLoggers`); by default
+  this is enabled if `stderr` is a `TTY`
 
 # Return values
 
@@ -254,9 +256,17 @@ function lomc!(ham; style=IsStochasticInteger(), kwargs...)
     v = DVec(starting_address(ham)=>10; style)
     return lomc!(ham, v; kwargs...)
 end
+is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")
 # For continuation, you can pass a QMCState and a DataFrame
-function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
-    Base.global_logger(TerminalLogger(right_justify=120)) # enable terminal progress bar
+function lomc!(
+        state::QMCState, df=DataFrame();
+        laststep=0, name="lomc!", terminallogging = !is_logging(stderr)
+    )
+    if terminallogging
+        Base.global_logger(TerminalLogger(right_justify=120)) # enable terminal progress bar
+    else
+        Base.global_logger(ConsoleLogger()) # disable terminal progress bar
+    end
 
     report = Report()
     if !iszero(laststep)
