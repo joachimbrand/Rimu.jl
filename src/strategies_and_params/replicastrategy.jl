@@ -1,35 +1,47 @@
 """
     ReplicaStrategy{N}
 
-An abstract type that controles how [`lomc!`](@ref) uses replicas. A subtype of
-`ReplicaStrategy{N}` operates on `N` replicas and must implement the following function:
+Supertype for strategies that can be passed to [`lomc!`](@ref) and control how many
+replicas are used, and what information is computed and returned. The number of replicas
+is `N`.
 
-* [`replica_stats(::ReplicaStrategy{N}, ::NTuple{N,ReplicaState})`](@ref) - return a tuple
-  of `String`s or `Symbols` of replica statistic names and a tuple of the values.  These
-  will be reported to the `DataFrame` returned by [`lomc!`](@ref)
-
-Concrete implementations:
+## Concrete implementations
 
 * [`NoStats`](@ref): run (possibly one) replica(s), but don't report any additional info.
 * [`AllOverlaps`](@ref): report overlaps between all pairs of replica vectors.
 
+## Interface
+
+A subtype of `ReplicaStrategy{N}` must implement the following
+function:
+
+* [`Rimu.replica_stats`](@ref) - return a
+  tuple of `String`s or `Symbols` of names for replica statistics and a tuple of the values.
+  These will be reported to the `DataFrame` returned by [`lomc!`](@ref).
 """
 abstract type ReplicaStrategy{N} end
 
 num_replicas(::ReplicaStrategy{N}) where {N} = N
 
 """
-    replica_stats(::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
+    replica_stats(RS::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
 
-Return the names and values of statistics reported by `ReplicaStrategy`. `names` should be
-a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same length.
+Return the names and values of statistics related to `N` replicas consistent with the
+[`ReplicaStrategy`](@ref) `RS`. `names`
+should be a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same
+length. This fuction will be called once per time step from [`lomc!`](@ref).
+
+Part of the [`ReplicaStrategy`](@ref) interface. See also [`ReplicaState`](@ref).
 """
 replica_stats
 
 """
     NoStats(N=1) <: ReplicaStrategy{N}
 
-The default [`ReplicaStrategy`](@ref). `N` replicas are run, but no statistics are collected.
+The default [`ReplicaStrategy`](@ref). `N` replicas are run, but no statistics are
+collected.
+
+See also [`lomc!`](@ref).
 """
 struct NoStats{N} <: ReplicaStrategy{N} end
 NoStats(N=1) = NoStats{N}()
@@ -46,8 +58,8 @@ of operators, the overlaps are computed for all operators.
 Column names in the report are of the form c{i}_dot_c{j} for vector-vector overlaps, and
 c{i}_Op{k}_c{j} for operator overlaps.
 
-See [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an interface for
-implementing operators).
+See [`lomc!`](@ref), [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an
+interface for implementing operators).
 """
 struct AllOverlaps{N,O} <: ReplicaStrategy{N}
     operators::O
