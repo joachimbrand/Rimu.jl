@@ -188,6 +188,9 @@ function Base.show(io::IO, st::QMCState)
     end
 end
 
+# for kwarg terminallogging default
+is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")
+
 """
     lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
     lomc!(state::QMCState, [df]; kwargs...) -> df, state
@@ -228,9 +231,9 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
   * `:auto` - use multithreading if `s_strat.targetwalkers ≥ 500`
   * `true` - use multithreading if available (set shell variable `JULIA_NUM_THREADS`!)
   * `false` - run on single thread
-* `wm` - working memory; if set, it controls the use of multithreading and overrides 
+* `wm` - working memory; if set, it controls the use of multithreading and overrides
   `threading`; is mutated
-* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can 
+* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
   be passed into `lomc!` that will be pushed into.
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
 * `terminallogging::Bool` - enable terminal progress bar (via `TerminalLoggers`); by default
@@ -265,15 +268,17 @@ julia> size(df2)
 (200, 13)
 ```
 """
-function lomc!(ham, v; df=DataFrame(), kwargs...)
+function lomc!(
+    ham, v;
+    df=DataFrame(), name="lomc!", terminallogging = !is_logging(stderr), kwargs...
+)
     state = QMCState(ham, v; kwargs...)
-    return lomc!(state, df)
+    return lomc!(state, df; name, terminallogging)
 end
 function lomc!(ham; style=IsStochasticInteger(), kwargs...)
     v = DVec(starting_address(ham)=>10; style)
     return lomc!(ham, v; kwargs...)
 end
-is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")
 # For continuation, you can pass a QMCState and a DataFrame
 function lomc!(
         state::QMCState, df=DataFrame();
