@@ -344,6 +344,7 @@ end
 end
 
 @testset "Logging" begin
+    default_logger()
     l = Base.global_logger()
     @test l isa Logging.ConsoleLogger
     sl = smart_logger()
