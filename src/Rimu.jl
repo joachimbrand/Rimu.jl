@@ -16,6 +16,7 @@ using SplittablesBase
 using StaticArrays
 using StatsBase
 using ThreadsX
+using ProgressLogging, TerminalLoggers
 
 @reexport using Distributed
 
