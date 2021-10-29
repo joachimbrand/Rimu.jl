@@ -51,6 +51,7 @@ export ReplicaStrategy, NoStats, AllOverlaps
 export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness, Timer
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
+export smart_logger, default_logger
 
 include("strategies_and_params/fciqmcrunstrategy.jl")
 include("strategies_and_params/memorystrategy.jl")

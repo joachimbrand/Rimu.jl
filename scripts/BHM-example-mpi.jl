@@ -42,6 +42,6 @@ post_step = ProjectedEnergy(hamiltonian, dvec)
 
 lomc!(
     hamiltonian, dvec;
-    r_strat, s_strat, post_step, dτ=1e-4, laststep=10_000, terminallogging=false
+    r_strat, s_strat, post_step, dτ=1e-4, laststep=10_000, terminal_logger=nothing
 )
 @mpi_root println("Finished!")

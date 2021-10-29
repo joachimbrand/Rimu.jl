@@ -55,7 +55,7 @@ s_strat = DoubleLogUpdate(targetwalkers = targetwalkers, ζ = 0.08)
 # Strategy for reporting info:
 r_strat = ReportDFAndInfo(k = k, i = 100)
 # Strategy for updating dτ:
-t_strat = ConstantTimeStep()
+τ_strat = ConstantTimeStep()
 # set up the calculation and reporting of the projected energy
 # in this case we are projecting onto the starting vector,
 # which contains a single configuration
@@ -66,16 +66,16 @@ println("Finding ground state for:")
 println(Ĥ)
 println("Strategies for run:")
 println(params, s_strat)
-println(t_strat)
+println(τ_strat)
 
 # Finally, we can start the main FCIQMC loop:
 df, state = lomc!(Ĥ,svec;
-            params = params,
+            params,
             laststep = steps_equilibrate + steps_measure,
-            s_strat = s_strat,
-            r_strat = r_strat,
-            τ_strat = t_strat,
-            post_step = post_step,
+            s_strat,
+            r_strat,
+            τ_strat,
+            post_step,
             threading = false, # only for reproducible runs
 )
 

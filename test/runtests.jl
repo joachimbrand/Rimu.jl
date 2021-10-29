@@ -5,8 +5,10 @@ using SafeTestsets
 using StaticArrays
 using Statistics
 using Suppressor
+using Logging, TerminalLoggers
 using Test
 using Rimu.StatsTools, Rimu.RimuIO
+
 
 # assuming VERSION ≥ v"1.6"
 # the following is needed because random numbers of collections are computed
@@ -339,6 +341,20 @@ end
 end
 @safetestset "RMPI" begin
     include("RMPI.jl")
+end
+
+@testset "Logging" begin
+    l = Base.global_logger()
+    @test l isa Logging.ConsoleLogger
+    sl = smart_logger()
+    if isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
+        @test sl isa TerminalLoggers.TerminalLogger
+        @info "true" sl
+    else
+        @test sl isa Logging.ConsoleLogger
+        @info "false" sl
+    end
+    @test default_logger() isa Logging.ConsoleLogger
 end
 
 @testset "example script" begin

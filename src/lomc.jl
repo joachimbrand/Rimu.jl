@@ -189,7 +189,27 @@ function Base.show(io::IO, st::QMCState)
 end
 
 # for kwarg terminallogging default
-is_logging(io) = isa(io, Base.TTY) == false || (get(ENV, "CI", nothing) == "true")
+"""
+    smart_logger(args...)
+Enable terminal progress bar during interactive use (i.e. unless running on CI or HPC).
+Arguments are passed on to `TerminalLoggers.TerminalLogger`. Undo with
+[`default_logger`](@ref).
+"""
+function smart_logger(args...; kwargs...)
+    if isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
+        Base.global_logger(TerminalLogger(args...; kwargs...)) # enable progress bar
+    end
+    return Base.global_logger()
+end
+"""
+    default_logger(args...)
+Reset the `global_logger` to the default. Undoes the effect of [`smart_logger`](@ref).
+Arguments are passed on to `Logging.ConsoleLogger`.
+"""
+function default_logger(args...; kwargs...)
+    Base.global_logger(ConsoleLogger(args...; kwargs...)) # disable terminal progress bar
+    return Base.global_logger()
+end
 
 """
     lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
@@ -234,10 +254,11 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
 * `wm` - working memory; if set, it controls the use of multithreading and overrides
   `threading`; is mutated
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
-  be passed into `lomc!` that will be pushed into.
+  be passed into `lomc!` that will be pushed into
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
-* `terminallogging::Bool` - enable terminal progress bar (via `TerminalLoggers`); by default
-  this is enabled if `stderr` is a `TTY`
+* `terminal_logger = smart_logger(right_justify=120)` - enable terminal progress bar
+  for interactive use via [`smart_logger`](@ref); set to `nothing` if not needed or use
+  [`default_logger`](@ref) to undo the action of [`smart_logger`](@ref)
 
 # Return values
 
@@ -270,10 +291,13 @@ julia> size(df2)
 """
 function lomc!(
     ham, v;
-    df=DataFrame(), name="lomc!", terminallogging = !is_logging(stderr), kwargs...
+    df=DataFrame(),
+    name="lomc!",
+    terminal_logger = smart_logger(right_justify=120),
+    kwargs...
 )
     state = QMCState(ham, v; kwargs...)
-    return lomc!(state, df; name, terminallogging)
+    return lomc!(state, df; name, terminal_logger)
 end
 function lomc!(ham; style=IsStochasticInteger(), kwargs...)
     v = DVec(starting_address(ham)=>10; style)
@@ -282,13 +306,8 @@ end
 # For continuation, you can pass a QMCState and a DataFrame
 function lomc!(
         state::QMCState, df=DataFrame();
-        laststep=0, name="lomc!", terminallogging = !is_logging(stderr)
+        laststep=0, name="lomc!", terminal_logger = smart_logger(right_justify=120)
     )
-    if terminallogging
-        Base.global_logger(TerminalLogger(right_justify=120)) # enable terminal progress bar
-    else
-        Base.global_logger(ConsoleLogger()) # disable terminal progress bar
-    end
 
     report = Report()
     if !iszero(laststep)
