@@ -346,7 +346,7 @@ end
     dfr = load_df("fciqmcdata.arrow")
     qmcdata = last(dfr,steps_measure)
     (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
-    @test qmcShift ≈ -4.11255936332424 rtol=0.01
+    @test qmcShift ≈ -4.171133393316872 rtol=0.01
 
     # clean up
     rm("fciqmcdata.arrow", force=true)
