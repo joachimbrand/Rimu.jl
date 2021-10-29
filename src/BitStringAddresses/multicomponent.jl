@@ -51,6 +51,9 @@ struct CompositeFS{C,N,M,T} <: AbstractFockAddress{N,M}
     function CompositeFS{C,N,M,T}(adds::T) where {C,N,M,T}
         return new{C,N,M,T}(adds)
     end
+    function CompositeFS{C,N,M,T}(adds...) where {C,N,M,T}
+        return new{C,N,M,T}(adds)
+    end
 end
 
 # Slow constructor - not to be used internallly

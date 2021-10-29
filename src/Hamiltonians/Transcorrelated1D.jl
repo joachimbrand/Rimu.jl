@@ -298,6 +298,7 @@ end
 Base.size(od::Transcorrelated1DOffdiagonals) = (od.length,)
 
 function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
+    C = typeof(od.address)
     @unpack address, map1, map2 = od
     c1, c2 = address.components
     h = od.hamiltonian
@@ -320,7 +321,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
     end
 
     # Fallback on zero values
-    new_c = CompositeFS(c1, c2)
+    new_c = C(c1, c2)
 
     if i ≤ n_mom
         # Momentum transfer
@@ -330,7 +331,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         if !iszero(value)
             @assert new_c1 ≠ c1 || new_c2 ≠ c2
             value *= t_function(h, p, q, k)
-            new_c = CompositeFS(new_c1, new_c2)
+            new_c = C(new_c1, new_c2)
         end
     elseif i ≤ n_mom + n_trans1
         # Transcorrelated excitation from first to second component
@@ -342,7 +343,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         value *= q_function(h, k, l)
         if !iszero(value)
             @assert new_c1 ≠ c1 || new_c2 ≠ c2
-            new_c = CompositeFS(new_c1, new_c2)
+            new_c = C(new_c1, new_c2)
         end
     elseif i ≤ n_mom + n_trans1 + n_trans2
         # Transcorrelated excitation from second to first component
@@ -354,7 +355,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         value *= q_function(h, k, l)
         if !iszero(value)
             @assert new_c1 ≠ c1 || new_c2 ≠ c2
-            new_c = CompositeFS(new_c1, new_c2)
+            new_c = C(new_c1, new_c2)
         end
     elseif i ≤ n_mom + n_trans1 + n_trans2 + n_pot1
         # Potential acting on first component
@@ -364,7 +365,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
             od.hamiltonian.potential, c1, i, map1
         )
         if !iszero(value)
-            new_c = CompositeFS(new_c1, c2)
+            new_c = C(new_c1, c2)
         end
     elseif i ≤ n_mom + n_trans1 + n_trans2 + n_pot1 + n_pot2
         # Potential acting on second component
@@ -374,7 +375,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
             od.hamiltonian.potential, c2, i, map2
         )
         if !iszero(value)
-            new_c = CompositeFS(c1, new_c2)
+            new_c = C(c1, new_c2)
         end
     else
         throw(BoundsError(od, i))

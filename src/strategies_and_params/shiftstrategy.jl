@@ -1,6 +1,8 @@
 """
-Abstract type for defining the strategy for updating the `shift` with
-[`update_shift()`](@ref). Implemented strategies:
+Abstract type for defining the strategy for updating the `shift`.
+Passed as a parameter to [`lomc!`](@ref).
+
+## Implemented strategies:
 
 * [`DontUpdate`](@ref)
 * [`DoubleLogUpdate`](@ref) - default in [`lomc!()`](@ref)
@@ -19,6 +21,8 @@ update_shift
 """
     DontUpdate(; targetwalkers = 1_000_000) <: ShiftStrategy
 Don't update the `shift`.  Return when `targetwalkers` is reached.
+
+See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 @with_kw struct DontUpdate <: ShiftStrategy
     targetwalkers::Int = 1_000_000
@@ -32,7 +36,8 @@ end
     LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ`.
-See [`LogUpdate`](@ref).
+
+See [`LogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 @with_kw struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
@@ -54,6 +59,8 @@ parameter `ζ`.
 ```math
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)
 ```
+
+See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 @with_kw struct LogUpdate <: ShiftStrategy
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
@@ -76,6 +83,8 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 ```
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
+
+See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 struct DoubleLogUpdate{T} <: ShiftStrategy
     targetwalkers::T
@@ -97,7 +106,8 @@ end
     DoubleLogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`.
-See [`DoubleLogUpdate`](@ref).
+
+See [`DoubleLogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 @with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
@@ -138,6 +148,9 @@ where ``N_\\mathrm{w} =`` `(1-α)*walkernumber() + α*UniformProjector()⋅ψ` c
 [`walkernumber()`](@ref) and [`UniformProjector()`](@ref).
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
+
+
+See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 struct DoubleLogSumUpdate{T} <: ShiftStrategy
     targetwalkers::T
@@ -176,6 +189,9 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{
 where ``N_\\mathrm{w}`` is the [`walkernumber()`](@ref).
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
+
+
+See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 struct TripleLogUpdate{T} <: ShiftStrategy
     targetwalkers::T
@@ -208,6 +224,9 @@ parameter `ζ` and `ξ` after projecting onto `projector`.
 ```math
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
 ```
+
+
+See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 struct DoubleLogProjected{P} <: ShiftStrategy
     target::Float64
