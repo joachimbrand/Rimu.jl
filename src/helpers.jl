@@ -77,3 +77,26 @@ function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
     return target, ws, combine_stats(statss)
 end
 # three argument version for MPIData to be found in RMPI.jl
+
+# this is run during Rimu initialisation and sets the default
+"""
+    smart_logger(args...)
+Enable terminal progress bar during interactive use (i.e. unless running on CI or HPC).
+Arguments are passed on to `TerminalLoggers.TerminalLogger`. Undo with
+[`default_logger`](@ref).
+"""
+function smart_logger(args...; kwargs...)
+    if isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
+        Base.global_logger(TerminalLogger(args...; kwargs...)) # enable progress bar
+    end
+    return Base.global_logger()
+end
+"""
+    default_logger(args...)
+Reset the `global_logger` to the default. Undoes the effect of [`smart_logger`](@ref).
+Arguments are passed on to `Logging.ConsoleLogger`.
+"""
+function default_logger(args...; kwargs...)
+    Base.global_logger(ConsoleLogger(args...; kwargs...)) # disable terminal progress bar
+    return Base.global_logger()
+end
