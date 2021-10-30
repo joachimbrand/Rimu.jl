@@ -79,13 +79,14 @@ df, state = lomc!(Ĥ,svec;
             threading = false, # only for reproducible runs
 )
 
-# Saving output data stored in `df` into a `.arrow` file which can be read in later:
-println("Writing data to disk...")
-save_df("fciqmcdata.arrow", df)
+# Here is how to save the output data stored in `df` into a `.arrow` file,
+# which can be read in later:
+## println("Writing data to disk...")
+## save_df("fciqmcdata.arrow", df)
 
-# Now let's look at the calculated energy from the shift:
-# Loading the equilibrated data:
-qmcdata = last(df,steps_measure)
+# Now let's look at the calculated energy from the shift.
+# Loading the equilibrated data
+qmcdata = last(df,steps_measure);
 
 # compute the average shift and its standard error
 se = shift_estimator(qmcdata)
@@ -93,7 +94,7 @@ se = shift_estimator(qmcdata)
 # For the projected energy, it a bit more complicated as it's a ratio of two means:
 pe = projected_energy(qmcdata)
 
-# The result is ratio distribution. Let's get its median and lower and upper error bars
+# The result is a ratio distribution. Let's get its median and lower and upper error bars
 # for a 95% confidence interval
 v = val_and_errs(pe; p=0.95)
 
