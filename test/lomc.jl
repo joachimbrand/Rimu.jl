@@ -367,7 +367,8 @@ using Statistics
         end
     end
 
-    @testset "Threading" begin
+    # only test threading if more than one thread is available
+    Threads.nthreads() > 1 && @testset "Threading" begin
         add = BoseFS((0,0,0,0,10,0,0,0,0,0))
         H = HubbardMom1D(add)
         s_strat = DoubleLogUpdate(targetwalkers=10_000)
