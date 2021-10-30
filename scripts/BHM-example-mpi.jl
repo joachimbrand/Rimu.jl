@@ -40,8 +40,5 @@ post_step = ProjectedEnergy(hamiltonian, dvec)
 # Finally, we can run the computation. The `@mpi_root` macro performs an action on the root
 # rank only, which is useful for printing.
 
-lomc!(
-    hamiltonian, dvec;
-    r_strat, s_strat, post_step, dτ=1e-4, laststep=10_000, terminal_logger=nothing
-)
+lomc!(hamiltonian, dvec; r_strat, s_strat, post_step, dτ=1e-4, laststep=10_000)
 @mpi_root println("Finished!")
