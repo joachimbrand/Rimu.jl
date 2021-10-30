@@ -81,8 +81,8 @@ df, state = lomc!(Ĥ,svec;
 
 # Here is how to save the output data stored in `df` into a `.arrow` file,
 # which can be read in later:
-## println("Writing data to disk...")
-## save_df("fciqmcdata.arrow", df)
+println("Writing data to disk...")
+save_df("fciqmcdata.arrow", df)
 
 # Now let's look at the calculated energy from the shift.
 # Loading the equilibrated data
