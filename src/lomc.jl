@@ -265,7 +265,7 @@ julia> size(df2)
 """
 function lomc!(ham, v; df=DataFrame(), name="lomc!", kwargs...)
     state = QMCState(ham, v; kwargs...)
-    return lomc!(state, df; name, terminal_logger)
+    return lomc!(state, df; name)
 end
 function lomc!(ham; style=IsStochasticInteger(), kwargs...)
     v = DVec(starting_address(ham)=>10; style)
