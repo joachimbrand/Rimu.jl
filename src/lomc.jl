@@ -231,7 +231,8 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
 * `wm` - working memory; if set, it controls the use of multithreading and overrides
   `threading`; is mutated
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
-  be passed into `lomc!` that will be pushed into.
+  be passed into `lomc!` that will be pushed into
+* `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
 
 # Return values
 
@@ -262,16 +263,16 @@ julia> size(df2)
 (200, 13)
 ```
 """
-function lomc!(ham, v; df=DataFrame(), kwargs...)
+function lomc!(ham, v; df=DataFrame(), name="lomc!", kwargs...)
     state = QMCState(ham, v; kwargs...)
-    return lomc!(state, df)
+    return lomc!(state, df; name)
 end
 function lomc!(ham; style=IsStochasticInteger(), kwargs...)
     v = DVec(starting_address(ham)=>10; style)
     return lomc!(ham, v; kwargs...)
 end
 # For continuation, you can pass a QMCState and a DataFrame
-function lomc!(state::QMCState, df=DataFrame(); laststep=0)
+function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
     report = Report()
     if !iszero(laststep)
         state.laststep = laststep
@@ -285,11 +286,13 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
         @assert replica.params.laststep == laststep
     end
 
-    while step < laststep
+    # main loop
+    initial_step = step
+    @withprogress name=name while step < laststep
         step += 1
         report!(state.r_strat, step, report, :steps, step)
-        # This loop could be threaded if num_threads() == num_replicas? MPIData would need
-        # to be aware of the replica's id and use that in communication.
+        # This loop could be threaded if num_threads() == num_replicas? MPIData would
+        # need to be aware of the replica's id and use that in communication.
         success = true
         for replica in state.replicas
             success &= advance!(report, state, replica)
@@ -298,6 +301,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0)
         report!(state.r_strat, step, report, replica_names, replica_values)
         report_after_step(state.r_strat, step, report, state)
         ensure_correct_lengths(report)
+        @logprogress (step-initial_step)/(laststep-initial_step)
         !success && break
     end
 

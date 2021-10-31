@@ -16,6 +16,9 @@ using SplittablesBase
 using StaticArrays
 using StatsBase
 using ThreadsX
+using ProgressLogging
+using TerminalLoggers: TerminalLogger
+using Logging: ConsoleLogger
 
 @reexport using Distributed
 
@@ -48,6 +51,12 @@ export ReplicaStrategy, NoStats, AllOverlaps
 export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness, Timer
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export threadedWorkingMemory, localpart, walkernumber
+export smart_logger, default_logger
+
+function __init__()
+    # Turn on smart logging once at runtime. Turn off with `default_logger()`.
+    smart_logger()
+end
 
 include("strategies_and_params/fciqmcrunstrategy.jl")
 include("strategies_and_params/memorystrategy.jl")

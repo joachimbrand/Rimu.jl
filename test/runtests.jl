@@ -5,8 +5,10 @@ using SafeTestsets
 using StaticArrays
 using Statistics
 using Suppressor
+using Logging, TerminalLoggers
 using Test
 using Rimu.StatsTools, Rimu.RimuIO
+
 
 # assuming VERSION ≥ v"1.6"
 # the following is needed because random numbers of collections are computed
@@ -341,12 +343,27 @@ end
     include("RMPI.jl")
 end
 
+@testset "Logging" begin
+    default_logger()
+    l = Base.global_logger()
+    @test l isa Logging.ConsoleLogger
+    sl = smart_logger()
+    if isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
+        @test sl isa TerminalLoggers.TerminalLogger
+        @info "true" sl
+    else
+        @test sl isa Logging.ConsoleLogger
+        @info "false" sl
+    end
+    @test default_logger() isa Logging.ConsoleLogger
+end
+
 @testset "example script" begin
     include("../scripts/BHM-example.jl")
     dfr = load_df("fciqmcdata.arrow")
     qmcdata = last(dfr,steps_measure)
     (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
-    @test qmcShift ≈ -4.11255936332424 rtol=0.01
+    @test qmcShift ≈ -4.171133393316872 rtol=0.01
 
     # clean up
     rm("fciqmcdata.arrow", force=true)
