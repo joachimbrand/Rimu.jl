@@ -36,7 +36,7 @@ TerminalLoggers = "5d786b92-1e48-4d6f-9151-6b4477ca9bed"
 ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 
 [compat]
-Arrow = "1.5"
+Arrow = "1.5, 2"
 BSON = "0.3"
 DataFrames = "1"
 DataStructures = "0.18"
