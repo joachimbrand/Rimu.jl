@@ -53,11 +53,8 @@ julia> size(Matrix(ParitySymmetry(ham)))
 julia> size(Matrix(ParitySymmetry(ham; odd=true)))
 (4, 4)
 
-julia> eigvals(Matrix(ham))[1]
--5.095932280272496
-
-julia> eigvals(Matrix(ParitySymmetry(ham)))[1]
--5.095932280272496
+julia> eigvals(Matrix(ham))[1] == eigvals(Matrix(ParitySymmetry(ham)))[1]
+true
 ```
 """
 struct ParitySymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
