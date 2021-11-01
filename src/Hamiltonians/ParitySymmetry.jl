@@ -53,7 +53,7 @@ julia> size(Matrix(ParitySymmetry(ham)))
 julia> size(Matrix(ParitySymmetry(ham; odd=true)))
 (4, 4)
 
-julia> eigvals(Matrix(ham))[1] == eigvals(Matrix(ParitySymmetry(ham)))[1]
+julia> eigvals(Matrix(ham))[1] ≈ eigvals(Matrix(ParitySymmetry(ham)))[1]
 true
 ```
 """
