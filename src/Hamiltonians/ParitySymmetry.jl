@@ -32,12 +32,13 @@ end
 Changes the [`offdiagonals`](@ref) of a Hamiltonian in a way that produces even or odd
 eigenfunctions. For some Hamiltonians, this reduces the size of the Hilbert space by half.
 
+Whether the even or odd part is to be used is controlled by the keyword argument `even`.
+
 # Notes
 
 * This modifier only works on addresses with an even number of modes.
 * For the odd parity symmetry, the starting address of the underlying Hamiltonian can not be
   symmetric.
-
 
 ```jldoctest
 julia> ham = HubbardReal1D(BoseFS((0,2,1)))
