@@ -174,15 +174,17 @@ function HubbardRealSpace(
 
     # Sanity checks
     if prod(size(geometry)) ≠ num_modes(address)
-        error("`geometry` does not have the correct number of sites")
+        throw(ArgumentError("`geometry` does not have the correct number of sites"))
     elseif length(u) ≠ 1 && !issymmetric(u)
-        error("`u` must be symmetric")
+        throw(ArgumentError("`u` must be symmetric"))
     elseif length(u) ≠ C * C
-        error("`u` must be a $C × $C matrix")
+        throw(ArgumentError("`u` must be a $C × $C matrix"))
     elseif size(t) ≠ (C,)
-        error("`t` must be a vector of length $C")
+        throw(ArgumentError("`t` must be a vector of length $C"))
     elseif address isa BoseFS2C
-        error("`BoseFS2C` is not supported for this Hamiltonian, use `CompositeFS`")
+        throw(ArgumentError(
+            "`BoseFS2C` is not supported for this Hamiltonian, use `CompositeFS`"
+        ))
     end
     warn_fermi_interaction(address, u)
 

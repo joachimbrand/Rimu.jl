@@ -178,23 +178,23 @@ end
 @testset "HubbardRealSpace" begin
     @testset "Constructor" begin
         bose = BoseFS((1, 2, 3, 4, 5, 6))
-        @test_throws ErrorException HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
-        @test_throws ErrorException HubbardRealSpace(
+        @test_throws ArgumentError HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
+        @test_throws ArgumentError HubbardRealSpace(
             bose; geometry=PeriodicBoundaries(3,2), t=[1, 2],
         )
-        @test_throws ErrorException HubbardRealSpace(
+        @test_throws ArgumentError HubbardRealSpace(
             bose; geometry=PeriodicBoundaries(3,2), u=[1 1; 1 1],
         )
 
         comp = CompositeFS(bose, bose)
-        @test_throws ErrorException HubbardRealSpace(
+        @test_throws ArgumentError HubbardRealSpace(
             comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[1 2; 3 4],
         )
-        @test_throws ErrorException HubbardRealSpace(
+        @test_throws ArgumentError HubbardRealSpace(
             comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
         )
 
-        @test_throws ErrorException HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
+        @test_throws ArgumentError HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
 
         @test_logs (:warn,) HubbardRealSpace(FermiFS((1,0)), u=[2])
         @test_logs (:warn,) HubbardRealSpace(
@@ -785,8 +785,8 @@ end
 using Rimu.Hamiltonians: left_weight
 
 @testset "ParitySymmetry" begin
-    @test_throws ErrorException ParitySymmetry(HubbardMom1D(BoseFS((1, 1))))
-    @test_throws ErrorException ParitySymmetry(HubbardMom1D(BoseFS((1, 1, 1))); even=false)
+    @test_throws ArgumentError ParitySymmetry(HubbardMom1D(BoseFS((1, 1))))
+    @test_throws ArgumentError ParitySymmetry(HubbardMom1D(BoseFS((1, 1, 1))); even=false)
 
     @testset "2-particle HubbardMom1DEP" begin
         ham = HubbardMom1DEP(BoseFS((0,0,1,1,0)))

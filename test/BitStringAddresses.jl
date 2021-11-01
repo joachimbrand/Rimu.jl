@@ -353,7 +353,7 @@ end
         )
         @test fs1 < fs2
 
-        @test_throws ErrorException CompositeFS(BoseFS((1,1)), BoseFS((1,1,1)))
+        @test_throws ArgumentError CompositeFS(BoseFS((1,1)), BoseFS((1,1,1)))
 
         @inferred update_component(fs1, FermiFS((0,0,0,1,1,0)), Val(1))
         @inferred update_component(fs1, FermiFS((0,0,1,1,1,0)), Val(2))

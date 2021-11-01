@@ -26,7 +26,7 @@ end
 
 """
     onr(add::AbstractFockAddress, geom::LatticeGeometry)
-Returns the occupation number representation of a Fock state address as an `SArray` 
+Returns the occupation number representation of a Fock state address as an `SArray`
 with the shape of the lattice geometry `geom`. For composite addresses, a tuple
 of `onr`s is returned.
 """
@@ -226,7 +226,7 @@ end
 
 function LadderBoundaries(arg::Int, args::Vararg{Int}; subgeometry=PeriodicBoundaries)
     if arg ≠ 2
-        error("First dimension must be of size 2")
+        throw(ArgumentError("First dimension must be of size 2"))
     end
     return LadderBoundaries(subgeometry(args...))
 end
