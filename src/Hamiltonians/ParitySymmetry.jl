@@ -70,12 +70,12 @@ function ParitySymmetry(hamiltonian; odd=false, even=!odd)
     address = starting_address(hamiltonian)
 
     if !isodd(num_modes(address))
-        error("Starting address must have an odd number of modes")
+        throw(ArgumentError("Starting address must have an odd number of modes"))
     end
     weight = left_weight(address)
     direction = weight ≥ 0 ? -1 : 1
     if !even && weight == 0
-        error("Even starting address can't be used with odd `ParitySymmetry`")
+        throw(ArgumentError("Even starting address can't be used with odd `ParitySymmetry`"))
     end
     return ParitySymmetry(hamiltonian, even, Int8(direction))
 end
