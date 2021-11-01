@@ -29,11 +29,35 @@ end
 """
     ParitySymmetry(ham::AbstractHamiltonian{T}; even=true) <: AbstractHamiltonian{T}
 
+Changes the [`offdiagonals`](@ref) of a Hamiltonian in a way that produces even or odd
+eigenfunctions. For some Hamiltonians, this reduces the size of the Hilbert space by half.
+
 # Notes
 
 * This modifier only works on addresses with an even number of modes.
 * For the odd parity symmetry, the starting address of the underlying Hamiltonian can not be
   symmetric.
+
+
+```jldoctest
+julia> ham = HubbardReal1D(BoseFS((0,2,1)))
+HubbardReal1D(BoseFS{3,3}((0, 2, 1)); u=1.0, t=1.0)
+
+julia> size(Matrix(ham))
+(10, 10)
+
+julia> size(Matrix(ParitySymmetry(ham)))
+(6, 6)
+
+julia> size(Matrix(ParitySymmetry(ham; odd=true)))
+(4, 4)
+
+julia> eigvals(Matrix(ham))[1]
+-5.095932280272496
+
+julia> eigvals(Matrix(ParitySymmetry(ham)))[1]
+-5.095932280272496
+```
 """
 struct ParitySymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     hamiltonian::H
@@ -55,6 +79,10 @@ function ParitySymmetry(hamiltonian; odd=false, even=!odd)
     return ParitySymmetry(hamiltonian, even, Int8(direction))
 end
 
+function Base.show(io::IO, h::ParitySymmetry)
+    print(io, "ParitySymmetry(", h.hamiltonian, ", even=", h.even, ")")
+end
+
 for op in (:LOStructure, :starting_address)
     @eval $op(h::ParitySymmetry) = $op(h.hamiltonian)
 end
@@ -62,6 +90,9 @@ end
 function Base.adjoint(h::ParitySymmetry)
     return ParitySymmetry(adjoint(h.hamiltonian); even=h.even)
 end
+
+get_offdiagonal(h::ParitySymmetry, add, i) = offdiagonals(h, add)[i]
+num_offdiagonals(h::ParitySymmetry, add) = num_offdiagonals(h.hamiltonian, add)
 
 struct ParitySymmetryOffdiagonals{
     A,T,O<:AbstractVector{Tuple{A,T}}
@@ -92,5 +123,3 @@ end
 function diagonal_element(h::ParitySymmetry, add)
     return diagonal_element(h.hamiltonian, add)
 end
-get_offdiagonal(h::ParitySymmetry, add, i) = offdiagonals(h, add)[i]
-num_offdiagonals(h::ParitySymmetry, add) = num_offdiagonals(h.hamiltonian, add)
