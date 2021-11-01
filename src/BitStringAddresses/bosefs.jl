@@ -366,66 +366,54 @@ end
     return BoseFSIndex(result, mode, bit_position), (i, chunk, bits_left, mode)
 end
 
-function find_mode(b::BoseFS, index)
-    last_occnum = last_mode = last_offset = 0
-    for (occnum, mode, offset) in occupied_modes(b)
-        dist = index - mode
-        if dist == 0
-            return BoseFSIndex(occnum, index, offset)
-        elseif dist < 0
-            return BoseFSIndex(0, index, offset + dist)
-        end
-        last_occnum = occnum
-        last_mode = mode
-        last_offset = offset
+# Single chunk
+function find_mode(b::BoseFS{<:Any,<:Any,<:BitString{<:Any,1}}, k)
+    chunk = b.bs.chunks[1]
+    if k == 1
+        offset = 0
+        occnum = trailing_ones(chunk)
+    else
+        offset = find_zero(chunk, k - 1) + 1
+        occnum = trailing_ones(chunk >> offset)
     end
-    offset = last_offset + last_occnum + index - last_mode
-    return BoseFSIndex(0, index, offset)
+    return BoseFSIndex(occnum, k, offset)
 end
-# Multiple in a single pass
-function find_mode(b::BoseFS, indices::NTuple{N}) where {N}
-    # Idea: find permutation, then use the permutation to find indices in order even though
-    # they are not sorted.
-    perm = sortperm(SVector(indices))
-    # perm_i is the index in permutation and goes from 1:N.
-    perm_i = 1
-    # curr_i points to indices and result
-    curr_i = perm[1]
-    # index is the current index we are looking for.
-    index = indices[curr_i]
-
-    result = ntuple(_ -> BoseFSIndex(0, 0, 0), Val(N))
-    last_occnum = last_mode = last_offset = 0
-    @inbounds for (occnum, mode, offset) in occupied_modes(b)
-        dist = index - mode
-        # While loop handles duplicate entries in indices.
-        while dist ≤ 0
-            if dist == 0
-                @set! result[curr_i] = BoseFSIndex(occnum, mode, offset)
-            else
-                @set! result[curr_i] = BoseFSIndex(0, index, offset + dist)
-            end
-            perm_i += 1
-            perm_i > N && return result
-            curr_i = perm[perm_i]
-            index = indices[curr_i]
-            dist = index - mode
+# Multi-chunk
+function find_mode(b::BoseFS, k)
+    # Get the location of the mode in the address
+    bs = b.bs
+    if k == 1
+        offset = 0
+        chunk_i = num_chunks(bs)
+    else
+        chunk_i, offset = find_zero(bs, k - 1)
+        offset += 1 # Mode starts after zero
+    end
+    res_offset = offset + (num_chunks(bs) - chunk_i) * 64
+    chunk = bs.chunks[chunk_i]
+    occnum = trailing_ones(chunk >> offset)
+    # TODO Rewrite this part
+    if occnum + offset == 64 && chunk_i > 1
+        chunk_i -= 1
+        chunk = bs.chunks[chunk_i]
+        while chunk == -UInt(1)
+            occnum += 64
+            chunk_i -= 1
+            chunk_i == 0 && break
+            chunk = bs.chunks[chunk_i]
         end
-        last_occnum = occnum
-        last_mode = mode
-        last_offset = offset
+        if chunk_i ≠ 0
+            chunk = bs.chunks[chunk_i]
+            occnum += trailing_ones(chunk)
+        end
     end
-    # Now we have to find all indices that appear after the last occupied site.
-    # While true because we break out of the loop early anyway.
-    @inbounds while true
-        offset = last_offset + last_occnum + index - last_mode
-        @set! result[curr_i] = BoseFSIndex(0, index, offset)
-        perm_i += 1
-        perm_i > N && return result
-        curr_i = perm[perm_i]
-        index = indices[curr_i]
+    return BoseFSIndex(occnum, k, res_offset)
+end
+# Multiple
+function find_mode(b::BoseFS, ks::Tuple)
+    map(ks) do k
+        find_mode2(b, k)
     end
-    return result # not reached
 end
 
 function find_occupied_mode(b::BoseFS, index::Integer, n=1)

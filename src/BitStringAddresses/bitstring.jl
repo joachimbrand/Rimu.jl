@@ -450,6 +450,52 @@ function partial_right_shift(bs::S, i, j) where {N,S<:BitString{<:Any,N}}
     return S(SVector(result))
 end
 
-function bit_mask(bs::BitString, i, j)
+"""
+    _logsizeof(::Type{T})
 
+Compute `log2(sizeof(T) * 8)` statically.
+"""
+@generated _logsizeof(::Type{T}) where {T} = Int(log2(sizeof(T) * 8))
+
+"""
+    find_zero(bs, k)
+
+Find the offset of the `k`-th zero in bitstring, counting from the right.
+
+Returns a chunk index and a zero based-index with the position of the zero in the chunk.
+"""
+function find_zero(chunk::T, k) where {T}
+    mask_length = T(sizeof(T) * 4)
+    mask = one(T) << mask_length - 0x1
+    chunk = ~chunk # We actually look for ones in the inverse chunk.
+    k -= 1
+    position = zero(T)
+
+    for _ in 1:_logsizeof(T)
+        r_count = count_ones(chunk & (mask << position))
+        move_left = r_count ≤ k
+
+        k -= move_left * r_count
+        position += move_left * mask_length
+
+        mask_length >>= 0x1
+        mask >>= mask_length
+    end
+    return Int(position)
+end
+
+function find_zero(bs::BitString, k)
+    left = k
+    chunk = UInt(0) # placeholder
+    skipped = 0
+    chunk_i = num_chunks(bs)
+    while true
+        chunk = bs.chunks[chunk_i]
+        nz = count_zeros(bs.chunks[chunk_i])
+        left -= nz
+        left ≤ 0 && break
+        skipped += nz
+        chunk_i -= 1
+    end
+    return chunk_i, find_zero(chunk, k - skipped)
 end
