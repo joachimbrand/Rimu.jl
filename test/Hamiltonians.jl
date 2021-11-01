@@ -92,6 +92,8 @@ end
 
         HubbardMom1DEP(BoseFS((0,0,5,0,0))),
         HubbardMom1DEP(CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((0,0,1,0,0))), v_ho=5),
+
+        ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
     )
         test_hamiltonian_interface(H)
     end
@@ -778,6 +780,43 @@ end
 
         @test size(sparse(h_trans))[1] < size(sparse(h_mom))[1]
     end
+end
+
+using Rimu.Hamiltonians: left_weight
+
+@testset "ParitySymmetry" begin
+    @test_throws ErrorException ParitySymmetry(HubbardMom1D(BoseFS((1, 1))))
+    @test_throws ErrorException ParitySymmetry(HubbardMom1D(BoseFS((1, 1, 1))); even=false)
+
+    ham = HubbardRealSpace(CompositeFS(FermiFS((1,1,0)), FermiFS((1,0,0)), BoseFS((0,0,2))))
+    even_b = BasisSetRep(ParitySymmetry(ham))
+    odd_b = BasisSetRep(ParitySymmetry(ham; odd=true))
+
+    for add in even_b.basis
+        if sign(left_weight(add)) ≠ 0
+            @test sign(left_weight(add)) == sign(left_weight(starting_address(ham)))
+        end
+    end
+    for add in odd_b.basis
+        @test sign(left_weight(add)) == sign(left_weight(starting_address(ham)))
+        @test add ≠ reverse(add)
+    end
+
+    ham_m = Matrix(ham)
+    even_m = Matrix(even_b)
+    odd_m = Matrix(odd_b)
+
+    @test size(ham_m, 1) == size(even_m, 1) + size(odd_m, 1)
+    sort(real.(vcat(eigvals(even_m), eigvals(odd_m)))) ≈ real.(eigvals(ham_m))
+
+    # This Hamiltonian only has even addresses.
+    ham = HubbardMom1D(BoseFS((0,0,0,2,0,0,0)); u=3)
+    even_b = BasisSetRep(ParitySymmetry(ham))
+
+    ham_m = Matrix(ham)
+    even_m = Matrix(even_b)
+
+    @test ham_m == even_m
 end
 
 @testset "BasisSetRep" begin

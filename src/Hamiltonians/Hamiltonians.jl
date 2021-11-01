@@ -47,6 +47,7 @@ export HubbardReal1DEP, shift_lattice, shift_lattice_inv
 export HubbardMom1DEP
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
+export ParitySymmetry
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
 
@@ -77,6 +78,7 @@ include("BoseHubbardMom1D2C.jl")
 
 include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
+include("ParitySymmetry.jl")
 
 include("Transcorrelated1D.jl")
 

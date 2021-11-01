@@ -158,6 +158,10 @@ end
     return result
 end
 
+function Base.reverse(f::FermiFS)
+    return typeof(f)(bitreverse(f.bs))
+end
+
 function is_occupied(a::FermiFS{<:Any,M,S}, mode) where {M,T,S<:BitString{<:Any,1,T}}
     @boundscheck 1 ≤ mode ≤ M || throw(BoundsError(a, mode))
     return a.bs.chunks[1] & (T(1) << (mode - 1) % T) > 0

@@ -204,6 +204,10 @@ end
     return result
 end
 
+function Base.reverse(b::BoseFS)
+    return typeof(b)(bitreverse(b.bs))
+end
+
 function num_occupied_modes(b::BoseFS{<:Any,<:Any,S}) where S
     return num_occupied_modes(Val(num_chunks(S)), b)
 end

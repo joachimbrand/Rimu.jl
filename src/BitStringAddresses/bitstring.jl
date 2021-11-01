@@ -450,6 +450,9 @@ function partial_right_shift(bs::S, i, j) where {N,S<:BitString{<:Any,N}}
     return S(SVector(result))
 end
 
-function bit_mask(bs::BitString, i, j)
-
+function Base.bitreverse(bs::BitString{B,1,T}) where {B,T}
+    return typeof(bs)(SVector(bitreverse(bs.chunks[1]) >> T(sizeof(T) * 8 - B)))
+end
+function Base.bitreverse(bs::BitString{B,N}) where {B,N}
+    return typeof(bs)(bitreverse.(reverse(bs.chunks))) >> (64 * N - B)
 end

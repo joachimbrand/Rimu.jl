@@ -77,6 +77,10 @@ function Base.show(io::IO, c::CompositeFS{C}) where {C}
     print(io, ")")
 end
 
+function Base.reverse(c::CompositeFS)
+    typeof(c)(reverse.(c.components))
+end
+
 """
     update_component(c::CompositeFS, new, ::Val{i})
 

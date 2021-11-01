@@ -272,6 +272,8 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
 
                     # This test checks that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(bose))) == bose
+
+                    @test onr(reverse(bose)) == reverse(input)
                 end
             end
         end
@@ -325,6 +327,8 @@ end
                         push!(sites, i.mode)
                     end
                     @test sites == findall(≠(0), onr(f))
+
+                    @test onr(reverse(fermi)) == reverse(input)
                 end
             end
         end
