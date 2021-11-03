@@ -5,16 +5,18 @@ Impose even or odd parity on all states and the Hamiltonian `ham` as controlled 
 keyword argument `even`. For some Hamiltonians, this reduces the size of the Hilbert space
 by half.
 
+`ParitySymmetry` changes the basis set to states with defined parity. Effectively, a
+non-even address ``|α⟩`` is replaced by ``\\frac{1}{√2}(|α⟩ ± |ᾱ⟩)`` for even and odd
+parity, respectively, where `ᾱ == reverse(α)`.
+
 # Notes
 
 * This modifier currently only works on [`starting_address`](@ref)s with an odd number of
   modes.
 * For odd parity, the [`starting_address`](@ref) of the underlying Hamiltonian cannot be
   symmetric.
-* `ParitySymmetry` changes the basis set to states with defined parity. Effectively, a
-  non-even address ``|α⟩`` is replaced by ``\\frac{1}{√2}(|α⟩ ± |ᾱ⟩)`` for even and odd
-  parity, respectively, where `ᾱ == reverse(α)`.
 * If parity is not a symmetry of the Hamiltonian `ham` then the result is undefined.
+* `ParitySymmetry` works by modifying the [`offdiagonals`](@ref) iterator.
 
 ```jldoctest
 julia> ham = HubbardReal1D(BoseFS((0,2,1)))
