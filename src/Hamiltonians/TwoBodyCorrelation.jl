@@ -46,7 +46,7 @@ struct G2Correlator{C} <: AbstractHamiltonian{ComplexF64}
         elseif c == :cross
             return new{3}(d)
         else
-            error("Unknown instruction for G2Correlator!")
+            throw(ArgumentError("Unknown instruction for G2Correlator!"))
         end
     end
 end

@@ -219,7 +219,7 @@ function select_threading_strategy(threading::Symbol, targetwalkers)
         t = targetwalkers > 500 && Threads.nthreads() > 1
         return select_threading_strategy(t, targetwalkers)
     else
-        error("invalid threading strategy `$threading`")
+        throw(ArgumentError("invalid threading strategy `$threading`"))
     end
 end
 function select_threading_strategy(threading::Bool, _)

@@ -321,11 +321,11 @@ using Statistics
             @test df.vproj == df.vproj2 == df.p2
             @test df.norm ≈ df.p1
 
-            @test_throws ErrorException lomc!(
+            @test_throws ArgumentError lomc!(
                 H, dv; post_step=(Projector(a=dv), Projector(a=dv))
             )
-            @test_throws ErrorException Projector(a=dv, b=dv)
-            @test_throws ErrorException Projector()
+            @test_throws ArgumentError Projector(a=dv, b=dv)
+            @test_throws ArgumentError Projector()
         end
 
         @testset "SignCoherence" begin
@@ -374,7 +374,7 @@ using Statistics
         s_strat = DoubleLogUpdate(targetwalkers=10_000)
         laststep = 1000
         for dv in (DVec(add => 1), InitiatorDVec(add => 1), MPIData(DVec(add => 1)))
-            @test_throws ErrorException lomc!(H; threading=:something, laststep, s_strat)
+            @test_throws ArgumentError lomc!(H; threading=:something, laststep, s_strat)
 
             df1, s1 = lomc!(
                 H, deepcopy(dv); threading=:auto, laststep, s_strat

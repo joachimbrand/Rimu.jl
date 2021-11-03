@@ -272,6 +272,8 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
 
                     # This test checks that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(bose))) == bose
+
+                    @test onr(reverse(bose)) == reverse(input)
                 end
             end
         end
@@ -325,6 +327,8 @@ end
                         push!(sites, i.mode)
                     end
                     @test sites == findall(≠(0), onr(f))
+
+                    @test onr(reverse(fermi)) == reverse(input)
                 end
             end
         end
@@ -349,7 +353,7 @@ end
         )
         @test fs1 < fs2
 
-        @test_throws ErrorException CompositeFS(BoseFS((1,1)), BoseFS((1,1,1)))
+        @test_throws ArgumentError CompositeFS(BoseFS((1,1)), BoseFS((1,1,1)))
 
         @inferred update_component(fs1, FermiFS((0,0,0,1,1,0)), Val(1))
         @inferred update_component(fs1, FermiFS((0,0,1,1,1,0)), Val(2))

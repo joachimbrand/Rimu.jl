@@ -92,6 +92,8 @@ end
 
         HubbardMom1DEP(BoseFS((0,0,5,0,0))),
         HubbardMom1DEP(CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((0,0,1,0,0))), v_ho=5),
+
+        ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
     )
         test_hamiltonian_interface(H)
     end
@@ -176,23 +178,23 @@ end
 @testset "HubbardRealSpace" begin
     @testset "Constructor" begin
         bose = BoseFS((1, 2, 3, 4, 5, 6))
-        @test_throws ErrorException HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
-        @test_throws ErrorException HubbardRealSpace(
+        @test_throws ArgumentError HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
+        @test_throws ArgumentError HubbardRealSpace(
             bose; geometry=PeriodicBoundaries(3,2), t=[1, 2],
         )
-        @test_throws ErrorException HubbardRealSpace(
+        @test_throws ArgumentError HubbardRealSpace(
             bose; geometry=PeriodicBoundaries(3,2), u=[1 1; 1 1],
         )
 
         comp = CompositeFS(bose, bose)
-        @test_throws ErrorException HubbardRealSpace(
+        @test_throws ArgumentError HubbardRealSpace(
             comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[1 2; 3 4],
         )
-        @test_throws ErrorException HubbardRealSpace(
+        @test_throws ArgumentError HubbardRealSpace(
             comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
         )
 
-        @test_throws ErrorException HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
+        @test_throws ArgumentError HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
 
         @test_logs (:warn,) HubbardRealSpace(FermiFS((1,0)), u=[2])
         @test_logs (:warn,) HubbardRealSpace(
@@ -777,6 +779,66 @@ end
         h_mom = HubbardMom1D(c; u=-3, dispersion=continuum_dispersion)
 
         @test size(sparse(h_trans))[1] < size(sparse(h_mom))[1]
+    end
+end
+
+@testset "ParitySymmetry" begin
+    @test_throws ArgumentError ParitySymmetry(HubbardMom1D(BoseFS((1, 1))))
+    @test_throws ArgumentError ParitySymmetry(HubbardMom1D(BoseFS((1, 1, 1))); even=false)
+
+    @testset "HubbardMom1D" begin
+        ham = HubbardMom1D(BoseFS((1, 0, 1, 2, 0)))
+        even = ParitySymmetry(ham; odd=false)
+        odd = ParitySymmetry(ham; even=false)
+
+        ham_m = Matrix(ham)
+        even_m = Matrix(even)
+        odd_m = Matrix(odd)
+
+        @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+    end
+    @testset "2-particle HubbardMom1DEP" begin
+        ham = HubbardMom1DEP(BoseFS((0,0,1,1,0)))
+        even = ParitySymmetry(ham)
+        odd = ParitySymmetry(ham; even=false)
+
+        h_eigs = eigvals(Matrix(ham))
+        p_eigs = sort!(vcat(eigvals(Matrix(even)), eigvals(Matrix(odd))))
+
+        @test starting_address(even) == reverse(starting_address(ham))
+        @test h_eigs ≈ p_eigs
+    end
+    @testset "Multicomponent" begin
+        ham = HubbardRealSpace(
+            CompositeFS(FermiFS((1,1,0)), FermiFS((1,0,0)), BoseFS((0,0,2)))
+        )
+        even_b = BasisSetRep(ParitySymmetry(ham))
+        odd_b = BasisSetRep(ParitySymmetry(ham; odd=true))
+
+        for add in even_b.basis
+            @test add == min(add, reverse(add))
+        end
+        for add in odd_b.basis
+            @test add == min(add, reverse(add))
+            @test add ≠ reverse(add)
+        end
+
+        ham_m = Matrix(ham)
+        even_m = Matrix(even_b)
+        odd_m = Matrix(odd_b)
+
+        @test size(ham_m, 1) == size(even_m, 1) + size(odd_m, 1)
+        @test sort(real.(vcat(eigvals(even_m), eigvals(odd_m)))) ≈ real.(eigvals(ham_m))
+    end
+    @testset "Even Hamiltonian" begin
+        # This Hamiltonian only has even addresses.
+        ham = HubbardMom1D(BoseFS((0,0,0,2,0,0,0)); u=3)
+        even_b = BasisSetRep(ParitySymmetry(ham))
+
+        ham_m = Matrix(ham)
+        even_m = Matrix(even_b)
+
+        @test ham_m == even_m
     end
 end
 

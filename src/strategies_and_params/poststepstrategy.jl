@@ -50,7 +50,9 @@ struct Projector{P} <: PostStepStrategy
     projector::P
 end
 function Projector(;kwarg...)
-    length(kwarg) ≠ 1 && error("exactly one keyword argument must be passed to `Projector`")
+    length(kwarg) ≠ 1 && throw(
+        ArgumentError("exactly one keyword argument must be passed to `Projector`")
+    )
     return Projector(only(keys(kwarg)), freeze(only(values(kwarg))))
 end
 

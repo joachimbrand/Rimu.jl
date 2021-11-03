@@ -61,7 +61,7 @@ function CompositeFS(adds::Vararg{AbstractFockAddress}) # CompositeFS(adds)
     N = sum(num_particles, adds)
     M1, M2 = extrema(num_modes, adds)
     if M1 ≠ M2
-        error("all addresses must have the same number of modes")
+        throw(ArgumentError("all addresses must have the same number of modes"))
     end
     return CompositeFS{length(adds),N,M1,typeof(adds)}(adds)
 end
@@ -75,6 +75,10 @@ function Base.show(io::IO, c::CompositeFS{C}) where {C}
         println(io, "  ", add, ",")
     end
     print(io, ")")
+end
+
+function Base.reverse(c::CompositeFS)
+    typeof(c)(reverse.(c.components))
 end
 
 """
