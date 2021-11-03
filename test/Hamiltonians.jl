@@ -782,12 +782,23 @@ end
     end
 end
 
-using Rimu.Hamiltonians: left_weight
+using Rimu.Hamiltonians: left_heavy
 
 @testset "ParitySymmetry" begin
     @test_throws ArgumentError ParitySymmetry(HubbardMom1D(BoseFS((1, 1))))
     @test_throws ArgumentError ParitySymmetry(HubbardMom1D(BoseFS((1, 1, 1))); even=false)
 
+    @testset "HubbardMom1D" begin
+        ham = HubbardMom1D(BoseFS((1, 0, 1, 2, 0)))
+        even = ParitySymmetry(ham; odd=false)
+        odd = ParitySymmetry(ham; even=false)
+
+        ham_m = Matrix(ham)
+        even_m = Matrix(even)
+        odd_m = Matrix(odd)
+
+        @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+    end
     @testset "2-particle HubbardMom1DEP" begin
         ham = HubbardMom1DEP(BoseFS((0,0,1,1,0)))
         even = ParitySymmetry(ham)
@@ -796,6 +807,7 @@ using Rimu.Hamiltonians: left_weight
         h_eigs = eigvals(Matrix(ham))
         p_eigs = sort!(vcat(eigvals(Matrix(even)), eigvals(Matrix(odd))))
 
+        @test starting_address(even) == reverse(starting_address(ham))
         @test h_eigs ≈ p_eigs
     end
     @testset "Multicomponent" begin
@@ -806,12 +818,10 @@ using Rimu.Hamiltonians: left_weight
         odd_b = BasisSetRep(ParitySymmetry(ham; odd=true))
 
         for add in even_b.basis
-            if sign(left_weight(add)) ≠ 0
-                @test sign(left_weight(add)) == sign(left_weight(starting_address(ham)))
-            end
+            @test add == left_heavy(add)
         end
         for add in odd_b.basis
-            @test sign(left_weight(add)) == sign(left_weight(starting_address(ham)))
+            @test add == left_heavy(add)
             @test add ≠ reverse(add)
         end
 
