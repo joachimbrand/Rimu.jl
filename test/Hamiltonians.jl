@@ -782,8 +782,6 @@ end
     end
 end
 
-using Rimu.Hamiltonians: left_heavy
-
 @testset "ParitySymmetry" begin
     @test_throws ArgumentError ParitySymmetry(HubbardMom1D(BoseFS((1, 1))))
     @test_throws ArgumentError ParitySymmetry(HubbardMom1D(BoseFS((1, 1, 1))); even=false)
@@ -818,10 +816,10 @@ using Rimu.Hamiltonians: left_heavy
         odd_b = BasisSetRep(ParitySymmetry(ham; odd=true))
 
         for add in even_b.basis
-            @test add == left_heavy(add)
+            @test add == min(add, reverse(add))
         end
         for add in odd_b.basis
-            @test add == left_heavy(add)
+            @test add == min(add, reverse(add))
             @test add ≠ reverse(add)
         end
 

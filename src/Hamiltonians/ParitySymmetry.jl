@@ -1,22 +1,4 @@
 """
-    left_heavy(add)
-
-Return the "left-heavy" version of the address.
-
-# Example
-
-```jldoctest
-julia> Rimu.Hamiltonians.left_heavy(BoseFS((0,2,0,0)))
-BoseFS{2,4}((0, 2, 0, 0))
-
-julia> Rimu.Hamiltonians.left_heavy(BoseFS((0,0,2,0)))
-BoseFS{2,4}((0, 2, 0, 0))
-
-```
-"""
-left_heavy(add) = min(add, reverse(add))
-
-"""
     ParitySymmetry(ham::AbstractHamiltonian{T}; even=true) <: AbstractHamiltonian{T}
 
 Changes the [`offdiagonals`](@ref) of a Hamiltonian in a way that produces even or odd
@@ -68,7 +50,10 @@ function Base.show(io::IO, h::ParitySymmetry)
 end
 
 LOStructure(h::ParitySymmetry) = LOStructure(h.hamiltonian)
-starting_address(h::ParitySymmetry) = left_heavy(starting_address(h.hamiltonian))
+function starting_address(h::ParitySymmetry)
+    add = starting_address(h.hamiltonian)
+    return min(add, reverse(add))
+end
 
 function Base.adjoint(h::ParitySymmetry)
     return ParitySymmetry(adjoint(h.hamiltonian); even=h.even)
@@ -91,10 +76,11 @@ end
 
 function Base.getindex(o::ParitySymmetryOffdiagonals, i)
     add, val = o.od[i]
-    left_add = left_heavy(add)
+    rev_add = reverse(add)
+    left_add = min(rev_add, add)
     if !o.even && left_add ≠ add
         val *= -1
-    elseif !o.even && reverse(add) == add
+    elseif !o.even && rev_add == add
         val = zero(val)
     end
     return left_add, val
