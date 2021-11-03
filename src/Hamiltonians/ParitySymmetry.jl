@@ -1,16 +1,20 @@
 """
     ParitySymmetry(ham::AbstractHamiltonian{T}; even=true) <: AbstractHamiltonian{T}
 
-Changes the [`offdiagonals`](@ref) of a Hamiltonian in a way that produces even or odd
-eigenfunctions. For some Hamiltonians, this reduces the size of the Hilbert space by half.
-
-Whether the even or odd part is to be used is controlled by the keyword argument `even`.
+Impose even or odd parity on all states and the Hamiltonian `ham` as controlled by the
+keyword argument `even`. For some Hamiltonians, this reduces the size of the Hilbert space
+by half.
 
 # Notes
 
-* This modifier only works on addresses with an even number of modes.
-* For the odd parity symmetry, the starting address of the underlying Hamiltonian can not be
+* This modifier currently only works on [`starting_address`](@ref)s with an odd number of
+  modes.
+* For odd parity, the [`starting_address`](@ref) of the underlying Hamiltonian cannot be
   symmetric.
+* `ParitySymmetry` changes the basis set to states with defined parity. Effectively, a
+  non-even address ``|α⟩`` is replaced by ``\\frac{1}{√2}(|α⟩ ± |ᾱ⟩)`` for even and odd
+  parity, respectively, where `ᾱ == reverse(α)`.
+* If parity is not a symmetry of the Hamiltonian `ham` then the result is undefined.
 
 ```jldoctest
 julia> ham = HubbardReal1D(BoseFS((0,2,1)))
