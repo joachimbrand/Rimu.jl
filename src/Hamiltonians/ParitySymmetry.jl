@@ -6,10 +6,10 @@ Return the "left-heavy" version of the address.
 # Example
 
 ```jldoctest
-julia> left_heavy(BoseFS((0,2,0,0)))
+julia> Rimu.Hamiltonians.left_heavy(BoseFS((0,2,0,0)))
 BoseFS{2,4}((0, 2, 0, 0))
 
-julia> left_heavy(BoseFS((0,0,2,0)))
+julia> Rimu.Hamiltonians.left_heavy(BoseFS((0,0,2,0)))
 BoseFS{2,4}((0, 2, 0, 0))
 
 ```
