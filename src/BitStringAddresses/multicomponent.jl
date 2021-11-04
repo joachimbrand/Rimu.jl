@@ -78,7 +78,7 @@ function Base.show(io::IO, c::CompositeFS{C}) where {C}
 end
 
 function Base.reverse(c::CompositeFS)
-    typeof(c)(reverse.(c.components))
+    typeof(c)(map(reverse, c.components))
 end
 
 """
