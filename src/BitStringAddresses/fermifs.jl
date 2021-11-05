@@ -91,6 +91,39 @@ find_mode(f::FermiFS, i) = FermiFSIndex(Int(is_occupied(f, i)), i)
 find_mode(f::FermiFS, is::Tuple) = map(i -> find_mode(f, i), is)
 
 """
+    b::BitString | i::FermiFSIndex
+Set the bit at index `i`.
+
+```jl_doctest
+julia> BitString{20}(8) | FermiFSIndex(1,1)
+BitString{20}(big"0x00000009")
+
+julia> BitString{201}(big"2"^200) | FermiFSIndex(1,129)
+BitString{201}(big"0x0000000000000100_0000000000000001_0000000000000000_0000000000000000")
+```
+See [`BitString`](@ref) and [`FermiFSIndex`](@ref).
+"""
+@inline function Base.:|(b::BitString{B,1,T}, i::FermiFSIndex) where {B,T}
+    r = i.mode
+    @boundscheck r > B && throw(BoundsError(b,i))
+    mask = 1 << (r-1)
+    chunk = b.chunks[1] | mask
+    return BitString{B,1,T}(SVector{1,T}(chunk))
+end
+
+@inline function Base.:|(b::BitString{B,N,T}, i::FermiFSIndex) where {B,N,T}
+    k = i.mode - 1
+    @boundscheck k > B && throw(BoundsError(b,i))
+    # equivalent to d, r = divrem(k, 64)
+    d = k >>> 0x6
+    r = k & 63
+    chunk_index = N - d
+    mask = 1 << r
+    new_chunk = b.chunks[chunk_index] | mask
+    return BitString{B,N,T}(setindex(b.chunks, new_chunk, chunk_index))
+end
+
+"""
     FermiOccupiedModes{N,S<:BitString}
 
 Iterator over occupied modes in address. `N` is the number of fermions. See [`occupied_modes`](@ref).
