@@ -94,7 +94,7 @@ find_mode(f::FermiFS, is::Tuple) = map(i -> find_mode(f, i), is)
     b::BitString | i::FermiFSIndex
 Set the bit at index `i`.
 
-```jl_doctest
+```jldoctest
 julia> BitString{20}(8) | FermiFSIndex(1,1)
 BitString{20}(big"0x00000009")
 
