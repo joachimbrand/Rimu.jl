@@ -36,6 +36,7 @@ using ..ConsistentRNG
 using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
     offdiagonals, random_offdiagonal, LOStructure
+import ..BitStringAddresses: FermiOccupiedModes
 
 export AbstractHamiltonian, TwoComponentBosonicHamiltonian
 export dimension, rayleigh_quotient, momentum
@@ -79,6 +80,7 @@ include("BoseHubbardMom1D2C.jl")
 include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
 include("ParitySymmetry.jl")
+include("SingletSymmetry.jl")
 
 include("Transcorrelated1D.jl")
 
