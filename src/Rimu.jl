@@ -49,7 +49,7 @@ export DontUpdate, DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
 export ReportingStrategy, ReportDFAndInfo, ReportToFile
 export ReplicaStrategy, NoStats, AllOverlaps
 export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness, Timer
-export TimeStepStrategy, ConstantTimeStep, OvershootControl
+export TimeStepStrategy, ConstantTimeStep, AcceleratingTimeStep
 export threadedWorkingMemory, localpart, walkernumber
 export smart_logger, default_logger
 
