@@ -2,6 +2,27 @@
     SingletSymmetry(ham::AbstractHamiltonian{T}; even=true) <: AbstractHamiltonian{T}
 
 Impose singlet symmetry on all states and the Hamiltonian `ham`.
+
+Does not yet work as expected:
+```jldoctest
+julia> ham=HubbardMom1D(FermiFS2C((0,1,1,1,0), (0,1,1,1,0));u=-1);
+
+julia> size(Matrix(SingletSymmetry(ham)))
+(10, 10)
+
+julia> size(Matrix(ham))
+(20, 20)
+
+julia> E_0 = eigvals(Matrix(ham))[1]
+-8.34874140660577
+
+julia> E_0_SS = eigvals(Matrix(SingletSymmetry(ham)))[1]
+-8.347120813182073
+
+julia> E_0 ≈ E_0_SS
+false
+```
+
 """
 struct SingletSymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     hamiltonian::H
@@ -23,14 +44,11 @@ function Base.show(io::IO, h::SingletSymmetry)
     print(io, "SingletSymmetry(", h.hamiltonian, ")")
 end
 
-LOStructure(h::SingletSymmetry) = LOStructure(h.hamiltonian)
+LOStructure(h::Type{<:SingletSymmetry}) = AdjointUnknown()
+
 function starting_address(h::SingletSymmetry)
     add, _ = singlet_canonify(starting_address(h.hamiltonian))
     return add
-end
-
-function Base.adjoint(h::SingletSymmetry)
-    return SingletSymmetry(adjoint(h.hamiltonian))
 end
 
 get_offdiagonal(h::SingletSymmetry, add, i) = offdiagonals(h, add)[i]
@@ -49,8 +67,8 @@ end
 
 function Base.getindex(o::SingletSymmetryOffdiagonals, i)
     add, val = o.od[i]
-    can_add, sign = singlet_canonify(add)
-    return can_add, val*sign
+    can_add, _ = singlet_canonify(add)
+    return can_add, val
 end
 function diagonal_element(h::SingletSymmetry, add)
     return diagonal_element(h.hamiltonian, add)
@@ -66,11 +84,6 @@ function singlet_canonify(c::FermiFS2C{N,N,<:Any,<:Any,F,F}) where {N, F}
     om1_x = FermiOccupiedModes{NN, typeof(bs1_x)}(bs1_x) # N for type stability; ≤N particles
     om2_x = FermiOccupiedModes{NN, typeof(bs2_x)}(bs2_x) # N for type stability; ≤N particles
 
-    # om1, om2 = occupied_modes.(c.components)
-    # # omm1, omm2 = OccupiedModeMap.(c.components)
-    # T = eltype(om1)
-    # onr1 = MVector{min(M),T}(undef)
-    # onr2 = MVector{min(M),T}(undef)
     bs1 = bs2 = bs_and
     sign = 1
     for (mode1, mode2) in zip(om1_x, om2_x)
