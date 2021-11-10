@@ -13,13 +13,7 @@ julia> size(Matrix(SingletSymmetry(ham)))
 julia> size(Matrix(ham))
 (20, 20)
 
-julia> E_0 = eigvals(Matrix(ham))[1]
--8.34874140660577
-
-julia> E_0_SS = eigvals(Matrix(SingletSymmetry(ham)))[1]
--8.347120813182073
-
-julia> E_0 ≈ E_0_SS
+julia> eigvals(Matrix(SingletSymmetry(ham)))[1] ≈ eigvals(Matrix(ham))[1]
 false
 ```
 
