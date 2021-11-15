@@ -1,4 +1,3 @@
-# TODO: disabling three-body terms
 """
     Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true)
 
@@ -66,10 +65,13 @@ struct Transcorrelated1D{
     ws::SVector{M,Float64} # pre-computed W(k)
     us::SVector{M,Float64} # correlation factor
     potential::P # external potential
-    three_body_term::Bool
+    three_body_prob::Float64
 end
 
-function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true)
+function Transcorrelated1D(
+    address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true,
+    three_body_prob=0.5,
+)
     M = num_modes(address)
     cutoff < 1 && throw(ArgumentError("`cutoff` must be a positive integer"))
     ks = SVector{M}(i_to_k.(1:M, M))
@@ -81,10 +83,13 @@ function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body
     else
         potential = momentum_space_harmonic_potential(M, v_ho)
     end
+    if !three_body_term
+        three_body_prob=0.0
+    end
 
     return Transcorrelated1D{M,typeof(address),typeof(potential)}(
         address, cutoff, float(v), float(t), float(v_ho), ks, kes, ws, us, potential,
-        three_body_term
+        three_body_prob
     )
 end
 
@@ -251,7 +256,7 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
 
     value = dot(h.kes, map1) + dot(h.kes, map2) +
         momentum_transfer_diagonal(h, map1, map2)
-    if h.three_body_term
+    if !iszero(h.three_body_prob)
         value += transcorrelated_diagonal(h, map1, map2) +
             transcorrelated_diagonal(h, map2, map1)
     end
@@ -280,7 +285,7 @@ function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
     N2 = length(map2)
     n_mom = N1 * N2 * (M - 1)
 
-    three_body_term = h.three_body_term
+    three_body_term = !iszero(h.three_body_prob)
     n_trans1 = three_body_term ? N1 * (N1 - 1) * N2 * M * M : 0
     n_trans2 = three_body_term ? N2 * (N2 - 1) * N1 * M * M : 0
 
@@ -307,7 +312,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
     M = num_modes(c1)
 
     n_mom = N1 * N2 * (M - 1)
-    three_body_term = od.hamiltonian.three_body_term
+    three_body_term = !iszero(od.hamiltonian.three_body_prob)
     n_trans1 = three_body_term ? N1 * (N1 - 1) * N2 * M * M : 0
     n_trans2 = three_body_term ? N2 * (N2 - 1) * N1 * M * M : 0
 
@@ -381,4 +386,100 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         throw(BoundsError(od, i))
     end
     return new_c, value
+end
+
+function random_offdiagonal(od::Transcorrelated1DOffdiagonals)
+    C = typeof(od.address)
+    @unpack address, map1, map2 = od
+    c1, c2 = address.components
+    h = od.hamiltonian
+    N1 = length(map1)
+    N2 = length(map2)
+    M = num_modes(c1)
+
+    n_mom = N1 * N2 * (M - 1)
+    three_body_term = !iszero(od.hamiltonian.three_body_prob)
+    n_trans1 = three_body_term ? N1 * (N1 - 1) * N2 * M * M : 0
+    n_trans2 = three_body_term ? N2 * (N2 - 1) * N1 * M * M : 0
+
+    # This should be efficient as it depends on the type of the potential
+    if !isnothing(od.hamiltonian.potential)
+        n_pot1 = N1 * (M - 1)
+        n_pot2 = N2 * (M - 1)
+    else
+        n_pot1 = 0
+        n_pot2 = 0
+    end
+
+    # Fallback on zero values
+    new_c = C(c1, c2)
+    prob = 0.0
+
+    n_trans_total = n_trans1 + n_trans2
+    n_non_trans = n_mom + n_pot1 + n_pot2
+
+    if three_body_term && cRand() < od.hamiltonian.three_body_prob
+        # Transcorrelated spawn
+        i = cRand(1:n_trans_total)
+        if i ≤ n_trans1
+            # Transcorrelated excitation from first to second component
+            new_c1, new_c2, value, k, l = transcorrelated_three_body_excitation(
+                c1, c2, i, map1, map2
+            )
+            value *= q_function(h, k, l)
+            if !iszero(value)
+                @assert new_c1 ≠ c1 || new_c2 ≠ c2
+                new_c = C(new_c1, new_c2)
+            end
+        else
+            # Transcorrelated excitation from second to first component
+            i -= n_trans1
+
+            new_c2, new_c1, value, k, l = transcorrelated_three_body_excitation(
+                c2, c1, i, map2, map1
+            )
+            value *= q_function(h, k, l)
+            if !iszero(value)
+                @assert new_c1 ≠ c1 || new_c2 ≠ c2
+                new_c = C(new_c1, new_c2)
+            end
+        end
+        prob = od.hamiltonian.three_body_prob * 1/n_trans_total
+    else
+        # "Regular" spawn
+        i = cRand(1:n_non_trans)
+        if i ≤ n_mom
+            # Momentum transfer
+            new_c1, new_c2, value, p, q, k = momentum_transfer_excitation(
+                c1, c2, i, map1, map2; fold=false
+            )
+            if !iszero(value)
+                @assert new_c1 ≠ c1 || new_c2 ≠ c2
+                value *= t_function(h, p, q, k)
+                new_c = C(new_c1, new_c2)
+            end
+        elseif i ≤ n_mom + n_pot1
+            # Potential acting on first component
+            i -= n_mom
+
+            new_c1, value = momentum_external_potential_excitation(
+                od.hamiltonian.potential, c1, i, map1
+            )
+            if !iszero(value)
+                new_c = C(new_c1, c2)
+            end
+        else
+            # Potential acting on second component
+            i -= n_mom + n_pot1
+
+            new_c2, value = momentum_external_potential_excitation(
+                od.hamiltonian.potential, c2, i, map2
+            )
+            if !iszero(value)
+                new_c = C(c1, new_c2)
+            end
+        end
+        prob = (1 - od.hamiltonian.three_body_prob) * 1/n_non_trans
+    end
+    return new_c, prob, value
 end
