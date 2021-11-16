@@ -277,7 +277,6 @@ struct Transcorrelated1DOffdiagonals{H,A,O1,O2}<:AbstractOffdiagonals{A,Float64}
 end
 
 function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
-    offdiags = Tuple{F,Float64}[]
     c1, c2 = add.components
     map1 = OccupiedModeMap(c1)
     map2 = OccupiedModeMap(c2)
