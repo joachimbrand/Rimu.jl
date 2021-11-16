@@ -348,12 +348,15 @@ end
     l = Base.global_logger()
     @test l isa Logging.ConsoleLogger
     sl = smart_logger()
-    if isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
+    if isdefined(Main, :IJulia) && Main.IJulia.inited
+        @test sl isa ConsoleProgressMonitor.ProgressLogRouter
+        @info "Jupyter progress bar" sl
+    elseif isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
         @test sl isa TerminalLoggers.TerminalLogger
-        @info "true" sl
+        @info "Terminal progress bar" sl
     else
         @test sl isa Logging.ConsoleLogger
-        @info "false" sl
+        @info "No progress bar" sl
     end
     @test default_logger() isa Logging.ConsoleLogger
 end

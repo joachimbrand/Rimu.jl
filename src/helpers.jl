@@ -82,19 +82,24 @@ end
 """
     smart_logger(args...)
 Enable terminal progress bar during interactive use (i.e. unless running on CI or HPC).
-Arguments are passed on to `TerminalLoggers.TerminalLogger`. Undo with
-[`default_logger`](@ref).
+Arguments are passed on to the logger. This is run once during `Rimu` startup. Undo with
+[`default_logger`](@ref) or by setting `Base.global_logger()`.
 """
 function smart_logger(args...; kwargs...)
-    if isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
+    if isdefined(Main, :IJulia) && Main.IJulia.inited # are we running in Jupyter?
+        # need for now as TerminalLoggers currently does not play nice with Jupyter
+        # install a bridge to use ProgressMeter under the hood
+        # may become unneccessary in the future
+        ConsoleProgressMonitor.install_logger(; kwargs...) # use ProgressMeter for Jupyter
+    elseif isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true) # running in terminal?
         Base.global_logger(TerminalLogger(args...; kwargs...)) # enable progress bar
     end
     return Base.global_logger()
 end
 """
     default_logger(args...)
-Reset the `global_logger` to the default. Undoes the effect of [`smart_logger`](@ref).
-Arguments are passed on to `Logging.ConsoleLogger`.
+Reset the `global_logger` to `Logging.ConsoleLogger`. Undoes the effect of
+[`smart_logger`](@ref). Arguments are passed on to `Logging.ConsoleLogger`.
 """
 function default_logger(args...; kwargs...)
     Base.global_logger(ConsoleLogger(args...; kwargs...)) # disable terminal progress bar

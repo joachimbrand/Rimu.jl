@@ -19,6 +19,7 @@ using ThreadsX
 using ProgressLogging
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
+import ConsoleProgressMonitor
 
 @reexport using Distributed
 
