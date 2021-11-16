@@ -86,15 +86,17 @@ Arguments are passed on to `TerminalLoggers.TerminalLogger`. Undo with
 [`default_logger`](@ref).
 """
 function smart_logger(args...; kwargs...)
-    if isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
+    if isdefined(Main, :IJulia) && Main.IJulia.inited
+        ConsoleProgressMonitor.install_logger(; kwargs...) # use ProgressMeter for Jupyter
+    elseif isa(stderr, Base.TTY) && (get(ENV, "CI", nothing) ≠ true)
         Base.global_logger(TerminalLogger(args...; kwargs...)) # enable progress bar
     end
     return Base.global_logger()
 end
 """
     default_logger(args...)
-Reset the `global_logger` to the default. Undoes the effect of [`smart_logger`](@ref).
-Arguments are passed on to `Logging.ConsoleLogger`.
+Reset the `global_logger` to `Logging.ConsoleLogger`. Undoes the effect of
+[`smart_logger`](@ref). Arguments are passed on to `Logging.ConsoleLogger`.
 """
 function default_logger(args...; kwargs...)
     Base.global_logger(ConsoleLogger(args...; kwargs...)) # disable terminal progress bar
