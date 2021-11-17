@@ -201,5 +201,5 @@ function Rimu.post_step(::MostOccupied, replica)
     val, add = maximum(pairs(vector); init) do (k, v)
         abs(v), k
     end
-    return (:most_occupied_add => add, :most_occupied_val => val)
+    return (:most_occupied_val => val,)
 end
