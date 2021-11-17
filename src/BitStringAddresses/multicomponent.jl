@@ -31,6 +31,7 @@ num_components(::Type{<:BoseFS2C}) = 2
 Base.isless(a::T, b::T) where {T<:BoseFS2C} = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
 
 onr(b2::BoseFS2C) = (onr(b2.bsa), onr(b2.bsb))
+Base.reverse(b2::B) where {B<:BoseFS2C} = B(reverse(b2.bsa), reverse(b2.bsb))
 
 function Base.typemax(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return BoseFS2C(typemax(BoseFS{NA,M}), typemax(BoseFS{NB,M}))

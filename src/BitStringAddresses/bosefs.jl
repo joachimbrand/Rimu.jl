@@ -107,10 +107,10 @@ Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.:(==)(a::BoseFS, b::BoseFS) = a.bs == b.bs
 
-function Base.typemin(::Type{B}) where {N,M,B<:BoseFS{N,M}}
+function Base.typemax(::Type{B}) where {N,M,B<:BoseFS{N,M}}
     return B(ntuple(i -> i == M ? N : 0, Val(M)))
 end
-function Base.typemax(::Type{B}) where {N,M,B<:BoseFS{N,M}}
+function Base.typemin(::Type{B}) where {N,M,B<:BoseFS{N,M}}
     return B(ntuple(i -> i == 1 ? N : 0, Val(M)))
 end
 

@@ -247,6 +247,7 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
                 for _ in 1:10
                     input = rand_onr_bose(N, M)
                     bose = BoseFS(input)
+                    @test typemax(bose) ≥ bose ≥ typemin(bose)
                     @test num_particles(bose) == N
                     @test num_modes(bose) == M
                     @test onr(bose) == input
@@ -313,6 +314,7 @@ end
                     input = rand_onr_fermi(N, M)
                     fermi = FermiFS(input)
 
+                    @test typemax(fermi) ≥ fermi ≥ typemin(fermi)
                     @test num_particles(fermi) == N
                     @test num_modes(fermi) == M
                     @test onr(fermi) == input
@@ -340,6 +342,10 @@ end
         fs1 = CompositeFS(
             FermiFS((1,1,0,0,0,0)), FermiFS((1,1,1,0,0,0)), BoseFS((5,0,0,0,0,0))
         )
+
+        @test fs1 == typemin(fs1)
+        @test typemax(fs1) == reverse(typemin(fs1))
+
         @test num_modes(fs1) == 6
         @test num_components(fs1) == 3
         @test num_particles(fs1) == 10
@@ -369,6 +375,10 @@ end
         @test onr(fs3, LadderBoundaries(2, 3)) == (
             [1 0 0; 1 0 0], [0 1 1; 0 1 0], [5 0 0; 0 0 0]
         )
+        @test near_uniform(fs3) == CompositeFS(
+            FermiFS((1,1,0,0,0,0)), FermiFS((1,1,1,0,0,0)), BoseFS((1,1,1,1,1,0)),
+        )
+        @test typemin(fs3) < fs3 < typemax(fs3)
     end
 
     @testset "BoseFS2C" begin
@@ -378,9 +388,13 @@ end
         @test num_particles(fs1) == 11
         @test eval(Meta.parse(repr(fs1))) == fs1
         @test onr(fs1) == ([1, 1, 1, 0, 0, 0, 0], [1, 1, 1, 0, 5, 0, 0])
+        @test typemax(fs1) == BoseFS2C((0,0,0,0,0,0,3), (0,0,0,0,0,0,8))
+        @test typemax(fs1) == reverse(typemin(fs1))
+        @test near_uniform(fs1) == BoseFS2C((1,1,1,0,0,0,0), (2,1,1,1,1,1,1))
 
         fs2 = BoseFS2C(BoseFS((0,0,0,0,0,0,3)), BoseFS((0,2,1,0,5,0,0)))
         @test fs1 < fs2
+        @test typemin(fs1) < fs1 < typemax(fs1)
 
         @test_throws MethodError BoseFS2C(BoseFS((1,1)), BoseFS((1,1,1)))
     end
