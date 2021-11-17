@@ -201,5 +201,10 @@ function Rimu.post_step(::MostOccupied, replica)
     val, add = maximum(pairs(vector); init) do (k, v)
         abs(v), k
     end
-    return (:most_occupied_val => val, :most_occupied_add => onr(add))
+    onrep = onr(add)
+    if onrep isa Tuple
+        return (:most_occupied_val => val, :most_occupied_add => Tuple.(onrep))
+    else
+        return (:most_occupied_val => val, :most_occupied_add => Tuple(onrep))
+    end
 end
