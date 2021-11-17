@@ -365,6 +365,14 @@ using Statistics
             @test df.time[end] < time_after
             @test issorted(df.time)
         end
+
+        @testset "MostOccupied" begin
+            post_step = MostOccupied()
+            df, _ = lomc!(H, copy(dv); post_step)
+
+            @test all(df.most_occupied_val .≥ 0)
+            @test df.most_occupied_add[51:end] == fill(starting_address(H), 50)
+        end
     end
 
     # only test threading if more than one thread is available

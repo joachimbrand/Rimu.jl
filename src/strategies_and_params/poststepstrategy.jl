@@ -180,9 +180,26 @@ end
 """
     Timer <: PostStepStrategy
 
-Record current time after every step. See [`Base.time`](@ref) for information on what time
-is recorded.
+Record current time after every step in column `time`. See [`Base.time`](@ref) for
+information on what time is recorded.
 """
 struct Timer <: PostStepStrategy end
 
 post_step(::Timer, _) = (:time => time(),)
+
+"""
+    MostOccupied <: PostStepStrategy
+
+Record the most occupied configuration and its absolute value in columns
+`most_occupied_add` and `most_occpied_val`.
+"""
+struct MostOccupied <: PostStepStrategy end
+
+function Rimu.post_step(::MostOccupied, replica)
+    vector = replica.v
+    init = (zero(valtype(vector)), typemin(keytype(vector)))
+    val, add = maximum(pairs(vector); init) do (k, v)
+        abs(v), k
+    end
+    return (:most_occupied_add => add, :most_occupied_val => val)
+end
