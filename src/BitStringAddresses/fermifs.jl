@@ -59,7 +59,13 @@ Base.hash(a::FermiFS,  h::UInt) = hash(a.bs, h)
 Base.:(==)(a::FermiFS, b::FermiFS) = a.bs == b.bs
 num_occupied_modes(::FermiFS{N}) where {N} = N
 
-function near_uniform(::Type{FermiFS{N,M}}) where {N,M}
+function Base.typemax(::Type{F}) where {N,M,F<:FermiFS{N,M}}
+    F(ntuple(i -> i ≤ N ? 1 : 0, Val(M)))
+end
+function Base.typemin(::Type{F}) where {N,M,F<:FermiFS{N,M}}
+    F(ntuple(i -> M - i < N ? 1 : 0, Val(M)))
+end
+function near_uniform(::Type{<:FermiFS{N,M}}) where {N,M}
     return FermiFS([fill(1, N); fill(0, M - N)])
 end
 

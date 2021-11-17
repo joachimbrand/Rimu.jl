@@ -5,6 +5,33 @@ Supertype representing a Fock state.
 """
 abstract type AbstractFockAddress{N,M} end
 
+Base.typemax(a::AbstractFockAddress) = typemax(typeof(a))
+Base.typemin(a::AbstractFockAddress) = typemin(typeof(a))
+
+"""
+    near_uniform(::AbstractFockAddress)
+    near_uniform(::Type{A<:AbstractFockAddress}) -> fs::A
+
+Create a Fock state with near uniform occupation number of `M` modes with
+a total of `N` particles.
+
+# Examples
+```jldoctest
+julia> near_uniform(BoseFS{7,5,BitString{14}})
+BoseFS{7,5}((2, 2, 1, 1, 1))
+
+julia> near_uniform(BoseFS{7,5})
+BoseFS{7,5}((2, 2, 1, 1, 1))
+
+julia> near_uniform(CompositeFS(FermiFS((0,1,0)), BoseFS((0,2,0))))
+CompositeFS(
+  FermiFS{1,3}((1, 0, 0)),
+  BoseFS{2,3}((1, 1, 0)),
+)
+```
+"""
+near_uniform(a::AbstractFockAddress) = near_uniform(typeof(a))
+
 """
     num_particles(::Type{<:AbstractFockAddress})
     num_particles(::AbstractFockAddress)

@@ -107,6 +107,13 @@ Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.:(==)(a::BoseFS, b::BoseFS) = a.bs == b.bs
 
+function Base.typemin(::Type{B}) where {N,M,B<:BoseFS{N,M}}
+    return B(ntuple(i -> i == M ? N : 0, Val(M)))
+end
+function Base.typemax(::Type{B}) where {N,M,B<:BoseFS{N,M}}
+    return B(ntuple(i -> i == 1 ? N : 0, Val(M)))
+end
+
 """
     near_uniform_onr(N, M) -> onr::SVector{M,Int}
 
@@ -125,26 +132,9 @@ function near_uniform_onr(::Val{N}, ::Val{M}) where {N, M}
     return SVector{M}(startonr)
 end
 
-"""
-    near_uniform(BoseFS{N,M})
-    near_uniform(BoseFS{N,M,S}) -> bfs::BoseFS{N,M,S}
-
-Create bosonic Fock state with near uniform occupation number of `M` modes with
-a total of `N` particles. Specifying the bit address type `S` is optional.
-
-# Examples
-```jldoctest
-julia> near_uniform(BoseFS{7,5,BitString{14}})
-BoseFS{7,5}((2, 2, 1, 1, 1))
-
-julia> near_uniform(BoseFS{7,5})
-BoseFS{7,5}((2, 2, 1, 1, 1))
-```
-"""
 function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
     return BoseFS{N,M}(near_uniform_onr(Val(N),Val(M)))
 end
-near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
 
 @deprecate nearUniform near_uniform
 

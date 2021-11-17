@@ -29,9 +29,15 @@ end
 
 num_components(::Type{<:BoseFS2C}) = 2
 Base.isless(a::T, b::T) where {T<:BoseFS2C} = isless((a.bsa, a.bsb), (b.bsa, b.bsb))
+
 onr(b2::BoseFS2C) = (onr(b2.bsa), onr(b2.bsb))
 
-
+function Base.typemax(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
+    return BoseFS2C(typemax(BoseFS{NA,M}), typemax(BoseFS{NB,M}))
+end
+function Base.typemin(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
+    return BoseFS2C(typemin(BoseFS{NA,M}), typemin(BoseFS{NB,M}))
+end
 function near_uniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return BoseFS2C(near_uniform(BoseFS{NA,M}), near_uniform(BoseFS{NB,M}))
 end
@@ -97,6 +103,16 @@ end
 end
 
 Base.isless(a::T, b::T) where {T<:CompositeFS} = isless(a.components, b.components)
+
+function Base.typemax(::Type{C}) where {N,T,C<:CompositeFS{N,<:Any,<:Any,T}}
+    C(ntuple(i -> typemax(T.parameters[i]), Val(N)))
+end
+function Base.typemin(::Type{C}) where {N,T,C<:CompositeFS{N,<:Any,<:Any,T}}
+    C(ntuple(i -> typemin(T.parameters[i]), Val(N)))
+end
+function near_uniform(::Type{C}) where {N,T,C<:CompositeFS{N,<:Any,<:Any,T}}
+    C(ntuple(i -> near_uniform(T.parameters[i]), Val(N)))
+end
 
 function onr(a::CompositeFS)
     map(onr, a.components)
