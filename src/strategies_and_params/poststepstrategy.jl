@@ -190,7 +190,7 @@ post_step(::Timer, _) = (:time => time(),)
 """
     MostOccupied <: PostStepStrategy
 
-Record the most occupied configuration and its absolute value in columns
+Record the most occupied configuration's ONR and its absolute value in columns
 `most_occupied_add` and `most_occpied_val`.
 """
 struct MostOccupied <: PostStepStrategy end
@@ -201,5 +201,5 @@ function Rimu.post_step(::MostOccupied, replica)
     val, add = maximum(pairs(vector); init) do (k, v)
         abs(v), k
     end
-    return (:most_occupied_val => val,)
+    return (:most_occupied_val => val, :most_occupied_add => onr(add))
 end
