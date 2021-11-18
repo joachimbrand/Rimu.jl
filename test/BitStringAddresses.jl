@@ -160,6 +160,7 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
             SVector(UInt64(0), UInt64(0), UInt64(255), ~UInt64(0), ~UInt64(0))
         )
     )
+
     @testset "onr" begin
         middle_full_onr = onr(middle_full)
         @test length(middle_full_onr) == 100
@@ -270,8 +271,10 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
                     check_double_excitations(bose, 8)
                     check_triple_excitations(bose, 4)
 
-                    # This test checks that the result of show can be pasted into the REPL
-                    @test eval(Meta.parse(repr(bose))) == bose
+                    # Check that the result of show can be pasted into the REPL
+                    @test eval(Meta.parse(sprint(show, MIME"text/plain"(), bose))) == bose
+                    # Check that compact string can be parsed.
+                    @test parse(BoseFS, sprint(show, bose)) == bose
 
                     @test onr(reverse(bose)) == reverse(input)
                 end
@@ -286,6 +289,7 @@ end
     giant = [rand() < 0.1 for _ in 1:200]
     giant_sparse = [1; 1; zeros(Int, 100); 1]
     giant_dense = [1; 0; ones(Int, 50); 0; 1; 1]
+
     @testset "onr, constructors" begin
         for o in (small, big, giant, giant_sparse, giant_dense)
             f = FermiFS(o)
@@ -329,6 +333,16 @@ end
                     @test sites == findall(≠(0), onr(f))
 
                     @test onr(reverse(fermi)) == reverse(input)
+
+                    # Check that the result of show can be pasted into the REPL
+                    @test eval(Meta.parse(sprint(show, MIME"text/plain"(), fermi))) == fermi
+                    # Check that compact string can be parsed.
+                    @test parse(FermiFS, sprint(show, fermi)) == fermi
+
+                # Check that the result of show can be pasted into the REPL
+                @test eval(Meta.parse(sprint(show, MIME"text/plain"(), fermi))) == fermi
+                # Check that compact string can be parsed.
+                @test parse(FermiFS, sprint(show, fermi)) == fermi
                 end
             end
         end
@@ -346,7 +360,10 @@ end
         @test fs1.components[1] == FermiFS((1,1,0,0,0,0))
         @test fs1.components[2] == FermiFS((1,1,1,0,0,0))
         @test fs1.components[3] == BoseFS((5,0,0,0,0,0))
-        @test eval(Meta.parse(repr(fs1))) == fs1
+        @test eval(Meta.parse(sprint(show, MIME"text/plain"(), fs1))) == fs1
+        @test parse(AbstractFockAddress, sprint(show, fs1)) == fs1
+        @test parse(CompositeFS{3}, sprint(show, fs1)) == fs1
+        @test_throws ArgumentError parse(CompositeFS{2}, sprint(show, fs1))
 
         fs2 = CompositeFS(
             FermiFS((0,1,1,0,0,0)), FermiFS((1,0,1,0,1,0)), BoseFS((1,1,1,1,1,0))
@@ -369,6 +386,10 @@ end
         @test onr(fs3, LadderBoundaries(2, 3)) == (
             [1 0 0; 1 0 0], [0 1 1; 0 1 0], [5 0 0; 0 0 0]
         )
+
+
+        fermi = FermiFS2C((0,0,1,1,0,0), (0,1,0,0,1,0))
+        @test parse(FermiFS2C, sprint(show, fermi)) == fermi
     end
 
     @testset "BoseFS2C" begin
@@ -376,7 +397,8 @@ end
         @test num_modes(fs1) == 7
         @test num_components(fs1) == 2
         @test num_particles(fs1) == 11
-        @test eval(Meta.parse(repr(fs1))) == fs1
+        @test eval(Meta.parse(sprint(show, MIME"text/plain"(), fs1))) == fs1
+        @test parse(BoseFS2C, sprint(show, fs1)) == fs1
         @test onr(fs1) == ([1, 1, 1, 0, 0, 0, 0], [1, 1, 1, 0, 5, 0, 0])
 
         fs2 = BoseFS2C(BoseFS((0,0,0,0,0,0,3)), BoseFS((0,2,1,0,5,0,0)))

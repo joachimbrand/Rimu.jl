@@ -90,11 +90,6 @@ end
 function Base.show(io::IO, c::CompositeFS)
     print(io, join(c.components, " ⊗ "))
 end
-function Base.parse(::Type{C}, str) where {C<:CompositeFS}
-    comps = split(str, ",")
-    # special case for FermiFS2C
-    C((parse(SingleComponentFockAddress, comp) for comp in comps)...)
-end
 
 function Base.reverse(c::CompositeFS)
     typeof(c)(map(reverse, c.components))

@@ -316,16 +316,21 @@ function LinearAlgebra.dot(map1::OccupiedModeMap, map2::OccupiedModeMap)
 end
 
 function parse_address(str)
-    m = match(r"\|([↑↓⇅⋅]+)⟩", str)
+    m = match(r"[↓⇅]", str)
     if !isnothing(m)
-        chars = Vector{Char}(m.captures[1])
-        f1 = FermiFS((chars .== '↑') .| (chars .== '⇅'))
-        f2 = FermiFS((chars .== '↓') .| (chars .== '⇅'))
-        return CompositeFS(f1, f2)
+        m = match(r"\|([↑↓⇅⋅]+)⟩", str)
+        if isnothing(m)
+            return nothing
+        else
+            chars = Vector{Char}(m.captures[1])
+            f1 = FermiFS((chars .== '↑') .| (chars .== '⇅'))
+            f2 = FermiFS((chars .== '↓') .| (chars .== '⇅'))
+            return CompositeFS(f1, f2)
+        end
     end
     m = match(r"⊗", str)
     if !isnothing(m)
-        return CompositeFS(Tuple(map(parse_address, split(str, " ⊗ ")))...)
+        return CompositeFS(map(parse_address, split(str, " ⊗ "))...)
     end
     m = match(r"\|([ 0-9]+)⟩", str)
     if !isnothing(m)
