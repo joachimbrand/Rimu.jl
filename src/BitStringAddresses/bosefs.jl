@@ -98,9 +98,13 @@ function BoseFS(onr::Union{AbstractVector,Tuple})
     return BoseFS{N,M}(onr)
 end
 
-function Base.show(io::IO, b::BoseFS{N,M,S}) where {N,M,S}
+function Base.show(io::IO, ::MIME"text/plain", b::BoseFS{N,M,S}) where {N,M,S}
     print(io, "BoseFS{$N,$M}(", tuple(onr(b)...), ")")
 end
+function Base.show(io::IO, f::BoseFS)
+    print(io, "|", join(onr(f), ' '), "⟩")
+end
+
 Base.bitstring(b::BoseFS) = bitstring(b.bs)
 
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)

@@ -19,12 +19,17 @@ function BoseFS2C(bsa::BoseFS{NA,M,SA}, bsb::BoseFS{NB,M,SB}) where {NA,NB,M,SA,
 end
 BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
 
-function Base.show(io::IO, b::BoseFS2C)
+function Base.show(io::IO, ::MIME"text/plain", b::BoseFS2C)
     print(io, "BoseFS2C(")
-    Base.show(io,b.bsa)
+    show(io, MIME"text/plain"(), b.bsa)
     print(io, ",")
-    Base.show(io,b.bsb)
+    show(io, MIME"text/plain"(), b.bsb)
     print(io, ")")
+end
+function Base.show(io::IO, b::BoseFS2C)
+    print(io, b.bsa)
+    print(io, " ⊗ ")
+    print(io, b.bsb)
 end
 
 num_components(::Type{<:BoseFS2C}) = 2
@@ -73,12 +78,22 @@ end
 num_components(::CompositeFS{C}) where {C} = C
 Base.hash(c::CompositeFS, u::UInt) = hash(c.components, u)
 
-function Base.show(io::IO, c::CompositeFS{C}) where {C}
+function Base.show(io::IO, ::MIME"text/plain", c::CompositeFS{C}) where {C}
     println(io, "CompositeFS(")
     for add in c.components
-        println(io, "  ", add, ",")
+        print(io, "  ")
+        show(io, MIME"text/plain"(), add)
+        println(io, ',')
     end
     print(io, ")")
+end
+function Base.show(io::IO, c::CompositeFS)
+    print(io, join(c.components, " ⊗ "))
+end
+function Base.parse(::Type{C}, str) where {C<:CompositeFS}
+    comps = split(str, ",")
+    # special case for FermiFS2C
+    C((parse(SingleComponentFockAddress, comp) for comp in comps)...)
 end
 
 function Base.reverse(c::CompositeFS)
@@ -139,3 +154,9 @@ const FermiFS2C{N1,N2,M,N,F1,F2} =
     CompositeFS{2,N,M,Tuple{F1,F2}} where {F1<:FermiFS{N1,M},F2<:FermiFS{N2,M}}
 FermiFS2C(f1::FermiFS{<:Any,M}, f2::FermiFS{<:Any,M}) where {M} = CompositeFS(f1, f2)
 FermiFS2C(onr_a, onr_b) = FermiFS2C(FermiFS(onr_a), FermiFS(onr_b))
+
+function Base.show(io::IO, f::FermiFS2C)
+    o1, o2 = onr(f)
+    s = join([i && j ? '⇅' : i ? '↑' : j ? '↓' : '⋅' for (i, j) in zip(Bool.(o1), Bool.(o2))])
+    print(io, "|", s, "⟩")
+end

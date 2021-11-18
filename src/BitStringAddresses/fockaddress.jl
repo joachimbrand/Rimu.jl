@@ -314,3 +314,37 @@ function LinearAlgebra.dot(map1::OccupiedModeMap, map2::OccupiedModeMap)
     end
     return value
 end
+
+function parse_address(str)
+    m = match(r"\|([↑↓⇅⋅]+)⟩", str)
+    if !isnothing(m)
+        chars = Vector{Char}(m.captures[1])
+        f1 = FermiFS((chars .== '↑') .| (chars .== '⇅'))
+        f2 = FermiFS((chars .== '↓') .| (chars .== '⇅'))
+        return CompositeFS(f1, f2)
+    end
+    m = match(r"⊗", str)
+    if !isnothing(m)
+        return CompositeFS(Tuple(map(parse_address, split(str, " ⊗ ")))...)
+    end
+    m = match(r"\|([ 0-9]+)⟩", str)
+    if !isnothing(m)
+        return BoseFS(parse.(Int, split(m.captures[1], ' ')))
+    end
+    m = match(r"\|([⋅↑]+)⟩", str)
+    if !isnothing(m)
+        return FermiFS(Vector{Char}(m.captures[1]) .== '↑')
+    end
+end
+
+function Base.parse(::Type{T}, str) where {T<:AbstractFockAddress}
+    add = parse_address(str)
+    if T<:BoseFS2C
+        add = T(add.components[1], add.components[2])
+    end
+    if add isa T
+        return add
+    else
+        throw(ArgumentError("\"$str\" can't be parsed as `$T`"))
+    end
+end
