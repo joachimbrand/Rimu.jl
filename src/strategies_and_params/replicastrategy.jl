@@ -61,7 +61,7 @@ c{i}_Op{k}_c{j} for operator overlaps.
 See [`lomc!`](@ref), [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an
 interface for implementing operators).
 """
-struct AllOverlaps{N,O} <: ReplicaStrategy{N}
+struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian}} <: ReplicaStrategy{N}
     operators::O
 end
 
@@ -73,7 +73,7 @@ function AllOverlaps(num_replicas=2, operator=nothing)
     else
         operators = (operator,)
     end
-    return AllOverlaps{num_replicas, typeof(operators)}(operators)
+    return AllOverlaps{num_replicas,length(operators),typeof(operators)}(operators)
 end
 
 function replica_stats(rs::AllOverlaps, replicas::NTuple{N}) where {N}
