@@ -39,6 +39,7 @@ ThreadsX = "ac1d9e8a-700a-412c-b207-f0111f4b6c0d"
 [compat]
 Arrow = "1.5, 2"
 BSON = "0.3"
+ConsoleProgressMonitor = "0.1"
 DataFrames = "1"
 DataStructures = "0.18"
 Distributions = "0.25"
