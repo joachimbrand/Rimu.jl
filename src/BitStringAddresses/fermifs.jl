@@ -49,11 +49,12 @@ function FermiFS(onr::Union{AbstractVector,Tuple})
     return FermiFS{N,M}(onr)
 end
 
-function Base.show(io::IO, ::MIME"text/plain", f::FermiFS{N,M}) where {N,M}
-    print(io, "FermiFS{$N,$M}(", tuple(onr(f)...), ")")
-end
 function Base.show(io::IO, f::FermiFS{N,M}) where {N,M}
-    print(io, "|", join(map(o -> o == 0 ? '⋅' : '↑', onr(f))), "⟩")
+    if get(io, :compact, false)
+        print(io, "|", join(map(o -> o == 0 ? '⋅' : '↑', onr(f))), "⟩")
+    else
+        print(io, "FermiFS{$N,$M}(", tuple(onr(f)...), ")")
+    end
 end
 
 Base.bitstring(a::FermiFS) = bitstring(a.bs)
