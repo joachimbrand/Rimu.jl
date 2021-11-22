@@ -165,3 +165,6 @@ function Base.show(io::IO, f::FermiFS2C)
         invoke(show, Tuple{typeof(io),CompositeFS}, io, f)
     end
 end
+
+BoseFS2C(fs::CompositeFS{2}) = BoseFS2C(fs.components...)
+CompositeFS(fs::BoseFS2C) = CompositeFS(fs.bsa, fs.bsb)

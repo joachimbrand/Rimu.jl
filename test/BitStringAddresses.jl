@@ -2,6 +2,7 @@ using Rimu
 using Rimu.BitStringAddresses
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
 using Rimu.BitStringAddresses: occupied_modes, update_component
+using Rimu.BitStringAddresses: parse_address
 using Random
 using StaticArrays
 using Test
@@ -274,7 +275,7 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
                     # Check that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(bose))) == bose
                     # Check that compact string can be parsed.
-                    @test parse(BoseFS, sprint(show, bose; context=:compact => true)) == bose
+                    @test parse_address(sprint(show, bose; context=:compact => true)) == bose
 
                     @test onr(reverse(bose)) == reverse(input)
                 end
@@ -337,12 +338,12 @@ end
                     # Check that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(fermi))) == fermi
                     # Check that compact string can be parsed.
-                    @test parse(FermiFS, sprint(show, fermi; context=:compact => true)) == fermi
+                    @test parse_address(sprint(show, fermi; context=:compact => true)) == fermi
 
-                # Check that the result of show can be pasted into the REPL
-                @test eval(Meta.parse(repr(fermi))) == fermi
-                # Check that compact string can be parsed.
-                @test parse(FermiFS, sprint(show, fermi; context=:compact => true)) == fermi
+                    # Check that the result of show can be pasted into the REPL
+                    @test eval(Meta.parse(repr(fermi))) == fermi
+                    # Check that compact string can be parsed.
+                    @test parse_address(sprint(show, fermi; context=:compact => true)) == fermi
                 end
             end
         end
@@ -362,9 +363,7 @@ end
         @test fs1.components[3] == BoseFS((5,0,0,0,0,0))
         @test eval(Meta.parse(repr(fs1))) == fs1
         str = sprint(show, fs1; context=:compact => true)
-        @test parse(AbstractFockAddress, str) == fs1
-        @test parse(CompositeFS{3}, str) == fs1
-        @test_throws ArgumentError parse(CompositeFS{2}, str)
+        @test parse_address(str) == fs1
 
         fs2 = CompositeFS(
             FermiFS((0,1,1,0,0,0)), FermiFS((1,0,1,0,1,0)), BoseFS((1,1,1,1,1,0))
@@ -390,7 +389,12 @@ end
 
 
         fermi = FermiFS2C((0,0,1,1,0,0), (0,1,0,0,1,0))
-        @test parse(FermiFS2C, sprint(show, fermi; context=:compact => true)) == fermi
+        @test parse_address(sprint(show, fermi; context=:compact => true)) == fermi
+
+        @test fs"|↑⋅⇅⋅↓⟩" == CompositeFS(FermiFS((1,0,1,0,0)), FermiFS((0,0,1,0,1)))
+        @test fs"|↑⋅⟩ ⊗ |0 2⟩ ⊗ |2 0⟩" == CompositeFS(
+            FermiFS((1, 0)), BoseFS((0, 2)), BoseFS((2, 0))
+        )
     end
 
     @testset "BoseFS2C" begin
@@ -399,12 +403,15 @@ end
         @test num_components(fs1) == 2
         @test num_particles(fs1) == 11
         @test eval(Meta.parse(repr(fs1))) == fs1
-        @test parse(BoseFS2C, sprint(show, fs1; context=:compact => true)) == fs1
+        @test BoseFS2C(parse_address(sprint(show, fs1; context=:compact => true))) == fs1
         @test onr(fs1) == ([1, 1, 1, 0, 0, 0, 0], [1, 1, 1, 0, 5, 0, 0])
 
         fs2 = BoseFS2C(BoseFS((0,0,0,0,0,0,3)), BoseFS((0,2,1,0,5,0,0)))
         @test fs1 < fs2
 
         @test_throws MethodError BoseFS2C(BoseFS((1,1)), BoseFS((1,1,1)))
+        @test BoseFS2C(CompositeFS(BoseFS((1,2)), BoseFS((3,1)))) == BoseFS2C((1,2), (3,1))
+        @test CompositeFS(BoseFS2C(BoseFS((1,2)), BoseFS((3,1)))) ==
+            CompositeFS(BoseFS((1,2)), BoseFS((3,1)))
     end
 end

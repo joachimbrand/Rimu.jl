@@ -316,11 +316,12 @@ function LinearAlgebra.dot(map1::OccupiedModeMap, map2::OccupiedModeMap)
 end
 
 function parse_address(str)
+    # FermiFS2C
     m = match(r"[↓⇅]", str)
     if !isnothing(m)
         m = match(r"\|([↑↓⇅⋅]+)⟩", str)
         if isnothing(m)
-            return nothing
+            throw(ArgumentError("invalid fock state format \"$str\""))
         else
             chars = Vector{Char}(m.captures[1])
             f1 = FermiFS((chars .== '↑') .| (chars .== '⇅'))
@@ -328,28 +329,24 @@ function parse_address(str)
             return CompositeFS(f1, f2)
         end
     end
+    # CompositeFS
     m = match(r"⊗", str)
     if !isnothing(m)
         return CompositeFS(map(parse_address, split(str, " ⊗ "))...)
     end
+    # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)
     if !isnothing(m)
         return BoseFS(parse.(Int, split(m.captures[1], ' ')))
     end
+    # Single FermiFS
     m = match(r"\|([⋅↑]+)⟩", str)
     if !isnothing(m)
         return FermiFS(Vector{Char}(m.captures[1]) .== '↑')
     end
+    throw(ArgumentError("invalid fock state format \"$str\""))
 end
 
-function Base.parse(::Type{T}, str) where {T<:AbstractFockAddress}
-    add = parse_address(str)
-    if T<:BoseFS2C
-        add = T(add.components[1], add.components[2])
-    end
-    if add isa T
-        return add
-    else
-        throw(ArgumentError("\"$str\" can't be parsed as `$T`"))
-    end
+macro fs_str(str)
+    return parse_address(str)
 end
