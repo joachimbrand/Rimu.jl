@@ -89,9 +89,9 @@ end
     time_reverse(addr)
 Apply the time-reversal operation on a two-component Fock address that flips all the spins.
 
-Currently requires equal particle number in each component.
+Requires each component address to have the same type.
 """
-function time_reverse(c::CompositeFS{2,N,M,T}) where {N,M,T}
+function time_reverse(c::CompositeFS{2,N,M,T}) where {N, M, T <: NTuple{2}}
     return CompositeFS{2,N,M,T}(reverse(c.components))
 end
 
