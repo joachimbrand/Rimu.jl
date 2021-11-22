@@ -95,7 +95,7 @@ end
 
         ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
         TRSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
-        TRSymmetry(HubbardMom1D(BoseFS2C((1,0,1),(0,1,1)))),
+        TRSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
     )
         test_hamiltonian_interface(H)
     end

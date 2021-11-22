@@ -68,10 +68,6 @@ function starting_address(h::TRSymmetry)
     return min(add, time_reverse(add))
 end
 
-function Base.adjoint(h::TRSymmetry)
-    return TRSymmetry(adjoint(h.hamiltonian); even=h.even)
-end
-
 get_offdiagonal(h::TRSymmetry, add, i) = offdiagonals(h, add)[i]
 num_offdiagonals(h::TRSymmetry, add) = num_offdiagonals(h.hamiltonian, add)
 
