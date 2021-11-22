@@ -27,20 +27,6 @@ julia> size(Matrix(TRSymmetry(ham, even=false)))
 
 julia> eigvals(Matrix(TRSymmetry(ham)))[1] ≈ eigvals(Matrix(ham))[1]
 true
-
-julia> ham = BoseHubbardMom1D2C(BoseFS2C((1,0,1),(0,1,1)));
-
-julia> size(Matrix(ham))
-(12, 12)
-
-julia> size(Matrix(TRSymmetry(ham)))
-(7, 7)
-
-julia> size(Matrix(TRSymmetry(ham, even=false)))
-(5, 5)
-
-julia> eigvals(Matrix(TRSymmetry(ham, even=false)))[1] ≈ eigvals(Matrix(ham))[1]
-true
 ```
 """
 struct TRSymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
@@ -48,7 +34,7 @@ struct TRSymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     even::Bool
 end
 
-function TRSymmetry(hamiltonian; odd=false, even=!odd)
+function TRSymmetry(hamiltonian::AbstractHamiltonian; odd=false, even=!odd)
     address = starting_address(hamiltonian)
     check_tr_address(address)
     if !even && address == time_reverse(address)
@@ -57,9 +43,12 @@ function TRSymmetry(hamiltonian; odd=false, even=!odd)
     return TRSymmetry(hamiltonian, even)
 end
 
+function check_tr_address(addr)
+    throw(ArgumentError("Two component address with equal particle numbers and component types required for `TRSymmetry`."))
+end
 function check_tr_address(addr::CompositeFS)
-    if num_components(addr) ≠ 2 || !isequal(num_particles.(addr.components)...)
-        throw(ArgumentError("Two component address with equal particle numbers required for `TRSymmetry`."))
+    if !(addr.components isa NTuple{2})
+        throw(ArgumentError("Two component address with equal particle numbers and component types required for `TRSymmetry`."))
     end
 end
 function check_tr_address(addr::BoseFS2C{NA,NB,M,SA,SB,N}) where {NA,NB,M,SA,SB,N}
@@ -73,7 +62,7 @@ function Base.show(io::IO, h::TRSymmetry)
     print(io, "TRSymmetry(", h.hamiltonian, ", even=", h.even, ")")
 end
 
-LOStructure(h::TRSymmetry) = LOStructure(h.hamiltonian)
+LOStructure(h::TRSymmetry) = AdjointUnknown()
 function starting_address(h::TRSymmetry)
     add = starting_address(h.hamiltonian)
     return min(add, time_reverse(add))
