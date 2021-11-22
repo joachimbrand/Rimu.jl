@@ -229,7 +229,8 @@ end
 ###
 function Base.summary(io::IO, dvec::InitiatorDVec{K,V}) where {K,V}
     len = length(dvec)
-    print(io, "InitiatorDVec{$K,$V} with $len entries, style = $(dvec.style), initiator = $(dvec.initiator)")
+    entries = length(dvec) == 1 ? "enrty" : "entries"
+    print(io, "InitiatorDVec{$K,$V} with $len $entries, style = $(dvec.style), initiator = $(dvec.initiator)")
 end
 
 ###

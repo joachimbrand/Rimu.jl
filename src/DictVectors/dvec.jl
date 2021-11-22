@@ -93,7 +93,8 @@ end
 ###
 function Base.summary(io::IO, dvec::DVec{K,V,S}) where {K,V,S}
     len = length(dvec)
-    print(io, "DVec{$K,$V} with $len entries, style = $(dvec.style)")
+    entries = length(dvec) == 1 ? "enrty" : "entries"
+    print(io, "DVec{$K,$V} with $len $entries, style = $(dvec.style)")
 end
 
 ###
