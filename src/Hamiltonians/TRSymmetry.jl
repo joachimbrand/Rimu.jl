@@ -6,7 +6,7 @@ the keyword argument `even`.
 
 # Notes
 
-* This modifier only works two component [`starting_address`](@ref)s.
+* This modifier only works two component [`starting_address`](@ref)es.
 * For odd time reversal symmetry, the [`starting_address`](@ref) of the underlying
   Hamiltonian must not be symmetric.
 * If time reversal symmetry is not a symmetry of the Hamiltonian `ham` then the result is
