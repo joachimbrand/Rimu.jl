@@ -80,6 +80,7 @@ include("BoseHubbardMom1D2C.jl")
 include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
 include("ParitySymmetry.jl")
+include("TRSymmetry.jl")
 
 include("Transcorrelated1D.jl")
 
