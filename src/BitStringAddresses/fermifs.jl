@@ -49,7 +49,7 @@ function FermiFS(onr::Union{AbstractVector,Tuple})
     return FermiFS{N,M}(onr)
 end
 
-function Base.show(io::IO, f::FermiFS{N,M}) where {N,M}
+function print_address(io::IO, f::FermiFS{N,M}) where {N,M}
     if get(io, :compact, false)
         print(io, "|", join(map(o -> o == 0 ? '⋅' : '↑', onr(f))), "⟩")
     else

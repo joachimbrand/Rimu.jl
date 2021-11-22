@@ -98,7 +98,7 @@ function BoseFS(onr::Union{AbstractVector,Tuple})
     return BoseFS{N,M}(onr)
 end
 
-function Base.show(io::IO, b::BoseFS{N,M}) where {N,M}
+function print_address(io::IO, b::BoseFS{N,M}) where {N,M}
     if get(io, :compact, false)
         print(io, "|", join(onr(b), ' '), "⟩")
     else

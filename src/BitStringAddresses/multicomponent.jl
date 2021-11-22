@@ -19,17 +19,13 @@ function BoseFS2C(bsa::BoseFS{NA,M,SA}, bsb::BoseFS{NB,M,SB}) where {NA,NB,M,SA,
 end
 BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
 
-function Base.show(io::IO, b::BoseFS2C)
+function print_address(io::IO, b::BoseFS2C)
     if get(io, :compact, false)
-        print(io, b.bsa)
+        print_address(io, b.bsa)
         print(io, " ⊗ ")
-        print(io, b.bsb)
+        print_address(io, b.bsb)
     else
-        print(io, "BoseFS2C(")
-        show(io, MIME"text/plain"(), b.bsa)
-        print(io, ",")
-        show(io, MIME"text/plain"(), b.bsb)
-        print(io, ")")
+        print(io, "BoseFS2C(", b.bsa, ", ", b.bsb, ")")
     end
 end
 
@@ -67,7 +63,7 @@ struct CompositeFS{C,N,M,T} <: AbstractFockAddress{N,M}
 end
 
 # Slow constructor - not to be used internallly
-function CompositeFS(adds::Vararg{AbstractFockAddress}) # CompositeFS(adds)
+function CompositeFS(adds::Vararg{SingleComponentFockAddress})
     N = sum(num_particles, adds)
     M1, M2 = extrema(num_modes, adds)
     if M1 ≠ M2
@@ -79,17 +75,17 @@ end
 num_components(::CompositeFS{C}) where {C} = C
 Base.hash(c::CompositeFS, u::UInt) = hash(c.components, u)
 
-function Base.show(io::IO, c::CompositeFS{C}) where {C}
+function print_address(io::IO, c::CompositeFS{C}) where {C}
     if get(io, :compact, false)
         for add in c.components[1:end-1]
-            print(IOContext(io, :compact => true), add)
+            print_address(io, add)
             print(io, " ⊗ ")
         end
-        print(IOContext(io, :compact => true), c.components[end])
+        print_address(io, c.components[end])
     else
         println(io, "CompositeFS(")
         for add in c.components
-            println(io, "  $add,")
+            println(io, "  ", add, ",")
         end
         print(io, ")")
     end
@@ -154,7 +150,7 @@ const FermiFS2C{N1,N2,M,N,F1,F2} =
 FermiFS2C(f1::FermiFS{<:Any,M}, f2::FermiFS{<:Any,M}) where {M} = CompositeFS(f1, f2)
 FermiFS2C(onr_a, onr_b) = FermiFS2C(FermiFS(onr_a), FermiFS(onr_b))
 
-function Base.show(io::IO, f::FermiFS2C)
+function print_address(io::IO, f::FermiFS2C)
     if get(io, :compact, false)
         o1, o2 = onr(f)
         str = join(
@@ -162,7 +158,8 @@ function Base.show(io::IO, f::FermiFS2C)
         )
         print(io, "|", str, "⟩")
     else
-        invoke(show, Tuple{typeof(io),CompositeFS}, io, f)
+        # Show as normal CompositeFS
+        invoke(print_address, Tuple{typeof(io),CompositeFS}, io, f)
     end
 end
 

@@ -10,7 +10,7 @@ function Base.show(io::IO, dvec::AbstractDVec)
             print(io, "\n  ⋮   => ⋮")
             break
         else
-            println(io, "  ")
+            print(io, "\n  ")
             show(IOContext(io, :compact => true), p[1])
             print(io, " => ")
             show(IOContext(io, :compact => true), p[2])
