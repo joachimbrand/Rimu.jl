@@ -94,6 +94,8 @@ end
         HubbardMom1DEP(CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((0,0,1,0,0))), v_ho=5),
 
         ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
+        TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
+        TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
     )
         test_hamiltonian_interface(H)
     end
@@ -840,6 +842,43 @@ end
 
         @test ham_m == even_m
     end
+end
+
+@testset "TimeReversalSymmetry" begin
+    @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(BoseFS((1, 1))))
+    @test_throws ArgumentError TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((1, 1),(2,1))))
+    @test_throws ArgumentError begin
+        TimeReversalSymmetry(HubbardRealSpace(CompositeFS(FermiFS((1, 1)),BoseFS((2,1)))))
+    end
+    @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)));odd=true)
+
+    @testset "HubbardMom1D" begin
+        ham = HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))
+        even = TimeReversalSymmetry(ham; odd=false)
+        odd = TimeReversalSymmetry(ham; even=false)
+
+        ham_m = Matrix(ham)
+        even_m = Matrix(even)
+        odd_m = Matrix(odd)
+
+        @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+    end
+    @testset "2-particle BoseHubbardMom1D2C" begin
+        ham = BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))
+        even = TimeReversalSymmetry(ham)
+        odd = TimeReversalSymmetry(ham; even=false)
+
+        h_eigs = eigvals(Matrix(ham))
+        p_eigs = sort!(vcat(eigvals(Matrix(even)), eigvals(Matrix(odd))))
+
+        @test starting_address(even) == time_reverse(starting_address(ham))
+        @test h_eigs ≈ p_eigs
+
+        @test ishermitian(Matrix(odd))
+        @test ishermitian(Matrix(even)) == false
+        @test LOStructure(odd) isa AdjointUnknown
+    end
+
 end
 
 @testset "BasisSetRep" begin

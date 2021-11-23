@@ -36,6 +36,10 @@ function near_uniform(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return BoseFS2C(near_uniform(BoseFS{NA,M}), near_uniform(BoseFS{NB,M}))
 end
 
+function time_reverse(c::BoseFS2C{NA,NA,M,S,S,N}) where {NA,M,S,N}
+    return  BoseFS2C{NA,NA,M,S,S,N}(c.bsb, c.bsa)
+end
+
 """
     CompositeFS(addresses::SingleComponentFockAddress...) <: AbstractFockAddress
 
@@ -79,6 +83,16 @@ end
 
 function Base.reverse(c::CompositeFS)
     typeof(c)(map(reverse, c.components))
+end
+
+"""
+    time_reverse(addr)
+Apply the time-reversal operation on a two-component Fock address that flips all the spins.
+
+Requires each component address to have the same type.
+"""
+function time_reverse(c::CompositeFS{2,N,M,T}) where {N, M, T <: NTuple{2}}
+    return CompositeFS{2,N,M,T}(reverse(c.components))
 end
 
 """
