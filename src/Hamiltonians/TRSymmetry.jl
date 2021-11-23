@@ -1,5 +1,5 @@
 """
-    TRSymmetry(ham::AbstractHamiltonian{T}; even=true) <: AbstractHamiltonian{T}
+    TimeReversalSymmetry(ham::AbstractHamiltonian{T}; even=true) <: AbstractHamiltonian{T}
 
 Impose even or odd time reversal on all states and the Hamiltonian `ham` as controlled by
 the keyword argument `even`.
@@ -11,7 +11,7 @@ the keyword argument `even`.
   Hamiltonian must not be symmetric.
 * If time reversal symmetry is not a symmetry of the Hamiltonian `ham` then the result is
   undefined.
-* `TRSymmetry` works by modifying the [`offdiagonals`](@ref) iterator.
+* `TimeReversalSymmetry` works by modifying the [`offdiagonals`](@ref) iterator.
 
 ```jldoctest
 julia> ham = HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)));
@@ -19,57 +19,57 @@ julia> ham = HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)));
 julia> size(Matrix(ham))
 (3, 3)
 
-julia> size(Matrix(TRSymmetry(ham)))
+julia> size(Matrix(TimeReversalSymmetry(ham)))
 (2, 2)
 
-julia> size(Matrix(TRSymmetry(ham, even=false)))
+julia> size(Matrix(TimeReversalSymmetry(ham, even=false)))
 (1, 1)
 
-julia> eigvals(Matrix(TRSymmetry(ham)))[1] ≈ eigvals(Matrix(ham))[1]
+julia> eigvals(Matrix(TimeReversalSymmetry(ham)))[1] ≈ eigvals(Matrix(ham))[1]
 true
 ```
 """
-struct TRSymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
+struct TimeReversalSymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     hamiltonian::H
     even::Bool
 end
 
-function TRSymmetry(hamiltonian::AbstractHamiltonian; odd=false, even=!odd)
+function TimeReversalSymmetry(hamiltonian::AbstractHamiltonian; odd=false, even=!odd)
     address = starting_address(hamiltonian)
     check_tr_address(address)
     if !even && address == time_reverse(address)
-        throw(ArgumentError("Even starting address can't be used with odd `TRSymmetry`"))
+        throw(ArgumentError("Even starting address can't be used with odd `TimeReversalSymmetry`"))
     end
-    return TRSymmetry(hamiltonian, even)
+    return TimeReversalSymmetry(hamiltonian, even)
 end
 
 function check_tr_address(addr)
-    throw(ArgumentError("Two component address with equal particle numbers and component types required for `TRSymmetry`."))
+    throw(ArgumentError("Two component address with equal particle numbers and component types required for `TimeReversalSymmetry`."))
 end
 function check_tr_address(addr::CompositeFS)
     if !(addr.components isa NTuple{2})
-        throw(ArgumentError("Two component address with equal particle numbers and component types required for `TRSymmetry`."))
+        throw(ArgumentError("Two component address with equal particle numbers and component types required for `TimeReversalSymmetry`."))
     end
 end
 function check_tr_address(addr::BoseFS2C{NA,NB,M,SA,SB,N}) where {NA,NB,M,SA,SB,N}
     if NA ≠ NB || SA ≠ SB
-        throw(ArgumentError("Two component address with equal particle numbers required for `TRSymmetry`."))
+        throw(ArgumentError("Two component address with equal particle numbers required for `TimeReversalSymmetry`."))
     end
 end
 
 
-function Base.show(io::IO, h::TRSymmetry)
-    print(io, "TRSymmetry(", h.hamiltonian, ", even=", h.even, ")")
+function Base.show(io::IO, h::TimeReversalSymmetry)
+    print(io, "TimeReversalSymmetry(", h.hamiltonian, ", even=", h.even, ")")
 end
 
-LOStructure(h::TRSymmetry) = AdjointUnknown()
-function starting_address(h::TRSymmetry)
+LOStructure(h::TimeReversalSymmetry) = AdjointUnknown()
+function starting_address(h::TimeReversalSymmetry)
     add = starting_address(h.hamiltonian)
     return min(add, time_reverse(add))
 end
 
-get_offdiagonal(h::TRSymmetry, add, i) = offdiagonals(h, add)[i]
-num_offdiagonals(h::TRSymmetry, add) = num_offdiagonals(h.hamiltonian, add)
+get_offdiagonal(h::TimeReversalSymmetry, add, i) = offdiagonals(h, add)[i]
+num_offdiagonals(h::TimeReversalSymmetry, add) = num_offdiagonals(h.hamiltonian, add)
 
 struct TRSymmetryOffdiagonals{
     A,T,O<:AbstractVector{Tuple{A,T}}
@@ -79,7 +79,7 @@ struct TRSymmetryOffdiagonals{
 end
 Base.size(o::TRSymmetryOffdiagonals) = size(o.od)
 
-function offdiagonals(h::TRSymmetry, add)
+function offdiagonals(h::TimeReversalSymmetry, add)
     return TRSymmetryOffdiagonals(offdiagonals(h.hamiltonian, add), h.even)
 end
 
@@ -94,6 +94,6 @@ function Base.getindex(o::TRSymmetryOffdiagonals, i)
     end
     return left_add, val
 end
-function diagonal_element(h::TRSymmetry, add)
+function diagonal_element(h::TimeReversalSymmetry, add)
     return diagonal_element(h.hamiltonian, add)
 end

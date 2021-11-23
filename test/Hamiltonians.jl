@@ -94,8 +94,8 @@ end
         HubbardMom1DEP(CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((0,0,1,0,0))), v_ho=5),
 
         ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
-        TRSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
-        TRSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
+        TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
+        TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
     )
         test_hamiltonian_interface(H)
     end
@@ -844,18 +844,18 @@ end
     end
 end
 
-@testset "TRSymmetry" begin
-    @test_throws ArgumentError TRSymmetry(HubbardMom1D(BoseFS((1, 1))))
-    @test_throws ArgumentError TRSymmetry(BoseHubbardMom1D2C(BoseFS2C((1, 1),(2,1))))
+@testset "TimeReversalSymmetry" begin
+    @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(BoseFS((1, 1))))
+    @test_throws ArgumentError TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((1, 1),(2,1))))
     @test_throws ArgumentError begin
-        TRSymmetry(HubbardRealSpace(CompositeFS(FermiFS((1, 1)),BoseFS((2,1)))))
+        TimeReversalSymmetry(HubbardRealSpace(CompositeFS(FermiFS((1, 1)),BoseFS((2,1)))))
     end
-    @test_throws ArgumentError TRSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)));odd=true)
+    @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)));odd=true)
 
     @testset "HubbardMom1D" begin
         ham = HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))
-        even = TRSymmetry(ham; odd=false)
-        odd = TRSymmetry(ham; even=false)
+        even = TimeReversalSymmetry(ham; odd=false)
+        odd = TimeReversalSymmetry(ham; even=false)
 
         ham_m = Matrix(ham)
         even_m = Matrix(even)
@@ -865,8 +865,8 @@ end
     end
     @testset "2-particle BoseHubbardMom1D2C" begin
         ham = BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))
-        even = TRSymmetry(ham)
-        odd = TRSymmetry(ham; even=false)
+        even = TimeReversalSymmetry(ham)
+        odd = TimeReversalSymmetry(ham; even=false)
 
         h_eigs = eigvals(Matrix(ham))
         p_eigs = sort!(vcat(eigvals(Matrix(even)), eigvals(Matrix(odd))))

@@ -48,7 +48,7 @@ export HubbardMom1DEP
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 export ParitySymmetry
-export TRSymmetry
+export TimeReversalSymmetry
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
 
