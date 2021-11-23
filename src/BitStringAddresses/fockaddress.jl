@@ -373,6 +373,16 @@ macro fs_str(str)
     return parse_address(str)
 end
 
+"""
+    print_address(io::IO, address)
+
+Print the `address` to `io`. If `get(io, :compact, false) == true`, the printed form should
+be parsable by [`parse_address`](@ref).
+
+This function is used to implement `Base.show` for [`AbstractFockAddress`](@ref).
+"""
+print_address
+
 function Base.show(io::IO, add::AbstractFockAddress)
     if get(io, :compact, false)
         print(io, "fs\"")
