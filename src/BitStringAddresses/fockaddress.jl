@@ -321,6 +321,15 @@ end
 Parse the compact representation of a fock state address.
 """
 function parse_address(str)
+    # CompositeFS
+    m = match(r"⊗", str)
+    if !isnothing(m)
+        if !isnothing(match(r"[↓⇅]", str))
+            throw(ArgumentError("invalid fock state format \"$str\""))
+        else
+            return CompositeFS(map(parse_address, split(str, " ⊗ "))...)
+        end
+    end
     # FermiFS2C
     m = match(r"[↓⇅]", str)
     if !isnothing(m)
@@ -333,11 +342,6 @@ function parse_address(str)
             f2 = FermiFS((chars .== '↓') .| (chars .== '⇅'))
             return CompositeFS(f1, f2)
         end
-    end
-    # CompositeFS
-    m = match(r"⊗", str)
-    if !isnothing(m)
-        return CompositeFS(map(parse_address, split(str, " ⊗ "))...)
     end
     # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)

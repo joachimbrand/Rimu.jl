@@ -395,6 +395,8 @@ end
         @test fs"|↑⋅⟩ ⊗ |0 2⟩ ⊗ |2 0⟩" == CompositeFS(
             FermiFS((1, 0)), BoseFS((0, 2)), BoseFS((2, 0))
         )
+        @test_throws ArgumentError parse_address("|2 3⟩ ⊗ |↓↑⟩")
+        @test_throws ArgumentError parse_address("|⋅↓⟩ ⊗ |2 3⟩")
     end
 
     @testset "BoseFS2C" begin
