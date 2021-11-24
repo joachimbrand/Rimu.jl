@@ -32,7 +32,7 @@ The capacity argument is optional and sets the initial size of the `DVec` via `s
 
 ```jldoctest
 julia> dv = DVec(:a => 1)
-DVec{Symbol,Int64} with 1 enrty, style = IsStochasticInteger{Int64}()
+DVec{Symbol,Int64} with 1 entry, style = IsStochasticInteger{Int64}()
   :a => 1
 
 julia> dv = DVec(:a => 2, :b => 3; style=IsDeterministic())
@@ -93,7 +93,7 @@ end
 ###
 function Base.summary(io::IO, dvec::DVec{K,V,S}) where {K,V,S}
     len = length(dvec)
-    entries = length(dvec) == 1 ? "enrty" : "entries"
+    entries = length(dvec) == 1 ? "entry" : "entries"
     print(io, "DVec{$K,$V} with $len $entries, style = $(dvec.style)")
 end
 
