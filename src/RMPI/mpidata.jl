@@ -43,7 +43,8 @@ function Base.summary(io::IO, md::MPIData)
     len = length(md)
     style = StochasticStyle(md)
     strat = nameof(typeof(md.s))
-    print(io, "MPIData($data) with $len entries, style = $style, strategy = $strat")
+    entries = length(md) == 1 ? "entry" : "entries"
+    print(io, "MPIData($data) with $len $entries, style = $style, strategy = $strat")
 end
 function Base.show(io::IO, md::MPIData)
     summary(io, md)

@@ -314,3 +314,85 @@ function LinearAlgebra.dot(map1::OccupiedModeMap, map2::OccupiedModeMap)
     end
     return value
 end
+
+"""
+    parse_address(str)
+
+Parse the compact representation of a Fock state address.
+"""
+function parse_address(str)
+    # CompositeFS
+    m = match(r"⊗", str)
+    if !isnothing(m)
+        if !isnothing(match(r"[↓⇅]", str))
+            throw(ArgumentError("invalid fock state format \"$str\""))
+        else
+            return CompositeFS(map(parse_address, split(str, " ⊗ "))...)
+        end
+    end
+    # FermiFS2C
+    m = match(r"[↓⇅]", str)
+    if !isnothing(m)
+        m = match(r"\|([↑↓⇅⋅]+)⟩", str)
+        if isnothing(m)
+            throw(ArgumentError("invalid fock state format \"$str\""))
+        else
+            chars = Vector{Char}(m.captures[1])
+            f1 = FermiFS((chars .== '↑') .| (chars .== '⇅'))
+            f2 = FermiFS((chars .== '↓') .| (chars .== '⇅'))
+            return CompositeFS(f1, f2)
+        end
+    end
+    # BoseFS
+    m = match(r"\|([ 0-9]+)⟩", str)
+    if !isnothing(m)
+        return BoseFS(parse.(Int, split(m.captures[1], ' ')))
+    end
+    # Single FermiFS
+    m = match(r"\|([⋅↑]+)⟩", str)
+    if !isnothing(m)
+        return FermiFS(Vector{Char}(m.captures[1]) .== '↑')
+    end
+    throw(ArgumentError("invalid fock state format \"$str\""))
+end
+
+"""
+    fs"\$(string)"
+
+Parse the compact representation of a Fock state.
+Useful for copying the printout from a vector to the REPL.
+
+# Example
+
+```
+julia> DVec(BoseFS{3,4}((0, 1, 2, 0)) => 1)
+DVec{BoseFS{3, 4, BitString{6, 1, UInt8}},Int64} with 1 enrty, style = IsStochasticInteger{Int64}()
+  fs"|0 1 2 0⟩" => 1
+
+julia> fs"|0 1 2 0⟩" => 1 # Copied from above printout
+BoseFS{3,4}((0, 1, 2, 0)) => 1
+```
+"""
+macro fs_str(str)
+    return parse_address(str)
+end
+
+"""
+    print_address(io::IO, address)
+
+Print the `address` to `io`. If `get(io, :compact, false) == true`, the printed form should
+be parsable by [`parse_address`](@ref).
+
+This function is used to implement `Base.show` for [`AbstractFockAddress`](@ref).
+"""
+print_address
+
+function Base.show(io::IO, add::AbstractFockAddress)
+    if get(io, :compact, false)
+        print(io, "fs\"")
+        print_address(io, add)
+        print(io, "\"")
+    else
+        print_address(io, add)
+    end
+end
