@@ -318,7 +318,7 @@ end
 """
     parse_address(str)
 
-Parse the compact representation of a fock state address.
+Parse the compact representation of a Fock state address.
 """
 function parse_address(str)
     # CompositeFS
@@ -359,7 +359,7 @@ end
 """
     fs"\$(string)"
 
-Parse the compact representation of a fock state.
+Parse the compact representation of a Fock state.
 Useful for copying the printout from a vector to the REPL.
 
 # Example
