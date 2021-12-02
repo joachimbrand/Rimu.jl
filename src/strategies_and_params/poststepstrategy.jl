@@ -190,7 +190,7 @@ post_step(::Timer, _) = (:time => time(),)
 """
     SingleParticleDensity(save_every=1; component)
 
-At each step, compute the diagonal single particle density. It records a `SVector` with the
+At each step, compute the diagonal single particle density. It records a `Tuple` with the
 same `eltype` as the vector.
 
 Computing the density at every step can be expensive. This cost can be reduced by setting
@@ -222,7 +222,7 @@ function post_step(d::SingleParticleDensity, replica)
     else
         V = valtype(vector)
         M = num_modes(keytype(vector))
-        return (name => zeros(SVector{M,V}),)
+        return (name => ntuple(_ -> zero(V), Val(M)),)
     end
 end
 
@@ -244,12 +244,12 @@ function single_particle_density(dvec; component=0, normalize=true)
         +, pairs(dvec);
         init=MultiScalar(ntuple(_ -> zero(V), Val(M)))
     ) do (k, v)
-        MultiScalar(v^2 * single_particle_density(k, component))
+        MultiScalar(v^2 .* single_particle_density(k, component))
     end
     if normalize
-        return SVector(result.tuple) / norm(dvec)^2
+        return result.tuple ./ norm(dvec)^2
     else
-        return SVector(result.tuple)
+        return result.tuple
     end
 end
 
@@ -258,8 +258,8 @@ function single_particle_density(add::SingleComponentFockAddress, component=0)
 end
 function single_particle_density(add::Union{CompositeFS,BoseFS2C}, component=0)
     if component == 0
-        return sum(onr(add))
+        return Tuple(sum(onr(add)))
     else
-        return onr(add)[component]
+        return Tuple(onr(add)[component])
     end
 end
