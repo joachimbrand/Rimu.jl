@@ -186,3 +186,80 @@ is recorded.
 struct Timer <: PostStepStrategy end
 
 post_step(::Timer, _) = (:time => time(),)
+
+"""
+    SingleParticleDensity(save_every=1; component)
+
+At each step, compute the diagonal single particle density. It records a `SVector` with the
+same `eltype` as the vector.
+
+Computing the density at every step can be expensive. This cost can be reduced by setting
+the `save_every` argument to a higher value. If the value is set, a vector of zeros is
+recorded when the saving is skipped.
+
+If the address type has multiple components, the `component` argument can be used to compute
+the density on a per-component basis.
+
+The density is not normalized, and must be divided by the vector norm squared.
+"""
+struct SingleParticleDensity <: PostStepStrategy
+    save_every::Int
+    component::Int
+
+    SingleParticleDensity(save_every=1; component=0) = new(save_every, component)
+end
+
+function post_step(d::SingleParticleDensity, replica)
+    component = d.component
+    if component == 0
+        name = :single_particle_density
+    else
+        name = Symbol("single_particle_density_", component)
+    end
+    vector = replica.v
+    if replica.params.step % d.save_every == 0
+        return (name => single_particle_density(vector; component, normalize=false),)
+    else
+        V = valtype(vector)
+        M = num_modes(keytype(vector))
+        return (name => zeros(SVector{M,V}),)
+    end
+end
+
+"""
+    single_particle_density(dvec; component, normalize=true)
+    single_particle_density(add; component)
+
+Compute the diagonal single particle density of vector `dvec` or address `add`. If the
+`component` argument is given, only that component of the addresses is taken into
+account. For vectors, the `normalize` argument divides the density vector by the norm of the
+vector squared, so that `sum(result) ≈ num_particles(address)`.
+"""
+function single_particle_density(dvec; component=0, normalize=true)
+    K = keytype(dvec)
+    V = valtype(dvec)
+    M = num_modes(K)
+
+    result = mapreduce(
+        +, pairs(dvec);
+        init=MultiScalar(ntuple(_ -> zero(V), Val(M)))
+    ) do (k, v)
+        MultiScalar(v^2 * single_particle_density(k, component))
+    end
+    if normalize
+        return SVector(result.tuple) / norm(dvec)^2
+    else
+        return SVector(result.tuple)
+    end
+end
+
+function single_particle_density(add::SingleComponentFockAddress, component=0)
+    return onr(add)
+end
+function single_particle_density(add::Union{CompositeFS,BoseFS2C}, component=0)
+    if component == 0
+        return sum(onr(add))
+    else
+        return onr(add)[component]
+    end
+end
