@@ -254,7 +254,7 @@ function single_particle_density(dvec; component=0, normalize=true)
 end
 
 function single_particle_density(add::SingleComponentFockAddress, component=0)
-    return onr(add)
+    return Tuple(onr(add))
 end
 function single_particle_density(add::Union{CompositeFS,BoseFS2C}, component=0)
     if component == 0
