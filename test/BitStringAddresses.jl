@@ -2,6 +2,7 @@ using Rimu
 using Rimu.BitStringAddresses
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
 using Rimu.BitStringAddresses: occupied_modes, update_component
+using Rimu.BitStringAddresses: parse_address
 using Random
 using StaticArrays
 using Test
@@ -160,6 +161,7 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
             SVector(UInt64(0), UInt64(0), UInt64(255), ~UInt64(0), ~UInt64(0))
         )
     )
+
     @testset "onr" begin
         middle_full_onr = onr(middle_full)
         @test length(middle_full_onr) == 100
@@ -270,8 +272,10 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
                     check_double_excitations(bose, 8)
                     check_triple_excitations(bose, 4)
 
-                    # This test checks that the result of show can be pasted into the REPL
+                    # Check that the result of show can be pasted into the REPL
                     @test eval(Meta.parse(repr(bose))) == bose
+                    # Check that compact string can be parsed.
+                    @test parse_address(sprint(show, bose; context=:compact => true)) == bose
 
                     @test onr(reverse(bose)) == reverse(input)
                 end
@@ -286,6 +290,7 @@ end
     giant = [rand() < 0.1 for _ in 1:200]
     giant_sparse = [1; 1; zeros(Int, 100); 1]
     giant_dense = [1; 0; ones(Int, 50); 0; 1; 1]
+
     @testset "onr, constructors" begin
         for o in (small, big, giant, giant_sparse, giant_dense)
             f = FermiFS(o)
@@ -329,6 +334,16 @@ end
                     @test sites == findall(≠(0), onr(f))
 
                     @test onr(reverse(fermi)) == reverse(input)
+
+                    # Check that the result of show can be pasted into the REPL
+                    @test eval(Meta.parse(repr(fermi))) == fermi
+                    # Check that compact string can be parsed.
+                    @test parse_address(sprint(show, fermi; context=:compact => true)) == fermi
+
+                    # Check that the result of show can be pasted into the REPL
+                    @test eval(Meta.parse(repr(fermi))) == fermi
+                    # Check that compact string can be parsed.
+                    @test parse_address(sprint(show, fermi; context=:compact => true)) == fermi
                 end
             end
         end
@@ -347,6 +362,8 @@ end
         @test fs1.components[2] == FermiFS((1,1,1,0,0,0))
         @test fs1.components[3] == BoseFS((5,0,0,0,0,0))
         @test eval(Meta.parse(repr(fs1))) == fs1
+        str = sprint(show, fs1; context=:compact => true)
+        @test parse_address(str) == fs1
 
         fs2 = CompositeFS(
             FermiFS((0,1,1,0,0,0)), FermiFS((1,0,1,0,1,0)), BoseFS((1,1,1,1,1,0))
@@ -369,6 +386,17 @@ end
         @test onr(fs3, LadderBoundaries(2, 3)) == (
             [1 0 0; 1 0 0], [0 1 1; 0 1 0], [5 0 0; 0 0 0]
         )
+
+
+        fermi = FermiFS2C((0,0,1,1,0,0), (0,1,0,0,1,0))
+        @test parse_address(sprint(show, fermi; context=:compact => true)) == fermi
+
+        @test fs"|↑⋅⇅⋅↓⟩" == CompositeFS(FermiFS((1,0,1,0,0)), FermiFS((0,0,1,0,1)))
+        @test fs"|↑⋅⟩ ⊗ |0 2⟩ ⊗ |2 0⟩" == CompositeFS(
+            FermiFS((1, 0)), BoseFS((0, 2)), BoseFS((2, 0))
+        )
+        @test_throws ArgumentError parse_address("|2 3⟩ ⊗ |↓↑⟩")
+        @test_throws ArgumentError parse_address("|⋅↓⟩ ⊗ |2 3⟩")
     end
 
     @testset "BoseFS2C" begin
@@ -377,11 +405,15 @@ end
         @test num_components(fs1) == 2
         @test num_particles(fs1) == 11
         @test eval(Meta.parse(repr(fs1))) == fs1
+        @test BoseFS2C(parse_address(sprint(show, fs1; context=:compact => true))) == fs1
         @test onr(fs1) == ([1, 1, 1, 0, 0, 0, 0], [1, 1, 1, 0, 5, 0, 0])
 
         fs2 = BoseFS2C(BoseFS((0,0,0,0,0,0,3)), BoseFS((0,2,1,0,5,0,0)))
         @test fs1 < fs2
 
         @test_throws MethodError BoseFS2C(BoseFS((1,1)), BoseFS((1,1,1)))
+        @test BoseFS2C(CompositeFS(BoseFS((1,2)), BoseFS((3,1)))) == BoseFS2C((1,2), (3,1))
+        @test CompositeFS(BoseFS2C(BoseFS((1,2)), BoseFS((3,1)))) ==
+            CompositeFS(BoseFS((1,2)), BoseFS((3,1)))
     end
 end
