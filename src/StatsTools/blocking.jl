@@ -23,8 +23,8 @@ Has methods for [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`e
 ```jldoctest; setup = :(Random.seed!(1234))
 julia> blocking_analysis(smoothen(randn(2^10), 2^5))
 BlockingResult{Float64}
-  mean = -0.025 ± 0.025
-  with uncertainty of ± 0.00311966837382259
+  mean = -0.026 ± 0.029
+  with uncertainty of ± 0.003638545517264226
   from 32 blocks after 5 transformations (k = 6).
 ```
 """
