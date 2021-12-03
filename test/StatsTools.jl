@@ -30,7 +30,7 @@ end
 
 using Rimu.StatsTools: blocker
 @testset "blocking" begin
-    Random.seed!(17) # make sure we don't trip over rare fluctuations
+    Random.seed!(13) # make sure we don't trip over rare fluctuations
     # real
     v = randn(2^10)
     br = blocking_analysis(v)
