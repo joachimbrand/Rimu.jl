@@ -1,3 +1,19 @@
+"""
+    DensityMatrixDiagonal(;mode, component=1)
+
+Compute the diagonal of the density matrix:
+
+```math
+\\hat{ρ}_d = \\hat{n}_i,σ
+```
+
+where ``i`` is the `mode` and ``σ`` is the `component`.
+
+# See also
+
+* [`single_particle_density`](@ref)
+* [`SingleParticleDensity`](@ref)
+"""
 struct DensityMatrixDiagonal{C} <: AbstractHamiltonian{Float64}
     mode::Int
 end
