@@ -253,7 +253,7 @@ end
 
 function Base.show(io::IO, b::BasisSetRep)
     print(io, "BasisSetRep($(b.h)) with dimension $(dimension(b)) and $(nnz(b.sm)) stored entries:")
-    show(io, MIME"text/plain", b.sm)
+    show(io, MIME"text/plain"(), b.sm)
 end
 
 starting_address(bsr::BasisSetRep) = bsr.basis[1]
