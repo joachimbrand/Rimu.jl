@@ -208,7 +208,7 @@ Providing the number `nnzs` of expected calculated matrix elements may improve p
 julia> h = HubbardReal1D(BoseFS((1,0,0)));
 
 julia> bsr = BasisSetRep(h)
-BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:
+BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
@@ -253,7 +253,7 @@ end
 
 function Base.show(io::IO, b::BasisSetRep)
     print(io, "BasisSetRep($(b.h)) with dimension $(dimension(b)) and $(nnz(b.sm)) stored entries:")
-    show(io, b.sm)
+    show(io, MIME"text/plain"(), b.sm)
 end
 
 starting_address(bsr::BasisSetRep) = bsr.basis[1]

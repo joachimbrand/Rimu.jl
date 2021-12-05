@@ -21,7 +21,7 @@ jobs:
     #   ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     strategy:
       matrix:
-        julia-version: [1.6]
+        julia-version: [1.7]
         # julia-arch: [x64, x86]
         julia-arch: [x64]
         # os: [ubuntu-latest, windows-latest, macOS-latest]
