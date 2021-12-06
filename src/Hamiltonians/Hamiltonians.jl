@@ -52,7 +52,7 @@ export TimeReversalSymmetry
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
 
-export G2Correlator, DensityMatrixDiagonal
+export G2Correlator, DensityMatrixDiagonal, MomentumExpectation
 
 export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export num_neighbours, neighbour_site
@@ -86,5 +86,6 @@ include("Transcorrelated1D.jl")
 
 include("TwoBodyCorrelation.jl")
 include("DensityMatrixDiagonal.jl")
+include("MomentumExpectation.jl")
 
 end
