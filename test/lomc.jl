@@ -365,7 +365,18 @@ using Statistics
             @test df.time[end] < time_after
             @test issorted(df.time)
         end
+
+        @testset "SingleParticleDensity" begin
+            post_step = (
+                SingleParticleDensity(save_every=2),
+            )
+            df, st = lomc!(H, copy(dv); post_step)
+            @test all(==(ntuple(_ -> 0, num_modes(add))), df.single_particle_density[1:2:end])
+            @warn "TODO"
+            @test_broken sum.(df.single_particle_density[2:2:end]) == 3
+        end
     end
+
 
     # only test threading if more than one thread is available
     Threads.nthreads() > 1 && @testset "Threading" begin
