@@ -188,7 +188,7 @@ struct Timer <: PostStepStrategy end
 post_step(::Timer, _) = (:time => time(),)
 
 """
-    SingleParticleDensity(save_every=1; component)
+    SingleParticleDensity(; save_every=1, component)
 
 At each step, compute the diagonal single particle density. It records a `Tuple` with the
 same `eltype` as the vector.
@@ -206,7 +206,7 @@ struct SingleParticleDensity <: PostStepStrategy
     save_every::Int
     component::Int
 
-    SingleParticleDensity(save_every=1; component=0) = new(save_every, component)
+    SingleParticleDensity(;save_every=1, component=0) = new(save_every, component)
 end
 
 function post_step(d::SingleParticleDensity, replica)
