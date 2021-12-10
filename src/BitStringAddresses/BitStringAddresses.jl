@@ -20,6 +20,7 @@ export BoseFSIndex, FermiFSIndex
 export num_particles, num_modes, num_components
 export find_occupied_mode, find_mode, occupied_modes, is_occupied, num_occupied_modes
 export excitation, onr, near_uniform, OccupiedModeMap
+export @fs_str
 
 include("bitstring.jl")
 include("fockaddress.jl")
