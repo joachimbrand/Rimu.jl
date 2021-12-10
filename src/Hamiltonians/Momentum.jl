@@ -25,7 +25,7 @@ end
 Momentum(component=0; fold=true) = Momentum{component}(fold)
 Base.show(io::IO, mom::Momentum{C}) where {C} = print(io, "Momentum($C; fold=$(mom.fold))")
 
-LOStructure(::Type{Momentum}) = IsHermitian()
+LOStructure(::Type{<:Momentum}) = IsHermitian()
 num_offdiagonals(ham::Momentum, add) = 0
 
 @inline function _momentum(add::SingleComponentFockAddress, fold)

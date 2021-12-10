@@ -1,5 +1,5 @@
 """
-    DensityMatrixDiagonal(;mode, component=1)
+    DensityMatrixDiagonal(mode; component=0)
 
 Compute the diagonal of the density matrix:
 
@@ -7,7 +7,8 @@ Compute the diagonal of the density matrix:
 \\hat{ρ}_d = \\hat{n}_i,σ
 ```
 
-where ``i`` is the `mode` and ``σ`` is the `component`.
+where ``i`` is the `mode` and ``σ`` is the `component`. If `component` is zero, the sum over
+all components is computed.
 
 # See also
 
@@ -17,28 +18,34 @@ where ``i`` is the `mode` and ``σ`` is the `component`.
 struct DensityMatrixDiagonal{C} <: AbstractHamiltonian{Float64}
     mode::Int
 end
-function DensityMatrixDiagonal(; mode, component=1)
-    if component ≤ 0
-        throw(ArgumentError("Invalid component `$component`"))
-    end
-    return DensityMatrixDiagonal{component}(mode)
+DensityMatrixDiagonal(mode; component=0) = DensityMatrixDiagonal{component}(mode)
+
+function diagonal_element(dmd::DensityMatrixDiagonal{1}, add::SingleComponentFockAddress)
+    return float(find_mode(add, dmd.mode).occnum)
+end
+function diagonal_element(dmd::DensityMatrixDiagonal{0}, add::SingleComponentFockAddress)
+    return float(find_mode(add, dmd.mode).occnum)
 end
 
-function diagonal_element(spd::DensityMatrixDiagonal{C}, add::CompositeFS) where {C}
+function diagonal_element(dmd::DensityMatrixDiagonal{0}, add::CompositeFS)
+    return float(sum(a -> find_mode(a, dmd.mode).occnum, add.components))
+end
+function diagonal_element(dmd::DensityMatrixDiagonal{C}, add::CompositeFS) where {C}
     comp = add.components[C]
-    return float(find_mode(comp, spd.mode).occnum)
-end
-function diagonal_element(spd::DensityMatrixDiagonal{1}, add::BoseFS2C)
-    comp = add.bsa
-    return float(find_mode(comp, spd.mode).occnum)
-end
-function diagonal_element(spd::DensityMatrixDiagonal{2}, add::BoseFS2C)
-    comp = add.bsb
-    return float(find_mode(comp, spd.mode).occnum)
-end
-function diagonal_element(spd::DensityMatrixDiagonal{1}, add::SingleComponentFockAddress)
-    return float(find_mode(add, spd.mode).occnum)
+    return float(find_mode(comp, dmd.mode).occnum)
 end
 
-num_offdiagonals(spd::DensityMatrixDiagonal, _) = 0
+function diagonal_element(dmd::DensityMatrixDiagonal{0}, add::BoseFS2C)
+    return float(find_mode(add.bsa, dmd.mode).occnum + find_mode(add.bsb, dmd.mode).occnum)
+end
+function diagonal_element(dmd::DensityMatrixDiagonal{1}, add::BoseFS2C)
+    comp = add.bsa
+    return float(find_mode(comp, dmd.mode).occnum)
+end
+function diagonal_element(dmd::DensityMatrixDiagonal{2}, add::BoseFS2C)
+    comp = add.bsb
+    return float(find_mode(comp, dmd.mode).occnum)
+end
+
+num_offdiagonals(dmd::DensityMatrixDiagonal, _) = 0
 LOStructure(::Type{<:DensityMatrixDiagonal}) = IsHermitian()
