@@ -372,8 +372,7 @@ using Statistics
             )
             df, st = lomc!(H, copy(dv); post_step)
             @test all(==(ntuple(_ -> 0, num_modes(add))), df.single_particle_density[1:2:end])
-            @warn "TODO"
-            @test_broken sum.(df.single_particle_density[2:2:end]) == 3
+            @test all(==(3), sum.(df.single_particle_density[2:2:end]))
         end
     end
 

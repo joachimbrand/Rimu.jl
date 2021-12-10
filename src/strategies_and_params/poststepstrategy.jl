@@ -227,18 +227,31 @@ function post_step(d::SingleParticleDensity, replica)
 end
 
 """
-    single_particle_density(dvec; component, normalize=true)
+    single_particle_density(dvec; component)
     single_particle_density(add; component)
 
 Compute the diagonal single particle density of vector `dvec` or address `add`. If the
 `component` argument is given, only that component of the addresses is taken into
-account. For vectors, the `normalize` argument divides the density vector by the norm of the
-vector squared, so that `sum(result) ≈ num_particles(address)`.
+account. The result is always normalized so that `sum(result) ≈ num_particles(address)`.
+
+```jldoctest
+julia> v = DVec(fs"|⋅↑⇅↓⋅⟩" => 1.0, fs"|↓↓⋅↑↑⟩" => 0.5)
+DVec{FermiFS2C{2, 2, 5, 4, FermiFS{2, 5, BitString{5, 1, UInt8}}, FermiFS{2, 5, BitString{5, 1, UInt8}}},Float64} with 2 entries, style = IsDeterministic{Float64}()
+  fs"|↓↓⋅↑↑⟩" => 0.5
+  fs"|⋅↑⇅↓⋅⟩" => 1.0
+
+julia> single_particle_density(v)
+(0.2, 1.0, 1.6, 1.0, 0.2)
+
+julia> single_particle_density(v; component=1)
+(0.0, 1.6, 1.6, 0.4, 0.4)
+```
 """
-function single_particle_density(dvec; component=0, normalize=true)
+function single_particle_density(dvec; component=0)
     K = keytype(dvec)
     V = valtype(dvec)
     M = num_modes(K)
+    N = num_particles(K)
 
     result = mapreduce(
         +, pairs(dvec);
@@ -246,11 +259,8 @@ function single_particle_density(dvec; component=0, normalize=true)
     ) do (k, v)
         MultiScalar(v^2 .* single_particle_density(k, component))
     end
-    if normalize
-        return result.tuple ./ norm(dvec)^2
-    else
-        return result.tuple
-    end
+
+    return result.tuple ./ sum(result.tuple) .* N
 end
 
 function single_particle_density(add::SingleComponentFockAddress, component=0)
