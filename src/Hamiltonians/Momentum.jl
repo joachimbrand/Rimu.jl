@@ -9,6 +9,7 @@ momentum is folded into the Brillouin zone.
 
 ```jldoctest
 julia> add = BoseFS((1, 0, 2, 1, 2, 1, 1, 3))
+BoseFS{11,8}((1, 0, 2, 1, 2, 1, 1, 3))
 
 julia> v = DVec(add => 10);
 
