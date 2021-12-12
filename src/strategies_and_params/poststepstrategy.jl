@@ -218,11 +218,11 @@ function post_step(d::SingleParticleDensity, replica)
     end
     vector = replica.v
     if replica.params.step % d.save_every == 0
-        return (name => single_particle_density(vector; component, normalize=false),)
+        return (name => single_particle_density(vector; component),)
     else
         V = valtype(vector)
         M = num_modes(keytype(vector))
-        return (name => ntuple(_ -> zero(V), Val(M)),)
+        return (name => ntuple(_ -> 0.0, Val(M)),)
     end
 end
 
@@ -257,19 +257,19 @@ function single_particle_density(dvec; component=0)
         +, pairs(dvec);
         init=MultiScalar(ntuple(_ -> zero(V), Val(M)))
     ) do (k, v)
-        MultiScalar(v^2 .* single_particle_density(k, component))
+        MultiScalar(v^2 .* single_particle_density(k; component))
     end
 
     return result.tuple ./ sum(result.tuple) .* N
 end
 
-function single_particle_density(add::SingleComponentFockAddress, component=0)
+function single_particle_density(add::SingleComponentFockAddress; component=0)
     return Tuple(onr(add))
 end
-function single_particle_density(add::Union{CompositeFS,BoseFS2C}, component=0)
+function single_particle_density(add::Union{CompositeFS,BoseFS2C}; component=0)
     if component == 0
-        return Tuple(sum(onr(add)))
+        return Float64.(Tuple(sum(onr(add))))
     else
-        return Tuple(onr(add)[component])
+        return Float64.(Tuple(onr(add)[component]))
     end
 end
