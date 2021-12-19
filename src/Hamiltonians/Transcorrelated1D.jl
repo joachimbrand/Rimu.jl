@@ -87,7 +87,7 @@ function Transcorrelated1D(
     end
 
     return Transcorrelated1D{M,typeof(address),typeof(potential)}(
-        address, cutoff, float(v), float(t), float(v_ho), float(v_imp),
+        address, cutoff, float(v), float(t), float(v_ho), v_imp / M,
         ks, kes, ws, us, potential, three_body_term
     )
 end
