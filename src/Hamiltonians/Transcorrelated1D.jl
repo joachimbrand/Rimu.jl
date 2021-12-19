@@ -1,4 +1,3 @@
-# TODO: disabling three-body terms
 """
     Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true)
 
@@ -40,6 +39,7 @@ Q_{kl} &= -\\frac{v^2}{t M^2}k \\tilde{u}(k)\\,l\\tilde{u}(l),
 * `t`: The kinetic energy prefactor.
 * `v_ho`: Strength of the external harmonic oscillator potential ``V̂_\\mathrm{ho}``.
   See [`HubbardMom1DEP`](@ref).
+* `v_imp`: Stength of the magnetic impurity.
 * `cutoff` controls ``k_c`` in equations above. Note: skipping generating
   off-diagonal elements below the cutoff is not implemented - zero-valued elements
   are returned instead.
@@ -61,6 +61,7 @@ struct Transcorrelated1D{
     v::Float64
     t::Float64
     v_ho::Float64
+    v_imp::Float64
     ks::SVector{M,Float64} # wave numbers
     kes::SVector{M,Float64} # single-particle dispersion
     ws::SVector{M,Float64} # pre-computed W(k)
@@ -69,7 +70,9 @@ struct Transcorrelated1D{
     three_body_term::Bool
 end
 
-function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true)
+function Transcorrelated1D(
+    address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true, v_imp=0.0
+)
     M = num_modes(address)
     cutoff < 1 && throw(ArgumentError("`cutoff` must be a positive integer"))
     ks = SVector{M}(i_to_k.(1:M, M))
@@ -78,13 +81,14 @@ function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body
     us = SVector{M}(correlation_factor.(1:M, cutoff, M))
     if iszero(v_ho)
         potential = nothing
+        !iszero(v_imp) && throw(ArgumentError("`v_imp` can only be used with nonzero `v_ho`"))
     else
         potential = momentum_space_harmonic_potential(M, v_ho)
     end
 
     return Transcorrelated1D{M,typeof(address),typeof(potential)}(
-        address, cutoff, float(v), float(t), float(v_ho), ks, kes, ws, us, potential,
-        three_body_term
+        address, cutoff, float(v), float(t), float(v_ho), float(v_imp),
+        ks, kes, ws, us, potential, three_body_term
     )
 end
 
@@ -259,6 +263,7 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
         value += momentum_external_potential_diagonal(h.potential, c1, map1) +
             momentum_external_potential_diagonal(h.potential, c2, map2)
     end
+    value += h.v_imp * (num_particles(c1) - num_particles(c2))
 
     return value
 end
@@ -366,6 +371,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         )
         if !iszero(value)
             new_c = C(new_c1, c2)
+            value += od.hamiltonian.v_imp
         end
     elseif i ≤ n_mom + n_trans1 + n_trans2 + n_pot1 + n_pot2
         # Potential acting on second component
@@ -376,6 +382,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         )
         if !iszero(value)
             new_c = C(c1, new_c2)
+            value -= od.hamiltonian.v_imp
         end
     else
         throw(BoundsError(od, i))
