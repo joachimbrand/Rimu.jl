@@ -1,5 +1,5 @@
 """
-    Momentum(component=0; fold=true)
+    Momentum(component=0; fold=true) <: AbstractHamiltonian
 
 The momentum operator ``\\hat{p}``.
 

@@ -1,10 +1,10 @@
 """
-    DensityMatrixDiagonal(mode; component=0)
+    DensityMatrixDiagonal(mode; component=0) <: AbstractHamiltonian
 
-Compute the diagonal of the density matrix:
+Represent a diagonal element of the single-particle density:
 
 ```math
-\\hat{ρ}_d = \\hat{n}_i,σ
+\\hat{n}_{i,σ} = \\hat a^†_{i,σ} \\hat a_{i,σ}
 ```
 
 where ``i`` is the `mode` and ``σ`` is the `component`. If `component` is zero, the sum over
