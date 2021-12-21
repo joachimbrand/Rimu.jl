@@ -186,3 +186,101 @@ is recorded.
 struct Timer <: PostStepStrategy end
 
 post_step(::Timer, _) = (:time => time(),)
+
+"""
+    SingleParticleDensity(; save_every=1, component) <: PostStepStrategy
+
+[`PostStepStrategy`](@ref)  to  compute the diagonal [`single_particle_density`](@ref).
+It records a `Tuple` with the same `eltype` as the vector.
+
+Computing the density at every time step can be expensive. This cost can be reduced by
+setting the `save_every` argument to a higher value. If the value is set, a vector of zeros
+is recorded when the saving is skipped.
+
+If the address type has multiple components, the `component` argument can be used to compute
+the density on a per-component basis.
+
+The density is not normalized, and must be divided by the vector `norm(⋅,2)` squared.
+
+# See also
+
+* [`single_particle_density`](@ref)
+* [`DensityMatrixDiagonal`](@ref)
+"""
+struct SingleParticleDensity <: PostStepStrategy
+    save_every::Int
+    component::Int
+
+    SingleParticleDensity(;save_every=1, component=0) = new(save_every, component)
+end
+
+function post_step(d::SingleParticleDensity, replica)
+    component = d.component
+    if component == 0
+        name = :single_particle_density
+    else
+        name = Symbol("single_particle_density_", component)
+    end
+    vector = replica.v
+    if replica.params.step % d.save_every == 0
+        return (name => single_particle_density(vector; component),)
+    else
+        V = valtype(vector)
+        M = num_modes(keytype(vector))
+        return (name => ntuple(_ -> 0.0, Val(M)),)
+    end
+end
+
+"""
+    single_particle_density(dvec; component)
+    single_particle_density(add; component)
+
+Compute the diagonal single particle density of vector `dvec` or address `add`. If the
+`component` argument is given, only that component of the addresses is taken into
+account. The result is always normalized so that `sum(result) ≈ num_particles(address)`.
+
+# Examples
+
+```jldoctest
+julia> v = DVec(fs"|⋅↑⇅↓⋅⟩" => 1.0, fs"|↓↓⋅↑↑⟩" => 0.5)
+DVec{FermiFS2C{2, 2, 5, 4, FermiFS{2, 5, BitString{5, 1, UInt8}}, FermiFS{2, 5, BitString{5, 1, UInt8}}},Float64} with 2 entries, style = IsDeterministic{Float64}()
+  fs"|↓↓⋅↑↑⟩" => 0.5
+  fs"|⋅↑⇅↓⋅⟩" => 1.0
+
+julia> single_particle_density(v)
+(0.2, 1.0, 1.6, 1.0, 0.2)
+
+julia> single_particle_density(v; component=1)
+(0.0, 1.6, 1.6, 0.4, 0.4)
+```
+
+# See also
+
+* [`SingleParticleDensity`](@ref)
+"""
+function single_particle_density(dvec; component=0)
+    K = keytype(dvec)
+    V = valtype(dvec)
+    M = num_modes(K)
+    N = num_particles(K)
+
+    result = mapreduce(
+        +, pairs(dvec);
+        init=MultiScalar(ntuple(_ -> zero(V), Val(M)))
+    ) do (k, v)
+        MultiScalar(v^2 .* single_particle_density(k; component))
+    end
+
+    return result.tuple ./ sum(result.tuple) .* N
+end
+
+function single_particle_density(add::SingleComponentFockAddress; component=0)
+    return Tuple(onr(add))
+end
+function single_particle_density(add::Union{CompositeFS,BoseFS2C}; component=0)
+    if component == 0
+        return Float64.(Tuple(sum(onr(add))))
+    else
+        return Float64.(Tuple(onr(add)[component]))
+    end
+end

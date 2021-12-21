@@ -619,6 +619,40 @@ end
     @test diagonal_element(g0s,bfs2) == 1/3
 end
 
+@testset "Momentum" begin
+    @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) == 2
+    @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) == 7
+    @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) == -1
+    @test_throws MethodError diagonal_element(Momentum(2), BoseFS((0,1,0)))
+
+    for add in (BoseFS2C((0,1,2,3,0), (1,2,3,4,5)), FermiFS2C((1,0,0,1), (0,0,1,0)))
+        @test diagonal_element(Momentum(1), add) + diagonal_element(Momentum(2), add) ==
+            diagonal_element(Momentum(0), add)
+    end
+
+    @test num_offdiagonals(Momentum(), BoseFS((0,1,0))) == 0
+    @test LOStructure(Momentum(2; fold=true)) == IsHermitian()
+end
+
+@testset "DensityMatrixDiagonal" begin
+    @test diagonal_element(DensityMatrixDiagonal(5), FermiFS((0,1,0,1,0,1,0))) == 0
+    @test diagonal_element(DensityMatrixDiagonal(2; component=1), BoseFS((1,5,1,0))) == 5
+
+    for add in (
+        CompositeFS(BoseFS((1,2,3,4,5)), BoseFS((5,4,3,2,1))),
+        BoseFS2C((1,2,3,4,5), (5,4,3,2,1))
+    )
+        for i in 1:5
+            @test diagonal_element(DensityMatrixDiagonal(i, component=1), add) == i
+            @test diagonal_element(DensityMatrixDiagonal(i, component=2), add) == 6 - i
+            @test diagonal_element(DensityMatrixDiagonal(i), add) == 6
+        end
+    end
+
+    @test num_offdiagonals(DensityMatrixDiagonal(1), BoseFS((0,1,0))) == 0
+    @test LOStructure(DensityMatrixDiagonal(2)) == IsHermitian()
+end
+
 @testset "HubbardReal1DEP" begin
     for M in [3,4]
         is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary

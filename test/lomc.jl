@@ -365,6 +365,26 @@ using Statistics
             @test df.time[end] < time_after
             @test issorted(df.time)
         end
+
+        @testset "SingleParticleDensity" begin
+            post_step = (
+                SingleParticleDensity(save_every=2),
+            )
+            df, st = lomc!(H, copy(dv); post_step)
+            @test all(==(ntuple(_ -> 0, num_modes(add))), df.single_particle_density[1:2:end])
+            @test all(≈(3), sum.(df.single_particle_density[2:2:end]))
+
+            @test df.single_particle_density[end] == single_particle_density(st.replicas[1].v)
+
+            for add in (
+                BoseFS2C((1,2,3), (0,1,0)),
+                CompositeFS(BoseFS((1,2,3)), FermiFS((0,1,0)))
+            )
+                @test single_particle_density(add) == (1, 3, 3)
+                @test single_particle_density(add; component=1) == (1, 2, 3)
+                @test single_particle_density(add; component=2) == (0, 1, 0)
+            end
+        end
     end
 
     # only test threading if more than one thread is available
