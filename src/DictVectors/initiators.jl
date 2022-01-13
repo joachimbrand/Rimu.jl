@@ -14,6 +14,8 @@ function InitiatorValue{V}(i::InitiatorValue) where {V}
     return InitiatorValue{V}(V(i.safe), V(i.unsafe), V(i.initiator))
 end
 
+Base.eltype(::InitiatorValue{V}) where V =  V
+
 function Base.:+(v::InitiatorValue, w::InitiatorValue)
     return InitiatorValue(v.safe + w.safe, v.unsafe + w.unsafe, v.initiator + w.initiator)
 end
@@ -35,8 +37,11 @@ end
 
 """
     InitiatorRule{V}
+    InitiatorRule(v::InitiatorDVec)
 
-Abstract type for defining initiator rules for [`InitiatorDVec`](@ref).
+Abstract type for defining initiator rules for [`InitiatorDVec`](@ref). Returns the
+relevant rule when used as a function.
+
 Concrete implementations:
 
 * [`Initiator`](@ref)
@@ -121,6 +126,42 @@ function value(i::CoherentInitiator, v::InitiatorValue)
         return v.initiator + v.safe
     end
 end
+
+"""
+    PositivesAreInitiators() <: InitiatorRule
+
+Initiator rule to be passed to [`InitiatorDVec`](@ref). Positive coeffcient values (real or
+imaginary) qualify as initiators. Rules:
+
+* Positive coefficients can spawn anywhere.
+* Negative coefficients can spawn to positives.
+
+See [`InitiatorRule`](@ref).
+"""
+struct PositivesAreInitiators <: InitiatorRule{Nothing} end
+
+function value(i::PositivesAreInitiators, v::InitiatorValue)
+    val = v.safe + v.initiator
+    if  real(val) > 0
+        val += real(v.unsafe)
+    end
+    if imag(val) > 0
+        val += im*imag(v.unsafe)
+    end
+    return val
+end
+
+# function value(i::PositivesAreInitiators, v::InitiatorValue{<:Complex})
+#     val = value
+#     val = v.safe + v.initiator
+#     if  real(v.initiator) > 0
+#         val += real(v.unsafe)
+#     end
+#     if  imag(v.initiator) > 0
+#         val += im*imag(v.unsafe)
+#     end
+#     return val
+# end
 
 """
     InitiatorDVec{K,V} <: AbstractDVec{K,V}
@@ -224,6 +265,8 @@ function Base.empty(dvec::InitiatorDVec, ::Type{K}, ::Type{V}) where {K,V}
     return InitiatorDVec{K,V}(; initiator=dvec.initiator)
 end
 
+InitiatorRule(dv::InitiatorDVec) = dv.initiator
+
 ###
 ### Show
 ###
@@ -265,10 +308,22 @@ end
 @delegate_return_parent InitiatorDVec.storage [delete!, empty!, sizehint!]
 
 """
-    deposit!(w::InitiatorDVec, add, val, p_add=>p_val)
+    deposit!([r:InitiatorRule], w::InitiatorDVec, add, val, p_add=>p_val)
 Add `val` into `w` at address `add` as an [`InitiatorValue`](@ref).
+
+The default behaviour is to deposit a value as an `initiator` if it is a diagonal spawn
+from a configuration that qualifies as an "initiator", i.e. exceeds the relevant threshold.
+Other diagonal spawns and off-diagonal spwans to initiator parents are recorded as `safe`
+(to be accepted by default) whereas off-diagonal spawns to non-initiator parents are
+recorded as `unsafe`.
+
+Specific [`InitiatorRule`](@ref)s can intercept and change this behaviour.
 """
 function deposit!(w::InitiatorDVec, add, val, (p_add, p_val))
+    return deposit!(InitiatorRule(w), w, add, val, (p_add, p_val))
+end
+
+function deposit!(::InitiatorRule, w::InitiatorDVec, add, val, (p_add, p_val))
     V = valtype(w)
     i = w.initiator
     old_val = get(w.storage, add, zero(InitiatorValue{V}))
@@ -285,6 +340,44 @@ function deposit!(w::InitiatorDVec, add, val, (p_add, p_val))
             new_val = InitiatorValue{V}(unsafe=val)
         end
     end
+    new_val += old_val
+    if new_val == InitiatorValue{V}(0, 0, 0)
+        delete!(w.storage, add)
+    else
+        w.storage[add] = new_val
+    end
+    return w
+end
+
+
+"""
+    deposit!(::PositivesAreInitiators, w::InitiatorDVec, add, val, (p_add, p_val))
+Deposit as [`InitiatorValue`](@ref) for the [`PositivesAreInitiators`](@ref) rule:
+
+* positive values are stored as `safe`
+* negative values are stored as `unsafe`
+* this is done separately for `real` and `imag` parts of `Complex` values
+
+The decision about whether or not to accept spawns will be made by [`value()`](@ref).
+"""
+function deposit!(::PositivesAreInitiators, w::InitiatorDVec, add, val, (p_add, p_val))
+    V = valtype(w)
+    old_val = get(w.storage, add, zero(InitiatorValue{V}))
+    if p_add == add # diagonal deposit (could have negative values) regarded safe
+        new_val = InitiatorValue{V}(;safe = val)
+    else # offdiagonal spawn
+        new_val = InitiatorValue{V}(;
+            safe = ifelse(real(val)≥0, real(val), 0),
+            unsafe = ifelse(real(val)<0,  real(val), 0)
+        )
+        if V <: Complex
+            new_val += InitiatorValue{V}(;
+                safe = ifelse(imag(val)≥0, im*imag(val), 0),
+                unsafe = ifelse(imag(val)<0,  im*imag(val), 0)
+            )
+        end
+    end
+
     new_val += old_val
     if new_val == InitiatorValue{V}(0, 0, 0)
         delete!(w.storage, add)
