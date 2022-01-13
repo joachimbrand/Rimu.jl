@@ -2,18 +2,19 @@
     GutzwillerSampling(::AbstractHamiltonian; g)
 
 Wrapper over any [`AbstractHamiltonian`](@ref) that implements Gutzwiller sampling. In this
-importance sampling scheme the Hamiltonian is modified as follows.
-
+importance sampling scheme the Hamiltonian is modified as follows
 ```math
-\\tilde{H}_{ij} = H_{ij} e^{-g(H_{jj} - H_{ii})}
+\\tilde{H}_{ij} = H_{ij} e^{-g(H_{ii} - H_{jj})} .
 ```
+This way off-diagonal spawns to higher-energy configurations are discouraged and
+spawns to lower-energy configurations encouraged for positive `g`.
 
 # Constructor
 
 * `GutzwillerSampling(::AbstractHamiltonian, g)`
 * `GutzwillerSampling(::AbstractHamiltonian; g)`
 
-After construction, we can access the underlying hamiltonian with `G.hamiltonian` and the
+After construction, we can access the underlying Hamiltonian with `G.hamiltonian` and the
 `g` parameter with `G.g`.
 
 # Example
