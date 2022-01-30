@@ -250,3 +250,17 @@ end
         @test walkernumber(target * (1/1000)) ≈ walkernumber(dv) rtol=0.1
     end
 end
+
+@testset "Exact substrategy to DynamicSemistochastic" begin
+    dss_e = DynamicSemistochastic(Exact(), 1.0, Inf)
+    add, H = (BoseFS((0,0,0,3,1,1)), HubbardMom1D(BoseFS((0,0,0,3,1,1)); u=6.0))
+    val = rand() * num_offdiagonals(H, add) * 1.2
+    exact = DVec(add => 1.0)
+    ds_exact = DVec(add => 1.0)
+    spawn!(Exact(), exact, H, add, val, 1e-5)
+    spawn!(dss_e, ds_exact, H, add, val, 1e-5)
+    @test keys(exact) == keys(ds_exact)
+    for k in keys(exact)
+        @test exact[k] ≈ ds_exact[k]
+    end
+end

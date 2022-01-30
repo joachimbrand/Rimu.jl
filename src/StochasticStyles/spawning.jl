@@ -427,6 +427,8 @@ Base.@kwdef struct DynamicSemistochastic{T,S<:SpawningStrategy} <: SpawningStrat
 end
 
 @inline function spawn!(s::DynamicSemistochastic, w, offdiags::AbstractVector, add, val, dτ)
+    # assumes that s.strat.strength and s.strat.threshold are defined
+    # special-case substrategies that don't fit the pattern!
     thresh = min(s.abs_threshold, length(offdiags))
     amount = s.strat.strength * abs(val) * s.rel_threshold
     if amount ≥ thresh
@@ -440,4 +442,9 @@ end
         attempts, spawns, annihilations = spawn!(s.strat, w, offdiags, add, val, dτ)
         return (0, 1, attempts, spawns, annihilations)
     end
+end
+
+# bypass branching code for Exact() sub-strategy
+@inline function spawn!(s::DynamicSemistochastic{<:Any, <:Exact}, args...)
+    return (1, 0, spawn!(s.strat, args...)...)
 end
