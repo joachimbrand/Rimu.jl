@@ -24,6 +24,10 @@ end
     include("StatsTools.jl")
 end
 
+@safetestset "Stratonovich" begin
+    include("Stratonovich.jl")
+end
+
 @safetestset "BitStringAddresses" begin
     include("BitStringAddresses.jl")
 end

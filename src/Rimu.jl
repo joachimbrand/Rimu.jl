@@ -78,6 +78,9 @@ include("RMPI/RMPI.jl")
 # Modules for parallel computing not exported by default for now
 include("EmbarrassinglyDistributed.jl")
 
+# experimental stuff
+include("Stratonovich.jl")
+
 # analysis tool not reexported (to be deprecated)
 include("Blocking.jl")
 

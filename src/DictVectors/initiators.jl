@@ -268,7 +268,7 @@ end
     deposit!(w::InitiatorDVec, add, val, p_add=>p_val)
 Add `val` into `w` at address `add` as an [`InitiatorValue`](@ref).
 """
-function deposit!(w::InitiatorDVec, add, val, (p_add, p_val))
+function deposit!(w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any,<:Any}, add, val, (p_add, p_val))
     V = valtype(w)
     i = w.initiator
     old_val = get(w.storage, add, zero(InitiatorValue{V}))
