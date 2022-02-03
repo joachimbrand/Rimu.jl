@@ -73,7 +73,7 @@ end
 
 function Transcorrelated1D(
     address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true,
-    v_imp_up=0.0, v_imp_down=-v_imp_up,
+    v_imp=0.0, v_imp_up=v_imp, v_imp_down=-v_imp,
 )
     M = num_modes(address)
     cutoff < 1 && throw(ArgumentError("`cutoff` must be a positive integer"))
@@ -91,7 +91,7 @@ function Transcorrelated1D(
     end
 
     return Transcorrelated1D{M,typeof(address),typeof(potential)}(
-        address, cutoff, float(v), float(t), float(v_ho), v_imp_up / M, v_imp_down / M
+        address, cutoff, float(v), float(t), float(v_ho), v_imp_up / M, v_imp_down / M,
         ks, kes, ws, us, potential, three_body_term
     )
 end
