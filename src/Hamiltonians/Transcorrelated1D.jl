@@ -61,7 +61,8 @@ struct Transcorrelated1D{
     v::Float64
     t::Float64
     v_ho::Float64
-    v_imp::Float64
+    v_imp_up::Float64
+    v_imp_down::Float64
     ks::SVector{M,Float64} # wave numbers
     kes::SVector{M,Float64} # single-particle dispersion
     ws::SVector{M,Float64} # pre-computed W(k)
@@ -71,7 +72,8 @@ struct Transcorrelated1D{
 end
 
 function Transcorrelated1D(
-    address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true, v_imp=0.0
+    address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body_term=true,
+    v_imp_up=0.0, v_imp_down=-v_imp_up,
 )
     M = num_modes(address)
     cutoff < 1 && throw(ArgumentError("`cutoff` must be a positive integer"))
@@ -81,13 +83,15 @@ function Transcorrelated1D(
     us = SVector{M}(correlation_factor.(1:M, cutoff, M))
     if iszero(v_ho)
         potential = nothing
-        !iszero(v_imp) && throw(ArgumentError("`v_imp` can only be used with nonzero `v_ho`"))
+        if !iszero(v_imp_up) || !iszero(v_imp_down)
+            throw(ArgumentError("`v_imp` can only be used with nonzero `v_ho`"))
+        end
     else
         potential = momentum_space_harmonic_potential(M, v_ho)
     end
 
     return Transcorrelated1D{M,typeof(address),typeof(potential)}(
-        address, cutoff, float(v), float(t), float(v_ho), v_imp / M,
+        address, cutoff, float(v), float(t), float(v_ho), v_imp_up / M, v_imp_down / M
         ks, kes, ws, us, potential, three_body_term
     )
 end
@@ -263,7 +267,7 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
         value += momentum_external_potential_diagonal(h.potential, c1, map1) +
             momentum_external_potential_diagonal(h.potential, c2, map2)
     end
-    value += h.v_imp * (num_particles(c1) - num_particles(c2))
+    value += h.v_imp_up * num_particles(c1) + h.v_imp_down * num_particles(c2)
 
     return value
 end
@@ -371,7 +375,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         )
         if !iszero(value)
             new_c = C(new_c1, c2)
-            value += od.hamiltonian.v_imp
+            value += od.hamiltonian.v_imp_up
         end
     elseif i ≤ n_mom + n_trans1 + n_trans2 + n_pot1 + n_pot2
         # Potential acting on second component
@@ -382,7 +386,7 @@ function Base.getindex(od::Transcorrelated1DOffdiagonals, i)
         )
         if !iszero(value)
             new_c = C(c1, new_c2)
-            value -= od.hamiltonian.v_imp
+            value += od.hamiltonian.v_imp_down
         end
     else
         throw(BoundsError(od, i))
