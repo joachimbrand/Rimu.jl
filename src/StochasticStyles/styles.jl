@@ -27,6 +27,33 @@ function fciqmc_col!(
 end
 
 """
+    IsStratonovich{T=Int}() <: StochasticStyle{T}
+
+FCIQMC algorithm with integer walkers with Stratonovich correction.
+
+See also [`StochasticStyle`](@ref).
+"""
+struct IsStratonovich{T<:Integer} <: StochasticStyle{T} end
+IsStratonovich() =  IsStratonovich{Int}()
+
+function step_stats(::IsStratonovich{T}) where {T}
+    z = zero(T)
+    return (
+        (:spawn_attempts, :spawns, :deaths, :clones, :zombies, :annihilations),
+        MultiScalar(0, z, z, z, z, z),
+    )
+end
+function fciqmc_col!(
+    ::IsStratonovich, w, ham, add, num::Real, shift, dτ
+)
+    clones, deaths, zombies, ann_diag = diagonal_step_stratonovich!(
+        w, ham, add, num, dτ, shift, 0, true
+    )
+    attempts, spawns, ann_offdiag = spawn!(WithReplacement(), w, ham, add, num, dτ)
+    return (attempts, spawns, deaths, clones, zombies, ann_diag + ann_offdiag)
+end
+
+"""
     IsStochastic2Pop{T=Complex{Int}}() <: StochasticStyle{T}
 
 Stochastic propagation with complex walker numbers representing two populations of integer

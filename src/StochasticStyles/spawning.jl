@@ -110,6 +110,28 @@ integer stochastically.
     end
 end
 
+@inline function diagonal_step_stratonovich!(
+    w, ham, add, val, dτ, shift, threshold=0, report_stats=false
+)
+    pd = dτ * (diagonal_element(ham, add) - shift)
+    # pd -= abs(pd)/2 # Stratonovich correction
+    new_val = (1 - pd) * val
+    if abs(pd*val) < 0.25
+        # new_val += abs(pd-pd^2)/2 * val # Stratonovich correction
+        # new_val += (1-2*abs(new_val))*abs(new_val)/4
+        new_val += sign(pd*val)*pd/2 - pd^2/2 * val
+    end
+    res, annihilations = projected_deposit!(
+        w, add, new_val, add => val, threshold, report_stats
+    )
+    if report_stats
+        return (clones_deaths_zombies(pd, res, val)..., annihilations)
+    else
+        z = zero(valtype(w))
+        return (z, z, z, z)
+    end
+end
+
 @inline function clones_deaths_zombies(pd::Real, res::Real, val::Real)
     clones = deaths = zombies = zero(res)
     if pd < 0
