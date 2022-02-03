@@ -1,7 +1,7 @@
-# This may technically be type piracy...
-# We should find a more elegant solution later.
-# We are extending functions from `StochasticStyles` with knowledge about types
-# defined in `DictVectors`.
+"""
+Experimental module for correcting the stochastic vector compression to more resemble
+a Stratonovich stochastic differential equation.
+"""
 module Stratonovich
 
 using ..Interfaces, ..ConsistentRNG
@@ -102,7 +102,7 @@ function compress!(t::ThresholdCompression,
     ws = storage(v)
     for (add, ival) in pairs(ws)
         val = ival.safe + sign(ival.safe) * ival.unsafe/2 * s_factor
-        # Stratonovich correction
+        # apply Stratonovich correction
         prob = abs(val) / t.threshold
         if prob < 1 # projection is only necessary if abs(val) < s.threshold
             val = ifelse(prob > cRand(), t.threshold * sign(val), zero(val))
