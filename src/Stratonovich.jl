@@ -62,8 +62,8 @@ function deposit!(
 
     old_val = get(w.storage, add, zero(InitiatorValue{V}))
     new_val = InitiatorValue{V}(safe=val)
-    new_val += old_val
-    if new_val == InitiatorValue{V}(0, 0, 0)
+    new_val += old_val # all `InitiatorValue`s
+    if iszero(new_val)
         delete!(w.storage, add)
     else
         w.storage[add] = new_val
@@ -83,7 +83,7 @@ end
     old_ival = get(w.storage, add, zero(InitiatorValue{V}))
     new_ival = InitiatorValue{V}(safe = old_ival.safe + new_val, unsafe = -pd)
     # add all contributions in `safe`, remember diagonal contribution `-pd` in `unsafe`
-    if new_ival == InitiatorValue{V}(0, 0, 0)
+    if iszero(new_ival)
         delete!(w.storage, add)
     else
         w.storage[add] = new_ival
@@ -95,21 +95,20 @@ end
 end
 
 function compress!(t::ThresholdCompression,
-    v::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection}
+    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection}
 )
     # w = localpart(v) # fix MPI later!
-    s_factor = v.initiator.threshold # the parameter stored in `StratonovichCorrection`
-    ws = storage(v)
-    for (add, ival) in pairs(ws)
+    s_factor = w.initiator.threshold # the parameter stored in `StratonovichCorrection`
+    for (add, ival) in pairs(w.storage) # `ival` is an `InitiatorValue`
         val = ival.safe + sign(ival.safe) * ival.unsafe/2 * s_factor
         # apply Stratonovich correction
         prob = abs(val) / t.threshold
         if prob < 1 # projection is only necessary if abs(val) < s.threshold
             val = ifelse(prob > cRand(), t.threshold * sign(val), zero(val))
-            v[add] = val
+            w[add] = val
         end
     end
-    return v
+    return w
 end
 
 end
