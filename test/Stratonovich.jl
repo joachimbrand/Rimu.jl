@@ -3,6 +3,7 @@ using Test
 using Rimu.Stratonovich
 using Rimu.StochasticStyles: diagonal_step!, compress!, ThresholdCompression
 using Rimu.DictVectors: deposit!, value, InitiatorValue
+using Rimu: sort_into_targets!
 
 @testset "Stratonovich" begin
     add = fs"|1 1 1 1⟩"
@@ -17,6 +18,7 @@ using Rimu.DictVectors: deposit!, value, InitiatorValue
 
     H = HubbardReal1D(add)
     dv = DVec(svec) # copy into regular DVec
+    sw = copy(svec) # keep a copy of the original around
     diagonal_step!(svec,H, add, 2.0, 0.01, 2.0)
     val = storage(svec)[add]
     @test value(svec.initiator, val) ==  svec[add] == 7.34
@@ -25,17 +27,20 @@ using Rimu.DictVectors: deposit!, value, InitiatorValue
     diagonal_step!(dv, H, add, 2.0, 0.01, 2.0)
     @test dv == svec
 
-    compress!(ThresholdCompression(7.345),svec)
+    v, w, stats = sort_into_targets!(sw, svec, (0,))
+    @test v.storage[fs"|1 1 1 1⟩"].initiator == 1
+
+    compress!(ThresholdCompression(7.345), v)
     # Stratonovich corrected value (7.35) is larger than threshold; no compression
-    @test storage(svec)[add] == InitiatorValue{Float64}(7.34, 0.02, 0.0)
-    compress!(ThresholdCompression(7.355),svec)
+    @test storage(v)[add] == InitiatorValue{Float64}(7.34, 0.02, 1.0)
+    compress!(ThresholdCompression(7.355), v)
     # and now it is smaller, so compression is triggered and `unsafe` removed
-    val = storage(svec)[add]
+    val = storage(v)[add]
     @test iszero(val.unsafe)
 
     # test that `compress!` removes zero entries
     storage(svec)[add] = 0
     @test length(svec) == 1
     compress!(ThresholdCompression(1),svec)
-    @test length(svec) == 0    
+    @test length(svec) == 0
 end
