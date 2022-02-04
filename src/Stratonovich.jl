@@ -104,7 +104,7 @@ function sort_into_targets!(
     stats
 )
     V = valtype(w)
-    for (add, ival) in pairs(w.storage)
+    for (add, ival) in pairs(w.storage) # this is slow and adds to run time
         σ = sign(ival.safe-target[add])
         w.storage[add] = InitiatorValue{V}(safe=ival.safe, unsafe=ival.unsafe, initiator=σ)
         # the sign is stored in the `initiator` field
