@@ -53,7 +53,9 @@ Q_{kl} &= -\\frac{v^2}{t M^2}k \\tilde{u}(k)\\,l\\tilde{u}(l),
 * [`HubbardMom1DEP`](@ref)
 """
 struct Transcorrelated1D{
-    M,F<:CompositeFS{2,<:Any,M,<:Tuple{FermiFS,FermiFS}}, # TODO: relax this to allow bosons
+    M,
+    # TODO: relax this to allow bosons
+    F<:Union{CompositeFS{2,<:Any,M,<:Tuple{FermiFS,FermiFS}},FermiFS},
     P<:Union{Nothing,SVector{M,Float64}}
 } <: AbstractHamiltonian{Float64}
     address::F
@@ -252,7 +254,7 @@ function transcorrelated_diagonal(h::Transcorrelated1D{M}, map1, map2) where {M}
     return value
 end
 
-function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
+function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F<:FermiFS2C}
     c1, c2 = add.components
     map1 = OccupiedModeMap(c1)
     map2 = OccupiedModeMap(c2)
@@ -272,6 +274,57 @@ function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F}
     return value
 end
 
+function diagonal_element(h::Transcorrelated1D{<:Any,F}, add::F) where {F<:FermiFS}
+    map = OccupiedModeMap(add)
+
+    value = dot(h.kes, map)
+    if !isnothing(h.potential)
+        value += momentum_external_potential_diagonal(h.potential, add, map)
+    end
+    value += h.v_imp_up * num_particles(add)
+
+    return value
+end
+
+struct Transcorrelated1DSingleOffdiagonals{H,A,O}<:AbstractOffdiagonals{A,Float64}
+    hamiltonian::H
+    address::A
+    map::O
+    length::Int
+end
+
+function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F<:FermiFS}
+    map = OccupiedModeMap(add)
+    N = length(map)
+
+    if isnothing(h.potential)
+        throw(ArgumentError("Single-component Fermi address without potential is pointless."))
+    end
+
+    n_pot = N * (M - 1)
+    return Transcorrelated1DSingleOffdiagonals(h, add, map, n_pot)
+end
+
+Base.size(od::Transcorrelated1DSingleOffdiagonals) = (od.length,)
+
+function Base.getindex(od::Transcorrelated1DSingleOffdiagonals, i)
+    add = od.address
+    map = od.map
+    len = od.length
+    N = length(map)
+    M = num_modes(add)
+
+    if i ≤ len
+        new_add, value = momentum_external_potential_excitation(
+            od.hamiltonian.potential, add, i, map
+        )
+        value += od.hamiltonian.v_imp_up
+    else
+        throw(BoundsError(od, i))
+    end
+    return new_add, value
+end
+
 struct Transcorrelated1DOffdiagonals{H,A,O1,O2}<:AbstractOffdiagonals{A,Float64}
     hamiltonian::H
     address::A
@@ -280,8 +333,7 @@ struct Transcorrelated1DOffdiagonals{H,A,O1,O2}<:AbstractOffdiagonals{A,Float64}
     length::Int
 end
 
-function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F}
-    offdiags = Tuple{F,Float64}[]
+function offdiagonals(h::Transcorrelated1D{M,F}, add::F) where {M,F<:FermiFS2C}
     c1, c2 = add.components
     map1 = OccupiedModeMap(c1)
     map2 = OccupiedModeMap(c2)
