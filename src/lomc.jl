@@ -339,7 +339,7 @@ function advance!(
     )
     shift_noise = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat)
     v, w, step_stat_values = sort_into_targets!(v, w, raw_step_stats)
-    v, update_dvec_stats = update_dvec!(v)
+    v, update_dvec_stats = update_dvec!(v, hamiltonian, shift, dτ)
 
     # Stats
     tnorm = walkernumber(v)

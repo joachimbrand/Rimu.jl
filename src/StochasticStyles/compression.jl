@@ -10,7 +10,7 @@ struct ThresholdCompression{T} <: CompressionStrategy
 end
 ThresholdCompression() = ThresholdCompression(1)
 
-function compress!(t::ThresholdCompression, v)
+function compress!(t::ThresholdCompression, v, _, _, _)
     w = localpart(v)
     for (add, val) in pairs(w)
         prob = abs(val) / t.threshold
@@ -36,7 +36,7 @@ struct DoubleOrNothing{T} <: CompressionStrategy
 end
 DoubleOrNothing(; threshold=1, prob=0.5) = DoubleOrNothing(threshold, prob)
 
-function compress!(d::DoubleOrNothing, v)
+function compress!(d::DoubleOrNothing, v, _, _, _)
     w = localpart(v)
     for (add, val) in pairs(w)
         if abs(val) < d.threshold
@@ -62,11 +62,11 @@ function DoubleOrNothingWithTarget(; target, threshold=1)
     return DoubleOrNothingWithTarget(target, threshold)
 end
 
-function compress!(d::DoubleOrNothingWithTarget, v)
+function compress!(d::DoubleOrNothingWithTarget, v, args...)
     w = localpart(v)
     prob = d.target / length(v)
     if prob < 1
-        compress!(DoubleOrNothing(d.threshold, prob), v)
+        compress!(DoubleOrNothing(d.threshold, prob), v, args...)
     end
     return v
 end
@@ -88,7 +88,7 @@ function DoubleOrNothingWithThreshold(; threshold_hi=1.0, threshold_lo=1e-3, pro
     return DoubleOrNothingWithThreshold(promote(threshold_hi, threshold_lo)..., prob)
 end
 
-function compress!(d::DoubleOrNothingWithThreshold, v)
+function compress!(d::DoubleOrNothingWithThreshold, v, _, _, _)
     w = localpart(v)
     for (add, val) in pairs(w)
         if abs(val) < d.threshold_lo

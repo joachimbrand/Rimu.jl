@@ -244,7 +244,7 @@ end
     )
         target = similar(dv)
         for _ in 1:1000
-            compressed = StochasticStyles.compress!(compression, copy(dv))
+            compressed = StochasticStyles.compress!(compression, copy(dv), H, 0.0, 0.01)
             add!(target, compressed)
         end
         @test walkernumber(target * (1/1000)) ≈ walkernumber(dv) rtol=0.1

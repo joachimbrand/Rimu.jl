@@ -62,7 +62,7 @@ default_style(::Type{T}) where T = StyleUnknown{T}()
 """
     CompressionStrategy
 
-The `CompressionStrategy` controls how a vector is compressed after a step. 
+The `CompressionStrategy` controls how a vector is compressed after a step.
 
 ## Standard implementations (subtypes):
 * [`NoCompression`](@ref): no vector compression
@@ -75,10 +75,10 @@ constructors for some [`StochasticStyle`](@ref)s. Calling
 default is [`NoCompression`](@ref).
 
 ## Interface
-When defining a new `CompressionStrategy`, subtype it as 
+When defining a new `CompressionStrategy`, subtype it as
 `MyCompressionStrategy <: CompressionStrategy` and define
-a method for 
-* [`compress!(s::MyCompressionStrategy, v)`](@ref)
+a method for
+* [`compress!(s::MyCompressionStrategy, v, hamiltonian, shift, dτ)`](@ref)
 """
 abstract type CompressionStrategy end
 
@@ -92,14 +92,15 @@ struct NoCompression <: CompressionStrategy end
 CompressionStrategy(::StochasticStyle) = NoCompression()
 
 """
-    compress!(::CompressionStrategy, v)
+    compress!(::CompressionStrategy, v, hamiltonian, shift, dτ)
 
-Compress the vector `v` and return it.
+Compress the vector `v` and return it. The additional arguments `hamiltonian` and `shift`
+are passed through to be used by some of the [`CompressionStrategy`](@ref)s.
 """
-compress!(::NoCompression, v) = v
+compress!(::NoCompression, v, _, _, _) = v
 
 """
-    update_dvec!([::StochasticStyle,] dvec) -> dvec, nt
+    update_dvec!([::StochasticStyle,] dvec, hamiltonian, shift, dτ) -> dvec, nt
 
 Perform an arbitrary transformation on `dvec` after the spawning step is completed and
 report statistics to the `DataFrame`.
@@ -107,18 +108,20 @@ report statistics to the `DataFrame`.
 Returns the new `dvec` and a `NamedTuple` `nt` of statistics to be reported.
 
 When extending this function for a custom [`StochasticStyle`](@ref), define a method
-for the two-argument call signature!
+for the five-argument call signature!
 
 The default implementation uses [`CompressionStrategy`](@ref) to compress the vector.
 
 Note: `update_dvec!` may return a new vector.
 """
-update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
-update_dvec!(s::StochasticStyle, v) = update_dvec!(CompressionStrategy(s), v)
-update_dvec!(::NoCompression, v) = v, NamedTuple()
-function update_dvec!(c::CompressionStrategy, v)
+update_dvec!(v, args...) = update_dvec!(StochasticStyle(v), v, args...)
+function update_dvec!(s::StochasticStyle, v, args...)
+    return update_dvec!(CompressionStrategy(s), v, args...)
+end
+update_dvec!(::NoCompression, v, args...) = v, NamedTuple()
+function update_dvec!(c::CompressionStrategy, v, args...)
     len_before = length(v)
-    return compress!(c, v), (; len_before)
+    return compress!(c, v, args...), (; len_before)
 end
 
 """
