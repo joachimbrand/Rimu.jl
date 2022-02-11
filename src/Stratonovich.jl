@@ -63,7 +63,7 @@ function deposit!(
 
     old_val = get(w.storage, add, zero(InitiatorValue{V}))
     new_val = InitiatorValue{V}(safe=val)
-    new_val += old_val # all `InitiatorValue`s
+    new_val += old_val # add offdiagonal spawn into `safe` preserving the other fields
     if iszero(new_val)
         delete!(w.storage, add)
     else
@@ -72,7 +72,7 @@ function deposit!(
     return w
 end
 
-# remember the diagonal element in `unsafe`
+# remember the diagonal element in `unsafe` and previous coefficient
 @inline function diagonal_step!(
     w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection},
     ham, add, val, dτ, shift, threshold=0, report_stats=false
@@ -82,7 +82,11 @@ end
     # now deposit
     V = valtype(w)
     old_ival = get(w.storage, add, zero(InitiatorValue{V}))
-    new_ival = InitiatorValue{V}(safe = old_ival.safe + new_val, unsafe = -pd)
+    new_ival = InitiatorValue{V}(;
+        safe = old_ival.safe + new_val, # updated coefficient
+        unsafe = -pd, # remember diagonal multiplicator; to be used for Strat correction
+        initiator = old_ival.safe # remember previous coefficient
+    )
     # add all contributions in `safe`, remember diagonal contribution `-pd` in `unsafe`
     if iszero(new_ival)
         delete!(w.storage, add)
@@ -95,31 +99,40 @@ end
     return (z, z, z, z)
 end
 
-# information about the sign of the change to the coefficient in one time step
-# can be obtained during `sort_into_targets!` as it has access to the new and the old coeffs
-# The following only fixes single thread, no-MPI code
-function sort_into_targets!(
-    target,
-    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection},
-    stats
-)
-    V = valtype(w)
-    for (add, ival) in pairs(w.storage) # this is slow and adds to run time
-        σ = sign(ival.safe-target[add])
-        w.storage[add] = InitiatorValue{V}(safe=ival.safe, unsafe=ival.unsafe, initiator=σ)
-        # the sign is stored in the `initiator` field
-    end
-    return w, target, stats # swap DVecs
-end
+# # information about the sign of the change to the coefficient in one time step
+# # can be obtained during `sort_into_targets!` as it has access to the new and the old coeffs
+# # The following only fixes single thread, no-MPI code
+# function sort_into_targets!(
+#     target,
+#     w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection},
+#     stats
+# )
+#     V = valtype(w)
+#     for (add, ival) in pairs(w.storage) # this is slow and adds to run time
+#         σ = sign(ival.safe-target[add])
+#         w.storage[add] = InitiatorValue{V}(safe=ival.safe, unsafe=ival.unsafe, initiator=σ)
+#         # the sign is stored in the `initiator` field
+#     end
+#     return w, target, stats # swap DVecs
+# end
 
 # here the Stratonovich correction is applied
 function compress!(t::ThresholdCompression,
-    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection}
+    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection},
+    hamiltonian,
+    shift,
+    dτ
 )
     # w = localpart(v) # fix MPI later!
     s_factor = w.initiator.threshold # the parameter stored in `StratonovichCorrection`
-    for (add, ival) in pairs(w.storage) # `ival` is an `InitiatorValue`
-        val = ival.safe + ival.initiator * ival.unsafe/2 * s_factor
+    for (add, ival) in pairs(w.storage) # `ival` is an `InitiatorValue
+        if iszero(ival.initiator) # This is a new coefficient
+            pd = dτ * (diagonal_element(hamiltonian, add) - shift)
+        else # otherwise use stored value
+            pd = -ival.unsafe
+        end
+        σ = sign(ival.safe - ival.initiator) # sign of change in coefficient
+        val = ival.safe - σ * pd/2 * s_factor
         # apply Stratonovich correction
         prob = abs(val) / t.threshold
         if prob < 1 # projection is only necessary if abs(val) < s.threshold
