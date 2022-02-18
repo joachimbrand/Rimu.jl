@@ -7,22 +7,22 @@
 
 The grand aim is to develop a toolbox for many-body quantum systems that can be represented by a Hamiltonian in second quantisation language. Currently supported features include:
 ### Interacting with quantum many-body models
-- **Full configuration interaction quantum Monte Carlo** (FCIQMC, see [References](@ref)), a flavour of projector quantum Monte Carlo for stochastically solving the time-independent Schrödinger equation.
-- **Matrix-free exact diagonalisation** of quantum Hamiltonians (with external package [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl)).
-- **Sparse matrix representation** of quantum Hamiltonians for exact diagonalisation with sparse linear algebra package of your choice (fastest for small systems).
+* **Full configuration interaction quantum Monte Carlo (FCIQMC)**, a flavour of projector quantum Monte Carlo for stochastically solving the time-independent Schrödinger equation. See [References](@ref).
+* **Matrix-free exact diagonalisation** of quantum Hamiltonians (with external package [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl)).
+* **Sparse matrix representation** of quantum Hamiltonians for exact diagonalisation with sparse linear algebra package of your choice (fastest for small systems).
 
 ### Representing quantum many-body models
-- A composable and efficient type system for representing single- and multi-component **Fock states** of bosons, fermions, and mixtures thereof.
-- An **interface for defining many-body Hamiltonians**.
-- Pre-defined models include:
--- **Hubbard model** in real space for bosons and fermions and mixtures in 1, 2, and 3 spatial dimensions.
--- Hubbard and related lattice models in momentum space for bosons and fermions in one spatial dimension.
--- **Transcorrelated Hamiltonian** for contact interactions in one dimension for fermions, as described in Jeszenski *et al.* [arXiv:1806.11268](http://arxiv.org/abs/1806.11268).
+* A composable and efficient type system for representing single- and multi-component **Fock states** of bosons, fermions, and mixtures thereof.
+* An **interface for defining many-body Hamiltonians**.
+* Pre-defined models include:
+  * **Hubbard model** in real space for bosons and fermions and mixtures in 1, 2, and 3 spatial dimensions.
+  * Hubbard and related lattice models in momentum space for bosons and fermions in one spatial dimension.
+  * **Transcorrelated Hamiltonian** for contact interactions in one dimension for fermions, as described in Jeszenski *et al.* [arXiv:1806.11268](http://arxiv.org/abs/1806.11268).
 
 ### Statistical analysis of Monte Carlo data
-- **Blocking analysis** following Flyvberg and Peterson [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480), and automated with the M test of Jonsson
+* **Blocking analysis** following Flyvberg and Peterson [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480), and automated with the M test of Jonsson
 [PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304).
-- **Unbiased estimators** for the ground state energy by re-reweighting following Nightingale & Blöte [PRB (1986)](https://link.aps.org/doi/10.1103/PhysRevB.33.659) and Umrigar *et al.* [JCP (1993)](http://aip.scitation.org/doi/10.1063/1.465195).
+* **Unbiased estimators** for the ground state energy by re-reweighting following Nightingale & Blöte [PRB (1986)](https://link.aps.org/doi/10.1103/PhysRevB.33.659) and Umrigar *et al.* [JCP (1993)](http://aip.scitation.org/doi/10.1063/1.465195).
 
 The code supports parallelisation with MPI (harnessing [`MPI.jl`](https://github.com/JuliaParallel/MPI.jl)) as well as native Julia threading (experimental). In the future, we may add tools to solve the time-dependent Schrödinger equation and Master equations for open system time evolution.
 
