@@ -12,15 +12,15 @@ The grand aim is to develop a toolbox for many-body quantum systems that can be 
 * **Sparse matrix representation** of quantum Hamiltonians for exact diagonalisation with sparse linear algebra package of your choice (fastest for small systems).
 
 ### Representing quantum many-body models
-* A composable and efficient type system for representing single- and multi-component **Fock states** of bosons, fermions, and mixtures thereof.
+* A composable and efficient type system for representing single- and multi-component **Fock states** of bosons, fermions, and mixtures thereof, to be used as a basis for representing Hamiltonians.
 * An **interface for defining many-body Hamiltonians**.
 * Pre-defined models include:
   * **Hubbard model** in real space for bosons and fermions and mixtures in 1, 2, and 3 spatial dimensions.
-  * Hubbard and related lattice models in momentum space for bosons and fermions in one spatial dimension.
+  * Hubbard and related **lattice models in momentum space** for bosons and fermions in one spatial dimension.
   * **Transcorrelated Hamiltonian** for contact interactions in one dimension for fermions, as described in Jeszenski *et al.* [arXiv:1806.11268](http://arxiv.org/abs/1806.11268).
 
 ### Statistical analysis of Monte Carlo data
-* **Blocking analysis** following Flyvberg and Peterson [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480), and automated with the M test of Jonsson
+* **Blocking analysis** following Flyvberg & Peterson [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480), and automated with hypothesis testing by Jonsson
 [PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304).
 * **Unbiased estimators** for the ground state energy by re-reweighting following Nightingale & Blöte [PRB (1986)](https://link.aps.org/doi/10.1103/PhysRevB.33.659) and Umrigar *et al.* [JCP (1993)](http://aip.scitation.org/doi/10.1063/1.465195).
 
