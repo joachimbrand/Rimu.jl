@@ -41,11 +41,23 @@ function variational_energy_estimator(
 end
 
 function variational_energy_estimator(df::DataFrame; kwargs...)
+    if "shift" in names(df)
+        throw(ArgumentError(
+            "`DataFrame` looks like a non-initiator output. Use keyword \
+            `replica=AllOverlaps(n)` with n≥2 in `lomc!()` to set up replicas!"
+        ))
+    end
     num_replicas = length(filter(startswith("norm_"), names(df))) # number of replicas
+    if iszero(num_replicas)
+        throw(ArgumentError(
+            "No replicas found. Use keyword \
+            `replica=AllOverlaps(n)` with n≥2 in `lomc!()` to set up replicas!"
+        ))
+    end
     @assert num_replicas ≥ 2 "At least two replicas are needed, found $num_replicas"
 
     num_overlaps = length(filter(startswith(r"c._dot"), names(df)))
-    @assert num_overlaps == binomial(num_replicas, 2)
+    @assert num_overlaps == binomial(num_replicas, 2) "Unexpected number of overlaps."
 
     shiftnames = [Symbol("shift_$i") for i in 1:num_replicas]
     shifts = map(name -> getproperty(df, name), shiftnames)

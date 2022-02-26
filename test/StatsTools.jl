@@ -199,6 +199,7 @@ end
     s_strat = DoubleLogUpdate(targetwalkers=10)
     seedCRNG!(174)
     @time df = lomc!(ham, v; params=p, s_strat, post_step).df
+    @test_throws ArgumentError variational_energy_estimator(df) # see next testset
     bs = shift_estimator(df; skip=steps_equi)
     @test bs == blocking_analysis(df.shift[steps_equi+1:end])
     pcb = bs.mean - exact_energy
@@ -272,8 +273,9 @@ using Rimu.StatsTools: replica_fidelity
 
     # test variational energy directly on the result of the replica run
     ve = variational_energy_estimator(rr; skip=steps_equi)
-    @test kkresults[1][1] < pmedian(ve) 
+    @test kkresults[1][1] < pmedian(ve)
     @test pmedian(ve) < shift_estimator(rr; shift = :shift_1, skip=steps_equi).mean
+    @test_throws ArgumentError variational_energy_estimator(DataFrame()) # empty df
 end
 
 comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tuple(b))
