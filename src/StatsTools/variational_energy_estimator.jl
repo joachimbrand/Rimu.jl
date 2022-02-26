@@ -15,7 +15,8 @@ is calculated from
 Ē_{v}  =  \\frac{\\sum_{a<b}^Ω \\overline{(S_a+S_b) \\mathbf{c}_a^† \\mathbf{c}_b}}
                {2\\sum_{a<b}^Ω \\overline{\\mathbf{c}_a^† \\mathbf{c}_b}} ,
 ```
-where ``Ω`` is the number of replicas.
+where ``Ω`` is the number of replicas. See
+[arXiv:2103.07800](http://arxiv.org/abs/2103.07800).
 
 The `DataFrame` version can extract the relevant information from the result of
 [`lomc!`](@ref). Set up [`lomc!`](@ref) with the keyword argument
@@ -29,7 +30,11 @@ function variational_energy_estimator(
     kwargs...
 )
     num_replicas = length(shifts)
-    @assert length(overlaps) == binomial(num_replicas,2)
+    if length(overlaps) ≠ binomial(num_replicas,2)
+        throw(ArgumentError(
+            "The number of `overlaps` needs to be `binomial(length(shifts),2)`."
+        ))
+    end
     denominator = sum(overlaps)
     numerator = zero(shifts[1])
     count_overlaps = 0

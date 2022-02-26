@@ -276,6 +276,8 @@ using Rimu.StatsTools: replica_fidelity
     @test kkresults[1][1] < pmedian(ve)
     @test pmedian(ve) < shift_estimator(rr; shift = :shift_1, skip=steps_equi).mean
     @test_throws ArgumentError variational_energy_estimator(DataFrame()) # empty df
+    vs = [rand(5) for _ in 1:4]
+    @test_throws ArgumentError variational_energy_estimator(vs,vs) # wrong length arrays
 end
 
 comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tuple(b))
