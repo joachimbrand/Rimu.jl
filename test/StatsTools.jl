@@ -228,7 +228,7 @@ end
 end
 
 using Rimu.StatsTools: replica_fidelity
-@testset "Fidelity" begin
+@testset "Fidelity and variational energy" begin
     ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
 
     # get exact eigenvectors with KrylovKit
@@ -269,6 +269,11 @@ using Rimu.StatsTools: replica_fidelity
     γ = acos(√fid_os.ratio) # quantum angle or Fubini-Study metric
     @test γ ≈ α
     =#
+
+    # test variational energy directly on the result of the replica run
+    ve = variational_energy_estimator(rr; skip=steps_equi)
+    @test kkresults[1][1] < pmedian(ve) 
+    @test pmedian(ve) < shift_estimator(rr; shift = :shift_1, skip=steps_equi).mean
 end
 
 comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tuple(b))

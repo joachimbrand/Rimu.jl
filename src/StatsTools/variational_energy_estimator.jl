@@ -31,7 +31,7 @@ function variational_energy_estimator(
     num_replicas = length(shifts)
     @assert length(overlaps) == binomial(num_replicas,2)
     denominator = sum(overlaps)
-    numerator = zero(denominator)
+    numerator = zero(shifts[1])
     count_overlaps = 0
     for i in 1:num_replicas, j in i+1:num_replicas
         count_overlaps += 1
