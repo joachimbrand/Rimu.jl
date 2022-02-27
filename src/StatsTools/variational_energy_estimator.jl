@@ -12,15 +12,15 @@ An estimator for the variational energy
 ```
 is calculated from
 ```math
-Ē_{v}  =  \\frac{\\sum_{a<b}^Ω \\overline{(S_a+S_b) \\mathbf{c}_a^† \\mathbf{c}_b}}
-               {2\\sum_{a<b}^Ω \\overline{\\mathbf{c}_a^† \\mathbf{c}_b}} ,
+Ē_{v}  =  \\frac{\\sum_{a<b}^R \\overline{(S_a+S_b) \\mathbf{c}_a^† \\mathbf{c}_b}}
+               {2\\sum_{a<b}^R \\overline{\\mathbf{c}_a^† \\mathbf{c}_b}} ,
 ```
-where ``Ω`` is the number of replicas. See
+where the sum goes over distinct pairs out of the ``R`` replicas. See
 [arXiv:2103.07800](http://arxiv.org/abs/2103.07800).
 
 The `DataFrame` version can extract the relevant information from the result of
 [`lomc!`](@ref). Set up [`lomc!`](@ref) with the keyword argument
-`replica = AllOverlaps(Ω)` and `Ω ≥ 2`.
+`replica = AllOverlaps(R)` and `R ≥ 2`.
 
 See [`AllOverlaps`](@ref).
 """
