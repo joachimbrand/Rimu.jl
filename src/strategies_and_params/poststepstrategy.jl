@@ -1,5 +1,3 @@
-const DVecOrVec = Union{AbstractDVec,AbstractVector}
-
 """
     PostStepStrategy
 
@@ -89,18 +87,19 @@ function ProjectedEnergy(
     hamiltonian, projector;
     vproj=:vproj, hproj=:hproj
 )
-    hproj_vec = compute_hproj(LOStructure(hamiltonian), hamiltonian, projector)
+    hproj_vec = compute_hproj(hamiltonian, projector)
     return ProjectedEnergy(vproj, hproj, hamiltonian, freeze(projector), hproj_vec)
 end
-function compute_hproj(::LOStructure, hamiltonian, projector::AbstractProjector)
-    # compute `dot` products with `AbstractProjector`s lazily
-    return nothing
+compute_hproj(hamiltonian, projector::AbstractProjector) = nothing
+# compute `dot` products with `AbstractProjector`s lazily
+function compute_hproj(hamiltonian, projector)
+    return compute_hproj(LOStructure(hamiltonian), hamiltonian, projector)
 end
-function compute_hproj(::AdjointUnknown, hamiltonian, projector::DVecOrVec)
+function compute_hproj(::AdjointUnknown, hamiltonian, projector)
     @warn "$(typeof(hamiltonian)) has an unknown adjoint. This will be slow."
     return nothing
 end
-function compute_hproj(::LOStructure, ham, projector::DVecOrVec)
+function compute_hproj(::LOStructure, ham, projector)
     return freeze(ham' * projector)
 end
 
