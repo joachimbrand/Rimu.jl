@@ -316,10 +316,12 @@ using Statistics
                 Projector(p2=copy(dv)),
                 ProjectedEnergy(H, dv),
                 ProjectedEnergy(H, dv, vproj=:vproj2, hproj=:hproj2),
+                ProjectedEnergy(H, UniformProjector(), vproj=:vproj3, hproj=:hproj3),
             )
             df, _ = lomc!(H, copy(dv); post_step)
             @test df.vproj == df.vproj2 == df.p2
             @test df.norm ≈ df.p1
+            @test df.norm ≥ df.vproj3
 
             @test_throws ArgumentError lomc!(
                 H, dv; post_step=(Projector(a=dv), Projector(a=dv))

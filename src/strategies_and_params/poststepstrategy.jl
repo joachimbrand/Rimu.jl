@@ -1,3 +1,5 @@
+const DVecOrVec = Union{AbstractDVec,AbstractVector}
+
 """
     PostStepStrategy
 
@@ -61,19 +63,19 @@ function post_step(p::Projector, replica)
 end
 
 """
-    ProjectedEnergy(hamiltonian, projector; hproj=:vproj, vproj=:vproj) <: PostStepStrategy
+    ProjectedEnergy(hamiltonian, projector; hproj=:hproj, vproj=:vproj) <: PostStepStrategy
 
 After every step, compute `hproj = dot(projector, hamiltonian, dv)` and `vproj =
 dot(projector, dv)`, where `dv` is the instantaneous coefficient vector.  `projector` can be
 an [`AbstractDVec`](@ref), or an [`AbstractProjector`](@ref).
 
 Reports to columns `hproj` and `vproj`, which can be used to compute projective energy,
-e.g. with [`Rimu.StatsTools.projected_energy`](@ref). The keyword arguments `hproj` and
+e.g. with [`projected_energy`](@ref). The keyword arguments `hproj` and
 `vproj` can be used to change the names of these columns. This can be used to make the names
 unique when computing projected energies with different projectors in the same run.
 
-See also [`Rimu.StatsTools.ratio_of_means`](@ref),
-[`Rimu.StatsTools.mixed_estimator`](@ref).
+See also [`projected_energy`](@ref), [`ratio_of_means`](@ref), [`mixed_estimator`](@ref),
+and [`PostStepStrategy`](@ref).
 """
 struct ProjectedEnergy{H,P,Q} <: PostStepStrategy
     vproj_name::Symbol
@@ -90,11 +92,15 @@ function ProjectedEnergy(
     hproj_vec = compute_hproj(LOStructure(hamiltonian), hamiltonian, projector)
     return ProjectedEnergy(vproj, hproj, hamiltonian, freeze(projector), hproj_vec)
 end
-function compute_hproj(::AdjointUnknown, hamiltonian, projector)
+function compute_hproj(::LOStructure, hamiltonian, projector::AbstractProjector)
+    # compute `dot` products with `AbstractProjector`s lazily
+    return nothing
+end
+function compute_hproj(::AdjointUnknown, hamiltonian, projector::DVecOrVec)
     @warn "$(typeof(hamiltonian)) has an unknown adjoint. This will be slow."
     return nothing
 end
-function compute_hproj(::LOStructure, ham, projector)
+function compute_hproj(::LOStructure, ham, projector::DVecOrVec)
     return freeze(ham' * projector)
 end
 
