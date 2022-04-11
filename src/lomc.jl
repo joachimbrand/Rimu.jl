@@ -288,6 +288,8 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
 
     # main loop
     initial_step = step
+    update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
+    # update_steps = 400
     @withprogress name=name while step < laststep
         step += 1
         report!(state.r_strat, step, report, :steps, step)
@@ -301,7 +303,9 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
         report!(state.r_strat, step, report, replica_names, replica_values)
         report_after_step(state.r_strat, step, report, state)
         ensure_correct_lengths(report)
-        @logprogress (step-initial_step)/(laststep-initial_step)
+        if step % update_steps == 0 # for updating progress bars
+            @logprogress (step-initial_step)/(laststep-initial_step)
+        end
         !success && break
     end
 
