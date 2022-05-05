@@ -313,7 +313,7 @@ function get_overlaps_diagonal!(names, values, operators, vecs::NTuple{N}) where
         end
     end
 end
-function get_overlaps_nondiagonal!(names, value, operators, vecs::NTuple{N}) where {N}
+function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}) where {N}
     local_vec_i = similar(localpart(vecs[1]))
     for i in 1:N, j in i+1:N
         push!(names, "c$(i)_dot_c$(j)")
@@ -331,9 +331,9 @@ function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}) where {N}
     names = String[]
     values = T[]
     if all(op -> LOStructure(op) isa IsDiagonal, operators)
-        get_overlaps_diagonal!(names, value, operators, vecs)
+        get_overlaps_diagonal!(names, values, operators, vecs)
     else
-        get_overlaps_nondiagonal!(names, value, operators, vecs)
+        get_overlaps_nondiagonal!(names, values, operators, vecs)
     end
 
     num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)

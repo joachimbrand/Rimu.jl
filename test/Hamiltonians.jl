@@ -631,7 +631,7 @@ end
     end
 
     @test num_offdiagonals(Momentum(), BoseFS((0,1,0))) == 0
-    @test LOStructure(Momentum(2; fold=true)) == IsHermitian()
+    @test LOStructure(Momentum(2; fold=true)) == IsDiagonal()
 end
 
 @testset "DensityMatrixDiagonal" begin
@@ -650,7 +650,7 @@ end
     end
 
     @test num_offdiagonals(DensityMatrixDiagonal(1), BoseFS((0,1,0))) == 0
-    @test LOStructure(DensityMatrixDiagonal(2)) == IsHermitian()
+    @test LOStructure(DensityMatrixDiagonal(2)) == IsDiagonal()
 end
 
 @testset "HubbardReal1DEP" begin

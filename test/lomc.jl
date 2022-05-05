@@ -112,7 +112,7 @@ using Statistics
             # MPIData
             df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4, H))
             @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5, H))
+            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5, DensityMatrixDiagonal(1)))
             @test num_stats(df) == 2 * binomial(5, 2)
         end
     end
