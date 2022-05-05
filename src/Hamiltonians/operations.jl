@@ -104,3 +104,4 @@ function LinearAlgebra.adjoint(::S, op) where {S<:LOStructure}
 end
 
 LinearAlgebra.adjoint(::IsHermitian, op) = op # adjoint is known
+LinearAlgebra.adjoint(::IsDiagonal, op) = op
