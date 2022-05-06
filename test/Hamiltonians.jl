@@ -45,8 +45,8 @@ function test_hamiltonian_interface(H)
         end
         @testset "LOStructure" begin
             @test LOStructure(H) isa LOStructure
-            if LOStructure(H) isa IsHermitian
-                @test H' == H
+            if LOStructure(H) isa IsHermitian || LOStructure(H) isa IsDiagonal
+                @test H' === H
             elseif LOStructure(H) isa AdjointKnown
                 @test begin H'; true; end # make sure no error is thrown
             else
@@ -632,6 +632,7 @@ end
 
     @test num_offdiagonals(Momentum(), BoseFS((0,1,0))) == 0
     @test LOStructure(Momentum(2; fold=true)) == IsDiagonal()
+    @test Momentum(1)' === Momentum(1)
 end
 
 @testset "DensityMatrixDiagonal" begin
@@ -651,6 +652,7 @@ end
 
     @test num_offdiagonals(DensityMatrixDiagonal(1), BoseFS((0,1,0))) == 0
     @test LOStructure(DensityMatrixDiagonal(2)) == IsDiagonal()
+    @test DensityMatrixDiagonal(15)' === DensityMatrixDiagonal(15)
 end
 
 @testset "HubbardReal1DEP" begin
