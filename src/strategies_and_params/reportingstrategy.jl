@@ -186,6 +186,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 # Keyword arguments
 
 * `filename`: the file to report to. If the file already exists, a new file is created.
+* `k`: Report every `k`th step to a (temporary) `DataFrame`.
 * `chunk_size = 1000`: the size of each chunk that is written to the file. A `DataFrame` of
   this size is collected in memory and written to disk. When saving, an info message is also
   printed to `io`.
@@ -198,6 +199,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 """
 @with_kw struct ReportToFile <: ReportingStrategy
     filename::String
+    k::Int = 1
     chunk_size::Int = 1000
     save_if::Bool = RMPI.is_mpi_root()
     return_df::Bool = false
@@ -227,12 +229,12 @@ function refine_r_strat(s::ReportToFile)
 end
 function report!(s::ReportToFile, _, args...)
     if s.save_if
-        report!(args...)
+        step % s.k == 0 && report!(args...)
     end
     return nothing
 end
 function report_after_step(s::ReportToFile, step, report, state)
-    if s.save_if && step % s.chunk_size == 0
+    if s.save_if && step * s.k % s.chunk_size == 0
         # Report some stats:
         print_stats(s.io, step, state)
 
