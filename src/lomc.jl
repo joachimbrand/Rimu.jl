@@ -299,7 +299,9 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
         for replica in state.replicas
             success &= advance!(report, state, replica)
         end
-        replica_names, replica_values = replica_stats(state.replica, state.replicas)
+        if step % reporting_interval(state.r_strat) == 0
+            replica_names, replica_values = replica_stats(state.replica, state.replicas)
+        end
         report!(state.r_strat, step, report, replica_names, replica_values)
         report_after_step(state.r_strat, step, report, state)
         ensure_correct_lengths(report)
@@ -358,18 +360,20 @@ function advance!(
     @pack! params = step, shiftMode, shift, dτ
     @pack! replica = v, w, pnorm, params
 
-    # Note: post_step must be called after packing the values.
-    post_step_stats = post_step(state.post_step, replica)
+    if step % reporting_interval(state.r_strat) == 0
+        # Note: post_step must be called after packing the values.
+        post_step_stats = post_step(state.post_step, replica)
 
-    # Reporting
-    report!(
-        r_strat, step, report,
-        (dτ, shift, shiftMode, len, norm=tnorm), id,
-    )
-    report!(r_strat, step, report, step_stat_names, step_stat_values, id)
-    report!(r_strat, step, report, update_dvec_stats, id)
-    report!(r_strat, step, report, (;shift_noise), id)
-    report!(state.r_strat, step, report, post_step_stats, id)
+        # Reporting
+        report!(
+            r_strat, step, report,
+            (dτ, shift, shiftMode, len, norm=tnorm), id,
+        )
+        report!(r_strat, step, report, step_stat_names, step_stat_values, id)
+        report!(r_strat, step, report, update_dvec_stats, id)
+        report!(r_strat, step, report, (;shift_noise), id)
+        report!(state.r_strat, step, report, post_step_stats, id)
+    end
 
     if len == 0
         if length(state.replicas) > 1

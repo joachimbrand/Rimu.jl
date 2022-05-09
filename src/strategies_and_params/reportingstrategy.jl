@@ -136,6 +136,17 @@ function report_after_step(::ReportingStrategy, args...)
 end
 
 """
+    reporting_interval(::ReportingStrategy)
+
+Return the interval between steps for which non-essential statistics are reported. Defaults to
+1 if chosen `ReportingStrategy` does not specify an interval.
+"""
+function reporting_interval(::ReportingStrategy)
+    skip = 1
+    return skip
+end
+
+"""
     finalize_report!(::ReportingStrategy, report)
 
 Finalize the report. This function is called after all steps in [`lomc!`](@ref) have
@@ -154,27 +165,30 @@ function print_stats(io::IO, step, state)
 end
 
 """
-    ReportDFAndInfo(; k=1, i=100, io=stdout, writeinfo=false) <: ReportingStrategy
+    ReportDFAndInfo(; reporting_interval=1, info_interval=100, io=stdout, writeinfo=false) <: ReportingStrategy
 
-The default [`ReportingStrategy`](@ref). Report every `k`th step to a `DataFrame` and write
-info message to `io` every `i`th step (unless `writeinfo == false`). The flag `writeinfo` is
-useful for controlling info messages in MPI codes, e.g. by setting
+The default [`ReportingStrategy`](@ref). Report every `reporting_interval`th step to a `DataFrame` 
+and write info message to `io` every `info_interval`th step (unless `writeinfo == false`). The flag 
+`writeinfo` is useful for controlling info messages in MPI codes, e.g. by setting
 `writeinfo =`[`is_mpi_root()`](@ref).
 """
 @with_kw struct ReportDFAndInfo <: ReportingStrategy
-    k::Int = 1
-    i::Int = 100
+    reporting_interval::Int = 1
+    info_interval::Int = 100
     io::IO = stdout
     writeinfo::Bool = false
 end
 function report!(s::ReportDFAndInfo, step, args...)
-    step % s.k == 0 && report!(args...)
+    step % s.reporting_interval == 0 && report!(args...)
     return nothing
 end
 function report_after_step(s::ReportDFAndInfo, step, _, state)
-    if s.writeinfo && step % s.i == 0
+    if s.writeinfo && step % s.info_interval == 0
         print_stats(s.io, step, state)
     end
+end
+function reporting_interval(s::ReportDFAndInfo)
+    return s.reporting_interval
 end
 
 """
@@ -186,7 +200,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 # Keyword arguments
 
 * `filename`: the file to report to. If the file already exists, a new file is created.
-* `k`: Report every `k`th step to a (temporary) `DataFrame`.
+* `reporting_interval`: interval between steps that are reported to a (temporary) `DataFrame`.
 * `chunk_size = 1000`: the size of each chunk that is written to the file. A `DataFrame` of
   this size is collected in memory and written to disk. When saving, an info message is also
   printed to `io`.
@@ -199,7 +213,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 """
 @with_kw struct ReportToFile <: ReportingStrategy
     filename::String
-    k::Int = 1
+    reporting_interval::Int = 1
     chunk_size::Int = 1000
     save_if::Bool = RMPI.is_mpi_root()
     return_df::Bool = false
@@ -229,12 +243,12 @@ function refine_r_strat(s::ReportToFile)
 end
 function report!(s::ReportToFile, step, args...)
     if s.save_if
-        step % s.k == 0 && report!(args...)
+        step % s.reporting_interval == 0 && report!(args...)
     end
     return nothing
 end
 function report_after_step(s::ReportToFile, step, report, state)
-    if s.save_if && step * s.k % s.chunk_size == 0
+    if s.save_if && step * s.reporting_interval % s.chunk_size == 0
         # Report some stats:
         print_stats(s.io, step, state)
 
@@ -259,4 +273,7 @@ function finalize_report!(s::ReportToFile, report)
         end
     end
     return DataFrame()
+end
+function reporting_interval(s::ReportToFile)
+    return s.reporting_interval
 end
