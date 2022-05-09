@@ -301,8 +301,8 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
         end
         if step % reporting_interval(state.r_strat) == 0
             replica_names, replica_values = replica_stats(state.replica, state.replicas)
-        end
-        report!(state.r_strat, step, report, replica_names, replica_values)
+            report!(state.r_strat, step, report, replica_names, replica_values)
+        end        
         report_after_step(state.r_strat, step, report, state)
         ensure_correct_lengths(report)
         if step % update_steps == 0 # for updating progress bars
