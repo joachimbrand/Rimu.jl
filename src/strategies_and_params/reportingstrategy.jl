@@ -168,7 +168,7 @@ end
     ReportDFAndInfo(; reporting_interval=1, info_interval=100, io=stdout, writeinfo=false) <: ReportingStrategy
 
 The default [`ReportingStrategy`](@ref). Report every `reporting_interval`th step to a `DataFrame` 
-and write info message to `io` every `info_interval`th step (unless `writeinfo == false`). The flag 
+and write info message to `io` every `info_interval`th reported step (unless `writeinfo == false`). The flag 
 `writeinfo` is useful for controlling info messages in MPI codes, e.g. by setting
 `writeinfo =`[`is_mpi_root()`](@ref).
 """
@@ -183,7 +183,7 @@ function report!(s::ReportDFAndInfo, step, args...)
     return nothing
 end
 function report_after_step(s::ReportDFAndInfo, step, _, state)
-    if s.writeinfo && step % s.info_interval == 0
+    if s.writeinfo && step % (s.info_interval * s.reporting_interval) == 0
         print_stats(s.io, step, state)
     end
 end
@@ -248,7 +248,7 @@ function report!(s::ReportToFile, step, args...)
     return nothing
 end
 function report_after_step(s::ReportToFile, step, report, state)
-    if s.save_if && step * s.reporting_interval % s.chunk_size == 0
+    if s.save_if && step % (s.chunk_size * s.reporting_interval) == 0
         # Report some stats:
         print_stats(s.io, step, state)
 
