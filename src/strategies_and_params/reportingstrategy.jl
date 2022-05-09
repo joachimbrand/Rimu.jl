@@ -227,7 +227,7 @@ function refine_r_strat(s::ReportToFile)
     end
     return s
 end
-function report!(s::ReportToFile, _, args...)
+function report!(s::ReportToFile, step, args...)
     if s.save_if
         step % s.k == 0 && report!(args...)
     end
