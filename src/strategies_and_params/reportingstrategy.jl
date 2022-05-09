@@ -138,7 +138,7 @@ end
 """
     reporting_interval(::ReportingStrategy)
 
-Return the interval between steps for which non-essential statistics are reported. Defaults to
+Get the interval between steps for which non-essential statistics are reported. Defaults to
 1 if chosen `ReportingStrategy` does not specify an interval.
 """
 function reporting_interval(::ReportingStrategy)
@@ -200,7 +200,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 # Keyword arguments
 
 * `filename`: the file to report to. If the file already exists, a new file is created.
-* `reporting_interval`: interval between steps that are reported to a (temporary) `DataFrame`.
+* `reporting_interval`: interval between simulation steps that are reported to a `DataFrame`.
 * `chunk_size = 1000`: the size of each chunk that is written to the file. A `DataFrame` of
   this size is collected in memory and written to disk. When saving, an info message is also
   printed to `io`.
