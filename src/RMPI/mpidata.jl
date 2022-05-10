@@ -286,10 +286,16 @@ function copy_to_local!(target, md::MPIData)
 end
 
 function LinearAlgebra.dot(md_left::MPIData, lop, md_right::MPIData)
-    # Idea: lop * md_right can be huge. It might be better to just collect the full left
-    # vector and do the multiplication locally.
-    left = copy_to_local(md_left)
-    return dot(left, lop, md_right)
+    if LOStructure(lop) isa IsDiagonal
+        # If operator is diagonal, the operation can be performed on the local parts.
+        comm = md_left.comm
+        return MPI.Allreduce(dot(localpart(md_left), lop, localpart(md_right)), +, comm)
+    else
+        # Idea: lop * md_right can be huge. It might be better to just collect the full left
+        # vector and do the multiplication locally.
+        left = copy_to_local(md_left)
+        return dot(left, lop, md_right)
+    end
 end
 
 function Rimu.freeze(md::MPIData)
@@ -297,11 +303,18 @@ function Rimu.freeze(md::MPIData)
     return freeze(localpart(md))
 end
 
-function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}) where {N}
+function get_overlaps_diagonal!(names, values, operators, vecs::NTuple{N}) where {N}
+    for i in 1:N, j in i+1:N
+        push!(names, "c$(i)_dot_c$(j)")
+        push!(values, dot(vecs[i], vecs[j]))
+        for (k, op) in enumerate(operators)
+            push!(names, "c$(i)_Op$(k)_c$(j)")
+            push!(values, dot(vecs[i], op, vecs[j]))
+        end
+    end
+end
+function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}) where {N}
     local_vec_i = similar(localpart(vecs[1]))
-    T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
-    names = String[]
-    values = T[]
     for i in 1:N, j in i+1:N
         push!(names, "c$(i)_dot_c$(j)")
         push!(values, dot(vecs[i], vecs[j]))
@@ -311,7 +324,18 @@ function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}) where {N}
             push!(values, dot(local_vec_i, op, vecs[j]))
         end
     end
+end
+
+function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}) where {N}
+    T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
+    names = String[]
+    values = T[]
+    if all(op -> LOStructure(op) isa IsDiagonal, operators)
+        get_overlaps_diagonal!(names, values, operators, vecs)
+    else
+        get_overlaps_nondiagonal!(names, values, operators, vecs)
+    end
 
     num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)
-    return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
+    return Tuple(SVector{num_reports,String}(names)), Tuple(SVector{num_reports,T}(values))
 end
