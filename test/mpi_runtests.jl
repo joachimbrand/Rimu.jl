@@ -103,22 +103,24 @@ end
                     @testset "Operations" begin
                         @test dot(v, w) ≈ dot(dv, dw)
 
-                        @test dot(v, H, w) ≈ dot(v, H, dw)
-                        @test dot(w, H, v) ≈ dot(w, H, dv)
-                        @test dot(w, H, v) ≈ dot(dw, H, dv)
-                        @test dot(w, H, v) ≈ dot(dw, H, v)
-
                         @test dot(freeze(dw), dv) ≈ dot(w, v)
                         @test dot(freeze(dv), dw) ≈ dot(v, w)
 
-                        du = MPIData(H * dv)
-                        u = H * v
-                        @test correct_ranks(du)
+                        for op in (H, DensityMatrixDiagonal(1))
+                            @test dot(v, op, w) ≈ dot(v, op, dw)
+                            @test dot(w, op, v) ≈ dot(w, op, dv)
+                            @test dot(w, op, v) ≈ dot(dw, op, dv)
+                            @test dot(w, op, v) ≈ dot(dw, op, v)
 
-                        @test length(u) == length(du)
-                        @test norm(u, 1) ≈ norm(du, 1)
-                        @test norm(u, 2) ≈ norm(du, 2)
-                        @test norm(u, Inf) ≈ norm(du, Inf)
+                            du = MPIData(op * dv)
+                            u = op * v
+                            @test correct_ranks(du)
+
+                            @test length(u) == length(du)
+                            @test norm(u, 1) ≈ norm(du, 1)
+                            @test norm(u, 2) ≈ norm(du, 2)
+                            @test norm(u, Inf) ≈ norm(du, Inf)
+                        end
                     end
                 end
             end

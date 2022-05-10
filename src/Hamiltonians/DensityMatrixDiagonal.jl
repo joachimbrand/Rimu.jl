@@ -48,4 +48,4 @@ function diagonal_element(dmd::DensityMatrixDiagonal{2}, add::BoseFS2C)
 end
 
 num_offdiagonals(dmd::DensityMatrixDiagonal, _) = 0
-LOStructure(::Type{<:DensityMatrixDiagonal}) = IsHermitian()
+LOStructure(::Type{<:DensityMatrixDiagonal}) = IsDiagonal()
