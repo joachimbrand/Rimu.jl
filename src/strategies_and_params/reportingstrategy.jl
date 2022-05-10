@@ -178,9 +178,8 @@ and write info message to `io` every `info_interval`th reported step (unless `wr
     io::IO = stdout
     writeinfo::Bool = false
 end
-function report!(s::ReportDFAndInfo, step, args...)
-    step % s.reporting_interval == 0 && report!(args...)
-    return nothing
+function report!(s::ReportDFAndInfo, _, args...)
+    report!(args...)
 end
 function report_after_step(s::ReportDFAndInfo, step, _, state)
     if s.writeinfo && step % (s.info_interval * s.reporting_interval) == 0
@@ -241,11 +240,10 @@ function refine_r_strat(s::ReportToFile)
     end
     return s
 end
-function report!(s::ReportToFile, step, args...)
+function report!(s::ReportToFile, _, args...)
     if s.save_if
-        step % s.reporting_interval == 0 && report!(args...)
+        report!(args...)
     end
-    return nothing
 end
 function report_after_step(s::ReportToFile, step, report, state)
     if s.save_if && step % (s.chunk_size * s.reporting_interval) == 0
