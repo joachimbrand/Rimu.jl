@@ -292,7 +292,9 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
     # update_steps = 400
     @withprogress name=name while step < laststep
         step += 1
-        report!(state.r_strat, step, report, :steps, step)
+        if step % reporting_interval(state.r_strat) == 0
+            report!(state.r_strat, step, report, :steps, step)
+        end
         # This loop could be threaded if num_threads() == num_replicas? MPIData would
         # need to be aware of the replica's id and use that in communication.
         success = true
@@ -302,9 +304,9 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
         if step % reporting_interval(state.r_strat) == 0
             replica_names, replica_values = replica_stats(state.replica, state.replicas)
             report!(state.r_strat, step, report, replica_names, replica_values)
-        end        
-        report_after_step(state.r_strat, step, report, state)
-        ensure_correct_lengths(report)
+            report_after_step(state.r_strat, step, report, state)
+            ensure_correct_lengths(report)
+        end
         if step % update_steps == 0 # for updating progress bars
             @logprogress (step-initial_step)/(laststep-initial_step)
         end
