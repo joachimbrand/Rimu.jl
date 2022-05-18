@@ -17,7 +17,7 @@ Follow the links for the definitions of the interfaces!
 * [`num_offdiagonals`](@ref)
 * [`get_offdiagonal`](@ref)
 * [`offdiagonals`](@ref).
-* [`random_offdiagonal`](@ref) 
+* [`random_offdiagonal`](@ref)
 * [`starting_address`](@ref)
 * [`LOStructure`](@ref)
 
@@ -48,7 +48,7 @@ export
 export
     AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
     random_offdiagonal, starting_address,
-    LOStructure, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
+    LOStructure, IsDiagonal, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
 
 include("stochasticstyles.jl")
 include("dictvectors.jl")
