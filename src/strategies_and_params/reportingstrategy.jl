@@ -141,10 +141,7 @@ end
 Get the interval between steps for which non-essential statistics are reported. Defaults to
 1 if chosen `ReportingStrategy` does not specify an interval.
 """
-function reporting_interval(::ReportingStrategy)
-    skip = 1
-    return skip
-end
+reporting_interval(::ReportingStrategy) = 1
 
 """
     finalize_report!(::ReportingStrategy, report)
