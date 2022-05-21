@@ -177,7 +177,7 @@ The following concrete implementations are provided:
 
 ## Interface
 
-In order to implement a new `SpawningStrategy`, define a method for [`spawn`](@ref).
+In order to implement a new `SpawningStrategy`, define a method for [`spawn!`](@ref).
 """
 abstract type SpawningStrategy end
 
