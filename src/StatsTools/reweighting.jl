@@ -1,5 +1,8 @@
 # reweighting functions
 
+VectorOrView = Union{Vector, SubArray{<:Any, 1, <:Vector, <:Any, true}}
+# safe type for `@simd ivdep` loops, supports fast linear indexing
+
 """
     w_exp(shift, h, dτ; E_r = mean(shift), skip = 0)
 Compute the weights for reweighting over `h` time steps with reference energy `E_r` from
@@ -12,20 +15,22 @@ where `q = skip`.
 See also [`w_lin()`](@ref), [`growth_estimator()`](@ref),
 [`mixed_estimator()`](@ref).
 """
-@inline function w_exp(shift, h, dτ; E_r = mean(shift), skip = 0)
-    T = promote_type(eltype(shift),typeof(E_r))
-    len = length(shift)-skip
+@inline function w_exp(shift::VectorOrView, h, dτ; E_r=mean(shift), skip=0)
+    T = promote_type(eltype(shift), typeof(E_r))
+    len = length(shift) - skip
     accu = Vector{T}(undef, len)
     @inbounds for n in 1:len
         a = zero(T)
-        look_back = min(h,skip+n-1)
+        look_back = min(h, skip + n - 1)
         @simd ivdep for j in 1:look_back # makes it very fast
-            a += shift[skip+n-j] - E_r
+            a += shift[skip+n-j]
         end
-        accu[n] = exp(-dτ*a)
+        accu[n] = exp(-dτ * (a - look_back * E_r))
     end
     return accu
 end
+w_exp(shift, h, dτ; kwargs...) = w_exp(Vector(shift), h, dτ; kwargs...)
+# cast to vector to make `@simd` loop work
 
 """
     w_lin(shift, h, dτ; E_r = mean(shift), skip = 0)
@@ -39,20 +44,22 @@ where `q = skip`.
 See also [`w_exp()`](@ref), [`growth_estimator()`](@ref),
 [`mixed_estimator()`](@ref).
 """
-@inline function w_lin(shift, h, dτ; E_r = mean(shift), skip = 0)
-    T = promote_type(eltype(shift),typeof(E_r))
-    len = length(shift)-skip
+@inline function w_lin(shift::VectorOrView, h, dτ; E_r=mean(shift), skip=0)
+    T = promote_type(eltype(shift), typeof(E_r))
+    len = length(shift) - skip
     accu = ones(T, len)
     @inbounds for n in 1:len
         a = one(T)
-        look_back = min(h,skip+n-1)
+        look_back = min(h, skip + n - 1)
         @simd ivdep for j in 1:look_back
-            a *= 1 - dτ*(shift[skip+n-j] - E_r)
+            a *= 1 - dτ * (shift[skip+n-j] - E_r)
         end
         accu[n] = a
     end
     return accu
 end
+w_lin(shift, h, dτ; kwargs...) = w_lin(Vector(shift), h, dτ; kwargs...)
+# cast to vector to make `@simd` loop work
 
 """
     growth_estimator(
@@ -92,23 +99,23 @@ See also [`mixed_estimator()`](@ref) and [`RatioBlockingResult`](@ref).
 """
 function growth_estimator(
     shift, wn, h, dτ;
-    skip = 0,
-    E_r = mean(view(shift, skip+1:length(shift))),
-    weights = w_exp,
-    change_type = identity,
-    mc_samples = nothing,
-    kwargs...,
+    skip=0,
+    E_r=mean(view(shift, skip+1:length(shift))),
+    weights=w_exp,
+    change_type=identity,
+    mc_samples=nothing,
+    kwargs...
 )
     T = promote_type(eltype(shift), eltype(wn))
     # W_{t+1}^{(n+1)} .* wn^{(n+1)}
-    @views numerator = weights(shift[2:end], h+1, dτ; E_r, skip) .* wn[skip+2:end]
+    @views numerator = weights(shift[2:end], h + 1, dτ; E_r, skip) .* wn[skip+2:end]
     # W_{t}^{(n)} .* wn^{(n)}
     @views denominator = weights(shift[1:end-1], h, dτ; E_r, skip) .* wn[skip+1:end-1]
     rbr = ratio_of_means(numerator, denominator; mc_samples, kwargs...)
     r = rbr.ratio::MonteCarloMeasurements.Particles{T,<:Any}
     r = change_type(r)
-    E_gr = E_r - log(r)/dτ # MonteCarloMeasurements propagates the uncertainty
-    E_gr_f = E_r - log(Measurements.measurement(rbr.f, rbr.σ_f))/dτ # linear error prop
+    E_gr = E_r - log(r) / dτ # MonteCarloMeasurements propagates the uncertainty
+    E_gr_f = E_r - log(Measurements.measurement(rbr.f, rbr.σ_f)) / dτ # linear error prop
     return RatioBlockingResult(
         particles(mc_samples, E_gr),
         Measurements.value(E_gr_f),
@@ -127,11 +134,12 @@ Calculate the growth estimator directly from a `DataFrame` returned by
 can be used to change the names of the relevant columns.
 """
 function growth_estimator(
-        df::DataFrame, h;
-        shift=:shift, norm=:norm, dτ=df.dτ[end], kwargs...
+    df::DataFrame, h;
+    shift=:shift, norm=:norm, dτ=df.dτ[end], kwargs...
 )
-    shift_vec = getproperty(df, Symbol(shift))
-    norm_vec = getproperty(df, Symbol(norm))
+    shift_vec = Vector(getproperty(df, Symbol(shift)))
+    norm_vec = Vector(getproperty(df, Symbol(norm)))
+    # converting to Vector here because this works fastest with `growth_estimator`
     return growth_estimator(shift_vec, norm_vec, h, dτ; kwargs...)
 end
 
@@ -170,10 +178,10 @@ See also [`growth_estimator()`](@ref).
 """
 function mixed_estimator(
     hproj, vproj, shift, h, dτ;
-    skip = 0,
-    E_r = mean(view(shift, skip+1:length(shift))),
-    weights = w_exp,
-    kwargs...,
+    skip=0,
+    E_r=mean(view(shift, skip+1:length(shift))),
+    weights=w_exp,
+    kwargs...
 )
     @views num = weights(shift, h, dτ; E_r, skip) .* hproj[skip+1:end]
     @views denom = weights(shift, h, dτ; E_r, skip) .* vproj[skip+1:end]
@@ -190,11 +198,11 @@ can be used to change the names of the relevant columns.
 """
 function mixed_estimator(
     df::DataFrame, h;
-    hproj = :hproj, vproj = :vproj, shift = :shift, dτ=df.dτ[end], kwargs...
+    hproj=:hproj, vproj=:vproj, shift=:shift, dτ=df.dτ[end], kwargs...
 )
-    hproj_vec = getproperty(df, Symbol(hproj))
-    vproj_vec = getproperty(df, Symbol(vproj))
-    shift_vec = getproperty(df, Symbol(shift))
+    hproj_vec = Vector(getproperty(df, Symbol(hproj)))
+    vproj_vec = Vector(getproperty(df, Symbol(vproj)))
+    shift_vec = Vector(getproperty(df, Symbol(shift)))
     return mixed_estimator(hproj_vec, vproj_vec, shift_vec, h, dτ; kwargs...)
 end
 
@@ -223,8 +231,8 @@ See [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref) 
 processing results.
 """
 function projected_energy(df::DataFrame; skip=0, hproj=:hproj, vproj=:vproj, kwargs...)
-    hproj_vec = getproperty(df, Symbol(hproj))
-    vproj_vec = getproperty(df, Symbol(vproj))
+    hproj_vec = Vector(getproperty(df, Symbol(hproj)))
+    vproj_vec = Vector(getproperty(df, Symbol(vproj)))
     return @views ratio_of_means(hproj_vec[skip+1:end], vproj_vec[skip+1:end]; kwargs...)
 end
 
@@ -237,6 +245,6 @@ on to [`blocking_analysis`](@ref). Returns a [`BlockingResult`](@ref).
 See also [`growth_estimator`](@ref), [`projected_energy`](@ref).
 """
 function shift_estimator(df::DataFrame; shift=:shift, kwargs...)
-    shift_vec = getproperty(df, Symbol(shift))
+    shift_vec = Vector(getproperty(df, Symbol(shift)))
     return blocking_analysis(shift_vec; kwargs...)
 end
