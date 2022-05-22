@@ -95,6 +95,7 @@ A `ReportingStrategy` can define any of the following:
 * [`report!`](@ref)
 * [`report_after_step`](@ref)
 * [`finalize_report!`](@ref)
+* [`reporting_interval`](@ref)
 
 """
 abstract type ReportingStrategy end
