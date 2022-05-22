@@ -184,7 +184,7 @@ using StatsPlots
 @df df_ge plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_gr") # growth estimator as a function of reweighting depth
 xlabel!("h")
 ```
-See also: [`growth_estiamator`](@ref), [`mixed_estimator_analysis`](@ref).
+See also: [`growth_estimator`](@ref), [`mixed_estimator_analysis`](@ref).
 """
 function growth_estimator_analysis(
     df::DataFrame;
@@ -322,10 +322,10 @@ df_me, correlation_estimate, se, se_l, se_u = mixed_estimator_analysis(df; skip=
 
 using StatsPlots
 @df df_me plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
-@df df_me plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_gr") # growth estimator as a function of reweighting depth
+@df df_me plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_mix") # mixed estimator as a function of reweighting depth
 xlabel!("h")
 ```
-See also: [`mixed_estiamator`](@ref), [`growth_estimator_analysis`](@ref).
+See also: [`mixed_estimator`](@ref), [`growth_estimator_analysis`](@ref).
 """
 function mixed_estimator_analysis(
     df::DataFrame;
