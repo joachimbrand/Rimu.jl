@@ -155,15 +155,16 @@ function determine_h_range(df, skip, correlation_estimate, h_values)
 end
 
 """
-    growth_estimator_analysis(qmc_df::DataFrame; kwargs...)
-    -> (;df, correlation_estimate, se, se_l, se_u)
-Perform a growth estimator analysis on a `DataFrame` `qmc_df` returned from [`lomc!`](@ref) over a range
-of reweighting depths.
+    growth_estimator_analysis(df::DataFrame; kwargs...)
+    -> (;df_ge, correlation_estimate, se, se_l, se_u)
+Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref) 
+repeatedly over a range of reweighting depths.
+
 
 Returns a `NamedTuple` with the fields
-* `df`: `DataFrame` with reweighting depth and growth estiamator. See example below.
+* `df_ge`: `DataFrame` with reweighting depth and `growth_estiamator` data. See example below.
 * `correlation_estimate`: estimated correlation time from blocking analysis
-* `se, se_l, se_u`: shift estimator and error
+* `se, se_l, se_u`: [`shift_estimator`](@ref) and error
 
 ## Keyword arguments
 * `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
@@ -175,14 +176,15 @@ Returns a `NamedTuple` with the fields
 
 ## Example
 ```julia
-df_qmc, _ = lomc!(...)
-df, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(qmc_df; skip=5_000)
+df, _ = lomc!(...)
+df_ge, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(df; skip=5_000)
 
 using StatsPlots
-@df df plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
-@df df plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_gr") # growth estimator as a function of reweighting depth
+@df df_ge plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
+@df df_ge plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_gr") # growth estimator as a function of reweighting depth
 xlabel!("h")
 ```
+See also: [`growth_estiamator`](@ref), [`mixed_estimator_analysis`](@ref).
 """
 function growth_estimator_analysis(
     df::DataFrame;
@@ -203,12 +205,12 @@ function growth_estimator_analysis(
     if isnothing(h_range)
         h_range = determine_h_range(df, skip, correlation_estimate, h_values)
     end
-    df = if threading
+    df_ge = if threading
         growth_estimator_df_folds(shift_v, norm_v, h_range, dτ; skip, E_r, kwargs...)
     else
         growth_estimator_df_progress(shift_v, norm_v, h_range, dτ; skip, E_r, kwargs...)
     end
-    return (; df, correlation_estimate, val_and_errs(se; name=:se)...)
+    return (; df_ge, correlation_estimate, val_and_errs(se; name=:se)...)
 end
 
 function growth_estimator_df_folds(shift::Vector, norm::Vector, h_range, dτ; kwargs...)
@@ -291,6 +293,85 @@ function mixed_estimator(
     vproj_vec = Vector(getproperty(df, Symbol(vproj)))
     shift_vec = Vector(getproperty(df, Symbol(shift)))
     return mixed_estimator(hproj_vec, vproj_vec, shift_vec, h, dτ; kwargs...)
+end
+
+"""
+    mixed_estimator_analysis(df::DataFrame; kwargs...)
+    -> (;df_me, correlation_estimate, se, se_l, se_u)
+Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref) 
+repeatedly over a range of reweighting depths.
+
+Returns a `NamedTuple` with the fields
+* `df_me`: `DataFrame` with reweighting depth and `mixed_estiamator` data. See example below.
+* `correlation_estimate`: estimated correlation time from blocking analysis
+* `se, se_l, se_u`: [`shift_estimator`](@ref) and error
+
+## Keyword arguments
+* `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
+* `h_values = 100`: minimum number of reweighting depths
+* `skip = 0`: initial time steps to exclude from averaging
+* `threaded=Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift=:shift` name of column in `qmc_df` with shift data
+* `hproj=:hproj` name of column in `qmc_df` with operator overlap data
+* `vproj=:vproj` name of column in `qmc_df` with projector overlap data
+
+## Example
+```julia
+df, _ = lomc!(...)
+df_me, correlation_estimate, se, se_l, se_u = mixed_estimator_analysis(df; skip=5_000)
+
+using StatsPlots
+@df df_me plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
+@df df_me plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_gr") # growth estimator as a function of reweighting depth
+xlabel!("h")
+```
+See also: [`mixed_estiamator`](@ref), [`growth_estimator_analysis`](@ref).
+"""
+function mixed_estimator_analysis(
+    df::DataFrame;
+    h_range=nothing,
+    h_values=100,
+    skip=0,
+    threading=Threads.nthreads() > 1,
+    shift=:shift,
+    hproj=:hproj,
+    vproj=:vproj,
+    kwargs...
+)
+    shift_v = Vector(getproperty(df, Symbol(shift))) # casting to `Vector` to make SIMD loops efficient
+    hproj_v = Vector(getproperty(df, Symbol(hproj)))
+    vproj_v = Vector(getproperty(df, Symbol(vproj)))
+    dτ = df.dτ[end]
+    se = blocking_analysis(shift_v; skip)
+    E_r = se.mean
+    correlation_estimate = 2^(se.k - 1)
+    if isnothing(h_range)
+        h_range = determine_h_range(df, skip, correlation_estimate, h_values)
+    end
+    df_me = if threading
+        mixed_estimator_df_folds(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, kwargs...)
+    else
+        mixed_estimator_df_progress(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, kwargs...)
+    end
+    return (; df_me, correlation_estimate, val_and_errs(se; name=:se)...)
+end
+
+function mixed_estimator_df_folds(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
+    # parallel excecution with Folds.jl package
+    nts = Folds.map(h_range) do h
+        me = mixed_estimator(shift, hproj, vproj, h, dτ; kwargs...)
+        (; h, NamedTuple(me)...)
+    end
+    return DataFrame(nts)
+end
+
+function mixed_estimator_df_progress(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
+    # serial processing supports progress bar
+    ProgressLogging.@progress nts = [
+        (; h, NamedTuple(mixed_estimator(shift, hproj, vproj, h, dτ; kwargs...))...)
+        for h in h_range
+    ]
+    return DataFrame(nts)
 end
 
 """

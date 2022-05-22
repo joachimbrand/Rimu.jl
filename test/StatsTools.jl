@@ -225,7 +225,7 @@ end
     df_ge, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(df; skip=steps_equi, threading=true)
     @test correlation_estimate == h
     @test se ≈ bs.mean
-    df_nt = growth_estimator_analysis(df; skip=steps_equi, threading=false).df
+    df_nt = growth_estimator_analysis(df; skip=steps_equi, threading=false).df_ge
     @test all(abs.(df_nt.val .- df_ge.val) .< df_nt.val_l)
     # projected energy
     bp = projected_energy(df; skip=steps_equi)
@@ -235,6 +235,13 @@ end
     )
     @test me.ratio ≈ bp.ratio # reweighting has not significantly improved the projected energy
     val(projected_energy(df; skip=steps_equi)) ≈ val(mixed_estimator(df, 0; skip=steps_equi))
+    # test mixed_estimator_analysis
+    df_me, correlation_estimate, se, se_l, se_u = mixed_estimator_analysis(df; skip=steps_equi, threading=true)
+    @test correlation_estimate == h
+    @test se ≈ bs.mean
+    df_met = mixed_estimator_analysis(df; skip=steps_equi, threading=false).df_me
+    @test all(abs.(df_met.val .- df_me.val) .< df_met.val_l)
+
 end
 
 using Rimu.StatsTools: replica_fidelity
@@ -269,8 +276,8 @@ using Rimu.StatsTools: replica_fidelity
     # check fidelity with ground state
     fid_gs = replica_fidelity(rr; p_field=:vproj, skip=steps_equi)
     @test fid_gs.ratio ≈ 1
-    re = ratio_with_errs(fid_gs) # extract errors from quantiles
-    @test re.err1_l < 0.03 && re.err1_u < 0.03 # errors are small
+    _, val_l, val_u = val_and_errs(fid_gs) # extract errors from quantiles
+    @test val_l < 0.03 && val_u < 0.03 # errors are small
     # TODO
     #=
     # check fidelity with oblique state
@@ -285,11 +292,13 @@ comp_tuples(a, b; atol=0) = mapreduce((x, y) -> isapprox(x, y; atol), &, Tuple(a
 @testset "convenience" begin
     v, σ = 2.0, 0.2
     m = Measurements.measurement(v, σ)
-    @test comp_tuples(med_and_errs(m), (v, σ, σ, 2σ, 2σ))
+    @test comp_tuples(val_and_errs(m), (v, σ, σ))
+    # @test comp_tuples(med_and_errs(m), (v, σ, σ, 2σ, 2σ))
     # @test map((x,y)->isapprox(x,y),Tuple(med_and_errs(m)),(v, σ, σ, 2σ, 2σ))|>all
     # @test med_and_errs(m) == (med = v, err1_l = σ, err1_u = σ, err2_l = σ, err2_u = σ)
     mp = MonteCarloMeasurements.Particles(m)
-    @test comp_tuples(med_and_errs(mp), (v, σ, σ, 2σ, 2σ); atol=0.01)
+    @test comp_tuples(val_and_errs(mp), (v, σ, σ); atol=0.01)
+    # @test comp_tuples(med_and_errs(mp), (v, σ, σ, 2σ, 2σ); atol=0.01)
     # @test map((x,y)->isapprox(x,y; atol=0.01),Tuple(med_and_errs(mp)),(v, σ, σ, 2σ, 2σ))|>all
     @test m ≈ to_measurement(mp)
 
