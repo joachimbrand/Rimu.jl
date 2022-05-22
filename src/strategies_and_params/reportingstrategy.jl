@@ -139,7 +139,7 @@ end
     reporting_interval(::ReportingStrategy)
 
 Get the interval between steps for which non-essential statistics are reported. Defaults to
-1 if chosen `ReportingStrategy` does not specify an interval.
+1 if chosen [`ReportingStrategy`](@ref) does not specify an interval.
 """
 reporting_interval(::ReportingStrategy) = 1
 
