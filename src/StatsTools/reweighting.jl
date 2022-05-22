@@ -1,6 +1,6 @@
 # reweighting functions
 
-VectorOrView = Union{Vector, SubArray{<:Any, 1, <:Vector, <:Any, true}}
+VectorOrView = Union{Vector,SubArray{<:Any,1,<:Vector,<:Any,true}}
 # safe type for `@simd ivdep` loops, supports fast linear indexing
 
 """
@@ -142,6 +142,93 @@ function growth_estimator(
     # converting to Vector here because this works fastest with `growth_estimator`
     return growth_estimator(shift_vec, norm_vec, h, dτ; kwargs...)
 end
+
+function determine_h_range(df, skip, correlation_estimate, h_values)
+    n_data = size(df)[1] - skip
+    if n_data < 2correlation_estimate
+        @info "Not enough data" n_data correlation_estimate
+    end
+    length = min(2correlation_estimate, h_values)
+    stop = min(n_data, 2correlation_estimate)
+    step = stop ÷ length
+    return range(0; stop, step)
+end
+
+"""
+    growth_estimator_analysis(qmc_df::DataFrame; kwargs...)
+    -> (;df, correlation_estimate, se, se_l, se_u)
+Perform a growth estimator analysis on a `DataFrame` `qmc_df` returned from [`lomc!`](@ref) over a range
+of reweighting depths.
+
+Returns a `NamedTuple` with the fields
+* `df`: `DataFrame` with reweighting depth and growth estiamator. See example below.
+* `correlation_estimate`: estimated correlation time from blocking analysis
+* `se, se_l, se_u`: shift estimator and error
+
+## Keyword arguments
+* `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
+* `h_values = 100`: minimum number of reweighting depths
+* `skip = 0`: initial time steps to exclude from averaging
+* `threaded=Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift=:shift` name of column in `qmc_df` with shift data
+* `norm=:norm` name of column in `qmc_df` with walkernumber data
+
+## Example
+```julia
+df_qmc, _ = lomc!(...)
+df, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(qmc_df; skip=5_000)
+
+using StatsPlots
+@df df plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
+@df df plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_gr") # growth estimator as a function of reweighting depth
+xlabel!("h")
+```
+"""
+function growth_estimator_analysis(
+    df::DataFrame;
+    h_range=nothing,
+    h_values=100,
+    skip=0,
+    threading=Threads.nthreads() > 1,
+    shift=:shift,
+    norm=:norm,
+    kwargs...
+)
+    shift_v = Vector(getproperty(df, Symbol(shift))) # casting to `Vector` to make SIMD loops efficient
+    norm_v = Vector(getproperty(df, Symbol(norm)))
+    dτ = df.dτ[end]
+    se = blocking_analysis(shift_v; skip)
+    E_r = se.mean
+    correlation_estimate = 2^(se.k - 1)
+    if isnothing(h_range)
+        h_range = determine_h_range(df, skip, correlation_estimate, h_values)
+    end
+    df = if threading
+        growth_estimator_df_folds(shift_v, norm_v, h_range, dτ; skip, E_r, kwargs...)
+    else
+        growth_estimator_df_progress(shift_v, norm_v, h_range, dτ; skip, E_r, kwargs...)
+    end
+    return (; df, correlation_estimate, val_and_errs(se; name=:se)...)
+end
+
+function growth_estimator_df_folds(shift::Vector, norm::Vector, h_range, dτ; kwargs...)
+    # parallel excecution with Folds.jl package
+    nts = Folds.map(h_range) do h
+        ge = growth_estimator(shift, norm, h, dτ; kwargs...)
+        (; h, NamedTuple(ge)...)
+    end
+    return DataFrame(nts)
+end
+
+function growth_estimator_df_progress(shift::Vector, norm::Vector, h_range, dτ; kwargs...)
+    # serial processing supports progress bar
+    ProgressLogging.@progress nts = [
+        (; h, NamedTuple(growth_estimator(shift, norm, h, dτ; kwargs...))...)
+        for h in h_range
+    ]
+    return DataFrame(nts)
+end
+
 
 """
     mixed_estimator(
