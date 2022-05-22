@@ -304,7 +304,8 @@ using Statistics
             @test isempty(df)
             df6 = RimuIO.load_df("test-report-3.arrow")
 
-            @test df6 == df5
+            @test df6.shift ≈ df5.shift
+            @test df6.norm ≈ df5.norm
 
             # Clean up.
             rm("test-report.arrow"; force=true)
