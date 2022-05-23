@@ -21,8 +21,6 @@ using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
 import ConsoleProgressMonitor
 
-@reexport using Distributed
-
 include("helpers.jl") # non MPI-dependent helper functions
 
 include("ConsistentRNG.jl")
@@ -74,11 +72,5 @@ include("apply_memory_noise.jl")
 include("lomc.jl")                  # top level
 
 include("RMPI/RMPI.jl")
-
-# Modules for parallel computing not exported by default for now
-include("EmbarrassinglyDistributed.jl")
-
-# analysis tool not reexported (to be deprecated)
-include("Blocking.jl")
 
 end # module
