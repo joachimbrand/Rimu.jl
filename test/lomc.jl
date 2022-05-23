@@ -257,21 +257,22 @@ using Statistics
         dv = DVec(add => 1, style=IsDeterministic())
 
         @testset "ReportDFAndInfo" begin
-            r_strat = ReportDFAndInfo(k=5, i=20, io=devnull, writeinfo=true)
+            r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=devnull, writeinfo=true)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test size(df, 1) == 20
 
             out = @capture_out begin
-                r_strat = ReportDFAndInfo(k=5, i=20, io=stdout, writeinfo=true)
+                r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=stdout, writeinfo=true)
                 lomc!(H, copy(dv); r_strat, laststep=100)
             end
-            @test length(split(out, '\n')) == 6 # (last line is empty)
+            @test length(split(out, '\n')) == 3 # (last line is empty)
         end
         @testset "ReportToFile" begin
             # Clean up.
             rm("test-report.arrow"; force=true)
             rm("test-report-1.arrow"; force=true)
             rm("test-report-2.arrow"; force=true)
+            rm("test-report-3.arrow"; force=true)
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, save_if=false)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
@@ -296,10 +297,21 @@ using Statistics
             @test df2.norm ≈ df3.norm
             @test df3 == df4
 
+            # ReportToFile with skipping interval  
+            df5 = df1[10:10:100,:]
+            r_strat = ReportToFile(filename="test-report.arrow", reporting_interval=10, io=devnull, chunk_size=10)
+            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test isempty(df)
+            df6 = RimuIO.load_df("test-report-3.arrow")
+
+            @test df6.shift ≈ df5.shift
+            @test df6.norm ≈ df5.norm
+
             # Clean up.
             rm("test-report.arrow"; force=true)
             rm("test-report-1.arrow"; force=true)
             rm("test-report-2.arrow"; force=true)
+            rm("test-report-3.arrow"; force=true)
         end
     end
 

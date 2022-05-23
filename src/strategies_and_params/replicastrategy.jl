@@ -29,7 +29,8 @@ num_replicas(::ReplicaStrategy{N}) where {N} = N
 Return the names and values of statistics related to `N` replicas consistent with the
 [`ReplicaStrategy`](@ref) `RS`. `names`
 should be a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same
-length. This fuction will be called once per time step from [`lomc!`](@ref).
+length. This fuction will be called every [`reporting_interval`](@ref) steps from [`lomc!`](@ref), 
+or once per time step if `reporting_interval` is not defined.
 
 Part of the [`ReplicaStrategy`](@ref) interface. See also [`ReplicaState`](@ref).
 """
@@ -85,7 +86,7 @@ end
 """
     all_overlaps(operators, vectors)
 
-Get all overlaps between vectors and operators. This function is overlpaded for `MPIData`.
+Get all overlaps between vectors and operators. This function is overloaded for `MPIData`.
 """
 function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}) where {N}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)

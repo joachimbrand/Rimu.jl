@@ -95,6 +95,7 @@ A `ReportingStrategy` can define any of the following:
 * [`report!`](@ref)
 * [`report_after_step`](@ref)
 * [`finalize_report!`](@ref)
+* [`reporting_interval`](@ref)
 
 """
 abstract type ReportingStrategy end
@@ -128,12 +129,20 @@ end
 """
     report_after_step(::ReportingStrategy, step, report, state)
 
-This function is called exactly once at the very end of a step. For example, it can be used
-to print some information to `stdout`.
+This function is called at the very end of a step, after `reporting_interval`(@ref) steps. 
+For example, it can be used to print some information to `stdout`.
 """
 function report_after_step(::ReportingStrategy, args...)
     return nothing
 end
+
+"""
+    reporting_interval(::ReportingStrategy)
+
+Get the interval between steps for which non-essential statistics are reported. Defaults to
+1 if chosen [`ReportingStrategy`](@ref) does not specify an interval.
+"""
+reporting_interval(::ReportingStrategy) = 1
 
 """
     finalize_report!(::ReportingStrategy, report)
@@ -154,27 +163,29 @@ function print_stats(io::IO, step, state)
 end
 
 """
-    ReportDFAndInfo(; k=1, i=100, io=stdout, writeinfo=false) <: ReportingStrategy
+    ReportDFAndInfo(; reporting_interval=1, info_interval=100, io=stdout, writeinfo=false) <: ReportingStrategy
 
-The default [`ReportingStrategy`](@ref). Report every `k`th step to a `DataFrame` and write
-info message to `io` every `i`th step (unless `writeinfo == false`). The flag `writeinfo` is
-useful for controlling info messages in MPI codes, e.g. by setting
+The default [`ReportingStrategy`](@ref). Report every `reporting_interval`th step to a `DataFrame` 
+and write info message to `io` every `info_interval`th reported step (unless `writeinfo == false`). The flag 
+`writeinfo` is useful for controlling info messages in MPI codes, e.g. by setting
 `writeinfo =`[`is_mpi_root()`](@ref).
 """
 @with_kw struct ReportDFAndInfo <: ReportingStrategy
-    k::Int = 1
-    i::Int = 100
+    reporting_interval::Int = 1
+    info_interval::Int = 100
     io::IO = stdout
     writeinfo::Bool = false
 end
-function report!(s::ReportDFAndInfo, step, args...)
-    step % s.k == 0 && report!(args...)
-    return nothing
+function report!(s::ReportDFAndInfo, _, args...)
+    report!(args...)
 end
 function report_after_step(s::ReportDFAndInfo, step, _, state)
-    if s.writeinfo && step % s.i == 0
+    if s.writeinfo && step % (s.info_interval * s.reporting_interval) == 0
         print_stats(s.io, step, state)
     end
+end
+function reporting_interval(s::ReportDFAndInfo)
+    return s.reporting_interval
 end
 
 """
@@ -186,6 +197,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 # Keyword arguments
 
 * `filename`: the file to report to. If the file already exists, a new file is created.
+* `reporting_interval`: interval between simulation steps that are reported to a `DataFrame`.
 * `chunk_size = 1000`: the size of each chunk that is written to the file. A `DataFrame` of
   this size is collected in memory and written to disk. When saving, an info message is also
   printed to `io`.
@@ -198,6 +210,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 """
 @with_kw struct ReportToFile <: ReportingStrategy
     filename::String
+    reporting_interval::Int = 1
     chunk_size::Int = 1000
     save_if::Bool = RMPI.is_mpi_root()
     return_df::Bool = false
@@ -229,10 +242,9 @@ function report!(s::ReportToFile, _, args...)
     if s.save_if
         report!(args...)
     end
-    return nothing
 end
 function report_after_step(s::ReportToFile, step, report, state)
-    if s.save_if && step % s.chunk_size == 0
+    if s.save_if && step % (s.chunk_size * s.reporting_interval) == 0
         # Report some stats:
         print_stats(s.io, step, state)
 
@@ -257,4 +269,7 @@ function finalize_report!(s::ReportToFile, report)
         end
     end
     return DataFrame()
+end
+function reporting_interval(s::ReportToFile)
+    return s.reporting_interval
 end

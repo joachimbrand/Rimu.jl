@@ -36,8 +36,8 @@ steps_measure = 2_000
 # Set the size of a time step
 dτ = 0.001
 # and we report QMC data every k-th step,
-# setting `k = 1` means we record QMC data every step:
-k = 1
+# set the interval to record QMC data:
+reporting_interval = 1
 
 # Now we prepare initial state and allocate memory.
 # The initial address is defined above as `aIni = near_uniform(Ĥ)`.
@@ -53,7 +53,7 @@ params = RunTillLastStep(dτ = dτ, laststep = steps_equilibrate + steps_measure
 # Strategy for updating the shift:
 s_strat = DoubleLogUpdate(targetwalkers = targetwalkers, ζ = 0.08)
 # Strategy for reporting info:
-r_strat = ReportDFAndInfo(k = k, i = 100)
+r_strat = ReportDFAndInfo(reporting_interval = reporting_interval, info_interval = 100)
 # Strategy for updating dτ:
 τ_strat = ConstantTimeStep()
 # set up the calculation and reporting of the projected energy
