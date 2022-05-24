@@ -50,7 +50,7 @@ NoStats(N=1) = NoStats{N}()
 replica_stats(::NoStats, _) = (), ()
 
 """
-    AllOverlaps(n=2, operator=nothing) <: ReplicaStrategy{n}
+    AllOverlaps(n=2, operator=nothing, similarity=nothing) <: ReplicaStrategy{n}
 
 Run `n` replicas and report overlaps between all pairs of replica vectors. If operator is
 not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If operator is a tuple
@@ -61,12 +61,31 @@ c{i}_Op{k}_c{j} for operator overlaps.
 
 See [`lomc!`](@ref), [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an
 interface for implementing operators).
+
+If `similarity` is not `nothing` then this strategy calculates the overlaps with respect to a 
+similarity transformation of the Hamiltonian
+```math
+    G = f^{-1} H f
+```
+The expectation value of an operator `A` is then
+```math
+    \\langle A \\rangle = \\langle \\psi | A | \\psi \\rangle 
+        = \\frac{\\langle \\phi | f^2 B | \\phi \\rangle}{\\frac{\\langle \\phi | f^2 | \\phi \\rangle}
+```
+where `B = f^{-1} A f` and `| \\phi \\rangle = f | \\psi \\rangle` is the (right) eigenvector 
+of `G`.
+
+The `similarity` argument must be the transformed Hamiltonian `G` and the `operator`s must
+be the transformed operators `B`.
+
+See e.g. [`GutzwillerSampling`](@ref).
 """
-struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian}} <: ReplicaStrategy{N}
+struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},S<:AbstractHamiltonian} <: ReplicaStrategy{N}
     operators::O
+    similarity::S
 end
 
-function AllOverlaps(num_replicas=2, operator=nothing)
+function AllOverlaps(num_replicas=2, operator=nothing, similarity=nothing)
     if isnothing(operator)
         operators = ()
     elseif operator isa Tuple
@@ -74,13 +93,18 @@ function AllOverlaps(num_replicas=2, operator=nothing)
     else
         operators = (operator,)
     end
-    return AllOverlaps{num_replicas,length(operators),typeof(operators)}(operators)
+    return AllOverlaps{num_replicas,length(operators),typeof(operators),typeof(similarity)}(operators)
 end
 
 function replica_stats(rs::AllOverlaps, replicas::NTuple{N}) where {N}
     # Not using broadcasting because it wasn't inferred properly.
     vecs = ntuple(i -> replicas[i].v, Val(N))
-    return all_overlaps(rs.operators, vecs)
+    if isnothing(rs.similarity)
+        return all_overlaps(rs.operators, vecs)
+    else
+        f2 = SimilarityTransform(rs.similarity)
+        return all_overlaps(rs.operators, f2, vecs)
+    end
 end
 
 """
@@ -98,6 +122,29 @@ function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}) where {N}
         for (k, op) in enumerate(operators)
             push!(names, "c$(i)_Op$(k)_c$(j)")
             push!(values, dot(vecs[i], op, vecs[j]))
+        end
+    end
+
+    num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)
+    return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
+end
+
+"""
+    all_overlaps(operators, similarity, vectors)
+
+Get all overlaps between vectors and operators, transformed by similarity. 
+This function is overloaded for `MPIData`.
+"""
+function all_overlaps(operators::Tuple, similarity::AbstractHamiltonian, vecs::NTuple{N,AbstractDVec}) where {N}
+    T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
+    names = String[]
+    values = T[]
+    for i in 1:N, j in i+1:N
+        push!(names, "c$(i)_dot_c$(j)")
+        push!(values, dot(vecs[i], similarity, vecs[j]))
+        for (k, op) in enumerate(operators)
+            push!(names, "c$(i)_Op$(k)_c$(j)")
+            push!(values, dot(vecs[i], similarity, dot(op, vecs[j])))
         end
     end
 

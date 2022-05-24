@@ -110,3 +110,24 @@ function Base.getindex(h::GutzwillerOffdiagonals{F,T,A,G}, i)::Tuple{F,T} where 
 end
 
 Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
+
+# define the similarity transform to be called by replica_stats
+struct SimilarityTransform{H<:AbstractHamiltonian} <: AbstractHamiltonian
+
+end
+
+function SimilarityTransform(H::AbstractHamiltonian)
+    return SimilarityTransform{H}
+end
+
+function SimilarityTransform(G::GutzwillerSampling)
+    return SimilarityTransform{G.hamiltonian}
+end
+
+function diagonal_element(G::GutzwillerSampling, add)
+    diag = diagonal_element(G.hamiltonian, add)
+    x = gutzwiller_modify(1., true, G.g, diag, 1) # or is it the other way round?
+    return x^2
+end
+LOStructure(::GutzwillerSampling) = IsDiagonal()
+num_offdiagonals(h::SimilarityTransform{GutzwillerSampling}, add) = 0
