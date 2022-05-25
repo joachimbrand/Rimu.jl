@@ -135,7 +135,7 @@ end
 Get all overlaps between vectors and operators, transformed by similarity. 
 This function is overloaded for `MPIData`.
 """
-function all_overlaps(operators::Tuple, similarity::AbstractHamiltonian, vecs::NTuple{N,AbstractDVec}) where {N}
+function all_overlaps(operators::Tuple, similarity::SimilarityTransform, vecs::NTuple{N,AbstractDVec}) where {N}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]
     values = T[]

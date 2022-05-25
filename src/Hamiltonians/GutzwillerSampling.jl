@@ -17,6 +17,14 @@ spawns to lower-energy configurations encouraged for positive `g`.
 After construction, we can access the underlying Hamiltonian with `G.hamiltonian` and the
 `g` parameter with `G.g`.
 
+# Similarity transform
+
+Also defines the (squared) similarity transform `f^2` as an operator to calculate overlaps.
+
+* `SimilarityTransform(G::GutzwillerSampling{H})`
+
+where `G = f^{-1} H f`.
+
 # Example
 
 ```jldoctest
@@ -111,23 +119,25 @@ end
 
 Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
 
-# define the similarity transform to be called by replica_stats
-struct SimilarityTransform{H<:AbstractHamiltonian} <: AbstractHamiltonian
-
+# the (squared) similarity transform operator to be called by replica_stats
+struct SimilarityTransform{T,K<:AbstractHamiltonian{T},H<:AbstractHamiltonian{T},G} <: AbstractHamiltonian{T}
+    # Dispatch on transformed hamiltonian K, 
+    # store the untransformed hamiltonian H, and a parameter g
+    hamiltonian::H
+    g::G
 end
 
-function SimilarityTransform(H::AbstractHamiltonian)
-    return SimilarityTransform{H}
+function SimilarityTransform(k::GutzwillerSampling)
+    return SimilarityTransform{eltype(k),typeof(k),typeof(k.hamiltonian),typeof(k.g)}(k.hamiltonian, k.g)
+end
+LOStructure(::Type{<:SimilarityTransform{<:Any,K,<:Any,<:Any}}) where {K} = LOStructure(typeof(K))
+starting_address(k::SimilarityTransform) = starting_address(k.hamiltonian)
+dimension(::Type{T}, ::SimilarityTransform{T,K,<:Any,<:Any}) where {T,K} = dimension(T, K)
+
+function diagonal_element(s::SimilarityTransform{<:Any,GutzwillerSampling,<:Any,<:Any}, add)
+    diag = diagonal_element(s.hamiltonian, add)
+    return gutzwiller_modify(1., true, s.g, 2 * diag, 0.) # or is it the other way round?
 end
 
-function SimilarityTransform(G::GutzwillerSampling)
-    return SimilarityTransform{G.hamiltonian}
-end
-
-function diagonal_element(G::GutzwillerSampling, add)
-    diag = diagonal_element(G.hamiltonian, add)
-    x = gutzwiller_modify(1., true, G.g, diag, 1) # or is it the other way round?
-    return x^2
-end
-LOStructure(::GutzwillerSampling) = IsDiagonal()
-num_offdiagonals(h::SimilarityTransform{GutzwillerSampling}, add) = 0
+LOStructure(::SimilarityTransform{<:Any,GutzwillerSampling,<:Any,<:Any}) = IsDiagonal()
+num_offdiagonals(::SimilarityTransform{<:Any,GutzwillerSampling,<:Any,<:Any}, add) = 0
