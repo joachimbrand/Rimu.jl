@@ -132,7 +132,7 @@ function SimilarityTransform(k::GutzwillerSampling)
 end
 LOStructure(::Type{<:SimilarityTransform{<:Any,K,<:Any,<:Any}}) where {K} = LOStructure(typeof(K))
 starting_address(k::SimilarityTransform) = starting_address(k.hamiltonian)
-dimension(::Type{T}, ::SimilarityTransform{T,K,<:Any,<:Any}) where {T,K} = dimension(T, K)
+dimension(::Type{T}, s::SimilarityTransform) where {T} = dimension(T, s.hamiltonian)
 
 function diagonal_element(s::SimilarityTransform{<:Any,GutzwillerSampling,<:Any,<:Any}, add)
     diag = diagonal_element(s.hamiltonian, add)
