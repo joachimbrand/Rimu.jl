@@ -135,14 +135,14 @@ starting_address(s::SimTransOverlap) = starting_address(s.similarity)
 dimension(::Type{T}, s::SimTransOverlap) where {T} = dimension(T, s.similarity)
 
 function diagonal_element(s::SimTransOverlap{GutzwillerSampling}, add)
-    diag = diagonal_element(s.similarity.hamiltonian, add)
-    return gutzwiller_modify(1., true, s.similarity.g, 2 * diag, 0.) # or is it the other way round?
+    diagH = diagonal_element(s.similarity.hamiltonian, add)
+    return gutzwiller_modify(1., true, s.similarity.g, 2 * diagH, 0.) # or is it the other way round?
 end
 
 num_offdiagonals(::SimTransOverlap{GutzwillerSampling}, add) = 0
 
 # the similarity transformed operator to calculate expectation value of an operator A
-struct SimTransOperator{G<:GutzwillerSampling,A::AbstractHamiltonian} <: AbstractHamiltonian{T}
+struct SimTransOperator{G<:GutzwillerSampling,A::AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     # store the transformed hamiltonian G
     similarity::G
     op::A
@@ -158,17 +158,17 @@ dimension(::Type{T}, s::SimTransOperator) where {T} = dimension(T, s.similarity)
 
 function diagonal_element(s::SimTransOperator{GutzwillerSampling}, add)
     diagH = diagonal_element(s.similarity.hamiltonian, add)
-    diagf2 = gutzwiller_modify(1., true, s.similarity.g, 2 * diagH, 0.)
     diagA = diagonal_element(s.op, add)
-    return diagf2 * diagA   # is this correct?
+    return gutzwiller_modify(diagA, true, s.similarity.g, 2 * diagH, 0.)
 end
 
 function num_offdiagonals(s::SimTransOperator{GutzwillerSampling})
     return num_offdiagonals(s.op)
 end
 
-function get_offdiagonal(s::SimTransOperator{GutzwillerSampling})
-    offd = get_offdiagonal(s.op,...)
-    diagf2 = 
-    return offd * diagf2
+function get_offdiagonal(s::SimTransOperator{GutzwillerSampling}, add, chosen)
+    newadd, offd = get_offdiagonal(s.op, add, chosen)
+    # Gutzwiller transformation is diagonal
+    diagH = diagonal_element(s.similarity.hamiltonian, add)
+    return newadd, gutzwiller_modify(offd, true, s.similarity.g, 2 * diagH, 0.)
 end
