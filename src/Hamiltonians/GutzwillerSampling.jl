@@ -119,25 +119,56 @@ end
 
 Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
 
-# the (squared) similarity transform operator to be called by replica_stats
-struct SimilarityTransform{T,K<:AbstractHamiltonian{T},H<:AbstractHamiltonian{T},G} <: AbstractHamiltonian{T}
-    # Dispatch on transformed hamiltonian K, 
-    # store the untransformed hamiltonian H, and a parameter g
-    hamiltonian::H
-    g::G
+# the (squared) similarity transform operator to calculate overlaps of vectors
+struct SimTransOverlap{G<:GutzwillerSampling} <: AbstractHamiltonian{T}
+    # store the transformed hamiltonian G
+    similarity::G
 end
 
-function SimilarityTransform(k::GutzwillerSampling)
-    return SimilarityTransform{eltype(k),typeof(k),typeof(k.hamiltonian),typeof(k.g)}(k.hamiltonian, k.g)
-end
-LOStructure(::Type{<:SimilarityTransform{<:Any,K,<:Any,<:Any}}) where {K} = LOStructure(typeof(K))
-starting_address(k::SimilarityTransform) = starting_address(k.hamiltonian)
-dimension(::Type{T}, s::SimilarityTransform) where {T} = dimension(T, s.hamiltonian)
-
-function diagonal_element(s::SimilarityTransform{<:Any,GutzwillerSampling,<:Any,<:Any}, add)
-    diag = diagonal_element(s.hamiltonian, add)
-    return gutzwiller_modify(1., true, s.g, 2 * diag, 0.) # or is it the other way round?
+function SimTransOverlap(k::GutzwillerSampling)
+    return SimTransOverlap{GutzwillerSampling}(k)
 end
 
-LOStructure(::SimilarityTransform{<:Any,GutzwillerSampling,<:Any,<:Any}) = IsDiagonal()
-num_offdiagonals(::SimilarityTransform{<:Any,GutzwillerSampling,<:Any,<:Any}, add) = 0
+# LOStructure(::Type{<:SimTransOverlap{G}}) where {G} = LOStructure(typeof(G))
+LOStructure(::SimTransOverlap{GutzwillerSampling}) = IsDiagonal()
+starting_address(s::SimTransOverlap) = starting_address(s.similarity)
+dimension(::Type{T}, s::SimTransOverlap) where {T} = dimension(T, s.similarity)
+
+function diagonal_element(s::SimTransOverlap{GutzwillerSampling}, add)
+    diag = diagonal_element(s.similarity.hamiltonian, add)
+    return gutzwiller_modify(1., true, s.similarity.g, 2 * diag, 0.) # or is it the other way round?
+end
+
+num_offdiagonals(::SimTransOverlap{GutzwillerSampling}, add) = 0
+
+# the similarity transformed operator to calculate expectation value of an operator A
+struct SimTransOperator{G<:GutzwillerSampling,A::AbstractHamiltonian} <: AbstractHamiltonian{T}
+    # store the transformed hamiltonian G
+    similarity::G
+    op::A
+end
+
+function SimTransOperator(k::GutzwillerSampling, a::AbstractHamiltonian)
+    return SimTransOperator{GutzwillerSampling,AbstractHamiltonian}(k, a)
+end
+
+LOStructure(::Type{<:SimTransOperator{G}}) where {G} = LOStructure(typeof(G))
+starting_address(s::SimTransOperator) = starting_address(s.similarity)
+dimension(::Type{T}, s::SimTransOperator) where {T} = dimension(T, s.similarity)
+
+function diagonal_element(s::SimTransOperator{GutzwillerSampling}, add)
+    diagH = diagonal_element(s.similarity.hamiltonian, add)
+    diagf2 = gutzwiller_modify(1., true, s.similarity.g, 2 * diagH, 0.)
+    diagA = diagonal_element(s.op, add)
+    return diagf2 * diagA   # is this correct?
+end
+
+function num_offdiagonals(s::SimTransOperator{GutzwillerSampling})
+    return num_offdiagonals(s.op)
+end
+
+function get_offdiagonal(s::SimTransOperator{GutzwillerSampling})
+    offd = get_offdiagonal(s.op,...)
+    diagf2 = 
+    return offd * diagf2
+end
