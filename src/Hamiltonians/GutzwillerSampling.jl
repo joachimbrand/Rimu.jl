@@ -17,13 +17,13 @@ spawns to lower-energy configurations encouraged for positive `g`.
 After construction, we can access the underlying Hamiltonian with `G.hamiltonian` and the
 `g` parameter with `G.g`.
 
-# Similarity transform
+# General operators
 
-Also defines the (squared) similarity transform `f^2` as an operator to calculate overlaps.
+Also defines operators `f^2` and `f A f` for arbitrary `A`, where `f^{-1} H f` is the
+transformed Hamiltonian, in order to calculate overlaps. See [`AllOverlaps`](@ref).
 
-* `SimilarityTransform(G::GutzwillerSampling{H})`
-
-where `G = f^{-1} H f`.
+* `SimTransOverlap(k::GutzwillerSampling{H})`
+* `SimTransOperator(k::GutzwillerSampling{H},A)`
 
 # Example
 
@@ -120,55 +120,68 @@ end
 Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
 
 # the (squared) similarity transform operator to calculate overlaps of vectors
-struct SimTransOverlap{G<:GutzwillerSampling} <: AbstractHamiltonian{T}
+struct SimTransOverlap{T,G<:GutzwillerSampling} <: AbstractHamiltonian{T}
     # store the transformed hamiltonian G
     similarity::G
 end
 
 function SimTransOverlap(k::GutzwillerSampling)
-    return SimTransOverlap{GutzwillerSampling}(k)
+    return SimTransOverlap{eltype(k.hamiltonian),GutzwillerSampling}(k)
 end
 
-# LOStructure(::Type{<:SimTransOverlap{G}}) where {G} = LOStructure(typeof(G))
-LOStructure(::SimTransOverlap{GutzwillerSampling}) = IsDiagonal()
+LOStructure(::SimTransOverlap{<:Any,GutzwillerSampling}) = IsDiagonal()
 starting_address(s::SimTransOverlap) = starting_address(s.similarity)
 dimension(::Type{T}, s::SimTransOverlap) where {T} = dimension(T, s.similarity)
 
-function diagonal_element(s::SimTransOverlap{GutzwillerSampling}, add)
+function diagonal_element(s::SimTransOverlap{<:Any,GutzwillerSampling}, add)
     diagH = diagonal_element(s.similarity.hamiltonian, add)
-    return gutzwiller_modify(1., true, s.similarity.g, 2 * diagH, 0.) # or is it the other way round?
+    return gutzwiller_modify(1., true, s.similarity.g, 2 * diagH, 0.)
 end
 
-num_offdiagonals(::SimTransOverlap{GutzwillerSampling}, add) = 0
+num_offdiagonals(::SimTransOverlap{<:Any,GutzwillerSampling}, add) = 0
 
-# the similarity transformed operator to calculate expectation value of an operator A
-struct SimTransOperator{G<:GutzwillerSampling,A::AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
-    # store the transformed hamiltonian G
-    similarity::G
-    op::A
+# the similarity transformed operator `f A f` to calculate expectation value of an operator A
+struct SimTransOperator{T,K<:AbstractHamiltonian{T},O<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
+    similarity::K
+    op::O
 end
 
-function SimTransOperator(k::GutzwillerSampling, a::AbstractHamiltonian)
-    return SimTransOperator{GutzwillerSampling,AbstractHamiltonian}(k, a)
-end
-
-LOStructure(::Type{<:SimTransOperator{G}}) where {G} = LOStructure(typeof(G))
 starting_address(s::SimTransOperator) = starting_address(s.similarity)
 dimension(::Type{T}, s::SimTransOperator) where {T} = dimension(T, s.similarity)
 
-function diagonal_element(s::SimTransOperator{GutzwillerSampling}, add)
+# Gutzwiller sampling - general operator `f A f`
+LOStructure(::Type{<:SimTransOperator{<:Any,<:GutzwillerSampling,<:A}}) where {A} = LOStructure(A)
+
+function diagonal_element(s::SimTransOperator{<:Any,<:GutzwillerSampling,<:AbstractHamiltonian}, add)
     diagH = diagonal_element(s.similarity.hamiltonian, add)
     diagA = diagonal_element(s.op, add)
     return gutzwiller_modify(diagA, true, s.similarity.g, 2 * diagH, 0.)
 end
 
-function num_offdiagonals(s::SimTransOperator{GutzwillerSampling})
-    return num_offdiagonals(s.op)
+function num_offdiagonals(s::SimTransOperator{<:Any,<:GutzwillerSampling,<:Any}, add)
+    return num_offdiagonals(s.op, add)
 end
 
-function get_offdiagonal(s::SimTransOperator{GutzwillerSampling}, add, chosen)
+function get_offdiagonal(s::SimTransOperator{<:Any,<:GutzwillerSampling,<:Any}, add, chosen)
     newadd, offd = get_offdiagonal(s.op, add, chosen)
     # Gutzwiller transformation is diagonal
-    diagH = diagonal_element(s.similarity.hamiltonian, add)
-    return newadd, gutzwiller_modify(offd, true, s.similarity.g, 2 * diagH, 0.)
+    diagH1 = diagonal_element(s.similarity.hamiltonian, add)
+    diagH2 = diagonal_element(s.similarity.hamiltonian, chosen) # <== this is probably not correct syntax
+    return newadd, gutzwiller_modify(offd, true, s.similarity.g, diagH1 + diagH2, 0.)
 end
+
+# Gutzwiller sampling - default no operator A (i.e. overlap operator `f^2`)
+# struct NoOperator{T} <: AbstractHamiltonian{T} end
+# function SimTransOperator(k)
+#     T = eltype(k)
+#     a = NoOperator()
+#     return SimTransOperator{T,typeof(k),typeof(a)}(k,a)
+# end
+# LOStructure(::Type{<:SimTransOperator{<:Any,<:GutzwillerSampling,NoOperator}}) = IsDiagonal()
+
+# function diagonal_element(s::SimTransOperator{<:Any,<:GutzwillerSampling,NoOperator}, add)
+#     diagH = diagonal_element(s.similarity.hamiltonian, add)
+#     return gutzwiller_modify(1., true, s.similarity.g, 2 * diagH, 0.)
+# end
+
+# num_offdiagonals(s::SimTransOperator{<:Any,<:GutzwillerSampling,NoOperator}, add) = 0
