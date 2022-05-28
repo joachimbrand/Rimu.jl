@@ -38,7 +38,7 @@ end
 
 LOStructure(::Type{<:G2RealCorrelator}) = IsDiagonal()
 
-function diagonal_element(::G2RealCorrelator{D}, add::BoseFS{N,M}) where {D,N,M}
+function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress{N,M}) where {D,N,M}
     if D == 0
         v = onr(add)
         return float(dot(v, v .- 1))
@@ -54,7 +54,7 @@ function diagonal_element(::G2RealCorrelator{D}, add::BoseFS{N,M}) where {D,N,M}
     end    
 end
 
-num_offdiagonals(g::G2RealCorrelator, add::AbstractFockAddress) = 0
+num_offdiagonals(g::G2RealCorrelator, add::SingleComponentFockAddress) = 0
 
 # not needed:
 # get_offdiagonal(::G2RealCorrelator, add)
