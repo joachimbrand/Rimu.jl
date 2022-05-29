@@ -80,12 +80,12 @@ be the transformed operators `f A f`.
 
 See e.g. [`GutzwillerSampling`](@ref).
 """
-struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},S<:AbstractHamiltonian} <: ReplicaStrategy{N}
+struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},S<:Union{AbstractHamiltonian,Nothing}} <: ReplicaStrategy{N}
     operators::O
     fsquared::S
 end
 
-function AllOverlaps(num_replicas=2, operator=nothing, fsqu=nothing)
+function AllOverlaps(num_replicas=2, operator=nothing, fsquared=nothing)
     if isnothing(operator)
         operators = ()
     elseif operator isa Tuple
@@ -93,13 +93,11 @@ function AllOverlaps(num_replicas=2, operator=nothing, fsqu=nothing)
     else
         operators = (operator,)
     end
-    if !isnothing(fsqu)
-        typeof(fsqu)<:SimTransOverlap && throw(ArgumentError("fsquared must be transformed"))
+    if !isnothing(fsquared)
+        !(typeof(fsquared)<:SimTransOperator) && throw(ArgumentError("fsquared must be transformed"))
         for op in operators
-            typeof(op)<:SimTransOperator && throw(ArgumentError("Operators must be transformed"))
+            !(typeof(op)<:SimTransOperator) && throw(ArgumentError("Operators must be transformed"))
         end
-    else
-        fsquared = SomeNothingOperatorTypeThatWorksReallyWellAndNeverBreaks()
     end
     return AllOverlaps{num_replicas,length(operators),typeof(operators),typeof(fsquared)}(operators,fsquared)
 end
@@ -107,7 +105,7 @@ end
 function replica_stats(rs::AllOverlaps, replicas::NTuple{N}) where {N}
     # Not using broadcasting because it wasn't inferred properly.
     vecs = ntuple(i -> replicas[i].v, Val(N))
-    if isnothing(rs.fsquared) # <== wrong type; fsquared<:AbstractHamiltonian
+    if isnothing(rs.fsquared)
         return all_overlaps(rs.operators, vecs)
     else
         return all_overlaps(rs.operators, rs.fsquared, vecs)
@@ -142,11 +140,13 @@ end
 Get all overlaps between vectors and operators, transformed by similarity operator `f`. 
 This function is overloaded for `MPIData`.
 """
-function all_overlaps(operators::Tuple, fsquared::SimTransOverlap, vecs::NTuple{N,AbstractDVec}) where {N}
+function all_overlaps(operators::Tuple, fsquared::SimTransOperator, vecs::NTuple{N,AbstractDVec}) where {N}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)..., eltype(fsquared))
     names = String[]
     values = T[]
     for i in 1:N, j in i+1:N
+        push!(names, "c$(i)_dot_c$(j)")
+        push!(values, dot(vecs[i], vecs[j]))
         push!(names, "c$(i)_f^2_c$(j)")
         push!(values, dot(vecs[i], fsquared, vecs[j]))
         for (k, op) in enumerate(operators)
@@ -155,6 +155,6 @@ function all_overlaps(operators::Tuple, fsquared::SimTransOverlap, vecs::NTuple{
         end
     end
 
-    num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)
+    num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 2)
     return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
 end
