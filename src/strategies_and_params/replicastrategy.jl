@@ -91,7 +91,9 @@ function AllOverlaps(num_replicas=2, operator=nothing, transform=nothing, vecnor
     else
         operators = (operator,)
     end
-    if !isnothing(transform)
+    if isnothing(transform)
+        ops = operators
+    else
         !hasproperty(transform, :hamiltonian) && throw(ArgumentError("Invalid Hamiltonian transformation."))
         f2 = SimTransOperator(transform)
         ops = (f2, map(op -> SimTransOperator(transform, op), operators)...)
@@ -128,6 +130,6 @@ function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}, vecnorm=tr
     end
 
     num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)
-    !vecnorm ? num-reports -= 1 : #
+    !vecnorm ? num_reports -= 1 : #
     return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
 end

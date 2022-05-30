@@ -150,7 +150,7 @@ function get_offdiagonal(s::SimTransOperator{<:Any,<:GutzwillerSampling,<:Any}, 
     newadd, offd = get_offdiagonal(s.op, add, chosen)
     # Gutzwiller transformation is diagonal
     diagH1 = diagonal_element(s.similarity.hamiltonian, add)
-    diagH2 = diagonal_element(s.similarity.hamiltonian, chosen) # <== this is probably not correct syntax
+    diagH2 = diagonal_element(s.similarity.hamiltonian, newadd)
     return newadd, gutzwiller_modify(offd, true, s.similarity.g, diagH1 + diagH2, 0.)
 end
 
