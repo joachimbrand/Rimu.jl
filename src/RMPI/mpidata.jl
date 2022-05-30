@@ -303,21 +303,25 @@ function Rimu.freeze(md::MPIData)
     return freeze(localpart(md))
 end
 
-function get_overlaps_diagonal!(names, values, operators, vecs::NTuple{N}) where {N}
+function get_overlaps_diagonal!(names, values, operators, vecs::NTuple{N}, vecnorm) where {N}
     for i in 1:N, j in i+1:N
-        push!(names, "c$(i)_dot_c$(j)")
-        push!(values, dot(vecs[i], vecs[j]))
+        if vecnorm
+            push!(names, "c$(i)_dot_c$(j)")
+            push!(values, dot(vecs[i], vecs[j]))
+        end
         for (k, op) in enumerate(operators)
             push!(names, "c$(i)_Op$(k)_c$(j)")
             push!(values, dot(vecs[i], op, vecs[j]))
         end
     end
 end
-function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}) where {N}
+function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}, vecnorm) where {N}
     local_vec_i = similar(localpart(vecs[1]))
     for i in 1:N, j in i+1:N
-        push!(names, "c$(i)_dot_c$(j)")
-        push!(values, dot(vecs[i], vecs[j]))
+        if vecnorm
+            push!(names, "c$(i)_dot_c$(j)")
+            push!(values, dot(vecs[i], vecs[j]))
+        end
         copy_to_local!(local_vec_i, vecs[i])
         for (k, op) in enumerate(operators)
             push!(names, "c$(i)_Op$(k)_c$(j)")
@@ -326,16 +330,17 @@ function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}) wh
     end
 end
 
-function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}) where {N}
+function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, vecnorm=true) where {N}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]
     values = T[]
     if all(op -> LOStructure(op) isa IsDiagonal, operators)
-        get_overlaps_diagonal!(names, values, operators, vecs)
+        get_overlaps_diagonal!(names, values, operators, vecs, vecnorm)
     else
-        get_overlaps_nondiagonal!(names, values, operators, vecs)
+        get_overlaps_nondiagonal!(names, values, operators, vecs, vecnorm)
     end
 
     num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)
+    !vecnorm ? num_reports -= 1 : #
     return Tuple(SVector{num_reports,String}(names)), Tuple(SVector{num_reports,T}(values))
 end

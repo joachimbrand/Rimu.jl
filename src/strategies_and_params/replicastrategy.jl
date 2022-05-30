@@ -111,7 +111,7 @@ end
     all_overlaps(operators, vectors, norm=true)
 
 Get all overlaps between vectors and operators. This function is overloaded for `MPIData`.
-The flag `norm` can disable the vector-vector overlap if a transformed Hamiltonian is supplied
+The flag `vecnorm` can disable the vector-vector overlap if a transformed Hamiltonian is supplied
 to the `ReplicaStrategy`.
 """
 function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}, vecnorm=true) where {N}
