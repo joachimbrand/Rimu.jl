@@ -66,7 +66,7 @@ TimeReversalSymmetry
 
 ## Observables
 Observables are [`AbstractHamiltonian`](@ref)s that represent a physical 
-observable. Their ground state expectation values can be sample by passing
+observable. Their ground state expectation values can be sampled by passing
 them into [`AllOverlaps`](@ref).
 ```@docs
 G2Correlator
