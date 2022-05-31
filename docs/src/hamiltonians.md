@@ -9,24 +9,26 @@ around the abstract type [`AbstractHamiltonian`](@ref), in the spirit of the
 Hamiltonians
 ```
 
-### Relation to other parts of the `Rimu` code
+## Usage with FCIQMC and exact diagonalisation
 
 In order to define a specific model Hamiltonian with relevant parameters
 for the model, instantiate the model like this in the input file:
 
-`ham = HubbardReal1D(BoseFS((1,2,0,3)); u=1.0, t=1.0)`
+```julia-repl
+hubb = HubbardReal1D(BoseFS((1,2,0,3)); u=1.0, t=1.0)
+```
 
-The Hamiltonian `ham` is now ready to be used for FCIQMC in [`lomc!`](@ref) 
+The Hamiltonian `hubb` is now ready to be used for FCIQMC in [`lomc!`](@ref) 
 and for exact diagolisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after 
 transforming into a sparse matrix first with 
 ```julia-repl
 using SparseArrays
-sh = sparse(ham)
+sh = sparse(hubb)
 ```
 or into a full matrix with
 ```julia-repl
 using LinearAlgebra
-fh = Matrix(ham)
+fh = Matrix(hubb)
 ```
 This functionality relies on 
 ```@docs
@@ -60,6 +62,15 @@ GutzwillerSampling
 GuidingVectorSampling
 ParitySymmetry
 TimeReversalSymmetry
+```
+
+## Observables
+Observables are [`AbstractHamiltonian`](@ref)s that represent a physical 
+observable. Their ground state expectation values can be sample by passing
+them into [`AllOverlaps`](@ref).
+```@docs
+G2Correlator
+Momentum
 ```
 
 ## Hamiltonians interface
