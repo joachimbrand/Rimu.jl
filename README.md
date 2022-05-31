@@ -8,7 +8,7 @@
 
 The grand aim is to develop a toolbox for many-body quantum systems that can be represented by a Hamiltonian in second quantisation language. Currently supported features include:
 ### Interacting with quantum many-body models
-* **Full configuration interaction quantum Monte Carlo (FCIQMC)**, a flavour of projector quantum Monte Carlo for stochastically solving the time-independent Schrödinger equation. See [References](@ref).
+* **Full configuration interaction quantum Monte Carlo (FCIQMC)**, a flavour of projector quantum Monte Carlo for stochastically solving the time-independent Schrödinger equation.
 * **Matrix-free exact diagonalisation** of quantum Hamiltonians (with external package [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl)).
 * **Sparse matrix representation** of quantum Hamiltonians for exact diagonalisation with sparse linear algebra package of your choice (fastest for small systems).
 
