@@ -16,8 +16,8 @@ for the model, instantiate the model like this in the input file:
 
 `ham = HubbardReal1D(BoseFS((1,2,0,3)); u=1.0, t=1.0)`
 
-The Hamiltonian `ham` is now ready to be used for FCIQMC in [`lomc!](@ref) 
-and for exact diagolisation with `KrylovKit.jl` directly, or after 
+The Hamiltonian `ham` is now ready to be used for FCIQMC in [`lomc!`](@ref) 
+and for exact diagolisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after 
 transforming into a sparse matrix first with 
 ```julia-repl
 using SparseArrays
@@ -31,6 +31,8 @@ fh = Matrix(ham)
 This functionality relies on 
 ```@docs
 BasisSetRep
+sparse
+Matrix
 ```
 
 ## Model Hamiltonians
