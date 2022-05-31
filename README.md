@@ -36,15 +36,14 @@ Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
 
 ### Installing Rimu
 
-`Rimu` can be installed with the package manager directly from the GitHub
-repository. Hit the `]` key at the Julia REPL to get into `Pkg` mode and
-type
+`Rimu` is a registered package and can be installed with the package manager.
+Hit the `]` key at the Julia REPL to get into `Pkg` mode and type
 ```julia-repl
-pkg> add https://github.com/joachimbrand/Rimu.jl
+pkg> add Rimu
 ```
 Alternatively, use
 ```julia-repl
-julia> using Pkg; Pkg.add(PackageSpec(url="https://github.com/joachimbrand/Rimu.jl"))
+julia> using Pkg; Pkg.add(name="Rimu")
 ```
 in order to install `Rimu` from a script.
 
@@ -61,10 +60,14 @@ Note that `Rimu` is under active development and breaking changes to the user in
 ### References
 The code implements the FCIQMC algorithm described in
 - "Fermion Monte Carlo without fixed nodes: A game of life, death, and annihilation in Slater determinant space", G. H. Booth, A. J. W. Thom, A. Alavi, [*J. Chem. Phys.* **131**, 054106 (2009)](https://doi.org/10.1063/1.3193710).
+-  "Communications: Survival of the fittest: accelerating convergence in full configuration-interaction quantum Monte Carlo.", D. Cleland,  G. H. Booth, A. Alavi, [*J. Chem. Phys.* **132**, 041103 (2010)](https://doi.org/10.1063/1.3302277).
 
-Scientific papers describing additional features implemented in the `Rimu` code:
+Scientific papers describing additional features implemented in `Rimu`:
+- "Improved walker population control for full configuration interaction quantum Monte Carlo", M. Yang, E. Pahl, J. Brand, [*J. Chem. Phys.* **153**, 170143 (2020)](https://doi.org/10.1063/5.0023088); [arXiv:2008.01927](https://arxiv.org/abs/2008.01927).
 - "Stochastic differential equation approach to understanding the population control bias in full configuration interaction quantum Monte Carlo", J. Brand, M. Yang, E. Pahl, [arXiv:2103.07800](http://arxiv.org/abs/2103.07800) (2021).
-- "Improved walker population control for full configuration interaction quantum Monte Carlo", M. Yang, E. Pahl, J. Brand, [*J. Chem. Phys.* **153**, 170143 (2020)](https://doi.org/10.1063/5.0023088); DOI: 10.1063/5.0023088; [arXiv:2008.01927](https://arxiv.org/abs/2008.01927).
-- "Polaron-Depleton Transition in the Yrast Excitations of a One-Dimensional Bose Gas with a Mobile Impurity", M. Yang, M. Čufar, E. Pahl, J. Brand, [Condens. Matter **7**, 15 (2022)](https://doi.org/10.3390/condmat7010015); DOI: 10.3390/condmat7010015.
+
+Papers discussing results obtained with `Rimu`:
+- "Polaron-Depleton Transition in the Yrast Excitations of a One-Dimensional Bose Gas with a Mobile Impurity", M. Yang, M. Čufar, E. Pahl, J. Brand, [*Condens. Matter* **7**, 15 (2022)](https://www.mdpi.com/2410-3896/7/1/15).
+- "Magnetic impurity in a one-dimensional few-fermion system", L. Rammelmüller, D. Huber, M. Čufar, J. Brand, A. Volosniev, [arXiv:2204.01606](http://arxiv.org/abs/2204.01606) (2022).
 
 For more information, consult the [documentation](https://joachimbrand.github.io/Rimu.jl/dev/).
