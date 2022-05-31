@@ -12,7 +12,7 @@ Assumes periodic boundary conditions where
 ```
 and normalisation
 ```math
-    \\sum_{d=0}^{M-1} G_2(d) = N (N-1).
+    \\sum_{d=0}^{M-1} G_2(d) = N (N-1) / M.
 ```
 
 # Arguments
