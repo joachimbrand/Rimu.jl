@@ -6,6 +6,15 @@ Modules = [Rimu]
 ```
 # Reexported Submodules
 
+## Interfaces
+
+See [Module `Interfaces`](@ref)
+
+## StochasticStyles
+
+See [Module `StochasticStyles`](@ref)
+
+
 ## Hamiltonians
 
 See [Module `Hamiltionians`](@ref)
@@ -22,17 +31,9 @@ See [Module `DictVectors`](@ref)
 
 See [Module `ConsistentRNG`](@ref)
 
-# Unexported Submodules
-
 ## StatsTools
 
 See [Module `Rimu/StatsTools`](@ref)
-
-## Blocking
-
-```@autodocs
-Modules = [Rimu.Blocking]
-```
 
 ## RMPI
 

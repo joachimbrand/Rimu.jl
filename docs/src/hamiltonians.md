@@ -16,19 +16,22 @@ for the model, instantiate the model like this in the input file:
 
 `ham = HubbardReal1D(BoseFS((1,2,0,3)); u=1.0, t=1.0)`
 
-In the rest of the `Rimu` code, access to properties and matrix elements
-of the model are then provided by the following methods:
-
- * `ham[address1, address2]`:  indexing of matrix elements (slow - use with caution)
- * `ham * dv`, `ham(dv::AbstractDVec)` or `mul!(dv1, ham, dv2)`: use as linear operator
- * [`diagonal_element(ham, add)`](@ref): diagonal matrix element
- * [`num_offdiagonals(ham, add)`](@ref): number of off-diagonals
- * [`get_offdiagonal(ham, add, chosen)`](@ref): access off-diagonal matrix element
- * [`offdiagonals(ham, add)`](@ref): iterator over off-diagonal matrix elements
- * [`random_offdiagonal(hops)`](@ref): choose random off-diagonal
- * [`dimension(T, ham)`](@ref): dimension of linear space
- * [`near_uniform(ham)`](@ref): configuration with particles spread across modes
- * [`starting_address(ham)`](@ref): address for accessing one of the diagonal elements of `ham`
+The Hamiltonian `ham` is now ready to be used for FCIQMC in [`lomc!](@ref) 
+and for exact diagolisation with `KrylovKit.jl` directly, or after 
+transforming into a sparse matrix first with 
+```julia-repl
+using SparseArrays
+sh = sparse(ham)
+```
+or into a full matrix with
+```julia-repl
+using LinearAlgebra
+fh = Matrix(ham)
+```
+This functionality relies on 
+```@docs
+BasisSetRep
+```
 
 ## Model Hamiltonians
 
@@ -40,10 +43,21 @@ Hubbard chain.
 HubbardReal1D
 ExtendedHubbardReal1D
 HubbardMom1D
+Transcorrelated1D
 BoseHubbardReal1D2C
 BoseHubbardMom1D2C
 HubbardRealSpace
 MatrixHamiltonian
+```
+
+## Hamiltonian Wrappers
+The following Hamiltonians are constructed from an existing 
+Hamiltonian instance and change its behaviour:
+```@docs
+GutzwillerSampling
+GuidingVectorSampling
+ParitySymmetry
+TimeReversalSymmetry
 ```
 
 ## Hamiltonians interface
