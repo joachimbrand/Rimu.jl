@@ -2,6 +2,7 @@
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://joachimbrand.github.io/Rimu.jl/)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://joachimbrand.github.io/Rimu.jl/dev/)
+[![Coverage Status](https://coveralls.io/repos/github/joachimbrand/Rimu.jl/badge.svg)](https://coveralls.io/github/joachimbrand/Rimu.jl)
 
 *Random Integrators for many-body quantum systems*
 
