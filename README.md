@@ -29,7 +29,7 @@ The code supports parallelisation with MPI (harnessing [`MPI.jl`](https://github
 
 **Concept:** Joachim Brand and Elke Pahl.
 
-**Contributors:** Joachim Brand, Elke Pahl, Mingrui Yang, Matija Cufar, Christopher Bradly.
+**Contributors:** Joachim Brand, Elke Pahl, Mingrui Yang, Matija Cufar, Chris Bradly.
 
 Discussions, help, and additional contributions are acknowledged by Ali Alavi,
 Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
