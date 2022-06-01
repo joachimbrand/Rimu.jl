@@ -1,7 +1,3 @@
-"""
-    Rimu
-Random Integrator for Many-Body Quantum Systems
-"""
 module Rimu
 
 using Arrow
@@ -20,6 +16,22 @@ using ProgressLogging
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
 import ConsoleProgressMonitor
+import TOML
+
+"""
+    Rimu.PACKAGE_VERSION
+Constant that contains the current `VersionNumber` of `Rimu`.
+"""
+const PACKAGE_VERSION = VersionNumber(TOML.parsefile(pkgdir(Rimu, "Project.toml"))["version"])
+
+@doc """
+    Rimu
+**Random integrators for many-body quantum systems**
+
+Welcome to `Rimu` version $PACKAGE_VERSION. 
+Read the documentation [online](https://joachimbrand.github.io/Rimu.jl/).
+"""
+Rimu
 
 include("helpers.jl") # non MPI-dependent helper functions
 
