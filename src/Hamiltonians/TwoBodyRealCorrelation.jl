@@ -12,7 +12,7 @@ Assumes periodic boundary conditions where
 ```
 and normalisation
 ```math
-    \\sum_{d=0}^{M-1} G_2(d) = N (N-1) / M.
+    \\sum_{d=0}^{M-1} G_2(d) = N (N-1).
 ```
 
 # Arguments
@@ -39,18 +39,19 @@ end
 LOStructure(::Type{<:G2RealCorrelator}) = IsDiagonal()
 
 function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress{N,M}) where {D,N,M}
-    if D == 0
+    d = mod(D, M)
+    if d == 0
         v = onr(add)
         return float(dot(v, v .- 1))
-    elseif 0 < D < M ÷ 2 + 1
+    else
         v = onr(add)
         result = 0
         for i in eachindex(v)
-            result += v[i] * v[mod1(i + D, M)]
+            result += v[i] * v[mod1(i + d, M)]
         end
         return float(result)
-    else
-        throw(DomainError(D, "Bad input for G2RealCorrelator. Requires: 0 ≤ d ≤ M ÷ 2"))
+    # else
+    #     throw(DomainError(D, "Bad input for G2RealCorrelator. Requires: 0 ≤ d ≤ M"))
     end    
 end
 
