@@ -8,7 +8,10 @@ Two-body operator for density-density correlation between sites separated by `d`
 Can be applied to any [`SingleComponentFockAddress`](@ref).
 Assumes periodic boundary conditions where
 ```math
-    G_2(-M/2 \\leq d < 0) = G_2(|d|).
+    G_2(-M/2 \\leq d < 0) = G_2(|d|),
+```
+```math
+    G_2(\\leq d > M/2) = G_2(M - d),
 ```
 and normalisation
 ```math
@@ -16,7 +19,7 @@ and normalisation
 ```
 
 # Arguments
-- `d::Integer`: distance between sites, must be 0 ≤ d ≤ M/2.
+- `d::Integer`: distance between sites.
 
 # See also
 
