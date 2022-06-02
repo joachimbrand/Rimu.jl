@@ -170,9 +170,9 @@ Returns a `NamedTuple` with the fields
 * `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
 * `h_values = 100`: minimum number of reweighting depths
 * `skip = 0`: initial time steps to exclude from averaging
-* `threaded=Threads.nthreads() > 1`: if `false` a progress meter is displayed
-* `shift=:shift` name of column in `df` with shift data
-* `norm=:norm` name of column in `df` with walkernumber data
+* `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift = :shift` name of column in `df` with shift data
+* `norm = :norm` name of column in `df` with walkernumber data
 
 ## Example
 ```julia
@@ -310,10 +310,10 @@ Returns a `NamedTuple` with the fields
 * `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
 * `h_values = 100`: minimum number of reweighting depths
 * `skip = 0`: initial time steps to exclude from averaging
-* `threaded=Threads.nthreads() > 1`: if `false` a progress meter is displayed
-* `shift=:shift` name of column in `df` with shift data
-* `hproj=:hproj` name of column in `df` with operator overlap data
-* `vproj=:vproj` name of column in `df` with projector overlap data
+* `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift = :shift` name of column in `df` with shift data
+* `hproj = :hproj` name of column in `df` with operator overlap data
+* `vproj = :vproj` name of column in `df` with projector overlap data
 
 ## Example
 ```julia
