@@ -144,7 +144,7 @@ end
 function diagonal_element(s::SimTransOperator{<:Any,<:GutzwillerSampling,<:AbstractHamiltonian}, add)
     diagH = diagonal_element(s.similarity.hamiltonian, add)
     diagA = diagonal_element(s.op, add)
-    return gutzwiller_modify(diagA, true, s.similarity.g, 2 * diagH, 0.)
+    return gutzwiller_modify(diagA, true, s.similarity.g, 0., 2 * diagH)
 end
 
 function num_offdiagonals(s::SimTransOperator{<:Any,<:GutzwillerSampling,<:Any}, add)
@@ -156,7 +156,7 @@ function get_offdiagonal(s::SimTransOperator{<:Any,<:GutzwillerSampling,<:Any}, 
     # Gutzwiller transformation is diagonal
     diagH1 = diagonal_element(s.similarity.hamiltonian, add)
     diagH2 = diagonal_element(s.similarity.hamiltonian, newadd)
-    return newadd, gutzwiller_modify(offd, true, s.similarity.g, diagH1 + diagH2, 0.)
+    return newadd, gutzwiller_modify(offd, true, s.similarity.g, 0., diagH1 + diagH2)
 end
 
 # Gutzwiller sampling - special case `f^2`
@@ -169,7 +169,7 @@ LOStructure(::Type{<:SimTransOperator{<:Any,<:GutzwillerSampling,Nothing}}) = Is
 
 function diagonal_element(s::SimTransOperator{<:Any,<:GutzwillerSampling,Nothing}, add)
     diagH = diagonal_element(s.similarity.hamiltonian, add)
-    return gutzwiller_modify(1., true, s.similarity.g, 2 * diagH, 0.)
+    return gutzwiller_modify(1., true, s.similarity.g, 0., 2 * diagH)
 end
 
 num_offdiagonals(s::SimTransOperator{<:Any,<:GutzwillerSampling,Nothing}, add) = 0
