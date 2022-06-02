@@ -340,7 +340,7 @@ function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, vecnorm=tr
         get_overlaps_nondiagonal!(names, values, operators, vecs, vecnorm)
     end
 
-    num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)
-    !vecnorm ? num_reports -= 1 : #
+    reports_per_replica = vecnorm ? length(operators) + 1 : length(operators)
+    num_reports = (N * (N - 1) ÷ 2) * reports_per_replica 
     return Tuple(SVector{num_reports,String}(names)), Tuple(SVector{num_reports,T}(values))
 end

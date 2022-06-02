@@ -67,17 +67,19 @@ similarity transformation of the Hamiltonian (See e.g. [`GutzwillerSampling`](@r
 ```math
     G = f^{-1} H f.
 ```
-This strategy calculates overlaps for `f^2`, reported first as c{i}_Op1_c{j}, and then all 
-transformed operators `f A f` for each input operator `A`.
 The expectation value of an operator `A` is then
 ```math
     \\langle A \\rangle = \\langle \\psi | A | \\psi \\rangle 
         = \\frac{\\langle \\phi | f A f | \\phi \\rangle}{\\frac{\\langle \\phi | f^2 | \\phi \\rangle}
 ```
-where `| \\phi \\rangle = f | \\psi \\rangle` is the (right) eigenvector of `G`.
+where `| \\phi \\rangle = f^2 | \\psi \\rangle` is the (right) eigenvector of `G`.
 
-The untransformed vector-vector overlap `c{i}_dot_c{j}` can be omitted with the flag 
-`vecnorm=false`, to save computation time.
+In this case, overlaps of `f^2` are reported first as c{i}_Op1_c{j}, and then all 
+transformed operators are reported. That is, for a tuple of input operators `(A, B,...)`, 
+overlaps of `(f A f, f B f,...)` are reported as `(c{i}_Op2_c{j}, c{i}_Op3_c{j}, ...)`.
+
+In either case, the untransformed vector-vector overlap `c{i}_dot_c{j}` 
+can be omitted with the flag `vecnorm=false`.
 """
 struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},B} <: ReplicaStrategy{N}
     operators::O
@@ -98,6 +100,9 @@ function AllOverlaps(num_replicas=2, operator=nothing, transform=nothing, vecnor
         f2 = SimTransOperator(transform)
         ops = (f2, map(op -> SimTransOperator(transform, op), operators)...)
     end    
+    if !vecnorm && length(ops) == 0
+        return NoStats(num_replicas)
+    end
     return AllOverlaps{num_replicas,length(ops),typeof(ops),vecnorm}(ops)
 end
 
@@ -128,8 +133,8 @@ function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}, vecnorm=tr
             push!(values, dot(vecs[i], op, vecs[j]))
         end
     end
-
-    num_reports = (N * (N - 1) ÷ 2) * (length(operators) + 1)
-    !vecnorm ? num_reports -= 1 : #
+    
+    reports_per_replica = vecnorm ? length(operators) + 1 : length(operators)
+    num_reports = (N * (N - 1) ÷ 2) * reports_per_replica 
     return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
 end
