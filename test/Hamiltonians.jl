@@ -417,6 +417,7 @@ end
             @test starting_address(G) == addr
             @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
             @test LOStructure(G) isa AdjointKnown
+            @test LOStructure(SimTransOperator(G,G)) isa AdjointKnown
 
             @test eval(Meta.parse(repr(G))) == G
             @test eval(Meta.parse(repr(G'))) == G'
@@ -429,6 +430,35 @@ end
                 @test get_offdiagonal(H, addr, i)[2] * w == me
                 @test get_offdiagonal(H, addr, i)[1] == addr2
                 @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+            end
+        end
+
+        @testset "transform operators" begin
+            
+            for H in (
+                HubbardReal1D(BoseFS((2,2,2)), u=6),
+                HubbardMom1D(BoseFS((2,2,2)), u=6),
+                ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
+            )
+                # energy    
+                g = rand()
+                x = rand()
+                G = GutzwillerSampling(H, g)
+                add = starting_address(H)
+                v = DVec(add => x)
+                # transforming the Hamiltonian again should be consistent
+                fsq = SimTransOperator(G)
+                fHf = SimTransOperator(G, H)
+                Ebare = dot(v, H, v)/dot(v, v)
+                Egutz = dot(v, G, v)/dot(v, v)
+                Etrans = dot(v, fHf, v)/dot(v, fsq, v)
+                @test Ebare ≈ Egutz ≈ Etrans
+                
+                m = num_modes(add)
+                g2vals = map(d -> dot(v, G2RealCorrelator(d), v)/dot(v, v), 0:m-1)
+                g2transformed = map(d -> dot(v, SimTransOperator(G,G2RealCorrelator(d)), v)/dot(v, fsq, v), 0:m-1)
+                @test all(g2vals ≈ g2transformed)
             end
         end
     end
@@ -617,6 +647,30 @@ end
     # test on BoseFS
     @test diagonal_element(g0s,bfs1) == 4/3
     @test diagonal_element(g0s,bfs2) == 1/3
+end
+
+@testset "G2RealCorrelator" begin
+    # localised state
+    n = m = 6
+    add = BoseFS((0,0,n,0,0,0))
+    @test num_offdiagonals(G2RealCorrelator(1), add) == 0
+    v = DVec(add => 1)
+    @test dot(v, G2RealCorrelator(0), v) == float(n*(n-1))
+    @test dot(v, G2RealCorrelator(m), v) == float(n*(n-1))
+    for d in 1:m-1
+        @test dot(v, G2RealCorrelator(d), v) == 0.
+    end
+
+    # constant density state
+    add = near_uniform(BoseFS{n,m})
+    @test num_offdiagonals(G2RealCorrelator(1), add) == 0
+    v = DVec(add => 1)
+    @test dot(v, G2RealCorrelator(0), v) == 0.
+    @test dot(v, G2RealCorrelator(m), v) == 0.
+    for d in 1:m-1
+        @test dot(v, G2RealCorrelator(d), v) == float(n)
+    end
+
 end
 
 @testset "Momentum" begin

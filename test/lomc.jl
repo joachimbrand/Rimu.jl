@@ -89,6 +89,18 @@ using Statistics
             df, _ = lomc!(H, dv; replica=AllOverlaps(5))
             @test num_stats(df) == binomial(5, 2)
 
+            # No vector norm: N choose 2 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(4, H, nothing, false))
+            @test num_stats(df) == binomial(4, 2)
+            df, _ = lomc!(H, dv; replica=AllOverlaps(5, H, nothing, false))
+            @test num_stats(df) == binomial(5, 2)
+
+            # No operator, no vector norm: 0 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(4, nothing, nothing, false))
+            @test num_stats(df) == 0
+            df, _ = lomc!(H, dv; replica=AllOverlaps(5, nothing, nothing, false))
+            @test num_stats(df) == 0
+
             # One operator: 2 * N choose 2 reports.
             df, _ = lomc!(H, dv; replica=AllOverlaps(4, H))
             @test num_stats(df) == 2 * binomial(4, 2)
@@ -100,6 +112,12 @@ using Statistics
             @test num_stats(df) == 3 * binomial(2, 2)
             df, _ = lomc!(H, dv; replica=AllOverlaps(7, (GutzwillerSampling(H, 1), H)))
             @test num_stats(df) == 3 * binomial(7, 2)
+
+            # Transformed operators: (3 + 1) * N choose 2 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(2, (H, GutzwillerSampling(H, 1)), GutzwillerSampling(H, 0.5)))
+            @test num_stats(df) == 4 * binomial(2, 2)
+            df, _ = lomc!(H, dv; replica=AllOverlaps(7, (H, GutzwillerSampling(H, 1)), GutzwillerSampling(H, 0.5)))
+            @test num_stats(df) == 4 * binomial(7, 2)
 
             # Complex operator
             v = DVec(1 => 1)
