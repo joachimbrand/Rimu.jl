@@ -126,7 +126,7 @@ struct SimTransOperator{T,K<:AbstractHamiltonian{T},O<:Union{AbstractHamiltonian
 end
 
 function SimTransOperator(k, a)
-    T = eltype(k)
+    T = promote(eltype(k), eltype(a))
     return SimTransOperator{T,typeof(k),typeof(a)}(k,a)
 end
 
@@ -134,7 +134,12 @@ starting_address(s::SimTransOperator) = starting_address(s.similarity)
 dimension(::Type{T}, s::SimTransOperator) where {T} = dimension(T, s.similarity)
 
 # Gutzwiller sampling - general operator `f A f`
-LOStructure(::Type{<:SimTransOperator{<:Any,<:GutzwillerSampling,<:A}}) where {A} = LOStructure(A)
+LOStructure(::Type{<:SimTransOperator{<:Any,<:GutzwillerSampling,A}}) where {A} = LOStructure(A)
+
+function LinearAlgebra.adjoint(s::SimTransOperator{T,<:GutzwillerSampling,<:AbstractHamiltonian}) where {T}
+    a_adj = adjoint(s.op)
+    return SimTransOperator{T,typeof(s.similarity),typeof(a_adj)}(s.similarity, a_adj)
+end
 
 function diagonal_element(s::SimTransOperator{<:Any,<:GutzwillerSampling,<:AbstractHamiltonian}, add)
     diagH = diagonal_element(s.similarity.hamiltonian, add)
@@ -159,6 +164,7 @@ function SimTransOperator(k)
     T = eltype(k)
     return SimTransOperator{T,typeof(k),Nothing}(k,nothing)
 end
+
 LOStructure(::Type{<:SimTransOperator{<:Any,<:GutzwillerSampling,Nothing}}) = IsDiagonal()
 
 function diagonal_element(s::SimTransOperator{<:Any,<:GutzwillerSampling,Nothing}, add)
