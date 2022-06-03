@@ -96,9 +96,8 @@ function AllOverlaps(num_replicas=2, operator=nothing, transform=nothing, vecnor
     if isnothing(transform)
         ops = operators
     else
-        !hasproperty(transform, :hamiltonian) && throw(ArgumentError("Invalid Hamiltonian transformation."))
-        f2 = SimTransOperator(transform)
-        ops = (f2, map(op -> SimTransOperator(transform, op), operators)...)
+        f2 = similarity_transform(transform)
+        ops = (f2, map(op -> similarity_transform(transform, op), operators)...)
     end    
     if !vecnorm && length(ops) == 0
         return NoStats(num_replicas)

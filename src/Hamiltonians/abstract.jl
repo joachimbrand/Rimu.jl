@@ -289,3 +289,23 @@ function Base.Matrix(h::AbstractHamiltonian, args...; kwargs...)
     return Matrix(BasisSetRep(h, args...; kwargs...))
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
+
+"""
+    TransformOperator{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}}
+
+Type for creating operators defined by a transformation `transform`. Can create an operator
+that is a transformation of an input `op`, or an operator that is only defined by `transform`.
+
+Not exported; transformations should define properties of these operators before use.
+
+Currently supported transformations:
+
+    * [`GutzwillerSampling`](@ref).
+"""
+struct TransformOperator{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
+    transform::K
+    op::O
+end
+
+starting_address(s::TransformOperator) = starting_address(s.transform)
+dimension(::Type{T}, s::TransformOperator) where {T} = dimension(T, s.transform)
