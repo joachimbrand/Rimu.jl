@@ -65,7 +65,7 @@ interface for implementing operators).
 If `transform` is not `nothing` then this strategy calculates the overlaps with respect to a 
 similarity transformation of the Hamiltonian (See e.g. [`GutzwillerSampling`](@ref).)
 ```math
-    G = f^{-1} H f.
+    G = f H f^{-1}.
 ```
 The expectation value of an operator `A` is then
 ```math
@@ -74,7 +74,7 @@ The expectation value of an operator `A` is then
 ```
 where `| \\phi \\rangle = f^2 | \\psi \\rangle` is the (right) eigenvector of `G`.
 
-In this case, overlaps of `f^2` are reported first as c{i}_Op1_c{j}, and then all 
+In this case, overlaps of `f^2` are reported first as `c{i}_Op1_c{j}`, and then all 
 transformed operators are reported. That is, for a tuple of input operators `(A, B,...)`, 
 overlaps of `(f A f, f B f,...)` are reported as `(c{i}_Op2_c{j}, c{i}_Op3_c{j}, ...)`.
 
@@ -115,8 +115,7 @@ end
     all_overlaps(operators, vectors, norm=true)
 
 Get all overlaps between vectors and operators. This function is overloaded for `MPIData`.
-The flag `vecnorm` can disable the vector-vector overlap if a transformed Hamiltonian is supplied
-to the `ReplicaStrategy`.
+The flag `vecnorm` can disable the vector-vector overlap `c{i}_dot_c{j}`.
 """
 function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}, vecnorm=true) where {N}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)

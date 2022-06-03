@@ -17,14 +17,6 @@ spawns to lower-energy configurations encouraged for positive `g`.
 After construction, we can access the underlying Hamiltonian with `G.hamiltonian` and the
 `g` parameter with `G.g`.
 
-# General operators
-
-Also defines operator `f A f` for arbitrary `A`, where `f^{-1} H f` is the transformed 
-Hamiltonian, and special case `f^2`, in order to calculate overlaps. See [`AllOverlaps`](@ref).
-
-* `similarity_transform(k::GutzwillerSampling, A)`
-* `similarity_transform(k::GutzwillerSampling)`
-
 # Example
 
 ```jldoctest
@@ -40,6 +32,16 @@ julia> get_offdiagonal(H, BoseFS((2, 1, 0)), 1)
 julia> get_offdiagonal(I, BoseFS((2, 1, 0)), 1)
 (BoseFS{3,3}((1, 0, 2)), 0.8131393194811987)
 ```
+
+# General operators
+
+The Gutzwiller similarity transformation defines transformation of general operators
+for calculating observables.
+
+* `similarity_transform(k::GutzwillerSampling, op::AbstractHamiltonian)`
+* `similarity_transform(k::GutzwillerSampling)`
+
+See [`similarity_transform`](@ref), [`AllOverlaps`](@ref).
 """
 struct GutzwillerSampling{A,T,H<:AbstractHamiltonian{T},G} <: AbstractHamiltonian{T}
     # The A parameter sets whether this is an adjoint or not.
@@ -119,9 +121,18 @@ end
 
 Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
 
-# the similarity transformed operator `f A f` 
+"""
+    similarity_transform(k::GutzwillerSampling, op::AbstractHamiltonian)
+    similarity_transform(k::GutzwillerSampling)
+
+For a Gutzwiller similarity transformation `k = f H f^{-1}` define the transformed
+operator `f op f` for arbitrary `op`, and special case `f^2`, in order to calculate observables. 
+    
+See [`AllOverlaps`](@ref), [`GutzwillerSampling`](@ref).
+    
+    
+"""
 function similarity_transform(k::GutzwillerSampling, op::AbstractHamiltonian)
-    # !hasproperty(k, :hamiltonian) && throw(ArgumentError("Invalid Gutzwiller transformation."))
     T = promote_type(eltype(k), eltype(op))
     return TransformOperator{T,typeof(k),typeof(op)}(k, op)
 end
