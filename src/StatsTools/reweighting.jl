@@ -359,7 +359,7 @@ end
 function mixed_estimator_df_folds(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
     # parallel excecution with Folds.jl package
     nts = Folds.map(h_range) do h
-        me = mixed_estimator(shift, hproj, vproj, h, dτ; kwargs...)
+        me = mixed_estimator(hproj, vproj, shift, h, dτ; kwargs...)
         (; h, NamedTuple(me)...)
     end
     return DataFrame(nts)
@@ -368,7 +368,7 @@ end
 function mixed_estimator_df_progress(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
     # serial processing supports progress bar
     ProgressLogging.@progress nts = [
-        (; h, NamedTuple(mixed_estimator(shift, hproj, vproj, h, dτ; kwargs...))...)
+        (; h, NamedTuple(mixed_estimator(hproj, vproj, shift, h, dτ; kwargs...))...)
         for h in h_range
     ]
     return DataFrame(nts)
