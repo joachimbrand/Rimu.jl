@@ -24,11 +24,7 @@ The `DataFrame` version can extract the relevant information from the result of
 
 See [`AllOverlaps`](@ref).
 """
-function variational_energy_estimator(
-    shifts::AbstractArray{<:AbstractArray},
-    overlaps::AbstractArray{<:AbstractArray};
-    kwargs...
-)
+function variational_energy_estimator(shifts, overlaps; kwargs...)
     num_replicas = length(shifts)
     if length(overlaps) ≠ binomial(num_replicas,2)
         throw(ArgumentError(
