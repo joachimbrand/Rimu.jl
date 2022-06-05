@@ -51,33 +51,33 @@ replica_stats(::NoStats, _) = (), ()
 
 # TODO: implement guiding vector importance sampling
 """
-    AllOverlaps(n=2, operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{n}
+    AllOverlaps(; num_replicas=2, operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{num_replicas}
 
-Run `n` replicas and report overlaps between all pairs of replica vectors. If operator is
+Run `num_replicas` replicas and report overlaps between all pairs of replica vectors. If operator is
 not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If operator is a tuple
 of operators, the overlaps are computed for all operators.
 
-Column names in the report are of the form c{i}_dot_c{j} for vector-vector overlaps, and
-c{i}_Op{k}_c{j} for operator overlaps.
+Column names in the report are of the form `c{i}_dot_c{j}` for vector-vector overlaps, and
+`c{i}_Op{k}_c{j}` for operator overlaps.
 
 See [`lomc!`](@ref), [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an
 interface for implementing operators).
 
 If `transform` is not `nothing` then this strategy calculates the overlaps with respect to a 
-similarity transformation of the Hamiltonian (See e.g. [`GutzwillerSampling`](@ref).)
+similarity transformation `G` of the Hamiltonian (see e.g. [`GutzwillerSampling`](@ref).)
 ```math
-    G = f H f^{-1}.
+    \\hat{G} = f \\hat{H} f^{-1}.
 ```
 The expectation value of an operator `A` is then
 ```math
     \\langle A \\rangle = \\langle \\psi | A | \\psi \\rangle 
-        = \\frac{\\langle \\phi | f^{-1} A f^{-1} | \\phi \\rangle}{\\frac{\\langle \\phi | f^{-2} | \\phi \\rangle}
+        = \\frac{\\langle \\phi | f^{-1} A f^{-1} | \\phi \\rangle}{\\langle \\phi | f^{-2} | \\phi \\rangle}
 ```
 where 
 ```math
-    | \\phi \\rangle = f^{-2} | \\psi \\rangle
+    | \\phi \\rangle = f | \\psi \\rangle
 ``` 
-is the (right) eigenvector of `G`.
+is the (right) eigenvector of `\\hat{G}`.
 
 In this case, overlaps of `f^{-2}` are reported first as `c{i}_Op1_c{j}`, and then all 
 transformed operators are reported. That is, for a tuple of input operators `(A, B,...)`, 
@@ -90,7 +90,7 @@ struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},B} <: ReplicaStrategy{N}
     operators::O
 end
 
-function AllOverlaps(num_replicas=2, operator=nothing, transform=nothing, vecnorm=true)
+function AllOverlaps(; num_replicas=2, operator=nothing, transform=nothing, vecnorm=true)
     if isnothing(operator)
         operators = ()
     elseif operator isa Tuple
@@ -109,6 +109,7 @@ function AllOverlaps(num_replicas=2, operator=nothing, transform=nothing, vecnor
     end
     return AllOverlaps{num_replicas,length(ops),typeof(ops),vecnorm}(ops)
 end
+@deprecate AllOverlaps(num_replicas, operator=nothing) AllOverlaps(;num_replicas, operator)
 
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replicas::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.
@@ -117,7 +118,7 @@ function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replicas::NTuple{N}) wh
 end
 
 """
-    all_overlaps(operators, vectors, norm=true)
+    all_overlaps(operators, vectors, vecnorm=true)
 
 Get all overlaps between vectors and operators. This function is overloaded for `MPIData`.
 The flag `vecnorm` can disable the vector-vector overlap `c{i}_dot_c{j}`.

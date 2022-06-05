@@ -1,4 +1,4 @@
-# Module `Hamiltionians`
+# Module `Hamiltonians`
 
 This module contains definitions of Hamiltonians, in particular specific
 physical models of interest. These are organised by means of an interface
@@ -70,6 +70,7 @@ observable. Their ground state expectation values can be sampled by passing
 them into [`AllOverlaps`](@ref).
 ```@docs
 G2Correlator
+G2RealCorrelator
 Momentum
 ```
 
