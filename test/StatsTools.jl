@@ -314,6 +314,7 @@ comp_tuples(a, b; atol=0) = mapreduce((x, y) -> isapprox(x, y; atol), &, Tuple(a
     r = ratio_of_means(randn(2000), randn(2000))
     @test comp_tuples(val_and_errs(r), (v=val(r), errs(r)...))
     @test NamedTuple(r).val_k == r.k
+    @test NamedTuple(r).val_δ_y == r.δ_y
     @test NamedTuple(r; name=:frodo).frodo == pmedian(r)
     br = blocking_analysis(rand(2000))
     @test comp_tuples(val_and_errs(br), (v=val(br), errs(br)...))
