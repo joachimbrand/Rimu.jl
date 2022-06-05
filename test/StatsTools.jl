@@ -17,11 +17,11 @@ import Measurements
 end
 
 @testset "growth_witness" begin
-    @test_throws AssertionError growth_witness(rand(10),rand(11),0.01)
-    @test_throws AssertionError growth_witness(rand(5),rand(5),0.01; skip=10)
+    @test_throws AssertionError growth_witness(rand(10), rand(11), 0.01)
+    @test_throws AssertionError growth_witness(rand(5), rand(5), 0.01; skip=10)
     nor = rand(200)
     shift = rand(200)
-    dτ = 0.01*ones(200)
+    dτ = 0.01 * ones(200)
     df = DataFrame(; norm=nor, shift, dτ)
     m = mean(growth_witness(shift, nor, dτ[1]; skip=10))
     @test mean(growth_witness(df, 10; skip=10)) ≈ m
@@ -62,9 +62,12 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
 @testset "ratio_of_means" begin
     Random.seed!(17) # make sure the tests don't trip over rare fluctuations
     n_samples = 2000
-    br= ratio_of_means(rand(n_samples),rand(n_samples); α=0.05)
-    @test br.blocks * 2^(br.k-1) ≤ n_samples
-    @test begin show(br); true; end # does not throw error
+    br = ratio_of_means(rand(n_samples), rand(n_samples); α=0.05)
+    @test br.blocks * 2^(br.k - 1) ≤ n_samples
+    @test begin
+        show(br)
+        true
+    end # does not throw error
 
     # Make sure all other exported functions work.
     for f in (
@@ -74,29 +77,32 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     end
 
     # badly behaved example of Cauchy distribution for ratio
-    r = ratio_of_means(randn(2000),randn(2000))
-    q95 = pquantile(r.ratio, [0.025,0.975])
+    r = ratio_of_means(randn(2000), randn(2000))
+    q95 = pquantile(r.ratio, [0.025, 0.975])
     @test q95[1] < 0 < q95[2]
 
     # complex time series
-    r = ratio_of_means(randn(ComplexF64,2000),randn(ComplexF64,2000))
-    qr95 = pquantile(real(r.ratio), [0.025,0.975])
+    r = ratio_of_means(randn(ComplexF64, 2000), randn(ComplexF64, 2000))
+    qr95 = pquantile(real(r.ratio), [0.025, 0.975])
     @test qr95[1] < 0 < qr95[2]
-    qi95 = pquantile(imag(r.ratio), [0.025,0.975])
+    qi95 = pquantile(imag(r.ratio), [0.025, 0.975])
     @test qi95[1] < 0 < qi95[2]
-    @test_throws ErrorException pquantile(r, [0.025,0.975])
-    @test begin show(r); true; end # does not throw error
+    @test_throws ErrorException pquantile(r, [0.025, 0.975])
+    @test begin
+        show(r)
+        true
+    end # does not throw error
 
     # mixed real and complex
-    r = @inferred ratio_of_means(randn(1000),randn(ComplexF64,1000))
+    r = @inferred ratio_of_means(randn(1000), randn(ComplexF64, 1000))
     @test r.k ≤ 4
-    r = @inferred ratio_of_means(randn(ComplexF64,1000),randn(1000))
+    r = @inferred ratio_of_means(randn(ComplexF64, 1000), randn(1000))
     @test r.k ≤ 4
 
     # zero variance example
-    r = ratio_of_means([0,0,0,0,0,0], [1,1,1,1,1,2])
-    @test Tuple(val_and_errs(r)) == (0,0,0)
-    r = ratio_of_means(complex.(ones(2000)),complex.(ones(2000)))
+    r = ratio_of_means([0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 2])
+    @test Tuple(val_and_errs(r)) == (0, 0, 0)
+    r = ratio_of_means(complex.(ones(2000)), complex.(ones(2000)))
     @test pvar(real(r.ratio)) == 0 == pvar(imag(r.ratio))
 
     # well behaved real example
@@ -105,7 +111,7 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     μ_a, μ_b = 2.0, 3.0
     σ_a, σ_b = 0.5, 0.1 # std of sample means
     f, σ_f = x_by_y_linear(μ_a, μ_b, σ_a, σ_b, 0) # expected ratio and std, uncorrelated
-    @test f ≈ μ_a/μ_b
+    @test f ≈ μ_a / μ_b
     # consistency with error propagation from Measurement.jl
     am = Measurements.:±(μ_a, σ_a)
     bm = Measurements.:±(μ_b, σ_b)
@@ -114,34 +120,34 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     amc = MonteCarloMeasurements.:±(μ_a, σ_a)
     bmc = MonteCarloMeasurements.:±(μ_b, σ_b)
     @test isapprox(
-        [f-σ_f, f, f+σ_f], pquantile(amc / bmc, [0.16,0.5,0.84]),
-        rtol = 2/√2000
+        [f - σ_f, f, f + σ_f], pquantile(amc / bmc, [0.16, 0.5, 0.84]),
+        rtol=2 / √2000
     )
 
     # add correlation for testing `ratio_of_means`
     Random.seed!(17) # make sure the tests don't trip over rare fluctuations
     ρ = 0.02
     f, σ_f = x_by_y_linear(μ_a, μ_b, σ_a, σ_b, ρ) # expected ratio and std
-    @test f ≈ μ_a/μ_b
-    ab = rand(MvNormal([μ_a, μ_b], [σ_a^2 ρ; ρ σ_b^2]*n_samples), n_samples)
-    a = ab[1,:]
-    b = ab[2,:]
-    r = ratio_of_means(a,b) #; mc_samples = Val(10_000))
+    @test f ≈ μ_a / μ_b
+    ab = rand(MvNormal([μ_a, μ_b], [σ_a^2 ρ; ρ σ_b^2] * n_samples), n_samples)
+    a = ab[1, :]
+    b = ab[2, :]
+    r = ratio_of_means(a, b) #; mc_samples = Val(10_000))
     @test 1 < r.k ≤ 4 # weakly correlated samples
-    @test isapprox(μ_a/μ_b, r.f; atol = 2σ_f)
-    @test isapprox(μ_a/μ_b, pmedian(r.ratio); atol = 2σ_f)
-    q = pquantile(r.ratio, [0.16,0.5,0.84])
-    @test isapprox(q[3]-q[2], σ_f; rtol = 4/√n_samples)
-    @test isapprox(q[2]-q[1], σ_f; rtol = 4/√n_samples)
-    @test isapprox(r.σ_f, σ_f; rtol = 4/√n_samples)
+    @test isapprox(μ_a / μ_b, r.f; atol=2σ_f)
+    @test isapprox(μ_a / μ_b, pmedian(r.ratio); atol=2σ_f)
+    q = pquantile(r.ratio, [0.16, 0.5, 0.84])
+    @test isapprox(q[3] - q[2], σ_f; rtol=4 / √n_samples)
+    @test isapprox(q[2] - q[1], σ_f; rtol=4 / √n_samples)
+    @test isapprox(r.σ_f, σ_f; rtol=4 / √n_samples)
 
     # correlated time series
     rs = ratio_of_means(smoothen(a, 2^3), smoothen(b, 2^6))
     @test 6 ≤ rs.k ≤ 8 # ideally k==7 for 6 blocking steps to decorrelate
     # quantiles after blocking stay the same
-    @test isapprox(q, pquantile(rs.ratio, [0.16,0.5,0.84]); atol = 2σ_f)
-    @test isapprox(μ_a/μ_b, rs.f; atol = 2σ_f)
-    @test isapprox(rs.σ_f, σ_f; atol = 2σ_f)
+    @test isapprox(q, pquantile(rs.ratio, [0.16, 0.5, 0.84]); atol=2σ_f)
+    @test isapprox(μ_a / μ_b, rs.f; atol=2σ_f)
+    @test isapprox(rs.σ_f, σ_f; atol=2σ_f)
 
     Random.seed!(1234) # make sure the tests don't trip over rare fluctuations
     # well behaved complex example
@@ -149,52 +155,52 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     μ_a, μ_b = 2.0 + 1.0im, 3.0 - 2.0im
     σ_a, σ_b = 0.5, 0.1 # std of sample means
     f, σ_f = x_by_y_linear(μ_a, μ_b, σ_a, σ_b, 0) # expected ratio and std
-    @test f ≈ μ_a/μ_b
+    @test f ≈ μ_a / μ_b
 
     a = μ_a .+ √n_samples * σ_a * randn(ComplexF64, n_samples)
     b = μ_b .+ √n_samples * σ_b * randn(ComplexF64, n_samples)
-    r = ratio_of_means(a,b)
+    r = ratio_of_means(a, b)
 
     @test r.k < 3 # uncorrelated samples
-    @test isapprox(μ_a/μ_b, r.f; atol = abs(2σ_f))
-    @test isapprox(μ_a/μ_b, pmedian(r); atol = abs(2σ_f))
-    qr = pquantile(real(r.ratio), [0.16,0.5,0.84])
-    qi = pquantile(imag(r.ratio), [0.16,0.5,0.84])
+    @test isapprox(μ_a / μ_b, r.f; atol=abs(2σ_f))
+    @test isapprox(μ_a / μ_b, pmedian(r); atol=abs(2σ_f))
+    qr = pquantile(real(r.ratio), [0.16, 0.5, 0.84])
+    qi = pquantile(imag(r.ratio), [0.16, 0.5, 0.84])
     # Is this the correct way to test against linear error propagation?
-    @test qr[3]-qr[2] < 2abs(σ_f)
-    @test qi[3]-qi[2] < 2abs(σ_f)
-    @test qr[2]-qr[1] < 2abs(σ_f)
-    @test qi[2]-qi[1] < 2abs(σ_f)
-    @test isapprox(r.σ_f, σ_f; rtol = 4/√n_samples)
+    @test qr[3] - qr[2] < 2abs(σ_f)
+    @test qi[3] - qi[2] < 2abs(σ_f)
+    @test qr[2] - qr[1] < 2abs(σ_f)
+    @test qi[2] - qi[1] < 2abs(σ_f)
+    @test isapprox(r.σ_f, σ_f; rtol=4 / √n_samples)
 
     # type stability of Particles
-    d = MvNormal([1.0,1.0],[0.1 0.01;0.01 0.1])
+    d = MvNormal([1.0, 1.0], [0.1 0.01; 0.01 0.1])
     @test typeof(particles(100, d)) == typeof(particles(Val(100), d))
-    @test typeof(particles(100, d)) == typeof(particles(100, [1.0,1.0],[0.1 0.01;0.01 0.1]))
+    @test typeof(particles(100, d)) == typeof(particles(100, [1.0, 1.0], [0.1 0.01; 0.01 0.1]))
     @inferred particles(nothing, d)
     @inferred particles(Val(100), d)
-    @inferred ratio_estimators(rand(100),rand(100),2; mc_samples = Val(100))
+    @inferred ratio_estimators(rand(100), rand(100), 2; mc_samples=Val(100))
     @inferred ratio_estimators(
-        rand(ComplexF64,100),rand(ComplexF64,100), 2;
-        mc_samples = Val(100),
+        rand(ComplexF64, 100), rand(ComplexF64, 100), 2;
+        mc_samples=Val(100)
     )
     @inferred ratio_of_means(rand(1000), 100 .+ rand(1000))
-    p = @inferred particles(nothing,[1.0,1.0],[0.1 0.01;0.01 0.0])
+    p = @inferred particles(nothing, [1.0, 1.0], [0.1 0.01; 0.01 0.0])
     @test pvar.(p)[2] == 0
 end
 
 @testset "Reweighting" begin
-    ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
+    ham = HubbardReal1D(BoseFS((1, 1, 1, 1)), u=6.0, t=1.0)
     # using KrylovKit
     # fv = DVec(starting_address(ham)=>1.0; capacity=dimension(ham))
     # kkresults = eigsolve(ham, fv, 1, :SR; issymmetric = true)
     # exact_energy = kkresults[1][1]
     exact_energy = -2.869739978337469
     # run integer walker FCIQMC to get significant bias
-    v = DVec(starting_address(ham)=>2; capacity=dimension(ham))
+    v = DVec(starting_address(ham) => 2; capacity=dimension(ham))
     steps_equi = 200
     steps_meas = 2^10
-    p = RunTillLastStep(laststep = steps_equi+steps_meas)
+    p = RunTillLastStep(laststep=steps_equi + steps_meas)
     post_step = ProjectedEnergy(ham, v)
     s_strat = DoubleLogUpdate(targetwalkers=10)
     seedCRNG!(174)
@@ -206,26 +212,37 @@ end
     # TODO
     @test pcb > 0.0 # the shift has a large population control bias
     # test growth_estimator
-    h = 2^(bs.k-1) # approximate number of steps to decorrelate the shift
+    h = 2^(bs.k - 1) # approximate number of steps to decorrelate the shift
     E_r = bs.mean # set up reference energy
     ge = growth_estimator(df, h; E_r, skip=steps_equi)
     pcb_est = E_r - ge.ratio # estimated PCB in the shift from reweighting
     @test 0.2 < pmedian(pcb_est) < pcb
-    @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01; change_type = to_measurement)
+    @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01; change_type=to_measurement)
     @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01)
     # fails due to type instability in MonteCarloMeasurements
     # test w_lin()
-    @test ge.ratio ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights = w_lin).ratio
+    @test ge.ratio ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights=w_lin).ratio
+    # test growth_estimator_analysis
+    df_ge, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(df; skip=steps_equi, threading=true)
+    @test correlation_estimate == h
+    @test se ≈ bs.mean
+    df_nt = growth_estimator_analysis(df; skip=steps_equi, threading=false).df_ge
+    @test all(abs.(df_nt.val .- df_ge.val) .< df_nt.val_l)
     # projected energy
-    bp = ratio_of_means(df.hproj[steps_equi+1:end],df.vproj[steps_equi+1:end])
-    bp_intervals = ratio_with_errs(bp)
-    @test pmedian(bp) ≈ bp_intervals.ratio
+    bp = projected_energy(df; skip=steps_equi)
     me = @inferred mixed_estimator(
         df.hproj, df.vproj, df.shift, h, df.dτ[end];
         skip=steps_equi, E_r
     )
-    @test me.ratio≈bp.ratio # reweighting has not significantly improved the projected energy
-    val(projected_energy(df; skip=steps_equi)) ≈ val(mixed_estimator(df,0; skip=steps_equi))
+    @test me.ratio ≈ bp.ratio # reweighting has not significantly improved the projected energy
+    val(projected_energy(df; skip=steps_equi)) ≈ val(mixed_estimator(df, 0; skip=steps_equi))
+    # test mixed_estimator_analysis
+    df_me, correlation_estimate, se, se_l, se_u = mixed_estimator_analysis(df; skip=steps_equi, threading=true)
+    @test correlation_estimate == h
+    @test se ≈ bs.mean
+    df_met = mixed_estimator_analysis(df; skip=steps_equi, threading=false).df_me
+    @test all(abs.(df_met.val .- df_me.val) .< df_met.val_l)
+
 end
 
 using Rimu.StatsTools: replica_fidelity
@@ -233,23 +250,23 @@ using Rimu.StatsTools: replica_fidelity
     ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
 
     # get exact eigenvectors with KrylovKit
-    fv = DVec(starting_address(ham)=>1.0; capacity=dimension(ham))
-    kkresults = eigsolve(ham, fv, 2, :SR; issymmetric = true)
+    fv = DVec(starting_address(ham) => 1.0; capacity=dimension(ham))
+    kkresults = eigsolve(ham, fv, 2, :SR; issymmetric=true)
     gs = kkresults[2][1] # ground state; norm(gs) ≈ 1
     es = kkresults[2][2] # 1st excited state; norm(es) ≈ 1
     @test norm(gs) ≈ 1 ≈ norm(es) # they are normalised
-    @test isapprox(gs⋅es, 0; atol = √eps(Float64)) # and orthogonal
+    @test isapprox(gs ⋅ es, 0; atol=√eps(Float64)) # and orthogonal
 
     # Set up oblique vector at angle to ground state
-    α = π/3 # 60° angle
-    os = add!(cos(α)*gs, sin(α)*es)
+    α = π / 3 # 60° angle
+    os = add!(cos(α) * gs, sin(α) * es)
     @test norm(os) ≈ 1
 
     # set up replica MC
-    v = DVec(starting_address(ham)=>2; capacity=dimension(ham))
+    v = DVec(starting_address(ham) => 2; capacity=dimension(ham))
     steps_equi = 200
     steps_meas = 2^10
-    p = RunTillLastStep(laststep = steps_equi+steps_meas)
+    p = RunTillLastStep(laststep=steps_equi + steps_meas)
     post_step = (Projector(vproj=gs), Projector(hproj=os))
     s_strat = DoubleLogUpdate(targetwalkers=10)
 
@@ -260,8 +277,8 @@ using Rimu.StatsTools: replica_fidelity
     # check fidelity with ground state
     fid_gs = replica_fidelity(rr; p_field=:vproj, skip=steps_equi)
     @test fid_gs.ratio ≈ 1
-    re = ratio_with_errs(fid_gs) # extract errors from quantiles
-    @test re.err1_l < 0.03 && re.err1_u < 0.03 # errors are small
+    _, val_l, val_u = val_and_errs(fid_gs) # extract errors from quantiles
+    @test val_l < 0.03 && val_u < 0.03 # errors are small
     # TODO
     #=
     # check fidelity with oblique state
@@ -280,15 +297,17 @@ using Rimu.StatsTools: replica_fidelity
     @test_throws ArgumentError variational_energy_estimator(vs,vs) # wrong length arrays
 end
 
-comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tuple(b))
+comp_tuples(a, b; atol=0) = mapreduce((x, y) -> isapprox(x, y; atol), &, Tuple(a), Tuple(b))
 @testset "convenience" begin
     v, σ = 2.0, 0.2
     m = Measurements.measurement(v, σ)
-    @test comp_tuples(med_and_errs(m), (v, σ, σ, 2σ, 2σ))
+    @test comp_tuples(val_and_errs(m), (v, σ, σ))
+    # @test comp_tuples(med_and_errs(m), (v, σ, σ, 2σ, 2σ))
     # @test map((x,y)->isapprox(x,y),Tuple(med_and_errs(m)),(v, σ, σ, 2σ, 2σ))|>all
     # @test med_and_errs(m) == (med = v, err1_l = σ, err1_u = σ, err2_l = σ, err2_u = σ)
     mp = MonteCarloMeasurements.Particles(m)
-    @test comp_tuples(med_and_errs(mp), (v, σ, σ, 2σ, 2σ); atol=0.01)
+    @test comp_tuples(val_and_errs(mp), (v, σ, σ); atol=0.01)
+    # @test comp_tuples(med_and_errs(mp), (v, σ, σ, 2σ, 2σ); atol=0.01)
     # @test map((x,y)->isapprox(x,y; atol=0.01),Tuple(med_and_errs(mp)),(v, σ, σ, 2σ, 2σ))|>all
     @test m ≈ to_measurement(mp)
 
@@ -301,19 +320,19 @@ comp_tuples(a,b; atol=0) = mapreduce((x,y)->isapprox(x,y; atol), &, Tuple(a), Tu
     @test comp_tuples(val_and_errs(m, n=2), (v, 2σ, 2σ))
     @test comp_tuples(val_and_errs(mp, n=2), (v, 2σ, 2σ); atol=0.01)
 
-    r = ratio_of_means(randn(2000),randn(2000))
-    @test comp_tuples(val_and_errs(r), (v = val(r), errs(r)...))
+    r = ratio_of_means(randn(2000), randn(2000))
+    @test comp_tuples(val_and_errs(r), (v=val(r), errs(r)...))
     @test NamedTuple(r).val_k == r.k
     @test NamedTuple(r; name=:frodo).frodo == pmedian(r)
     br = blocking_analysis(rand(2000))
-    @test comp_tuples(val_and_errs(br), (v = val(br), errs(br)...))
+    @test comp_tuples(val_and_errs(br), (v=val(br), errs(br)...))
     @test NamedTuple(br).val_blocks == br.blocks
 
     # complex time series
     r = ratio_of_means(randn(ComplexF64, 2000), randn(ComplexF64, 2000))
     nt = val_and_errs(r)
     @test imag(nt.val_l) ≠ 0 ≠ real(nt.val_l)
-    r = blocking_analysis(rand(ComplexF64,2000))
+    r = blocking_analysis(rand(ComplexF64, 2000))
     nt = val_and_errs(r)
     @test imag(nt.val_l) ≠ 0 ≠ real(nt.val_l)
 end

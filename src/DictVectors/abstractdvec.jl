@@ -171,12 +171,24 @@ Base.:(==)(x::AbstractDVec, y::AbstractDVec) = isequal(x, y)
 const DVecOrVec = Union{AbstractDVec,AbstractVector}
 
 """
-Abstract supertype for projectors to be used in in lieu of DVecs or Vectors.
+Abstract supertype for projectors to be used in in lieu of DVecs or Vectors in `dot`
+products. Implemented subtypes:
+
+- [`UniformProjector`](@ref)
+- [`NormProjector`](@ref)
+- [`Norm2Projector`](@ref)
+- [`Norm1ProjectorPPop`](@ref)
+
+See also [`PostStepStrategy`](@ref) for use of projectors in [`lomc!`](@ref).
+
+## Interface
+
+Define a method for `LinearAlgebra.dot(projector, v)`.
 """
 abstract type AbstractProjector end
 
 """
-    UniformProjector()
+    UniformProjector() <: AbstractProjector
 Represents a vector with all elements 1. To be used with [`dot()`](@ref).
 Minimizes memory allocations.
 
@@ -185,8 +197,8 @@ UniformProjector()⋅v == sum(v)
 dot(UniformProjector(), LO, v) == sum(LO*v)
 ```
 
-See also [`ReportingStrategy`](@ref) for use
-of projectors in FCIQMC.
+See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref).
 """
 struct UniformProjector <: AbstractProjector end
 
@@ -196,7 +208,7 @@ LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(values(y))
 Base.getindex(::UniformProjector, add) = 1
 
 """
-    NormProjector()
+    NormProjector() <: AbstractProjector
 Results in computing the one-norm when used in `dot()`. E.g.
 ```julia
 dot(NormProjector(),x)
@@ -204,23 +216,23 @@ dot(NormProjector(),x)
 ```
 `NormProjector()` thus represents the vector `sign.(x)`.
 
-See also [`ReportingStrategy`](@ref) for use
-of projectors in FCIQMC.
+See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref).
 """
 struct NormProjector <: AbstractProjector end
 
 LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = norm(y, 1)
 
 """
-    Norm2Projector()
+    Norm2Projector() <: AbstractProjector
 Results in computing the two-norm when used in `dot()`. E.g.
 ```julia
 dot(NormProjector(),x)
 -> norm(x,2) # with type Float64
 ```
 
-See also [`ReportingStrategy`](@ref) for use
-of projectors in FCIQMC.
+See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref).
 """
 struct Norm2Projector <: AbstractProjector end
 
@@ -229,15 +241,15 @@ LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y, 2)
 # dot to return the promote_type of the arguments.
 
 """
-    Norm1ProjectorPPop()
+    Norm1ProjectorPPop() <: AbstractProjector
 Results in computing the one-norm per population when used in `dot()`. E.g.
 ```julia
 dot(Norm1ProjectorPPop(),x)
 -> norm(real.(x),1) + im*norm(imag.(x),1)
 ```
 
-See also [`ReportingStrategy`](@ref) for use
-of projectors in FCIQMC.
+See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref).
 """
 struct Norm1ProjectorPPop <: AbstractProjector end
 
@@ -257,7 +269,7 @@ end
 # NOTE: This operation should work for `MPIData` and is MPI synchronizing
 
 """
-    PopsProjector()
+    PopsProjector() <: AbstractProjector
 Results in computing the projection of one population on the other
 when used in `dot()`. E.g.
 ```julia
@@ -265,8 +277,8 @@ dot(PopsProjector(),x)
 -> real(x) ⋅ imag(x)
 ```
 
-See also [`ReportingStrategy`](@ref) for use
-of projectors in FCIQMC.
+See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref).
 """
 struct PopsProjector <: AbstractProjector end
 

@@ -1,7 +1,3 @@
-"""
-    Rimu
-Random Integrator for Many-Body Quantum Systems
-"""
 module Rimu
 
 using Arrow
@@ -20,8 +16,22 @@ using ProgressLogging
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
 import ConsoleProgressMonitor
+import TOML
 
-@reexport using Distributed
+"""
+    Rimu.PACKAGE_VERSION
+Constant that contains the current `VersionNumber` of `Rimu`.
+"""
+const PACKAGE_VERSION = VersionNumber(TOML.parsefile(pkgdir(Rimu, "Project.toml"))["version"])
+
+@doc """
+    Rimu
+**Random integrators for many-body quantum systems**
+
+Welcome to `Rimu` version $PACKAGE_VERSION. 
+Read the documentation [online](https://joachimbrand.github.io/Rimu.jl/).
+"""
+Rimu
 
 include("helpers.jl") # non MPI-dependent helper functions
 
@@ -74,11 +84,5 @@ include("apply_memory_noise.jl")
 include("lomc.jl")                  # top level
 
 include("RMPI/RMPI.jl")
-
-# Modules for parallel computing not exported by default for now
-include("EmbarrassinglyDistributed.jl")
-
-# analysis tool not reexported (to be deprecated)
-include("Blocking.jl")
 
 end # module

@@ -29,7 +29,7 @@ dvec = MPIData(DVec(address => 1.0; style=IsDynamicSemistochastic()))
 # the root MPI rank will write to the file. The `chunk_size` parameter determines how often
 # the data is saved to the file.
 
-r_strat = ReportToFile(filename="result.arrow", save_if=is_mpi_root(), chunk_size=1000)
+r_strat = ReportToFile(filename="result.arrow", save_if=is_mpi_root(), reporting_interval = 1, chunk_size=1000)
 
 # Now, we can set other parameters as usual. We will perform the computation with 10_000
 # walkers. We will also compute the projected energy.

@@ -197,6 +197,7 @@ end
 `LOStructure` speficies properties of the linear operator `op`. If a special structure is
 known this can speed up calculations. Implemented structures are:
 
+* `IsDiagonal`: The operator is diagonal.
 * `IsHermitian`: The operator is complex and Hermitian or real and symmetric.
 * `AdjointKnown`: The operator is not Hermitian, but its [`adjoint`](@ref) is implemented.
 * `AdjointUnknown`: [`adjoint`](@ref) for this operator is not implemented.
@@ -207,6 +208,7 @@ In order to define this trait for a new linear operator type, define a method fo
 """
 abstract type LOStructure end
 
+struct IsDiagonal <: LOStructure end
 struct IsHermitian <: LOStructure end
 struct AdjointKnown <: LOStructure end
 struct AdjointUnknown <: LOStructure end

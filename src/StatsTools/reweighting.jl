@@ -1,5 +1,8 @@
 # reweighting functions
 
+VectorOrView = Union{Vector,SubArray{<:Any,1,<:Vector,<:Any,true}}
+# safe type for `@simd ivdep` loops, supports fast linear indexing
+
 """
     w_exp(shift, h, dτ; E_r = mean(shift), skip = 0)
 Compute the weights for reweighting over `h` time steps with reference energy `E_r` from
@@ -12,20 +15,22 @@ where `q = skip`.
 See also [`w_lin()`](@ref), [`growth_estimator()`](@ref),
 [`mixed_estimator()`](@ref).
 """
-@inline function w_exp(shift, h, dτ; E_r = mean(shift), skip = 0)
-    T = promote_type(eltype(shift),typeof(E_r))
-    len = length(shift)-skip
+@inline function w_exp(shift::VectorOrView, h, dτ; E_r=mean(shift), skip=0)
+    T = promote_type(eltype(shift), typeof(E_r))
+    len = length(shift) - skip
     accu = Vector{T}(undef, len)
     @inbounds for n in 1:len
         a = zero(T)
-        look_back = min(h,skip+n-1)
+        look_back = min(h, skip + n - 1)
         @simd ivdep for j in 1:look_back # makes it very fast
-            a += shift[skip+n-j] - E_r
+            a += shift[skip+n-j]
         end
-        accu[n] = exp(-dτ*a)
+        accu[n] = exp(-dτ * (a - look_back * E_r))
     end
     return accu
 end
+w_exp(shift, h, dτ; kwargs...) = w_exp(Vector(shift), h, dτ; kwargs...)
+# cast to vector to make `@simd` loop work
 
 """
     w_lin(shift, h, dτ; E_r = mean(shift), skip = 0)
@@ -39,20 +44,22 @@ where `q = skip`.
 See also [`w_exp()`](@ref), [`growth_estimator()`](@ref),
 [`mixed_estimator()`](@ref).
 """
-@inline function w_lin(shift, h, dτ; E_r = mean(shift), skip = 0)
-    T = promote_type(eltype(shift),typeof(E_r))
-    len = length(shift)-skip
+@inline function w_lin(shift::VectorOrView, h, dτ; E_r=mean(shift), skip=0)
+    T = promote_type(eltype(shift), typeof(E_r))
+    len = length(shift) - skip
     accu = ones(T, len)
     @inbounds for n in 1:len
         a = one(T)
-        look_back = min(h,skip+n-1)
+        look_back = min(h, skip + n - 1)
         @simd ivdep for j in 1:look_back
-            a *= 1 - dτ*(shift[skip+n-j] - E_r)
+            a *= 1 - dτ * (shift[skip+n-j] - E_r)
         end
         accu[n] = a
     end
     return accu
 end
+w_lin(shift, h, dτ; kwargs...) = w_lin(Vector(shift), h, dτ; kwargs...)
+# cast to vector to make `@simd` loop work
 
 """
     growth_estimator(
@@ -92,23 +99,23 @@ See also [`mixed_estimator()`](@ref) and [`RatioBlockingResult`](@ref).
 """
 function growth_estimator(
     shift, wn, h, dτ;
-    skip = 0,
-    E_r = mean(view(shift, skip+1:length(shift))),
-    weights = w_exp,
-    change_type = identity,
-    mc_samples = nothing,
-    kwargs...,
+    skip=0,
+    E_r=mean(view(shift, skip+1:length(shift))),
+    weights=w_exp,
+    change_type=identity,
+    mc_samples=nothing,
+    kwargs...
 )
     T = promote_type(eltype(shift), eltype(wn))
     # W_{t+1}^{(n+1)} .* wn^{(n+1)}
-    @views numerator = weights(shift[2:end], h+1, dτ; E_r, skip) .* wn[skip+2:end]
+    @views numerator = weights(shift[2:end], h + 1, dτ; E_r, skip) .* wn[skip+2:end]
     # W_{t}^{(n)} .* wn^{(n)}
     @views denominator = weights(shift[1:end-1], h, dτ; E_r, skip) .* wn[skip+1:end-1]
     rbr = ratio_of_means(numerator, denominator; mc_samples, kwargs...)
     r = rbr.ratio::MonteCarloMeasurements.Particles{T,<:Any}
     r = change_type(r)
-    E_gr = E_r - log(r)/dτ # MonteCarloMeasurements propagates the uncertainty
-    E_gr_f = E_r - log(Measurements.measurement(rbr.f, rbr.σ_f))/dτ # linear error prop
+    E_gr = E_r - log(r) / dτ # MonteCarloMeasurements propagates the uncertainty
+    E_gr_f = E_r - log(Measurements.measurement(rbr.f, rbr.σ_f)) / dτ # linear error prop
     return RatioBlockingResult(
         particles(mc_samples, E_gr),
         Measurements.value(E_gr_f),
@@ -127,13 +134,103 @@ Calculate the growth estimator directly from a `DataFrame` returned by
 can be used to change the names of the relevant columns.
 """
 function growth_estimator(
-        df::DataFrame, h;
-        shift=:shift, norm=:norm, dτ=df.dτ[end], kwargs...
+    df::DataFrame, h;
+    shift=:shift, norm=:norm, dτ=df.dτ[end], kwargs...
 )
-    shift_vec = getproperty(df, Symbol(shift))
-    norm_vec = getproperty(df, Symbol(norm))
+    shift_vec = Vector(getproperty(df, Symbol(shift)))
+    norm_vec = Vector(getproperty(df, Symbol(norm)))
+    # converting to Vector here because this works fastest with `growth_estimator`
     return growth_estimator(shift_vec, norm_vec, h, dτ; kwargs...)
 end
+
+function determine_h_range(df, skip, correlation_estimate, h_values)
+    n_data = size(df)[1] - skip
+    if n_data < 2correlation_estimate
+        @info "Not enough data" n_data correlation_estimate
+    end
+    length = min(2correlation_estimate, h_values)
+    stop = min(n_data, 2correlation_estimate)
+    step = stop ÷ length
+    return range(0; stop, step)
+end
+
+"""
+    growth_estimator_analysis(df::DataFrame; kwargs...)
+    -> (;df_ge, correlation_estimate, se, se_l, se_u)
+Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref) 
+repeatedly over a range of reweighting depths.
+
+
+Returns a `NamedTuple` with the fields
+* `df_ge`: `DataFrame` with reweighting depth and `growth_estiamator` data. See example below.
+* `correlation_estimate`: estimated correlation time from blocking analysis
+* `se, se_l, se_u`: [`shift_estimator`](@ref) and error
+
+## Keyword arguments
+* `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
+* `h_values = 100`: minimum number of reweighting depths
+* `skip = 0`: initial time steps to exclude from averaging
+* `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift = :shift` name of column in `df` with shift data
+* `norm = :norm` name of column in `df` with walkernumber data
+
+## Example
+```julia
+df, _ = lomc!(...)
+df_ge, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(df; skip=5_000)
+
+using StatsPlots
+@df df_ge plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
+@df df_ge plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_gr") # growth estimator as a function of reweighting depth
+xlabel!("h")
+```
+See also: [`growth_estimator`](@ref), [`mixed_estimator_analysis`](@ref).
+"""
+function growth_estimator_analysis(
+    df::DataFrame;
+    h_range=nothing,
+    h_values=100,
+    skip=0,
+    threading=Threads.nthreads() > 1,
+    shift=:shift,
+    norm=:norm,
+    kwargs...
+)
+    shift_v = Vector(getproperty(df, Symbol(shift))) # casting to `Vector` to make SIMD loops efficient
+    norm_v = Vector(getproperty(df, Symbol(norm)))
+    dτ = df.dτ[end]
+    se = blocking_analysis(shift_v; skip)
+    E_r = se.mean
+    correlation_estimate = 2^(se.k - 1)
+    if isnothing(h_range)
+        h_range = determine_h_range(df, skip, correlation_estimate, h_values)
+    end
+    df_ge = if threading
+        growth_estimator_df_folds(shift_v, norm_v, h_range, dτ; skip, E_r, kwargs...)
+    else
+        growth_estimator_df_progress(shift_v, norm_v, h_range, dτ; skip, E_r, kwargs...)
+    end
+    return (; df_ge, correlation_estimate, val_and_errs(se; name=:se)...)
+end
+
+function growth_estimator_df_folds(shift::Vector, norm::Vector, h_range, dτ; kwargs...)
+    # parallel excecution with Folds.jl package
+    nts = Folds.map(h_range) do h
+        ge = growth_estimator(shift, norm, h, dτ; kwargs...)
+        (; h, NamedTuple(ge)...)
+    end
+    return DataFrame(nts)
+end
+
+function growth_estimator_df_progress(shift::Vector, norm::Vector, h_range, dτ; kwargs...)
+    # serial processing supports progress bar
+    ProgressLogging.@progress nts = [
+        (; h, NamedTuple(growth_estimator(shift, norm, h, dτ; kwargs...))...)
+        for h in h_range
+    ]
+    return DataFrame(nts)
+end
+
 
 """
     mixed_estimator(
@@ -170,10 +267,10 @@ See also [`growth_estimator()`](@ref).
 """
 function mixed_estimator(
     hproj, vproj, shift, h, dτ;
-    skip = 0,
-    E_r = mean(view(shift, skip+1:length(shift))),
-    weights = w_exp,
-    kwargs...,
+    skip=0,
+    E_r=mean(view(shift, skip+1:length(shift))),
+    weights=w_exp,
+    kwargs...
 )
     @views num = weights(shift, h, dτ; E_r, skip) .* hproj[skip+1:end]
     @views denom = weights(shift, h, dτ; E_r, skip) .* vproj[skip+1:end]
@@ -190,12 +287,91 @@ can be used to change the names of the relevant columns.
 """
 function mixed_estimator(
     df::DataFrame, h;
-    hproj = :hproj, vproj = :vproj, shift = :shift, dτ=df.dτ[end], kwargs...
+    hproj=:hproj, vproj=:vproj, shift=:shift, dτ=df.dτ[end], kwargs...
 )
-    hproj_vec = getproperty(df, Symbol(hproj))
-    vproj_vec = getproperty(df, Symbol(vproj))
-    shift_vec = getproperty(df, Symbol(shift))
+    hproj_vec = Vector(getproperty(df, Symbol(hproj)))
+    vproj_vec = Vector(getproperty(df, Symbol(vproj)))
+    shift_vec = Vector(getproperty(df, Symbol(shift)))
     return mixed_estimator(hproj_vec, vproj_vec, shift_vec, h, dτ; kwargs...)
+end
+
+"""
+    mixed_estimator_analysis(df::DataFrame; kwargs...)
+    -> (;df_me, correlation_estimate, se, se_l, se_u)
+Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref) 
+repeatedly over a range of reweighting depths.
+
+Returns a `NamedTuple` with the fields
+* `df_me`: `DataFrame` with reweighting depth and `mixed_estiamator` data. See example below.
+* `correlation_estimate`: estimated correlation time from blocking analysis
+* `se, se_l, se_u`: [`shift_estimator`](@ref) and error
+
+## Keyword arguments
+* `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
+* `h_values = 100`: minimum number of reweighting depths
+* `skip = 0`: initial time steps to exclude from averaging
+* `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift = :shift` name of column in `df` with shift data
+* `hproj = :hproj` name of column in `df` with operator overlap data
+* `vproj = :vproj` name of column in `df` with projector overlap data
+
+## Example
+```julia
+df, _ = lomc!(...)
+df_me, correlation_estimate, se, se_l, se_u = mixed_estimator_analysis(df; skip=5_000)
+
+using StatsPlots
+@df df_me plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
+@df df_me plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_mix") # mixed estimator as a function of reweighting depth
+xlabel!("h")
+```
+See also: [`mixed_estimator`](@ref), [`growth_estimator_analysis`](@ref).
+"""
+function mixed_estimator_analysis(
+    df::DataFrame;
+    h_range=nothing,
+    h_values=100,
+    skip=0,
+    threading=Threads.nthreads() > 1,
+    shift=:shift,
+    hproj=:hproj,
+    vproj=:vproj,
+    kwargs...
+)
+    shift_v = Vector(getproperty(df, Symbol(shift))) # casting to `Vector` to make SIMD loops efficient
+    hproj_v = Vector(getproperty(df, Symbol(hproj)))
+    vproj_v = Vector(getproperty(df, Symbol(vproj)))
+    dτ = df.dτ[end]
+    se = blocking_analysis(shift_v; skip)
+    E_r = se.mean
+    correlation_estimate = 2^(se.k - 1)
+    if isnothing(h_range)
+        h_range = determine_h_range(df, skip, correlation_estimate, h_values)
+    end
+    df_me = if threading
+        mixed_estimator_df_folds(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, kwargs...)
+    else
+        mixed_estimator_df_progress(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, kwargs...)
+    end
+    return (; df_me, correlation_estimate, val_and_errs(se; name=:se)...)
+end
+
+function mixed_estimator_df_folds(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
+    # parallel excecution with Folds.jl package
+    nts = Folds.map(h_range) do h
+        me = mixed_estimator(hproj, vproj, shift, h, dτ; kwargs...)
+        (; h, NamedTuple(me)...)
+    end
+    return DataFrame(nts)
+end
+
+function mixed_estimator_df_progress(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
+    # serial processing supports progress bar
+    ProgressLogging.@progress nts = [
+        (; h, NamedTuple(mixed_estimator(hproj, vproj, shift, h, dτ; kwargs...))...)
+        for h in h_range
+    ]
+    return DataFrame(nts)
 end
 
 """
@@ -223,8 +399,8 @@ See [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref) 
 processing results.
 """
 function projected_energy(df::DataFrame; skip=0, hproj=:hproj, vproj=:vproj, kwargs...)
-    hproj_vec = getproperty(df, Symbol(hproj))
-    vproj_vec = getproperty(df, Symbol(vproj))
+    hproj_vec = Vector(getproperty(df, Symbol(hproj)))
+    vproj_vec = Vector(getproperty(df, Symbol(vproj)))
     return @views ratio_of_means(hproj_vec[skip+1:end], vproj_vec[skip+1:end]; kwargs...)
 end
 
@@ -237,6 +413,6 @@ on to [`blocking_analysis`](@ref). Returns a [`BlockingResult`](@ref).
 See also [`growth_estimator`](@ref), [`projected_energy`](@ref).
 """
 function shift_estimator(df::DataFrame; shift=:shift, kwargs...)
-    shift_vec = getproperty(df, Symbol(shift))
+    shift_vec = Vector(getproperty(df, Symbol(shift)))
     return blocking_analysis(shift_vec; kwargs...)
 end
