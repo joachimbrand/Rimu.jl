@@ -6,6 +6,7 @@ using StaticArrays
 using Statistics
 using Suppressor
 using Logging, TerminalLoggers
+using TOML
 using Test
 using Rimu.StatsTools, Rimu.RimuIO
 
@@ -15,6 +16,8 @@ using Rimu.StatsTools, Rimu.RimuIO
 # differently after version 1.6, and thus the results of many tests change
 # for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
 @assert VERSION ≥ v"1.6"
+
+@test Rimu.PACKAGE_VERSION == VersionNumber(TOML.parsefile(pkgdir(Rimu, "Project.toml"))["version"])
 
 @safetestset "Interfaces" begin
     include("Interfaces.jl")

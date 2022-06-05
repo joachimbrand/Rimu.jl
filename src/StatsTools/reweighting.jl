@@ -170,9 +170,9 @@ Returns a `NamedTuple` with the fields
 * `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
 * `h_values = 100`: minimum number of reweighting depths
 * `skip = 0`: initial time steps to exclude from averaging
-* `threaded=Threads.nthreads() > 1`: if `false` a progress meter is displayed
-* `shift=:shift` name of column in `df` with shift data
-* `norm=:norm` name of column in `df` with walkernumber data
+* `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift = :shift` name of column in `df` with shift data
+* `norm = :norm` name of column in `df` with walkernumber data
 
 ## Example
 ```julia
@@ -310,10 +310,10 @@ Returns a `NamedTuple` with the fields
 * `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
 * `h_values = 100`: minimum number of reweighting depths
 * `skip = 0`: initial time steps to exclude from averaging
-* `threaded=Threads.nthreads() > 1`: if `false` a progress meter is displayed
-* `shift=:shift` name of column in `df` with shift data
-* `hproj=:hproj` name of column in `df` with operator overlap data
-* `vproj=:vproj` name of column in `df` with projector overlap data
+* `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift = :shift` name of column in `df` with shift data
+* `hproj = :hproj` name of column in `df` with operator overlap data
+* `vproj = :vproj` name of column in `df` with projector overlap data
 
 ## Example
 ```julia
@@ -359,7 +359,7 @@ end
 function mixed_estimator_df_folds(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
     # parallel excecution with Folds.jl package
     nts = Folds.map(h_range) do h
-        me = mixed_estimator(shift, hproj, vproj, h, dτ; kwargs...)
+        me = mixed_estimator(hproj, vproj, shift, h, dτ; kwargs...)
         (; h, NamedTuple(me)...)
     end
     return DataFrame(nts)
@@ -368,7 +368,7 @@ end
 function mixed_estimator_df_progress(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
     # serial processing supports progress bar
     ProgressLogging.@progress nts = [
-        (; h, NamedTuple(mixed_estimator(shift, hproj, vproj, h, dτ; kwargs...))...)
+        (; h, NamedTuple(mixed_estimator(hproj, vproj, shift, h, dτ; kwargs...))...)
         for h in h_range
     ]
     return DataFrame(nts)

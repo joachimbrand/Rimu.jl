@@ -9,12 +9,15 @@ Hamiltonians.
 - [`HubbardReal1D`](@ref)
 - [`ExtendedHubbardReal1D`](@ref)
 - [`HubbardMom1D`](@ref)
+- [`Transcorrelated1D`](@ref)
 - [`BoseHubbardMom1D2C`](@ref)
 - [`BoseHubbardReal1D2C`](@ref)
 
 ## Wrappers
 - [`GutzwillerSampling`](@ref)
 - [`GuidingVectorSampling`](@ref)
+- [`ParitySymmetry`](@ref)
+- [`TimeReversalSymmetry`](@ref)
 
 ## Other
 - [`G2Correlator`](@ref)
