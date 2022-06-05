@@ -68,10 +68,9 @@ function variational_energy_estimator(df::DataFrame; kwargs...)
     shifts = map(name -> getproperty(df, name), shiftnames)
     @assert length(shifts) == num_replicas
 
-    overlap_names = Symbol[]
-    for i in 1:num_replicas, j in i+1:num_replicas
-        push!(overlap_names, Symbol("c$(i)_dot_c$(j)"))
-    end
+    overlap_names = [
+        Symbol("c$(i)_dot_c$(j)") for i in 1:num_replicas for j in i+1:num_replicas
+    ]
     overlaps = map(name -> getproperty(df, name), overlap_names)
     @assert length(overlaps) == num_overlaps
 
