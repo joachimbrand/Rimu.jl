@@ -49,6 +49,7 @@ NoStats(N=1) = NoStats{N}()
 
 replica_stats(::NoStats, _) = (), ()
 
+# TODO: implement guiding vector importance sampling
 """
     AllOverlaps(n=2, operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{n}
 
@@ -70,13 +71,17 @@ similarity transformation of the Hamiltonian (See e.g. [`GutzwillerSampling`](@r
 The expectation value of an operator `A` is then
 ```math
     \\langle A \\rangle = \\langle \\psi | A | \\psi \\rangle 
-        = \\frac{\\langle \\phi | f A f | \\phi \\rangle}{\\frac{\\langle \\phi | f^2 | \\phi \\rangle}
+        = \\frac{\\langle \\phi | f^{-1} A f^{-1} | \\phi \\rangle}{\\frac{\\langle \\phi | f^{-2} | \\phi \\rangle}
 ```
-where `| \\phi \\rangle = f^2 | \\psi \\rangle` is the (right) eigenvector of `G`.
+where 
+```math
+    | \\phi \\rangle = f^{-2} | \\psi \\rangle
+``` 
+is the (right) eigenvector of `G`.
 
-In this case, overlaps of `f^2` are reported first as `c{i}_Op1_c{j}`, and then all 
+In this case, overlaps of `f^{-2}` are reported first as `c{i}_Op1_c{j}`, and then all 
 transformed operators are reported. That is, for a tuple of input operators `(A, B,...)`, 
-overlaps of `(f A f, f B f,...)` are reported as `(c{i}_Op2_c{j}, c{i}_Op3_c{j}, ...)`.
+overlaps of `(f^{-1} A f^{-1}, f^{-1} B f^{-1},...)` are reported as `(c{i}_Op2_c{j}, c{i}_Op3_c{j}, ...)`.
 
 In either case, the untransformed vector-vector overlap `c{i}_dot_c{j}` 
 can be omitted with the flag `vecnorm=false`.

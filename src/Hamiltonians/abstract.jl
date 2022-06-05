@@ -290,6 +290,7 @@ function Base.Matrix(h::AbstractHamiltonian, args...; kwargs...)
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
+# TODO: implement guiding vector importance sampling
 """
     TransformOperator{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}}
 

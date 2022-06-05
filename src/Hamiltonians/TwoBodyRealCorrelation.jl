@@ -30,10 +30,7 @@ and normalisation
 struct G2RealCorrelator{D} <: AbstractHamiltonian{Float64}
 end
 
-function G2RealCorrelator(d)
-    d::Int
-    return G2RealCorrelator{d}()
-end
+G2RealCorrelator(d::Int) = G2RealCorrelator{d}()
 
 function Base.show(io::IO, ::G2RealCorrelator{D}) where {D}
     print(io, "G2RealCorrelator($D)")

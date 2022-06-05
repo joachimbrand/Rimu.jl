@@ -126,7 +126,8 @@ Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
     similarity_transform(k::GutzwillerSampling)
 
 For a Gutzwiller similarity transformation `k = f H f^{-1}` define the transformed
-operator `f op f` for arbitrary `op`, and special case `f^2`, in order to calculate observables. 
+operator `f^{-1} op f^{-1}` for arbitrary `op`, and special case `f^{-2}`, in order 
+to calculate observables. 
     
 See [`AllOverlaps`](@ref), [`GutzwillerSampling`](@ref).
     
