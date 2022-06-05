@@ -1,9 +1,12 @@
 """
     variational_energy_estimator(shifts, overlaps; skip=0, kwargs...)
-    variational_energy_estimator(df::DataFrame; skip=0, kwargs...)
+    variational_energy_estimator(df::DataFrame; max_replicas=:all, skip=0, kwargs...)
+    -> r::RatioBlockingResult
 Compute the variational energy estimator from the replica time series of the `shifts` and
 coefficient vector `overlaps` by blocking analysis.
-Keyword arguments are passed on to [`ratio_of_means()`](@ref).
+The keyword argument `max_replicas` can be used to constrain the number of replicas
+processed to be smaller than all available in `df`.
+Other keyword arguments are passed on to [`ratio_of_means()`](@ref).
 Returns a [`RatioBlockingResult`](@ref).
 
 An estimator for the variational energy
@@ -26,7 +29,7 @@ See [`AllOverlaps`](@ref).
 """
 function variational_energy_estimator(shifts, overlaps; kwargs...)
     num_replicas = length(shifts)
-    if length(overlaps) ≠ binomial(num_replicas,2)
+    if length(overlaps) ≠ binomial(num_replicas, 2)
         throw(ArgumentError(
             "The number of `overlaps` needs to be `binomial(length(shifts),2)`."
         ))
@@ -36,12 +39,12 @@ function variational_energy_estimator(shifts, overlaps; kwargs...)
     count_overlaps = 0
     for i in 1:num_replicas, j in i+1:num_replicas
         count_overlaps += 1
-        @. numerator += 1/2*(shifts[i] + shifts[j])*overlaps[count_overlaps]
+        @. numerator += 1 / 2 * (shifts[i] + shifts[j]) * overlaps[count_overlaps]
     end
     return ratio_of_means(numerator, denominator; kwargs...)
 end
 
-function variational_energy_estimator(df::DataFrame; kwargs...)
+function variational_energy_estimator(df::DataFrame; max_replicas=:all, kwargs...)
     if "shift" in names(df)
         throw(ArgumentError(
             "`DataFrame` looks like a non-initiator output. Use keyword \
@@ -60,6 +63,11 @@ function variational_energy_estimator(df::DataFrame; kwargs...)
     num_overlaps = length(filter(startswith(r"c._dot"), names(df)))
     @assert num_overlaps == binomial(num_replicas, 2) "Unexpected number of overlaps."
 
+    # process at most `max_replicas` but at least 2 replicas
+    if max_replicas isa Integer
+        num_replicas = max(2, min(max_replicas, num_replicas))
+    end
+
     shiftnames = [Symbol("shift_$i") for i in 1:num_replicas]
     shifts = map(name -> getproperty(df, name), shiftnames)
     @assert length(shifts) == num_replicas
@@ -68,7 +76,7 @@ function variational_energy_estimator(df::DataFrame; kwargs...)
         Symbol("c$(i)_dot_c$(j)") for i in 1:num_replicas for j in i+1:num_replicas
     ]
     overlaps = map(name -> getproperty(df, name), overlap_names)
-    @assert length(overlaps) == num_overlaps
+    @assert length(overlaps) ≤ num_overlaps
 
     return variational_energy_estimator(shifts, overlaps; kwargs...)
 end

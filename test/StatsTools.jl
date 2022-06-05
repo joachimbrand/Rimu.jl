@@ -289,7 +289,8 @@ using Rimu.StatsTools: replica_fidelity
     =#
 
     # test variational energy directly on the result of the replica run
-    ve = variational_energy_estimator(rr; skip=steps_equi)
+    ve = variational_energy_estimator(rr; skip=steps_equi, max_replicas=5)
+    # the `max_replicas` option has no effect in this case
     @test kkresults[1][1] < pmedian(ve)
     @test pmedian(ve) < shift_estimator(rr; shift = :shift_1, skip=steps_equi).mean
     @test_throws ArgumentError variational_energy_estimator(DataFrame()) # empty df
