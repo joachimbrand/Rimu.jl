@@ -173,6 +173,7 @@ Returns a `NamedTuple` with the fields
 * `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
 * `shift = :shift` name of column in `df` with shift data
 * `norm = :norm` name of column in `df` with walkernumber data
+* `warn = true` whether to log warning messages when blocking fails or denominators are small
 
 ## Example
 ```julia
@@ -194,6 +195,7 @@ function growth_estimator_analysis(
     threading=Threads.nthreads() > 1,
     shift=:shift,
     norm=:norm,
+    warn=true,
     kwargs...
 )
     shift_v = Vector(getproperty(df, Symbol(shift))) # casting to `Vector` to make SIMD loops efficient
@@ -206,10 +208,18 @@ function growth_estimator_analysis(
         h_range = determine_h_range(df, skip, correlation_estimate, h_values)
     end
     df_ge = if threading
-        growth_estimator_df_folds(shift_v, norm_v, h_range, dτ; skip, E_r, kwargs...)
+        growth_estimator_df_folds(shift_v, norm_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
     else
-        growth_estimator_df_progress(shift_v, norm_v, h_range, dτ; skip, E_r, kwargs...)
+        growth_estimator_df_progress(shift_v, norm_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
     end
+
+    if warn # log warning messages based on the whole `DataFrame`
+        all(df_ge.val_success) || @warn "Blocking failed in `growth_estimator_analysis`." df_ge.success
+        if any(x -> abs(x) ≥ 0.1, df_ge.val_δ_y)
+            @warn "Small denominators in `growth_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_ge.val_δ_y
+        end
+    end
+
     return (; df_ge, correlation_estimate, val_and_errs(se; name=:se)...)
 end
 
@@ -314,6 +324,7 @@ Returns a `NamedTuple` with the fields
 * `shift = :shift` name of column in `df` with shift data
 * `hproj = :hproj` name of column in `df` with operator overlap data
 * `vproj = :vproj` name of column in `df` with projector overlap data
+* `warn = true` whether to log warning messages when blocking fails or denominators are small
 
 ## Example
 ```julia
@@ -336,6 +347,7 @@ function mixed_estimator_analysis(
     shift=:shift,
     hproj=:hproj,
     vproj=:vproj,
+    warn=true,
     kwargs...
 )
     shift_v = Vector(getproperty(df, Symbol(shift))) # casting to `Vector` to make SIMD loops efficient
@@ -349,10 +361,18 @@ function mixed_estimator_analysis(
         h_range = determine_h_range(df, skip, correlation_estimate, h_values)
     end
     df_me = if threading
-        mixed_estimator_df_folds(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, kwargs...)
+        mixed_estimator_df_folds(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
     else
-        mixed_estimator_df_progress(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, kwargs...)
+        mixed_estimator_df_progress(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
     end
+
+    if warn # log warning messages based on the whole `DataFrame`
+        all(df_me.val_success) || @warn "Blocking failed in `mixed_estimator_analysis`." df_me.success
+        if any(x -> abs(x) ≥ 0.1, df_me.val_δ_y)
+            @warn "Small denominators in `mixed_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_me.val_δ_y
+        end
+    end
+
     return (; df_me, correlation_estimate, val_and_errs(se; name=:se)...)
 end
 
