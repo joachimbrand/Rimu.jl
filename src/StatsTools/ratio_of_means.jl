@@ -92,7 +92,7 @@ function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Complex,P}
 end
 
 """
-    ratio_of_means(num, denom; α=0.01, corrected=true, mc_samples=nothing, skip=0, warn=true) 
+    ratio_of_means(num, denom; α=0.01, corrected=true, mc_samples=nothing, skip=0, warn=true)
     -> r::RatioBlockingResult
 Estimate the ratio of `mean(num)/mean(denom)` assuming that `num` and `denom` are possibly
 correlated time series, skipping the first `skip` elements. A blocking analysis with
@@ -111,21 +111,24 @@ by `MonteCarloMeasurements`. Use `nothing` for the default and `Val(1000)` to se
 to 1000 samples in a type-consistent way.
 
 The keyword `warn` controls whether warning messages are logged when blocking fails or
-small denominators are encountered.
+noisy denominators are encountered.
 
 Note: to compute statistics on the [`RatioBlockingResult`](@ref), use functions `pmedian`,
 `pquantile`, `pmiddle`, `piterate`, `pextrema`, `pminimum`, `pmaximum`, `pmean`, and `pcov`.
 """
-function ratio_of_means(num, denom; α=0.01, corrected=true, mc_samples=nothing, skip=0, warn=true)
+function ratio_of_means(
+    num, denom;
+    α=0.01, corrected=true, mc_samples=nothing, skip=0, warn=true
+)
     num = @view num[skip+1:end]
     denom = @view denom[skip+1:end]
     # determine how many blocking steps are needed to uncorrelate data
-    bt_num = blocking_analysis(num; α)
-    bt_den = blocking_analysis(denom; α)
+    bt_num = blocking_analysis(num; α, warn=false)
+    bt_den = blocking_analysis(denom; α, warn=false)
     # choose largst k from mtest on blocking analyses on numerator and denominator
     ks = (bt_num.k, bt_den.k)
     success = if any(k -> k < 0, ks)
-        warn && @warn "Blocking failed in `ratio_of_means`" ks
+        warn && @warn "Blocking failed in `ratio_of_means`." ks
         false
     else
         true
@@ -134,8 +137,8 @@ function ratio_of_means(num, denom; α=0.01, corrected=true, mc_samples=nothing,
 
     # MC and linear error propagation
     r, f, σ_f, δ_y, blocks = ratio_estimators(num, denom, k; corrected, mc_samples)
-    if warn
-        abs(δ_y) ≥ 0.1 && @warn "Small denominator in `ratio_of_means`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" δ_y
+    if warn && abs(δ_y) ≥ 0.1
+        @warn "Large coefficient of variation in `ratio_of_means`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" δ_y
     end
 
     # more accurately before blocking

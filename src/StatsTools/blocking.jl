@@ -47,13 +47,13 @@ function BlockingResult(nt, k)
     )
 end
 
-function Base.show(io::IO, r::BlockingResult{T}) where T
+function Base.show(io::IO, r::BlockingResult{T}) where {T}
     println(io, "BlockingResult{$T}")
     println(io, "  mean = $(Measurements.measurement(r))")
     println(io, "  with uncertainty of ± $(r.err_err)")
-    T<:Complex && println(io, "  cov = $(cov(r))")
+    T <: Complex && println(io, "  cov = $(cov(r))")
     if r.k > 0
-        println(io,"  from $(r.blocks) blocks after $(r.k-1) transformations (k = $(r.k)).")
+        println(io, "  from $(r.blocks) blocks after $(r.k-1) transformations (k = $(r.k)).")
     else
         println(io, "  Blocking unsuccessful. k = $(r.k). Try using more time steps!")
     end
@@ -66,9 +66,9 @@ the uncertainty of the blocking result `r` of a complex time series.
 See (https://en.wikipedia.org/wiki/Complex_normal_distribution).
 """
 function Statistics.cov(r::BlockingResult{<:Complex})
-    v_xx = real(r.err^2 + r.p_cov)/2
-    v_xy = imag(r.p_cov)/2
-    v_yy = real(r.err^2 - r.p_cov)/2
+    v_xx = real(r.err^2 + r.p_cov) / 2
+    v_xy = imag(r.p_cov) / 2
+    v_yy = real(r.err^2 - r.p_cov) / 2
     return [v_xx v_xy; v_xy v_yy]
 end
 
@@ -86,7 +86,7 @@ function Measurements.measurement(r::BlockingResult{<:Real})
 end
 function Measurements.measurement(r::BlockingResult{<:Complex})
     Σ = cov(r) # real valued covariance matrix
-    cm = complex(measurement(real(r.mean), √Σ[1,1]), measurement(imag(r.mean), √Σ[2,2]))
+    cm = complex(measurement(real(r.mean), √Σ[1, 1]), measurement(imag(r.mean), √Σ[2, 2]))
     return cm
 end
 
@@ -96,10 +96,10 @@ end
 Convert a `BlockingResult` into a `Particles` object for nonlinear error propagation with
 [`MonteCarloMeasurements`](@ref).
 """
-function MonteCarloMeasurements.Particles(r::BlockingResult{<:Real}; mc_samples = 2000)
+function MonteCarloMeasurements.Particles(r::BlockingResult{<:Real}; mc_samples=2000)
     return Particles(mc_samples, Normal(r.mean, r.err))
 end
-function MonteCarloMeasurements.Particles(r::BlockingResult{<:Complex}; mc_samples = 2000)
+function MonteCarloMeasurements.Particles(r::BlockingResult{<:Complex}; mc_samples=2000)
     Σ = cov(r) # real valued covariance matrix
     ps = Particles(mc_samples, MvNormal([real(r.mean), imag(r.mean)], Σ))
     return complex(ps[1], ps[2])
@@ -127,17 +127,23 @@ bias correction for variances is used.
 
 See [`BlockingResult`](@ref), [`shift_estimator`](@ref), [`ratio_of_means`](ref).
 """
-function blocking_analysis(v::AbstractVector; α = 0.01, corrected::Bool=true, skip=0)
+function blocking_analysis(v::AbstractVector; α=0.01, corrected::Bool=true, skip=0, warn=true)
     T = float(eltype(v))
     v = @view v[skip+1:end]
-    if length(v) == 0
-        @error "Attempted blocking on an empty vector"
-        return BlockingResult(zero(T), NaN, NaN, T(NaN), -1, 0)
-    elseif length(v) == 1 # treat like failed M test
-        return BlockingResult(T(v[1]), NaN, NaN, T(NaN), -1, 1)
+    if length(v) < 2
+        if iszero(length(v))
+            warn && @error "Attempted blocking on an empty vector."
+            return BlockingResult(zero(T), NaN, NaN, T(NaN), -1, 0)
+        else # treat like failed M test
+            warn && @warn "Attempted blocking on a vector of length $(length(v))."
+            return BlockingResult(T(v[1]), NaN, NaN, T(NaN), -1, 1)
+        end
     end
     nt = blocks_with_m(v; corrected)
-    k = mtest(nt.mj; α, warn=false)
+    k = mtest(nt.mj; α)
+    if warn && k < 0
+        @warn "Hypothesis testing failed during `blocking_analysis`. Try using more time steps!" k
+    end
     return BlockingResult(nt, k)
 end
 
@@ -158,43 +164,39 @@ Reblock the data by successively taking the mean of two adjacent data points to
 form a new vector with a half of the `length(v)`. The last data point will be
 discarded if `length(v)` is odd.
 """
-function blocker(v::AbstractVector{T}) where T
-    P = typeof(zero(T)/1)
-    new_v = Array{P}(undef,(length(v)÷2))
-    for i  in 1:length(v)÷2
-        @inbounds new_v[i] = (v[2i-1]+v[2i])/2
+function blocker(v::AbstractVector{T}) where {T}
+    P = typeof(zero(T) / 1)
+    new_v = Array{P}(undef, (length(v) ÷ 2))
+    for i in 1:length(v)÷2
+        @inbounds new_v[i] = (v[2i-1] + v[2i]) / 2
     end
     return new_v
 end
 
 """
-    mtest(mj::AbstractVector; α = 0.01, warn = true) -> k
-    mtest(table; α = 0.01, warn = true) -> k
+    mtest(mj::AbstractVector; α = 0.01) -> k
+    mtest(table::NamedTuple; α = 0.01) -> k
 Hypothesis test for decorrelation of a time series after blocking transformations
 with significance level ``1-α`` after Jonson
 [PRE (2018)](https://doi.org/10.1103/PhysRevE.98.043304).
 `mj` or `table.mj` is expected to be a vector with relevant ``M_j`` values from a blocking analysis as
 obtained from [`blocks_with_m()`](@ref).
 Returns the row number `k` where the M-test is passed.
-If the M-test has failed `mtest()` returns the value `-1` and optionally prints
-a warning message.
+If the M-test has failed `mtest()` returns the value `-1`.
 """
-function mtest(mj::AbstractVector; α = 0.01, warn = true)
+function mtest(mj::AbstractVector; α=0.01)
     m = reverse(cumsum(reverse(mj)))
     k = 1
-    while k <= length(m)-1
-       if m[k] < cquantile(Chisq(k), α) # compare to χ^2 distribution at quantile 1-α
-           return k
-       else
-           k += 1
-       end
-    end
-    if warn
-        @warn "M test failed, more data needed"
+    while k <= length(m) - 1
+        if m[k] < cquantile(Chisq(k), α) # compare to χ^2 distribution at quantile 1-α
+            return k
+        else
+            k += 1
+        end
     end
     return -1 # indicating the the M-test has failed
 end
-mtest(table) = mtest(table.mj)
+mtest(table::NamedTuple; kwargs...) = mtest(table.mj; kwargs...)
 
 """
     blocks_with_m(v; corrected = true) -> (;blocks, mean, std_err, std_err_err, p_cov, mj)
@@ -205,15 +207,15 @@ Returns named tuple with the results from all blocking steps. See [`mtest()`](@r
 @inline function blocks_with_m(v; corrected::Bool=true)
     T = float(eltype(v))
     R = real(T)
-    n_steps = floor(Int,log2(length(v)))
+    n_steps = floor(Int, log2(length(v)))
 
     # initialise arrays to be returned
-    blocks = Vector{Int}(undef,n_steps)
-    mean_arr = Vector{T}(undef,n_steps)
-    std_err = Vector{R}(undef,n_steps)
-    std_err_err = Vector{R}(undef,n_steps)
-    p_cov = Vector{T}(undef,n_steps)
-    mj = Vector{R}(undef,n_steps)
+    blocks = Vector{Int}(undef, n_steps)
+    mean_arr = Vector{T}(undef, n_steps)
+    std_err = Vector{R}(undef, n_steps)
+    std_err_err = Vector{R}(undef, n_steps)
+    p_cov = Vector{T}(undef, n_steps)
+    mj = Vector{R}(undef, n_steps)
 
     for i in 1:n_steps
         n = length(v)
@@ -222,15 +224,15 @@ Returns named tuple with the results from all blocking steps. See [`mtest()`](@r
         mean_arr[i] = mean_v
         variance = var(v; corrected, mean=mean_v) # variance
         # sample covariance ŷ(1) Eq. (6) [Jonsson]
-        gamma = real(autocovariance(v,1; corrected, mean=mean_v))
+        gamma = real(autocovariance(v, 1; corrected, mean=mean_v))
         # the M value Eq. (12) [Jonsson]
-        mj[i] = n*((n-1)*variance/(n^2)+gamma)^2/(variance^2)
-        stderr_v = sqrt(variance/n) # standard error
+        mj[i] = n * ((n - 1) * variance / (n^2) + gamma)^2 / (variance^2)
+        stderr_v = sqrt(variance / n) # standard error
         std_err[i] = stderr_v
-        std_err_err[i] = stderr_v/sqrt(2*(n-1)) # error on standard error Eq. (28) [F&P]
-        p_cov[i] = pseudo_cov(v,v; xmean=mean_v, ymean=mean_v, corrected)/n
+        std_err_err[i] = stderr_v / sqrt(2 * (n - 1)) # error on standard error Eq. (28) [F&P]
+        p_cov[i] = pseudo_cov(v, v; xmean=mean_v, ymean=mean_v, corrected) / n
         v = blocker(v) # re-blocking the dataset
     end
-    (length(v)≤ 0 || length(v)>2) && @error "Something went wrong in `blocks_with_m`."
-    return (;blocks, mean=mean_arr, std_err, std_err_err, p_cov, mj)
+    (length(v) ≤ 0 || length(v) > 2) && @error "Something went wrong in `blocks_with_m`."
+    return (; blocks, mean=mean_arr, std_err, std_err_err, p_cov, mj)
 end

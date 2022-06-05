@@ -157,7 +157,7 @@ end
 """
     growth_estimator_analysis(df::DataFrame; kwargs...)
     -> (;df_ge, correlation_estimate, se, se_l, se_u)
-Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref) 
+Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref)
 repeatedly over a range of reweighting depths.
 
 
@@ -216,7 +216,7 @@ function growth_estimator_analysis(
     if warn # log warning messages based on the whole `DataFrame`
         all(df_ge.val_success) || @warn "Blocking failed in `growth_estimator_analysis`." df_ge.success
         if any(x -> abs(x) ≥ 0.1, df_ge.val_δ_y)
-            @warn "Small denominators in `growth_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_ge.val_δ_y
+            @warn "Large coefficient of variation in `growth_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_ge.val_δ_y
         end
     end
 
@@ -308,7 +308,7 @@ end
 """
     mixed_estimator_analysis(df::DataFrame; kwargs...)
     -> (;df_me, correlation_estimate, se, se_l, se_u)
-Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref) 
+Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref)
 repeatedly over a range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
@@ -369,7 +369,7 @@ function mixed_estimator_analysis(
     if warn # log warning messages based on the whole `DataFrame`
         all(df_me.val_success) || @warn "Blocking failed in `mixed_estimator_analysis`." df_me.success
         if any(x -> abs(x) ≥ 0.1, df_me.val_δ_y)
-            @warn "Small denominators in `mixed_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_me.val_δ_y
+            @warn "Large coefficient of variation in `mixed_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_me.val_δ_y
         end
     end
 
