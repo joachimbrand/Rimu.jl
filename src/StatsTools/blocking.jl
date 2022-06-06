@@ -110,20 +110,23 @@ MonteCarloMeasurements.:±(r::BlockingResult) = Particles(r)
     blocking_analysis(v::AbstractVector; α = 0.01, corrected = true, skip=0)
     -> BlockingResult(mean, err, err_err, p_cov, k, blocks)
 Compute the sample mean `mean` and estimate the standard deviation of the mean
-(standard error) `err` of a correlated time series using the blocking algorithm from
+(standard error) `err` of a correlated time series. It uses the blocking algorithm from
 Flyvberg and Peterson [JCP (1989)](http://aip.scitation.org/doi/10.1063/1.457480)
 and the M test of Jonsson
 [PRE (2018)](https://link.aps.org/doi/10.1103/PhysRevE.98.043304) at significance level
-``1-α``. `k` is the number of
-blocking transformations required to pass the hypothesis test for an uncorrelated time
-series and `err_err` the estimated standard error or `err`. Use `skip` to skip the first
-`skip` elements in `v`.
+``1-α``.
 
-If decorrelating the
+Use `skip` to skip the first `skip` elements in `v`.
+`corrected` controls whether bias correction for variances is used. If decorrelating the
 time series fails according to the M test, `NaN` is returned as the standard error and `-1`
-for `k`.
-`corrected` controls whether
-bias correction for variances is used.
+for `k`. The keyword argument `warn` controls whether a warning message is logged.
+
+The summary result is returned as a [`BlockingResult`]. `k` is the number of
+blocking transformations required to pass the hypothesis test for an uncorrelated time
+series and `err_err` the estimated standard error or `err`.
+
+The detailed results from each reblocking step can be obtained with
+[`blocking_analysis_data`](@ref).
 
 See [`BlockingResult`](@ref), [`shift_estimator`](@ref), [`ratio_of_means`](ref),
 [`blocking_analysis_data`](@ref).
@@ -158,8 +161,10 @@ end
 """
     blocking_analysis_data(v::AbstractVector; kwargs...) ->
     (; br::BlockingResult, df::DataFrame)
-Perform a [`blocking_analysis`](@ref) and return the result `br` as well as a `DataFrame`
-`df` with information about the standard error in each blocking step.
+Perform a [`blocking_analysis`](@ref) and return the summary result `br` as well as a
+`DataFrame` `df` with information about the standard error in each blocking step.
+
+For a description of the keyword arguments see [`blocking_analysis`](@ref).
 
 ## Example
 ```julia-repl
@@ -190,7 +195,7 @@ julia> br, df = blocking_analysis_data(data)
 
 julia> using StatsPlots; unicodeplots();
 
-julia> plot([br.k,br.k],[0.0,0.004], label="m test"); # mark step from hypothesis testing
+julia> plot([br.k,br.k],[0.0,maximum(df.std_err.+df.std_err_err)], label="m test");
 
 julia> @df df plot!(
            1:length(:std_err), :std_err;
@@ -216,12 +221,6 @@ julia> @df df plot!(
    -0.00012335 │⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠧⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤⠤│
                └────────────────────────────────────────┘
                ⠀0.64⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀k⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀13.36⠀
-
-julia> br
-BlockingResult{Float64}
-  mean = 0.5088 ± 0.0029
-  with uncertainty of ± 0.00023454488294744232
-  from 78 blocks after 7 transformations (k = 8).
 ```
 See [`blocking_analysis`](@ref).
 """
