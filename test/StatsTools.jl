@@ -34,6 +34,7 @@ using Rimu.StatsTools: blocker
     # real
     v = randn(2^10)
     br = blocking_analysis(v)
+    @test br == blocking_analysis_data(v).br
     @test MonteCarloMeasurements.:±(br) ≈ Measurements.:±(br)
     @test 0.01 < br.err < 0.04
     @test br.k ≤ 4 # should be 0+1 (independent random variables)
