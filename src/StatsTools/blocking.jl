@@ -141,10 +141,10 @@ end
     if length(v) < 2
         if iszero(length(v))
             warn && @error "Attempted blocking on an empty vector."
-            return BlockingResult(zero(T), NaN, NaN, T(NaN), -1, 0)
+            return BlockingResult(zero(T), NaN, NaN, T(NaN), -1, 0), (;)
         else # treat like failed M test
             warn && @warn "Attempted blocking on a vector of length $(length(v))."
-            return BlockingResult(T(v[1]), NaN, NaN, T(NaN), -1, 1)
+            return BlockingResult(T(v[1]), NaN, NaN, T(NaN), -1, 1), (;)
         end
     end
     nt = blocks_with_m(v; corrected)
