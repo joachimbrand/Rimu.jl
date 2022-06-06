@@ -107,7 +107,7 @@ end
 MonteCarloMeasurements.:±(r::BlockingResult) = Particles(r)
 
 """
-    blocking_analysis(v::AbstractVector; α = 0.01, corrected = true, skip=0)
+    blocking_analysis(v::AbstractVector; α = 0.01, corrected = true, skip=0, warn=true)
     -> BlockingResult(mean, err, err_err, p_cov, k, blocks)
 Compute the sample mean `mean` and estimate the standard deviation of the mean
 (standard error) `err` of a correlated time series. It uses the blocking algorithm from
@@ -121,14 +121,14 @@ Use `skip` to skip the first `skip` elements in `v`.
 time series fails according to the M test, `NaN` is returned as the standard error and `-1`
 for `k`. The keyword argument `warn` controls whether a warning message is logged.
 
-The summary result is returned as a [`BlockingResult`]. `k` is the number of
+The summary result is returned as a [`BlockingResult`](@ref). `k` is the number of
 blocking transformations required to pass the hypothesis test for an uncorrelated time
 series and `err_err` the estimated standard error or `err`.
 
 The detailed results from each reblocking step can be obtained with
 [`blocking_analysis_data`](@ref).
 
-See [`BlockingResult`](@ref), [`shift_estimator`](@ref), [`ratio_of_means`](ref),
+See [`BlockingResult`](@ref), [`shift_estimator`](@ref), [`ratio_of_means`](@ref),
 [`blocking_analysis_data`](@ref).
 """
 function blocking_analysis(v::AbstractVector; kwargs...)
@@ -222,7 +222,7 @@ julia> @df df plot!(
                └────────────────────────────────────────┘
                ⠀0.64⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀k⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀13.36⠀
 ```
-See [`blocking_analysis`](@ref).
+See [`blocking_analysis`](@ref), [`BlockingResult`](@ref).
 """
 function blocking_analysis_data(v::AbstractVector; kwargs...)
     br, nt = _blocking_analysis_data(v; kwargs...)
