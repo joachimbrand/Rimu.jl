@@ -45,12 +45,6 @@ function variational_energy_estimator(shifts, overlaps; kwargs...)
 end
 
 function variational_energy_estimator(df::DataFrame; max_replicas=:all, kwargs...)
-    if "shift" in names(df)
-        throw(ArgumentError(
-            "`DataFrame` looks like a non-replica output. Use keyword \
-            `replica=AllOverlaps(n)` with n≥2 in `lomc!()` to set up replicas!"
-        ))
-    end
     num_replicas = length(filter(startswith("norm_"), names(df))) # number of replicas
     if iszero(num_replicas)
         throw(ArgumentError(
