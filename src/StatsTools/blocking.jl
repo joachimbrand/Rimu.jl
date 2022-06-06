@@ -121,7 +121,7 @@ Use `skip` to skip the first `skip` elements in `v`.
 time series fails according to the M test, `NaN` is returned as the standard error and `-1`
 for `k`. The keyword argument `warn` controls whether a warning message is logged.
 
-The summary result is returned as a [`BlockingResult`](@ref). `k` is the number of
+The summary result is returned as a [`BlockingResult`](@ref). `k - 1` is the number of
 blocking transformations required to pass the hypothesis test for an uncorrelated time
 series and `err_err` the estimated standard error or `err`.
 
@@ -222,6 +222,11 @@ julia> @df df plot!(
                └────────────────────────────────────────┘
                ⠀0.64⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀k⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀13.36⠀
 ```
+A vertical line at `k==8` indicates the blocking step identified by hypothesis testing
+to decorrelate the time series data. The decorrelation length can thus be estimated at
+``2^{k-1} = 2^7 = 128``. Note that the data was correlated with a sliding window of ``2^6``
+steps.
+
 See [`blocking_analysis`](@ref), [`BlockingResult`](@ref).
 """
 function blocking_analysis_data(v::AbstractVector; kwargs...)
