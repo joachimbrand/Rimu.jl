@@ -51,7 +51,7 @@ replica_stats(::NoStats, _) = (), ()
 
 # TODO: implement guiding vector importance sampling
 """
-    AllOverlaps(; num_replicas=2, operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{num_replicas}
+    AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{num_replicas}
 
 Run `num_replicas` replicas and report overlaps between all pairs of replica vectors. If operator is
 not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If operator is a tuple
@@ -90,7 +90,7 @@ struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},B} <: ReplicaStrategy{N}
     operators::O
 end
 
-function AllOverlaps(; num_replicas=2, operator=nothing, transform=nothing, vecnorm=true)
+function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
     if isnothing(operator)
         operators = ()
     elseif operator isa Tuple
@@ -109,7 +109,7 @@ function AllOverlaps(; num_replicas=2, operator=nothing, transform=nothing, vecn
     end
     return AllOverlaps{num_replicas,length(ops),typeof(ops),vecnorm}(ops)
 end
-@deprecate AllOverlaps(num_replicas, operator=nothing) AllOverlaps(;num_replicas, operator)
+@deprecate AllOverlaps(num_replicas, operator=nothing) AllOverlaps(num_replicas; operator)
 
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replicas::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.

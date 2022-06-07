@@ -84,53 +84,53 @@ using Statistics
             num_stats(df) = length(filter(x -> match(r"^c[0-9]", x) ≠ nothing, names(df)))
 
             # No operator: N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=4))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=4))
             @test num_stats(df) == binomial(4, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=5))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=5))
             @test num_stats(df) == binomial(5, 2)
 
             # No vector norm: N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=4, operator=H, vecnorm=false))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=4; operator=H, vecnorm=false))
             @test num_stats(df) == binomial(4, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=5, operator=H, vecnorm=false))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=5; operator=H, vecnorm=false))
             @test num_stats(df) == binomial(5, 2)
 
             # No operator, no vector norm: 0 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=4, vecnorm=false))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=4; vecnorm=false))
             @test num_stats(df) == 0
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=5, vecnorm=false))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=5; vecnorm=false))
             @test num_stats(df) == 0
 
             # One operator: 2 * N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=4, operator=H))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=5, operator=H))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=5; operator=H))
             @test num_stats(df) == 2 * binomial(5, 2)
 
             # Two operators: 3 * N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=2, operator=(GutzwillerSampling(H, 1), H)))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=2; operator=(GutzwillerSampling(H, 1), H)))
             @test num_stats(df) == 3 * binomial(2, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=7, operator=(GutzwillerSampling(H, 1), H)))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=7; operator=(GutzwillerSampling(H, 1), H)))
             @test num_stats(df) == 3 * binomial(7, 2)
 
             # Transformed operators: (3 + 1) * N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=2, operator=(H, GutzwillerSampling(H, 1)), transform=GutzwillerSampling(H, 0.5)))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=2; operator=(H, GutzwillerSampling(H, 1)), transform=GutzwillerSampling(H, 0.5)))
             @test num_stats(df) == 4 * binomial(2, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(; num_replicas=7, operator=(H, GutzwillerSampling(H, 1)), transform=GutzwillerSampling(H, 0.5)))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(num_replicas=7; operator=(H, GutzwillerSampling(H, 1)), transform=GutzwillerSampling(H, 0.5)))
             @test num_stats(df) == 4 * binomial(7, 2)
 
             # Complex operator
             v = DVec(1 => 1)
             G = MatrixHamiltonian(rand(5, 5))
             O = MatrixHamiltonian(rand(ComplexF64, 5, 5))
-            df, _ = lomc!(G, v, replica=AllOverlaps(; num_replicas=2, operator=O))
+            df, _ = lomc!(G, v, replica=AllOverlaps(num_replicas=2; operator=O))
             @test df.c1_dot_c2 isa Vector{ComplexF64}
             @test df.c1_Op1_c2 isa Vector{ComplexF64}
 
             # MPIData
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(; num_replicas=4, operator=H))
+            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(num_replicas=4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(; num_replicas=5, operator=DensityMatrixDiagonal(1)))
+            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(num_replicas=5; operator=DensityMatrixDiagonal(1)))
             @test num_stats(df) == 2 * binomial(5, 2)
         end
     end
