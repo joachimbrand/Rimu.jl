@@ -23,7 +23,7 @@ where the sum goes over distinct pairs out of the ``R`` replicas. See
 
 The `DataFrame` version can extract the relevant information from the result of
 [`lomc!`](@ref). Set up [`lomc!`](@ref) with the keyword argument
-`replica = AllOverlaps(; num_replicas=R)` and `R ≥ 2`.
+`replica = AllOverlaps(R)` and `R ≥ 2`.
 If passing `shifts` and `overlaps`, the data has to be arranged in the correct order (as
 provided in the `DataFrame` version).
 
