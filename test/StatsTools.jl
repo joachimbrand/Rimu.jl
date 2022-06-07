@@ -34,6 +34,7 @@ using Rimu.StatsTools: blocker
     # real
     v = randn(2^10)
     br = blocking_analysis(v)
+    @test br == blocking_analysis_data(v).br
     @test MonteCarloMeasurements.:±(br) ≈ Measurements.:±(br)
     @test 0.01 < br.err < 0.04
     @test br.k ≤ 4 # should be 0+1 (independent random variables)
@@ -314,6 +315,7 @@ comp_tuples(a, b; atol=0) = mapreduce((x, y) -> isapprox(x, y; atol), &, Tuple(a
     r = ratio_of_means(randn(2000), randn(2000))
     @test comp_tuples(val_and_errs(r), (v=val(r), errs(r)...))
     @test NamedTuple(r).val_k == r.k
+    @test NamedTuple(r).val_δ_y == r.δ_y
     @test NamedTuple(r; name=:frodo).frodo == pmedian(r)
     br = blocking_analysis(rand(2000))
     @test comp_tuples(val_and_errs(br), (v=val(br), errs(br)...))

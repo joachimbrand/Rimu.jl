@@ -3,6 +3,7 @@ Tools for the statistical analysis of Monte Carlo data.
 
 ### Exports:
 - [`blocking_analysis`](@ref)
+- [`blocking_analysis_data`](@ref)
 - [`ratio_of_means`](@ref)
 - [`growth_witness`](@ref)
 - [`smoothen`](@ref)
@@ -29,7 +30,7 @@ import MonteCarloMeasurements: Particles
 import Base: show, NamedTuple
 
 export growth_witness, smoothen
-export blocking_analysis, mean_and_se
+export blocking_analysis, blocking_analysis_data, mean_and_se
 export ratio_of_means
 export replica_fidelity, med_and_errs, ratio_with_errs, to_measurement
 export growth_estimator, mixed_estimator, w_lin, w_exp, projected_energy, shift_estimator
