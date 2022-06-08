@@ -9,6 +9,7 @@ Tools for the statistical analysis of Monte Carlo data.
 - [`smoothen`](@ref)
 - [`shift_estimator`](@ref)
 - [`projected_energy`](@ref)
+- [`variational_energy_estimator`](@ref)
 - [`growth_estimator`](@ref)
 - [`mixed_estimator`](@ref)
 - [`val_and_errs`](@ref)
@@ -35,6 +36,7 @@ export ratio_of_means
 export replica_fidelity, med_and_errs, ratio_with_errs, to_measurement
 export growth_estimator, mixed_estimator, w_lin, w_exp, projected_energy, shift_estimator
 export growth_estimator_analysis, mixed_estimator_analysis
+export variational_energy_estimator
 export pmedian, pquantile, pmiddle, piterate, pextrema, pminimum, pmaximum, pmean, pcov
 export val_and_errs, errs, val
 
@@ -45,5 +47,6 @@ include("ratio_of_means.jl")
 include("convenience.jl")
 include("fidelity.jl")
 include("reweighting.jl")
+include("variational_energy_estimator.jl")
 
 end  # module StatsTools
