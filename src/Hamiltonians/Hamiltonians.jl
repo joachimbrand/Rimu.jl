@@ -49,7 +49,7 @@ export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
 export HubbardReal1DEP, shift_lattice, shift_lattice_inv
 export HubbardMom1DEP
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
-export GutzwillerSampling, GuidingVectorSampling, similarity_transform
+export GutzwillerSampling, GuidingVectorSampling
 export ParitySymmetry
 export TimeReversalSymmetry
 export Transcorrelated1D

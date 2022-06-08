@@ -35,13 +35,13 @@ julia> get_offdiagonal(I, BoseFS((2, 1, 0)), 1)
 
 # General operators
 
-The Gutzwiller similarity transformation defines transformation of general operators
-for calculating observables.
+To calculate observables, new operators are defined that produce the correct overlaps in
+e.g. `AllOverlaps`.
 
-* `similarity_transform(k::GutzwillerSampling, op::AbstractHamiltonian)`
-* `similarity_transform(k::GutzwillerSampling)`
+* `TransformUndoer(k::GutzwillerSampling, op::AbstractHamiltonian)`
+* `TransformUndoer(k::GutzwillerSampling)`
 
-See [`similarity_transform`](@ref), [`AllOverlaps`](@ref).
+See [`AllOverlaps`](@ref), [`TransformUndoer`](@ref).
 """
 struct GutzwillerSampling{A,T,H<:AbstractHamiltonian{T},G} <: AbstractHamiltonian{T}
     # The A parameter sets whether this is an adjoint or not.
@@ -122,40 +122,38 @@ end
 Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
 
 """
-    similarity_transform(k::GutzwillerSampling, op::AbstractHamiltonian)
-    similarity_transform(k::GutzwillerSampling)
+    TransformUndoer(k::GutzwillerSampling, op::AbstractHamiltonian)
+    TransformUndoer(k::GutzwillerSampling)
 
-For a Gutzwiller similarity transformation `k = f H f^{-1}` define the transformed
-operator `f^{-1} op f^{-1}` for arbitrary `op`, and special case `f^{-2}`, in order 
+For a Gutzwiller similarity transformation `k = f H f^{-1}` define the operator 
+``f^{-1} op f^{-1}`` for arbitrary `op`, and special case ``f^{-2}``, in order 
 to calculate observables. 
     
 See [`AllOverlaps`](@ref), [`GutzwillerSampling`](@ref).
-    
-    
 """
-function similarity_transform(k::GutzwillerSampling, op::AbstractHamiltonian)
+function TransformUndoer(k::GutzwillerSampling, op::AbstractHamiltonian)
     T = promote_type(eltype(k), eltype(op))
-    return TransformOperator{T,typeof(k),typeof(op)}(k, op)
+    return TransformUndoer{T,typeof(k),typeof(op)}(k, op)
 end
 
-LOStructure(::Type{<:TransformOperator{<:Any,<:GutzwillerSampling,A}}) where {A} = LOStructure(A)
+LOStructure(::Type{<:TransformUndoer{<:Any,<:GutzwillerSampling,A}}) where {A} = LOStructure(A)
 
-function LinearAlgebra.adjoint(s::TransformOperator{T,<:GutzwillerSampling,<:AbstractHamiltonian}) where {T}
+function LinearAlgebra.adjoint(s::TransformUndoer{T,<:GutzwillerSampling,<:AbstractHamiltonian}) where {T}
     a_adj = adjoint(s.op)
-    return TransformOperator{T,typeof(s.transform),typeof(a_adj)}(s.transform, a_adj)
+    return TransformUndoer{T,typeof(s.transform),typeof(a_adj)}(s.transform, a_adj)
 end
 
-function diagonal_element(s::TransformOperator{<:Any,<:GutzwillerSampling,<:AbstractHamiltonian}, add)
+function diagonal_element(s::TransformUndoer{<:Any,<:GutzwillerSampling,<:AbstractHamiltonian}, add)
     diagH = diagonal_element(s.transform.hamiltonian, add)
     diagA = diagonal_element(s.op, add)
     return gutzwiller_modify(diagA, true, s.transform.g, 0., 2 * diagH)
 end
 
-function num_offdiagonals(s::TransformOperator{<:Any,<:GutzwillerSampling,<:Any}, add)
+function num_offdiagonals(s::TransformUndoer{<:Any,<:GutzwillerSampling,<:Any}, add)
     return num_offdiagonals(s.op, add)
 end
 
-function get_offdiagonal(s::TransformOperator{<:Any,<:GutzwillerSampling,<:Any}, add, chosen)
+function get_offdiagonal(s::TransformUndoer{<:Any,<:GutzwillerSampling,<:Any}, add, chosen)
     newadd, offd = get_offdiagonal(s.op, add, chosen)
     # Gutzwiller `f` operator is diagonal
     diagH1 = diagonal_element(s.transform.hamiltonian, add)
@@ -164,16 +162,16 @@ function get_offdiagonal(s::TransformOperator{<:Any,<:GutzwillerSampling,<:Any},
 end
 
 # Special case `f^2`
-function similarity_transform(k::GutzwillerSampling)
+function TransformUndoer(k::GutzwillerSampling)
     T = eltype(k)
-    return TransformOperator{T,typeof(k),Nothing}(k,nothing)
+    return TransformUndoer{T,typeof(k),Nothing}(k,nothing)
 end
 
-LOStructure(::Type{<:TransformOperator{<:Any,<:GutzwillerSampling,Nothing}}) = IsDiagonal()
+LOStructure(::Type{<:TransformUndoer{<:Any,<:GutzwillerSampling,Nothing}}) = IsDiagonal()
 
-function diagonal_element(s::TransformOperator{<:Any,<:GutzwillerSampling,Nothing}, add)
+function diagonal_element(s::TransformUndoer{<:Any,<:GutzwillerSampling,Nothing}, add)
     diagH = diagonal_element(s.transform.hamiltonian, add)
     return gutzwiller_modify(1., true, s.transform.g, 0., 2 * diagH)
 end
 
-num_offdiagonals(s::TransformOperator{<:Any,<:GutzwillerSampling,Nothing}, add) = 0
+num_offdiagonals(s::TransformUndoer{<:Any,<:GutzwillerSampling,Nothing}, add) = 0

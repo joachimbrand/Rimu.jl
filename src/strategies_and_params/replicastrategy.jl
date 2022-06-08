@@ -49,7 +49,7 @@ NoStats(N=1) = NoStats{N}()
 
 replica_stats(::NoStats, _) = (), ()
 
-# TODO: implement guiding vector importance sampling
+# TODO: add custom names
 """
     AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{num_replicas}
 
@@ -77,11 +77,10 @@ where
 ```math
     | \\phi \\rangle = f | \\psi \\rangle
 ``` 
-is the (right) eigenvector of `\\hat{G}`.
+is the (right) eigenvector of ``\\hat{G}``.
 
-In this case, overlaps of `f^{-2}` are reported first as `c{i}_Op1_c{j}`, and then all 
-transformed operators are reported. That is, for a tuple of input operators `(A, B,...)`, 
-overlaps of `(f^{-1} A f^{-1}, f^{-1} B f^{-1},...)` are reported as `(c{i}_Op2_c{j}, c{i}_Op3_c{j}, ...)`.
+For a k-tuple of input operators `(A_1,..., A_k)`, overlaps of ``f^{-1} A_k f^{-1}`` are reported 
+as `c{i}_Op{k}_c{j}`. Overlaps of ``f^{-2}`` are reported *last* as `c{i}_Op{k+1}_c{j}`.
 
 In either case, the untransformed vector-vector overlap `c{i}_dot_c{j}` 
 can be omitted with the flag `vecnorm=false`.
@@ -101,15 +100,15 @@ function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnor
     if isnothing(transform)
         ops = operators
     else
-        f2 = similarity_transform(transform)
-        ops = (f2, map(op -> similarity_transform(transform, op), operators)...)
+        fsq = TransformUndoer(transform)
+        ops = (map(op -> TransformUndoer(transform, op), operators)..., fsq)
     end    
     if !vecnorm && length(ops) == 0
         return NoStats(num_replicas)
     end
     return AllOverlaps{num_replicas,length(ops),typeof(ops),vecnorm}(ops)
 end
-@deprecate AllOverlaps(num_replicas, operator=nothing) AllOverlaps(num_replicas; operator)
+@deprecate AllOverlaps(num_replicas, operator) AllOverlaps(num_replicas; operator)
 
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replicas::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.

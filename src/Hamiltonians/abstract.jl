@@ -292,21 +292,42 @@ Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
 # TODO: implement guiding vector importance sampling
 """
-    TransformOperator{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}}
+    TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
 
-Type for creating operators defined by a transformation `transform`. Can create an operator
-that is a transformation of an input `op`, or an operator that is only defined by `transform`.
+Type for creating a new operator for the purpose of calculating overlaps of transformed 
+vectors, which are defined by some transformation `transform`. The new operator should 
+represent the effect of undoing the transformation before calculating overlaps, including 
+with an optional operator `op`.
 
-Not exported; transformations should define properties of these operators before use.
+Not exported; transformations should define all necessary methods and properties, 
+see [`AbstractHamiltonian`](@ref). An `ArgumentError` is thrown if used with an 
+unsupported transformation.
 
-Currently supported transformations:
+# Example 
 
-    * [`GutzwillerSampling`](@ref).
+A similarity transform ``\\hat{G} = f \\hat{H} f^{-1}`` has eigenvector 
+``d = f \\cdot c`` where ``c`` is an eigenvector of ``\\hat{H}``. Then the
+overlap ``c' \\cdot c = d' \\cdot f^{-2} \\cdot d`` can be computed by defining all 
+necessary methods for `TransformUndoer(G)` to represent the operator ``f^{-2}`` and 
+calculating `dot(d, TransformUndoer(G), d)`.
+
+Observables in the transformed basis can be computed by defining `TransformUndoer(G, A)`
+to represent ``f^{-1} A f^{-1}``.
+
+# Supported transformations
+
+* [`GutzwillerSampling`](@ref)
 """
-struct TransformOperator{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
+struct TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
     transform::K
     op::O
 end
 
-starting_address(s::TransformOperator) = starting_address(s.transform)
-dimension(::Type{T}, s::TransformOperator) where {T} = dimension(T, s.transform)
+function TransformUndoer(k::AbstractHamiltonian, op)
+    # default check
+    throw(ArgumentError("Unsupported transformation: $k"))
+end
+TransformUndoer(k::AbstractHamiltonian) = TransformUndoer(k::AbstractHamiltonian, nothing)
+# common methods
+starting_address(s::TransformUndoer) = starting_address(s.transform)
+dimension(::Type{T}, s::TransformUndoer) where {T} = dimension(T, s.transform)
