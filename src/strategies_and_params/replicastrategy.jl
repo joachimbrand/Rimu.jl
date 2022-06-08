@@ -53,8 +53,8 @@ replica_stats(::NoStats, _) = (), ()
 """
     AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{num_replicas}
 
-Run `num_replicas` replicas and report overlaps between all pairs of replica vectors. If operator is
-not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If operator is a tuple
+Run `num_replicas` replicas and report overlaps between all pairs of replica vectors. If `operator` is
+not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If `operator` is a tuple
 of operators, the overlaps are computed for all operators.
 
 Column names in the report are of the form `c{i}_dot_c{j}` for vector-vector overlaps, and

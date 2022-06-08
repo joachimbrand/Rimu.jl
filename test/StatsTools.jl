@@ -206,6 +206,7 @@ end
     s_strat = DoubleLogUpdate(targetwalkers=10)
     seedCRNG!(174)
     @time df = lomc!(ham, v; params=p, s_strat, post_step).df
+    @test_throws ArgumentError variational_energy_estimator(df) # see next testset
     bs = shift_estimator(df; skip=steps_equi)
     @test bs == blocking_analysis(df.shift[steps_equi+1:end])
     pcb = bs.mean - exact_energy
@@ -246,8 +247,8 @@ end
 end
 
 using Rimu.StatsTools: replica_fidelity
-@testset "Fidelity" begin
-    ham = HubbardReal1D(BoseFS((1, 1, 1, 1)), u=6.0, t=1.0)
+@testset "Fidelity and variational energy" begin
+    ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
 
     # get exact eigenvectors with KrylovKit
     fv = DVec(starting_address(ham) => 1.0; capacity=dimension(ham))
@@ -287,6 +288,15 @@ using Rimu.StatsTools: replica_fidelity
     γ = acos(√fid_os.ratio) # quantum angle or Fubini-Study metric
     @test γ ≈ α
     =#
+
+    # test variational energy directly on the result of the replica run
+    ve = variational_energy_estimator(rr; skip=steps_equi, max_replicas=5)
+    # the `max_replicas` option has no effect in this case
+    @test kkresults[1][1] < pmedian(ve)
+    @test pmedian(ve) < shift_estimator(rr; shift = :shift_1, skip=steps_equi).mean
+    @test_throws ArgumentError variational_energy_estimator(DataFrame()) # empty df
+    vs = [rand(5) for _ in 1:4]
+    @test_throws ArgumentError variational_energy_estimator(vs,vs) # wrong length arrays
 end
 
 comp_tuples(a, b; atol=0) = mapreduce((x, y) -> isapprox(x, y; atol), &, Tuple(a), Tuple(b))
