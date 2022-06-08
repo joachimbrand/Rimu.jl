@@ -290,7 +290,6 @@ function Base.Matrix(h::AbstractHamiltonian, args...; kwargs...)
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
-# TODO: implement guiding vector importance sampling
 """
     TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
 
@@ -317,6 +316,7 @@ to represent ``f^{-1} A f^{-1}``.
 # Supported transformations
 
 * [`GutzwillerSampling`](@ref)
+* [`GuidingVectorSampling`](@ref)
 """
 struct TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
     transform::K

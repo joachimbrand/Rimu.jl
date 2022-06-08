@@ -445,18 +445,19 @@ end
                 x = rand()
                 G = GutzwillerSampling(H, g)
                 add = starting_address(H)
-                v = DVec(add => x)
+                dv = DVec(add => x)
                 # transforming the Hamiltonian again should be consistent
                 fsq = Rimu.Hamiltonians.TransformUndoer(G)
                 fHf = Rimu.Hamiltonians.TransformUndoer(G, H)
-                Ebare = dot(v, H, v)/dot(v, v)
-                Egutz = dot(v, G, v)/dot(v, v)
-                Etrans = dot(v, fHf, v)/dot(v, fsq, v)
+                Ebare = dot(dv, H, dv)/dot(dv, dv)
+                Egutz = dot(dv, G, dv)/dot(dv, dv)
+                Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
                 @test Ebare ≈ Egutz ≈ Etrans
                 
+                # general operators
                 m = num_modes(add)
-                g2vals = map(d -> dot(v, G2RealCorrelator(d), v)/dot(v, v), 0:m-1)
-                g2transformed = map(d -> dot(v, Rimu.Hamiltonians.TransformUndoer(G,G2RealCorrelator(d)), v)/dot(v, fsq, v), 0:m-1)
+                g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
+                g2transformed = map(d -> dot(dv, Rimu.Hamiltonians.TransformUndoer(G,G2RealCorrelator(d)), dv)/dot(dv, fsq, dv), 0:m-1)
                 @test all(g2vals ≈ g2transformed)
 
                 # type promotion
@@ -505,6 +506,38 @@ end
                 @test get_offdiagonal(H, addr, i)[2] * w ≈ me
                 @test get_offdiagonal(H, addr, i)[1] == addr2
                 @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+            end
+        end
+
+        @testset "transform operators" begin            
+            for H in (
+                HubbardReal1D(BoseFS((2,2,2)), u=6),
+                HubbardMom1D(BoseFS((2,2,2)), u=6),
+                ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
+            )
+                # energy
+                x = rand()
+                G = GuidingVectorSampling(H, v, 0.2)
+                add = starting_address(H)
+                dv = DVec(add => x)
+                # transforming the Hamiltonian again should be consistent
+                fsq = Rimu.Hamiltonians.TransformUndoer(G)
+                fHf = Rimu.Hamiltonians.TransformUndoer(G, H)
+                Ebare = dot(dv, H, dv)/dot(dv, dv)
+                Egutz = dot(dv, G, dv)/dot(dv, dv)
+                Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
+                @test Ebare ≈ Egutz ≈ Etrans
+                
+                # general operators
+                m = num_modes(add)
+                g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
+                g2transformed = map(d -> dot(dv, Rimu.Hamiltonians.TransformUndoer(G,G2RealCorrelator(d)), dv)/dot(dv, fsq, dv), 0:m-1)
+                @test all(g2vals ≈ g2transformed)
+
+                # type promotion
+                G2mom = G2Correlator(1)
+                @test eltype(Rimu.Hamiltonians.TransformUndoer(G, G2mom)) == eltype(G2mom)
             end
         end
     end
@@ -556,20 +589,23 @@ end
     end
 
     @testset "supported transformations" begin
+        # supported
+        H = HubbardMom1D(BoseFS((2,2,2)), u=6)
+        v = DVec(starting_address(H) => 1.)
+        for G in (
+            GutzwillerSampling(H,g=1),
+            GuidingVectorSampling(H, v, 0.2),
+        )
+            # test supported constructor
+            @test !isa(try Rimu.Hamiltonians.TransformUndoer(G) catch e e end, Exception)
+            @test !isa(try Rimu.Hamiltonians.TransformUndoer(G,H) catch e e end, Exception)
+        end
+        # unsupported
         for H in (
-                HubbardMom1D(BoseFS((2,2,2)), u=6),
-                ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
-                BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
-            )
-            # supported
-            for G in (
-                GutzwillerSampling(H,g=1),
-            )
-                # test supported constructor
-                @test !isa(try Rimu.Hamiltonians.TransformUndoer(G) catch e e end, Exception)
-                @test !isa(try Rimu.Hamiltonians.TransformUndoer(G,H) catch e e end, Exception)
-            end
-            # unsupported
+            HubbardMom1D(BoseFS((2,2,2)), u=6),
+            ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+            BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
+        )
             @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H)
             @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H, H)
         end

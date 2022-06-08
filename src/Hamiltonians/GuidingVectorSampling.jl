@@ -124,3 +124,59 @@ function Base.getindex(h::GuidingVectorOffdiagonals{F,T,A,E}, i)::Tuple{F,T} whe
 end
 
 Base.size(h::GuidingVectorOffdiagonals) = size(h.offdiagonals)
+
+"""
+    TransformUndoer(k::GuidingVectorSampling, op::AbstractHamiltonian)
+    TransformUndoer(k::GuidingVectorSampling)
+
+For a guiding vector similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}``
+define the operator ``f^{-1} A f^{-1}``, and special case ``f^{-2}``, in order 
+to calculate observables. Here ``f`` is a diagonal operator whose entries are 
+the components of the guiding vector, i.e.``f_{ii} = v_i``, 
+    
+See [`AllOverlaps`](@ref), [`GuidingVectorSampling`](@ref).
+"""
+function TransformUndoer(k::GuidingVectorSampling, op::AbstractHamiltonian)
+    T = promote_type(eltype(k), eltype(op))
+    return TransformUndoer{T,typeof(k),typeof(op)}(k, op)
+end
+
+LOStructure(::Type{<:TransformUndoer{<:Any,<:GuidingVectorSampling,A}}) where {A} = LOStructure(A)
+
+function LinearAlgebra.adjoint(s::TransformUndoer{T,<:GuidingVectorSampling,<:AbstractHamiltonian}) where {T}
+    a_adj = adjoint(s.op)
+    return TransformUndoer{T,typeof(s.transform),typeof(a_adj)}(s.transform, a_adj)
+end
+
+function diagonal_element(s::TransformUndoer{<:Any,<:GuidingVectorSampling,<:AbstractHamiltonian}, add)
+    guide = s.transform.vector[add]
+    diagA = diagonal_element(s.op, add)
+    return guided_vector_modify(diagA, true, s.transform.eps, 1., 2 * guide)
+end
+
+function num_offdiagonals(s::TransformUndoer{<:Any,<:GuidingVectorSampling,<:Any}, add)
+    return num_offdiagonals(s.op, add)
+end
+
+function get_offdiagonal(s::TransformUndoer{<:Any,<:GuidingVectorSampling,<:Any}, add1, chosen)
+    add2, offd = get_offdiagonal(s.op, add1, chosen)
+    # Guiding vector `v` is represented as a diagonal operator `f`
+    guide1 = s.transform.vector[add1]
+    guide2 = s.transform.vector[add2]
+    return add2, guided_vector_modify(offd, true, s.transform.eps, 1., guide1 + guide2)
+end
+
+# Special case `f^{-2}`
+function TransformUndoer(k::GuidingVectorSampling)
+    T = eltype(k)
+    return TransformUndoer{T,typeof(k),Nothing}(k,nothing)
+end
+
+LOStructure(::Type{<:TransformUndoer{<:Any,<:GuidingVectorSampling,Nothing}}) = IsDiagonal()
+
+function diagonal_element(s::TransformUndoer{<:Any,<:GuidingVectorSampling,Nothing}, add)
+    guide = s.transform.vector[add]
+    return guided_vector_modify(1., true, s.transform.eps, 1., 2 * guide)
+end
+
+num_offdiagonals(s::TransformUndoer{<:Any,<:GuidingVectorSampling,Nothing}, add) = 0
