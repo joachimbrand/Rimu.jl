@@ -100,8 +100,8 @@ function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnor
     if isnothing(transform)
         ops = operators
     else
-        fsq = TransformUndoer(transform)
-        ops = (map(op -> TransformUndoer(transform, op), operators)..., fsq)
+        fsq = Rimu.Hamiltonians.TransformUndoer(transform)
+        ops = (map(op -> Rimu.Hamiltonians.TransformUndoer(transform, op), operators)..., fsq)
     end    
     if !vecnorm && length(ops) == 0
         return NoStats(num_replicas)
