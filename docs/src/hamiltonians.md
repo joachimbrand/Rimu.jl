@@ -69,7 +69,7 @@ Observables are [`AbstractHamiltonian`](@ref)s that represent a physical
 observable. Their ground state expectation values can be sampled by passing
 them into [`AllOverlaps`](@ref).
 ```@docs
-G2Correlator
+G2MomCorrelator
 G2RealCorrelator
 Momentum
 ```

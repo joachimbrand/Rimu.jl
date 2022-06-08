@@ -461,7 +461,7 @@ end
                 @test all(g2vals ≈ g2transformed)
 
                 # type promotion
-                G2mom = G2Correlator(1)
+                G2mom = G2MomCorrelator(1)
                 @test eltype(Rimu.Hamiltonians.TransformUndoer(G, G2mom)) == eltype(G2mom)
             end
         end
@@ -536,7 +536,7 @@ end
                 @test all(g2vals ≈ g2transformed)
 
                 # type promotion
-                G2mom = G2Correlator(1)
+                G2mom = G2MomCorrelator(1)
                 @test eltype(Rimu.Hamiltonians.TransformUndoer(G, G2mom)) == eltype(G2mom)
             end
         end
@@ -659,7 +659,7 @@ end
     @test f.shift ≈ a.shift
 end
 
-@testset "G2Correlator" begin
+@testset "G2MomCorrelator" begin
     # v0 is the exact ground state from BoseHubbardMom1D2C(aIni;ua=0,ub=0,v=0.1)
     bfs1=BoseFS([0,2,0])
     bfs2=BoseFS([0,1,0])
@@ -672,10 +672,10 @@ end
         BoseFS2C((0, 0, 2), (0, 0, 1)) => 4.046694762039993e-5,
         BoseFS2C((1, 0, 1), (0, 1, 0)) => 8.616127793651117e-5,
     )
-    g0 = G2Correlator(0)
-    g1 = G2Correlator(1)
-    g2 = G2Correlator(2)
-    g3 = G2Correlator(3)
+    g0 = G2MomCorrelator(0)
+    g1 = G2MomCorrelator(1)
+    g2 = G2MomCorrelator(2)
+    g3 = G2MomCorrelator(3)
     @test imag(dot(v0,g0,v0)) == 0 # should be strictly real
     @test abs(imag(dot(v0,g3,v0))) < 1e-10
     @test dot(v0,g0,v0) ≈ 0.65 rtol=0.01
@@ -685,14 +685,14 @@ end
     @test num_offdiagonals(g0,aIni) == 2
 
     # on first component
-    g0f = G2Correlator(0,:first)
-    g1f = G2Correlator(1,:first)
+    g0f = G2MomCorrelator(0,:first)
+    g1f = G2MomCorrelator(1,:first)
     @test imag(dot(v0,g0f,v0)) == 0 # should be strictly real
     @test dot(v0,g0f,v0) ≈ 1.33 rtol=0.01
     @test dot(v0,g1f,v0) ≈ 1.33 + 7.08e-5im rtol=0.01
     # on second component
-    g0s = G2Correlator(0,:second)
-    g1s = G2Correlator(1,:second)
+    g0s = G2MomCorrelator(0,:second)
+    g1s = G2MomCorrelator(1,:second)
     #@test_throws ErrorException("invalid ONR") get_offdiagonal(g0s,aIni,1) # should fail due to invalid ONR
     @test dot(v0,g0s,v0) ≈ 1/3
     @test dot(v0,g1s,v0) ≈ 1/3
@@ -714,8 +714,8 @@ end
     add = BoseFS((0,0,n,0,0,0))
     @test num_offdiagonals(G2RealCorrelator(1), add) == 0
     v = DVec(add => 1)
-    @test dot(v, G2RealCorrelator(0), v) == float(n*(n-1))
-    @test dot(v, G2RealCorrelator(m), v) == float(n*(n-1))
+    @test dot(v, G2RealCorrelator(0), v) == n*(n-1)/m
+    @test dot(v, G2RealCorrelator(m), v) == n*(n-1)/m
     for d in 1:m-1
         @test dot(v, G2RealCorrelator(d), v) == 0.
     end
@@ -727,7 +727,7 @@ end
     @test dot(v, G2RealCorrelator(0), v) == 0.
     @test dot(v, G2RealCorrelator(m), v) == 0.
     for d in 1:m-1
-        @test dot(v, G2RealCorrelator(d), v) == float(n)
+        @test dot(v, G2RealCorrelator(d), v) == 1.
     end
 
 end

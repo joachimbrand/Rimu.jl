@@ -1,7 +1,7 @@
 # Methods that need to be implemented:
 #   •  starting_address(::AbstractHamiltonian) - not needed
 """
-    G2Correlator(d::Int,c=:cross) <: AbstractHamiltonian{ComplexF64}
+    G2MomCorrelator(d::Int,c=:cross) <: AbstractHamiltonian{ComplexF64}
 
 Two-body correlation operator representing the density-density
 correlation at distance `d` of a two component system
@@ -32,13 +32,14 @@ and can be any of the above instructions, one could simply skip this argument an
 
 * [`BoseHubbardMom1D2C`](@ref)
 * [`BoseFS2C`](@ref)
+* [`G2RealCorrelator`](@ref)
 * [`AbstractHamiltonian`](@ref)
 
 """
-struct G2Correlator{C} <: AbstractHamiltonian{ComplexF64}
+struct G2MomCorrelator{C} <: AbstractHamiltonian{ComplexF64}
     d::Int
 
-    function G2Correlator(d,c=:cross)
+    function G2MomCorrelator(d,c=:cross)
         if c == :first
             return new{1}(d)
         elseif c == :second
@@ -46,27 +47,28 @@ struct G2Correlator{C} <: AbstractHamiltonian{ComplexF64}
         elseif c == :cross
             return new{3}(d)
         else
-            throw(ArgumentError("Unknown instruction for G2Correlator!"))
+            throw(ArgumentError("Unknown instruction for G2MomCorrelator!"))
         end
     end
 end
+@deprecate G2Correlator(d,c) G2MomCorrelator(d,c)
+@deprecate G2Correlator(d) G2MomCorrelator(d)
 
-
-function Base.show(io::IO, g::G2Correlator{C}) where C
+function Base.show(io::IO, g::G2MomCorrelator{C}) where C
     if C == 1
-        print(io, "G2Correlator($(g.d),:first)")
+        print(io, "G2MomCorrelator($(g.d),:first)")
     elseif C == 2
-        print(io, "G2Correlator($(g.d),:second)")
+        print(io, "G2MomCorrelator($(g.d),:second)")
     elseif C == 3
-        print(io, "G2Correlator($(g.d),:cross)")
+        print(io, "G2MomCorrelator($(g.d),:cross)")
     end
 end
 
 
-num_offdiagonals(g::G2Correlator{1},add::BoseFS2C) = num_offdiagonals(g, add.bsa)
-num_offdiagonals(g::G2Correlator{2},add::BoseFS2C) = num_offdiagonals(g, add.bsb)
+num_offdiagonals(g::G2MomCorrelator{1},add::BoseFS2C) = num_offdiagonals(g, add.bsa)
+num_offdiagonals(g::G2MomCorrelator{2},add::BoseFS2C) = num_offdiagonals(g, add.bsb)
 
-function num_offdiagonals(g::G2Correlator{3}, add::BoseFS2C)
+function num_offdiagonals(g::G2MomCorrelator{3}, add::BoseFS2C)
     m = num_modes(add)
     sa = num_occupied_modes(add.bsa)
     sb = num_occupied_modes(add.bsb)
@@ -74,28 +76,28 @@ function num_offdiagonals(g::G2Correlator{3}, add::BoseFS2C)
     # number of excitations that can be made
 end
 
-function num_offdiagonals(g::G2Correlator, add::BoseFS)
+function num_offdiagonals(g::G2MomCorrelator, add::BoseFS)
     m = num_modes(add)
     singlies, doublies = num_singly_doubly_occupied_sites(add)
     return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
 end
 
 """
-    diagonal_element(g::G2Correlator, add::BoseFS2C{NA,NB,M,AA,AB})
+    diagonal_element(g::G2MomCorrelator, add::BoseFS2C{NA,NB,M,AA,AB})
 
-The diagonal element in [`G2Correlator`](@ref), where `(p-q)=0`, hence
+The diagonal element in [`G2MomCorrelator`](@ref), where `(p-q)=0`, hence
 it becomes
 ```math
 \\frac{1}{M}\\sum_{k,p=1}^M a^†_{k} b^†_{p}  b_p a_k .
 ```
 # See also
 
-* [`G2Correlator`](@ref)
+* [`G2MomCorrelator`](@ref)
 """
-diagonal_element(g::G2Correlator{1}, add::BoseFS2C) = diagonal_element(g, add.bsa)
-diagonal_element(g::G2Correlator{2}, add::BoseFS2C) = diagonal_element(g, add.bsb)
+diagonal_element(g::G2MomCorrelator{1}, add::BoseFS2C) = diagonal_element(g, add.bsa)
+diagonal_element(g::G2MomCorrelator{2}, add::BoseFS2C) = diagonal_element(g, add.bsb)
 
-function diagonal_element(g::G2Correlator{3}, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+function diagonal_element(g::G2MomCorrelator{3}, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
     onrep_a = onr(add.bsa)
     onrep_b = onr(add.bsb)
     gd = 0
@@ -108,7 +110,7 @@ function diagonal_element(g::G2Correlator{3}, add::BoseFS2C{NA,NB,M,AA,AB}) wher
     return ComplexF64(gd/M)
 end
 
-function diagonal_element(g::G2Correlator, add::BoseFS{N,M,A}) where {N,M,A}
+function diagonal_element(g::G2MomCorrelator, add::BoseFS{N,M,A}) where {N,M,A}
     onrep = onr(add)
     gd = 0
     for p in 1:M
@@ -120,18 +122,18 @@ function diagonal_element(g::G2Correlator, add::BoseFS{N,M,A}) where {N,M,A}
     return ComplexF64(gd/M)
 end
 
-function get_offdiagonal(g::G2Correlator{1}, add::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
+function get_offdiagonal(g::G2MomCorrelator{1}, add::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
     new_bsa, elem = get_offdiagonal(g, add.bsa, chosen)
     return A(new_bsa,add.bsb), elem
 end
 
-function get_offdiagonal(g::G2Correlator{2}, add::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
+function get_offdiagonal(g::G2MomCorrelator{2}, add::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
     new_bsb, elem = get_offdiagonal(g, add.bsb, chosen)
     return A(add.bsa, new_bsb), elem
 end
 
 function get_offdiagonal(
-    g::G2Correlator{3},
+    g::G2MomCorrelator{3},
     add::A,
     chosen,
     ma=OccupiedModeMap(add.bsa),
@@ -147,7 +149,7 @@ function get_offdiagonal(
 end
 
 function get_offdiagonal(
-    g::G2Correlator,
+    g::G2MomCorrelator,
     add::A,
     chosen,
 )::Tuple{A,ComplexF64} where {A<:BoseFS}
