@@ -21,6 +21,7 @@ Hamiltonians.
 
 ## Other
 - [`G2MomCorrelator`](@ref)
+- [`G2RealCorrelator`](@ref)
 
 ## Interface for working with Hamiltonians
 - [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)
