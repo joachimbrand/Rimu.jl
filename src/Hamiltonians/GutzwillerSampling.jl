@@ -23,25 +23,20 @@ After construction, we can access the underlying Hamiltonian with `G.hamiltonian
 julia> H = HubbardMom1D(BoseFS{3}((1,1,1)); u=6.0, t=1.0)
 HubbardMom1D(BoseFS{3,3}((1, 1, 1)); u=6.0, t=1.0)
 
-julia> I = GutzwillerSampling(H, g=0.3)
+julia> G = GutzwillerSampling(H, g=0.3)
 GutzwillerSampling(HubbardMom1D(BoseFS{3,3}((1, 1, 1)); u=6.0, t=1.0); g=0.3)
 
 julia> get_offdiagonal(H, BoseFS((2, 1, 0)), 1)
 (BoseFS{3,3}((1, 0, 2)), 2.0)
 
-julia> get_offdiagonal(I, BoseFS((2, 1, 0)), 1)
+julia> get_offdiagonal(G, BoseFS((2, 1, 0)), 1)
 (BoseFS{3,3}((1, 0, 2)), 0.8131393194811987)
 ```
 
-# General operators
+# Observables
 
-To calculate observables, new operators are defined that produce the correct overlaps in
-e.g. `AllOverlaps`.
-
-* `TransformUndoer(k::GutzwillerSampling, op::AbstractHamiltonian)`
-* `TransformUndoer(k::GutzwillerSampling)`
-
-See [`AllOverlaps`](@ref), [`TransformUndoer`](@ref).
+To calculate observables, pass the transformed Hamiltonian `G` to 
+[`AllOverlaps`](@ref) with keyword argument `transform=G`.
 """
 struct GutzwillerSampling{A,T,H<:AbstractHamiltonian{T},G} <: AbstractHamiltonian{T}
     # The A parameter sets whether this is an adjoint or not.

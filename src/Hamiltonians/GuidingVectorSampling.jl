@@ -42,6 +42,11 @@ julia> get_offdiagonal(H, starting_address(H), 4)
 julia> get_offdiagonal(G, starting_address(G), 4)
 (BoseFS{3,3}((2, 0, 1)), -0.014142135623730952)
 ```
+
+# Observables
+
+To calculate observables, pass the transformed Hamiltonian `G` to 
+[`AllOverlaps`](@ref) with keyword argument `transform=G`.
 """
 struct GuidingVectorSampling{A,T,H<:AbstractHamiltonian{T},D,E} <: AbstractHamiltonian{T}
     # The A parameter sets whether this is an adjoint or not.
