@@ -88,8 +88,7 @@ include("TRSymmetry.jl")
 
 include("Transcorrelated1D.jl")
 
-include("TwoBodyMomCorrelation.jl")
-include("TwoBodyRealCorrelation.jl")
+include("correlation_functions.jl")
 include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
 
