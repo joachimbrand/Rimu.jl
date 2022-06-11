@@ -48,6 +48,7 @@ struct NoStats{N} <: ReplicaStrategy{N} end
 NoStats(N=1) = NoStats{N}()
 
 replica_stats(::NoStats, _) = (), ()
+check_transform(::NoStats, _) = nothing
 
 # TODO: add custom names
 """
@@ -153,4 +154,26 @@ function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}, vecnorm=tr
     reports_per_replica = vecnorm ? length(operators) + 1 : length(operators)
     num_reports = (N * (N - 1) ÷ 2) * reports_per_replica 
     return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
+end
+
+"""
+    check_transform(r::AllOverlaps, ham)
+
+Check that the transformation provided to `r::AllOverlaps` matches the given Hamiltonian `ham`.
+Used as a sanity check before starting main [`lomc!`](@ref) loop.
+"""
+function check_transform(r::AllOverlaps, ham::AbstractHamiltonian)
+    ops = r.operators
+    if !isempty(ops) 
+        op_transform = all(op -> typeof(op)<:Rimu.Hamiltonians.TransformUndoer, ops)
+        ham_transform = hasproperty(ham, :hamiltonian)    # need a better test for this
+        if op_transform && ham_transform && !all(op -> ham == op.transform, ops)
+            # both are transformed but different
+            @warn "Overlaps transformation not consistent with Hamiltonian transformation."
+        elseif op_transform ⊻ ham_transform
+            # only one is transformed
+            @warn "Expected overlaps and Hamiltonian to be transformed; got only one."
+        end
+    end
+    return nothing
 end

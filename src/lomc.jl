@@ -285,7 +285,8 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
         @assert replica.params.step == step
         @assert replica.params.laststep == laststep
     end
-
+    check_transform(state.replica, state.hamiltonian)
+            
     # main loop
     initial_step = step
     update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
