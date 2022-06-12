@@ -303,9 +303,9 @@ function Rimu.freeze(md::MPIData)
     return freeze(localpart(md))
 end
 
-function get_overlaps_diagonal!(names, values, operators, vecs::NTuple{N}, vecnorm) where {N}
+function get_overlaps_diagonal!(names, values, operators, vecs::NTuple{N}, ::Val{B}) where {N,B}
     for i in 1:N, j in i+1:N
-        if vecnorm
+        if B
             push!(names, "c$(i)_dot_c$(j)")
             push!(values, dot(vecs[i], vecs[j]))
         end
@@ -315,10 +315,10 @@ function get_overlaps_diagonal!(names, values, operators, vecs::NTuple{N}, vecno
         end
     end
 end
-function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}, vecnorm) where {N}
+function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}, ::Val{B}) where {N,B}
     local_vec_i = similar(localpart(vecs[1]))
     for i in 1:N, j in i+1:N
-        if vecnorm
+        if B
             push!(names, "c$(i)_dot_c$(j)")
             push!(values, dot(vecs[i], vecs[j]))
         end
@@ -330,17 +330,16 @@ function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}, ve
     end
 end
 
-function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, vecnorm=true) where {N}
+function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, ::Val{B}) where {N,B}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]
     values = T[]
     if all(op -> LOStructure(op) isa IsDiagonal, operators)
-        get_overlaps_diagonal!(names, values, operators, vecs, vecnorm)
+        get_overlaps_diagonal!(names, values, operators, vecs, Val(B))
     else
-        get_overlaps_nondiagonal!(names, values, operators, vecs, vecnorm)
+        get_overlaps_nondiagonal!(names, values, operators, vecs, Val(B))
     end
 
-    reports_per_replica = vecnorm ? length(operators) + 1 : length(operators)
-    num_reports = (N * (N - 1) ÷ 2) * reports_per_replica 
+    num_reports = (N * (N - 1) ÷ 2) * (B + length(operators)) 
     return Tuple(SVector{num_reports,String}(names)), Tuple(SVector{num_reports,T}(values))
 end

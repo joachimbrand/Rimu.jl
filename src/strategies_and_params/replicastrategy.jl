@@ -127,7 +127,7 @@ end
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replicas::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.
     vecs = ntuple(i -> replicas[i].v, Val(N))
-    return all_overlaps(rs.operators, vecs, B)
+    return all_overlaps(rs.operators, vecs, Val(B))
 end
 
 """
@@ -136,12 +136,12 @@ end
 Get all overlaps between vectors and operators. This function is overloaded for `MPIData`.
 The flag `vecnorm` can disable the vector-vector overlap `c{i}_dot_c{j}`.
 """
-function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}, vecnorm=true) where {N}
+function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}, ::Val{B}) where {N,B}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]
     values = T[]
     for i in 1:N, j in i+1:N
-        if vecnorm
+        if B
             push!(names, "c$(i)_dot_c$(j)")
             push!(values, dot(vecs[i], vecs[j]))
         end
@@ -151,8 +151,7 @@ function all_overlaps(operators::Tuple, vecs::NTuple{N,AbstractDVec}, vecnorm=tr
         end
     end
     
-    reports_per_replica = vecnorm ? length(operators) + 1 : length(operators)
-    num_reports = (N * (N - 1) ÷ 2) * reports_per_replica 
+    num_reports = (N * (N - 1) ÷ 2) * (B + length(operators)) 
     return SVector{num_reports,String}(names).data, SVector{num_reports,T}(values).data
 end
 
