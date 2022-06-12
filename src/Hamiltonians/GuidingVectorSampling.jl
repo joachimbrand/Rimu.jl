@@ -135,9 +135,9 @@ Base.size(h::GuidingVectorOffdiagonals) = size(h.offdiagonals)
     TransformUndoer(k::GuidingVectorSampling)
 
 For a guiding vector similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}``
-define the operator ``f^{-1} A f^{-1}``, and special case ``f^{-2}``, in order 
+define the operator ``f^{-1} \\hat{A} f^{-1}``, and special case ``f^{-2}``, in order 
 to calculate observables. Here ``f`` is a diagonal operator whose entries are 
-the components of the guiding vector, i.e.``f_{ii} = v_i``, 
+the components of the guiding vector, i.e.``f_{ii} = v_i``.
     
 See [`AllOverlaps`](@ref), [`GuidingVectorSampling`](@ref).
 """

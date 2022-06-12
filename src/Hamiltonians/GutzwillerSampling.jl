@@ -120,8 +120,10 @@ Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
     TransformUndoer(k::GutzwillerSampling, op::AbstractHamiltonian)
     TransformUndoer(k::GutzwillerSampling)
 
-For a Gutzwiller similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}`` define the operator 
-``f^{-1} A f^{-1}``, and special case ``f^{-2}``, in order to calculate observables. 
+For a Gutzwiller similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}`` 
+define the operator ``f^{-1} \\hat{A} f^{-1}``, and special case ``f^{-2}``, in order 
+to calculate observables. Here ``f`` is a diagonal operator whose entries are 
+``f_{ii} = e^{-g H_{ii}}``.
     
 See [`AllOverlaps`](@ref), [`GutzwillerSampling`](@ref).
 """
