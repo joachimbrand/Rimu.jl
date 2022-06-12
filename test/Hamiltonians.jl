@@ -406,34 +406,36 @@ end
 
 @testset "Importance sampling" begin
     @testset "Gutzwiller" begin
-        for H in (
-            HubbardMom1D(BoseFS((2,2,2)), u=6),
-            ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
-            BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
-        )
-            # GutzwillerSampling with parameter zero is exactly equal to the original H
-            G = GutzwillerSampling(H, 0.0)
-            addr = starting_address(H)
-            @test starting_address(G) == addr
-            @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
-            @test LOStructure(G) isa AdjointKnown
-            @test LOStructure(Rimu.Hamiltonians.TransformUndoer(G,G)) isa AdjointKnown
+        @testset "Gutzwiller transformation" begin
+            for H in (
+                HubbardMom1D(BoseFS((2,2,2)), u=6),
+                ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
+            )
+                # GutzwillerSampling with parameter zero is exactly equal to the original H
+                G = GutzwillerSampling(H, 0.0)
+                addr = starting_address(H)
+                @test starting_address(G) == addr
+                @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
+                @test LOStructure(G) isa AdjointKnown
+                @test LOStructure(Rimu.Hamiltonians.TransformUndoer(G,G)) isa AdjointKnown
 
-            @test eval(Meta.parse(repr(G))) == G
-            @test eval(Meta.parse(repr(G'))) == G'
+                @test eval(Meta.parse(repr(G))) == G
+                @test eval(Meta.parse(repr(G'))) == G'
 
-            g = rand()
-            G = GutzwillerSampling(H, g)
-            for i in 1:num_offdiagonals(G, addr)
-                addr2, me = get_offdiagonal(G, addr, i)
-                w = exp(-g * (diagonal_element(H, addr2) - diagonal_element(H, addr)))
-                @test get_offdiagonal(H, addr, i)[2] * w == me
-                @test get_offdiagonal(H, addr, i)[1] == addr2
-                @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+                g = rand()
+                G = GutzwillerSampling(H, g)
+                for i in 1:num_offdiagonals(G, addr)
+                    addr2, me = get_offdiagonal(G, addr, i)
+                    w = exp(-g * (diagonal_element(H, addr2) - diagonal_element(H, addr)))
+                    @test get_offdiagonal(H, addr, i)[2] * w == me
+                    @test get_offdiagonal(H, addr, i)[1] == addr2
+                    @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+                end
             end
         end
 
-        @testset "transform operators" begin            
+        @testset "Gutzwiller observables" begin            
             for H in (
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
@@ -482,34 +484,36 @@ end
             BoseFS{6,3}((2, 2, 2)) => 0.6004825560434165;
             capacity=100,
         )
-        @testset "With empty vector" begin
-            G = GuidingVectorSampling(H, empty(v), 0.2)
+        @testset "GuidingVector transformation" begin            
+            @testset "With empty vector" begin
+                G = GuidingVectorSampling(H, empty(v), 0.2)
 
-            addr = starting_address(H)
-            @test starting_address(G) == addr
-            @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
-            @test LOStructure(G) isa AdjointKnown
-        end
+                addr = starting_address(H)
+                @test starting_address(G) == addr
+                @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
+                @test LOStructure(G) isa AdjointKnown
+            end
 
-        @testset "With non-empty vector" begin
-            G = GuidingVectorSampling(H, v, 0.2)
-            addr = starting_address(H)
-            @test starting_address(G) == addr
-            @test LOStructure(G) isa AdjointKnown
-            @test G == GuidingVectorSampling(H; vector = v, eps = 0.2) # call signature
+            @testset "With non-empty vector" begin
+                G = GuidingVectorSampling(H, v, 0.2)
+                addr = starting_address(H)
+                @test starting_address(G) == addr
+                @test LOStructure(G) isa AdjointKnown
+                @test G == GuidingVectorSampling(H; vector = v, eps = 0.2) # call signature
 
-            for i in 1:num_offdiagonals(G, addr)
-                addr2, me = get_offdiagonal(G, addr, i)
-                top = ifelse(v[addr2] < 0.2, 0.2, v[addr2])
-                bot = ifelse(v[addr] < 0.2, 0.2, v[addr])
-                w = top / bot
-                @test get_offdiagonal(H, addr, i)[2] * w ≈ me
-                @test get_offdiagonal(H, addr, i)[1] == addr2
-                @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+                for i in 1:num_offdiagonals(G, addr)
+                    addr2, me = get_offdiagonal(G, addr, i)
+                    top = ifelse(v[addr2] < 0.2, 0.2, v[addr2])
+                    bot = ifelse(v[addr] < 0.2, 0.2, v[addr])
+                    w = top / bot
+                    @test get_offdiagonal(H, addr, i)[2] * w ≈ me
+                    @test get_offdiagonal(H, addr, i)[1] == addr2
+                    @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+                end
             end
         end
 
-        @testset "transform operators" begin            
+        @testset "Guiding vector observables" begin            
             for H in (
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
