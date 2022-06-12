@@ -141,11 +141,16 @@ the components of the guiding vector, i.e.``f_{ii} = v_i``.
     
 See [`AllOverlaps`](@ref), [`GuidingVectorSampling`](@ref).
 """
-function TransformUndoer(k::GuidingVectorSampling, op::AbstractHamiltonian)
-    T = promote_type(eltype(k), eltype(op))
+function TransformUndoer(k::GuidingVectorSampling, op::Union{Nothing,AbstractHamiltonian})
+    if isnothing(op)
+        T = eltype(k)
+    else
+        T = promote_type(eltype(k), eltype(op))
+    end
     return TransformUndoer{T,typeof(k),typeof(op)}(k, op)
 end
 
+# methods for general operator `f^{-1} A f^{-1}`
 LOStructure(::Type{<:TransformUndoer{<:Any,<:GuidingVectorSampling,A}}) where {A} = LOStructure(A)
 
 function LinearAlgebra.adjoint(s::TransformUndoer{T,<:GuidingVectorSampling,<:AbstractHamiltonian}) where {T}
@@ -171,12 +176,7 @@ function get_offdiagonal(s::TransformUndoer{<:Any,<:GuidingVectorSampling,<:Any}
     return add2, guided_vector_modify(offd, true, s.transform.eps, 1., guide1 + guide2)
 end
 
-# Special case `f^{-2}`
-function TransformUndoer(k::GuidingVectorSampling)
-    T = eltype(k)
-    return TransformUndoer{T,typeof(k),Nothing}(k,nothing)
-end
-
+# methods for special case `f^{-2}`
 LOStructure(::Type{<:TransformUndoer{<:Any,<:GuidingVectorSampling,Nothing}}) = IsDiagonal()
 
 function diagonal_element(s::TransformUndoer{<:Any,<:GuidingVectorSampling,Nothing}, add)

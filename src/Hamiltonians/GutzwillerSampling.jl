@@ -127,11 +127,16 @@ to calculate observables. Here ``f`` is a diagonal operator whose entries are
     
 See [`AllOverlaps`](@ref), [`GutzwillerSampling`](@ref).
 """
-function TransformUndoer(k::GutzwillerSampling, op::AbstractHamiltonian)
-    T = promote_type(eltype(k), eltype(op))
+function TransformUndoer(k::GutzwillerSampling, op::Union{Nothing,AbstractHamiltonian})
+    if isnothing(op)
+        T = eltype(k)
+    else
+        T = promote_type(eltype(k), eltype(op))
+    end
     return TransformUndoer{T,typeof(k),typeof(op)}(k, op)
 end
 
+# methods for general operator `f^{-1} A f^{-1}`
 LOStructure(::Type{<:TransformUndoer{<:Any,<:GutzwillerSampling,A}}) where {A} = LOStructure(A)
 
 function LinearAlgebra.adjoint(s::TransformUndoer{T,<:GutzwillerSampling,<:AbstractHamiltonian}) where {T}
@@ -157,12 +162,7 @@ function get_offdiagonal(s::TransformUndoer{<:Any,<:GutzwillerSampling,<:Any}, a
     return newadd, gutzwiller_modify(offd, true, s.transform.g, 0., diagH1 + diagH2)
 end
 
-# Special case `f^2`
-function TransformUndoer(k::GutzwillerSampling)
-    T = eltype(k)
-    return TransformUndoer{T,typeof(k),Nothing}(k,nothing)
-end
-
+# methods for special case `f^{-2}`
 LOStructure(::Type{<:TransformUndoer{<:Any,<:GutzwillerSampling,Nothing}}) = IsDiagonal()
 
 function diagonal_element(s::TransformUndoer{<:Any,<:GutzwillerSampling,Nothing}, add)

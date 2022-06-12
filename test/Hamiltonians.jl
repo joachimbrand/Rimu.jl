@@ -492,6 +492,7 @@ end
                 @test starting_address(G) == addr
                 @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
                 @test LOStructure(G) isa AdjointKnown
+                @test LOStructure(Rimu.Hamiltonians.TransformUndoer(G,G)) isa AdjointKnown
             end
 
             @testset "With non-empty vector" begin
@@ -499,6 +500,7 @@ end
                 addr = starting_address(H)
                 @test starting_address(G) == addr
                 @test LOStructure(G) isa AdjointKnown
+                @test LOStructure(Rimu.Hamiltonians.TransformUndoer(G,G)) isa AdjointKnown
                 @test G == GuidingVectorSampling(H; vector = v, eps = 0.2) # call signature
 
                 for i in 1:num_offdiagonals(G, addr)
