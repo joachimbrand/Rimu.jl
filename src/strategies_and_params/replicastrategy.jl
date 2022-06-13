@@ -72,8 +72,8 @@ if these two Hamiltonians do not match.
 
 Implemented transformations are:
 
-    * [`GutzwillerSampling`](@ref)
-    * [`GuidingVectorSampling`](@ref)
+ * [`GutzwillerSampling`](@ref)
+ * [`GuidingVectorSampling`](@ref)
 
 In the case of a transformed Hamiltonian the overlaps are defined as follows. For a similarity transformation 
 `G` of the Hamiltonian (see e.g. [`GutzwillerSampling`](@ref).)
