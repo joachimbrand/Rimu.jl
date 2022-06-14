@@ -20,7 +20,8 @@ Hamiltonians.
 - [`TimeReversalSymmetry`](@ref)
 
 ## Other
-- [`G2Correlator`](@ref)
+- [`G2MomCorrelator`](@ref)
+- [`G2RealCorrelator`](@ref)
 
 ## Interface for working with Hamiltonians
 - [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)
@@ -55,7 +56,7 @@ export TimeReversalSymmetry
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
 
-export G2Correlator, DensityMatrixDiagonal, Momentum
+export G2MomCorrelator, G2RealCorrelator, DensityMatrixDiagonal, Momentum
 
 export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export num_neighbours, neighbour_site
@@ -87,7 +88,7 @@ include("TRSymmetry.jl")
 
 include("Transcorrelated1D.jl")
 
-include("TwoBodyCorrelation.jl")
+include("correlation_functions.jl")
 include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
 

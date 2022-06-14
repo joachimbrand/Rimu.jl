@@ -9,6 +9,7 @@ using Rimu.RMPI
 using KrylovKit
 using Suppressor
 using Statistics
+using Logging
 
 @testset "lomc!/QMCState" begin
     @testset "Setting laststep" begin
@@ -63,6 +64,7 @@ using Statistics
     @testset "Replicas" begin
         add = near_uniform(BoseFS{5,15})
         H = HubbardReal1D(add)
+        G = GutzwillerSampling(H, g=1)   
         dv = DVec(add => 1, style=IsDynamicSemistochastic())
 
         @testset "NoStats" begin
@@ -77,6 +79,8 @@ using Statistics
             @test length(state.replicas) == 3
             @test df.shift_1 ≠ df.shift_2 && df.shift_2 ≠ df.shift_3
             @test "shift_4" ∉ names(df)
+
+            @test isnothing(Rimu.check_transform(NoStats(), H))
         end
 
         @testset "AllOverlaps" begin
@@ -89,30 +93,60 @@ using Statistics
             df, _ = lomc!(H, dv; replica=AllOverlaps(5))
             @test num_stats(df) == binomial(5, 2)
 
+            # No vector norm: N choose 2 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H, vecnorm=false))
+            @test num_stats(df) == binomial(4, 2)
+            df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H, vecnorm=false))
+            @test num_stats(df) == binomial(5, 2)
+
+            # No operator, no vector norm: 0 reports.
+            df, _ = lomc!(H, dv; replica=AllOverlaps(4; vecnorm=false))
+            @test num_stats(df) == 0
+            df, _ = lomc!(H, dv; replica=AllOverlaps(5; vecnorm=false))
+            @test num_stats(df) == 0
+
             # One operator: 2 * N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(4, H))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(5, H))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H))
             @test num_stats(df) == 2 * binomial(5, 2)
 
             # Two operators: 3 * N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(2, (GutzwillerSampling(H, 1), H)))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(2; operator=(G, H)))
             @test num_stats(df) == 3 * binomial(2, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(7, (GutzwillerSampling(H, 1), H)))
+            df, _ = lomc!(H, dv; replica=AllOverlaps(7; operator=(G, H)))
             @test num_stats(df) == 3 * binomial(7, 2)
+
+            # Transformed operators: (3 + 1) * N choose 2 reports.
+            df, _ = lomc!(G, dv; replica=AllOverlaps(2; operator=(H, G), transform=G))
+            @test num_stats(df) == 4 * binomial(2, 2)
+            df, _ = lomc!(G, dv; replica=AllOverlaps(7; operator=(H, G), transform=G))
+            @test num_stats(df) == 4 * binomial(7, 2)
+
+            # Check transformation
+            # good transform - no warning
+            @test_logs min_level=Logging.Warn Rimu.check_transform(AllOverlaps(; operator=H, transform=G), G)
+            # no operators - no warning
+            @test_logs min_level=Logging.Warn Rimu.check_transform(AllOverlaps(;), H)
+            # Hamiltonian transformed and operators not transformed
+            @test_logs (:warn, Regex("(Expected overlaps)")) Rimu.check_transform(AllOverlaps(; operator=H), G)
+            # Hamiltonian not transformed and operators transformed
+            @test_logs (:warn, Regex("(Expected overlaps)")) Rimu.check_transform(AllOverlaps(; operator=H, transform=G), H)
+            # Different transformations
+            @test_logs (:warn, Regex("(not consistent)")) Rimu.check_transform(AllOverlaps(; operator=H, transform=GutzwillerSampling(H, 0.5)), G)
 
             # Complex operator
             v = DVec(1 => 1)
             G = MatrixHamiltonian(rand(5, 5))
             O = MatrixHamiltonian(rand(ComplexF64, 5, 5))
-            df, _ = lomc!(G, v, replica=AllOverlaps(2, O))
+            df, _ = lomc!(G, v, replica=AllOverlaps(2; operator=O))
             @test df.c1_dot_c2 isa Vector{ComplexF64}
             @test df.c1_Op1_c2 isa Vector{ComplexF64}
 
             # MPIData
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4, H))
+            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5, DensityMatrixDiagonal(1)))
+            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))
             @test num_stats(df) == 2 * binomial(5, 2)
         end
     end
