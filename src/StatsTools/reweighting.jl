@@ -395,6 +395,210 @@ function mixed_estimator_df_progress(shift::Vector, hproj::Vector, vproj::Vector
 end
 
 """
+    rayleigh_replica_estimator(
+        op_ol, vec_ol, shift, h, dτ;
+        skip = 0,
+        E_r = mean(shift[skip+1:end]),
+        weights = w_exp,
+        kwargs...,
+    ) -> r::RatioBlockingResult
+Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` with reweighting,
+```math
+A_\\mathrm{est}(h) = \\frac{\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)}  
+    \\mathrm{c}_a^{(n)} Â \\mathrm{c}_b^{(n)}}
+    \\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)} \\mathrm{c}_a^{(n)} \\mathrm{c}_b^{(n)}},
+```
+using data from multiple replicas. 
+
+Argument `op_ol` holds data for the operator overlap ``\\mathrm{c}_a^{(n)} Â \\mathrm{c}_b^{(n)}}`` 
+and `vec_ol` holds data for the vector overlap ``\\mathrm{c}_a^{(n)} \\mathrm{c}_b^{(n)}}``.
+They are of type `Vector{Vector}`, with each element `Vector` 
+holding the data for operator overlap and vector overlap for a pair of replicas.
+Argument `shift` is of type `Vector{Vector}`, with each element `Vector` 
+holding the shift data for each individual replica.
+
+The reweighting is an extension of the mixed estimator using the reweighting technique 
+described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195). 
+Reweighting is done over `h` time steps and `length(shift) - skip` time steps are used 
+for the blocking analysis done with [`ratio_of_means()`](@ref). 
+`dτ` is the time step and `weights` a function that
+calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).
+Additional keyword arguments are passed on to [`ratio_of_means()`](@ref).
+
+Error propagation is done with [`MonteCarloMeasurements`](@ref).
+Results are returned as [`RatioBlockingResult`](@ref).
+
+See also [`mixed_estimator`](@ref), [`growth_estimator()`](@ref).
+"""
+function rayleigh_replica_estimator(
+    op_ol::Vector{Vector}, 
+    vec_ol::Vector{Vector}, 
+    shift::Vector{Vector}, 
+    h, 
+    dτ;
+    skip=0,
+    E_r::Vector=[mean(view(s, skip+1:length(s))) for s in shift],
+    weights=w_exp,
+    kwargs...
+)   
+    num_reps = length(shift)
+    pair_idx = 0
+    num = zeros(length(shift[1]) - skip)
+    denom = zeros(length(shift[1]) - skip)
+    for a in 1:num_reps, b in a+1:num_reps
+        pair_idx += 1
+        wts = if h == 0
+            ones(T, len)
+        else
+            weights(shift[a], h, dτ; E_r=E_r[a], skip) .* weights(shift[b], h, dτ; E_r=E_r[b], skip)
+        end        
+        @views num += wts .* op_ol[pair_idx][skip+1:end]
+        @views denom += wts .* vec_ol[pair_idx][skip+1:end]
+    end
+    return ratio_of_means(num, denom; kwargs...)
+end
+"""
+    rayleigh_replica_estimator(
+        df::DataFrame;
+        op_ol="Op1", 
+        vec_ol="dot", 
+        skip=0, 
+        kwargs...
+    )
+Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` 
+(without reweighting i.e. `h = 0`)
+```math
+A_\\mathrm{est} = \\frac{\\sum_{a<b} \\sum_n \\mathrm{c}_a^{(n)} Â \\mathrm{c}_b^{(n)}}
+    \\sum_{a<b} \\sum_n \\mathrm{c}_a^{(n)} \\mathrm{c}_b^{(n)}},
+```
+directly from a `DataFrame` returned by [`lomc!`](@ref). 
+The keyword arguments `op_ol` and `vec_ol` can be used to change the names of the relevant columns.
+
+See [`AllOverlaps`](@ref).
+"""
+function rayleigh_replica_estimator(
+    df::DataFrame;
+    op_ol="Op1", 
+    vec_ol="dot", 
+    skip=0,
+    kwargs...
+)
+    num_reps = length(filter(startswith("norm_"), names(df)))
+    
+    vec_ol_v = Vector[]
+    op_ol_v = Vector[]
+    for a in 1:num_reps, b in a+1:num_reps
+        push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))))
+        push!(vec_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*vec_ol*"_c$(b)"))))
+    end
+    dτ = df.dτ_1[end]
+
+    return rayleigh_replica_estimator(op_ol_v, vec_ol_v, [], 0, dτ; skip, E_r=[], kwargs...)
+end
+
+"""
+    rayleigh_replica_estimator_analysis(df::DataFrame; kwargs...)
+    -> (;df_me, correlation_estimate, se, se_l, se_u)
+Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref)
+repeatedly over a range of reweighting depths.
+
+Returns a `NamedTuple` with the fields
+* `df_me`: `DataFrame` with reweighting depth and `rayleigh_replica_estimator` data. See example below.
+* `correlation_estimate`: vector of estimated correlation times from blocking analysis, one for each pair of replicas
+* `vae`: vector of `NamedTuple` from [`shift_estimator`](@ref) of shift mean and error, one for each replica
+
+## Keyword arguments
+* `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
+* `h_values = 100`: minimum number of reweighting depths
+* `skip = 0`: initial time steps to exclude from averaging
+* `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
+* `shift = "shift"` shift data corresponding to column in `df` with names `<shift>_1`, ...
+* `op_ol = "Op1"` name of operator overlap corresponding to column in `df` with names `c1_<op_ol>_c2`, ...
+* `vec_ol = "dot"` name of vector-vector overlap corresponding to column in `df` with names `c1_<vec_ol>_c2`, ... 
+* `warn = true` whether to log warning messages when blocking fails or denominators are small
+
+## Example
+```julia
+df, _ = lomc!(...)
+df_me, correlation_estimate, vae = rayleigh_replica_estimator_analysis(df; skip=5_000)
+
+using StatsPlots
+@df df_me plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
+@df df_me plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_mix") # Rayleigh quotient estimator as a function of reweighting depth
+xlabel!("h")
+```
+See also: [`rayleigh_replica_estimator`](@ref), [`mixed_estimator_analysis`](@ref), [`AllOverlaps`](@ref).
+"""
+function rayleigh_replica_estimator_analysis(
+    df::DataFrame;
+    h_range=nothing,
+    h_values=100,
+    skip=0,
+    threading=Threads.nthreads() > 1,
+    shift="shift",
+    op_ol="Op1",
+    vec_ol="dot",
+    warn=true,
+    kwargs...
+)
+    num_reps = length(filter(startswith("norm_"), names(df)))
+    shift_v = Vector[]
+    E_r = []
+    correlation_estimate = []
+    vae = []
+    for a in 1:num_reps
+        push!(shift_v, Vector(getproperty(df, Symbol(shift*"_$a"))))     # overwrite column name
+        se = blocking_analysis(shift_v[a]; skip)
+        push!(E_r, se.mean)
+        push!(correlation_estimate, 2^(se.k - 1))
+        push!(vae, val_and_errs(se; name=Symbol("se_$a")))
+    end
+    if isnothing(h_range)
+        h_range = determine_h_range(df, skip, minimum(correlation_estimate), h_values)
+    end
+    vec_ol_v = Vector[]
+    op_ol_v = Vector[]
+    for a in 1:num_reps, b in a+1:num_reps
+        push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))))
+        push!(vec_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*vec_ol*"_c$(b)"))))
+    end
+    dτ = df.dτ_1[end]
+
+    df_me = if threading
+        rayleigh_replica_estimator_df_folds(shift_v, op_ol_v, vec_ol_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
+    else
+        rayleigh_replica_estimator_df_progress(shift_v, op_ol_v, vec_ol_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
+    end
+
+    if warn # log warning messages based on the whole `DataFrame`
+        all(df_me.val_success) || @warn "Blocking failed in `rayleigh_replica_estimator_analysis`." df_me.success
+        if any(x -> abs(x) ≥ 0.1, df_me.val_δ_y)
+            @warn "Large coefficient of variation in `rayleigh_replica_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_me.val_δ_y
+        end
+    end
+    
+    return (; df_me, correlation_estimate, vae)
+end
+
+function rayleigh_replica_estimator_df_folds(shift::Vector, op_ol::Vector, vec_ol::Vector, h_range, dτ; kwargs...)
+    # parallel excecution with Folds.jl package
+    nts = Folds.map(h_range) do h
+        me = rayleigh_replica_estimator(op_ol, vec_ol, shift, h, dτ; kwargs...)
+        (; h, NamedTuple(me)...)
+    end
+    return DataFrame(nts)
+end
+
+function rayleigh_replica_estimator_df_progress(shift::Vector, op_ol::Vector, vec_ol::Vector, h_range, dτ; kwargs...)
+    # serial processing supports progress bar
+    ProgressLogging.@progress nts = [
+        (; h, NamedTuple(rayleigh_replica_estimator(op_ol, vec_ol, shift, h, dτ; kwargs...))...)
+        for h in h_range
+    ]
+    return DataFrame(nts)
+end
+
+"""
     projected_energy(
         df::DataFrame;
         skip=0, hproj=:hproj, vproj=:vproj, kwargs...
