@@ -282,8 +282,9 @@ function mixed_estimator(
     weights=w_exp,
     kwargs...
 )
-    @views num = weights(shift, h, dτ; E_r, skip) .* hproj[skip+1:end]
-    @views denom = weights(shift, h, dτ; E_r, skip) .* vproj[skip+1:end]
+    wts = weights(shift, h, dτ; E_r, skip)
+    @views num =  wts .* hproj[skip+1:end]
+    @views denom = wts .* vproj[skip+1:end]
     return ratio_of_means(num, denom; kwargs...)
 end
 """
@@ -413,7 +414,7 @@ using data from multiple replicas.
 Argument `op_ol` holds data for the operator overlap ``\\mathrm{c}_a^{(n)} Â \\mathrm{c}_b^{(n)}}`` 
 and `vec_ol` holds data for the vector overlap ``\\mathrm{c}_a^{(n)} \\mathrm{c}_b^{(n)}}``.
 They are of type `Vector{Vector}`, with each element `Vector` 
-holding the data for operator overlap and vector overlap for a pair of replicas.
+holding the data for a pair of replicas.
 Argument `shift` is of type `Vector{Vector}`, with each element `Vector` 
 holding the shift data for each individual replica.
 
@@ -488,8 +489,8 @@ function rayleigh_replica_estimator(
     vec_ol_v = Vector[]
     op_ol_v = Vector[]
     for a in 1:num_reps, b in a+1:num_reps
-        push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))))
-        push!(vec_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*vec_ol*"_c$(b)"))))
+        push!(op_ol_v, df[:, Symbol("c$(a)_"*op_ol*"_c$(b)")])
+        push!(vec_ol_v, df[:, Symbol("c$(a)_"*vec_ol*"_c$(b)")])
     end
     dτ = df.dτ_1[end]
 
