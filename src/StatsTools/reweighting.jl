@@ -464,6 +464,7 @@ end
         op_ol="Op1", 
         vec_ol="dot", 
         skip=0, 
+        Anorm=1,
         kwargs...
     )
 Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` 
@@ -474,6 +475,7 @@ A_\\mathrm{est} = \\frac{\\sum_{a<b} \\sum_n \\mathrm{c}_a^{(n)} Â \\mathrm{c}
 ```
 directly from a `DataFrame` returned by [`lomc!`](@ref). 
 The keyword arguments `op_ol` and `vec_ol` can be used to change the names of the relevant columns.
+The operator overlap data can be scaled by a prefactor `Anorm`.
 
 See [`AllOverlaps`](@ref).
 """
@@ -482,6 +484,7 @@ function rayleigh_replica_estimator(
     op_ol="Op1", 
     vec_ol="dot", 
     skip=0,
+    Anorm=1,
     kwargs...
 )
     num_reps = length(filter(startswith("norm_"), names(df)))
@@ -489,7 +492,7 @@ function rayleigh_replica_estimator(
     vec_ol_v = Vector[]
     op_ol_v = Vector[]
     for a in 1:num_reps, b in a+1:num_reps
-        push!(op_ol_v, df[:, Symbol("c$(a)_"*op_ol*"_c$(b)")])
+        push!(op_ol_v, df[:, Symbol("c$(a)_"*op_ol*"_c$(b)")] .* Anorm)
         push!(vec_ol_v, df[:, Symbol("c$(a)_"*vec_ol*"_c$(b)")])
     end
     dτ = df.dτ_1[end]
@@ -516,6 +519,7 @@ Returns a `NamedTuple` with the fields
 * `shift = "shift"` shift data corresponding to column in `df` with names `<shift>_1`, ...
 * `op_ol = "Op1"` name of operator overlap corresponding to column in `df` with names `c1_<op_ol>_c2`, ...
 * `vec_ol = "dot"` name of vector-vector overlap corresponding to column in `df` with names `c1_<vec_ol>_c2`, ... 
+* `Anorm = 1` a scalar prefactor to scale the operator overlap data
 * `warn = true` whether to log warning messages when blocking fails or denominators are small
 
 ## Example
@@ -539,6 +543,7 @@ function rayleigh_replica_estimator_analysis(
     shift="shift",
     op_ol="Op1",
     vec_ol="dot",
+    Anorm=1,
     warn=true,
     kwargs...
 )
@@ -560,7 +565,7 @@ function rayleigh_replica_estimator_analysis(
     vec_ol_v = Vector[]
     op_ol_v = Vector[]
     for a in 1:num_reps, b in a+1:num_reps
-        push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))))
+        push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))) .* Anorm)
         push!(vec_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*vec_ol*"_c$(b)"))))
     end
     dτ = df.dτ_1[end]
