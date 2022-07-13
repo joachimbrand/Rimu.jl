@@ -200,7 +200,12 @@ function growth_estimator_analysis(
 )
     shift_v = Vector(getproperty(df, Symbol(shift))) # casting to `Vector` to make SIMD loops efficient
     norm_v = Vector(getproperty(df, Symbol(norm)))
-    dτ = df.dτ[end]
+    num_reps = length(filter(startswith("dτ"), names(df)))
+    dτ = if num_reps == 1
+        df.dτ[end]
+    else
+        df.dτ_1[end]
+    end
     se = blocking_analysis(shift_v; skip)
     E_r = se.mean
     correlation_estimate = 2^(se.k - 1)
@@ -354,7 +359,12 @@ function mixed_estimator_analysis(
     shift_v = Vector(getproperty(df, Symbol(shift))) # casting to `Vector` to make SIMD loops efficient
     hproj_v = Vector(getproperty(df, Symbol(hproj)))
     vproj_v = Vector(getproperty(df, Symbol(vproj)))
-    dτ = df.dτ[end]
+    num_reps = length(filter(startswith("dτ"), names(df)))
+    dτ = if num_reps == 1
+        df.dτ[end]
+    else
+        df.dτ_1[end]
+    end
     se = blocking_analysis(shift_v; skip)
     E_r = se.mean
     correlation_estimate = 2^(se.k - 1)
@@ -554,14 +564,21 @@ function rayleigh_replica_estimator_analysis(
     warn=true,
     kwargs...
 )
-    num_reps = length(filter(startswith("norm_"), names(df)))
+    num_reps = length(filter(startswith("dτ"), names(df)))
+    dτ = if num_reps == 1
+        df.dτ[end]
+    else
+        df.dτ_1[end]
+    end
     shift_v = Vector[]
     E_r = []
+    correlation_estimate = []
     df_se = DataFrame()
     for a in 1:num_reps
         push!(shift_v, Vector(getproperty(df, Symbol(shift*"_$a"))))     # overwrite column name
         se = blocking_analysis(shift_v[a]; skip)
         push!(E_r, se.mean)
+        push!(correlation_estimate, 2^(se.k - 1))
         push!(df_se, (;replica=a, NamedTuple(se)...))
     end
     if isnothing(h_range)
@@ -573,7 +590,6 @@ function rayleigh_replica_estimator_analysis(
         push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))) .* Anorm)
         push!(vec_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*vec_ol*"_c$(b)"))))
     end
-    dτ = df.dτ_1[end]
 
     df_rre = if threading
         rayleigh_replica_estimator_df_folds(op_ol_v, vec_ol_v, shift_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
