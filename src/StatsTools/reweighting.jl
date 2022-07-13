@@ -444,12 +444,12 @@ function rayleigh_replica_estimator(
 )   
     num_reps = length(shift)
     pair_idx = 0
-    num = zeros(length(shift[1]) - skip)
-    denom = zeros(length(shift[1]) - skip)
+    num = zeros(length(op_ol[1]) - skip)
+    denom = zeros(length(op_ol[1]) - skip)
     for a in 1:num_reps, b in a+1:num_reps
         pair_idx += 1
         wts = if h == 0
-            ones(T, len)
+            ones(length(num))
         else
             weights(shift[a], h, dτ; E_r=E_r[a], skip) .* weights(shift[b], h, dτ; E_r=E_r[b], skip)
         end        
@@ -489,15 +489,23 @@ function rayleigh_replica_estimator(
 )
     num_reps = length(filter(startswith("norm_"), names(df)))
     
+    shift_v = Vector[]  # no weights needed for h = 0, but correct length needed
+    for _ in 1:num_reps
+        push!(shift_v, Vector[])
+    end
+    E_r = Vector[]
+
     vec_ol_v = Vector[]
     op_ol_v = Vector[]
     for a in 1:num_reps, b in a+1:num_reps
-        push!(op_ol_v, df[:, Symbol("c$(a)_"*op_ol*"_c$(b)")] .* Anorm)
-        push!(vec_ol_v, df[:, Symbol("c$(a)_"*vec_ol*"_c$(b)")])
+        # push!(op_ol_v, df[:, Symbol("c$(a)_"*op_ol*"_c$(b)")] .* Anorm)
+        # push!(vec_ol_v, df[:, Symbol("c$(a)_"*vec_ol*"_c$(b)")])
+        push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))) .* Anorm)
+        push!(vec_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*vec_ol*"_c$(b)"))))
     end
     dτ = df.dτ_1[end]
 
-    return rayleigh_replica_estimator(op_ol_v, vec_ol_v, [], 0, dτ; skip, E_r=[], kwargs...)
+    return rayleigh_replica_estimator(op_ol_v, vec_ol_v, shift_v, 0, dτ; skip, E_r, kwargs...)
 end
 
 """
