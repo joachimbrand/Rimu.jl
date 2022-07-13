@@ -510,14 +510,13 @@ end
 
 """
     rayleigh_replica_estimator_analysis(df::DataFrame; kwargs...)
-    -> (;df_me, correlation_estimate, se, se_l, se_u)
+    -> (; df_rre, df_se)
 Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref)
 repeatedly over a range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
-* `df_me`: `DataFrame` with reweighting depth and `rayleigh_replica_estimator` data. See example below.
-* `correlation_estimate`: vector of estimated correlation times from blocking analysis, one for each pair of replicas
-* `vae`: vector of `NamedTuple` from [`shift_estimator`](@ref) of shift mean and error, one for each replica
+* `df_rre`: `DataFrame` with reweighting depth and `rayleigh_replica_estimator` data. See example below.
+* `df_se`: `DataFrame` with [`shift_estimator`](@ref) output, one replica per row
 
 ## Keyword arguments
 * `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
@@ -533,11 +532,11 @@ Returns a `NamedTuple` with the fields
 ## Example
 ```julia
 df, _ = lomc!(...)
-df_me, correlation_estimate, vae = rayleigh_replica_estimator_analysis(df; skip=5_000)
+df_rre, df_se = rayleigh_replica_estimator_analysis(df; skip=5_000)
 
 using StatsPlots
-@df df_me plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
-@df df_me plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_mix") # Rayleigh quotient estimator as a function of reweighting depth
+@df df_rre plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
+@df df_rre plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_mix") # Rayleigh quotient estimator as a function of reweighting depth
 xlabel!("h")
 ```
 See also: [`rayleigh_replica_estimator`](@ref), [`mixed_estimator_analysis`](@ref), [`AllOverlaps`](@ref).
@@ -558,14 +557,12 @@ function rayleigh_replica_estimator_analysis(
     num_reps = length(filter(startswith("norm_"), names(df)))
     shift_v = Vector[]
     E_r = []
-    correlation_estimate = []
-    vae = []
+    df_se = DataFrame()
     for a in 1:num_reps
         push!(shift_v, Vector(getproperty(df, Symbol(shift*"_$a"))))     # overwrite column name
         se = blocking_analysis(shift_v[a]; skip)
         push!(E_r, se.mean)
-        push!(correlation_estimate, 2^(se.k - 1))
-        push!(vae, val_and_errs(se; name=Symbol("se_$a")))
+        push!(df_se, (;replica=a, NamedTuple(se)...))
     end
     if isnothing(h_range)
         h_range = determine_h_range(df, skip, minimum(correlation_estimate), h_values)
@@ -578,23 +575,23 @@ function rayleigh_replica_estimator_analysis(
     end
     dτ = df.dτ_1[end]
 
-    df_me = if threading
-        rayleigh_replica_estimator_df_folds(shift_v, op_ol_v, vec_ol_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
+    df_rre = if threading
+        rayleigh_replica_estimator_df_folds(op_ol_v, vec_ol_v, shift_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
     else
-        rayleigh_replica_estimator_df_progress(shift_v, op_ol_v, vec_ol_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
+        rayleigh_replica_estimator_df_progress(op_ol_v, vec_ol_v, shift_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
     end
 
     if warn # log warning messages based on the whole `DataFrame`
-        all(df_me.val_success) || @warn "Blocking failed in `rayleigh_replica_estimator_analysis`." df_me.success
-        if any(x -> abs(x) ≥ 0.1, df_me.val_δ_y)
-            @warn "Large coefficient of variation in `rayleigh_replica_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_me.val_δ_y
+        all(df_rre.val_success) || @warn "Blocking failed in `rayleigh_replica_estimator_analysis`." df_rre.success
+        if any(x -> abs(x) ≥ 0.1, df_rre.val_δ_y)
+            @warn "Large coefficient of variation in `rayleigh_replica_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_rre.val_δ_y
         end
     end
     
-    return (; df_me, correlation_estimate, vae)
+    return (; df_rre, df_se)
 end
 
-function rayleigh_replica_estimator_df_folds(shift::Vector, op_ol::Vector, vec_ol::Vector, h_range, dτ; kwargs...)
+function rayleigh_replica_estimator_df_folds(op_ol::Vector, vec_ol::Vector, shift::Vector, h_range, dτ; kwargs...)
     # parallel excecution with Folds.jl package
     nts = Folds.map(h_range) do h
         me = rayleigh_replica_estimator(op_ol, vec_ol, shift, h, dτ; kwargs...)
@@ -603,7 +600,7 @@ function rayleigh_replica_estimator_df_folds(shift::Vector, op_ol::Vector, vec_o
     return DataFrame(nts)
 end
 
-function rayleigh_replica_estimator_df_progress(shift::Vector, op_ol::Vector, vec_ol::Vector, h_range, dτ; kwargs...)
+function rayleigh_replica_estimator_df_progress(op_ol::Vector, vec_ol::Vector, shift::Vector, h_range, dτ; kwargs...)
     # serial processing supports progress bar
     ProgressLogging.@progress nts = [
         (; h, NamedTuple(rayleigh_replica_estimator(op_ol, vec_ol, shift, h, dτ; kwargs...))...)
