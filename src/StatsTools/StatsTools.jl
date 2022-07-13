@@ -34,8 +34,8 @@ export growth_witness, smoothen
 export blocking_analysis, blocking_analysis_data, mean_and_se
 export ratio_of_means
 export replica_fidelity, med_and_errs, ratio_with_errs, to_measurement
-export growth_estimator, mixed_estimator, w_lin, w_exp, projected_energy, shift_estimator
-export growth_estimator_analysis, mixed_estimator_analysis
+export growth_estimator, mixed_estimator, rayleigh_replica_estimator, w_lin, w_exp, projected_energy, shift_estimator
+export growth_estimator_analysis, mixed_estimator_analysis, rayleigh_replica_estimator_analysis
 export variational_energy_estimator
 export pmedian, pquantile, pmiddle, piterate, pextrema, pminimum, pmaximum, pmean, pcov
 export val_and_errs, errs, val
