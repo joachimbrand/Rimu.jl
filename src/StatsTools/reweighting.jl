@@ -579,7 +579,7 @@ function rayleigh_replica_estimator_analysis(
         se = blocking_analysis(shift_v[a]; skip)
         push!(E_r, se.mean)
         push!(correlation_estimate, 2^(se.k - 1))
-        push!(df_se, (;replica=a, NamedTuple(se)...))
+        push!(df_se, (; replica=a, NamedTuple(se; name=:se)...))
     end
     if isnothing(h_range)
         h_range = determine_h_range(df, skip, minimum(correlation_estimate), h_values)
@@ -610,8 +610,8 @@ end
 function rayleigh_replica_estimator_df_folds(op_ol::Vector, vec_ol::Vector, shift::Vector, h_range, dτ; kwargs...)
     # parallel excecution with Folds.jl package
     nts = Folds.map(h_range) do h
-        me = rayleigh_replica_estimator(op_ol, vec_ol, shift, h, dτ; kwargs...)
-        (; h, NamedTuple(me)...)
+        rre = rayleigh_replica_estimator(op_ol, vec_ol, shift, h, dτ; kwargs...)
+        (; h, NamedTuple(rre)...)
     end
     return DataFrame(nts)
 end
