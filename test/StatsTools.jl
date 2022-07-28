@@ -246,6 +246,32 @@ end
 
 end
 
+@testset "Rayleigh quotient reweighting" begin
+    ham = HubbardReal1D(BoseFS((1, 1, 1, 1)), u = 6.0, t = 1.0)
+    dv = DVec(starting_address(ham) => 2; capacity = dimension(ham))
+    dvals = [0,1]
+    exact_energy = -2.869739978337469
+    
+    skipsteps = 2^10
+    runsteps = 2^10
+    num_reps = 2
+
+    params = RunTillLastStep(laststep = skipsteps + runsteps)
+    s_strat = DoubleLogUpdate(targetwalkers=10)
+    G2list = ([G2RealCorrelator(i) for i in dvals]...,)
+
+    seedCRNG!(174)
+    @time df = lomc!(ham, dv; params, s_strat, replica = AllOverlaps(num_reps; operator = G2list)).df
+
+    for d in dvals
+        df_rre, df_se = rayleigh_replica_estimator_analysis(df; op_ol = "Op$(d+1)", skip = skipsteps, threading = false)
+        corr_est = 2 .^ (df_se[:,:se_k] .- 1)
+
+        df_rre_t = rayleigh_replica_estimator_analysis(df; op_ol = "Op$(d+1)", skip = skipsteps, threading = true).df_rre
+        @test all(abs.(df_rre_t.val .- df_rre.val) .< df_rre_t.val_l)
+    end
+end
+
 using Rimu.StatsTools: replica_fidelity
 @testset "Fidelity and variational energy" begin
     ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
