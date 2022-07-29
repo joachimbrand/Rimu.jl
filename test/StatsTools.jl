@@ -250,22 +250,24 @@ end
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)), u = 6.0, t = 1.0)
     dv = DVec(starting_address(ham) => 2; capacity = dimension(ham))
     dvals = [0,1]
-    exact_energy = -2.869739978337469
+    best_g2 = [0.220679, 0.907466]    # results for tw = 10K, 2^18 steps, no reweighting
     
-    skipsteps = 2^10
+    skipsteps = 2^8
     runsteps = 2^10
     num_reps = 2
+    tw = 10
 
     params = RunTillLastStep(laststep = skipsteps + runsteps)
-    s_strat = DoubleLogUpdate(targetwalkers=10)
+    s_strat = DoubleLogUpdate(targetwalkers = tw)
     G2list = ([G2RealCorrelator(i) for i in dvals]...,)
 
     seedCRNG!(174)
     @time df = lomc!(ham, dv; params, s_strat, replica = AllOverlaps(num_reps; operator = G2list)).df
 
     for d in dvals
-        df_rre, df_se = rayleigh_replica_estimator_analysis(df; op_ol = "Op$(d+1)", skip = skipsteps, threading = false)
-        corr_est = 2 .^ (df_se[:,:se_k] .- 1)
+        df_rre, _ = rayleigh_replica_estimator_analysis(df; op_ol = "Op$(d+1)", skip = skipsteps, threading = false)
+        # reweighting improves the estimate
+        @test abs(df_rre[1,:val] - best_g2[d+1]) > abs(df_rre[end,:val] - best_g2[d+1])
 
         df_rre_t = rayleigh_replica_estimator_analysis(df; op_ol = "Op$(d+1)", skip = skipsteps, threading = true).df_rre
         @test all(abs.(df_rre_t.val .- df_rre.val) .< df_rre_t.val_l)
