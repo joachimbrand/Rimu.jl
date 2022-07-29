@@ -265,11 +265,16 @@ end
     @time df = lomc!(ham, dv; params, s_strat, replica = AllOverlaps(num_reps; operator = G2list)).df
 
     for d in dvals
+        # without reweighting
+        r = rayleigh_replica_estimator(df; op_ol = "Op$(d+1)", skip = skipsteps)
+        g2_h0 = val_and_errs(r).val
+        # with reweighting
         df_rre, _ = rayleigh_replica_estimator_analysis(df; op_ol = "Op$(d+1)", skip = skipsteps, threading = false)
+        g2_rw = df_rre[end,:val]
         # reweighting improves the estimate
-        @test abs(df_rre[1,:val] - best_g2[d+1]) > abs(df_rre[end,:val] - best_g2[d+1])
-
-        df_rre_t = rayleigh_replica_estimator_analysis(df; op_ol = "Op$(d+1)", skip = skipsteps, threading = true).df_rre
+        @test abs(g2_h0 - best_g2[d+1]) > abs(g2_rw - best_g2[d+1])
+        # compare threading
+        df_rre_t, _ = rayleigh_replica_estimator_analysis(df; op_ol = "Op$(d+1)", skip = skipsteps, threading = true)
         @test all(abs.(df_rre_t.val .- df_rre.val) .< df_rre_t.val_l)
     end
 end

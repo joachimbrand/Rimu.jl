@@ -259,11 +259,11 @@ Compute the mixed estimator by the reweighting
 technique described in [Umirgar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195),
 Eq. (19)
 ```math
-E_\\mathrm{mix} = \\frac{\\sum_n w_{h}^{(n)}  (Ĥ'\\mathrm{v})⋅\\mathrm{c}^{(n)}}
-        {\\sum_m w_{h}^{(m)}  \\mathrm{v}⋅\\mathrm{c}^{(m)}} ,
+E_\\mathrm{mix} = \\frac{\\sum_n w_{h}^{(n)}  (Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}}
+        {\\sum_m w_{h}^{(m)}  \\mathbf{v}⋅\\mathbf{c}^{(m)}} ,
 ```
-where the time series `hproj ==` ``(Ĥ'\\mathrm{v})⋅\\mathrm{c}^{(n)}`` and
-`vproj ==` ``\\mathrm{v}⋅\\mathrm{c}^{(m)}`` have the same length as `shift`
+where the time series `hproj ==` ``(Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}`` and
+`vproj ==` ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` have the same length as `shift`
 (See [`ProjectedEnergy`](@ref) on how to set these up).
 Reweighting is done over `h`
 time steps and `length(shift) - skip` time steps are used for the blocking analysis done
@@ -416,13 +416,13 @@ end
 Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` with reweighting,
 ```math
 A_\\mathrm{est}(h) = \\frac{\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)}  
-    \\mathrm{c}_a^{(n)} Â \\mathrm{c}_b^{(n)}}
-    \\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)} \\mathrm{c}_a^{(n)} \\mathrm{c}_b^{(n)}},
+    \\mathbf{c}_a^{(n)} \\cdot \\hat{A} \\cdot \\mathbf{c}_b^{(n)}}
+    {\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)} \\mathbf{c}_a^{(n)} \\cdot \\mathbf{c}_b^{(n)}},
 ```
 using data from multiple replicas. 
 
-Argument `op_ol` holds data for the operator overlap ``\\mathrm{c}_a^{(n)} Â \\mathrm{c}_b^{(n)}}`` 
-and `vec_ol` holds data for the vector overlap ``\\mathrm{c}_a^{(n)} \\mathrm{c}_b^{(n)}}``.
+Argument `op_ol` holds data for the operator overlap ``\\mathbf{c}_a^{(n)} \\hat{A} \\mathbf{c}_b^{(n)}}`` 
+and `vec_ol` holds data for the vector overlap ``\\mathbf{c}_a^{(n)} \\mathbf{c}_b^{(n)}}``.
 They are of type `Vector{Vector}`, with each element `Vector` 
 holding the data for a pair of replicas.
 Argument `shift` is of type `Vector{Vector}`, with each element `Vector` 
@@ -476,12 +476,12 @@ end
         skip=0, 
         Anorm=1,
         kwargs...
-    )
+    ) -> r::RatioBlockingResult
 Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` 
 (without reweighting i.e. `h = 0`)
 ```math
-A_\\mathrm{est} = \\frac{\\sum_{a<b} \\sum_n \\mathrm{c}_a^{(n)} Â \\mathrm{c}_b^{(n)}}
-    \\sum_{a<b} \\sum_n \\mathrm{c}_a^{(n)} \\mathrm{c}_b^{(n)}},
+A_\\mathrm{est} = \\frac{\\sum_{a<b} \\sum_n \\mathbf{c}_a^{(n)} \\cdot \\hat{A} \\cdot \\mathbf{c}_b^{(n)}}
+    {\\sum_{a<b} \\sum_n \\mathbf{c}_a^{(n)} \\cdot \\mathbf{c}_b^{(n)}},
 ```
 directly from a `DataFrame` returned by [`lomc!`](@ref). 
 The keyword arguments `op_ol` and `vec_ol` can be used to change the names of the relevant columns.
@@ -632,11 +632,11 @@ end
     ) -> r::RatioBlockingResult
 Compute the projected energy estimator
 ```math
-E_\\mathrm{p} = \\frac{\\sum_n  \\mathrm{v}⋅Ĥ\\mathrm{c}^{(n)}}
-        {\\sum_m \\mathrm{v}⋅\\mathrm{c}^{(m)}} ,
+E_\\mathrm{p} = \\frac{\\sum_n  \\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}}
+        {\\sum_m \\mathbf{v}⋅\\mathbf{c}^{(m)}} ,
 ```
-where the time series `df.hproj ==` ``\\mathrm{v}⋅Ĥ\\mathrm{c}^{(n)}`` and
-`df.vproj ==` ``\\mathrm{v}⋅\\mathrm{c}^{(m)}`` are taken from `df`, skipping the first
+where the time series `df.hproj ==` ``\\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}`` and
+`df.vproj ==` ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` are taken from `df`, skipping the first
 `skip` entries (use `post_step = `[`ProjectedEnergy()`](@ref) to set these up in
 [`lomc!()`](@ref)).
 `projected_energy` is equivalent to [`mixed_estimator`](@ref) with `h=0`.
