@@ -421,8 +421,8 @@ A_\\mathrm{est}(h) = \\frac{\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)}
 ```
 using data from multiple replicas. 
 
-Argument `op_ol` holds data for the operator overlap ``\\mathbf{c}_a^{(n)} \\hat{A} \\mathbf{c}_b^{(n)}}`` 
-and `vec_ol` holds data for the vector overlap ``\\mathbf{c}_a^{(n)} \\mathbf{c}_b^{(n)}}``.
+Argument `op_ol` holds data for the operator overlap ``\\mathbf{c}_a^{(n)} \\hat{A} \\mathbf{c}_b^{(n)}`` 
+and `vec_ol` holds data for the vector overlap ``\\mathbf{c}_a^{(n)} \\mathbf{c}_b^{(n)}``.
 They are of type `Vector{Vector}`, with each element `Vector` 
 holding the data for a pair of replicas.
 Argument `shift` is of type `Vector{Vector}`, with each element `Vector` 
@@ -526,18 +526,18 @@ repeatedly over a range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
 * `df_rre`: `DataFrame` with reweighting depth and `rayleigh_replica_estimator` data. See example below.
-* `df_se`: `DataFrame` with [`shift_estimator`](@ref) output, one replica per row
+* `df_se`: `DataFrame` with [`shift_estimator`](@ref) output, one row per replica
 
 ## Keyword arguments
 * `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
 * `h_values = 100`: minimum number of reweighting depths
 * `skip = 0`: initial time steps to exclude from averaging
 * `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
-* `shift = "shift"` shift data corresponding to column in `df` with names `<shift>_1`, ...
-* `op_ol = "Op1"` name of operator overlap corresponding to column in `df` with names `c1_<op_ol>_c2`, ...
-* `vec_ol = "dot"` name of vector-vector overlap corresponding to column in `df` with names `c1_<vec_ol>_c2`, ... 
-* `Anorm = 1` a scalar prefactor to scale the operator overlap data
-* `warn = true` whether to log warning messages when blocking fails or denominators are small
+* `shift = "shift"`: shift data corresponding to column in `df` with names `<shift>_1`, ...
+* `op_ol = "Op1"`: name of operator overlap corresponding to column in `df` with names `c1_<op_ol>_c2`, ...
+* `vec_ol = "dot"`: name of vector-vector overlap corresponding to column in `df` with names `c1_<vec_ol>_c2`, ... 
+* `Anorm = 1`: a scalar prefactor to scale the operator overlap data
+* `warn = true`: whether to log warning messages when blocking fails or denominators are small
 
 ## Example
 ```julia
