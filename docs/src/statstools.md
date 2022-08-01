@@ -22,7 +22,7 @@ Many convenience functions are implemented for directly analysing data
 obtained from [`lomc!`](@ref) as a `DataFrame`. See, e.g.,
 [`shift_estimator`](@ref) and [`projected_energy`](@ref). Asymptotically
 unbiased estimators are implemented as [`mixed_estimator`](@ref),
-[`growth_estimator`](@ref) and [`rayleigh_quotient_estimator`](@ref).
+[`growth_estimator`](@ref) and [`rayleigh_replica_estimator`](@ref).
 
 ## Exported
 ```@autodocs
