@@ -505,17 +505,18 @@ function rayleigh_replica_estimator(
     else
         df.dτ_1[end]
     end
-    T = promote_type(map(col -> eltype(df[!,col]), [Symbol(shift, "_1"), Symbol("c1_", vec_ol, "_c2"), Symbol("c1_", op_ol, "_c2")])...)
-    # T = Any
+    T = eltype(df[!, Symbol(shift, "_1")])
     shift_v = Vector{T}[]
     for a in 1:num_reps
-        push!(shift_v, df[!, Symbol(shift, "_", a)])
+        push!(shift_v, Vector(df[!, Symbol(shift, "_", a)]))
     end
+    T = eltype(df[!, Symbol("c1_", vec_ol, "_c2")])
     vec_ol_v = Vector{T}[]
+    T = eltype(df[!, Symbol("c1_", op_ol, "_c2")])
     op_ol_v = Vector{T}[]
     for a in 1:num_reps, b in a+1:num_reps
-        push!(op_ol_v, df[!, Symbol("c", a, "_", op_ol, "_c" ,b)] .* Anorm)
-        push!(vec_ol_v, df[!, Symbol("c", a, "_", vec_ol, "_c" ,b)])
+        push!(op_ol_v, Vector(df[!, Symbol("c", a, "_", op_ol, "_c" ,b)] .* Anorm))
+        push!(vec_ol_v, Vector(df[!, Symbol("c", a, "_", vec_ol, "_c" ,b)]))
     end
 
     return rayleigh_replica_estimator(op_ol_v, vec_ol_v, shift_v, h, dτ; skip, kwargs...)
@@ -573,12 +574,13 @@ function rayleigh_replica_estimator_analysis(
     else
         df.dτ_1[end]
     end
-    shift_v = Vector[]
-    E_r = []
-    correlation_estimate = []
+    T = eltype(df[!, Symbol(shift, "_1")])
+    shift_v = Vector{T}[]
+    E_r = T[]
+    correlation_estimate = Int[]
     df_se = DataFrame()
     for a in 1:num_reps
-        push!(shift_v, df[!, Symbol(shift, "_", a)])
+        push!(shift_v, Vector(df[!, Symbol(shift, "_", a)]))
         se = blocking_analysis(shift_v[a]; skip)
         push!(E_r, se.mean)
         push!(correlation_estimate, 2^(se.k - 1))
@@ -587,11 +589,13 @@ function rayleigh_replica_estimator_analysis(
     if isnothing(h_range)
         h_range = determine_h_range(df, skip, minimum(correlation_estimate), h_values)
     end
-    vec_ol_v = Vector[]
-    op_ol_v = Vector[]
+    T = eltype(df[!, Symbol("c1_", vec_ol, "_c2")])
+    vec_ol_v = Vector{T}[]
+    T = eltype(df[!, Symbol("c1_", op_ol, "_c2")])
+    op_ol_v = Vector{T}[]
     for a in 1:num_reps, b in a+1:num_reps
-        push!(op_ol_v, df[!, Symbol("c", a, "_", op_ol, "_c" ,b)] .* Anorm)
-        push!(vec_ol_v, df[!, Symbol("c", a, "_", vec_ol, "_c" ,b)])
+        push!(op_ol_v, Vector(df[!, Symbol("c", a, "_", op_ol, "_c" ,b)] .* Anorm))
+        push!(vec_ol_v, Vector(df[!, Symbol("c", a, "_", vec_ol, "_c" ,b)]))
     end
 
     df_rre = if threading
