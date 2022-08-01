@@ -413,6 +413,16 @@ end
         weights = w_exp,
         kwargs...,
     ) -> r::RatioBlockingResult
+    rayleigh_replica_estimator(
+        df::DataFrame;
+        shift="shift",
+        op_ol="Op1", 
+        vec_ol="dot", 
+        h=0,
+        skip=0, 
+        Anorm=1,
+        kwargs...
+    ) -> r::RatioBlockingResult
 Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` with reweighting,
 ```math
 A_\\mathrm{est}(h) = \\frac{\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)}  
@@ -427,6 +437,13 @@ They are of type `Vector{Vector}`, with each element `Vector`
 holding the data for a pair of replicas.
 Argument `shift` is of type `Vector{Vector}`, with each element `Vector` 
 holding the shift data for each individual replica.
+
+The second method computes the Rayleigh quotient directly from a `DataFrame` returned by 
+[`lomc!`](@ref). The keyword arguments `shift`, `op_ol` and `vec_ol` can be used to 
+change the names of the relevant columns, see [`AllOverlaps`](@ref) for default 
+formatting. The operator overlap data can be scaled by a prefactor `Anorm`. A specific 
+reweighting depth can be set with keyword argument `h`. The default is `h = 0` which 
+calculates the Rayleigh quotient without reweighting.
 
 The reweighting is an extension of the mixed estimator using the reweighting technique 
 described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195). 
@@ -468,27 +485,6 @@ function rayleigh_replica_estimator(
     end
     return ratio_of_means(num, denom; kwargs...)
 end
-"""
-    rayleigh_replica_estimator(
-        df::DataFrame;
-        op_ol="Op1", 
-        vec_ol="dot", 
-        skip=0, 
-        Anorm=1,
-        kwargs...
-    ) -> r::RatioBlockingResult
-Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` 
-(without reweighting i.e. `h = 0`)
-```math
-A_\\mathrm{est} = \\frac{\\sum_{a<b} \\sum_n \\mathbf{c}_a^{(n)} \\cdot \\hat{A} \\cdot \\mathbf{c}_b^{(n)}}
-    {\\sum_{a<b} \\sum_n \\mathbf{c}_a^{(n)} \\cdot \\mathbf{c}_b^{(n)}},
-```
-directly from a `DataFrame` returned by [`lomc!`](@ref). 
-The keyword arguments `shift`, `op_ol` and `vec_ol` can be used to change the names of the relevant columns.
-The operator overlap data can be scaled by a prefactor `Anorm`.
-
-See [`AllOverlaps`](@ref).
-"""
 function rayleigh_replica_estimator(
     df::DataFrame;
     shift="shift",
