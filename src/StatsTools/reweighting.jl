@@ -442,9 +442,9 @@ Results are returned as [`RatioBlockingResult`](@ref).
 See also [`mixed_estimator`](@ref), [`growth_estimator()`](@ref).
 """
 function rayleigh_replica_estimator(
-    op_ol::Vector{Vector}, 
-    vec_ol::Vector{Vector}, 
-    shift::Vector{Vector}, 
+    op_ol::Vector, 
+    vec_ol::Vector, 
+    shift::Vector, 
     h, 
     dτ;
     skip=0,
@@ -484,38 +484,41 @@ A_\\mathrm{est} = \\frac{\\sum_{a<b} \\sum_n \\mathbf{c}_a^{(n)} \\cdot \\hat{A}
     {\\sum_{a<b} \\sum_n \\mathbf{c}_a^{(n)} \\cdot \\mathbf{c}_b^{(n)}},
 ```
 directly from a `DataFrame` returned by [`lomc!`](@ref). 
-The keyword arguments `op_ol` and `vec_ol` can be used to change the names of the relevant columns.
+The keyword arguments `shift`, `op_ol` and `vec_ol` can be used to change the names of the relevant columns.
 The operator overlap data can be scaled by a prefactor `Anorm`.
 
 See [`AllOverlaps`](@ref).
 """
 function rayleigh_replica_estimator(
     df::DataFrame;
+    shift="shift",
     op_ol="Op1", 
     vec_ol="dot", 
+    h=0,
     skip=0,
     Anorm=1,
     kwargs...
 )
-    num_reps = length(filter(startswith("norm_"), names(df)))
-    
-    shift_v = Vector[]  # no weights needed for h = 0, but correct length needed
-    for _ in 1:num_reps
-        push!(shift_v, Vector[])
+    num_reps = length(filter(startswith("dτ"), names(df)))
+    dτ = if num_reps == 1
+        df.dτ[end]
+    else
+        df.dτ_1[end]
     end
-    E_r = Vector[]
-
-    vec_ol_v = Vector[]
-    op_ol_v = Vector[]
+    T = promote_type(map(col -> eltype(df[!,col]), [Symbol(shift, "_1"), Symbol("c1_", vec_ol, "_c2"), Symbol("c1_", op_ol, "_c2")])...)
+    # T = Any
+    shift_v = Vector{T}[]
+    for a in 1:num_reps
+        push!(shift_v, df[!, Symbol(shift, "_", a)])
+    end
+    vec_ol_v = Vector{T}[]
+    op_ol_v = Vector{T}[]
     for a in 1:num_reps, b in a+1:num_reps
-        # push!(op_ol_v, df[:, Symbol("c$(a)_"*op_ol*"_c$(b)")] .* Anorm)
-        # push!(vec_ol_v, df[:, Symbol("c$(a)_"*vec_ol*"_c$(b)")])
-        push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))) .* Anorm)
-        push!(vec_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*vec_ol*"_c$(b)"))))
+        push!(op_ol_v, df[!, Symbol("c", a, "_", op_ol, "_c" ,b)] .* Anorm)
+        push!(vec_ol_v, df[!, Symbol("c", a, "_", vec_ol, "_c" ,b)])
     end
-    dτ = df.dτ_1[end]
 
-    return rayleigh_replica_estimator(op_ol_v, vec_ol_v, shift_v, 0, dτ; skip, E_r, kwargs...)
+    return rayleigh_replica_estimator(op_ol_v, vec_ol_v, shift_v, h, dτ; skip, kwargs...)
 end
 
 """
@@ -575,7 +578,7 @@ function rayleigh_replica_estimator_analysis(
     correlation_estimate = []
     df_se = DataFrame()
     for a in 1:num_reps
-        push!(shift_v, Vector(getproperty(df, Symbol(shift*"_$a"))))     # overwrite column name
+        push!(shift_v, df[!, Symbol(shift, "_", a)])
         se = blocking_analysis(shift_v[a]; skip)
         push!(E_r, se.mean)
         push!(correlation_estimate, 2^(se.k - 1))
@@ -587,8 +590,8 @@ function rayleigh_replica_estimator_analysis(
     vec_ol_v = Vector[]
     op_ol_v = Vector[]
     for a in 1:num_reps, b in a+1:num_reps
-        push!(op_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*op_ol*"_c$(b)"))) .* Anorm)
-        push!(vec_ol_v, Vector(getproperty(df, Symbol("c$(a)_"*vec_ol*"_c$(b)"))))
+        push!(op_ol_v, df[!, Symbol("c", a, "_", op_ol, "_c" ,b)] .* Anorm)
+        push!(vec_ol_v, df[!, Symbol("c", a, "_", vec_ol, "_c" ,b)])
     end
 
     df_rre = if threading
