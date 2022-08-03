@@ -21,8 +21,8 @@ of correlated uncertainties is done with the help of the package
 Many convenience functions are implemented for directly analysing data
 obtained from [`lomc!`](@ref) as a `DataFrame`. See, e.g.,
 [`shift_estimator`](@ref) and [`projected_energy`](@ref). Asymptotically
-unbiased estimators are implemented as [`mixed_estimator`](@ref) and
-[`growth_estimator`](@ref).
+unbiased estimators are implemented as [`mixed_estimator`](@ref),
+[`growth_estimator`](@ref) and [`rayleigh_replica_estimator`](@ref).
 
 ## Exported
 ```@autodocs

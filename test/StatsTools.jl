@@ -246,6 +246,39 @@ end
 
 end
 
+@testset "Rayleigh quotient reweighting" begin
+    ham = HubbardReal1D(BoseFS((1, 1, 1, 1)), u = 6.0, t = 1.0)
+    dv = DVec(starting_address(ham) => 2; capacity = dimension(ham))
+    dvals = [0,1]
+    best_g2 = [0.220679, 0.907466]    # results for tw = 10K, 2^18 steps, no reweighting
+    
+    skipsteps = 2^8
+    runsteps = 2^10
+    num_reps = 2
+    tw = 10
+
+    params = RunTillLastStep(laststep = skipsteps + runsteps)
+    s_strat = DoubleLogUpdate(targetwalkers = tw)
+    G2list = ([G2RealCorrelator(i) for i in dvals]...,)
+
+    seedCRNG!(174)
+    @time df = lomc!(ham, dv; params, s_strat, replica = AllOverlaps(num_reps; operator = G2list)).df
+
+    for d in dvals
+        # without reweighting
+        r = rayleigh_replica_estimator(df; op_name = "Op$(d+1)", skip = skipsteps)
+        g2_h0 = val_and_errs(r).val
+        # with reweighting
+        df_rre, _ = rayleigh_replica_estimator_analysis(df; op_name = "Op$(d+1)", skip = skipsteps, threading = false)
+        g2_rw = df_rre[end,:val]
+        # reweighting improves the estimate
+        @test abs(g2_h0 - best_g2[d+1]) > abs(g2_rw - best_g2[d+1])
+        # compare threading
+        df_rre_t, _ = rayleigh_replica_estimator_analysis(df; op_name = "Op$(d+1)", skip = skipsteps, threading = true)
+        @test all(abs.(df_rre_t.val .- df_rre.val) .< df_rre_t.val_l)
+    end
+end
+
 using Rimu.StatsTools: replica_fidelity
 @testset "Fidelity and variational energy" begin
     ham = HubbardReal1D(BoseFS((1,1,1,1)), u=6.0, t=1.0)
