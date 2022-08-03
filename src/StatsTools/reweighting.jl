@@ -471,8 +471,9 @@ function rayleigh_replica_estimator(
 )   
     num_reps = length(shift)
     pair_idx = 0
-    num = zeros(length(op_ol[1]) - skip)
-    denom = zeros(length(op_ol[1]) - skip)
+    T = promote_type(eltype(shift[1]), eltype(op_ol[1]), eltype(vec_ol[1]), eltype(E_r))
+    num = zeros(T, length(op_ol[1]) - skip)
+    denom = zeros(T, length(op_ol[1]) - skip)
     for a in 1:num_reps, b in a+1:num_reps
         pair_idx += 1
         wts = if h == 0
@@ -480,8 +481,8 @@ function rayleigh_replica_estimator(
         else
             weights(shift[a], h, dτ; E_r=E_r[a], skip) .* weights(shift[b], h, dτ; E_r=E_r[b], skip)
         end        
-        @views num += wts .* op_ol[pair_idx][skip+1:end]
-        @views denom += wts .* vec_ol[pair_idx][skip+1:end]
+        @views num .+= wts .* op_ol[pair_idx][skip+1:end]
+        @views denom .+= wts .* vec_ol[pair_idx][skip+1:end]
     end
     return ratio_of_means(num, denom; kwargs...)
 end
