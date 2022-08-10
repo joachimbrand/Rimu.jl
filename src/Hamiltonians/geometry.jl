@@ -22,7 +22,7 @@ Currently only supported by [`HubbardRealSpace`](@ref).
 abstract type LatticeGeometry{D} end
 
 function Base.show(io::IO, geom::LatticeGeometry)
-    print(io, nameof(typeof(geom)), num_dimensions(geom), size(geom))
+    print(io, nameof(typeof(geom)), size(geom))
 end
 
 """
@@ -104,7 +104,7 @@ julia> neighbour_site(lattice, 1, 4)
 * [`num_neighbours`](@ref)
 * [`neighbour_site`](@ref)
 """
-struct PeriodicBoundaries{D} <: LatticeGeometry
+struct PeriodicBoundaries{D} <: LatticeGeometry{D}
     size::NTuple{D,Int}
 end
 
@@ -228,7 +228,7 @@ julia> neighbour_site(lattice, 1, 5)
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
 """
-struct LadderBoundaries{G<:LatticeGeometry} <: LatticeGeometry
+struct LadderBoundaries{D,G<:LatticeGeometry} <: LatticeGeometry{D}
     subgeometry::G
 end
 
@@ -236,7 +236,8 @@ function LadderBoundaries(arg::Int, args::Vararg{Int}; subgeometry=PeriodicBound
     if arg ≠ 2
         throw(ArgumentError("First dimension must be of size 2"))
     end
-    return LadderBoundaries(subgeometry(args...))
+    D = num_dimensions(subgeometry) + 1
+    return LadderBoundaries{D}(subgeometry(args...))
 end
 
 Base.size(geom::LadderBoundaries) = (2, size(geom.subgeometry)...)
