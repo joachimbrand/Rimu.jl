@@ -133,9 +133,9 @@ function trap_potential(add, geom, v)
     all(iszero, v) && return pe
 
     sites = CartesianIndices(size(geom))    # assumes rectangular lattice
-    centre = CartesianIndex(fld.(size(geom), 2))
+    centre = CartesianIndex(fld.(size(geom), 2) .+ 1)
     for (n,i) in occupied_modes(add)
-        d = sites(i) - centre
+        d = Tuple(sites[i] - centre)
         pe += n * sum(v .* d.^2)
     end
     return pe
