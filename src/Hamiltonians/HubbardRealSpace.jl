@@ -129,16 +129,15 @@ lattice.
 
 """
 function trap_potential(add, geom, v)
+    pe = 0.
+    all(iszero, v) && return pe
+
     sites = CartesianIndices(size(geom))    # assumes rectangular lattice
     centre = CartesianIndex(fld.(size(geom), 2))
-
-    pe = 0.
-    
     for (n,i) in occupied_modes(add)
         d = sites(i) - centre
         pe += n * sum(v .* d.^2)
     end
-
     return pe
 end
 
@@ -211,11 +210,11 @@ struct HubbardRealSpace{
 end
 
 function HubbardRealSpace(
-    address;
+    address, geometry;
     u=ones(num_components(address), num_components(address)),
     t=ones(num_components(address)),
-    v=zeros(num_components(address), num_dimensions(geometry)),
-    geometry=PeriodicBoundaries((num_modes(address),))
+    v=zeros(num_components(address), num_dimensions(geometry))
+    # geometry=PeriodicBoundaries((num_modes(address),))
 )
     C = num_components(address)
     D = num_dimensions(geometry)
@@ -273,9 +272,10 @@ LOStructure(::Type{<:HubbardRealSpace}) = IsHermitian()
 function Base.show(io::IO, h::HubbardRealSpace)
     println(io, "HubbardRealSpace(")
     println(io, "  ", starting_address(h), ",")
-    println(io, "  u = ", Float64.(h.u), ",")
-    println(io, "  t = ", Float64.(h.t), ",")
     println(io, "  geometry = ", h.geometry, ",")
+    println(io, "  t = ", Float64.(h.t), ",")
+    println(io, "  u = ", Float64.(h.u), ",")
+    println(io, "  v = ", Float64.(h.v), ",")
     println(io, ")")
 end
 
