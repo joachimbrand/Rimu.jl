@@ -113,15 +113,22 @@ It is implemented recursively to ensure type stability.
     return self + row + _interactions(as, rest)
 end
 
+"""
+    trap_potential(add::AbstractFockAddress, geom::LatticeGeometry, v)
+"""
+function trap_potential(add, geom, v)
+    centre = 0
+end
+
 ###
 ### HubbardRealSpace
 ###
 """
-    HubbardRealSpace(address; u=ones(C, C), t=ones(C), geometry=PeriodicBoundaries(M,))
+    HubbardRealSpace(address; u=ones(C, C), t=ones(C), v=ones(C, D), geometry=PeriodicBoundaries(M,))
 
 Hubbard model in real space. Supports single or multi-component Fock state
 addresses (with `C` components) and various (rectangular) lattice geometries
-in arbitrary dimensions.
+in `D`` dimensions.
 
 ```math
   \\hat{H} = -\\sum_{\\langle i,j\\rangle,σ} t_σ a^†_{iσ} a_{jσ} +
@@ -150,17 +157,21 @@ in arbitrary dimensions.
   be zero for fermionic components.
 * `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
   vector corresponds to the hopping strength of the `i`-th component.
+* `v`: the trap potential strengths. Must be a matrix of size `C × D`. `v[i,j]` is
+the strength of the trap for component `i` in the `j`th dimension.
 
 """
 struct HubbardRealSpace{
-    C,A,G, # C: components
+    C,A,G,D, # C: components, D: dimensions
     # The following need to be type params.
     T<:SVector{C,Float64},
     U<:SMatrix{C,C,Float64},
+    V<:SMatrix{C,D,Float64},
 } <: AbstractHamiltonian{Float64}
     address::A
     u::U # interactions
     t::T # hopping strengths
+    v::V # trap strengths
     geometry::G
 end
 
@@ -168,9 +179,11 @@ function HubbardRealSpace(
     address;
     u=ones(num_components(address), num_components(address)),
     t=ones(num_components(address)),
+    v=ones(num_components(address), num_dimensions(geometry)),
     geometry=PeriodicBoundaries((num_modes(address),))
 )
     C = num_components(address)
+    D = num_dimensions(geometry)
 
     # Sanity checks
     if prod(size(geometry)) ≠ num_modes(address)
@@ -190,8 +203,9 @@ function HubbardRealSpace(
 
     u_mat = SMatrix{C,C,Float64}(u)
     t_vec = SVector{C,Float64}(t)
-    return HubbardRealSpace{C,typeof(address),typeof(geometry),typeof(t_vec),typeof(u_mat)}(
-        address, u_mat, t_vec, geometry,
+    v_mat = SMatrix{C,D,Float64}(v)
+    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,typeof(t_vec),typeof(v_mat),typeof(v_mat)}(
+        address, u_mat, t_vec, v_mat, geometry,
     )
 end
 
@@ -229,8 +243,8 @@ function Base.show(io::IO, h::HubbardRealSpace)
 end
 
 starting_address(h::HubbardRealSpace) = h.address
-diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u)
-diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1])
+diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u) + trap_potential(address, h.v)
+diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1]) + trap_potential(address, h.geometry, h.v[1])
 
 ###
 ### Offdiagonals
