@@ -128,15 +128,11 @@ where ``x = (x_1, ..., x_D)`` is the distance of site `i` to the centre of the t
 lattice.
 
 """
-function trap_potential(add, geom, v)
+function trap_potential(add::SingleComponentFockAddress, x_sq::SArray, v::SVector)
     pe = 0.
     all(iszero, v) && return pe
-
-    sites = CartesianIndices(size(geom))    # assumes rectangular lattice
-    centre = CartesianIndex(fld.(size(geom), 2) .+ 1)
     for (n,i) in occupied_modes(add)
-        d = Tuple(sites[i] - centre)
-        pe += n * sum(v .* d.^2)
+        pe += n * sum(v .* x_sq[i])
     end
     return pe
 end
@@ -146,10 +142,10 @@ end
 
 Calculate potential energy of a multicomponent address.
 """
-function trap_potential(add::CompositeFS, geom::LatticeGeometry, v::SMatrix)
+function trap_potential(add::CompositeFS, x_sq::SArray, v::SMatrix)
     pe = 0
     for (i,c) in enumerate(add.components)
-        pe += trap_potential(c, geom, v[i,:])
+        pe += trap_potential(c, x_sq, v[i,:])
     end
     return pe
 end
@@ -196,16 +192,18 @@ the strength of the trap for component `i` in the `j`th dimension.
 
 """
 struct HubbardRealSpace{
-    C,A,G,D, # C: components, D: dimensions
+    C,A,G,D,S, # C: components, S: size of lattice
     # The following need to be type params.
     T<:SVector{C,Float64},
     U<:SMatrix{C,C,Float64},
     V<:SMatrix{C,D,Float64},
+    X<:SArray{S,SVector{D}}
 } <: AbstractHamiltonian{Float64}
     address::A
     t::T # hopping strengths
     u::U # interactions    
     v::V # trap strengths
+    x_sq::X # squares of lattice positions
     geometry::G
 end
 
@@ -218,6 +216,7 @@ function HubbardRealSpace(
 )
     C = num_components(address)
     D = num_dimensions(geometry)
+    S = size(geometry)
 
     # Sanity checks
     if prod(size(geometry)) ≠ num_modes(address)
@@ -240,8 +239,14 @@ function HubbardRealSpace(
     t_vec = SVector{C,Float64}(t)
     u_mat = SMatrix{C,C,Float64}(u)
     v_mat = SMatrix{C,D,Float64}(v)
-    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,typeof(t_vec),typeof(u_mat),typeof(v_mat)}(
-        address, t_vec, u_mat, v_mat, geometry,
+
+    ranges = Tuple([range(-fld(M,2); length=M) for M in S],)
+    centre = -1 .* fld.(S,2)
+    x_sq = map(x -> Tuple(x).^2, circshift(CartesianIndices(ranges), centre))
+    x_mat = SArray{Tuple{S...},SVector{D}}(x_sq)
+
+    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,Tuple{S...},typeof(t_vec),typeof(u_mat),typeof(v_mat),typeof(x_mat)}(
+        address, t_vec, u_mat, v_mat, x_mat, geometry,
     )
 end
 
@@ -280,8 +285,8 @@ function Base.show(io::IO, h::HubbardRealSpace)
 end
 
 starting_address(h::HubbardRealSpace) = h.address
-diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u) + trap_potential(address, h.v)
-diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1]) + trap_potential(address, h.geometry, h.v[1,:])
+diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u) + trap_potential(address, h.x_sq, h.v)
+diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1]) + trap_potential(address, h.x_sq, h.v[1,:])
 
 ###
 ### Offdiagonals
