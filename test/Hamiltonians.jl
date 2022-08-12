@@ -1055,7 +1055,9 @@ end
     @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
 
     @test_throws ArgumentError BasisSetRep(ham; cutoff=20) # starting address cut off
-    mat = Matrix(ham; cutoff=30)
-    @test size(mat2, 1) < size(sparse(bsr), 1)
-    @test all(<(30), diag(mat))
+    mat_orig = Matrix(bsr)
+    mat_cut = Matrix(ham; cutoff=30)
+    @test size(mat_cut, 1) < size(mat_orig, 1)
+    @test all(<(30), diag(mat_cut))
+    @test count(≥(30), diag(Matrix(bsr))) == size(mat_orig, 1) - size(mat_cut, 1)
 end
