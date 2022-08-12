@@ -139,7 +139,7 @@ julia> rayleigh_quotient(mom, v) # momentum expectation value for state vector `
 momentum
 
 """
-    sm, basis = build_sparse_matrix_from_LO(ham, add; energy_cutoff, nnzs)
+    sm, basis = build_sparse_matrix_from_LO(ham, add; cutoff, nnzs)
 
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
 starting from the address `add`. The vector `basis` contains the addresses of basis
@@ -147,14 +147,21 @@ configurations.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 The default estimates for `nnzs` is `num_offdiagonals(ham, add)^2`.
 Providing an energy cutoff will skip the columns with diagonal elements greater or equal to
-`energy_cutoff`. This is not enabled by default.
+`cutoff`. This is not enabled by default.
 
 See [`BasisSetRep`](@ref).
 """
 function build_sparse_matrix_from_LO(
     ham, address=starting_address(ham);
-    energy_cutoff=nothing, nnzs=num_offdiagonals(ham, address)^2
+    cutoff=nothing, nnzs=num_offdiagonals(ham, address)^2
 )
+    address_energy = diagonal_element(ham, address)
+    if !isnothing(cutoff) && address_energy ≥ cutoff
+        throw(ArgumentError(string(
+            "starting address energy ($address_energy) is higer than cutoff ",
+            "($cutoff). Try using a different starting address or a lower cutoff."
+        )))
+    end
     T = eltype(ham)
     adds = [address]          # Queue of addresses. Also returned as the basis.
     dict = Dict(address => 1) # Mapping from addresses to indices
@@ -183,7 +190,7 @@ function build_sparse_matrix_from_LO(
             j = get(dict, off, nothing)
             if isnothing(j)
                 # Energy cutoff: remember skipped addresses, but avoid adding them to `adds`
-                if !isnothing(energy_cutoff) && diagonal_element(ham, off) ≥ energy_cutoff
+                if !isnothing(cutoff) && diagonal_element(ham, off) ≥ cutoff
                     dict[off] = 0
                     j = 0
                 else
@@ -259,11 +266,11 @@ end
 
 function BasisSetRep(
     h::AbstractHamiltonian, addr=starting_address(h);
-    sizelim=10^6, nnzs = 0
+    sizelim=10^6, kwargs...
 )
     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
     check_address_type(h, addr)
-    sm, basis = build_sparse_matrix_from_LO(h, addr; nnzs)
+    sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
     return BasisSetRep(sm, basis, h)
 end
 

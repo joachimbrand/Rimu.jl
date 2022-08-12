@@ -435,14 +435,14 @@ end
             end
         end
 
-        @testset "Gutzwiller observables" begin            
+        @testset "Gutzwiller observables" begin
             for H in (
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
-                # energy    
+                # energy
                 g = rand()
                 x = rand()
                 G = GutzwillerSampling(H, g)
@@ -455,7 +455,7 @@ end
                 Egutz = dot(dv, G, dv)/dot(dv, dv)
                 Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
                 @test Ebare ≈ Egutz ≈ Etrans
-                
+
                 # general operators
                 m = num_modes(add)
                 g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
@@ -484,7 +484,7 @@ end
             BoseFS{6,3}((2, 2, 2)) => 0.6004825560434165;
             capacity=100,
         )
-        @testset "GuidingVector transformation" begin            
+        @testset "GuidingVector transformation" begin
             @testset "With empty vector" begin
                 G = GuidingVectorSampling(H, empty(v), 0.2)
 
@@ -515,7 +515,7 @@ end
             end
         end
 
-        @testset "Guiding vector observables" begin            
+        @testset "Guiding vector observables" begin
             for H in (
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
@@ -534,7 +534,7 @@ end
                 Egutz = dot(dv, G, dv)/dot(dv, dv)
                 Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
                 @test Ebare ≈ Egutz ≈ Etrans
-                
+
                 # general operators
                 m = num_modes(add)
                 g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
@@ -1044,7 +1044,7 @@ end
     @test_throws ArgumentError BasisSetRep(ham) # dimension too large
     m = 2
     n = 10
-    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
+    addr = near_uniform(BoseFS{n,m})
     ham = HubbardReal1D(addr)
     bsr = BasisSetRep(ham; nnzs = dimension(ham))
     @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
@@ -1053,4 +1053,9 @@ end
     @test sparse(bsr) == bsr.sm == sparse(ham)
     addr2 = bsr.basis[2]
     @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+
+    @test_throws ArgumentError BasisSetRep(ham; cutoff=20) # starting address cut off
+    mat = Matrix(ham; cutoff=30)
+    @test size(mat2, 1) < size(sparse(bsr), 1)
+    @test all(<(30), diag(mat))
 end
