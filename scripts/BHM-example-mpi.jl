@@ -1,5 +1,11 @@
-# In this example, we will demonstrate using Rimu with MPI.  A runnable script is located at
-# [here](../../scripts/BHM-example-mpi.jl). Run it as `mpirun julia BHM-example.jl`.
+# # Example: Rimu with MPI
+
+# In this example, we will demonstrate using Rimu with MPI. 
+
+# A runnable script for this example is located [here](../../../scripts/BHM-example-mpi.jl). 
+# Run it with `mpirun julia BHM-example-mpi.jl`.
+
+# ## `BHM-example-mpi.jl`
 
 # We start by importing `Rimu` and `Rimu.RMPI`, which contains MPI-replated
 # functionality.
