@@ -41,7 +41,7 @@ using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
     offdiagonals, random_offdiagonal, LOStructure
 
-export AbstractHamiltonian, TwoComponentBosonicHamiltonian
+export AbstractHamiltonian, TwoComponentHamiltonian
 export dimension, rayleigh_quotient, momentum
 export BasisSetRep
 

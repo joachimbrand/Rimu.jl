@@ -39,19 +39,40 @@ Matrix
 
 ## Model Hamiltonians
 
-Here is a list of fully implemented model Hamiltonians. So far there are two variants
-implemented of the one-dimensional Bose-Hubbard model real space as well as a momentum-space
-Hubbard chain.
+Here is a list of fully implemented model Hamiltonians. There are several variants 
+of the Hubbard model in real and momentum space, as well as some other models.
 
+### Real space Hubbard models
 ```@docs
 HubbardReal1D
-ExtendedHubbardReal1D
-HubbardMom1D
-Transcorrelated1D
 BoseHubbardReal1D2C
-BoseHubbardMom1D2C
+HubbardReal1DEP
 HubbardRealSpace
+ExtendedHubbardReal1D
+```
+
+### Momentum space Hubbard models
+```@docs
+HubbardMom1D
+BoseHubbardMom1D2C
+HubbardMom1DEP
+```
+
+### Other
+```@docs
 MatrixHamiltonian
+TwoComponentBosonicHamiltonian
+Transcorrelated1D
+```
+
+### Convenience functions
+```@docs
+rayleigh_quotient
+momentum
+hubbard_dispersion
+continuum_dispersion
+shift_lattice
+shift_lattice_inv
 ```
 
 ## Hamiltonian Wrappers
@@ -71,13 +92,14 @@ them into [`AllOverlaps`](@ref).
 ```@docs
 G2MomCorrelator
 G2RealCorrelator
+DensityMatrixDiagonal
 Momentum
 ```
 
 ## Hamiltonians interface
 
 Behind the implementation of a particular model is a more abstract interface for defining
-hamiltonians. If you want to define a new model you should make use of this interface. The
+Hamiltonians. If you want to define a new model you should make use of this interface. The
 most general form of a model Hamiltonian should subtype to `AbstractHamiltonian` and
 implement the relevant methods.
 
@@ -104,6 +126,7 @@ dimension
 ```
 
 ## Geometry
+Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref).
 
 ```@docs
 LatticeGeometry

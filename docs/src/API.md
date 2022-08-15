@@ -14,10 +14,9 @@ See [Module `Interfaces`](@ref)
 
 See [Module `StochasticStyles`](@ref)
 
-
 ## Hamiltonians
 
-See [Module `Hamiltionians`](@ref)
+See [Module `Hamiltonians`](@ref)
 
 ## BitStringAddresses
 
