@@ -61,7 +61,6 @@ HubbardMom1DEP
 ### Other
 ```@docs
 MatrixHamiltonian
-TwoComponentBosonicHamiltonian
 Transcorrelated1D
 ```
 
@@ -75,7 +74,7 @@ shift_lattice
 shift_lattice_inv
 ```
 
-## Hamiltonian Wrappers
+## Hamiltonian wrappers
 The following Hamiltonians are constructed from an existing 
 Hamiltonian instance and change its behaviour:
 ```@docs

@@ -4,26 +4,37 @@
 This module defines Hamiltonian types and functions for working with
 Hamiltonians.
 
-## Exported concrete Hamiltonian types include
-- [`MatrixHamiltonian`](@ref)
-- [`HubbardReal1D`](@ref)
-- [`ExtendedHubbardReal1D`](@ref)
-- [`HubbardMom1D`](@ref)
-- [`Transcorrelated1D`](@ref)
-- [`BoseHubbardMom1D2C`](@ref)
-- [`BoseHubbardReal1D2C`](@ref)
+## [Exported concrete Hamiltonian types](#Model-Hamiltonians)
 
-## Wrappers
+Real space Hubbard models
+ - [`HubbardReal1D`](@ref)
+ - [`BoseHubbardReal1D2C`](@ref)
+ - [`HubbardReal1DEP`](@ref)
+ - [`HubbardRealSpace`](@ref)
+ - [`ExtendedHubbardReal1D`](@ref)
+
+Momentum space Hubbard models
+- [`HubbardMom1D`](@ref)
+- [`BoseHubbardMom1D2C`](@ref)
+- [`HubbardMom1DEP`](@ref)
+
+Other
+- [`MatrixHamiltonian`](@ref)
+- [`Transcorrelated1D`](@ref)
+
+## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)
 - [`GuidingVectorSampling`](@ref)
 - [`ParitySymmetry`](@ref)
 - [`TimeReversalSymmetry`](@ref)
 
-## Other
+## [Observables](#Observables)
 - [`G2MomCorrelator`](@ref)
 - [`G2RealCorrelator`](@ref)
+- [`DensityMatrixDiagonal`](@ref)
+- [`Momentum`](@ref)
 
-## Interface for working with Hamiltonians
+## [Interface for working with Hamiltonians](#Hamiltonians-interface)
 - [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)
 """
 module Hamiltonians
@@ -41,7 +52,8 @@ using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
     offdiagonals, random_offdiagonal, LOStructure
 
-export AbstractHamiltonian, TwoComponentHamiltonian
+export AbstractHamiltonian
+# export TwoComponentHamiltonian
 export dimension, rayleigh_quotient, momentum
 export BasisSetRep
 

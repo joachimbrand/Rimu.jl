@@ -8,7 +8,7 @@ For the random number generator we are currently using
 'Xoroshiro128Plus' from 'RandomNumbers.jl'. For benchmarks and statistical test results see the
 [Documentation of `RandomNumbers.jl`](https://sunoru.github.io/RandomNumbers.jl/stable/man/benchmark/#Benchmark-1).
 
-## Module `ConsistentRNG.jl`
+## Module `ConsistentRNG`
 
 ```@autodocs
 Modules = [Rimu.ConsistentRNG]

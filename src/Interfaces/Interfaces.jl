@@ -10,7 +10,7 @@ Follow the links for the definitions of the interfaces!
 * [`StochasticStyle`](@ref) for controlling the stochastic algorithms used by [`lomc!`](@ref)
   as implemented in [`StochasticStyles`](@ref)
 
-# Additonal exports
+# Additional exports
 
 ## Interface functions for[`AbstractHamiltonian`](@ref)s:
 * [`diagonal_element`](@ref)
