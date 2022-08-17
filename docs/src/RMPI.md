@@ -30,15 +30,11 @@ Rimu.RMPI.MPINoWalkerExchange
 
 ## MPI convenience functions
 
-```@docs
-Rimu.RMPI.mpi_rank
-Rimu.RMPI.is_mpi_root
-Rimu.RMPI.@mpi_root
-Rimu.RMPI.mpi_barrier
-Rimu.RMPI.mpi_comm
-Rimu.RMPI.mpi_root
-Rimu.RMPI.mpi_seed_CRNGs!
-Rimu.RMPI.mpi_allprintln
+```@autodocs
+Modules = [Rimu.RMPI]
+Pages = ["helpers.jl"]
+Private = true
+Public = true
 ```
 
 ## Index
