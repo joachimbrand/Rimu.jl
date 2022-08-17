@@ -17,24 +17,10 @@ straightforward to implement efficient Hamiltonians.
 
 ### Fock address API
 
-```@docs
-AbstractFockAddress
-SingleComponentFockAddress
-BoseFS
-FermiFS
-BoseFS2C
-CompositeFS
-num_particles
-num_modes
-num_components
-onr
-near_uniform
-occupied_modes
-is_occupied
-num_occupied_modes
-find_occupied_mode
-find_mode
-excitation
+```@autodocs
+Modules = [BitStringAddresses]
+Pages = ["fockaddress.jl","bosefs.jl","fermifs.jl","multicomponent.jl"]
+Private = false
 ```
 
 ## BitStrings
@@ -45,11 +31,8 @@ space-efficient. The API for [`BitString`](@ref)s is as follows.
 
 ### BitString API
 
-```@docs
-BitString
-num_bits
-num_chunks
-chunk_type
-chunk_bits
-top_chunk_bits
+```@autodocs
+Modules = [BitStringAddresses]
+Pages = ["bitstring.jl"]
+Private = false
 ```
