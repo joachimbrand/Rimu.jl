@@ -9,4 +9,4 @@ DocMeta.setdocmeta!(
     recursive=true
 )
 # Run with fix=true to fix docstrings
-doctest(Rimu; fix = true)
+doctest(Rimu)
