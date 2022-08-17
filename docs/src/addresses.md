@@ -36,3 +36,8 @@ Modules = [BitStringAddresses]
 Pages = ["bitstring.jl"]
 Private = false
 ```
+
+## Index
+```@index
+Pages   = ["addresses.md"]
+```

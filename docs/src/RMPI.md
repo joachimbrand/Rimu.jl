@@ -40,3 +40,8 @@ Rimu.RMPI.mpi_root
 Rimu.RMPI.mpi_seed_CRNGs!
 Rimu.RMPI.mpi_allprintln
 ```
+
+## Index
+```@index
+Pages   = ["RMPI.md"]
+```

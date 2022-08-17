@@ -135,3 +135,8 @@ LadderBoundaries
 num_neighbours
 neighbour_site
 ```
+
+## Index
+```@index
+Pages   = ["hamiltonians.md"]
+```

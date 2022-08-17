@@ -13,3 +13,8 @@ For the random number generator we are currently using
 ```@autodocs
 Modules = [Rimu.ConsistentRNG]
 ```
+
+## Index
+```@index
+Pages   = ["consistentrng.md"]
+```

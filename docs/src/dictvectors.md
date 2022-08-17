@@ -60,3 +60,8 @@ Rimu.DictVectors.Initiator
 Rimu.DictVectors.SimpleInitiator
 Rimu.DictVectors.CoherentInitiator
 ```
+
+## Index
+```@index
+Pages   = ["dictvectors.md"]
+```
