@@ -3,7 +3,7 @@ This module provides concrete implementations of [`StochasticStyle`](@ref)s, whi
 specify the algorithm used by [`lomc!`](@ref) when
 performing stochastic matrix-vector multiplication.
 
-# Stochastic styles:
+# Implemented stochastic styles:
 
 * [`StochasticStyle`](@ref)
 * [`IsStochasticInteger`](@ref)

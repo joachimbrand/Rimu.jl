@@ -166,7 +166,7 @@ setting `compression` to [`NoCompression`](@ref).
 * `spawning = WithReplacement()`: [`SpawningStrategy`](@ref) to use for the non-exact
   spawns. See [`WithReplacement`](@ref) for behaviour and possible arguments.
 
-* `compression = ThresholdCompression(proj_threshold)`: [`CompressionStartegy`](@ref) used
+* `compression = ThresholdCompression(proj_threshold)`: [`CompressionStrategy`](@ref) used
   to compress the vector after a step. Overrides `proj_threshold`.
 
 See also [`StochasticStyle`](@ref).
