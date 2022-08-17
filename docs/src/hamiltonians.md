@@ -122,6 +122,7 @@ The following functions come with default implementations, but may be customized
 random_offdiagonal
 Hamiltonians.LOStructure
 dimension
+has_adjoint
 ```
 
 ## Geometry
