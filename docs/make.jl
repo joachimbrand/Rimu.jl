@@ -15,7 +15,7 @@ Literate.markdown(
 )
 
 makedocs(;
-    modules=[Rimu,Rimu.ConsistentRNG],
+    modules=[Rimu,Rimu.ConsistentRNG,Rimu.RimuIO],
     format=Documenter.HTML(prettyurls = false),
     pages=[
         "Guide" => "index.md",
@@ -34,6 +34,7 @@ makedocs(;
             "Stochastic styles" => "stochasticstyles.md",
             "RMPI" => "RMPI.md",
             "Random Numbers" => "consistentrng.md",
+            "I/O" => "rimuio.md",
             "Documentation generation" => "documentation.md",
             "Code testing" => "testing.md",
         ],
@@ -41,6 +42,7 @@ makedocs(;
     ],
     sitename="Rimu.jl",
     authors="Joachim Brand <j.brand@massey.ac.nz>",
+    checkdocs=:exports,
     doctest=false # Doctests are done while testing.
 )
 
