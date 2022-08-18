@@ -150,9 +150,9 @@ configurations.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 The default estimates for `nnzs` is `dimension(ham)`.
 
-Providing an energy cutoff will skip the columns with diagonal elements greater than
-`cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
-These are not enabled by default.
+Providing an energy cutoff will skip the columns and rows with diagonal elements greater
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
+not enabled by default.
 
 Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
 order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
