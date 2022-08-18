@@ -1055,9 +1055,16 @@ end
     @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
 
     @test_throws ArgumentError BasisSetRep(ham; cutoff=20) # starting address cut off
-    mat_orig = Matrix(bsr)
-    mat_cut = Matrix(ham; cutoff=30)
-    @test size(mat_cut, 1) < size(mat_orig, 1)
-    @test all(<(30), diag(mat_cut))
-    @test count(≥(30), diag(Matrix(bsr))) == size(mat_orig, 1) - size(mat_cut, 1)
+
+    mat_orig = Matrix(ham; sort=true)
+    mat_cut_index = diag(mat_orig) .< 30
+    mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
+    mat_cut = Matrix(ham; cutoff=30, sort=true)
+    @test mat_cut == mat_cut_manual
+
+    filterfun(fs) = maximum(onr(fs)) < 8
+    mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
+    mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
+    mat_cut = Matrix(ham; filter=filterfun, sort=true)
+    @test mat_cut == mat_cut_manual
 end

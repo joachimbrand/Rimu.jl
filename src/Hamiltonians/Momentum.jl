@@ -29,31 +29,37 @@ Base.show(io::IO, mom::Momentum{C}) where {C} = print(io, "Momentum($C; fold=$(m
 LOStructure(::Type{<:Momentum}) = IsDiagonal()
 num_offdiagonals(ham::Momentum, add) = 0
 
-@inline function _momentum(add::SingleComponentFockAddress, fold)
+function momentum(add::SingleComponentFockAddress; fold=false)
     M = num_modes(add)
-    momentum = float(dot(-cld(M,2)+1:fld(M,2), OccupiedModeMap(add)))
+    res = 0
+    for i in OccupiedModeMap(add)
+        res += (i.mode - cld(M, 2)) * i.occnum
+    end
     if fold
-        return mod1(momentum + cld(M,2), M) - cld(M,2)
+        return float(mod(res, M))
     else
-        return momentum
+        return float(res)
     end
 end
-@inline function _momentum(adds, fold)
-    M = num_modes(adds[1])
-    momentum = sum(a -> _momentum(a, false), adds)
+function momentum(add::CompositeFS; fold=false)
+    M = num_modes(add)
+    res = sum(add.components) do fs
+        momentum(fs; fold=false)
+    end
     if fold
-        return mod1(momentum + cld(M,2), M) - cld(M,2)
+        return float(mod(res, M))
     else
-        return momentum
+        return float(res)
     end
 end
 
-diagonal_element(m::Momentum{0}, a::SingleComponentFockAddress) = _momentum(a, m.fold)
-diagonal_element(m::Momentum{1}, a::SingleComponentFockAddress) = _momentum(a, m.fold)
+diagonal_element(m::Momentum{0}, a::SingleComponentFockAddress) = momentum(a; fold=m.fold)
+diagonal_element(m::Momentum{1}, a::SingleComponentFockAddress) = momentum(a; fold=m.fold)
 
-diagonal_element(m::Momentum{0}, a::BoseFS2C) = _momentum((a.bsa, a.bsb), m.fold)
-diagonal_element(m::Momentum{1}, a::BoseFS2C) = _momentum(a.bsa, m.fold)
-diagonal_element(m::Momentum{2}, a::BoseFS2C) = _momentum(a.bsb, m.fold)
+diagonal_element(m::Momentum{0}, a::BoseFS2C) = momentum((a.bsa, a.bsb); fold=m.fold)
+diagonal_element(m::Momentum{1}, a::BoseFS2C) = momentum(a.bsa; fold=m.fold)
+diagonal_element(m::Momentum{2}, a::BoseFS2C) = momentum(a.bsb; fold=m.fold)
 
-diagonal_element(m::Momentum{0}, a::CompositeFS) = _momentum(a.components, m.fold)
-diagonal_element(m::Momentum{N}, a::CompositeFS) where {N} = _momentum(a.components[N], m.fold)
+diagonal_element(m::Momentum{0}, a::CompositeFS) = momentum(a; fold=m.fold)
+diagonal_element(m::Momentum{N}, a::CompositeFS) where {N} =
+    momentum(a.components[N]; fold=m.fold)

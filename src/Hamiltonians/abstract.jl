@@ -139,27 +139,38 @@ julia> rayleigh_quotient(mom, v) # momentum expectation value for state vector `
 momentum
 
 """
-    sm, basis = build_sparse_matrix_from_LO(ham, add; cutoff, nnzs)
+    sm, basis = build_sparse_matrix_from_LO(
+        ham, add; cutoff, filter=nothing, nnzs, sort=false, kwargs...
+    )
 
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
 starting from the address `add`. The vector `basis` contains the addresses of basis
 configurations.
+
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
-The default estimates for `nnzs` is `num_offdiagonals(ham, add)^2`.
-Providing an energy cutoff will skip the columns with diagonal elements greater or equal to
-`cutoff`. This is not enabled by default.
+The default estimates for `nnzs` is `dimension(ham)`.
+
+Providing an energy cutoff will skip the columns with diagonal elements greater than
+`cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
+These are not enabled by default.
+
+Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
+order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
+are passed on to `sortperm`.
 
 See [`BasisSetRep`](@ref).
 """
 function build_sparse_matrix_from_LO(
     ham, address=starting_address(ham);
-    cutoff=nothing, nnzs=num_offdiagonals(ham, address)^2
+    cutoff=nothing,
+    filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
+    nnzs=dimension(ham),
+    sort=false, kwargs...,
 )
-    address_energy = diagonal_element(ham, address)
-    if !isnothing(cutoff) && address_energy ≥ cutoff
+    if !isnothing(filter) && !filter(address)
         throw(ArgumentError(string(
-            "starting address energy ($address_energy) is higer than cutoff ",
-            "($cutoff). Try using a different starting address or a lower cutoff."
+            "Starting address does not pass `filter`. ",
+            "Please pick adifferent address or a different filter."
         )))
     end
     T = eltype(ham)
@@ -190,7 +201,7 @@ function build_sparse_matrix_from_LO(
             j = get(dict, off, nothing)
             if isnothing(j)
                 # Energy cutoff: remember skipped addresses, but avoid adding them to `adds`
-                if !isnothing(cutoff) && diagonal_element(ham, off) ≥ cutoff
+                if !isnothing(filter) && !filter(off)
                     dict[off] = 0
                     j = 0
                 else
@@ -211,7 +222,14 @@ function build_sparse_matrix_from_LO(
             push!(vs, v)
         end
     end
-    return sparse(is, js, vs, length(adds), length(adds)), adds
+
+    matrix = sparse(is, js, vs, length(adds), length(adds))
+    if sort
+        perm = sortperm(adds; kwargs...)
+        return permute!(matrix, perm, perm), permute!(adds, perm)
+    else
+        return matrix, adds
+    end
 end
 
 """
