@@ -37,7 +37,7 @@ end
 """
     growth_witness(df::DataFrame, [b]; shift=:shift, norm=:norm, dτ=df.dτ[end], skip=0)
 Calculate the growth witness directly from a `DataFrame` returned by
-[`lomc!`](@ref). The keyword arguments `shift` and `norm`
+[`lomc!`](@ref Main.lomc!). The keyword arguments `shift` and `norm`
 can be used to change the names of the relevant columns.
 """
 function growth_witness(
@@ -52,7 +52,7 @@ end
 """
     smoothen(noisy::AbstractVector, b)
 Smoothen the array `noisy` by averaging over a sliding window of length `b` and
-wrapping `noisy` periodically. The [`mean(noisy)`](@ref) is preserved.
+wrapping `noisy` periodically. The `mean(noisy)` is preserved.
 """
 function smoothen(noisy::AbstractVector, b::Integer)
     l = length(noisy)

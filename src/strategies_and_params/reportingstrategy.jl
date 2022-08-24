@@ -129,7 +129,7 @@ end
 """
     report_after_step(::ReportingStrategy, step, report, state)
 
-This function is called at the very end of a step, after `reporting_interval`(@ref) steps. 
+This function is called at the very end of a step, after [`reporting_interval`](@ref) steps. 
 For example, it can be used to print some information to `stdout`.
 """
 function report_after_step(::ReportingStrategy, args...)

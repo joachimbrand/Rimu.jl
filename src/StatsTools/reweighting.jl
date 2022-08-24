@@ -95,7 +95,7 @@ When `h` is greater than the autocorrelation time scale of the `shift`,
 then `E_gr` (returned as `r.ratio`) is an unbiased but approximate estimator for the ground
 state energy ``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased
 confidence intervals compared to the (biased) shift estimator.
-Error propagation is done with [`MonteCarloMeasurements`](@ref). Progagation through the
+Error propagation is done with [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl). Progagation through the
 logarithm can be modified by setting `change_type` to [`to_measurement`](@ref) in order
 to avoid `NaN` results from negative outliers.
 
@@ -103,7 +103,7 @@ If `success==true` the
 blocking analysis was successful in `k-1` steps, using `blocks` uncorrelated data points.
 
 The second method calculates the growth estimator directly from a `DataFrame` returned by
-[`lomc!`](@ref). The keyword arguments `shift_name` and `norm_name` can be used to change the names 
+[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name` and `norm_name` can be used to change the names 
 of the relevant columns.
 
 See also [`mixed_estimator()`](@ref) and [`RatioBlockingResult`](@ref).
@@ -162,7 +162,7 @@ end
 """
     growth_estimator_analysis(df::DataFrame; kwargs...)
     -> (;df_ge, correlation_estimate, se, se_l, se_u)
-Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref)
+Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref  Main.lomc!)
 repeatedly over a range of reweighting depths.
 
 
@@ -269,7 +269,7 @@ end
         kwargs...
     )
 Compute the mixed estimator by the reweighting
-technique described in [Umirgar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195),
+technique described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195),
 Eq. (19)
 ```math
 E_\\mathrm{mix} = \\frac{\\sum_n w_{h}^{(n)}  (Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}}
@@ -277,7 +277,7 @@ E_\\mathrm{mix} = \\frac{\\sum_n w_{h}^{(n)}  (Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(
 ```
 where the time series `hproj ==` ``(Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}`` and
 `vproj ==` ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` have the same length as `shift`
-(See [`ProjectedEnergy`](@ref) on how to set these up).
+(See [`ProjectedEnergy`](@ref Main.ProjectedEnergy) on how to set these up).
 Reweighting is done over `h`
 time steps and `length(shift) - skip` time steps are used for the blocking analysis done
 with [`ratio_of_means()`](@ref). `dτ` is the time step and `weights` a function that
@@ -288,11 +288,11 @@ When `h` is greater than the autocorrelation time scale of the `shift`,
 then `r.ratio` is an unbiased but approximate estimator for the ground state energy
 ``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased confidence intervals
 compared to the unweighted ratio.
-Error propagation is done with [`MonteCarloMeasurements`](@ref).
+Error propagation is done with [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 Results are returned as [`RatioBlockingResult`](@ref).
 
 The second method calculates the mixed energy estimator directly from a `DataFrame` 
-returned by [`lomc!`](@ref). The keyword arguments `hproj_name`, `vproj_name`, and 
+returned by [`lomc!`](@ref Main.lomc!). The keyword arguments `hproj_name`, `vproj_name`, and 
 `shift_name` can be used to change the names of the relevant columns.
 
 See also [`growth_estimator()`](@ref).
@@ -322,7 +322,7 @@ end
 """
     mixed_estimator_analysis(df::DataFrame; kwargs...)
     -> (; df_me, correlation_estimate, se, se_l, se_u)
-Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref)
+Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref Main.lomc!)
 repeatedly over a range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
@@ -447,8 +447,8 @@ Argument `shift` is of type `Vector{Vector}`, with each element `Vector`
 holding the shift data for each individual replica.
 
 The second method computes the Rayleigh quotient directly from a `DataFrame` returned by 
-[`lomc!`](@ref). The keyword arguments `shift_name`, `op_name` and `vec_name` can be used to 
-change the names of the relevant columns, see [`AllOverlaps`](@ref) for default 
+[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name`, `op_name` and `vec_name` can be used to 
+change the names of the relevant columns, see [`AllOverlaps`](@ref Main.AllOverlaps) for default 
 formatting. The operator overlap data can be scaled by a prefactor `Anorm`. A specific 
 reweighting depth can be set with keyword argument `h`. The default is `h = 0` which 
 calculates the Rayleigh quotient without reweighting.
@@ -461,7 +461,7 @@ for the blocking analysis done with [`ratio_of_means()`](@ref).
 calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).
 Additional keyword arguments are passed on to [`ratio_of_means()`](@ref).
 
-Error propagation is done with [`MonteCarloMeasurements`](@ref).
+Error propagation is done with [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 Results are returned as [`RatioBlockingResult`](@ref).
 
 See also [`mixed_estimator`](@ref), [`growth_estimator()`](@ref).
@@ -530,7 +530,7 @@ end
 """
     rayleigh_replica_estimator_analysis(df::DataFrame; kwargs...)
     -> (; df_rre, df_se)
-Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref)
+Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref Main.lomc!)
 repeatedly over a range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
@@ -558,7 +558,7 @@ using StatsPlots
 @df df_rre plot!(:h, :val, ribbon = (:val_l, :val_u), label="E_mix") # Rayleigh quotient estimator as a function of reweighting depth
 xlabel!("h")
 ```
-See also: [`rayleigh_replica_estimator`](@ref), [`mixed_estimator_analysis`](@ref), [`AllOverlaps`](@ref).
+See also: [`rayleigh_replica_estimator`](@ref), [`mixed_estimator_analysis`](@ref), [`AllOverlaps`](@ref Main.AllOverlaps).
 """
 function rayleigh_replica_estimator_analysis(
     df::DataFrame;
@@ -649,8 +649,8 @@ E_\\mathrm{p} = \\frac{\\sum_n  \\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}}
 ```
 where the time series `df.hproj ==` ``\\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}`` and
 `df.vproj ==` ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` are taken from `df`, skipping the first
-`skip` entries (use `post_step = `[`ProjectedEnergy()`](@ref) to set these up in
-[`lomc!()`](@ref)).
+`skip` entries (use `post_step = `[`ProjectedEnergy()`](@ref Main.ProjectedEnergy) to set these up in
+[`lomc!()`](@ref Main.lomc!)).
 `projected_energy` is equivalent to [`mixed_estimator`](@ref) with `h=0`.
 
 The keyword arguments `hproj` and `vproj`
