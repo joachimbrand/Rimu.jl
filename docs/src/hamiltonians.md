@@ -19,7 +19,7 @@ hubb = HubbardReal1D(BoseFS((1,2,0,3)); u=1.0, t=1.0)
 ```
 
 The Hamiltonian `hubb` is now ready to be used for FCIQMC in [`lomc!`](@ref) 
-and for exact diagolisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after 
+and for exact diagonalisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after 
 transforming into a sparse matrix first with 
 ```julia-repl
 using SparseArrays
@@ -32,7 +32,7 @@ fh = Matrix(hubb)
 ```
 This functionality relies on 
 ```@docs
-BasisSetRep
+Hamiltonians.BasisSetRep
 sparse
 Matrix
 ```
@@ -123,6 +123,14 @@ random_offdiagonal
 Hamiltonians.LOStructure
 dimension
 has_adjoint
+```
+
+This interface relies on unexported functionality, including
+```@docs
+Hamiltonians.adjoint
+Hamiltonians.dot
+Hamiltonians.AbstractOffdiagonals
+Hamiltonians.Offdiagonals
 ```
 
 ## Geometry
