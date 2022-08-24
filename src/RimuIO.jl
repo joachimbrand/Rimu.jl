@@ -42,8 +42,7 @@ Save `dvec` in [BSON](https://github.com/JuliaIO/BSON.jl) format.
 ## Notes
 
 * Only the [`localpart`](@ref) is saved. You may need to re-wrap the result in
-  [`MPIData`](@ref) if using MPI.
-
+  [`MPIData`](@ref Main.Rimu.RMPI.MPIData) if using MPI.
 * When using this function with MPI, make sure to save the vectors from different ranks to
   different files, e.g. by saving as `RimuIO.save_dvec("filename-\$(mpi_rank()).bson", dvec)`.
 

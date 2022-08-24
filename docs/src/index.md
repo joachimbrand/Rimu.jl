@@ -111,7 +111,7 @@ seconds, a speedup factor of 2.6. This seems reasonable, given that extra work
 needs to be done for communicating between different processes.
 
 Using MPI parallelism with `Rimu` is easy. Enabling MPI for use in [`lomc!()`](@ref) 
-is done by wrapping the primary data structures as [`MPIData`](@ref MPIData). As a consequence, data will 
+is done by wrapping the primary data structures as [`MPIData`](@ref Main.Rimu.RMPI.MPIData). As a consequence, data will 
 be stored in a distributed fashion among the MPI ranks and only communicated between ranks when 
 necessary. The relevant functionality is provided by the module `Rimu.RMPI`.
 
