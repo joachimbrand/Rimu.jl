@@ -78,7 +78,7 @@ w_lin(shift, h, dτ; kwargs...) = w_lin(Vector(shift), h, dτ; kwargs...)
         kwargs...
     ) -> r::RatioBlockingResult
 Compute the growth estimator with reference energy `E_r` by the reweighting
-technique described in [Umirgar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195),
+technique described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195),
 see Eq. (20).
 `shift` and `wn` are equal length
 vectors containing the shift and walker number time series, respectively.
