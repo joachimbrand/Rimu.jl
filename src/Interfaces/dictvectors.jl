@@ -3,11 +3,11 @@
 
 Abstract type for data structures that behave similar to sparse vectors, but are indexed
 by an arbitrary type `V` (could be non-integers) similarly to dictionaries. `AbstractDVec`s 
-are  designed to work well with [`lomc!`](@ref) and
+are  designed to work well with [`lomc!`](@ref Main.lomc!) and
 [KrylovKit](https://github.com/Jutho/KrylovKit.jl).
 
-Concrete implementations are available as [`DVec`](@ref)
-and [`InitiatorDVec`](@ref).
+Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec)
+and [`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
 
 `AbstractDvec`s lie somewhere between `AbstractDict`s and sparse `AbstractVector`s, while
 being subtyped to neither.
@@ -30,9 +30,9 @@ Implement what would be needed for the `AbstractDict` interface (`pairs`, `keys`
 * [`StochasticStyle`](@ref)
 * [`storage`](@ref) returns an `AbstractDict` storing the raw data with possibly
   different `valtype` than `V`.
-* [`deposit`](@ref)
+* [`deposit!`](@ref)
 
-See also [`DictVectors`](@ref), [`Interfaces`](@ref).
+See also [`DictVectors`](@ref Main.DictVectors), [`Interfaces`](@ref).
 """
 abstract type AbstractDVec{K,V} end
 
@@ -41,7 +41,7 @@ abstract type AbstractDVec{K,V} end
 
 Add `val` into `w` at address `add`, taking into account initiator rules if applicable.
 `parent` contains the `address => value` pair from which the pair `add => val`
-was created. [`InitiatorDVec`](@ref) can intercept this and add its own functionality.
+was created. [`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec) can intercept this and add its own functionality.
 """
 function deposit!(w, add, val, _)
     w[add] += convert(valtype(w), val)

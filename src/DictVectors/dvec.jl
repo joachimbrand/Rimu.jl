@@ -26,7 +26,7 @@ The default `style` is selected based on the `DVec`'s `valtype` (see
 [`default_style`](@ref)). If a style is given and the `valtype` does not match the `style`'s
 `eltype`, the values are converted to an appropriate type.
 
-The capacity argument is optional and sets the initial size of the `DVec` via `sizehint!`.
+The capacity argument is optional and sets the initial size of the `DVec` via `Base.sizehint!`.
 
 ## Examples
 

@@ -23,6 +23,7 @@ fciqmc_col!
 update_dvec!
 CompressionStrategy
 NoCompression
+StochasticStyles.ThresholdCompression
 compress!
 default_style
 ```

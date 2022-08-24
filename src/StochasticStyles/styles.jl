@@ -33,7 +33,7 @@ Stochastic propagation with complex walker numbers representing two populations 
 walkers.
 
 When using this style, make sure to set a complex target number walkers in the
-[`ShiftStrategy`](@ref)!
+[`ShiftStrategy`](@ref Main.ShiftStrategy)!
 
 This style is experimental.
 
