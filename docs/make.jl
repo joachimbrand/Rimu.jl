@@ -5,14 +5,14 @@ using Rimu.BitStringAddresses
 using Rimu.StatsTools
 using Literate
 
+EXAMPLES_INPUT = joinpath(@__DIR__, "../scripts")
 EXAMPLES_OUTPUT = joinpath(@__DIR__, "src/generated")
 
-Literate.markdown(
-    joinpath(@__DIR__, "../scripts/BHM-example.jl"), EXAMPLES_OUTPUT; documenter=true
-)
-Literate.markdown(
-    joinpath(@__DIR__, "../scripts/BHM-example-mpi.jl"), EXAMPLES_OUTPUT; documenter=true
-)
+for fn in filter(endswith(".jl"), readdir(EXAMPLES_INPUT))
+    Literate.markdown(
+        joinpath(EXAMPLES_INPUT, fn), EXAMPLES_OUTPUT; documenter=true
+    )
+end
 
 makedocs(;
     modules=[Rimu,Rimu.ConsistentRNG,Rimu.RimuIO],
