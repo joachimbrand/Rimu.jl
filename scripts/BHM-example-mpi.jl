@@ -2,7 +2,8 @@
 
 # In this example, we will demonstrate using Rimu with MPI. 
 
-# A runnable script for this example is located [here](../../../scripts/BHM-example-mpi.jl). 
+# A runnable script for this example is located 
+# [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example-mpi.jl). 
 # Run it with `mpirun julia BHM-example-mpi.jl`.
 
 # ## `BHM-example-mpi.jl`
