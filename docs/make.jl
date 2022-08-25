@@ -22,6 +22,7 @@ makedocs(;
         "Examples" => [
             "1D Bose-Hubbard Model" => "generated/BHM-example.md",
             "Using MPI" => "generated/BHM-example-mpi.md",
+            "Observables: G_2" => "generated/G2-example.md",
         ],
         "User documentation" => [
             "StatsTools" => "statstools.md",
