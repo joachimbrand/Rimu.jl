@@ -234,6 +234,7 @@ end
 
 """
     BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, nnzs = 0)
+
 Eagerly construct the basis set representation of the operator `h` with all addresses
 reachable from `addr`. An `ArgumentError` is thrown if `dimension(h) > sizelim` in order
 to prevent memory overflow. Set `sizelim = Inf` in order to disable this behaviour.
