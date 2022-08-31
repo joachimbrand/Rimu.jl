@@ -28,7 +28,7 @@ unbiased estimators are implemented as [`mixed_estimator`](@ref),
 ```@autodocs
 Modules = [StatsTools]
 Pages = ["StatsTools.jl", "blocking.jl", "ratio_of_means.jl", "convenience.jl",
-  "variances.jl", "growth_witness.jl", "reweighting.jl", "fidelity.jl"
+  "variances.jl", "growth_witness.jl", "reweighting.jl", "fidelity.jl", "variational_energy_estimator.jl"
 ]
 Private = false
 ```

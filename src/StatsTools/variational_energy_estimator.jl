@@ -22,12 +22,12 @@ where the sum goes over distinct pairs out of the ``R`` replicas. See
 [arXiv:2103.07800](http://arxiv.org/abs/2103.07800).
 
 The `DataFrame` version can extract the relevant information from the result of
-[`lomc!`](@ref). Set up [`lomc!`](@ref) with the keyword argument
+[`lomc!`](@ref Main.lomc!). Set up [`lomc!`](@ref Main.lomc!) with the keyword argument
 `replica = AllOverlaps(R)` and `R ≥ 2`.
 If passing `shifts` and `overlaps`, the data has to be arranged in the correct order (as
 provided in the `DataFrame` version).
 
-See [`AllOverlaps`](@ref).
+See [`AllOverlaps`](@ref Main.AllOverlaps).
 """
 function variational_energy_estimator(shifts, overlaps; kwargs...)
     num_replicas = length(shifts)

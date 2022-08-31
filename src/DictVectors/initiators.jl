@@ -125,7 +125,7 @@ end
 """
     InitiatorDVec{K,V} <: AbstractDVec{K,V}
 
-Dictionary-based vector-like data structure for use with [`lomc!`](@ref) and
+Dictionary-based vector-like data structure for use with [`lomc!`](@ref Main.lomc!) and
 [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl). See [`AbstractDVec`](@ref).
 Functionally identical to [`DVec`](@ref), but contains [`InitiatorValue`](@ref)s internally
 in order to facilitate initiator methods. How the initiators are handled is controlled by
@@ -154,7 +154,7 @@ the `initiator` keyword argument (see below).
 * `initiator = Initiator(1)`: A valid [`InitiatorRule`](@ref). See [`Initiator`](@ref).
 
 * `capacity`: Indicative size as `Int`. Optional. Sets the initial size of the
-  `InitiatorDVec` via [`sizehint!`](@ref).
+  `InitiatorDVec` via `Base.sizehint!`.
 
 """
 struct InitiatorDVec{

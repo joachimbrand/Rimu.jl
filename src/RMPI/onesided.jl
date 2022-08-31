@@ -23,9 +23,9 @@ end
     MPIOneSided(nprocs, myrank, comm, ::Type{T}, capacity)
 
 Communication buffer for use with MPI one-sided communication (remote memory access). Up to
-`capacity` elements of type `T` can be exchanged between MPI ranks via [`put`](@ref). It is
+`capacity` elements of type `T` can be exchanged between MPI ranks via `put`. It is
 important that `isbitstype(T) == true`. Objects of type `MPIOneSided` have to be
-freed manually with a (blocking) call to [`free()`](@ref).
+freed manually with a (blocking) call to `free()`.
 """
 mutable struct MPIOneSided{T}  <: DistributeStrategy
     mpiid::Int # unique ID for MPI-distributed objects
