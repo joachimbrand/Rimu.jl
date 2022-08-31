@@ -1,7 +1,7 @@
 """
     replica_fidelity(df::DataFrame; p_field = :hproj, skip = 0)
 Compute the fidelity of the average coefficient vector and the projector defined in
-`p_field` from the result of replica [`lomc!()`](@ref) passed as  argument `df`,
+`p_field` from the result of replica [`lomc!`](@ref Main.lomc!) passed as  argument `df`,
 using replicas `_1` and `_2`.
 Calls [`ratio_of_means()`](@ref) to perform a blocking analysis
 on a ratio of the means of separate time series and returns a

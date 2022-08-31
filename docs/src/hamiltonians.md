@@ -19,7 +19,7 @@ hubb = HubbardReal1D(BoseFS((1,2,0,3)); u=1.0, t=1.0)
 ```
 
 The Hamiltonian `hubb` is now ready to be used for FCIQMC in [`lomc!`](@ref) 
-and for exact diagolisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after 
+and for exact diagonalisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after 
 transforming into a sparse matrix first with 
 ```julia-repl
 using SparseArrays
@@ -32,29 +32,49 @@ fh = Matrix(hubb)
 ```
 This functionality relies on 
 ```@docs
-BasisSetRep
+Hamiltonians.BasisSetRep
 sparse
 Matrix
 ```
 
 ## Model Hamiltonians
 
-Here is a list of fully implemented model Hamiltonians. So far there are two variants
-implemented of the one-dimensional Bose-Hubbard model real space as well as a momentum-space
-Hubbard chain.
+Here is a list of fully implemented model Hamiltonians. There are several variants 
+of the Hubbard model in real and momentum space, as well as some other models.
 
+### Real space Hubbard models
 ```@docs
 HubbardReal1D
-ExtendedHubbardReal1D
-HubbardMom1D
-Transcorrelated1D
 BoseHubbardReal1D2C
-BoseHubbardMom1D2C
+HubbardReal1DEP
 HubbardRealSpace
-MatrixHamiltonian
+ExtendedHubbardReal1D
 ```
 
-## Hamiltonian Wrappers
+### Momentum space Hubbard models
+```@docs
+HubbardMom1D
+BoseHubbardMom1D2C
+HubbardMom1DEP
+```
+
+### Other
+```@docs
+MatrixHamiltonian
+Transcorrelated1D
+```
+
+### Convenience functions
+```@docs
+rayleigh_quotient
+momentum
+hubbard_dispersion
+continuum_dispersion
+shift_lattice
+shift_lattice_inv
+```
+
+## Hamiltonian wrappers
 The following Hamiltonians are constructed from an existing 
 Hamiltonian instance and change its behaviour:
 ```@docs
@@ -71,13 +91,14 @@ them into [`AllOverlaps`](@ref).
 ```@docs
 G2MomCorrelator
 G2RealCorrelator
+DensityMatrixDiagonal
 Momentum
 ```
 
 ## Hamiltonians interface
 
 Behind the implementation of a particular model is a more abstract interface for defining
-hamiltonians. If you want to define a new model you should make use of this interface. The
+Hamiltonians. If you want to define a new model you should make use of this interface. The
 most general form of a model Hamiltonian should subtype to `AbstractHamiltonian` and
 implement the relevant methods.
 
@@ -101,9 +122,19 @@ The following functions come with default implementations, but may be customized
 random_offdiagonal
 Hamiltonians.LOStructure
 dimension
+has_adjoint
+```
+
+This interface relies on unexported functionality, including
+```@docs
+Hamiltonians.adjoint
+Hamiltonians.dot
+Hamiltonians.AbstractOffdiagonals
+Hamiltonians.Offdiagonals
 ```
 
 ## Geometry
+Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref).
 
 ```@docs
 LatticeGeometry
@@ -112,4 +143,9 @@ HardwallBoundaries
 LadderBoundaries
 num_neighbours
 neighbour_site
+```
+
+## Index
+```@index
+Pages   = ["hamiltonians.md"]
 ```

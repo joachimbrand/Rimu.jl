@@ -3,28 +3,18 @@
 
 Abstract type. When called as a function it returns the native style of the
 generalised vector `v` that determines how simulations are to proceed.
-
-# Implemented styles
-
-* [`IsStochasticInteger`](@ref) - integer walker FCIQMC
-* [`IsDeterministic`](@ref) - perform deterministic variant of power method
-* [`IsStochasticWithThreshold`](@ref) - floating point walker FCIQMC
-* [`IsDynamicSemistochastic`](@ref) - floating point walker FCIQMC with smarter spawning and
-  vector compression
-* [`IsStochastic2Pop`](@ref)
-* [`IsExplosive`](@ref)
-
+ 
 # Usage
 
 Concrete `StochasticStyle`s can be used for the `style` keyword argument of
-[`lomc!`](@ref) and [`DVec`](@ref).
+[`lomc!`](@ref Main.lomc!) and [`DVec`](@ref Main.DictVectors.DVec).
 
 # Interface
 
 When defining a new `StochasticStyle`, subtype it as `MyStyle<:StochasticStyle{T}` where `T`
 is the concrete value type the style is designed to work with.
 
-For it to work with [`lomc!`](@ref), a `StochasticStyle` must define the following:
+For it to work with [`lomc!`](@ref Main.lomc!), a `StochasticStyle` must define the following:
 
 * [`fciqmc_col!(::StochasticStyle, w, H, address, value, shift, dτ)`](@ref)
 * [`step_stats(::StochasticStyle)`](@ref)
@@ -33,7 +23,7 @@ and optionally
 * [`CompressionStrategy(::StochasticStyle)`](@ref) for vector compression after annihilations,
 * [`update_dvec!`](@ref) for arbitrary transformations after the spawning step.
 
-See also [`StochasticStyles`](@ref), [`Interfaces`](@ref).
+See also [`StochasticStyles`](@ref Main.StochasticStyles), [`Interfaces`](@ref).
 """
 abstract type StochasticStyle{T} end
 
@@ -64,9 +54,8 @@ default_style(::Type{T}) where T = StyleUnknown{T}()
 
 The `CompressionStrategy` controls how a vector is compressed after a step. 
 
-## Standard implementations (subtypes):
+## Default implementation:
 * [`NoCompression`](@ref): no vector compression
-* [`ThresholdCompression`](@ref): compress elements below a threshold
 
 ## Usage
 A subtype of `CompressionStrategy` can be passed as a keyword argument to the
@@ -78,7 +67,7 @@ default is [`NoCompression`](@ref).
 When defining a new `CompressionStrategy`, subtype it as 
 `MyCompressionStrategy <: CompressionStrategy` and define
 a method for 
-* [`compress!(s::MyCompressionStrategy, v)`](@ref)
+* [`compress!(s::MyCompressionStrategy, v)`](@ref compress!)
 """
 abstract type CompressionStrategy end
 
@@ -125,7 +114,7 @@ end
     step_stats(::StochasticStyle)
 
 Return a tuple of names (`Symbol` or `String`) and a tuple of zeros of values of the same
-length. These will be reported as columns in the `DataFrame` returned by [`lomc!`](@ref).
+length. These will be reported as columns in the `DataFrame` returned by [`lomc!`](@ref Main.lomc!).
 """
 step_stats(v, n) = step_stats(StochasticStyle(v), n)
 function step_stats(s::StochasticStyle, ::Val{N}) where N

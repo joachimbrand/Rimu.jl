@@ -179,7 +179,7 @@ products. Implemented subtypes:
 - [`Norm2Projector`](@ref)
 - [`Norm1ProjectorPPop`](@ref)
 
-See also [`PostStepStrategy`](@ref) for use of projectors in [`lomc!`](@ref).
+See also [`PostStepStrategy`](@ref Main.PostStepStrategy) for use of projectors in [`lomc!`](@ref Main.lomc!).
 
 ## Interface
 
@@ -197,8 +197,8 @@ UniformProjector()⋅v == sum(v)
 dot(UniformProjector(), LO, v) == sum(LO*v)
 ```
 
-See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref).
+See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct UniformProjector <: AbstractProjector end
 
@@ -216,8 +216,8 @@ dot(NormProjector(),x)
 ```
 `NormProjector()` thus represents the vector `sign.(x)`.
 
-See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref).
+See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct NormProjector <: AbstractProjector end
 
@@ -231,8 +231,8 @@ dot(NormProjector(),x)
 -> norm(x,2) # with type Float64
 ```
 
-See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref).
+See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct Norm2Projector <: AbstractProjector end
 
@@ -248,8 +248,8 @@ dot(Norm1ProjectorPPop(),x)
 -> norm(real.(x),1) + im*norm(imag.(x),1)
 ```
 
-See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref).
+See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct Norm1ProjectorPPop <: AbstractProjector end
 
@@ -277,8 +277,8 @@ dot(PopsProjector(),x)
 -> real(x) ⋅ imag(x)
 ```
 
-See also [`PostStepStrategy`](@ref), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref).
+See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
+of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct PopsProjector <: AbstractProjector end
 

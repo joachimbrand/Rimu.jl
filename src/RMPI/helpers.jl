@@ -107,7 +107,7 @@ function Rimu.sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
 end
 
 """
-    sync_cRandn(md::MPIData)
+    ConsistentRNG.sync_cRandn(md::MPIData)
 Generate one random number with [`cRandn()`](@ref) in a synchronous way such
 that all MPI ranks have the same random number.
 The argument is ignored unless it is of type `MPIData`, in which case a random

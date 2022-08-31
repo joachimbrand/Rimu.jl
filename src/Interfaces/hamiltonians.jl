@@ -5,16 +5,16 @@
     AbstractHamiltonian{T}
 
 Supertype that provides an interface for linear operators over a linear space with scalar
-type `T` that are suitable for FCIQMC (with [`lomc!`](@ref)). Indexing is done with addresses (typically not
-integers) from an address space that may be large (and will not need to be completely
-generated).
+type `T` that are suitable for FCIQMC (with [`lomc!`](@ref Main.lomc!)). Indexing is done 
+with addresses (typically not integers) from an address space that may be large (and will 
+not need to be completely generated).
 
 `AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) from the
-module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref) from
-the module `BitStringAddresses`. The type works well with the external package
+module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress) 
+from the module `BitStringAddresses`. The type works well with the external package
 [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
 
-For available implementations see [`Hamiltonians`](@ref).
+For available implementations see [`Hamiltonians`](@ref Main.Hamiltonians).
 
 # Interface
 
@@ -27,10 +27,10 @@ Methods that need to be implemented:
 
 Optional methods to implement:
 
-* [`LOStructure(::Type{typeof(lo)})`](@ref): defaults to `AdjointUnknown`
-* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref): defaults to dimension of address
+* [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
+* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref Main.Hamiltonians.dimension): defaults to dimension of address
   space
-* [`momentum(::AbstractHamiltonian)`](@ref): no default
+* [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
 Provides:
 
@@ -39,12 +39,12 @@ Provides:
 * `*(H, v)`: deterministic matrix-vector multiply (allocating)
 * `H(v)`: equivalent to `H * v`.
 * `mul!(w, H, v)`: mutating matrix-vector multiply.
-* [`dot(x, H, v)`](@ref): compute `x⋅(H*v)` minimizing allocations.
+* [`dot(x, H, v)`](@ref Main.Hamiltonians.dot): compute `x⋅(H*v)` minimizing allocations.
 * `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes (slow!)
-* [`BasisSetRep`](@ref): construct a basis set repesentation
-* [`sparse`](@ref), [`Matrix`](@ref): construct a (sparse) matrix representation
+* [`BasisSetRep`](@ref Main.Hamiltonians.sparse): construct a basis set repesentation
+* [`sparse`](@ref Main.Hamiltonians.sparse), [`Matrix`](@ref): construct a (sparse) matrix representation
 
-See also [`Hamiltonians`](@ref), [`Interfaces`](@ref).
+See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref).
 """
 abstract type AbstractHamiltonian{T} end
 
@@ -143,8 +143,8 @@ Return an iterator over reachable off-diagonal matrix elements of type
 
 # See also
 
-* [`Offdiagonals`](@ref)
-* [`AbstractOffdiagonals`](@ref)
+* [`Offdiagonals`](@ref Main.Hamiltonians.Offdiagonals)
+* [`AbstractOffdiagonals`](@ref Main.Hamiltonians.AbstractOffdiagonals)
 
 ```jldoctest
 julia> addr = BoseFS((3,2,1));
@@ -199,8 +199,8 @@ known this can speed up calculations. Implemented structures are:
 
 * `IsDiagonal`: The operator is diagonal.
 * `IsHermitian`: The operator is complex and Hermitian or real and symmetric.
-* `AdjointKnown`: The operator is not Hermitian, but its [`adjoint`](@ref) is implemented.
-* `AdjointUnknown`: [`adjoint`](@ref) for this operator is not implemented.
+* `AdjointKnown`: The operator is not Hermitian, but its [`adjoint`](@ref Main.Hamiltonians.adjoint) is implemented.
+* `AdjointUnknown`: [`adjoint`](@ref Main.Hamiltonians.adjoint) for this operator is not implemented.
 
 In order to define this trait for a new linear operator type, define a method for
 `LOStructure(::Type{<:MyNewLOType}) = …`.

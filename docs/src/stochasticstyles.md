@@ -1,31 +1,29 @@
 # Module `StochasticStyles`
 
-This module contains the implementations of [`StochasticStyle`](@ref)s, which control how the
-stochastic matrix-vector multiplication is performed.
-
 ```@docs
-StochasticStyle
+StochasticStyles
 ```
 
 ## Available `StochasticStyle`s
 
 ```@docs
 StyleUnknown
-IsStochasticInteger
-IsDeterministic
-IsStochasticWithThreshold
-IsDynamicSemistochastic
-Rimu.StochasticStyles.IsStochastic2Pop
-Rimu.StochasticStyles.IsExplosive
+```
+```@autodocs
+Modules = [StochasticStyles]
+Pages = ["styles.jl"]
 ```
 
 ## The `StochasticStyle` interface
 
 ```@docs
+StochasticStyle
 step_stats
 fciqmc_col!
 update_dvec!
 CompressionStrategy
+NoCompression
+StochasticStyles.ThresholdCompression
 compress!
 default_style
 ```
@@ -34,15 +32,13 @@ default_style
 
 The following functions and types are unexported, but are useful when defining new styles.
 
-```@docs
-Rimu.StochasticStyles.diagonal_step!
-Rimu.StochasticStyles.projected_deposit!
-Rimu.StochasticStyles.SpawningStrategy
-Rimu.StochasticStyles.Exact
-Rimu.StochasticStyles.SingleSpawn
-Rimu.StochasticStyles.WithReplacement
-Rimu.StochasticStyles.WithoutReplacement
-Rimu.StochasticStyles.Bernoulli
-Rimu.StochasticStyles.DynamicSemistochastic
-Rimu.StochasticStyles.spawn!
+```@autodocs
+Modules = [StochasticStyles]
+Pages = ["spawning.jl"]
+Order = [:function,:method,:type]
+```
+
+## Index
+```@index
+Pages   = ["stochasticstyles.md"]
 ```

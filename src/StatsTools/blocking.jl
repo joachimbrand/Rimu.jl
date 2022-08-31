@@ -4,7 +4,7 @@
 
 """
     BlockingResult(mean, err, err_err, p_cov, k, blocks)
-Result of [`blocking_analysis()`](@ref).
+Result of [`blocking_analysis`](@ref).
 
 ### Fields:
 - `mean`: sample mean
@@ -16,7 +16,7 @@ Result of [`blocking_analysis()`](@ref).
 
 Has methods for [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref),
 [`mean_and_se`](@ref), `Measurements.:±`,
-`MonteCarloMeasurements.Particles`, and
+[`MonteCarloMeasurements.Particles`](@ref), and
 `Statistics.cov` for `Complex` data.
 
 **Example:**
@@ -76,7 +76,7 @@ end
     measurement(r::BlockingResult)
     Measurements.±(r::BlockingResult)
 Convert a `BlockingResult` into a `Measurement` for linear error propagation with
-[`Measurements`](@ref).
+[`Measurements`](https://github.com/JuliaPhysics/Measurements.jl).
 
 Limitation: Does not account for covariance in complex `BlockingResult`.
 Consider using [`MonteCarloMeasurements.Particles(r)`](@ref)!
@@ -94,7 +94,7 @@ end
     MonteCarloMeasurements.Particles(r::BlockingResult; mc_samples = 2000)
     MonteCarloMeasurements.±(r::BlockingResult)
 Convert a `BlockingResult` into a `Particles` object for nonlinear error propagation with
-[`MonteCarloMeasurements`](@ref).
+[`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 """
 function MonteCarloMeasurements.Particles(r::BlockingResult{<:Real}; mc_samples=2000)
     return Particles(mc_samples, Normal(r.mean, r.err))

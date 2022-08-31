@@ -93,7 +93,7 @@ LinearAlgebra.adjoint(op::AbstractHamiltonian) = adjoint(LOStructure(op), op)
 """
     adjoint(::LOStructure, op::AbstractHamiltonian)
 
-Represent the adjoint of an `AbstractHamiltonian`. Extend this method to define custom
+Represent the adjoint of an [`AbstractHamiltonian`](@ref). Extend this method to define custom
 adjoints.
 """
 function LinearAlgebra.adjoint(::S, op) where {S<:LOStructure}

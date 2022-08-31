@@ -2,7 +2,12 @@
 
 # This is an example calculation finding the ground state of
 # a 1D Bose-Hubbard chain with 6 particles in 6 lattice sites.
-# The Julia run-able script is in [`scripts/BHM-example.jl`](../../scripts/BHM-example.jl).
+
+# A runnable script for this example is located 
+# [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example.jl).
+# Run it with `julia BHM-example.jl`.
+
+# ## `BHM-example.jl`
 
 # Firstly, we load all needed modules.
 # `Rimu` for FCIQMC calculation;

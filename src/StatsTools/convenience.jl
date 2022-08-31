@@ -2,8 +2,10 @@
 
 """
     to_measurement(p::MonteCarloMeasurements.Particles) -> ::Measurements.measurement
-Convert an uncertain number from `MonteCarloMeasurements` to `Measurements` format using the median as the central
-point. The new `±` boundaries will include the 68% quantile around the median.
+Convert an uncertain number from [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl) 
+to [`Measurements`](https://github.com/JuliaPhysics/Measurements.jl) format 
+using the median as the central point. The new `±` boundaries will include 
+the 68% quantile around the median.
 """
 function to_measurement(p::MonteCarloMeasurements.Particles)
         q = pquantile(p, [0.16, 0.5, 0.84])
@@ -14,8 +16,9 @@ end
 """
     val(x)
 Return the best estimate value for an uncertain `x`. Defaults to the `median`
-for uncertain `x` represented by a (sampled) distribution. Supports `MonteCarloMeasurements`
-and `Measurements`.
+for uncertain `x` represented by a (sampled) distribution. Supports 
+[`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl)
+and [`Measurements`](https://github.com/JuliaPhysics/Measurements.jl).
 
 See [`errs`](@ref), [`BlockingResult`](@ref), [`RatioBlockingResult`](@ref).
 """
@@ -31,8 +34,10 @@ import Measurements: Measurement, uncertainty, value
 Return the median and the lower and upper error bar for the uncertain value `x` as a
 `NamedTuple`. This is useful for plotting scripts. The
 interval `[val - val_l, val + val_u]` represents the confidence interval at level `n*σ`,
-or at probability `p`. Setting `p` overrides `n`. Supports `MonteCarloMeasurements`
-and `Measurements`. The names in the `NamedTuple` can be changed with `name`.
+or at probability `p`. Setting `p` overrides `n`. Supports 
+[`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl)
+and [`Measurements`](https://github.com/JuliaPhysics/Measurements.jl). The 
+names in the `NamedTuple` can be changed with `name`.
 
 **Example:**
 ```jldoctest

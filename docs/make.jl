@@ -5,17 +5,17 @@ using Rimu.BitStringAddresses
 using Rimu.StatsTools
 using Literate
 
+EXAMPLES_INPUT = joinpath(@__DIR__, "../scripts")
 EXAMPLES_OUTPUT = joinpath(@__DIR__, "src/generated")
 
-Literate.markdown(
-    joinpath(@__DIR__, "../scripts/BHM-example.jl"), EXAMPLES_OUTPUT; documenter=true
-)
-Literate.markdown(
-    joinpath(@__DIR__, "../scripts/BHM-example-mpi.jl"), EXAMPLES_OUTPUT; documenter=true
-)
+for fn in filter(endswith(".jl"), readdir(EXAMPLES_INPUT))
+    Literate.markdown(
+        joinpath(EXAMPLES_INPUT, fn), EXAMPLES_OUTPUT; documenter=true
+    )
+end
 
 makedocs(;
-    modules=[Rimu,Rimu.ConsistentRNG],
+    modules=[Rimu,Rimu.ConsistentRNG,Rimu.RimuIO],
     format=Documenter.HTML(prettyurls = false),
     pages=[
         "Guide" => "index.md",
@@ -34,6 +34,7 @@ makedocs(;
             "Stochastic styles" => "stochasticstyles.md",
             "RMPI" => "RMPI.md",
             "Random Numbers" => "consistentrng.md",
+            "I/O" => "rimuio.md",
             "Documentation generation" => "documentation.md",
             "Code testing" => "testing.md",
         ],
@@ -41,6 +42,7 @@ makedocs(;
     ],
     sitename="Rimu.jl",
     authors="Joachim Brand <j.brand@massey.ac.nz>",
+    checkdocs=:exports,
     doctest=false # Doctests are done while testing.
 )
 
