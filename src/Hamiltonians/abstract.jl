@@ -223,7 +223,7 @@ function build_sparse_matrix_from_LO(
         end
     end
 
-    matrix = sparse(is, js, vs, length(adds), length(adds))
+    matrix = sparse(js, is, vs, length(adds), length(adds))
     if sort
         perm = sortperm(adds; kwargs...)
         return permute!(matrix, perm, perm), permute!(adds, perm)

@@ -549,29 +549,9 @@ end
     end
 
     @testset "adjoints" begin
-        ###
-        ### Define Hamiltonian from a matrix.
-        ###
-        struct MatrixHam{T} <: AbstractHamiltonian{T}
-            arr::Matrix{T}
-        end
-
-        Rimu.diagonal_element(m::MatrixHam, i) = m.arr[i, i]
-        Rimu.num_offdiagonals(m::MatrixHam, i) = size(m.arr, 1) - 1
-        function Rimu.get_offdiagonal(m::MatrixHam, i, j)
-            if j ≥ i # skip diagonal
-                j += 1
-            end
-            return j, m.arr[i, j]
-        end
-
-        Rimu.starting_address(::MatrixHam) = 1
-
-        LinearAlgebra.adjoint(m::MatrixHam) = MatrixHam(collect(m.arr'))
-        Hamiltonians.LOStructure(::Type{<:MatrixHam}) = AdjointKnown()
-        M = MatrixHam(rand(Complex{Float64}, (20, 20)))
-        @test Matrix(M) == M.arr
-        @test Matrix(M') == M.arr'
+        M = MatrixHamiltonian(rand(Complex{Float64}, (20, 20)))
+        @test Matrix(M; sort=true) == M.m
+        @test Matrix(M'; sort=true) == M.m'
 
         @testset "Gutzwiller adjoint" begin
             @test Matrix(GutzwillerSampling(M, 0.2)') == Matrix(GutzwillerSampling(M, 0.2))'
@@ -1053,7 +1033,7 @@ end
     addr2 = bsr.basis[2]
     @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
 
-    @test_throws ArgumentError BasisSetRep(ham; cutoff=20) # starting address cut off
+    @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
 
     mat_orig = Matrix(ham; sort=true)
     mat_cut_index = diag(mat_orig) .< 30
