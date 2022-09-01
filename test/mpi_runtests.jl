@@ -282,7 +282,7 @@ end
     end
 
     @testset "example script" begin
-        include("../scripts/BHM-example-mpi.jl")
+        include("../scripts/Ex3-BHM-mpi.jl")
         dfr = load_df("result.arrow")
         qmcdata = last(dfr, 5000)
         (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
