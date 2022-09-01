@@ -1,4 +1,4 @@
-# # Example: Two-body correlation function
+# # Example: Calculating observables
 
 # This is an example calculation of the two-body correlation function G_2.
 
@@ -110,7 +110,6 @@ println("Two-body correlator from $num_reps replicas:")
 for d in dvals
     r = rayleigh_replica_estimator(df; op_name = "Op$(d+1)", skip=steps_equilibrate)
     println("   G2($d) = $(@sprintf("%.3f", r.f)) ± $(@sprintf("%.3f", r.σ_f))")
-    # push!(dfg2, (; d, G2=r.f, err=r.σ_f))
 end
 
 # As expected, the onsite correlation at ``d=0`` is low since this is 
