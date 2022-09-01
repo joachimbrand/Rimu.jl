@@ -3,12 +3,10 @@
 # In this example, we will demonstrate using Rimu with MPI. 
 
 # A runnable script for this example is located 
-# [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example-mpi.jl). 
-# Run it with `mpirun julia BHM-example-mpi.jl`.
+# [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/Ex1-BHM-mpi.jl). 
+# Run it with `mpirun julia Ex1-BHM-mpi.jl`.
 
-# ## `BHM-example-mpi.jl`
-
-# We start by importing `Rimu` and `Rimu.RMPI`, which contains MPI-replated
+# We start by importing `Rimu` and `Rimu.RMPI`, which contains MPI-related
 # functionality.
 using Rimu
 using Rimu.RMPI
