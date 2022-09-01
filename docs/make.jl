@@ -7,11 +7,19 @@ using Literate
 
 EXAMPLES_INPUT = joinpath(@__DIR__, "../scripts")
 EXAMPLES_OUTPUT = joinpath(@__DIR__, "src/generated")
+EXAMPLES_PAIRS = Pair{String,String}[]
 
 for fn in filter(endswith(".jl"), readdir(EXAMPLES_INPUT))
-    Literate.markdown(
+    fnmd_full = Literate.markdown(
         joinpath(EXAMPLES_INPUT, fn), EXAMPLES_OUTPUT; documenter=true
     )
+    title = readchomp(pipeline(
+        `grep "Example:" $fnmd_full`,
+        `cut -d ':' -f 2`,
+        `xargs`
+    ))
+    fnmd = fn[1:end-2]*"md"
+    push!(EXAMPLES_PAIRS, title => joinpath("generated", fnmd))
 end
 
 makedocs(;
@@ -19,11 +27,7 @@ makedocs(;
     format=Documenter.HTML(prettyurls = false),
     pages=[
         "Guide" => "index.md",
-        "Examples" => [
-            "1D Bose-Hubbard Model" => "generated/BHM-example.md",
-            "Using MPI" => "generated/BHM-example-mpi.md",
-            "Observables: G_2" => "generated/G2-example.md",
-        ],
+        "Examples" => EXAMPLES_PAIRS,
         "User documentation" => [
             "StatsTools" => "statstools.md",
         ],
