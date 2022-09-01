@@ -718,6 +718,10 @@ end
 end
 
 @testset "Momentum" begin
+    @test momentum(FermiFS2C((1,0,0,0), (1,0,0,0)); fold=false) == -2
+    @test momentum(FermiFS2C((1,0,0,0), (1,0,0,0)); fold=true) == 2
+    @test momentum(FermiFS2C((1,0,0), (1,0,0)); fold=true) == 1
+
     @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) == 2
     @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) == 7
     @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) == -1
@@ -1016,34 +1020,58 @@ end
 end
 
 @testset "BasisSetRep" begin
-    m = 100
-    n = 100
-    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
-    ham = HubbardReal1D(addr)
-    @test_throws ArgumentError BasisSetRep(ham) # dimension too large
-    m = 2
-    n = 10
-    addr = near_uniform(BoseFS{n,m})
-    ham = HubbardReal1D(addr)
-    bsr = BasisSetRep(ham; nnzs = dimension(ham))
-    @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
-    @test_throws ArgumentError BasisSetRep(ham, BoseFS((1,2,3))) # wrong address type
-    @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
-    @test sparse(bsr) == bsr.sm == sparse(ham)
-    addr2 = bsr.basis[2]
-    @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+    @testset "basics" begin
+        m = 100
+        n = 100
+        addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
+        ham = HubbardReal1D(addr)
+        @test_throws ArgumentError BasisSetRep(ham) # dimension too large
+        m = 2
+        n = 10
+        addr = near_uniform(BoseFS{n,m})
+        ham = HubbardReal1D(addr)
+        bsr = BasisSetRep(ham; nnzs = dimension(ham))
+        @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
+        @test_throws ArgumentError BasisSetRep(ham, BoseFS((1,2,3))) # wrong address type
+        @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
+        @test sparse(bsr) == bsr.sm == sparse(ham)
+        addr2 = bsr.basis[2]
+        @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+    end
 
-    @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
+    @testset "filtering" begin
+        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
+        @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
+        mat_orig = Matrix(ham; sort=true)
+        mat_cut_index = diag(mat_orig) .< 30
+        mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
+        mat_cut = Matrix(ham; cutoff=30, sort=true)
+        @test mat_cut == mat_cut_manual
 
-    mat_orig = Matrix(ham; sort=true)
-    mat_cut_index = diag(mat_orig) .< 30
-    mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-    mat_cut = Matrix(ham; cutoff=30, sort=true)
-    @test mat_cut == mat_cut_manual
+        filterfun(fs) = maximum(onr(fs)) < 8
+        mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
+        mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
+        mat_cut = Matrix(ham; filter=filterfun, sort=true)
+        @test mat_cut == mat_cut_manual
+    end
 
-    filterfun(fs) = maximum(onr(fs)) < 8
-    mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
-    mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-    mat_cut = Matrix(ham; filter=filterfun, sort=true)
-    @test mat_cut == mat_cut_manual
+    @testset "momentum blocking" begin
+        add1 = BoseFS((2,0,0,0))
+        add2 = BoseFS((0,1,0,1))
+        ham = HubbardMom1D(add1)
+
+        @test momentum(add1; fold=true) == momentum(add2; fold=true)
+
+        @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
+        @test Matrix(ham, add1) ≠ Matrix(ham, add2)
+
+        add1 = BoseFS((2,0,0,0,0))
+        add2 = BoseFS((0,1,0,0,1))
+        ham = HubbardMom1D(add1)
+
+        @test momentum(add1; fold=true) == momentum(add2; fold=true)
+
+        @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
+        @test Matrix(ham, add1) ≠ Matrix(ham, add2)
+    end
 end
