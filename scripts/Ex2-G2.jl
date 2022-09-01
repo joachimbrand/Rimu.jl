@@ -104,6 +104,7 @@ println(filter(contains("Op"), names(df)))
 
 # We use the function `rayleigh_replica_estimator` to calculate the Rayleigh quotient 
 # using all replicas in `df`, returning a `RatioBlockingResult` using `MonteCarloMeasurements`.
+# Using the keyword `skip` will ignore the initial equilibration steps.
 
 # Now we can calculate the correlation function for each value of `d`
 println("Two-body correlator from $num_reps replicas:")
