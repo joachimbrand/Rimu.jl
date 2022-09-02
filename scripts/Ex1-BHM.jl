@@ -1,11 +1,11 @@
-# # Example: 1D Bose-Hubbard Model
+# # Example 1: 1D Bose-Hubbard Model
 
 # This is an example calculation finding the ground state of
 # a 1D Bose-Hubbard chain with 6 particles in 6 lattice sites.
 
 # A runnable script for this example is located 
-# [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/Ex1-BHM.jl).
-# Run it with `julia Ex1-BHM.jl`.
+# [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example.jl).
+# Run it with `julia BHM-example.jl`.
 
 # Firstly, we load all needed modules.
 # `Rimu` for FCIQMC calculation;
