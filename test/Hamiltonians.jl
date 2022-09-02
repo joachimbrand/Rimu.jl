@@ -196,6 +196,10 @@ end
             comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
         )
 
+        @test_throws ArgumentError HubbardRealSpace(
+            comp; geometry=PeriodicBoundaries(3,2), v=[1 1; 1 1; 1 1],
+        )
+
         @test_throws ArgumentError HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
 
         @test_logs (:warn,) HubbardRealSpace(FermiFS((1,0)), u=[2])
@@ -323,7 +327,12 @@ end
         )
         @test exact_energy(H4) < -9
     end
+    @testset "1D trap" begin
+        H1 = HubbardReal1DEP(BoseFS((1,2,3,4)); u=2, t=3, v_ho=4)
+        H2 = HubbardRealSpace(BoseFS((1,2,3,4)); u=[2], t=[3], v=[4])
 
+        @test exact_energy(H1) == exact_energy(H2)
+    end
     @testset "2D Fermions" begin
         @testset "2 × 2" begin
             p22 = PeriodicBoundaries(2, 2)
