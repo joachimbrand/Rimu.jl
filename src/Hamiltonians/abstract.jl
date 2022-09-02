@@ -156,7 +156,7 @@ not enabled by default.
 
 Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
 order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
-are passed on to `sortperm`.
+are passed on to `Base.sortperm`.
 
 See [`BasisSetRep`](@ref).
 """
@@ -233,12 +233,25 @@ function build_sparse_matrix_from_LO(
 end
 
 """
-    BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, nnzs = 0)
+    BasisSetRep(
+        h::AbstractHamiltonian, addr=starting_address(h);
+        sizelim=10^4, nnzs, cutoff, filter, sort, kwargs...
+    )
 
 Eagerly construct the basis set representation of the operator `h` with all addresses
 reachable from `addr`. An `ArgumentError` is thrown if `dimension(h) > sizelim` in order
 to prevent memory overflow. Set `sizelim = Inf` in order to disable this behaviour.
+
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
+The default estimates for `nnzs` is `dimension(ham)`.
+
+Providing an energy cutoff will skip the columns and rows with diagonal elements greater
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
+not enabled by default.
+
+Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
+order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
+are passed on to `Base.sortperm`.
 
 ## Fields
 * `sm`: sparse matrix representing `h` in the basis `basis`

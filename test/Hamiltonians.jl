@@ -718,17 +718,17 @@ end
 end
 
 @testset "Momentum" begin
-    @test momentum(FermiFS2C((1,0,0,0), (1,0,0,0)); fold=false) == -2
-    @test momentum(FermiFS2C((1,0,0,0), (1,0,0,0)); fold=true) == 2
-    @test momentum(FermiFS2C((1,0,0), (1,0,0)); fold=true) == 1
+    @test momentum(FermiFS2C((1,0,0,0), (1,0,0,0)); fold=false) ≡ -2
+    @test momentum(FermiFS2C((1,0,0,0), (1,0,0,0)); fold=true) ≡ 2
+    @test momentum(FermiFS2C((1,0,0), (1,0,0)); fold=true) ≡ 1
 
-    @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) == 2
-    @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) == 7
-    @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) == -1
+    @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) ≡ 2.0
+    @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) ≡ 7.0
+    @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) ≡ -1.0
     @test_throws MethodError diagonal_element(Momentum(2), BoseFS((0,1,0)))
 
     for add in (BoseFS2C((0,1,2,3,0), (1,2,3,4,5)), FermiFS2C((1,0,0,1), (0,0,1,0)))
-        @test diagonal_element(Momentum(1), add) + diagonal_element(Momentum(2), add) ==
+        @test diagonal_element(Momentum(1), add) + diagonal_element(Momentum(2), add) ≡
             diagonal_element(Momentum(0), add)
     end
 

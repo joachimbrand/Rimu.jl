@@ -36,14 +36,13 @@ end
 
 function momentum(add::SingleComponentFockAddress; fold=false)
     M = num_modes(add)
-    res = 0
-    for i in OccupiedModeMap(add)
-        res += (i.mode - cld(M, 2)) * i.occnum
+    res = sum(OccupiedModeMap(add)) do i
+        i.occnum * (i.mode - cld(M, 2))
     end
     if fold
-        return float(fold_mod(res, M))
+        return fold_mod(res, M)
     else
-        return float(res)
+        return res
     end
 end
 function momentum(add::CompositeFS; fold=false)
@@ -52,21 +51,33 @@ function momentum(add::CompositeFS; fold=false)
         momentum(fs; fold=false)
     end
     if fold
-        return float(fold_mod(res, M))
+        return fold_mod(res, M)
     else
-        return float(res)
+        return res
     end
 end
 
-diagonal_element(m::Momentum{0}, a::SingleComponentFockAddress) = momentum(a; fold=m.fold)
-diagonal_element(m::Momentum{1}, a::SingleComponentFockAddress) = momentum(a; fold=m.fold)
+function diagonal_element(m::Momentum{0}, a::SingleComponentFockAddress)
+    return float(momentum(a; fold=m.fold))
+end
+function diagonal_element(m::Momentum{1}, a::SingleComponentFockAddress)
+    return float(momentum(a; fold=m.fold))
+end
 
 # TODO: this is to be removed along with BoseFS2C
-diagonal_element(m::Momentum{0}, a::BoseFS2C) =
-    momentum(CompositeFS(a.bsa, a.bsb); fold=m.fold)
-diagonal_element(m::Momentum{1}, a::BoseFS2C) = momentum(a.bsa; fold=m.fold)
-diagonal_element(m::Momentum{2}, a::BoseFS2C) = momentum(a.bsb; fold=m.fold)
+function diagonal_element(m::Momentum{0}, a::BoseFS2C)
+    return float(momentum(CompositeFS(a.bsa, a.bsb); fold=m.fold))
+end
+function diagonal_element(m::Momentum{1}, a::BoseFS2C)
+    return float(momentum(a.bsa; fold=m.fold))
+end
+function diagonal_element(m::Momentum{2}, a::BoseFS2C)
+    return float(momentum(a.bsb; fold=m.fold))
+end
 
-diagonal_element(m::Momentum{0}, a::CompositeFS) = momentum(a; fold=m.fold)
-diagonal_element(m::Momentum{N}, a::CompositeFS) where {N} =
-    momentum(a.components[N]; fold=m.fold)
+function diagonal_element(m::Momentum{0}, a::CompositeFS)
+    return float(momentum(a; fold=m.fold))
+end
+function diagonal_element(m::Momentum{N}, a::CompositeFS) where {N}
+    return float(momentum(a.components[N]; fold=m.fold))
+end
