@@ -13,11 +13,7 @@ for fn in filter(endswith(".jl"), readdir(EXAMPLES_INPUT))
     fnmd_full = Literate.markdown(
         joinpath(EXAMPLES_INPUT, fn), EXAMPLES_OUTPUT; documenter=true
     )
-    title = readchomp(pipeline(
-        `grep "Example:" $fnmd_full`,
-        `cut -d ':' -f 2`,
-        `xargs`
-    ))
+    title = lstrip(split(filter(contains("Example:"), readlines(open(fnmd_full)))[1], ":")[2])
     fnmd = fn[1:end-2]*"md"
     push!(EXAMPLES_PAIRS, title => joinpath("generated", fnmd))
 end

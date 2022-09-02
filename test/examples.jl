@@ -1,6 +1,8 @@
 using Test
 using Rimu
 
+# Note: Tests for MPI scripts are in `mpi_runtests.jl`
+
 # Test specific scripts
 @testset "Ex1-BHM" begin
     include("../scripts/Ex1-BHM.jl")
