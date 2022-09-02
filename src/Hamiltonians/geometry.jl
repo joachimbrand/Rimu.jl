@@ -236,8 +236,8 @@ function LadderBoundaries(arg::Int, args::Vararg{Int}; subgeometry=PeriodicBound
     if arg ≠ 2
         throw(ArgumentError("First dimension must be of size 2"))
     end
-    D = num_dimensions(subgeometry) + 1
-    return LadderBoundaries{D}(subgeometry(args...))
+    D = length(args) + 1
+    return LadderBoundaries{D,subgeometry{D-1}}(subgeometry(args...))
 end
 
 Base.size(geom::LadderBoundaries) = (2, size(geom.subgeometry)...)
