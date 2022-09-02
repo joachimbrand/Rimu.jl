@@ -208,11 +208,11 @@ struct HubbardRealSpace{
 end
 
 function HubbardRealSpace(
-    address, geometry;
+    address;
+    geometry=PeriodicBoundaries((num_modes(address),)),
     u=ones(num_components(address), num_components(address)),
     t=ones(num_components(address)),
     v=zeros(num_components(address), num_dimensions(geometry))
-    # geometry=PeriodicBoundaries((num_modes(address),))
 )
     C = num_components(address)
     D = num_dimensions(geometry)
