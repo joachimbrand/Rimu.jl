@@ -11,6 +11,12 @@ EXAMPLES_FILES = filter(endswith(".jl"), readdir(EXAMPLES_INPUT))
 EXAMPLES_PAIRS = Pair{String,String}[]
 EXAMPLES_NUMS = Int[]
 
+"""
+    parse_header(filename)
+
+Extract the title and example number from an example `.jl` script `filename`.
+Assumes the header has format `# # Example N: Title`, else returns a default.
+"""
 function parse_header(filename::String)
     try
         header = split(filter(
