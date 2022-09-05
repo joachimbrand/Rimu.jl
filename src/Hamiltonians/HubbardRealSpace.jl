@@ -139,7 +139,7 @@ end
 
 Calculate potential energy of a multicomponent address.
 """
-function trap_potential(add::CompositeFS, pot::Vector{Array{Float64}})
+function trap_potential(add::CompositeFS, pot::Vector)
     pe = 0.
     for (i,c) in enumerate(add.components)
         pe += trap_potential(c, pot[i])
