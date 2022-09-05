@@ -114,12 +114,10 @@ It is implemented recursively to ensure type stability.
 end
 
 """
-    trap_potential(add::SingleComponentFockAddress, geom::LatticeGeometry, v::SVector)
+    trap_potential(add::SingleComponentFockAddress, pot::Array)
 
-Calculate potential energy of a single-component address `add` on `D` dimensional 
-lattice `geom`. The vector `v` holds the potential strengths for each dimension 
-of the lattice.
-
+Calculate trap potential energy of a single-component address `add`. The (precomputed) 
+potential energy per particle at each point in the lattice is given by the array `pot`.
 ```math
 V = \\sum_{d=1}^D \\sum_{i=1}^M V_d x_{i,d}^2 n_i,
 ```
@@ -128,24 +126,23 @@ where ``x = (x_1, ..., x_D)`` is the distance of site `i` to the centre of the t
 lattice.
 
 """
-function trap_potential(add::SingleComponentFockAddress, x_sq::SArray, v::SVector)
+function trap_potential(add::SingleComponentFockAddress, pot::Array)
     pe = 0.
-    all(iszero, v) && return pe
     for (n,i) in occupied_modes(add)
-        pe += n * sum(v .* x_sq[i])
+        pe += n * pot[i]
     end
     return pe
 end
 
 """
-    trap_potential(add::CompositeFS, geom::LatticeGeometry, v::SMatrix)
+    trap_potential(add::CompositeFS, geom::LatticeGeometry)
 
 Calculate potential energy of a multicomponent address.
 """
-function trap_potential(add::CompositeFS, x_sq::SArray, v::SMatrix)
-    pe = 0
+function trap_potential(add::CompositeFS, pot::Vector{Array{Float64}})
+    pe = 0.
     for (i,c) in enumerate(add.components)
-        pe += trap_potential(c, x_sq, v[i,:])
+        pe += trap_potential(c, pot[i])
     end
     return pe
 end
@@ -175,9 +172,14 @@ in `D`` dimensions.
 
 ## Geometries
 
+Implemented [`LatticeGeometry`](@ref)s for keyword `geometry`
+
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
 * [`LadderBoundaries`](@ref)
+
+Default is `geometry=PeriodicBoundaries(M,)`, i.e. a one-dimensional lattice with the 
+number of sites `M` inferred from the number of modes in `address`.
 
 ## Other parameters
 
@@ -197,13 +199,13 @@ struct HubbardRealSpace{
     T<:SVector{C,Float64},
     U<:SMatrix{C,C,Float64},
     V<:SMatrix{C,D,Float64},
-    X<:SArray{S,SVector{D}}
+    P<:Vector{Array{Float64,D}}
 } <: AbstractHamiltonian{Float64}
     address::A
     t::T # hopping strengths
     u::U # interactions    
     v::V # trap strengths
-    x_sq::X # squares of lattice positions
+    potential::P # potential energy of each component at each lattice site
     geometry::G
 end
 
@@ -240,13 +242,17 @@ function HubbardRealSpace(
     u_mat = SMatrix{C,C,Float64}(u)
     v_mat = SMatrix{C,D,Float64}(v)
 
+    # Precompute the trap potential terms
     ranges = Tuple([range(-fld(M,2); length=M) for M in S],)
     centre = -1 .* fld.(S,2)
     x_sq = map(x -> Tuple(x).^2, circshift(CartesianIndices(ranges), centre))
-    x_mat = SArray{Tuple{S...},SVector{D}}(x_sq)
+    pot_vec = Vector{Array{Float64,D}}(undef, C)
+    for c in 1:C
+        pot_vec[c] = map(x -> sum(v_mat[c,:] .* x), x_sq)
+    end
 
-    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,Tuple{S...},typeof(t_vec),typeof(u_mat),typeof(v_mat),typeof(x_mat)}(
-        address, t_vec, u_mat, v_mat, x_mat, geometry,
+    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,Tuple{S...},typeof(t_vec),typeof(u_mat),typeof(v_mat),typeof(pot_vec)}(
+        address, t_vec, u_mat, v_mat, pot_vec, geometry,
     )
 end
 
@@ -285,8 +291,8 @@ function Base.show(io::IO, h::HubbardRealSpace)
 end
 
 starting_address(h::HubbardRealSpace) = h.address
-diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u) + trap_potential(address, h.x_sq, h.v)
-diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1]) + trap_potential(address, h.x_sq, h.v[1,:])
+diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u) + trap_potential(address, h.potential)
+diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1]) + trap_potential(address, h.potential[1])
 
 ###
 ### Offdiagonals
