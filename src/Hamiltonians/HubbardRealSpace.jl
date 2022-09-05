@@ -135,9 +135,10 @@ function trap_potential(add::SingleComponentFockAddress, pot::Array)
 end
 
 """
-    trap_potential(add::CompositeFS, geom::LatticeGeometry)
+    trap_potential(add::CompositeFS, pot::Vector)
 
-Calculate potential energy of a multicomponent address.
+Calculate potential energy of a multicomponent address. Each element of `pot`
+is a precomputed `Array` of potential energy for that component at each lattice point.
 """
 function trap_potential(add::CompositeFS, pot::Vector)
     pe = 0.
@@ -291,8 +292,16 @@ function Base.show(io::IO, h::HubbardRealSpace)
 end
 
 starting_address(h::HubbardRealSpace) = h.address
-diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u) + trap_potential(address, h.potential)
-diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1]) + trap_potential(address, h.potential[1])
+function diagonal_element(h::HubbardRealSpace, address)
+    int = iszero(h.u) ? 0. : local_interaction(address, h.u)
+    pot = iszero(h.v) ? 0. : trap_potential(address, h.potential)
+    return int + pot
+end
+function diagonal_element(h::HubbardRealSpace{1}, address)
+    int = iszero(h.u[1]) ? 0. : local_interaction(address, h.u[1])
+    pot = iszero(h.v[1]) ? 0. : trap_potential(address, h.potential[1])
+    return int + pot
+end
 
 ###
 ### Offdiagonals
