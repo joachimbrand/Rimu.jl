@@ -12,7 +12,7 @@
 using Rimu
 using DataFrames
 
-# We use the same Hamiltonian as the previous examples,
+# We use the same Hamiltonian as the first example,
 # a Bose-Hubbard model with 6 particles in 6 sites, with
 # strong interactions (we expect a Mott insulating state).
 m = n = 6
@@ -22,8 +22,8 @@ H = HubbardReal1D(aIni; u = 6.0, t = 1.0)
 # Now we define the operators for the observables we wish to calculate
 dvals = 0:m-1
 G2list = ([G2RealCorrelator(d) for d in dvals]...,)
-# This is a tuple of `G2RealCorrelator`s, which are subtyped to 
-# `AbstractHamiltonian`, but with less functionality than a full Hamiltonian.
+# This is a tuple of [`G2RealCorrelator`](@ref)s, which are subtyped to 
+# [`AbstractHamiltonian`](@ref), but with less functionality than a full Hamiltonian.
 # It calculates the two-body correlation function on a lattice
 # ```math
 #     \hat{G}^{(2)}(d) = \frac{1}{M} \sum_i^M \hat{n}_i (\hat{n}_{i+d} - \delta_{0d}).
@@ -33,19 +33,22 @@ G2list = ([G2RealCorrelator(d) for d in dvals]...,)
 #     \sum_{d=0}^{M-1} \langle \hat{G}^{(2)}(d) \rangle = \frac{N (N-1)}{M}.
 # ```
 
-# Observables are calculated using the "replica trick" which runs independent 
-# copies of the model. We enable this by defining a `ReplicaStrategy`, in 
-# this case, `AllOverlaps`. At each timestep, in addition to calculating FCIQMC 
-# variables like the shift, this strategy calculates the overlaps of our operators 
-# with the wavefunction from each pair of replicas. 
+# Observables are calculated using the "replica trick" whereby several 
+# copies or "replicas" of the model are run simultaneously. We enable this by defining 
+# a [`ReplicaStrategy`](@ref). Each replica has its own state and FCIQMC is effectively 
+# performed independently on each one.
+# For calculating observables, we use [`AllOverlaps`](@ref) for the `ReplicaStrategy`. 
+# At each timestep, after the necessary FCIQMC variables are calculated for each replica,
+# (e.g. shift, norm etc.), this strategy calculates the overlaps of every operator with 
+# the wavefunctions from each pair of replicas. 
 num_reps = 3
 replica = AllOverlaps(num_reps; operator = G2list)
 
 # We need a reasonable number of timesteps to get good statistics, and we are running
-# multiple replicas, so we will only use a small number of walkers
+# multiple replicas, so we will only use a small number of walkers:
 steps_equilibrate = 1_000
 steps_measure = 5_000
-targetwalkers = 100
+targetwalkers = 100;
 
 # Other FCIQMC parameters and strategies are the same as before
 dτ = 0.001
@@ -84,9 +87,10 @@ println(filter(contains("Op"), names(df)))
 # The sum over all replica pairs (a,b), especially in the denominator, helps to avoid 
 # errors from poor sampling if the number of walkers is too low.
 
-# We use the function `rayleigh_replica_estimator` to calculate the Rayleigh quotient 
-# using all replicas in `df`, returning a `RatioBlockingResult` using `MonteCarloMeasurements`.
-# Using the keyword `skip` will ignore the initial equilibration steps.
+# We use the function [`rayleigh_replica_estimator`](@ref) 
+# to calculate the Rayleigh quotient using all replicas in `df`, returning a 
+# `RatioBlockingResult` using `MonteCarloMeasurements`. Using the keyword `skip` 
+# will ignore the initial equilibration steps.
 
 # Now we can calculate the correlation function for each value of `d`
 println("Two-body correlator from $num_reps replicas:")
