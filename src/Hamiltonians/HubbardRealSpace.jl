@@ -195,7 +195,7 @@ the strength of the trap for component `i` in the `j`th dimension.
 
 """
 struct HubbardRealSpace{
-    C,A,G,D,S, # C: components, S: size of lattice
+    C,A,G,D, # C: components
     # The following need to be type params.
     T<:SVector{C,Float64},
     U<:SMatrix{C,C,Float64},
@@ -252,7 +252,7 @@ function HubbardRealSpace(
         pot_vec[c] = map(x -> sum(v_mat[c,:] .* x), x_sq)
     end
 
-    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,Tuple{S...},typeof(t_vec),typeof(u_mat),typeof(v_mat),typeof(pot_vec)}(
+    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,typeof(t_vec),typeof(u_mat),typeof(v_mat),typeof(pot_vec)}(
         address, t_vec, u_mat, v_mat, pot_vec, geometry,
     )
 end
