@@ -291,6 +291,13 @@ function Base.show(io::IO, h::HubbardRealSpace)
     println(io, ")")
 end
 
+"""
+    ==(H::HubbardRealSpace, G::HubbardRealSpace)
+
+Overload equality due to stored potential energy arrays.
+"""
+Base.:(==)(H::HubbardRealSpace, G::HubbardRealSpace) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
+
 starting_address(h::HubbardRealSpace) = h.address
 function diagonal_element(h::HubbardRealSpace, address)
     int = iszero(h.u) ? 0. : local_interaction(address, h.u)
