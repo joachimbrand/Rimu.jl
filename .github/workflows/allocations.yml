@@ -8,7 +8,7 @@ on:
       - 'bugfix/**'
 
 jobs:
-  Allocations:
+  allocations:
     runs-on: ubuntu-latest
     strategy:
       matrix:

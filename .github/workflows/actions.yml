@@ -15,13 +15,13 @@ on:
       - feature/github-actions
 
 jobs:
-  testNewVersion:
+  test:
     runs-on: ${{ matrix.os }}
     # env:
     #   ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     strategy:
       matrix:
-        julia-version: [1.7]
+        julia-version: ['1', 'nightly']
         # julia-arch: [x64, x86]
         julia-arch: [x64]
         # os: [ubuntu-latest, windows-latest, macOS-latest]
