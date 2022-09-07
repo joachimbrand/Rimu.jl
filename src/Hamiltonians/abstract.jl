@@ -170,7 +170,7 @@ function build_sparse_matrix_from_LO(
     if !isnothing(filter) && !filter(address)
         throw(ArgumentError(string(
             "Starting address does not pass `filter`. ",
-            "Please pick adifferent address or a different filter."
+            "Please pick a different address or a different filter."
         )))
     end
     T = eltype(ham)
