@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Example 4: Exact diagonalisation · Rimu.jl</title><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.045/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.24/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../index.html"><img src="../assets/logo.png" alt="Rimu.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit"><a href="../index.html">Rimu.jl</a></span></div><form class="docs-search" action="../search.html"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../index.html">Guide</a></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="BHM-example.html">1D Bose-Hubbard Model</a></li><li><a class="tocitem" href="BHM-example-mpi.html">Using MPI</a></li></ul></li><li><span class="tocitem">User documentation</span><ul><li><a class="tocitem" href="../statstools.html">StatsTools</a></li></ul></li><li><span class="tocitem">Developer documentation</span><ul><li><a class="tocitem" href="../interfaces.html">Interfaces</a></li><li><a class="tocitem" href="../hamiltonians.html">Hamiltonians</a></li><li><a class="tocitem" href="../dictvectors.html">Dict vectors</a></li><li><a class="tocitem" href="../addresses.html">BitString addresses</a></li><li><a class="tocitem" href="../stochasticstyles.html">Stochastic styles</a></li><li><a class="tocitem" href="../RMPI.html">RMPI</a></li><li><a class="tocitem" href="../consistentrng.html">Random Numbers</a></li><li><a class="tocitem" href="../rimuio.html">I/O</a></li><li><a class="tocitem" href="../documentation.html">Documentation generation</a></li><li><a class="tocitem" href="../testing.html">Code testing</a></li></ul></li><li><a class="tocitem" href="../API.html">API</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href="exact-example.html">Example 4: Exact diagonalisation</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href="exact-example.html">Example 4: Exact diagonalisation</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/exact-example.jl" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Example-4:-Exact-diagonalisation"><a class="docs-heading-anchor" href="#Example-4:-Exact-diagonalisation">Example 4: Exact diagonalisation</a><a id="Example-4:-Exact-diagonalisation-1"></a><a class="docs-heading-anchor-permalink" href="#Example-4:-Exact-diagonalisation" title="Permalink"></a></h1><p>When working with smaller systems, or when multiple eigenvalues of a system are required, it&#39;s better to work with exact diagonalization method. There are a few ways to go about this, each with their pros and cons.</p><p>A runnable script for this example is located <a href="https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/exact-example.jl">here</a>. Run it with <code>julia exact-example.jl</code>.</p><p>We start by loading the required modules.</p><pre><code class="language- hljs">using Rimu
+using LinearAlgebra
+using Arpack
+using KrylovKit
+using Plots
+using LaTeXStrings</code></pre><p>Things to mention</p><ul><li>renormalization</li><li>real space -&gt; most sparse, mom space -&gt; less sparse, transcorrelated -&gt; least sparse</li><li>matrices block - smaller than dimension (except if using potential)</li><li>full matrices are fastest and give full spectra</li><li>arpack is good when you can construct a sparse matrix - krylovkit is alternative and may be faster</li><li>krylovkit is the recommended matrix-free method</li><li>deterministic fciqmc is not worth it</li></ul><h2 id="Preliminaries"><a class="docs-heading-anchor" href="#Preliminaries">Preliminaries</a><a id="Preliminaries-1"></a><a class="docs-heading-anchor-permalink" href="#Preliminaries" title="Permalink"></a></h2><p>In this example, we will look at a small example of three fermions in one dimension. To start, we define some convenience functions.</p><p>In Rimu, momentum Fock states is stored such that the zero momentum state has a particle in the middle of the address. Consider the following example:</p><pre><code class="language-julia hljs">#momentum(FermiFS((1, 0, 0)))
+#momentum(FermiFS((0, 1, 0)))
+#momentum(FermiFS((0, 0, 1)))</code></pre><p>Below is a function that constructs a fock state with total momentum 1 and <code>M</code> momentum modes.</p><pre><code class="language-julia hljs">function init_address(M)
+    return FermiFS2C(
+        [i == cld(M, 2) || i == cld(M, 2) + 1 ? 1 : 0 for i in 1:M],
+        [i == cld(M, 2) ? 1 : 0 for i in 1:M],
+    )
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">init_address (generic function with 1 method)</code></pre><p>The Hamiltonians in Rimu are dimensionless. We use the following function to convert the units to physical units (Q: physical units?). This function also handles renormalization, which can greatly improve convergence, as we&#39;ll see below.</p><pre><code class="language-julia hljs">function convert_units(g, M; renormalize=false)
+    if renormalize
+        g = g / (1 + g / (π^2 * M))
+    end
+    t = float(M^2/2)
+    u = float(t*2/M*g)
+    return (; u, t)
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">convert_units (generic function with 1 method)</code></pre><p>We know the energy of the three-fermion system for g = -10, so we save that in a constant.</p><pre><code class="language-julia hljs">const reference_energy = -15.151863462651115</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">-15.151863462651114</code></pre><p>We will be comparing a lattice model, a lattice-renormalized model and the transcorrelated model in this example. Note that the <code>dispersion=continuum_dispersion</code> argument passed to <code>HubbardMom1D</code> is there to get a quadratic dispersion - without it the dispersion of the Hamiltonian would be a cosine, which would introduce an offset in the energy. As a first step, we can create three Hamiltonians.</p><pre><code class="language-julia hljs">M = 5
+u, t = convert_units(-10, M)
+u_ren, _ = convert_units(-10, M, renormalize=true)
+address = init_address(M)
+lattice = HubbardMom1D(address; u, t, dispersion=continuum_dispersion)
+trcorr = Transcorrelated1D(address; v=u, t)
+renorm = HubbardMom1D(address; u=u_ren, t, dispersion=continuum_dispersion)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">HubbardMom1D(CompositeFS(
+  FermiFS{2,5}((0, 0, 1, 1, 0)),
+  FermiFS{1,5}((0, 0, 1, 0, 0)),
+); u=-62.70711904986703, t=12.5)</code></pre><h2 id="The-BasisSetRep"><a class="docs-heading-anchor" href="#The-BasisSetRep">The BasisSetRep</a><a id="The-BasisSetRep-1"></a><a class="docs-heading-anchor-permalink" href="#The-BasisSetRep" title="Permalink"></a></h2><p>In the first few examples, we will but they all use <code>BasisSetRep</code> under the hood. The <code>BasisSetRep</code>, when called with a Hamiltonian and optionally a starting address, constructs the sparse matrix of the system and its basis.</p><pre><code class="language-julia hljs">lattice_bsr = BasisSetRep(lattice)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">BasisSetRep(HubbardMom1D(CompositeFS(
+  FermiFS{2,5}((0, 0, 1, 1, 0)),
+  FermiFS{1,5}((0, 0, 1, 0, 0)),
+); u=-50.0, t=12.5)) with dimension 10 and 70 stored entries:10×10 SparseArrays.SparseMatrixCSC{Float64, Int64} with 70 stored entries:
+  -0.260791  -10.0    -10.0     …  -10.0       ⋅         ⋅        ⋅ 
+ -10.0       157.653  -10.0           ⋅     -10.0     -10.0       ⋅ 
+ -10.0       -10.0     39.2176        ⋅      10.0        ⋅     -10.0
+  10.0        10.0     10.0        -10.0       ⋅      -10.0    -10.0
+  10.0       -10.0       ⋅          10.0    -10.0     -10.0       ⋅ 
+  10.0          ⋅     -10.0     …   10.0     10.0        ⋅     -10.0
+ -10.0          ⋅        ⋅          78.696     ⋅      -10.0    -10.0
+    ⋅        -10.0     10.0           ⋅      98.4353  -10.0     10.0
+    ⋅        -10.0       ⋅         -10.0    -10.0     157.653  -10.0
+    ⋅           ⋅     -10.0        -10.0     10.0     -10.0     78.696</code></pre><p>To access the matrix or basis, access the <code>sm</code> and <code>basis</code> fields, respectively.</p><pre><code class="language-julia hljs">lattice_bsr.sm
+lattice_bsr.basis</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">10-element Vector{FermiFS2C{2, 1, 5, 3, FermiFS{2, 5, BitString{5, 1, UInt8}}, FermiFS{1, 5, BitString{5, 1, UInt8}}}}:
+ CompositeFS(
+  FermiFS{2,5}((0, 0, 1, 1, 0)),
+  FermiFS{1,5}((0, 0, 1, 0, 0)),
+)
+ CompositeFS(
+  FermiFS{2,5}((1, 0, 0, 1, 0)),
+  FermiFS{1,5}((0, 0, 0, 0, 1)),
+)
+ CompositeFS(
+  FermiFS{2,5}((0, 1, 0, 1, 0)),
+  FermiFS{1,5}((0, 0, 0, 1, 0)),
+)
+ CompositeFS(
+  FermiFS{2,5}((0, 0, 0, 1, 1)),
+  FermiFS{1,5}((1, 0, 0, 0, 0)),
+)
+ CompositeFS(
+  FermiFS{2,5}((1, 0, 1, 0, 0)),
+  FermiFS{1,5}((1, 0, 0, 0, 0)),
+)
+ CompositeFS(
+  FermiFS{2,5}((0, 1, 1, 0, 0)),
+  FermiFS{1,5}((0, 0, 0, 0, 1)),
+)
+ CompositeFS(
+  FermiFS{2,5}((0, 0, 1, 0, 1)),
+  FermiFS{1,5}((0, 1, 0, 0, 0)),
+)
+ CompositeFS(
+  FermiFS{2,5}((1, 1, 0, 0, 0)),
+  FermiFS{1,5}((0, 1, 0, 0, 0)),
+)
+ CompositeFS(
+  FermiFS{2,5}((1, 0, 0, 0, 1)),
+  FermiFS{1,5}((0, 0, 0, 1, 0)),
+)
+ CompositeFS(
+  FermiFS{2,5}((0, 1, 0, 0, 1)),
+  FermiFS{1,5}((0, 0, 1, 0, 0)),
+)</code></pre><p>When the basis is not needed, we can use <code>Matrix</code> or <code>sparse</code> directly.</p><pre><code class="language-julia hljs">Matrix(trcorr)
+sparse(renorm)</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">10×10 SparseArrays.SparseMatrixCSC{Float64, Int64} with 70 stored entries:
+  -5.34364  -12.5414  -12.5414   12.5414  …     ⋅         ⋅         ⋅ 
+ -12.5414   152.57    -12.5414   12.5414     -12.5414  -12.5414     ⋅ 
+ -12.5414   -12.5414   34.1348   12.5414      12.5414     ⋅      -12.5414
+  12.5414    12.5414   12.5414  152.57          ⋅      -12.5414  -12.5414
+  12.5414   -12.5414     ⋅         ⋅         -12.5414  -12.5414     ⋅ 
+  12.5414      ⋅      -12.5414     ⋅      …   12.5414     ⋅      -12.5414
+ -12.5414      ⋅         ⋅      -12.5414        ⋅      -12.5414  -12.5414
+    ⋅       -12.5414   12.5414     ⋅          93.3524  -12.5414   12.5414
+    ⋅       -12.5414     ⋅      -12.5414     -12.5414  152.57    -12.5414
+    ⋅          ⋅      -12.5414  -12.5414      12.5414  -12.5414   73.6132</code></pre><h2 id="Computing-eigenvalues"><a class="docs-heading-anchor" href="#Computing-eigenvalues">Computing eigenvalues</a><a id="Computing-eigenvalues-1"></a><a class="docs-heading-anchor-permalink" href="#Computing-eigenvalues" title="Permalink"></a></h2><p>Now that we have a way of constructing matrices from Hamiltonians, we can use standard Julia functionality to diagonalize them. To make the computation more interesting, we will use a different method to diagonalize each Hamiltonian at different values of M and compare the results.</p><p>For the first, we will use <code>LinearAlgebra</code>&#39;s <code>eigvals</code> function. This is only recommended for very small or dense Hamiltonians, where this tends to be the fastest method.</p><pre><code class="language-julia hljs">lattice_energies = map(5:2:20) do M
+    u, t = convert_units(-10, M)
+    address = init_address(M)
+    ham = HubbardMom1D(address; u, t, dispersion=continuum_dispersion)
+    eigvals(Matrix(ham))[1]
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">8-element Vector{Float64}:
+  -7.242671602188068
+  -8.935064392751235
+ -10.062514349429385
+ -10.852703559373179
+ -11.433911088553138
+ -11.878239729027882
+ -12.2284955198296
+ -12.511484414837092</code></pre><p>For the second, we will use <a href="https://github.com/JuliaLinearAlgebra/Arpack.jl"><code>Arpack.jl</code></a>.  Note that the <code>which=:SR</code> argument tells Arpack to find the eigenvalues with the smallest real part first. <code>nev</code> sets the number of eigenvalues to find. This is best used with moderately sized Hamiltonians.</p><pre><code class="language- hljs">trcorr_energies = map(5:2:20) do M
+    u, t = convert_units(-10, M)
+    address = init_address(M)
+    ham = Transcorrelated1D(address; v=u, t)
+    eigs(sparse(ham); which=:SR, nev=1)[1][1]
+end</code></pre><p>For the last method, we use the matrix-free method from <a href="https://github.com/Jutho/KrylovKit.jl/">KrylovKit.jl</a>. Note that KrylovKit has no way of knowing the Hamiltonian in question is symmetric. We mitigate that by passing it the <code>issymmetric=true</code> keyword argument. It is only recommended to use this method when the matrix is too large to store in memory.</p><pre><code class="language- hljs">renorm_energies = map(5:2:20) do M
+    u, t = convert_units(-10, M; renormalize=true)
+    address = init_address(M)
+    ham = HubbardMom1D(address; u, t, dispersion=continuum_dispersion)
+    vec = DVec(address =&gt; 1.0)
+    eigsolve(ham, vec, 1, :SR; issymmetric=true)[1][1]
+end</code></pre><p>Now that we have the energies, let&#39;s compare how close to the reference energy they get.</p><pre><code class="language- hljs">begin
+    p = plot(;
+        title=&quot;Convergence&quot;, xscale=:log10, yscale=:log10, legend=:bottomleft,
+        xlabel=L&quot;M&quot;, ylabel=L&quot;|E_0 - E_{\mathrm{ref}}|&quot;,
+    )
+    scatter!(p, 5:2:20, abs.(lattice_energies .- reference_energy); label=&quot;lattice&quot;)
+    scatter!(p, 5:2:20, abs.(trcorr_energies .- reference_energy); label=&quot;transcorrelated&quot;)
+    scatter!(p, 5:2:20, abs.(renorm_energies .- reference_energy); label=&quot;renormalized&quot;)
+    p
+end</code></pre><h2 id="Speeding-up-the-computations"><a class="docs-heading-anchor" href="#Speeding-up-the-computations">Speeding up the computations</a><a id="Speeding-up-the-computations-1"></a><a class="docs-heading-anchor-permalink" href="#Speeding-up-the-computations" title="Permalink"></a></h2><p>As these matrices tend to get large quickly, memory is usually the bottleneck.</p><p>There are currently two methods implemented to reduce the matrix size, <code>ParitySymmetry</code> and <code>TimeReversalSymmetry</code>. Keep in mind that you should only use these where the relevant symmetries actually apply - no checks are performed to make sure they do. To demonstrate them, let&#39;s use a Hamiltonian where both of these apply.</p><pre><code class="language-julia hljs">address = FermiFS2C((0,0,0,1,1,0,0), (0,0,1,1,0,0,0))
+ham = HubbardMom1DEP(address)
+
+mat_nosym = Matrix(ham)
+mat_par = Matrix(ParitySymmetry(ham))
+mat_tr = Matrix(TimeReversalSymmetry(ham))
+mat_both = Matrix(ParitySymmetry(TimeReversalSymmetry(ham)))
+
+begin
+println(&quot;Matrix size&quot;)
+println(&quot;none:          &quot;, size(mat_nosym))
+println(&quot;parity:        &quot;, size(mat_par))
+println(&quot;time reversal: &quot;, size(mat_tr))
+println(&quot;both:          &quot;, size(mat_both))
+println(&quot;Groundstate energy:&quot;)
+println(&quot;none:          &quot;, eigvals(mat_nosym)[1])
+println(&quot;parity:        &quot;, eigvals(mat_par)[1])
+println(&quot;time reversal: &quot;, eigvals(mat_tr)[1])
+println(&quot;both:          &quot;, eigvals(mat_both)[1])
+end</code></pre><pre class="documenter-example-output"><code class="nohighlight hljs ansi">Matrix size
+none:          (441, 441)
+parity:        (225, 225)
+time reversal: (231, 231)
+both:          (206, 206)
+Groundstate energy:
+none:          0.36609561300515736
+parity:        0.36609561300515986
+time reversal: 0.36609561300515026
+both:          0.3660956130051345 + 0.0im</code></pre><p>Note that both of these symmetry accept a keyword argument <code>even</code> which controls whether even or odd symmetry is applied. Both options must be used and eigenvalues combined if the full spectrum of the Hamiltonian is desired.</p><p>If diagonalisation time is a concern, use the <code>tol</code> keyword argument to <code>eigs</code> or <code>eigsolve</code>. Using drastically lower tolerances than default can still produce good results in practice. This, however, should be checked on a case-by-case basis.</p><h2 id="Computing-observables"><a class="docs-heading-anchor" href="#Computing-observables">Computing observables</a><a id="Computing-observables-1"></a><a class="docs-heading-anchor-permalink" href="#Computing-observables" title="Permalink"></a></h2><p>Since all operators in Rimu operate on <code>DVec</code>s, we need a way to convert the vectors coming from <code>eigen</code> or <code>eigs</code> to them. We can use <code>BasisSetRep.basis</code> to do that. As an example, let&#39;s look at the momentum density.</p><pre><code class="language- hljs">M = 19
+address = init_address(M)
+bsr = BasisSetRep(HubbardMom1D(
+    address; convert_units(-10, M)..., dispersion=continuum_dispersion
+))
+
+eigvec = eigs(sparse(bsr); nev=1, which=:SR)[2]
+dvec = DVec(zip(bsr.basis, eigvec))
+density_up = [dot(dvec, DensityMatrixDiagonal(i; component=1), dvec) for i in 1:M]
+density_dn = [dot(dvec, DensityMatrixDiagonal(i; component=2), dvec) for i in 1:M]
+
+begin
+    p = plot(; xlabel=L&quot;p&quot;, ylabel=L&quot;ρ&quot;) # (Q: rho?))
+    bar!(p, density_up; label=L&quot;↑&quot;)
+    bar!(p, density_dn; label=L&quot;↓&quot;)
+    p
+end</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Wednesday 7 September 2022 02:25">Wednesday 7 September 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
