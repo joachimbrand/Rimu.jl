@@ -8,7 +8,6 @@
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/exact-example.jl).
 # Run it with `julia exact-example.jl`.
 
-
 # We start by loading the required modules.
 
 using Rimu
@@ -17,6 +16,8 @@ using Arpack
 using KrylovKit
 using Plots
 using LaTeXStrings
+gr() # hide
+nothing # hide
 
 # Things to mention
 # * renormalization
@@ -49,6 +50,7 @@ function init_address(M)
         [i == cld(M, 2) ? 1 : 0 for i in 1:M],
     )
 end
+nothing # hide
 
 # The Hamiltonians in Rimu are dimensionless. We use the following function to convert the
 # units to physical units (Q: physical units?). This function also handles
@@ -62,6 +64,7 @@ function convert_units(g, M; renormalize=false)
     u = float(t*2/M*g)
     return (; u, t)
 end
+nothing # hide
 
 # We know the energy of the three-fermion system for g = -10, so we save that in a constant.
 
@@ -80,6 +83,7 @@ address = init_address(M)
 lattice = HubbardMom1D(address; u, t, dispersion=continuum_dispersion)
 trcorr = Transcorrelated1D(address; v=u, t)
 renorm = HubbardMom1D(address; u=u_ren, t, dispersion=continuum_dispersion)
+nothing # hide
 
 # ## The BasisSetRep
 
@@ -91,11 +95,17 @@ lattice_bsr = BasisSetRep(lattice)
 # To access the matrix or basis, access the `sm` and `basis` fields, respectively.
 
 lattice_bsr.sm
+
+#
+
 lattice_bsr.basis
 
 # When the basis is not needed, we can use `Matrix` or `sparse` directly.
 
 Matrix(trcorr)
+
+#
+
 sparse(renorm)
 
 # ## Computing eigenvalues
@@ -144,16 +154,13 @@ end
 
 # Now that we have the energies, let's compare how close to the reference energy they get.
 
-begin
-    p = plot(;
-        title="Convergence", xscale=:log10, yscale=:log10, legend=:bottomleft,
-        xlabel=L"M", ylabel=L"|E_0 - E_{\mathrm{ref}}|",
-    )
-    scatter!(p, 5:2:20, abs.(lattice_energies .- reference_energy); label="lattice")
-    scatter!(p, 5:2:20, abs.(trcorr_energies .- reference_energy); label="transcorrelated")
-    scatter!(p, 5:2:20, abs.(renorm_energies .- reference_energy); label="renormalized")
-    p
-end
+p = plot(;
+    title="Convergence", xscale=:log10, yscale=:log10, legend=:bottomleft,
+    xlabel=L"M", ylabel=L"|E_0 - E_{\mathrm{ref}}|",
+)
+scatter!(p, 5:2:20, abs.(lattice_energies .- reference_energy); label="lattice")
+scatter!(p, 5:2:20, abs.(trcorr_energies .- reference_energy); label="transcorrelated")
+scatter!(p, 5:2:20, abs.(renorm_energies .- reference_energy); label="renormalized")
 
 # ## Speeding up the computations
 
@@ -172,18 +179,16 @@ mat_par = Matrix(ParitySymmetry(ham))
 mat_tr = Matrix(TimeReversalSymmetry(ham))
 mat_both = Matrix(ParitySymmetry(TimeReversalSymmetry(ham)))
 
-begin
 println("Matrix size")
 println("none:          ", size(mat_nosym))
 println("parity:        ", size(mat_par))
 println("time reversal: ", size(mat_tr))
 println("both:          ", size(mat_both))
-println("Groundstate energy:")
+println("\nGroundstate energy:")
 println("none:          ", eigvals(mat_nosym)[1])
 println("parity:        ", eigvals(mat_par)[1])
 println("time reversal: ", eigvals(mat_tr)[1])
 println("both:          ", eigvals(mat_both)[1])
-end
 
 # Note that both of these symmetry accept a keyword argument `even` which controls whether
 # even or odd symmetry is applied. Both options must be used and eigenvalues combined if the
@@ -210,9 +215,6 @@ dvec = DVec(zip(bsr.basis, eigvec))
 density_up = [dot(dvec, DensityMatrixDiagonal(i; component=1), dvec) for i in 1:M]
 density_dn = [dot(dvec, DensityMatrixDiagonal(i; component=2), dvec) for i in 1:M]
 
-begin
-    p = plot(; xlabel=L"p", ylabel=L"ρ") # (Q: rho?))
-    bar!(p, density_up; label=L"↑")
-    bar!(p, density_dn; label=L"↓")
-    p
-end
+p = plot(; xlabel=L"p", ylabel=L"ρ") # (Q: rho?))
+bar!(p, density_up; label=L"↑")
+bar!(p, density_dn; label=L"↓")
