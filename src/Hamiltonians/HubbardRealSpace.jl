@@ -124,7 +124,6 @@ V = \\sum_{d=1}^D \\sum_{i=1}^M V_d x_{i,d}^2 n_i,
 where ``x = (x_1, ..., x_D)`` is the distance of site `i` to the centre of the trap and 
 `n_i` is the number of particles at site `i`. `M` is the total number of sites on the 
 lattice.
-
 """
 function trap_potential(add::SingleComponentFockAddress, pot::Array)
     pe = 0.
@@ -137,8 +136,9 @@ end
 """
     trap_potential(add::CompositeFS, pot::Vector)
 
-Calculate potential energy of a multicomponent address. Each element of `pot`
-is a precomputed `Array` of potential energy for that component at each lattice point.
+Calculate potential energy of a multicomponent address as the sum of the potential energy
+of each component. Each element of `pot` is a precomputed `Array` of potential energy for 
+that component at each lattice point.
 """
 function trap_potential(add::CompositeFS, pot::Vector)
     pe = 0.
