@@ -61,3 +61,4 @@ jobs:
         with:
           github-token: ${{ secrets.github_token }}
           path-to-lcov: ./lcov.info
+        if: ${{ matrix.julia-version == '1' }}
