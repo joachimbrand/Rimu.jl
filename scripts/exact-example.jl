@@ -1,8 +1,9 @@
 # # Example 4: Exact diagonalisation
 
 # When working with smaller systems, or when multiple eigenvalues of a system are required,
-# it's better to work with exact diagonalization method. There are a few ways to go about
-# this, each with their pros and cons.
+# it's better to work with an exact diagonalization method. There are a few ways to go about
+# this, each with their pros and cons. The purpose of this tutorial to show off the methods
+# as well as provide afew tips regarding them.
 
 # A runnable script for this example is located
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/exact-example.jl).
@@ -11,35 +12,21 @@
 # We start by loading the required modules.
 
 using Rimu
-using LinearAlgebra
-using Arpack
-using KrylovKit
+using LinearAlgebra # eigen, eigvals, and eigvecs
+using Arpack        # eigs
+using KrylovKit     # eigsolve
 using Plots
 using LaTeXStrings
 gr() # hide
 nothing # hide
 
-# Things to mention
-# * renormalization
-# * real space -> most sparse, mom space -> less sparse, transcorrelated -> least sparse
-# * matrices block - smaller than dimension (except if using potential)
-# * full matrices are fastest and give full spectra
-# * arpack is good when you can construct a sparse matrix - krylovkit is alternative and may
-#   be faster
-# * krylovkit is the recommended matrix-free method
-# * deterministic fciqmc is not worth it
-
 # ## Preliminaries
 
-# In this example, we will look at a small example of three fermions in one dimension. To
-# start, we define some convenience functions.
+# In this example, we will look at a small example, a three-fermion Hamiltonian in one
+# dimension, formulated in momentum space. To start, we define some convenience functions.
 
-# In Rimu, momentum Fock states is stored such that the zero momentum state has a particle
-# in the middle of the address. Consider the following example:
-
-#momentum(FermiFS((1, 0, 0)))
-#momentum(FermiFS((0, 1, 0)))
-#momentum(FermiFS((0, 0, 1)))
+# In Rimu, momentum Fock states are stored such that the zero momentum state has a particle
+# in the middle of the address.
 
 # Below is a function that constructs a fock state with total momentum 1 and `M` momentum
 # modes.
@@ -66,15 +53,16 @@ function convert_units(g, M; renormalize=false)
 end
 nothing # hide
 
-# We know the energy of the three-fermion system for g = -10, so we save that in a constant.
+# We know the energy of the this system with ``g = -10``, so we save that in a constant.
 
 const reference_energy = -15.151863462651115
+nothing # hide
 
 # We will be comparing a lattice model, a lattice-renormalized model and the transcorrelated
-# model in this example. Note that the `dispersion=continuum_dispersion` argument passed to
+# model. Note that the `dispersion=continuum_dispersion` argument passed to
 # `HubbardMom1D` is there to get a quadratic dispersion - without it the dispersion of the
 # Hamiltonian would be a cosine, which would introduce an offset in the energy. As a first
-# step, we can create three Hamiltonians.
+# step, we can create the three Hamiltonians with 5 modes.
 
 M = 5
 u, t = convert_units(-10, M)
@@ -87,8 +75,12 @@ nothing # hide
 
 # ## The BasisSetRep
 
-# In the first few examples, we will
-# but they all use `BasisSetRep` under the hood. The `BasisSetRep`, when called with a Hamiltonian and optionally a starting address, constructs the sparse matrix of the system and its basis.
+# As we'll see later, there are way to construct the matrices from Hamiltonians directly,
+# but they all use `BasisSetRep` under the hood. The `BasisSetRep`, when called with a
+# Hamiltonian and optionally a starting address, constructs the sparse matrix of the system
+# and its basis. The starting address defaults to the one that was used to initalize the
+# Hamiltonian. Note that `BasisSetRep` only returns the part of the matrix that is
+# accessible from this starting address through non-zero offdiagonal elements.
 
 lattice_bsr = BasisSetRep(lattice)
 
@@ -112,11 +104,12 @@ sparse(renorm)
 
 # Now that we have a way of constructing matrices from Hamiltonians, we can use standard
 # Julia functionality to diagonalize them. To make the computation more interesting, we
-# will use a different method to diagonalize each Hamiltonian at different values of M and
+# will use a different method to diagonalize each Hamiltonian at different values of `M` and
 # compare the results.
 
-# For the first, we will use `LinearAlgebra`'s `eigvals` function. This is only recommended
-# for very small or dense Hamiltonians, where this tends to be the fastest method.
+# For the first, we will use `LinearAlgebra`'s `eigvals` (also see `eigs` and `eigvecs`)
+# function. This is only recommended for very small or dense Hamiltonians. This tends
+# to be the fastest method, but storing the full matrix requires the most memory.
 
 lattice_energies = map(5:2:20) do M
     u, t = convert_units(-10, M)
@@ -129,7 +122,7 @@ end
 # [`Arpack.jl`](https://github.com/JuliaLinearAlgebra/Arpack.jl).  Note that the `which=:SR`
 # argument tells Arpack to find the eigenvalues with the smallest real part first. `nev`
 # sets the number of eigenvalues to find. This is best used with moderately sized
-# Hamiltonians.
+# Hamiltonians, where enough memory is available to build the matrix.
 
 trcorr_energies = map(5:2:20) do M
     u, t = convert_units(-10, M)
@@ -142,7 +135,9 @@ end
 # [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl/). Note that KrylovKit has no way of
 # knowing the Hamiltonian in question is symmetric. We mitigate that by passing it the
 # `issymmetric=true` keyword argument. It is only recommended to use this method when the
-# matrix is too large to store in memory.
+# matrix is too large to store in memory as it tends to be much slower than the others.
+# Another good option is to use KrylovKit on a sparse matrix. This can sometimes outperform
+# `eigs`.
 
 renorm_energies = map(5:2:20) do M
     u, t = convert_units(-10, M; renormalize=true)
@@ -169,7 +164,8 @@ scatter!(p, 5:2:20, abs.(renorm_energies .- reference_energy); label="renormaliz
 # There are currently two methods implemented to reduce the matrix size, `ParitySymmetry`
 # and `TimeReversalSymmetry`. Keep in mind that you should only use these where the relevant
 # symmetries actually apply - no checks are performed to make sure they do. To demonstrate
-# them, let's use a Hamiltonian where both of these apply.
+# them, let's use a Hamiltonian where both of these apply. Please consult the documentation
+# for a more in-depth description of these options.
 
 address = FermiFS2C((0,0,0,1,1,0,0), (0,0,1,1,0,0,0))
 ham = HubbardMom1DEP(address)
@@ -189,6 +185,9 @@ println("none:          ", eigvals(mat_nosym)[1])
 println("parity:        ", eigvals(mat_par)[1])
 println("time reversal: ", eigvals(mat_tr)[1])
 println("both:          ", eigvals(mat_both)[1])
+
+# We see that the ground state for all four options is the same, up to numerical erros,
+# while the dimension of the matrix is reduced by more than half.
 
 # Note that both of these symmetry accept a keyword argument `even` which controls whether
 # even or odd symmetry is applied. Both options must be used and eigenvalues combined if the
