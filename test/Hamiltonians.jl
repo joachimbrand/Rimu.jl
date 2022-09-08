@@ -718,10 +718,6 @@ end
 end
 
 @testset "Momentum" begin
-    @test momentum(FermiFS2C((1,0,0,0), (1,0,0,0)); fold=false) ≡ -2
-    @test momentum(FermiFS2C((1,0,0,0), (1,0,0,0)); fold=true) ≡ 2
-    @test momentum(FermiFS2C((1,0,0), (1,0,0)); fold=true) ≡ 1
-
     @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) ≡ 2.0
     @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) ≡ 7.0
     @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) ≡ -1.0
@@ -1060,16 +1056,12 @@ end
         add2 = BoseFS((0,1,0,1))
         ham = HubbardMom1D(add1)
 
-        @test momentum(add1; fold=true) == momentum(add2; fold=true)
-
         @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
         @test Matrix(ham, add1) ≠ Matrix(ham, add2)
 
         add1 = BoseFS((2,0,0,0,0))
         add2 = BoseFS((0,1,0,0,1))
         ham = HubbardMom1D(add1)
-
-        @test momentum(add1; fold=true) == momentum(add2; fold=true)
 
         @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
         @test Matrix(ham, add1) ≠ Matrix(ham, add2)

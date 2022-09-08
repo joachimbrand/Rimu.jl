@@ -29,55 +29,31 @@ Base.show(io::IO, mom::Momentum{C}) where {C} = print(io, "Momentum($C; fold=$(m
 LOStructure(::Type{<:Momentum}) = IsDiagonal()
 num_offdiagonals(ham::Momentum, add) = 0
 
-function fold_mod(m, M)
-    m = mod(m, M)
-    return m > M ÷ 2 ? m - M : m
-end
-
-function momentum(add::SingleComponentFockAddress; fold=false)
+@inline function _momentum(add::SingleComponentFockAddress, fold)
     M = num_modes(add)
-    res = sum(OccupiedModeMap(add)) do i
-        i.occnum * (i.mode - cld(M, 2))
-    end
+    momentum = float(dot(-cld(M,2)+1:fld(M,2), OccupiedModeMap(add)))
     if fold
-        return fold_mod(res, M)
+        return mod1(momentum + cld(M,2), M) - cld(M,2)
     else
-        return res
+        return momentum
     end
 end
-function momentum(add::CompositeFS; fold=false)
-    M = num_modes(add)
-    res = sum(add.components) do fs
-        momentum(fs; fold=false)
-    end
+@inline function _momentum(adds, fold)
+    M = num_modes(adds[1])
+    momentum = sum(a -> _momentum(a, false), adds)
     if fold
-        return fold_mod(res, M)
+        return mod1(momentum + cld(M,2), M) - cld(M,2)
     else
-        return res
+        return momentum
     end
 end
 
-function diagonal_element(m::Momentum{0}, a::SingleComponentFockAddress)
-    return float(momentum(a; fold=m.fold))
-end
-function diagonal_element(m::Momentum{1}, a::SingleComponentFockAddress)
-    return float(momentum(a; fold=m.fold))
-end
+diagonal_element(m::Momentum{0}, a::SingleComponentFockAddress) = _momentum(a, m.fold)
+diagonal_element(m::Momentum{1}, a::SingleComponentFockAddress) = _momentum(a, m.fold)
 
-# TODO: this is to be removed along with BoseFS2C
-function diagonal_element(m::Momentum{0}, a::BoseFS2C)
-    return float(momentum(CompositeFS(a.bsa, a.bsb); fold=m.fold))
-end
-function diagonal_element(m::Momentum{1}, a::BoseFS2C)
-    return float(momentum(a.bsa; fold=m.fold))
-end
-function diagonal_element(m::Momentum{2}, a::BoseFS2C)
-    return float(momentum(a.bsb; fold=m.fold))
-end
+diagonal_element(m::Momentum{0}, a::BoseFS2C) = _momentum((a.bsa, a.bsb), m.fold)
+diagonal_element(m::Momentum{1}, a::BoseFS2C) = _momentum(a.bsa, m.fold)
+diagonal_element(m::Momentum{2}, a::BoseFS2C) = _momentum(a.bsb, m.fold)
 
-function diagonal_element(m::Momentum{0}, a::CompositeFS)
-    return float(momentum(a; fold=m.fold))
-end
-function diagonal_element(m::Momentum{N}, a::CompositeFS) where {N}
-    return float(momentum(a.components[N]; fold=m.fold))
-end
+diagonal_element(m::Momentum{0}, a::CompositeFS) = _momentum(a.components, m.fold)
+diagonal_element(m::Momentum{N}, a::CompositeFS) where {N} = _momentum(a.components[N], m.fold)
