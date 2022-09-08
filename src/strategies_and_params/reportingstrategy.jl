@@ -19,12 +19,10 @@ function Base.show(io::IO, report::Report)
         end
     end
 end
-function Base.empty!(report::Report)
-    foreach(empty!, values(report.data))
-end
-function DataFrames.DataFrame(report::Report)
-    DataFrame(report.data; copycols=false)
-end
+
+Base.empty!(report::Report) = foreach(empty!, values(report.data))
+Base.isempty(report::Report) = all(isempty, values(report.data))
+DataFrames.DataFrame(report::Report) = DataFrame(report.data; copycols=false)
 
 const SymbolOrString = Union{Symbol,AbstractString}
 
@@ -129,7 +127,7 @@ end
 """
     report_after_step(::ReportingStrategy, step, report, state)
 
-This function is called at the very end of a step, after [`reporting_interval`](@ref) steps. 
+This function is called at the very end of a step, after [`reporting_interval`](@ref) steps.
 For example, it can be used to print some information to `stdout`.
 """
 function report_after_step(::ReportingStrategy, args...)
@@ -165,8 +163,8 @@ end
 """
     ReportDFAndInfo(; reporting_interval=1, info_interval=100, io=stdout, writeinfo=false) <: ReportingStrategy
 
-The default [`ReportingStrategy`](@ref). Report every `reporting_interval`th step to a `DataFrame` 
-and write info message to `io` every `info_interval`th reported step (unless `writeinfo == false`). The flag 
+The default [`ReportingStrategy`](@ref). Report every `reporting_interval`th step to a `DataFrame`
+and write info message to `io` every `info_interval`th reported step (unless `writeinfo == false`). The flag
 `writeinfo` is useful for controlling info messages in MPI codes, e.g. by setting
 `writeinfo = `[`is_mpi_root()`](@ref Rimu.RMPI.is_mpi_root).
 """
@@ -259,10 +257,12 @@ end
 function finalize_report!(s::ReportToFile, report)
     if s.save_if
         println(s.io, "Finalizing.")
-        if isfile(s.filename)
-            Arrow.append(s.filename, report.data)
-        else
-            Arrow.write(s.filename, report.data; file=false)
+        if !isempty(report)
+            if isfile(s.filename)
+                Arrow.append(s.filename, report.data)
+            else
+                Arrow.write(s.filename, report.data; file=false)
+            end
         end
         if s.return_df
             return DataFrame(Arrow.Table(s.filename))

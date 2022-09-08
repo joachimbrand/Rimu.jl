@@ -8,11 +8,11 @@ on:
       - 'bugfix/**'
 
 jobs:
-  Allocations:
+  allocations:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        julia-version: [1.7, 'nightly']
+        julia-version: [1, 'nightly']
         julia-arch: [x64]
 
     steps:
