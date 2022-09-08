@@ -4,13 +4,6 @@ using Logging
 
 # Note: Tests for MPI scripts are in `test/mpi_runtests.jl`
 
-@testset "Run without error" begin
-    for fn in readdir(joinpath(@__DIR__, "../scripts"), join=true)
-        contains(fn, "mpi") && continue
-        @test_logs min_level=Logging.Error include(fn)
-    end
-end
-
 # Test specific scripts
 @testset "BHM-example" begin
     include("../scripts/BHM-example.jl")
