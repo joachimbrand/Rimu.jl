@@ -29,7 +29,7 @@ function test_hamiltonian_interface(H)
         end
         @testset "diagonal_element" begin
             if eltype(H) <: Real
-                @test diagonal_element(H, addr) ≥ 0
+                @test diagonal_element(H, addr) isa Real
             else
                 @test norm(diagonal_element(H, addr)) ≥ 0
             end
@@ -96,6 +96,7 @@ end
         ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
         TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
         TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
+        Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
     )
         test_hamiltonian_interface(H)
     end
@@ -435,14 +436,14 @@ end
             end
         end
 
-        @testset "Gutzwiller observables" begin            
+        @testset "Gutzwiller observables" begin
             for H in (
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
-                # energy    
+                # energy
                 g = rand()
                 x = rand()
                 G = GutzwillerSampling(H, g)
@@ -455,7 +456,7 @@ end
                 Egutz = dot(dv, G, dv)/dot(dv, dv)
                 Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
                 @test Ebare ≈ Egutz ≈ Etrans
-                
+
                 # general operators
                 m = num_modes(add)
                 g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
@@ -484,7 +485,7 @@ end
             BoseFS{6,3}((2, 2, 2)) => 0.6004825560434165;
             capacity=100,
         )
-        @testset "GuidingVector transformation" begin            
+        @testset "GuidingVector transformation" begin
             @testset "With empty vector" begin
                 G = GuidingVectorSampling(H, empty(v), 0.2)
 
@@ -515,7 +516,7 @@ end
             end
         end
 
-        @testset "Guiding vector observables" begin            
+        @testset "Guiding vector observables" begin
             for H in (
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
@@ -534,7 +535,7 @@ end
                 Egutz = dot(dv, G, dv)/dot(dv, dv)
                 Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
                 @test Ebare ≈ Egutz ≈ Etrans
-                
+
                 # general operators
                 m = num_modes(add)
                 g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
@@ -1053,4 +1054,11 @@ end
     @test sparse(bsr) == bsr.sm == sparse(ham)
     addr2 = bsr.basis[2]
     @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+end
+
+@testset "Stoquastic" begin
+    ham = HubbardMom1D(BoseFS((0,5,0))) # a matrix that has a sign problem
+    sham = Stoquastic(ham) # sign problem removed, but smaller ground state eigenvalue
+    stoquastic_gap = eigvals(Matrix(ham))[1] - eigvals(Matrix(sham))[1]
+    @test stoquastic_gap > 0
 end
