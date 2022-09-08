@@ -112,4 +112,3 @@ for i in 1:num_reps
 end
 
 # Finished !
-println("Finished!")

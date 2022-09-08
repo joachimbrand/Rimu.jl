@@ -106,4 +106,3 @@ println("Energy from $steps_measure steps with $targetwalkers walkers:
          Projected Energy: $(v.val) ± ($(v.val_l), $(v.val_u))")
 
 # Finished !
-println("Finished!")
