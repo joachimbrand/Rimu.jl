@@ -1057,8 +1057,11 @@ end
 end
 
 @testset "Stoquastic" begin
-    ham = HubbardMom1D(BoseFS((0,5,0))) # a matrix that has a sign problem
+    ham = HubbardMom1D(BoseFS((0,5,0))) # a Hamiltonian that has a sign problem
     sham = Stoquastic(ham) # sign problem removed, but smaller ground state eigenvalue
     stoquastic_gap = eigvals(Matrix(ham))[1] - eigvals(Matrix(sham))[1]
     @test stoquastic_gap > 0
+    tc_ham = Transcorrelated1D(FermiFS2C((1,1,0),(1,0,1)))
+    @test LOStructure(Stoquastic(tc_ham)) == AdjointUnknown()
+    @test LOStructure(Stoquastic(G2RealCorrelator(2))) == IsDiagonal()
 end
