@@ -41,3 +41,8 @@ at (or near) the top of the script:
 # # Example N: Title
 ```
 where the number `N` and `Title` will be extracted automatically.
+
+Tests for the results and output of specific scripts should be added to `test/example.jl`. 
+
+Examples that require MPI functionality should have `mpi` in the filename, and tests for these 
+should instead be added to `test/mpi_runtests.jl`.
