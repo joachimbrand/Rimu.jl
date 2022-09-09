@@ -1,5 +1,5 @@
 """
-    Stoquastic(ham :> AbstractHamiltonian) :> AbstractHamiltonian
+    Stoquastic(ham <: AbstractHamiltonian) <: AbstractHamiltonian
 A wrapper for an [`AbstractHamiltonian`](@ref) that replaces all off-diagonal matrix
 elements `v` by `-abs(v)`, thus making the new Hamiltonian *stoquastic*.
 
