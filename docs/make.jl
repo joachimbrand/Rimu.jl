@@ -35,8 +35,8 @@ end
 for fn in EXAMPLES_FILES
     fnmd_full = Literate.markdown(
         joinpath(EXAMPLES_INPUT, fn), EXAMPLES_OUTPUT; 
-        documenter = true, execute = !contains(fn, "mpi")
-    )
+        documenter = true, execute = true
+        )
     ex_num, margintitle = parse_header(fnmd_full)
     push!(EXAMPLES_NUMS, ex_num)    
     fnmd = fn[1:end-2]*"md"     # full path does not work
@@ -76,3 +76,7 @@ deploydocs(
     repo = "github.com/joachimbrand/Rimu.jl.git",
     push_preview = true,
 )
+
+# cleanup
+foreach(fn -> rm(fn, force=true), filter(endswith(".arrow"), readdir(EXAMPLES_OUTPUT, join=true)))
+foreach(fn -> rm(fn, force=true), filter(endswith(".arrow"), readdir(joinpath(@__DIR__, "build/generated"), join=true)))
