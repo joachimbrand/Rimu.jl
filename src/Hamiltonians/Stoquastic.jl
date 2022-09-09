@@ -14,13 +14,8 @@ Stoquastic(h) = Stoquastic{eltype(h),typeof(h)}(h)
 
 starting_address(h::Stoquastic) = starting_address(h.hamiltonian)
 
-LOStructure(SH::Type{<:Stoquastic{<:Any,H}}) where {H} = _los_stoquastic(LOStructure(H), SH)
-
-_los_stoquastic(::IsHermitian, _) = IsHermitian()
-_los_stoquastic(::IsDiagonal, _) = IsDiagonal()
-_los_stoquastic(_, _) = AdjointUnknown()
-# Maybe implement AdjointKnown later?
-
+LOStructure(::Type{<:Stoquastic{<:Ant,H}}) where {H} = LOStructure(H)
+Base.adjoint(h::Stoquastic) = Stoquastic(h.hamiltonian')
 
 dimension(h::Stoquastic) = dimension(h.hamiltonian)
 num_offdiagonals(h::Stoquastic, add) = num_offdiagonals(h.hamiltonian, add)
