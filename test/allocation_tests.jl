@@ -47,9 +47,9 @@ using Test
         HubbardRealSpace(CompositeFS(f2, f2)),
         HubbardRealSpace(CompositeFS(f3, f3)),
 
-        HubbardReal1DEP(b1),
-        HubbardReal1DEP(b2),
-        HubbardReal1DEP(b3),
+        HubbardReal1DEP(b1; u=0.5, v_ho=0.5),
+        HubbardReal1DEP(b2; u=0.5, v_ho=0.5),
+        HubbardReal1DEP(b3; u=0.5, v_ho=0.5),
 
         HubbardMom1DEP(b1),
         HubbardMom1DEP(b2),
@@ -78,7 +78,7 @@ using Test
                     dτ = if num_modes(add) == 10
                         1e-4
                     elseif num_modes(add) == 50
-                        1e-4
+                        1e-5
                     else
                         1e-6
                     end
