@@ -139,64 +139,121 @@ julia> rayleigh_quotient(mom, v) # momentum expectation value for state vector `
 momentum
 
 """
-    sm, basis = build_sparse_matrix_from_LO(ham::AbstractHamiltonian, add; nnzs = 0)
+    sm, basis = build_sparse_matrix_from_LO(
+        ham, add; cutoff, filter=nothing, nnzs, sort=false, kwargs...
+    )
 
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
 starting from the address `add`. The vector `basis` contains the addresses of basis
 configurations.
+
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
+The default estimates for `nnzs` is `dimension(ham)`.
+
+Providing an energy cutoff will skip the columns and rows with diagonal elements greater
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
+not enabled by default.
+
+Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
+order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
+are passed on to `Base.sortperm`.
 
 See [`BasisSetRep`](@ref).
 """
 function build_sparse_matrix_from_LO(
-    ham::AbstractHamiltonian, fs=starting_address(ham); nnzs = 0
+    ham, address=starting_address(ham);
+    cutoff=nothing,
+    filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
+    nnzs=dimension(ham),
+    sort=false, kwargs...,
 )
-    adds = [fs] # list of addresses of length linear dimension of matrix
-    adds_dict = Dict(fs=>1) # dictionary for index lookup
-    I = Int[]         # row indices, length nnz
-    J = Int[]         # column indices, length nnz
-    V = eltype(ham)[] # values, length nnz
-    if nnzs > 0
-        sizehint!(I, nnzs)
-        sizehint!(J, nnzs)
-        sizehint!(V, nnzs)
+    if !isnothing(filter) && !filter(address)
+        throw(ArgumentError(string(
+            "Starting address does not pass `filter`. ",
+            "Please pick a different address or a different filter."
+        )))
     end
+    T = eltype(ham)
+    adds = [address]          # Queue of addresses. Also returned as the basis.
+    dict = Dict(address => 1) # Mapping from addresses to indices
+    col = Dict{Int,T}()       # Temporary column storage
+    sizehint!(col, num_offdiagonals(ham, address))
 
-    i = 0 # 1:dim, column of matrix
-    while true # loop over columns of the matrix
-        i += 1 # next column
-        i > length(adds) && break
-        add = adds[i] # new address from list
-        # compute and push diagonal matrix element
-        melem = diagonal_element(ham, add)
-        push!(I, i)
-        push!(J, i)
-        push!(V, melem)
-        for (nadd, melem) in offdiagonals(ham, add) # loop over rows
-            iszero(melem) && continue
-            j = get(adds_dict, nadd, nothing) # look up index; much faster than `findnext`
+    is = Int[] # row indices
+    js = Int[] # column indice
+    vs = T[]   # non-zero values
+
+    sizehint!(is, nnzs)
+    sizehint!(js, nnzs)
+    sizehint!(vs, nnzs)
+
+    i = 0
+    while i < length(adds)
+        i += 1
+        add = adds[i]
+        push!(is, i)
+        push!(js, i)
+        push!(vs, diagonal_element(ham, add))
+
+        empty!(col)
+        for (off, v) in offdiagonals(ham, add)
+            iszero(v) && continue
+            j = get(dict, off, nothing)
             if isnothing(j)
-                # new address: increase dimension of matrix by adding a row
-                push!(adds, nadd)
-                j = length(adds) # row index points to the new element in `adds`
-                adds_dict[nadd] = j
+                # Energy cutoff: remember skipped addresses, but avoid adding them to `adds`
+                if !isnothing(filter) && !filter(off)
+                    dict[off] = 0
+                    j = 0
+                else
+                    push!(adds, off)
+                    j = length(adds)
+                    dict[off] = j
+                end
             end
-            # new nonzero matrix element
-            push!(I, i)
-            push!(J, j)
-            push!(V, melem)
+            if !iszero(j)
+                col[j] = get(col, j, zero(T)) + v
+            end
+        end
+        # Copy the column into the sparse matrix vectors.
+        for (j, v) in col
+            iszero(v) && continue
+            push!(is, i)
+            push!(js, j)
+            push!(vs, v)
         end
     end
-    # when the index `(i,j)` occurs mutiple times in `I` and `J` the elements are added.
-    return sparse(I, J, V), adds
+
+    matrix = sparse(js, is, vs, length(adds), length(adds))
+    if sort
+        perm = sortperm(adds; kwargs...)
+        return permute!(matrix, perm, perm), permute!(adds, perm)
+    else
+        return matrix, adds
+    end
 end
 
 """
-    BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, nnzs = 0)
+    BasisSetRep(
+        h::AbstractHamiltonian, addr=starting_address(h);
+        sizelim=10^6, nnzs, cutoff, filter, sort, kwargs...
+    )
+
 Eagerly construct the basis set representation of the operator `h` with all addresses
-reachable from `addr`. An `ArgumentError` is thrown if `dimension(h) > sizelim` in order
-to prevent memory overflow. Set `sizelim = Inf` in order to disable this behaviour.
+reachable from `addr`.
+
+An `ArgumentError` is thrown if `dimension(h) > sizelim` in order to prevent memory
+overflow. Set `sizelim = Inf` in order to disable this behaviour.
+
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
+The default estimates for `nnzs` is `dimension(ham)`.
+
+Providing an energy cutoff will skip the columns and rows with diagonal elements greater
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
+not enabled by default.
+
+Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
+order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
+are passed on to `Base.sortperm`.
 
 ## Fields
 * `sm`: sparse matrix representing `h` in the basis `basis`
@@ -243,11 +300,11 @@ end
 
 function BasisSetRep(
     h::AbstractHamiltonian, addr=starting_address(h);
-    sizelim=10^4, nnzs = 0
+    sizelim=10^6, kwargs...
 )
     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
     check_address_type(h, addr)
-    sm, basis = build_sparse_matrix_from_LO(h, addr; nnzs)
+    sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
     return BasisSetRep(sm, basis, h)
 end
 
@@ -263,11 +320,11 @@ dimension(::Type{T}, bsr::BasisSetRep) where {T} = T(length(bsr.basis))
 
 
 """
-    sparse(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
+    sparse(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
     sparse(bsr::BasisSetRep)
-Return a sparse matrix representation of `h` or `bsr`. An `ArgumentError` is thrown if
-`dimension(h) > sizelim` in order to prevent memory overflow. Set `sizelim = Inf` in order
-to disable this behaviour.
+
+Return a sparse matrix representation of `h` or `bsr`. `kwargs` are passed to
+[`BasisSetRep`](@ref).
 
 See [`BasisSetRep`](@ref).
 """
@@ -277,37 +334,37 @@ end
 SparseArrays.sparse(bsr::BasisSetRep) = bsr.sm
 
 """
-    Matrix(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
+    Matrix(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, kwargs...)
     Matrix(bsr::BasisSetRep)
-Return a dense matrix representation of `h` or `bsr`. An `ArgumentError` is thrown if
-`dimension(h) > sizelim` in order to prevent memory overflow. Set `sizelim = Inf` in order
-to disable this behaviour.
+
+Return a dense matrix representation of `h` or `bsr`. `kwargs` are passed to
+[`BasisSetRep`](@ref).
 
 See [`BasisSetRep`](@ref).
 """
-function Base.Matrix(h::AbstractHamiltonian, args...; kwargs...)
-    return Matrix(BasisSetRep(h, args...; kwargs...))
+function Base.Matrix(h::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
+    return Matrix(BasisSetRep(h, args...; sizelim, kwargs...))
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
 """
     TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
 
-Type for creating a new operator for the purpose of calculating overlaps of transformed 
-vectors, which are defined by some transformation `transform`. The new operator should 
-represent the effect of undoing the transformation before calculating overlaps, including 
+Type for creating a new operator for the purpose of calculating overlaps of transformed
+vectors, which are defined by some transformation `transform`. The new operator should
+represent the effect of undoing the transformation before calculating overlaps, including
 with an optional operator `op`.
 
-Not exported; transformations should define all necessary methods and properties, 
-see [`AbstractHamiltonian`](@ref). An `ArgumentError` is thrown if used with an 
+Not exported; transformations should define all necessary methods and properties,
+see [`AbstractHamiltonian`](@ref). An `ArgumentError` is thrown if used with an
 unsupported transformation.
 
-# Example 
+# Example
 
-A similarity transform ``\\hat{G} = f \\hat{H} f^{-1}`` has eigenvector 
+A similarity transform ``\\hat{G} = f \\hat{H} f^{-1}`` has eigenvector
 ``d = f \\cdot c`` where ``c`` is an eigenvector of ``\\hat{H}``. Then the
-overlap ``c' \\cdot c = d' \\cdot f^{-2} \\cdot d`` can be computed by defining all 
-necessary methods for `TransformUndoer(G)` to represent the operator ``f^{-2}`` and 
+overlap ``c' \\cdot c = d' \\cdot f^{-2} \\cdot d`` can be computed by defining all
+necessary methods for `TransformUndoer(G)` to represent the operator ``f^{-2}`` and
 calculating `dot(d, TransformUndoer(G), d)`.
 
 Observables in the transformed basis can be computed by defining `TransformUndoer(G, A)`

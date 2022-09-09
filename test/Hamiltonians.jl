@@ -435,14 +435,14 @@ end
             end
         end
 
-        @testset "Gutzwiller observables" begin            
+        @testset "Gutzwiller observables" begin
             for H in (
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
-                # energy    
+                # energy
                 g = rand()
                 x = rand()
                 G = GutzwillerSampling(H, g)
@@ -455,7 +455,7 @@ end
                 Egutz = dot(dv, G, dv)/dot(dv, dv)
                 Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
                 @test Ebare ≈ Egutz ≈ Etrans
-                
+
                 # general operators
                 m = num_modes(add)
                 g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
@@ -484,7 +484,7 @@ end
             BoseFS{6,3}((2, 2, 2)) => 0.6004825560434165;
             capacity=100,
         )
-        @testset "GuidingVector transformation" begin            
+        @testset "GuidingVector transformation" begin
             @testset "With empty vector" begin
                 G = GuidingVectorSampling(H, empty(v), 0.2)
 
@@ -515,7 +515,7 @@ end
             end
         end
 
-        @testset "Guiding vector observables" begin            
+        @testset "Guiding vector observables" begin
             for H in (
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
@@ -534,7 +534,7 @@ end
                 Egutz = dot(dv, G, dv)/dot(dv, dv)
                 Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
                 @test Ebare ≈ Egutz ≈ Etrans
-                
+
                 # general operators
                 m = num_modes(add)
                 g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
@@ -549,33 +549,12 @@ end
     end
 
     @testset "adjoints" begin
-        ###
-        ### Define Hamiltonian from a matrix.
-        ###
-        struct MatrixHam{T} <: AbstractHamiltonian{T}
-            arr::Matrix{T}
-        end
-
-        Rimu.diagonal_element(m::MatrixHam, i) = m.arr[i, i]
-        Rimu.num_offdiagonals(m::MatrixHam, i) = size(m.arr, 1) - 1
-        function Rimu.get_offdiagonal(m::MatrixHam, i, j)
-            if j ≥ i # skip diagonal
-                j += 1
-            end
-            return j, m.arr[i, j]
-        end
-
-        Rimu.starting_address(::MatrixHam) = 1
-
-        LinearAlgebra.adjoint(m::MatrixHam) = MatrixHam(collect(m.arr'))
-        Hamiltonians.LOStructure(::Type{<:MatrixHam}) = AdjointKnown()
-        dm(h) = Hamiltonians.build_sparse_matrix_from_LO(h)[1] |> Matrix
-        M = MatrixHam(rand(Complex{Float64}, (20, 20)))
-        @test dm(M) == M.arr
-        @test dm(M') == M.arr'
+        M = MatrixHamiltonian(rand(Complex{Float64}, (20, 20)))
+        @test Matrix(M; sort=true) == M.m
+        @test Matrix(M'; sort=true) == M.m'
 
         @testset "Gutzwiller adjoint" begin
-            @test dm(GutzwillerSampling(M, 0.2)') == dm(GutzwillerSampling(M, 0.2))'
+            @test Matrix(GutzwillerSampling(M, 0.2)') == Matrix(GutzwillerSampling(M, 0.2))'
             @test LOStructure(GutzwillerSampling(M, 0.2)) isa AdjointKnown
             @test LOStructure(
                 GutzwillerSampling(HubbardReal1D(BoseFS((1,2)),t=0+2im), 0.2)
@@ -583,8 +562,8 @@ end
         end
         @testset "GuidingVector adjoint" begin
             v = DVec(starting_address(M) => 10; capacity=10)
-            @test dm(GuidingVectorSampling(M, v, 0.2)') ≈
-                dm(GuidingVectorSampling(M, v, 0.2))'
+            @test Matrix(GuidingVectorSampling(M, v, 0.2)') ≈
+                Matrix(GuidingVectorSampling(M, v, 0.2))'
             @test LOStructure(GuidingVectorSampling(M, v, 0.2)) isa AdjointKnown
             @test LOStructure(GuidingVectorSampling(
                 HubbardReal1D(BoseFS((1,2)),t=0+2im),
@@ -739,13 +718,13 @@ end
 end
 
 @testset "Momentum" begin
-    @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) == 2
-    @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) == 7
-    @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) == -1
+    @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) ≡ 2.0
+    @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) ≡ 7.0
+    @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) ≡ -1.0
     @test_throws MethodError diagonal_element(Momentum(2), BoseFS((0,1,0)))
 
     for add in (BoseFS2C((0,1,2,3,0), (1,2,3,4,5)), FermiFS2C((1,0,0,1), (0,0,1,0)))
-        @test diagonal_element(Momentum(1), add) + diagonal_element(Momentum(2), add) ==
+        @test diagonal_element(Momentum(1), add) + diagonal_element(Momentum(2), add) ≡
             diagonal_element(Momentum(0), add)
     end
 
@@ -1037,20 +1016,54 @@ end
 end
 
 @testset "BasisSetRep" begin
-    m = 100
-    n = 100
-    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
-    ham = HubbardReal1D(addr)
-    @test_throws ArgumentError BasisSetRep(ham) # dimension too large
-    m = 2
-    n = 10
-    addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
-    ham = HubbardReal1D(addr)
-    bsr = BasisSetRep(ham; nnzs = dimension(ham))
-    @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
-    @test_throws ArgumentError BasisSetRep(ham, BoseFS((1,2,3))) # wrong address type
-    @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
-    @test sparse(bsr) == bsr.sm == sparse(ham)
-    addr2 = bsr.basis[2]
-    @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+    @testset "basics" begin
+        m = 100
+        n = 100
+        addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
+        ham = HubbardReal1D(addr)
+        @test_throws ArgumentError BasisSetRep(ham) # dimension too large
+        m = 2
+        n = 10
+        addr = near_uniform(BoseFS{n,m})
+        ham = HubbardReal1D(addr)
+        bsr = BasisSetRep(ham; nnzs = dimension(ham))
+        @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
+        @test_throws ArgumentError BasisSetRep(ham, BoseFS((1,2,3))) # wrong address type
+        @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
+        @test sparse(bsr) == bsr.sm == sparse(ham)
+        addr2 = bsr.basis[2]
+        @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+    end
+
+    @testset "filtering" begin
+        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
+        @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
+        mat_orig = Matrix(ham; sort=true)
+        mat_cut_index = diag(mat_orig) .< 30
+        mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
+        mat_cut = Matrix(ham; cutoff=30, sort=true)
+        @test mat_cut == mat_cut_manual
+
+        filterfun(fs) = maximum(onr(fs)) < 8
+        mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
+        mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
+        mat_cut = Matrix(ham; filter=filterfun, sort=true)
+        @test mat_cut == mat_cut_manual
+    end
+
+    @testset "momentum blocking" begin
+        add1 = BoseFS((2,0,0,0))
+        add2 = BoseFS((0,1,0,1))
+        ham = HubbardMom1D(add1)
+
+        @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
+        @test Matrix(ham, add1) ≠ Matrix(ham, add2)
+
+        add1 = BoseFS((2,0,0,0,0))
+        add2 = BoseFS((0,1,0,0,1))
+        ham = HubbardMom1D(add1)
+
+        @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
+        @test Matrix(ham, add1) ≠ Matrix(ham, add2)
+    end
 end
