@@ -36,10 +36,10 @@ dvec = MPIData(DVec(address => 1.0; style=IsDynamicSemistochastic()))
 
 r_strat = ReportToFile(filename="result.arrow", save_if=is_mpi_root(), reporting_interval = 1, chunk_size=1000, io=devnull)
 
-# Now, we can set other parameters as usual. We will perform the computation with 5_000
+# Now, we can set other parameters as usual. We will perform the computation with 10_000
 # walkers. We will also compute the projected energy.
 
-s_strat = DoubleLogUpdate(targetwalkers=5_000)
+s_strat = DoubleLogUpdate(targetwalkers=10_000)
 post_step = ProjectedEnergy(hamiltonian, dvec)
 
  # The `@mpi_root` macro performs an action on the root rank only, which is useful for printing.
@@ -48,4 +48,4 @@ post_step = ProjectedEnergy(hamiltonian, dvec)
 
 # Finally, we can run the computation.
 
-lomc!(hamiltonian, dvec; r_strat, s_strat, post_step, dτ=1e-4, laststep=5_000);
+lomc!(hamiltonian, dvec; r_strat, s_strat, post_step, dτ=1e-4, laststep=10_000);
