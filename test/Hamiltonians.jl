@@ -29,7 +29,7 @@ function test_hamiltonian_interface(H)
         end
         @testset "diagonal_element" begin
             if eltype(H) <: Real
-                @test diagonal_element(H, addr) ≥ 0
+                @test diagonal_element(H, addr) isa Real
             else
                 @test norm(diagonal_element(H, addr)) ≥ 0
             end
@@ -96,6 +96,7 @@ end
         ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
         TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
         TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
+        Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
     )
         test_hamiltonian_interface(H)
     end
@@ -1066,4 +1067,14 @@ end
         @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
         @test Matrix(ham, add1) ≠ Matrix(ham, add2)
     end
+end
+
+@testset "Stoquastic" begin
+    ham = HubbardMom1D(BoseFS((0,5,0))) # a Hamiltonian that has a sign problem
+    sham = Stoquastic(ham) # sign problem removed, but smaller ground state eigenvalue
+    stoquastic_gap = eigvals(Matrix(ham))[1] - eigvals(Matrix(sham))[1]
+    @test stoquastic_gap > 0
+    tc_ham = Transcorrelated1D(FermiFS2C((1,1,0),(1,0,1)))
+    @test LOStructure(Stoquastic(tc_ham)) == AdjointUnknown()
+    @test LOStructure(Stoquastic(G2RealCorrelator(2))) == IsDiagonal()
 end

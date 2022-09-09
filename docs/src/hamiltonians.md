@@ -18,9 +18,9 @@ for the model, instantiate the model like this in the input file:
 hubb = HubbardReal1D(BoseFS((1,2,0,3)); u=1.0, t=1.0)
 ```
 
-The Hamiltonian `hubb` is now ready to be used for FCIQMC in [`lomc!`](@ref) 
-and for exact diagonalisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after 
-transforming into a sparse matrix first with 
+The Hamiltonian `hubb` is now ready to be used for FCIQMC in [`lomc!`](@ref)
+and for exact diagonalisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after
+transforming into a sparse matrix first with
 ```julia-repl
 using SparseArrays
 sh = sparse(hubb)
@@ -30,7 +30,7 @@ or into a full matrix with
 using LinearAlgebra
 fh = Matrix(hubb)
 ```
-This functionality relies on 
+This functionality relies on
 ```@docs
 Hamiltonians.BasisSetRep
 sparse
@@ -39,7 +39,7 @@ Matrix
 
 ## Model Hamiltonians
 
-Here is a list of fully implemented model Hamiltonians. There are several variants 
+Here is a list of fully implemented model Hamiltonians. There are several variants
 of the Hubbard model in real and momentum space, as well as some other models.
 
 ### Real space Hubbard models
@@ -75,17 +75,18 @@ shift_lattice_inv
 ```
 
 ## Hamiltonian wrappers
-The following Hamiltonians are constructed from an existing 
+The following Hamiltonians are constructed from an existing
 Hamiltonian instance and change its behaviour:
 ```@docs
 GutzwillerSampling
 GuidingVectorSampling
 ParitySymmetry
 TimeReversalSymmetry
+Stoquastic
 ```
 
 ## Observables
-Observables are [`AbstractHamiltonian`](@ref)s that represent a physical 
+Observables are [`AbstractHamiltonian`](@ref)s that represent a physical
 observable. Their ground state expectation values can be sampled by passing
 them into [`AllOverlaps`](@ref).
 ```@docs
