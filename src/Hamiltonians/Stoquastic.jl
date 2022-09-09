@@ -14,7 +14,7 @@ Stoquastic(h) = Stoquastic{eltype(h),typeof(h)}(h)
 
 starting_address(h::Stoquastic) = starting_address(h.hamiltonian)
 
-LOStructure(::Type{<:Stoquastic{<:Ant,H}}) where {H} = LOStructure(H)
+LOStructure(::Type{<:Stoquastic{<:Any,H}}) where {H} = LOStructure(H)
 Base.adjoint(h::Stoquastic) = Stoquastic(h.hamiltonian')
 
 dimension(h::Stoquastic) = dimension(h.hamiltonian)
