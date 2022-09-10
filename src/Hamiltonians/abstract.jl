@@ -19,11 +19,11 @@ Approximate formula for log of binomial coefficient. [Source](https://en.wikiped
 logbinomialapprox(n,k) = (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2π*k)
 
 """
-    dimension(::Type{T}, h)
+    dimension([::Type{T}], h)
 
-Return the dimension of Hilbert space as `T`. If the result does not fit into `T`, return
-`nothing`. If `T<:AbstractFloat`, an approximate value computed with the improved
-Stirling formula may be returned instead.
+Return the estimated dimension of Hilbert space as `T` (defaults to `Int`). If the result
+does not fit into `T`, return `nothing`. If `T<:AbstractFloat`, an approximate value
+computed with the improved Stirling formula may be returned instead.
 
 # Examples
 
