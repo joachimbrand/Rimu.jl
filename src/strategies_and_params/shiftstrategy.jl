@@ -217,27 +217,27 @@ end
 end
 
 """
-    DoubleLogProjected(; targetwalkers, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
+    DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ` after projecting onto `projector`.
 
 ```math
-S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{targetwalkers}}\\right)
+S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
 ```
 
 Note that adjusting the keyword `maxlength` in [`lomc!`](@ref) is advised as the
-default based on `targetwalkers` may not be appropriate.
+default may not be appropriate.
 
 See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
 struct DoubleLogProjected{T,P} <: ShiftStrategy
-    targetwalkers::T
+    target::T
     projector::P
     ζ::Float64 # damping parameter, best left at value of 0.08
     ξ::Float64 # restoring force to bring walker number to the target
 end
-function DoubleLogProjected(; targetwalkers, projector, ζ = 0.08, ξ = ζ^2/4)
-    return DoubleLogProjected(targetwalkers, freeze(projector), ζ, ξ)
+function DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4)
+    return DoubleLogProjected(target, freeze(projector), ζ, ξ)
 end
 
 @inline function update_shift(s::DoubleLogProjected,
@@ -246,6 +246,6 @@ end
     # return new shift and new shiftMode
     tp = s.projector⋅v_new
     pp = s.projector⋅v_old
-    new_shift = shift - s.ζ/dτ * log(tp/pp) - s.ξ/dτ * log(tp/s.targetwalkers)
+    new_shift = shift - s.ζ/dτ * log(tp/pp) - s.ξ/dτ * log(tp/s.target)
     return new_shift, true, tnorm, true
 end
