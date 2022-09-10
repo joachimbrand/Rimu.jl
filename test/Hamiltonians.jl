@@ -97,6 +97,7 @@ end
         TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
         TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
         Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
+        momentum(HubbardMom1D(BoseFS((0,5,0)))),
     )
         test_hamiltonian_interface(H)
     end
