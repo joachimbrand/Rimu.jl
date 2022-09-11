@@ -244,9 +244,8 @@ function HubbardRealSpace(
     v_mat = SMatrix{C,D,Float64}(v)
 
     # Precompute the trap potential terms
-    ranges = Tuple([range(-fld(M,2); length=M) for M in S],)
-    centre = -1 .* fld.(S,2)
-    x_sq = map(x -> Tuple(x).^2, circshift(CartesianIndices(ranges), centre))
+    ranges = Tuple([range(-fld(M,2)+1; length=M) for M in S],)
+    x_sq = map(x -> Tuple(x).^2, CartesianIndices(ranges))
     pot_vec = Vector{Array{Float64,D}}(undef, C)
     for c in 1:C
         pot_vec[c] = map(x -> sum(v_mat[c,:] .* x), x_sq)

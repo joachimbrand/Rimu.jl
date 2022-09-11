@@ -331,7 +331,7 @@ end
         H1 = HubbardReal1DEP(BoseFS((1,2,3,4)); u=2, t=3, v_ho=4)
         H2 = HubbardRealSpace(BoseFS((1,2,3,4)); u=[2], t=[3], v=[4])
 
-        @test exact_energy(H1) == exact_energy(H2)
+        @test exact_energy(H1) ≈ exact_energy(H2)
     end
     @testset "2D Fermions" begin
         @testset "2 × 2" begin
