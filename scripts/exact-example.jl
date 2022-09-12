@@ -33,9 +33,7 @@ nothing # hide
 
 function init_address(M)
     return FermiFS2C(
-        # Two particles, one in the middle, and one next to it on the right.
         [i == cld(M, 2) || i == cld(M, 2) + 1 ? 1 : 0 for i in 1:M],
-        # One particle in the middle.
         [i == cld(M, 2) ? 1 : 0 for i in 1:M],
     )
 end
