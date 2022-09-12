@@ -126,7 +126,7 @@ where ``x = (x_1, ..., x_D)`` is the distance of site `i` to the centre of the t
 lattice.
 """
 function trap_potential(add::SingleComponentFockAddress, pot::Array)
-    pe = 0.
+    pe = 0.0
     for (n,i) in occupied_modes(add)
         pe += n * pot[i]
     end
@@ -141,7 +141,7 @@ of each component. Each element of `pot` is a precomputed `Array` of potential e
 that component at each lattice point.
 """
 function trap_potential(add::CompositeFS, pot::Vector)
-    pe = 0.
+    pe = 0.0
     for (i,c) in enumerate(add.components)
         pe += trap_potential(c, pot[i])
     end
@@ -152,7 +152,7 @@ end
 ### HubbardRealSpace
 ###
 """
-    HubbardRealSpace(address; u=ones(C, C), t=ones(C), v=ones(C, D), geometry=PeriodicBoundaries(M,))
+    HubbardRealSpace(address; u=ones(C, C), t=ones(C), v=zeros(C, D), geometry=PeriodicBoundaries(M,))
 
 Hubbard model in real space. Supports single or multi-component Fock state
 addresses (with `C` components) and various (rectangular) lattice geometries
@@ -163,6 +163,12 @@ in `D` dimensions.
   \\frac{1}{2}\\sum_{i,σ} u_{σ,σ} n_{iσ} (n_{iσ} - 1) +
   \\frac{1}{2}\\sum_{i,σ≠τ}u_{σ,τ} n_{iσ} n_{iτ}
 ```
+
+If `v` is nonzero then this calculates ``\\hat{H}+\\hat{V}`` where
+```math
+    \\hat{V} = \\sum_{σ=1}^C \\sum_{d=1}^D \\sum_{i=1}^M v_{σ,d} x_{σ,i,d}^2 n_{iσ}
+```
+is the external harmonic trapping potential.
 
 ## Address types
 
@@ -244,7 +250,7 @@ function HubbardRealSpace(
     v_mat = SMatrix{C,D,Float64}(v)
 
     # Precompute the trap potential terms
-    ranges = Tuple([range(-fld(M,2); length=M) for M in S],)
+    ranges = Tuple(range(-fld(M,2); length=M) for M in S)
     x_sq = map(x -> Tuple(x).^2, CartesianIndices(ranges))
     pot_vec = Vector{Array{Float64,D}}(undef, C)
     for c in 1:C
@@ -289,11 +295,7 @@ function Base.show(io::IO, h::HubbardRealSpace)
     println(io, ")")
 end
 
-"""
-    ==(H::HubbardRealSpace, G::HubbardRealSpace)
-
-Overload equality due to stored potential energy arrays.
-"""
+# Overload equality due to stored potential energy arrays.
 Base.:(==)(H::HubbardRealSpace, G::HubbardRealSpace) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
 
 starting_address(h::HubbardRealSpace) = h.address
