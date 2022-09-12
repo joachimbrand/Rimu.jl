@@ -28,20 +28,23 @@ nothing # hide
 # In Rimu, momentum Fock states are stored such that the zero momentum state has a particle
 # in the middle of the address.
 
-# Below is a function that constructs a fock state with total momentum 1 and `M` momentum
+# Below is a function that constructs a fock state with total momentum 1 and ``M`` momentum
 # modes.
 
 function init_address(M)
     return FermiFS2C(
+        # Two particles, one in the middle, and one next to it on the right.
         [i == cld(M, 2) || i == cld(M, 2) + 1 ? 1 : 0 for i in 1:M],
+        # One particle in the middle.
         [i == cld(M, 2) ? 1 : 0 for i in 1:M],
     )
 end
 nothing # hide
 
 # The Hamiltonians in Rimu are dimensionless. We use the following function to convert the
-# units to physical units (Q: physical units?). This function also handles
-# renormalization, which can greatly improve convergence, as we'll see below.
+# units to physical units (``\frac{\hbar^2}{mL}``). This function also handles
+# renormalization, which can greatly improve convergence with increasing ``M``, as we'll see
+# below.
 
 function convert_units(g, M; renormalize=false)
     if renormalize
@@ -79,8 +82,8 @@ nothing # hide
 # but they all use `BasisSetRep` under the hood. The `BasisSetRep`, when called with a
 # Hamiltonian and optionally a starting address, constructs the sparse matrix of the system
 # and its basis. The starting address defaults to the one that was used to initalize the
-# Hamiltonian. Note that `BasisSetRep` only returns the part of the matrix that is
-# accessible from this starting address through non-zero offdiagonal elements.
+# Hamiltonian. `BasisSetRep` only returns the part of the matrix that is accessible from
+# this starting address through non-zero offdiagonal elements.
 
 lattice_bsr = BasisSetRep(lattice)
 
@@ -108,7 +111,7 @@ sparse(renorm)
 # compare the results.
 
 # For the first, we will use `LinearAlgebra`'s `eigvals` (also see `eigs` and `eigvecs`)
-# function. This is only recommended for very small or dense Hamiltonians. This tends
+# function. This is only recommended for very small or dense Hamiltonians. It tends
 # to be the fastest method, but storing the full matrix requires the most memory.
 
 lattice_energies = map(5:2:20) do M
@@ -124,11 +127,15 @@ end
 # sets the number of eigenvalues to find. This is best used with moderately sized
 # Hamiltonians, where enough memory is available to build the matrix.
 
+# The transcorrelated Hamiltonian is non-Hermitian, so its eigenvalues will be complex.
+# You should make sure their imaginary part is zero. If it's not, try increasing the
+# `cutoff` parameter.
+
 trcorr_energies = map(5:2:20) do M
     u, t = convert_units(-10, M)
     address = init_address(M)
     ham = Transcorrelated1D(address; v=u, t)
-    eigs(sparse(ham); which=:SR, nev=1)[1][1]
+    real.(eigs(sparse(ham); which=:SR, nev=1)[1][1])
 end
 
 # For the last method, we use the matrix-free method from
@@ -157,15 +164,21 @@ scatter!(p, 5:2:20, abs.(lattice_energies .- reference_energy); label="lattice")
 scatter!(p, 5:2:20, abs.(trcorr_energies .- reference_energy); label="transcorrelated")
 scatter!(p, 5:2:20, abs.(renorm_energies .- reference_energy); label="renormalized")
 
+# We can see that in this case, both lattice-renormalized and transcorrelated Hamiltonians
+# give good results even with modest values of ``M``. Since the values converge as a power
+# law, it's also possible to extrapolate the energies with a fitting package like
+# [LsqFit.jl](https://github.com/JuliaNLSolvers/LsqFit.jl). Keep in mind, however, that for
+# larger systems with very low ``M``, the convergence in both may not follow a power law.
+
 # ## Speeding up the computations
 
 # As these matrices tend to get large quickly, memory is usually the bottleneck.
 
 # There are currently two methods implemented to reduce the matrix size, `ParitySymmetry`
-# and `TimeReversalSymmetry`. Keep in mind that you should only use these where the relevant
-# symmetries actually apply - no checks are performed to make sure they do. To demonstrate
-# them, let's use a Hamiltonian where both of these apply. Please consult the documentation
-# for a more in-depth description of these options.
+# and `TimeReversalSymmetry`. You should only use these where the relevant symmetries
+# actually apply - no checks are performed to make sure they do. To demonstrate them, let's
+# use a Hamiltonian where both do apply. Please consult the documentation for a more
+# in-depth description of these options.
 
 address = FermiFS2C((0,0,0,1,1,0,0), (0,0,1,1,0,0,0))
 ham = HubbardMom1DEP(address)
@@ -189,9 +202,9 @@ println("both:          ", eigvals(mat_both)[1])
 # We see that the ground state for all four options is the same, up to numerical erros,
 # while the dimension of the matrix is reduced by more than half.
 
-# Note that both of these symmetry accept a keyword argument `even` which controls whether
-# even or odd symmetry is applied. Both options must be used and eigenvalues combined if the
-# full spectrum of the Hamiltonian is desired.
+# Note that both of these symmetries accept a keyword argument `even` which controls whether
+# even or odd symmetry is applied. If the full spectrum of the Hamiltonian is desired,
+# combine the eigenvalues obtained from using both options.
 
 # If diagonalisation time is a concern, use the `tol` keyword argument to `eigs` or
 # `eigsolve`. Using drastically lower tolerances than default can still produce good results
