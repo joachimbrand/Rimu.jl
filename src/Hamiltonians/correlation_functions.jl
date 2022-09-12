@@ -43,34 +43,36 @@ end
 
 LOStructure(::Type{<:G2RealCorrelator}) = IsDiagonal()
 
+function diagonal_element(::G2RealCorrelator{0}, add::SingleComponentFockAddress)
+    M = num_modes(add)
+    v = onr(add)
+    return dot(v, v .- 1) / M
+end
 function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress) where {D}
     M = num_modes(add)
     d = mod(D, M)
     v = onr(add)
-    if d == 0
-        return dot(v, v .- 1) / M
-    else
-        result = 0
-        for i in eachindex(v)
-            result += v[i] * v[mod1(i + d, M)]
-        end
-        return result / M
-    end    
+    result = 0
+    for i in eachindex(v)
+        result += v[i] * v[mod1(i + d, M)]
+    end
+    return result / M
 end
 
+function diagonal_element(::G2RealCorrelator{0}, add::CompositeFS)
+    M = num_modes(add)
+    v = sum(map(onr, add.components))
+    return dot(v, v .- 1) / M
+end
 function diagonal_element(::G2RealCorrelator{D}, add::CompositeFS) where {D}
     M = num_modes(add)
     d = mod(D, M)
     v = sum(map(onr, add.components))
-    if d == 0
-        return dot(v, v .- 1) / M
-    else
-        result = 0
-        for i in eachindex(v)
-            result += v[i] * v[mod1(i + d, M)]
-        end
-        return result / M
-    end    
+    result = 0
+    for i in eachindex(v)
+        result += v[i] * v[mod1(i + d, M)]
+    end
+    return result / M
 end
 
 num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0
