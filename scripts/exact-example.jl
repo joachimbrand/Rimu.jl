@@ -2,8 +2,8 @@
 
 # When working with smaller systems, or when multiple eigenvalues of a system are required,
 # it's better to work with an exact diagonalization method. There are a few ways to go about
-# this, each with their pros and cons. The purpose of this tutorial to show off the methods
-# as well as provide afew tips regarding them.
+# this, each with its pros and cons. The purpose of this tutorial is to show off the methods
+# as well as provide a few tips regarding them.
 
 # A runnable script for this example is located
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/exact-example.jl).
@@ -28,7 +28,7 @@ nothing # hide
 # In Rimu, momentum Fock states are stored such that the zero momentum state has a particle
 # in the middle of the address.
 
-# Below is a function that constructs a fock state with total momentum 1 and ``M`` momentum
+# Below is a function that constructs a Fock state with total momentum 1 and ``M`` momentum
 # modes.
 
 function init_address(M)
@@ -54,14 +54,14 @@ function convert_units(g, M; renormalize=false)
 end
 nothing # hide
 
-# We know the energy of the this system with ``g = -10``, so we save that in a constant.
+# We know the energy of this system with ``g = -10``, so we save that in a constant.
 
 const reference_energy = -15.151863462651115
 nothing # hide
 
 # We will be comparing a lattice model, a lattice-renormalized model and the transcorrelated
 # model. Note that the `dispersion=continuum_dispersion` argument passed to
-# `HubbardMom1D` is there to get a quadratic dispersion - without it the dispersion of the
+# `HubbardMom1D` is there to get a quadratic dispersion - without it, the dispersion of the
 # Hamiltonian would be a cosine, which would introduce an offset in the energy. As a first
 # step, we can create the three Hamiltonians with 5 modes.
 
@@ -76,11 +76,11 @@ nothing # hide
 
 # ## The BasisSetRep
 
-# As we'll see later, there are way to construct the matrices from Hamiltonians directly,
-# but they all use `BasisSetRep` under the hood. The `BasisSetRep`, when called with a
-# Hamiltonian and optionally a starting address, constructs the sparse matrix of the system
-# and its basis. The starting address defaults to the one that was used to initalize the
-# Hamiltonian. `BasisSetRep` only returns the part of the matrix that is accessible from
+# As we'll see later, there are two ways to construct the matrices from Hamiltonians
+# directly, but they both use `BasisSetRep` under the hood. The `BasisSetRep`, when called
+# with a Hamiltonian and optionally a starting address, constructs the sparse matrix of the
+# system and its basis. The starting address defaults to the one that was used to initialize
+# the Hamiltonian. `BasisSetRep` only returns the part of the matrix that is accessible from
 # this starting address through non-zero offdiagonal elements.
 
 lattice_bsr = BasisSetRep(lattice)
@@ -166,7 +166,7 @@ scatter!(p, 5:2:20, abs.(renorm_energies .- reference_energy); label="renormaliz
 # give good results even with modest values of ``M``. Since the values converge as a power
 # law, it's also possible to extrapolate the energies with a fitting package like
 # [LsqFit.jl](https://github.com/JuliaNLSolvers/LsqFit.jl). Keep in mind, however, that for
-# larger systems with very low ``M``, the convergence in both may not follow a power law.
+# larger systems with very low ``M``, the convergence may not follow a power law.
 
 # ## Speeding up the computations
 
@@ -197,7 +197,7 @@ println("parity:        ", eigvals(mat_par)[1])
 println("time reversal: ", eigvals(mat_tr)[1])
 println("both:          ", eigvals(mat_both)[1])
 
-# We see that the ground state for all four options is the same, up to numerical erros,
+# We see that the ground state for all four options is the same, up to numerical errors,
 # while the dimension of the matrix is reduced by more than half.
 
 # Note that both of these symmetries accept a keyword argument `even` which controls whether
