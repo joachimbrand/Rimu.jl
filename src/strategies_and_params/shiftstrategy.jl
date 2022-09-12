@@ -225,16 +225,20 @@ parameter `ζ` and `ξ` after projecting onto `projector`.
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
 ```
 
+Note that adjusting the keyword `maxlength` in [`lomc!`](@ref) is advised as the
+default may not be appropriate.
 
 See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
-struct DoubleLogProjected{P} <: ShiftStrategy
-    target::Float64
+struct DoubleLogProjected{T,P} <: ShiftStrategy
+    target::T
     projector::P
     ζ::Float64 # damping parameter, best left at value of 0.08
     ξ::Float64 # restoring force to bring walker number to the target
 end
-DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) = DoubleLogProjected(target, projector, ζ, ξ)
+function DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4)
+    return DoubleLogProjected(target, freeze(projector), ζ, ξ)
+end
 
 @inline function update_shift(s::DoubleLogProjected,
                         shift, shiftMode,
