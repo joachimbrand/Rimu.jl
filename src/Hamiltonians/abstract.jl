@@ -170,7 +170,7 @@ function build_sparse_matrix_from_LO(
     if !isnothing(filter) && !filter(address)
         throw(ArgumentError(string(
             "Starting address does not pass `filter`. ",
-            "Please pick adifferent address or a different filter."
+            "Please pick a different address or a different filter."
         )))
     end
     T = eltype(ham)
@@ -235,12 +235,14 @@ end
 """
     BasisSetRep(
         h::AbstractHamiltonian, addr=starting_address(h);
-        sizelim=10^4, nnzs, cutoff, filter, sort, kwargs...
+        sizelim=10^6, nnzs, cutoff, filter, sort, kwargs...
     )
 
 Eagerly construct the basis set representation of the operator `h` with all addresses
-reachable from `addr`. An `ArgumentError` is thrown if `dimension(h) > sizelim` in order
-to prevent memory overflow. Set `sizelim = Inf` in order to disable this behaviour.
+reachable from `addr`.
+
+An `ArgumentError` is thrown if `dimension(h) > sizelim` in order to prevent memory
+overflow. Set `sizelim = Inf` in order to disable this behaviour.
 
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 The default estimates for `nnzs` is `dimension(ham)`.
@@ -318,12 +320,11 @@ dimension(::Type{T}, bsr::BasisSetRep) where {T} = T(length(bsr.basis))
 
 
 """
-    sparse(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
+    sparse(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
     sparse(bsr::BasisSetRep)
 
-Return a sparse matrix representation of `h` or `bsr`. An `ArgumentError` is thrown if
-`dimension(h) > sizelim` in order to prevent memory overflow. Set `sizelim = Inf` in order
-to disable this behaviour.
+Return a sparse matrix representation of `h` or `bsr`. `kwargs` are passed to
+[`BasisSetRep`](@ref).
 
 See [`BasisSetRep`](@ref).
 """
@@ -333,12 +334,11 @@ end
 SparseArrays.sparse(bsr::BasisSetRep) = bsr.sm
 
 """
-    Matrix(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4)
+    Matrix(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, kwargs...)
     Matrix(bsr::BasisSetRep)
 
-Return a dense matrix representation of `h` or `bsr`. An `ArgumentError` is thrown if
-`dimension(h) > sizelim` in order to prevent memory overflow. Set `sizelim = Inf` in order
-to disable this behaviour.
+Return a dense matrix representation of `h` or `bsr`. `kwargs` are passed to
+[`BasisSetRep`](@ref).
 
 See [`BasisSetRep`](@ref).
 """

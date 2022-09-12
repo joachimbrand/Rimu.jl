@@ -235,7 +235,7 @@ julia> dot(mf, mb)
 julia> dot(mf, 1:20)
 17
 ```
-See also [`dot`](@ref), [`SingleComponentFockAddress`](@ref).
+See also [`dot`](@ref Main.Hamiltonians.dot), [`SingleComponentFockAddress`](@ref).
 """
 struct OccupiedModeMap{N,T} <: AbstractVector{T}
     indices::SVector{N,T} # N = min(N, M)

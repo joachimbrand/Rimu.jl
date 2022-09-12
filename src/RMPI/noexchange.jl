@@ -14,7 +14,7 @@ end
 
 """
     MPINoWalkerExchange(nprocs, my_rank, comm)
-Strategy for for not exchanging walkers between ranks. Consequently there
+Strategy for not exchanging walkers between ranks. Consequently there
 will be no cross-rank annihilations.
 """
 struct MPINoWalkerExchange <: DistributeStrategy

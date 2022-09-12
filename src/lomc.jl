@@ -11,7 +11,7 @@ Can be advanced a step forward with [`advance!`](@ref).
 * `v`: vector.
 * `w`: working memory.
 * `pnorm`: previous walker number (see [`walkernumber`](@ref)).
-* `params`: the [`FCIQMCRunStrategy`](@ref).
+* `params`: the [`FciqmcRunStrategy`](@ref).
 * `id`: appended to reported columns.
 
 See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),

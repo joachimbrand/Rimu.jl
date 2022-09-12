@@ -98,6 +98,12 @@ Correlation within a single component:
 ```math
 \\hat{G}^{(2)}(d) = \\frac{1}{M}\\sum_{spqr=1}^M e^{-id(p-q)2π/M} a^†_{s} a^†_{p}  a_q a_r δ_{s+p,q+r}
 ```
+
+The diagonal element, where `(p-q)=0`, is
+```math
+\\frac{1}{M}\\sum_{k,p=1}^M a^†_{k} b^†_{p}  b_p a_k .
+```
+
 # Arguments
 - `d::Integer`: the distance between two particles.
 - `c`: possible instructions: `:cross`: default instruction, computing correlation between particles across two components;
@@ -164,18 +170,6 @@ function num_offdiagonals(g::G2MomCorrelator, add::BoseFS)
     return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
 end
 
-"""
-    diagonal_element(g::G2MomCorrelator, add::BoseFS2C{NA,NB,M,AA,AB})
-
-The diagonal element in [`G2MomCorrelator`](@ref), where `(p-q)=0`, hence
-it becomes
-```math
-\\frac{1}{M}\\sum_{k,p=1}^M a^†_{k} b^†_{p}  b_p a_k .
-```
-# See also
-
-* [`G2MomCorrelator`](@ref)
-"""
 diagonal_element(g::G2MomCorrelator{1}, add::BoseFS2C) = diagonal_element(g, add.bsa)
 diagonal_element(g::G2MomCorrelator{2}, add::BoseFS2C) = diagonal_element(g, add.bsb)
 

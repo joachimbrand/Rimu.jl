@@ -1,16 +1,15 @@
 """
 This module provides concrete implementations of [`StochasticStyle`](@ref)s, which
-specify the algorithm used by [`lomc!`](@ref) when
+specify the algorithm used by [`lomc!`](@ref Main.lomc!) when
 performing stochastic matrix-vector multiplication.
 
-# Stochastic styles:
+# Implemented stochastic styles:
 
 * [`StochasticStyle`](@ref)
 * [`IsStochasticInteger`](@ref)
 * [`IsDeterministic`](@ref)
 * [`IsStochasticWithThreshold`](@ref)
 * [`IsDynamicSemistochastic`](@ref)
-* [`IsExplosive`](@ref)
 * [`StyleUnknown`](@ref)
 
 The offdiagonal spawning is defined in `spawning.jl` and is controlled by setting a

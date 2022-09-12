@@ -280,15 +280,8 @@ end
     @test default_logger() isa Logging.ConsoleLogger
 end
 
-@testset "example script" begin
-    include("../scripts/BHM-example.jl")
-    dfr = load_df("fciqmcdata.arrow")
-    qmcdata = last(dfr,steps_measure)
-    (qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift)
-    @test qmcShift ≈ -4.171133393316872 rtol=0.01
-
-    # clean up
-    rm("fciqmcdata.arrow", force=true)
+@safetestset "Examples" begin
+    include("examples.jl")
 end
 
 @safetestset "doctests" begin

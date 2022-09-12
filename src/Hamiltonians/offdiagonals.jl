@@ -5,15 +5,15 @@
 """
     AbstractOffdiagonals{A,T}<:AbstractVector{Tuple{A,T}}
 
-Iterator over new address and matrix element for reachable off-diagonal matrix elements of a
+Iterator over new address and matrix elements for reachable off-diagonal matrix elements of a
 linear operator.
 
 See [`Offdiagonals`](@ref) for a default implementation.
 
 # Methods to define
 
-* [`offdiagonals(h, a)::AbstractOffdiagonals`](@ref): This function is used to construct the
-  correct type of offdiagonals for a given combination of hamiltonian `h` and fock address
+* [`offdiagonals(h, a)::AbstractOffdiagonals`](@ref offdiagonals): This function is used to construct the
+  correct type of offdiagonals for a given combination of Hamiltonian `h` and Fock address
   `a`.
 * `Base.getindex(::AbstractOffdiagonals, i)`: should be equivalent to
   `get_offdiagonal(h, a, i)`.

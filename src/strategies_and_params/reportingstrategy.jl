@@ -19,12 +19,10 @@ function Base.show(io::IO, report::Report)
         end
     end
 end
-function Base.empty!(report::Report)
-    foreach(empty!, values(report.data))
-end
-function DataFrames.DataFrame(report::Report)
-    DataFrame(report.data; copycols=false)
-end
+
+Base.empty!(report::Report) = foreach(empty!, values(report.data))
+Base.isempty(report::Report) = all(isempty, values(report.data))
+DataFrames.DataFrame(report::Report) = DataFrame(report.data; copycols=false)
 
 const SymbolOrString = Union{Symbol,AbstractString}
 
@@ -129,7 +127,7 @@ end
 """
     report_after_step(::ReportingStrategy, step, report, state)
 
-This function is called at the very end of a step, after `reporting_interval`(@ref) steps. 
+This function is called at the very end of a step, after [`reporting_interval`](@ref) steps.
 For example, it can be used to print some information to `stdout`.
 """
 function report_after_step(::ReportingStrategy, args...)
@@ -165,10 +163,10 @@ end
 """
     ReportDFAndInfo(; reporting_interval=1, info_interval=100, io=stdout, writeinfo=false) <: ReportingStrategy
 
-The default [`ReportingStrategy`](@ref). Report every `reporting_interval`th step to a `DataFrame` 
-and write info message to `io` every `info_interval`th reported step (unless `writeinfo == false`). The flag 
+The default [`ReportingStrategy`](@ref). Report every `reporting_interval`th step to a `DataFrame`
+and write info message to `io` every `info_interval`th reported step (unless `writeinfo == false`). The flag
 `writeinfo` is useful for controlling info messages in MPI codes, e.g. by setting
-`writeinfo =`[`is_mpi_root()`](@ref).
+`writeinfo = `[`is_mpi_root()`](@ref Rimu.RMPI.is_mpi_root).
 """
 @with_kw struct ReportDFAndInfo <: ReportingStrategy
     reporting_interval::Int = 1
@@ -201,7 +199,7 @@ jobs or large numbers of replicas, when the report can incur a significant memor
 * `chunk_size = 1000`: the size of each chunk that is written to the file. A `DataFrame` of
   this size is collected in memory and written to disk. When saving, an info message is also
   printed to `io`.
-* `save_if =`[`is_mpi_root()`](@ref): if this value is true, save the report, otherwise
+* `save_if = `[`is_mpi_root()`](@ref Rimu.RMPI.is_mpi_root): if this value is true, save the report, otherwise
   ignore it.
 * `return_df = false`: if this value is true, read the file and return the data frame at the
   end of computation. Otherwise, an empty `DataFrame` is returned.
@@ -259,10 +257,12 @@ end
 function finalize_report!(s::ReportToFile, report)
     if s.save_if
         println(s.io, "Finalizing.")
-        if isfile(s.filename)
-            Arrow.append(s.filename, report.data)
-        else
-            Arrow.write(s.filename, report.data; file=false)
+        if !isempty(report)
+            if isfile(s.filename)
+                Arrow.append(s.filename, report.data)
+            else
+                Arrow.write(s.filename, report.data; file=false)
+            end
         end
         if s.return_df
             return DataFrame(Arrow.Table(s.filename))
