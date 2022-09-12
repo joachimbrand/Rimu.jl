@@ -156,11 +156,11 @@ end
 
 # Now that we have the energies, let's compare how close to the reference energy they get.
 
-p = plot(;
+p = scatter(
+    5:2:20, abs.(lattice_energies .- reference_energy); label="lattice",
     title="Convergence", xscale=:log10, yscale=:log10, legend=:bottomleft,
     xlabel=L"M", ylabel=L"|E_0 - E_{\mathrm{ref}}|",
 )
-scatter!(p, 5:2:20, abs.(lattice_energies .- reference_energy); label="lattice")
 scatter!(p, 5:2:20, abs.(trcorr_energies .- reference_energy); label="transcorrelated")
 scatter!(p, 5:2:20, abs.(renorm_energies .- reference_energy); label="renormalized")
 
@@ -227,6 +227,5 @@ dvec = DVec(zip(bsr.basis, eigvec))
 density_up = [dot(dvec, DensityMatrixDiagonal(i; component=1), dvec) for i in 1:M]
 density_dn = [dot(dvec, DensityMatrixDiagonal(i; component=2), dvec) for i in 1:M]
 
-p = plot(; xlabel=L"p", ylabel=L"ρ") # (Q: rho?))
-bar!(p, density_up; label=L"↑")
-bar!(p, density_dn; label=L"↓")
+p = bar(-9:9, density_up; label=L"↑", xlabel=L"p", ylabel=L"n_p", yscale=:log10)
+bar!(p, -9:9, density_dn; label=L"↓", yscale=:log10)
