@@ -198,6 +198,10 @@ end
             comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
         )
 
+        @test_throws ArgumentError HubbardRealSpace(
+            comp; geometry=PeriodicBoundaries(3,2), v=[1 1; 1 1; 1 1],
+        )
+
         @test_throws ArgumentError HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
 
         @test_logs (:warn,) HubbardRealSpace(FermiFS((1,0)), u=[2])
@@ -325,7 +329,12 @@ end
         )
         @test exact_energy(H4) < -9
     end
+    @testset "1D trap" begin
+        H1 = HubbardReal1DEP(BoseFS((1,2,3,4)); u=2, t=3, v_ho=4)
+        H2 = HubbardRealSpace(BoseFS((1,2,3,4)); u=[2], t=[3], v=[4])
 
+        @test exact_energy(H1) ≈ exact_energy(H2)
+    end
     @testset "2D Fermions" begin
         @testset "2 × 2" begin
             p22 = PeriodicBoundaries(2, 2)
@@ -696,27 +705,38 @@ end
 end
 
 @testset "G2RealCorrelator" begin
+    m = 6
+    n1 = 4
+    n2 = m
+    add1 = BoseFS((n1,0,0,0,0,0))
+    add2 = near_uniform(BoseFS{n2,m})
+
     # localised state
-    n = m = 6
-    add = BoseFS((0,0,n,0,0,0))
-    @test num_offdiagonals(G2RealCorrelator(1), add) == 0
-    v = DVec(add => 1)
-    @test dot(v, G2RealCorrelator(0), v) == n*(n-1)/m
-    @test dot(v, G2RealCorrelator(m), v) == n*(n-1)/m
-    for d in 1:m-1
-        @test dot(v, G2RealCorrelator(d), v) == 0.
-    end
+    @test diagonal_element(G2RealCorrelator(0), add1) == n1 * (n1 - 1) / m
+    @test diagonal_element(G2RealCorrelator(1), add1) == 0.
 
     # constant density state
-    add = near_uniform(BoseFS{n,m})
-    @test num_offdiagonals(G2RealCorrelator(1), add) == 0
-    v = DVec(add => 1)
-    @test dot(v, G2RealCorrelator(0), v) == 0.
-    @test dot(v, G2RealCorrelator(m), v) == 0.
-    for d in 1:m-1
-        @test dot(v, G2RealCorrelator(d), v) == 1.
-    end
+    @test diagonal_element(G2RealCorrelator(0), add2) == (n2/m) * ((n2/m) - 1)
+    @test diagonal_element(G2RealCorrelator(1), add2) == (n2/m)^2
 
+    # local-local
+    comp = CompositeFS(add1,add1)
+    @test diagonal_element(G2RealCorrelator(0), comp) == 2n1 * (2n1 - 1) / m
+    @test diagonal_element(G2RealCorrelator(1), comp) == 0.
+
+    # local-uniform (assuming unit filling)
+    comp = CompositeFS(add1,add2)
+    @test diagonal_element(G2RealCorrelator(0), comp) == (n1 + 1) * n1 / m
+    @test diagonal_element(G2RealCorrelator(1), comp) == (2 * (n1 + 1) + (m - 2)) / m
+
+    # uniform-uniform
+    comp = CompositeFS(add2,add2)
+    @test diagonal_element(G2RealCorrelator(0), comp) == (2n2 / m) * (2 * (n2 / m) - 1)
+    @test diagonal_element(G2RealCorrelator(1), comp) == (2n2 / m)^2
+
+    # offdiagonals
+    @test num_offdiagonals(G2RealCorrelator(0), add1) == 0
+    @test num_offdiagonals(G2RealCorrelator(0), comp) == 0
 end
 
 @testset "Momentum" begin

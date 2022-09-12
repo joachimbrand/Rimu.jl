@@ -113,15 +113,50 @@ It is implemented recursively to ensure type stability.
     return self + row + _interactions(as, rest)
 end
 
+"""
+    trap_potential(add::SingleComponentFockAddress, pot::Array)
+
+Calculate trap potential energy of a single-component address `add`. The (precomputed) 
+potential energy per particle at each point in the lattice is given by the array `pot`.
+```math
+V = \\sum_{d=1}^D \\sum_{i=1}^M V_d x_{i,d}^2 n_i,
+```
+where ``x = (x_1, ..., x_D)`` is the distance of site `i` to the centre of the trap and 
+`n_i` is the number of particles at site `i`. `M` is the total number of sites on the 
+lattice.
+"""
+function trap_potential(add::SingleComponentFockAddress, pot::Array)
+    pe = 0.
+    for (n,i) in occupied_modes(add)
+        pe += n * pot[i]
+    end
+    return pe
+end
+
+"""
+    trap_potential(add::CompositeFS, pot::Vector)
+
+Calculate potential energy of a multicomponent address as the sum of the potential energy
+of each component. Each element of `pot` is a precomputed `Array` of potential energy for 
+that component at each lattice point.
+"""
+function trap_potential(add::CompositeFS, pot::Vector)
+    pe = 0.
+    for (i,c) in enumerate(add.components)
+        pe += trap_potential(c, pot[i])
+    end
+    return pe
+end
+
 ###
 ### HubbardRealSpace
 ###
 """
-    HubbardRealSpace(address; u=ones(C, C), t=ones(C), geometry=PeriodicBoundaries(M,))
+    HubbardRealSpace(address; u=ones(C, C), t=ones(C), v=ones(C, D), geometry=PeriodicBoundaries(M,))
 
 Hubbard model in real space. Supports single or multi-component Fock state
 addresses (with `C` components) and various (rectangular) lattice geometries
-in arbitrary dimensions.
+in `D`` dimensions.
 
 ```math
   \\hat{H} = -\\sum_{\\langle i,j\\rangle,σ} t_σ a^†_{iσ} a_{jσ} +
@@ -138,9 +173,14 @@ in arbitrary dimensions.
 
 ## Geometries
 
+Implemented [`LatticeGeometry`](@ref)s for keyword `geometry`
+
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
 * [`LadderBoundaries`](@ref)
+
+Default is `geometry=PeriodicBoundaries(M,)`, i.e. a one-dimensional lattice with the 
+number of sites `M` inferred from the number of modes in `address`.
 
 ## Other parameters
 
@@ -150,27 +190,36 @@ in arbitrary dimensions.
   be zero for fermionic components.
 * `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
   vector corresponds to the hopping strength of the `i`-th component.
+* `v`: the trap potential strengths. Must be a matrix of size `C × D`. `v[i,j]` is
+the strength of the trap for component `i` in the `j`th dimension.
 
 """
 struct HubbardRealSpace{
-    C,A,G, # C: components
+    C,A,G,D, # C: components
     # The following need to be type params.
     T<:SVector{C,Float64},
     U<:SMatrix{C,C,Float64},
+    V<:SMatrix{C,D,Float64},
+    P<:Vector{Array{Float64,D}}
 } <: AbstractHamiltonian{Float64}
     address::A
-    u::U # interactions
     t::T # hopping strengths
+    u::U # interactions    
+    v::V # trap strengths
+    potential::P # potential energy of each component at each lattice site
     geometry::G
 end
 
 function HubbardRealSpace(
     address;
+    geometry=PeriodicBoundaries((num_modes(address),)),
     u=ones(num_components(address), num_components(address)),
     t=ones(num_components(address)),
-    geometry=PeriodicBoundaries((num_modes(address),))
+    v=zeros(num_components(address), num_dimensions(geometry))
 )
     C = num_components(address)
+    D = num_dimensions(geometry)
+    S = size(geometry)
 
     # Sanity checks
     if prod(size(geometry)) ≠ num_modes(address)
@@ -181,6 +230,8 @@ function HubbardRealSpace(
         throw(ArgumentError("`u` must be a $C × $C matrix"))
     elseif size(t) ≠ (C,)
         throw(ArgumentError("`t` must be a vector of length $C"))
+    elseif length(v) ≠ C * D
+        throw(ArgumentError("`v` must be a $C × $D matrix"))
     elseif address isa BoseFS2C
         throw(ArgumentError(
             "`BoseFS2C` is not supported for this Hamiltonian, use `CompositeFS`"
@@ -188,10 +239,20 @@ function HubbardRealSpace(
     end
     warn_fermi_interaction(address, u)
 
-    u_mat = SMatrix{C,C,Float64}(u)
     t_vec = SVector{C,Float64}(t)
-    return HubbardRealSpace{C,typeof(address),typeof(geometry),typeof(t_vec),typeof(u_mat)}(
-        address, u_mat, t_vec, geometry,
+    u_mat = SMatrix{C,C,Float64}(u)
+    v_mat = SMatrix{C,D,Float64}(v)
+
+    # Precompute the trap potential terms
+    ranges = Tuple([range(-fld(M,2); length=M) for M in S],)
+    x_sq = map(x -> Tuple(x).^2, CartesianIndices(ranges))
+    pot_vec = Vector{Array{Float64,D}}(undef, C)
+    for c in 1:C
+        pot_vec[c] = map(x -> sum(v_mat[c,:] .* x), x_sq)
+    end
+
+    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,typeof(t_vec),typeof(u_mat),typeof(v_mat),typeof(pot_vec)}(
+        address, t_vec, u_mat, v_mat, pot_vec, geometry,
     )
 end
 
@@ -228,9 +289,24 @@ function Base.show(io::IO, h::HubbardRealSpace)
     println(io, ")")
 end
 
+"""
+    ==(H::HubbardRealSpace, G::HubbardRealSpace)
+
+Overload equality due to stored potential energy arrays.
+"""
+Base.:(==)(H::HubbardRealSpace, G::HubbardRealSpace) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
+
 starting_address(h::HubbardRealSpace) = h.address
-diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u)
-diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1])
+function diagonal_element(h::HubbardRealSpace, address)
+    int = iszero(h.u) ? 0. : local_interaction(address, h.u)
+    pot = iszero(h.v) ? 0. : trap_potential(address, h.potential)
+    return int + pot
+end
+function diagonal_element(h::HubbardRealSpace{1}, address)
+    int = iszero(h.u[1]) ? 0. : local_interaction(address, h.u[1])
+    pot = iszero(h.v[1]) ? 0. : trap_potential(address, h.potential[1])
+    return int + pot
+end
 
 ###
 ### Offdiagonals
