@@ -261,8 +261,10 @@ end
 struct MomentumMom1D{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     ham::H
 end
-LOStructure(::Type{MomentumMom1D{H,T}}) where {H,T <: Real} = IsHermitian()
+LOStructure(::Type{MomentumMom1D{H,T}}) where {H,T <: Real} = IsDiagonal()
 num_offdiagonals(ham::MomentumMom1D, add) = 0
-diagonal_element(mom::MomentumMom1D, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π # fold into (-π, π]
+diagonal_element(mom::MomentumMom1D, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π
+# fold into (-π, π]
+starting_address(mom::MomentumMom1D) = starting_address(mom.ham)
 
 momentum(ham::HubbardMom1D) = MomentumMom1D(ham)

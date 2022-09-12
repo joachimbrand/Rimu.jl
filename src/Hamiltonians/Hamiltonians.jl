@@ -27,6 +27,7 @@ Other
 - [`GuidingVectorSampling`](@ref)
 - [`ParitySymmetry`](@ref)
 - [`TimeReversalSymmetry`](@ref)
+- [`Stoquastic`](@ref)
 
 ## [Observables](#Observables)
 - [`G2MomCorrelator`](@ref)
@@ -65,6 +66,7 @@ export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 export ParitySymmetry
 export TimeReversalSymmetry
+export Stoquastic
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
 
@@ -97,6 +99,7 @@ include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")
 include("ParitySymmetry.jl")
 include("TRSymmetry.jl")
+include("Stoquastic.jl")
 
 include("Transcorrelated1D.jl")
 
