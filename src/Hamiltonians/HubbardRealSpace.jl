@@ -152,7 +152,7 @@ end
 ### HubbardRealSpace
 ###
 """
-    HubbardRealSpace(address; u=ones(C, C), t=ones(C), v=zeros(C, D), geometry=PeriodicBoundaries(M,))
+    HubbardRealSpace(address; geometry=PeriodicBoundaries(M,), t=ones(C), u=ones(C, C), v=zeros(C, D))
 
 Hubbard model in real space. Supports single or multi-component Fock state
 addresses (with `C` components) and various (rectangular) lattice geometries
@@ -190,12 +190,12 @@ number of sites `M` inferred from the number of modes in `address`.
 
 ## Other parameters
 
+* `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
+  vector corresponds to the hopping strength of the `i`-th component.
 * `u`: the on-site interaction parameters. Must be a symmetric matrix. `u[i, j]`
   corresponds to the interaction between the `i`-th and `j`-th component. `u[i, i]`
   corresponds to the interaction of a component with itself. Note that `u[i,i]` must
   be zero for fermionic components.
-* `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
-  vector corresponds to the hopping strength of the `i`-th component.
 * `v`: the trap potential strengths. Must be a matrix of size `C × D`. `v[i,j]` is
 the strength of the trap for component `i` in the `j`th dimension.
 
@@ -204,9 +204,9 @@ struct HubbardRealSpace{
     C,A,G,D, # C: components
     # The following need to be type params.
     T<:SVector{C,Float64},
-    U<:SMatrix{C,C,Float64},
-    V<:SMatrix{C,D,Float64},
-    P<:Vector{Array{Float64,D}}
+    U<:Union{SMatrix{C,C,Float64},Nothing},
+    V<:Union{SMatrix{C,D,Float64},Nothing},
+    P<:Union{Vector{Array{Float64,D}},Nothing}
 } <: AbstractHamiltonian{Float64}
     address::A
     t::T # hopping strengths
@@ -219,8 +219,8 @@ end
 function HubbardRealSpace(
     address;
     geometry=PeriodicBoundaries((num_modes(address),)),
-    u=ones(num_components(address), num_components(address)),
     t=ones(num_components(address)),
+    u=ones(num_components(address), num_components(address)),    
     v=zeros(num_components(address), num_dimensions(geometry))
 )
     C = num_components(address)
@@ -246,15 +246,20 @@ function HubbardRealSpace(
     warn_fermi_interaction(address, u)
 
     t_vec = SVector{C,Float64}(t)
-    u_mat = SMatrix{C,C,Float64}(u)
-    v_mat = SMatrix{C,D,Float64}(v)
+    u_mat = iszero(u) ? nothing : SMatrix{C,C,Float64}(u)
 
     # Precompute the trap potential terms
-    ranges = Tuple(range(-fld(M,2); length=M) for M in S)
-    x_sq = map(x -> Tuple(x).^2, CartesianIndices(ranges))
-    pot_vec = Vector{Array{Float64,D}}(undef, C)
-    for c in 1:C
-        pot_vec[c] = map(x -> sum(v_mat[c,:] .* x), x_sq)
+    if iszero(v)
+        v_mat = nothing
+        pot_vec = nothing
+    else
+        v_mat = SMatrix{C,D,Float64}(v)
+        ranges = Tuple(range(-fld(M,2); length=M) for M in S)
+        x_sq = map(x -> Tuple(x).^2, CartesianIndices(ranges))
+        pot_vec = Vector{Array{Float64,D}}(undef, C)
+        for c in 1:C
+            pot_vec[c] = map(x -> sum(v_mat[c,:] .* x), x_sq)
+        end
     end
 
     return HubbardRealSpace{C,typeof(address),typeof(geometry),D,typeof(t_vec),typeof(u_mat),typeof(v_mat),typeof(pot_vec)}(
@@ -286,12 +291,17 @@ warn_fermi_interaction(_, _) = nothing
 
 LOStructure(::Type{<:HubbardRealSpace}) = IsHermitian()
 
-function Base.show(io::IO, h::HubbardRealSpace)
+function Base.show(io::IO, h::HubbardRealSpace{C}) where C
     println(io, "HubbardRealSpace(")
     println(io, "  ", starting_address(h), ",")
-    println(io, "  u = ", Float64.(h.u), ",")
-    println(io, "  t = ", Float64.(h.t), ",")
     println(io, "  geometry = ", h.geometry, ",")
+    println(io, "  t = ", Float64.(h.t), ",")
+    if isnothing(h.u)
+        println(io, "  u = ", zeros(C,C), ",")
+    else
+        println(io, "  u = ", Float64.(h.u), ",")
+    end
+    !isnothing(h.v) && println(io, "  v = ", Float64.(h.v), ",")
     println(io, ")")
 end
 
@@ -300,13 +310,13 @@ Base.:(==)(H::HubbardRealSpace, G::HubbardRealSpace) = all(map(p -> getproperty(
 
 starting_address(h::HubbardRealSpace) = h.address
 function diagonal_element(h::HubbardRealSpace, address)
-    int = iszero(h.u) ? 0. : local_interaction(address, h.u)
-    pot = iszero(h.v) ? 0. : trap_potential(address, h.potential)
+    int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u)
+    pot = isnothing(h.v) ? 0.0 : trap_potential(address, h.potential)
     return int + pot
 end
 function diagonal_element(h::HubbardRealSpace{1}, address)
-    int = iszero(h.u[1]) ? 0. : local_interaction(address, h.u[1])
-    pot = iszero(h.v[1]) ? 0. : trap_potential(address, h.potential[1])
+    int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u[1])
+    pot = isnothing(h.v) ? 0.0 : trap_potential(address, h.potential[1])
     return int + pot
 end
 
