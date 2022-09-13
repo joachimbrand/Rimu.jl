@@ -280,10 +280,6 @@ end
     @test default_logger() isa Logging.ConsoleLogger
 end
 
-@safetestset "Examples" begin
-    include("examples.jl")
-end
-
 @safetestset "doctests" begin
     include("doctests.jl")
 end
