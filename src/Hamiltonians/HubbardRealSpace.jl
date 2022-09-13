@@ -114,10 +114,10 @@ It is implemented recursively to ensure type stability.
 end
 
 """
-    trap_potential(add::SingleComponentFockAddress, pot::Array)
+    trap_potential(add::SingleComponentFockAddress, pot)
 
 Calculate trap potential energy of a single-component address `add`. The (precomputed) 
-potential energy per particle at each point in the lattice is given by the array `pot`.
+potential energy per particle at each point in the lattice is given by the vector `pot`.
 ```math
 V = \\sum_{d=1}^D \\sum_{i=1}^M V_d x_{i,d}^2 n_i,
 ```
@@ -125,7 +125,7 @@ where ``x = (x_1, ..., x_D)`` is the distance of site `i` to the centre of the t
 `n_i` is the number of particles at site `i`. `M` is the total number of sites on the 
 lattice.
 """
-function trap_potential(add::SingleComponentFockAddress, pot::Array)
+function trap_potential(add::SingleComponentFockAddress, pot)
     pe = 0.0
     for (n,i) in occupied_modes(add)
         pe += n * pot[i]
@@ -134,16 +134,16 @@ function trap_potential(add::SingleComponentFockAddress, pot::Array)
 end
 
 """
-    trap_potential(add::CompositeFS, pot::Vector)
+    trap_potential(add::CompositeFS, pot::Matrix)
 
 Calculate potential energy of a multicomponent address as the sum of the potential energy
-of each component. Each element of `pot` is a precomputed `Array` of potential energy for 
+of each component. Each column of `pot` is a precomputed vector of potential energy for 
 that component at each lattice point.
 """
-function trap_potential(add::CompositeFS, pot::Vector)
+function trap_potential(add::CompositeFS, pot::Matrix)
     pe = 0.0
     for (i,c) in enumerate(add.components)
-        pe += trap_potential(c, pot[i])
+        pe += trap_potential(c, @view pot[:,i])
     end
     return pe
 end
@@ -206,7 +206,7 @@ struct HubbardRealSpace{
     T<:SVector{C,Float64},
     U<:Union{SMatrix{C,C,Float64},Nothing},
     V<:Union{SMatrix{C,D,Float64},Nothing},
-    P<:Union{Vector{Array{Float64,D}},Nothing}
+    P<:Union{Matrix{Float64},Nothing}
 } <: AbstractHamiltonian{Float64}
     address::A
     t::T # hopping strengths
@@ -256,9 +256,9 @@ function HubbardRealSpace(
         v_mat = SMatrix{C,D,Float64}(v)
         ranges = Tuple(range(-fld(M,2); length=M) for M in S)
         x_sq = map(x -> Tuple(x).^2, CartesianIndices(ranges))
-        pot_vec = Vector{Array{Float64,D}}(undef, C)
+        pot_vec = zeros(prod(S), C) # or undef...
         for c in 1:C
-            pot_vec[c] = map(x -> sum(v_mat[c,:] .* x), x_sq)
+            pot_vec[:,c] .= vec(map(x -> sum(v_mat[c,:] .* x), x_sq))
         end
     end
 
@@ -316,7 +316,7 @@ function diagonal_element(h::HubbardRealSpace, address)
 end
 function diagonal_element(h::HubbardRealSpace{1}, address)
     int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u[1])
-    pot = isnothing(h.v) ? 0.0 : trap_potential(address, h.potential[1])
+    pot = isnothing(h.v) ? 0.0 : trap_potential(address, @view h.potential[:,1])
     return int + pot
 end
 
