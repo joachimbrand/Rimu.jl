@@ -334,6 +334,23 @@ end
         H2 = HubbardRealSpace(BoseFS((1,2,3,4)); u=[2], t=[3], v=[4])
 
         @test exact_energy(H1) ≈ exact_energy(H2)
+
+        # composite
+        add3 = CompositeFS(
+            BoseFS((1, 1, 1, 0, 0, 0)),
+            BoseFS((1, 0, 0, 0, 0, 0)),
+        )
+        H3 = HubbardRealSpace(add3, v=[1,4], u=[2 3; 3 0])
+
+        add4 = CompositeFS(
+            BoseFS((1, 0, 0, 0, 0, 0)),
+            BoseFS((1, 1, 1, 0, 0, 0)),
+        )
+        H4 = HubbardRealSpace(add4, v=[4,1], u=[0 3; 3 2])
+
+        E3 = exact_energy(H3)
+        E4 = exact_energy(H4)
+        @test E3 ≈ E4 rtol=0.0001
     end
     @testset "2D Fermions" begin
         @testset "2 × 2" begin
