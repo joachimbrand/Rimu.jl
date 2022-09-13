@@ -227,3 +227,11 @@ density_dn = [dot(dvec, DensityMatrixDiagonal(i; component=2), dvec) for i in 1:
 
 p = bar(-9:9, density_up; label=L"↑", xlabel=L"p", ylabel=L"n_p", yscale=:log10)
 bar!(p, -9:9, density_dn; label=L"↓", yscale=:log10)
+
+using Test                                                     # hide
+@test issorted(lattice_energies .- reference_energy; rev=true) # hide
+@test issorted(renorm_energies .- reference_energy)            # hide
+@test issorted(trcorr_energies .- reference_energy)            # hide
+@test eigvals(mat_nosym)[1] ≈ eigvals(mat_par)[1]              # hide
+@test eigvals(mat_nosym)[1] ≈ eigvals(mat_tr)[1]               # hide
+@test eigvals(mat_nosym)[1] ≈ eigvals(mat_both)[1]             # hide
