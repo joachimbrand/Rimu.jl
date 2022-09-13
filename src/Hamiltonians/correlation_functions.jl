@@ -7,7 +7,7 @@ with `0 ≤ d < M`.
 ```math
     \\hat{G}^{(2)}(d) = \\frac{1}{M} \\sum_i^M \\hat{n}_i (\\hat{n}_{i+d} - \\delta_{0d}).
 ```
-Assumes the lattice is one-dimensional with periodic boundary conditions where
+Assumes a one-dimensional lattice with periodic boundary conditions where
 ```math
     \\hat{G}^{(2)}(-M/2 \\leq d < 0) = \\hat{G}^{(2)}(|d|),
 ```
