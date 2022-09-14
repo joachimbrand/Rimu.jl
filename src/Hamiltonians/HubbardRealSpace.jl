@@ -118,12 +118,6 @@ end
 
 Calculate trap potential energy of a single-component address `add`. The (precomputed) 
 potential energy per particle at each point in the lattice is given by the vector `pot`.
-```math
-V = \\sum_{d=1}^D \\sum_{i=1}^M V_d x_{i,d}^2 n_i,
-```
-where ``x = (x_1, ..., x_D)`` is the distance of site `i` to the centre of the trap and 
-`n_i` is the number of particles at site `i`. `M` is the total number of sites on the 
-lattice.
 """
 function trap_potential(add::SingleComponentFockAddress, pot)
     pe = 0.0
@@ -133,13 +127,6 @@ function trap_potential(add::SingleComponentFockAddress, pot)
     return pe
 end
 
-"""
-    trap_potential(add::CompositeFS, pot::Matrix)
-
-Calculate potential energy of a multicomponent address as the sum of the potential energy
-of each component. Each column of `pot` is a precomputed vector of potential energy for 
-that component at each lattice point.
-"""
 function trap_potential(add::CompositeFS, pot::Matrix)
     pe = 0.0
     for (i,c) in enumerate(add.components)
@@ -160,22 +147,26 @@ in `D` dimensions.
 
 ```math
   \\hat{H} = -\\sum_{\\langle i,j\\rangle,σ} t_σ a^†_{iσ} a_{jσ} +
-  \\frac{1}{2}\\sum_{i,σ} u_{σ,σ} n_{iσ} (n_{iσ} - 1) +
-  \\frac{1}{2}\\sum_{i,σ≠τ}u_{σ,τ} n_{iσ} n_{iτ}
+  \\frac{1}{2}\\sum_{i,σ} u_{σσ} n_{iσ} (n_{iσ} - 1) +
+  \\frac{1}{2}\\sum_{i,σ≠τ}u_{στ} n_{iσ} n_{iτ}
 ```
 
-If `v` is nonzero then this calculates ``\\hat{H}+\\hat{V}`` where
+If `v` is nonzero then this calculates ``\\hat{H} + \\hat{V}`` by adding the 
+harmonic trapping potential
 ```math
-    \\hat{V} = \\sum_{σ=1}^C \\sum_{d=1}^D \\sum_{i=1}^M v_{σ,d} x_{σ,i,d}^2 n_{iσ}
+    \\hat{V} = \\sum_{i,σ,d} v_{σd} x_{di}^2 n_{iσ}
 ```
-is the external harmonic trapping potential.
+where ``x_{di}`` is the distance of site ``i`` from the centre of the trap 
+along dimension ``d``.
 
 ## Address types
 
 * [`BoseFS`](@ref): Single-component Bose-Hubbard model.
-* [`FermiFS`](@ref): Single-component Fermi-Hubbard model. This address only provides a
-  single species of (non-interacting) fermions. You probably want to use [`CompositeFS`](@ref).
+* [`FermiFS`](@ref): Single-component Fermi-Hubbard model.
 * [`CompositeFS`](@ref): For multi-component models.
+
+Note that a single component of fermions cannot interact with itself. A warning 
+is produced if `address`is incompatible with the interaction parameters `u`.
 
 ## Geometries
 
@@ -197,8 +188,7 @@ number of sites `M` inferred from the number of modes in `address`.
   corresponds to the interaction of a component with itself. Note that `u[i,i]` must
   be zero for fermionic components.
 * `v`: the trap potential strengths. Must be a matrix of size `C × D`. `v[i,j]` is
-the strength of the trap for component `i` in the `j`th dimension.
-
+  the strength of the trap for component `i` in the `j`th dimension.
 """
 struct HubbardRealSpace{
     C,A,G,D, # C: components

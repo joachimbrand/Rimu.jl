@@ -143,6 +143,7 @@ PeriodicBoundaries
 HardwallBoundaries
 LadderBoundaries
 num_neighbours
+num_dimensions
 neighbour_site
 ```
 
