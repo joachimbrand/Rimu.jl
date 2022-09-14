@@ -17,8 +17,7 @@ using Arpack        # eigs
 using KrylovKit     # eigsolve
 using Plots
 using LaTeXStrings
-gr() # hide
-nothing # hide
+gr(); #hide
 
 # ## Preliminaries
 
@@ -37,7 +36,7 @@ function init_address(M)
         [i == cld(M, 2) ? 1 : 0 for i in 1:M],
     )
 end
-nothing # hide
+nothing #hide
 
 # The Hamiltonians in Rimu are dimensionless. We use the following function to convert the
 # units to physical units (``\frac{\hbar^2}{mL}``). This function also handles
@@ -52,12 +51,12 @@ function convert_units(g, M; renormalize=false)
     u = float(t*2/M*g)
     return (; u, t)
 end
-nothing # hide
+nothing #hide
 
 # We know the energy of this system with ``g = -10``, so we save that in a constant.
 
 const reference_energy = -15.151863462651115
-nothing # hide
+nothing #hide
 
 # We will be comparing a lattice model, a lattice-renormalized model and the transcorrelated
 # model. Note that the `dispersion=continuum_dispersion` argument passed to
@@ -72,7 +71,7 @@ address = init_address(M)
 lattice = HubbardMom1D(address; u, t, dispersion=continuum_dispersion)
 trcorr = Transcorrelated1D(address; v=u, t)
 renorm = HubbardMom1D(address; u=u_ren, t, dispersion=continuum_dispersion)
-nothing # hide
+nothing #hide
 
 # ## The BasisSetRep
 
@@ -228,10 +227,10 @@ density_dn = [dot(dvec, DensityMatrixDiagonal(i; component=2), dvec) for i in 1:
 p = bar(-9:9, density_up; label=L"↑", xlabel=L"p", ylabel=L"n_p", yscale=:log10)
 bar!(p, -9:9, density_dn; label=L"↓", yscale=:log10)
 
-using Test                                                     # hide
-@test issorted(lattice_energies .- reference_energy; rev=true) # hide
-@test issorted(renorm_energies .- reference_energy)            # hide
-@test issorted(trcorr_energies .- reference_energy)            # hide
-@test eigvals(mat_nosym)[1] ≈ eigvals(mat_par)[1]              # hide
-@test eigvals(mat_nosym)[1] ≈ eigvals(mat_tr)[1]               # hide
-@test eigvals(mat_nosym)[1] ≈ eigvals(mat_both)[1]             # hide
+using Test                                                     #hide
+@test issorted(lattice_energies .- reference_energy; rev=true) #hide
+@test issorted(renorm_energies .- reference_energy)            #hide
+@test issorted(trcorr_energies .- reference_energy)            #hide
+@test eigvals(mat_nosym)[1] ≈ eigvals(mat_par)[1]              #hide
+@test eigvals(mat_nosym)[1] ≈ eigvals(mat_tr)[1]               #hide
+@test eigvals(mat_nosym)[1] ≈ eigvals(mat_both)[1]             #hide
