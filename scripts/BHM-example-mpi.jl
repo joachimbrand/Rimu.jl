@@ -49,3 +49,11 @@ post_step = ProjectedEnergy(hamiltonian, dvec)
 # Finally, we can run the computation.
 
 lomc!(hamiltonian, dvec; r_strat, s_strat, post_step, dτ=1e-4, laststep=10_000);
+
+using Test                                          #hide
+@test isfile("result.arrow")                        #hide
+dfr = load_df("result.arrow")                       #hide
+qmcdata = last(dfr, 5000)                           #hide
+(qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift) #hide
+@test qmcShift ≈ -6.5 atol=0.5                      #hide
+rm("result.arrow", force=true)                      #hide

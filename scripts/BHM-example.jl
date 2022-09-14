@@ -80,7 +80,7 @@ df, state = lomc!(Ĥ,svec;
             τ_strat,
             post_step,
             threading = false, # only for reproducible runs
-)
+);
 
 # Here is how to save the output data stored in `df` into a `.arrow` file,
 # which can be read in later:
@@ -106,3 +106,8 @@ println("Energy from $steps_measure steps with $targetwalkers walkers:
          Projected Energy: $(v.val) ± ($(v.val_l), $(v.val_u))")
 
 # Finished !
+
+using Test                                      #hide
+@test isfile("fciqmcdata.arrow")                #hide
+@test se.mean ≈ -4.171133393316872 rtol=0.01    #hide
+rm("fciqmcdata.arrow", force=true)              #hide
