@@ -74,25 +74,41 @@ num_offdiagonals(h::TimeReversalSymmetry, add) = num_offdiagonals(h.hamiltonian,
 struct TRSymmetryOffdiagonals{
     A,T,O<:AbstractVector{Tuple{A,T}}
 } <: AbstractOffdiagonals{A,T}
+    add::A
+    add_even::Bool
     od::O
     even::Bool
 end
 Base.size(o::TRSymmetryOffdiagonals) = size(o.od)
 
 function offdiagonals(h::TimeReversalSymmetry, add)
-    return TRSymmetryOffdiagonals(offdiagonals(h.hamiltonian, add), h.even)
+    add_even = add == time_reverse(add)
+    return TRSymmetryOffdiagonals(add, add_even, offdiagonals(h.hamiltonian, add), h.even)
 end
 
 function Base.getindex(o::TRSymmetryOffdiagonals, i)
-    add, val = o.od[i]
-    rev_add = time_reverse(add)
-    left_add = min(rev_add, add)
-    if !o.even && left_add ≠ add
-        val *= -1
-    elseif !o.even && rev_add == add
-        val = zero(val)
+    in = o.add
+    out, val = o.od[i]
+
+    rev_out = time_reverse(out)
+    in_even = o.add_even
+    out_even = out == rev_out
+
+    if in_even && !out_even
+        new_val = 1/√2 * val
+    elseif out_even && !in_even
+        new_val = √2 * val
+    else
+        new_val = float(val)
     end
-    return left_add, val
+
+    left_out = min(rev_out, out)
+    if !o.even && left_out ≠ out
+        new_val = -new_val
+    elseif !o.even && out_even
+        new_val = zero(new_val)
+    end
+    return left_out, new_val
 end
 function diagonal_element(h::TimeReversalSymmetry, add)
     return diagonal_element(h.hamiltonian, add)
