@@ -315,8 +315,12 @@ function diagonal_element(h::HubbardRealSpace, address)
 end
 function diagonal_element(h::HubbardRealSpace{1}, address)
     int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u[1])
-    @boundscheck checkbounds(h.potential, 1:num_modes(add), 1)
-    @inbounds pot = isnothing(h.v) ? 0.0 : external_potential(address, @view h.potential[:,1])
+    pot = if isnothing(h.v)
+            0.0
+        else
+            @boundscheck checkbounds(h.potential, 1:num_modes(address), 1)
+            @inbounds external_potential(address, @view h.potential[:,1])
+        end
     return int + pot
 end
 
