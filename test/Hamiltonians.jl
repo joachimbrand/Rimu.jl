@@ -934,6 +934,8 @@ end
         odd_m = Matrix(odd)
 
         @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "2-particle HubbardMom1DEP" begin
         ham = HubbardMom1DEP(BoseFS((0,0,1,1,0)))
@@ -967,6 +969,8 @@ end
 
         @test size(ham_m, 1) == size(even_m, 1) + size(odd_m, 1)
         @test sort(real.(vcat(eigvals(even_m), eigvals(odd_m)))) ≈ real.(eigvals(ham_m))
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "Even Hamiltonian" begin
         # This Hamiltonian only has even addresses.
@@ -977,6 +981,8 @@ end
         even_m = Matrix(even_b)
 
         @test ham_m == even_m
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
 end
 
@@ -998,6 +1004,8 @@ end
         odd_m = Matrix(odd)
 
         @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "2-particle BoseHubbardMom1D2C" begin
         ham = BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))
@@ -1010,9 +1018,9 @@ end
         @test starting_address(even) == time_reverse(starting_address(ham))
         @test h_eigs ≈ p_eigs
 
-        @test ishermitian(Matrix(odd))
-        @test ishermitian(Matrix(even)) == false
-        @test LOStructure(odd) isa AdjointUnknown
+        @test issymmetric(Matrix(odd))
+        @test issymmetric(Matrix(even))
+        @test LOStructure(odd) isa IsHermitian()
     end
 
 end

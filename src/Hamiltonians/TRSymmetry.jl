@@ -62,7 +62,9 @@ function Base.show(io::IO, h::TimeReversalSymmetry)
     print(io, "TimeReversalSymmetry(", h.hamiltonian, ", even=", h.even, ")")
 end
 
-LOStructure(h::TimeReversalSymmetry) = AdjointUnknown()
+LOStructure(h::TimeReversalSymmetry) = LOStructure(h.hamiltonian)
+Base.adjoint(h::TimeReversalSymmetry) = TimeReversalSymmetry(h.hamiltonian', even=h.even)
+
 function starting_address(h::TimeReversalSymmetry)
     add = starting_address(h.hamiltonian)
     return min(add, time_reverse(add))

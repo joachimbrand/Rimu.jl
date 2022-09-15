@@ -56,6 +56,8 @@ function Base.show(io::IO, h::ParitySymmetry)
 end
 
 LOStructure(h::ParitySymmetry) = LOStructure(h.hamiltonian)
+Base.adjoint(h::ParitySymmetry) = ParitySymmetry(h.hamiltonian', even=h.even)
+
 function starting_address(h::ParitySymmetry)
     add = starting_address(h.hamiltonian)
     return min(add, reverse(add))
