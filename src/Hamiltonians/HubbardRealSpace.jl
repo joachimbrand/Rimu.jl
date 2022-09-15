@@ -126,8 +126,9 @@ a length `M` vector for a [`SingleComponentFockAddress`](@ref), or a `M×C` matr
 a [`CompositeFS `](@ref), where `M` is the number of modes and `C` the number of 
 components.
 """
-function external_potential(add::SingleComponentFockAddress, pot)
+Base.@propagate_inbounds function external_potential(add::SingleComponentFockAddress, pot)
     pe = 0.0
+    @boundscheck checkbounds(pot, 1:num_modes(add))
     for (n,i) in occupied_modes(add)
         pe += n * pot[i]
     end
@@ -136,8 +137,9 @@ end
 
 function external_potential(add::CompositeFS, pot::Matrix)
     pe = 0.0
+    @boundscheck checkbounds(pot, 1:num_modes(add), 1:num_components(add))
     for (i,c) in enumerate(add.components)
-        pe += external_potential(c, @view pot[:,i])
+        @inbounds pe += external_potential(c, @view pot[:,i])
     end
     return pe
 end
@@ -313,7 +315,8 @@ function diagonal_element(h::HubbardRealSpace, address)
 end
 function diagonal_element(h::HubbardRealSpace{1}, address)
     int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u[1])
-    pot = isnothing(h.v) ? 0.0 : external_potential(address, @view h.potential[:,1])
+    @boundscheck checkbounds(h.potential, 1:num_modes(add), 1)
+    @inbounds pot = isnothing(h.v) ? 0.0 : external_potential(address, @view h.potential[:,1])
     return int + pot
 end
 
