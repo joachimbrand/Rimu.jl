@@ -114,12 +114,19 @@ It is implemented recursively to ensure type stability.
 end
 
 """
-    trap_potential(add::SingleComponentFockAddress, pot)
+    external_potential(add::AbstractFockAddress, pot)
 
-Calculate trap potential energy of a single-component address `add`. The (precomputed) 
-potential energy per particle at each point in the lattice is given by the vector `pot`.
+Calculate the value of a diagonal single particle operator (e.g. a trap potential) at 
+the address `add`. 
+```math
+\\sum_{iσ} v_{iσ} n_{iσ}
+```
+The (precomputed) potential energy per particle at each mode passed as `pot` should be 
+a length `M` vector for a [`SingleComponentFockAddress`](@ref), or a `M×C` matrix for 
+a [`CompositeFS `](@ref), where `M` is the number of modes and `C` the number of 
+components.
 """
-function trap_potential(add::SingleComponentFockAddress, pot)
+function external_potential(add::SingleComponentFockAddress, pot)
     pe = 0.0
     for (n,i) in occupied_modes(add)
         pe += n * pot[i]
@@ -127,10 +134,10 @@ function trap_potential(add::SingleComponentFockAddress, pot)
     return pe
 end
 
-function trap_potential(add::CompositeFS, pot::Matrix)
+function external_potential(add::CompositeFS, pot::Matrix)
     pe = 0.0
     for (i,c) in enumerate(add.components)
-        pe += trap_potential(c, @view pot[:,i])
+        pe += external_potential(c, @view pot[:,i])
     end
     return pe
 end
@@ -301,12 +308,12 @@ Base.:(==)(H::HubbardRealSpace, G::HubbardRealSpace) = all(map(p -> getproperty(
 starting_address(h::HubbardRealSpace) = h.address
 function diagonal_element(h::HubbardRealSpace, address)
     int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u)
-    pot = isnothing(h.v) ? 0.0 : trap_potential(address, h.potential)
+    pot = isnothing(h.v) ? 0.0 : external_potential(address, h.potential)
     return int + pot
 end
 function diagonal_element(h::HubbardRealSpace{1}, address)
     int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u[1])
-    pot = isnothing(h.v) ? 0.0 : trap_potential(address, @view h.potential[:,1])
+    pot = isnothing(h.v) ? 0.0 : external_potential(address, @view h.potential[:,1])
     return int + pot
 end
 
