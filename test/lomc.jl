@@ -12,22 +12,20 @@ using Statistics
 using Logging
 
 @testset "lomc!/QMCState" begin
-    @testset "Setting laststep" begin
+    @testset "Setting laststep + working memory" begin
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=0.1)
         dv = DVec(add => 1; style=IsStochasticInteger())
 
-        df, state = lomc!(H, copy(dv); laststep=100)
-        @test size(df, 1) == 100
-        @test state.replicas[1].params.step == 100
+        # test passing working memory
+        v = copy(dv)
+        wm = copy(dv)
+        df, state = lomc!(H, v; wm, laststep=10, threading=false)
+        @test state.replicas[1].w === wm # after even number of steps
+        @test state.replicas[1].v === v
 
-        df, state = lomc!(H, copy(dv); laststep=200)
-        @test size(df, 1) == 200
-        @test state.replicas[1].params.step == 200
-
-        df, state = lomc!(H, copy(dv); laststep=13)
-        @test size(df, 1) == 13
-        @test state.replicas[1].params.step == 13
+        @test size(df, 1) == 10
+        @test state.replicas[1].params.step == 10
 
         state.laststep = 100
         df = lomc!(state, df).df
@@ -37,13 +35,6 @@ using Logging
         df = lomc!(state, df).df
         @test size(df, 1) == 200
         @test df.steps == [1:100; 1:100]
-
-        # test passing working memory
-        v = copy(dv)
-        wm = copy(dv)
-        df, state = lomc!(H, v; wm, laststep=10, threading=false)
-        @test state.replicas[1].w === wm # after even number of steps
-        @test state.replicas[1].v === v
     end
 
     @testset "Setting walkernumber" begin
