@@ -37,6 +37,13 @@ using Logging
         df = lomc!(state, df).df
         @test size(df, 1) == 200
         @test df.steps == [1:100; 1:100]
+
+        # test passing working memory
+        v = copy(dv)
+        wm = copy(dv)
+        df, state = lomc!(H, v; wm, laststep=10, threading=false)
+        @test state.replicas[1].w === wm # after even number of steps
+        @test state.replicas[1].v === v
     end
 
     @testset "Setting walkernumber" begin
@@ -64,7 +71,7 @@ using Logging
     @testset "Replicas" begin
         add = near_uniform(BoseFS{5,15})
         H = HubbardReal1D(add)
-        G = GutzwillerSampling(H, g=1)   
+        G = GutzwillerSampling(H, g=1)
         dv = DVec(add => 1, style=IsDynamicSemistochastic())
 
         @testset "NoStats" begin
@@ -331,7 +338,7 @@ using Logging
             @test df2.norm ≈ df3.norm
             @test df3 == df4
 
-            # ReportToFile with skipping interval  
+            # ReportToFile with skipping interval
             df5 = df1[10:10:100,:]
             r_strat = ReportToFile(filename="test-report.arrow", reporting_interval=10, io=devnull, chunk_size=10)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
