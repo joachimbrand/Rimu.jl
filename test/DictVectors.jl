@@ -30,7 +30,7 @@ function test_dvec_interface(type, keys, vals, cap)
                 @test dvec3[k] == dvec4[k] == zero(V)
             end
 
-            dvec5 = type(dvec2)
+            dvec5 = type(dvec2; capacity=2cap)
             @test dvec5 == dvec2
 
             dvec6 = type(IdDict(pairs))
