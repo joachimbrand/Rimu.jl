@@ -1,12 +1,13 @@
+# TO-DO: add geometry for higher dimensions.
 """
     G2RealCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
 Two-body operator for density-density correlation between sites separated by `d`
-with `0 ≤ d < M`. Can be applied to a vector in any [`SingleComponentFockAddress`](@ref) basis.
+with `0 ≤ d < M`.
 ```math
     \\hat{G}^{(2)}(d) = \\frac{1}{M} \\sum_i^M \\hat{n}_i (\\hat{n}_{i+d} - \\delta_{0d}).
 ```
-Assumes periodic boundary conditions where
+Assumes a one-dimensional lattice with periodic boundary conditions where
 ```math
     \\hat{G}^{(2)}(-M/2 \\leq d < 0) = \\hat{G}^{(2)}(|d|),
 ```
@@ -17,6 +18,9 @@ and normalisation
 ```math
     \\sum_{d=0}^{M-1} \\langle \\hat{G}^{(2)}(d) \\rangle = \\frac{N (N-1)}{M}.
 ```
+
+For multicomponent basis, calculates correlations between all particles equally, 
+equivalent to stacking all components into a single Fock state.
 
 # Arguments
 - `d::Integer`: distance between sites.
@@ -39,22 +43,40 @@ end
 
 LOStructure(::Type{<:G2RealCorrelator}) = IsDiagonal()
 
-function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress{N,M}) where {D,N,M}
+function diagonal_element(::G2RealCorrelator{0}, add::SingleComponentFockAddress)
+    M = num_modes(add)
+    v = onr(add)
+    return dot(v, v .- 1) / M
+end
+function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress) where {D}
+    M = num_modes(add)
     d = mod(D, M)
-    if d == 0
-        v = onr(add)
-        return dot(v, v .- 1) / M
-    else
-        v = onr(add)
-        result = 0
-        for i in eachindex(v)
-            result += v[i] * v[mod1(i + d, M)]
-        end
-        return result / M
-    end    
+    v = onr(add)
+    result = 0
+    for i in eachindex(v)
+        result += v[i] * v[mod1(i + d, M)]
+    end
+    return result / M
+end
+
+function diagonal_element(::G2RealCorrelator{0}, add::CompositeFS)
+    M = num_modes(add)
+    v = sum(map(onr, add.components))
+    return dot(v, v .- 1) / M
+end
+function diagonal_element(::G2RealCorrelator{D}, add::CompositeFS) where {D}
+    M = num_modes(add)
+    d = mod(D, M)
+    v = sum(map(onr, add.components))
+    result = 0
+    for i in eachindex(v)
+        result += v[i] * v[mod1(i + d, M)]
+    end
+    return result / M
 end
 
 num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0
+num_offdiagonals(::G2RealCorrelator, ::CompositeFS) = 0
 
 # not needed:
 # get_offdiagonal(::G2RealCorrelator, add)

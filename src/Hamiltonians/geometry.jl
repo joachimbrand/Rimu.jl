@@ -1,5 +1,5 @@
 """
-    abstract type LatticeGeometry
+    abstract type LatticeGeometry{D}
 
 A `LatticeGeometry` controls which sites in an [`AbstractFockAddress`](@ref) are considered
 to be neighbours.
@@ -16,9 +16,10 @@ Currently only supported by [`HubbardRealSpace`](@ref).
 
 * `Base.size`: return the lattice size.
 * [`neighbour_site(::LatticeGeometry, ::Int, ::Int)`](@ref)
+* [`num_dimensions(::LatticeGeometry)`](@ref)
 * [`num_neighbours(::LatticeGeometry)`](@ref)
 """
-abstract type LatticeGeometry end
+abstract type LatticeGeometry{D} end
 
 function Base.show(io::IO, geom::LatticeGeometry)
     print(io, nameof(typeof(geom)), size(geom))
@@ -43,6 +44,13 @@ end
 Find the `i`-th neighbour of `site` in the geometry. If the move is illegal, return 0.
 """
 neighbour_site
+
+"""
+    num_dimensions(geom::LatticeGeometry)
+
+Return the number of dimensions of the lattice in this geometry.
+"""
+num_dimensions(::LatticeGeometry{D}) where D = D
 
 """
     num_neighbours(geom::LatticeGeometry)
@@ -96,7 +104,7 @@ julia> neighbour_site(lattice, 1, 4)
 * [`num_neighbours`](@ref)
 * [`neighbour_site`](@ref)
 """
-struct PeriodicBoundaries{D} <: LatticeGeometry
+struct PeriodicBoundaries{D} <: LatticeGeometry{D}
     size::NTuple{D,Int}
 end
 
@@ -154,7 +162,7 @@ julia> neighbour_site(lattice, 1, 2)
 * [`PeriodicBoundaries`](@ref)
 * [`LadderBoundaries`](@ref)
 """
-struct HardwallBoundaries{D} <: LatticeGeometry
+struct HardwallBoundaries{D} <: LatticeGeometry{D}
     size::NTuple{D,Int}
 end
 
@@ -220,7 +228,7 @@ julia> neighbour_site(lattice, 1, 5)
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
 """
-struct LadderBoundaries{G<:LatticeGeometry} <: LatticeGeometry
+struct LadderBoundaries{D,G<:LatticeGeometry} <: LatticeGeometry{D}
     subgeometry::G
 end
 
@@ -228,7 +236,8 @@ function LadderBoundaries(arg::Int, args::Vararg{Int}; subgeometry=PeriodicBound
     if arg ≠ 2
         throw(ArgumentError("First dimension must be of size 2"))
     end
-    return LadderBoundaries(subgeometry(args...))
+    D = length(args) + 1
+    return LadderBoundaries{D,subgeometry{D-1}}(subgeometry(args...))
 end
 
 Base.size(geom::LadderBoundaries) = (2, size(geom.subgeometry)...)

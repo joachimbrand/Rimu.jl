@@ -113,64 +113,118 @@ It is implemented recursively to ensure type stability.
     return self + row + _interactions(as, rest)
 end
 
+"""
+    external_potential(add::AbstractFockAddress, pot)
+
+Calculate the value of a diagonal single particle operator (e.g. a trap potential) at 
+the address `add`. 
+```math
+\\sum_{iσ} v_{iσ} n_{iσ}
+```
+The (precomputed) potential energy per particle at each mode passed as `pot` should be 
+a length `M` vector for a [`SingleComponentFockAddress`](@ref), or a `M×C` matrix for 
+a [`CompositeFS `](@ref), where `M` is the number of modes and `C` the number of 
+components.
+"""
+Base.@propagate_inbounds function external_potential(add::SingleComponentFockAddress, pot)
+    pe = 0.0
+    @boundscheck checkbounds(pot, 1:num_modes(add))
+    for (n,i) in occupied_modes(add)
+        pe += n * pot[i]
+    end
+    return pe
+end
+
+function external_potential(add::CompositeFS, pot::Matrix)
+    pe = 0.0
+    @boundscheck checkbounds(pot, 1:num_modes(add), 1:num_components(add))
+    for (i,c) in enumerate(add.components)
+        @inbounds pe += external_potential(c, @view pot[:,i])
+    end
+    return pe
+end
+
 ###
 ### HubbardRealSpace
 ###
 """
-    HubbardRealSpace(address; u=ones(C, C), t=ones(C), geometry=PeriodicBoundaries(M,))
+    HubbardRealSpace(address; geometry=PeriodicBoundaries(M,), t=ones(C), u=ones(C, C), v=zeros(C, D))
 
 Hubbard model in real space. Supports single or multi-component Fock state
 addresses (with `C` components) and various (rectangular) lattice geometries
-in arbitrary dimensions.
+in `D` dimensions.
 
 ```math
   \\hat{H} = -\\sum_{\\langle i,j\\rangle,σ} t_σ a^†_{iσ} a_{jσ} +
-  \\frac{1}{2}\\sum_{i,σ} u_{σ,σ} n_{iσ} (n_{iσ} - 1) +
-  \\frac{1}{2}\\sum_{i,σ≠τ}u_{σ,τ} n_{iσ} n_{iτ}
+  \\frac{1}{2}\\sum_{i,σ} u_{σσ} n_{iσ} (n_{iσ} - 1) +
+  \\frac{1}{2}\\sum_{i,σ≠τ}u_{στ} n_{iσ} n_{iτ}
 ```
+
+If `v` is nonzero then this calculates ``\\hat{H} + \\hat{V}`` by adding the 
+harmonic trapping potential
+```math
+    \\hat{V} = \\sum_{i,σ,d} v_{σd} x_{di}^2 n_{iσ}
+```
+where ``x_{di}`` is the distance of site ``i`` from the centre of the trap 
+along dimension ``d``.
 
 ## Address types
 
 * [`BoseFS`](@ref): Single-component Bose-Hubbard model.
-* [`FermiFS`](@ref): Single-component Fermi-Hubbard model. This address only provides a
-  single species of (non-interacting) fermions. You probably want to use [`CompositeFS`](@ref).
+* [`FermiFS`](@ref): Single-component Fermi-Hubbard model.
 * [`CompositeFS`](@ref): For multi-component models.
 
+Note that a single component of fermions cannot interact with itself. A warning 
+is produced if `address`is incompatible with the interaction parameters `u`.
+
 ## Geometries
+
+Implemented [`LatticeGeometry`](@ref)s for keyword `geometry`
 
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
 * [`LadderBoundaries`](@ref)
 
+Default is `geometry=PeriodicBoundaries(M,)`, i.e. a one-dimensional lattice with the 
+number of sites `M` inferred from the number of modes in `address`.
+
 ## Other parameters
 
+* `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
+  vector corresponds to the hopping strength of the `i`-th component.
 * `u`: the on-site interaction parameters. Must be a symmetric matrix. `u[i, j]`
   corresponds to the interaction between the `i`-th and `j`-th component. `u[i, i]`
   corresponds to the interaction of a component with itself. Note that `u[i,i]` must
   be zero for fermionic components.
-* `t`: the hopping strengths. Must be a vector of length `C`. The `i`-th element of the
-  vector corresponds to the hopping strength of the `i`-th component.
-
+* `v`: the trap potential strengths. Must be a matrix of size `C × D`. `v[i,j]` is
+  the strength of the trap for component `i` in the `j`th dimension.
 """
 struct HubbardRealSpace{
-    C,A,G, # C: components
+    C,A,G,D, # C: components
     # The following need to be type params.
     T<:SVector{C,Float64},
-    U<:SMatrix{C,C,Float64},
+    U<:Union{SMatrix{C,C,Float64},Nothing},
+    V<:Union{SMatrix{C,D,Float64},Nothing},
+    P<:Union{Matrix{Float64},Nothing}
 } <: AbstractHamiltonian{Float64}
     address::A
-    u::U # interactions
     t::T # hopping strengths
+    u::U # interactions    
+    v::V # trap strengths
+    potential::P # potential energy of each component at each lattice site
     geometry::G
 end
 
 function HubbardRealSpace(
     address;
-    u=ones(num_components(address), num_components(address)),
+    geometry=PeriodicBoundaries((num_modes(address),)),
     t=ones(num_components(address)),
-    geometry=PeriodicBoundaries((num_modes(address),))
+    u=ones(num_components(address), num_components(address)),    
+    v=zeros(num_components(address), num_dimensions(geometry))
 )
     C = num_components(address)
+    D = num_dimensions(geometry)
+    S = size(geometry)
 
     # Sanity checks
     if prod(size(geometry)) ≠ num_modes(address)
@@ -181,6 +235,8 @@ function HubbardRealSpace(
         throw(ArgumentError("`u` must be a $C × $C matrix"))
     elseif size(t) ≠ (C,)
         throw(ArgumentError("`t` must be a vector of length $C"))
+    elseif length(v) ≠ C * D
+        throw(ArgumentError("`v` must be a $C × $D matrix"))
     elseif address isa BoseFS2C
         throw(ArgumentError(
             "`BoseFS2C` is not supported for this Hamiltonian, use `CompositeFS`"
@@ -188,10 +244,25 @@ function HubbardRealSpace(
     end
     warn_fermi_interaction(address, u)
 
-    u_mat = SMatrix{C,C,Float64}(u)
     t_vec = SVector{C,Float64}(t)
-    return HubbardRealSpace{C,typeof(address),typeof(geometry),typeof(t_vec),typeof(u_mat)}(
-        address, u_mat, t_vec, geometry,
+    u_mat = iszero(u) ? nothing : SMatrix{C,C,Float64}(u)
+
+    # Precompute the trap potential terms
+    if iszero(v)
+        v_mat = nothing
+        pot_vec = nothing
+    else
+        v_mat = SMatrix{C,D,Float64}(v)
+        ranges = Tuple(range(-fld(M,2); length=M) for M in S)
+        x_sq = map(x -> Tuple(x).^2, CartesianIndices(ranges))
+        pot_vec = zeros(prod(S), C) # or undef...
+        for c in 1:C
+            pot_vec[:,c] .= vec(map(x -> sum(v_mat[c,:] .* x), x_sq))
+        end
+    end
+
+    return HubbardRealSpace{C,typeof(address),typeof(geometry),D,typeof(t_vec),typeof(u_mat),typeof(v_mat),typeof(pot_vec)}(
+        address, t_vec, u_mat, v_mat, pot_vec, geometry,
     )
 end
 
@@ -219,18 +290,39 @@ warn_fermi_interaction(_, _) = nothing
 
 LOStructure(::Type{<:HubbardRealSpace}) = IsHermitian()
 
-function Base.show(io::IO, h::HubbardRealSpace)
+function Base.show(io::IO, h::HubbardRealSpace{C}) where C
     println(io, "HubbardRealSpace(")
     println(io, "  ", starting_address(h), ",")
-    println(io, "  u = ", Float64.(h.u), ",")
-    println(io, "  t = ", Float64.(h.t), ",")
     println(io, "  geometry = ", h.geometry, ",")
+    println(io, "  t = ", Float64.(h.t), ",")
+    if isnothing(h.u)
+        println(io, "  u = ", zeros(C,C), ",")
+    else
+        println(io, "  u = ", Float64.(h.u), ",")
+    end
+    !isnothing(h.v) && println(io, "  v = ", Float64.(h.v), ",")
     println(io, ")")
 end
 
+# Overload equality due to stored potential energy arrays.
+Base.:(==)(H::HubbardRealSpace, G::HubbardRealSpace) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
+
 starting_address(h::HubbardRealSpace) = h.address
-diagonal_element(h::HubbardRealSpace, address) = local_interaction(address, h.u)
-diagonal_element(h::HubbardRealSpace{1}, address) = local_interaction(address, h.u[1])
+function diagonal_element(h::HubbardRealSpace, address)
+    int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u)
+    pot = isnothing(h.v) ? 0.0 : external_potential(address, h.potential)
+    return int + pot
+end
+function diagonal_element(h::HubbardRealSpace{1}, address)
+    int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u[1])
+    pot = if isnothing(h.v)
+            0.0
+        else
+            @boundscheck checkbounds(h.potential, 1:num_modes(address), 1)
+            @inbounds external_potential(address, @view h.potential[:,1])
+        end
+    return int + pot
+end
 
 ###
 ### Offdiagonals
