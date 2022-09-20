@@ -16,7 +16,7 @@
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/Impurity-example.jl).
 # Run it with `mpirun -np [# of CPUs] julia Impurity-example.jl`.
 
-### Setup
+# ## Setup
 
 # Firstly, we load all needed modules.
 # `Rimu` and `Rimu.RMPI` for parallel FCIQMC calculation, and `DataFrames` for output
@@ -112,14 +112,14 @@ dv = MPIData(init_dv(P,m,na))
 # Let's have a look of the starting vector:
 @mpi_root @show dv
 
-### Stage 1: Running the "dummy" Hamiltonian
+# ## Stage 1: Running the "dummy" Hamiltonian
 
 # Now we run FCIQMC with `lomc!()` and track the elapsed time. 
 # Both `df` and `state` will be overwritten late with the "real" data
 el = @elapsed df, state = lomc!(ham2, dv; params, s_strat, r_strat,)
 @mpi_root @info "Initial fciqmc completed in $(el) seconds."
 
-### Stage 2: Running the real Hamiltonian with replica but no observables
+# ## Stage 2: Running the real Hamiltonian with replica but no observables
 
 # New we are ready to run the real Hamiltonian, here we redefine some variables for saving outputs.
 # We save the Monte Carlo data every 1000 steps.
@@ -135,7 +135,7 @@ el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica=AllOv
 				 laststep=(steps_equilibrate+steps_warmup))
 @mpi_root @info "Replica fciqmc completed in $(el2) seconds."
 
-### Stage 3: Running the real Hamiltonian with replica with observables
+# ## Stage 3: Running the real Hamiltonian with replica with observables
 
 # We now at the last stage of the calculation, doing replica FCIQMC with a serious of 
 # G2 correlators with distance `d` from `0` to `m`. See [`G2Correlator`](@ref).
@@ -164,6 +164,8 @@ new_state = Rimu.QMCState(
 el3 = @elapsed df2, state2 = lomc!(new_state;laststep=(steps_equilibrate+steps_warmup+steps_final))
 @mpi_root @info "Replica fciqmc with G2 completed in $(el3) seconds."
 @mpi_root println("MPI run finished!")
+
+# ## Post-calculation analysis
 
 # Typically, one should not include any analyses when using MPI, as they will be calculated multiple
 # time unless you put the `@mpi_root` macro everywhere.
