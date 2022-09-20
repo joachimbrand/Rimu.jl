@@ -45,22 +45,22 @@ function init_dv(P,m,n)
         bfs1[c+1] = n; bfs2[c+1] = 1
         dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
     else
-        # move impurity to c+1
+        
         bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
-        bfs1[c] = n-(P-1); bfs1[c+1] = P-1; bfs2[c+1] = 1
+        bfs1[c] = n-(P-1); bfs1[c+1] = P-1; bfs2[c+1] = 1 # move impurity to c+1
         dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
-        # move bosons to c+1
+        
         bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
-        bfs1[c] = n-P; bfs1[c+1] = P; bfs2[c] = 1
+        bfs1[c] = n-P; bfs1[c+1] = P; bfs2[c] = 1 # move bosons to c+1
         dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
-        # move impurity to c+P
+        
         bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
-        bfs1[c] = n; bfs2[c+P] = 1
+        bfs1[c] = n; bfs2[c+P] = 1 # move impurity to c+P
         dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
-        # move impurity to c-1 and a boson to c+1
+        
         if (n-1) >= P >(n÷2)
             bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
-            bfs1[c] = n-(P+1); bfs1[c+1] = P+1; bfs2[c-1] = 1
+            bfs1[c] = n-(P+1); bfs1[c+1] = P+1; bfs2[c-1] = 1 # move impurity to c-1 and a boson to c+1
             dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
         end
     end
