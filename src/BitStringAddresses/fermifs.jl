@@ -69,39 +69,8 @@ end
 
 onr(a::FermiFS) = SVector(m_onr(a))
 
-"""
-    FermiFSIndex
-
-Struct used for indexing and performing [`excitation`](@ref)s on a [`FermiFS`](@ref).
-
-## Fields:
-
-* `occnum`: the occupation number.
-* `mode`: the index of the mode.
-
-"""
-struct FermiFSIndex<:FieldVector{2,Int}
-    occnum::Int
-    mode::Int
-end
-
-function Base.show(io::IO, i::FermiFSIndex)
-    @unpack occnum, mode = i
-    print(io, "FermiFSIndex(occnum=$occnum, mode=$mode)")
-end
-Base.show(io::IO, ::MIME"text/plain", i::FermiFSIndex) = show(io, i)
-
-find_mode(f::FermiFS, i) = FermiFSIndex(Int(is_occupied(f, i)), i)
+find_mode(f::FermiFS, i) = FermiFSIndex(Int(is_occupied(f, i)), i, i-1)
 find_mode(f::FermiFS, is::Tuple) = map(i -> find_mode(f, i), is)
-
-"""
-    FermiOccupiedModes{N,S<:BitString}
-
-Iterator over occupied modes in address. `N` is the number of fermions. See [`occupied_modes`](@ref).
-"""
-struct FermiOccupiedModes{N,S}
-    bs::S
-end
 
 occupied_modes(a::FermiFS{N,<:Any,S}) where {N,S} = FermiOccupiedModes{N,S}(a.bs)
 
@@ -129,7 +98,7 @@ function Base.iterate(o::FermiOccupiedModes, st)
     zeros = trailing_zeros(chunk % Int)
     index += zeros
     chunk >>= zeros
-    return FermiFSIndex(1, index + 1), (chunk >> 1, index + 1, c)
+    return FermiFSIndex(1, index + 1, index), (chunk >> 1, index + 1, c)
 end
 
 function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}) where {T}
@@ -143,7 +112,7 @@ function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}, st) w
     chunk >>= 0x1
     index += 1
     zeros = trailing_zeros(chunk % Int)
-    return FermiFSIndex(1, index), (chunk >> (zeros % T), index + zeros)
+    return FermiFSIndex(1, index, index - 1), (chunk >> (zeros % T), index + zeros)
 end
 
 function find_occupied_mode(a::FermiFS, i::Integer)
@@ -151,7 +120,7 @@ function find_occupied_mode(a::FermiFS, i::Integer)
         i -= 1
         i == 0 && return k
     end
-    return FermiFSIndex(0, 0)
+    return FermiFSIndex(0, 0, 0)
 end
 
 @inline function m_onr(a::FermiFS{<:Any,M}) where {M}

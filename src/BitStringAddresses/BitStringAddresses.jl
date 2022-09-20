@@ -22,7 +22,9 @@ export find_occupied_mode, find_mode, occupied_modes, is_occupied, num_occupied_
 export excitation, onr, near_uniform, OccupiedModeMap
 export @fs_str
 
+include("abstract.jl")
 include("bitstring.jl")
+include("sortedparticlelist.jl")
 include("fockaddress.jl")
 include("bosefs.jl")
 include("fermifs.jl")
