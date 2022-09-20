@@ -1,0 +1,145 @@
+# # Example 4: Impurity Yrast States
+
+# This is an example calculation of the lowest energy eigenstates of a mobile
+# impurity coupled with a one-dimensional Bose gas. We will be using MPI parallelisation
+# as such calculations are typically expensive. 
+
+# A runnable script for this example is located 
+# [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/Impurity-example.jl).
+# Run it with `mpirun -np [# of CPUs] julia Impurity-example.jl`.
+
+# Firstly, we load all needed modules.
+# `Rimu` and `Rimu.RMPI` for parallel FCIQMC calculation, and `DataFrames` for output
+
+using Rimu
+using Rimu.RMPI
+using DataFrames
+
+# Firstly, let's define a function for constructing the starting vector based on
+# the total momentum of the coupled system `P`, the number of modes `m` and the 
+# number of non-impurity bosons `n`. The maximum allowed total momentum equals to the total
+# number of particles including the impurity, hence `n+1`. Apart from the zero and the maximum
+# total momentum states, we will have more than one configurations in the starting vector
+# to reflect various possible excitation options based on intuitions in physics.
+function init_dv(P,m,n)
+    aIni = BoseFS2C(BoseFS([n; zeros(Int, m-1)]), BoseFS([1; zeros(Int, m-1)]))
+    dv = InitiatorDVec(aIni=>1.0;style=IsDynamicSemistochastic())
+    empty!(dv)
+    c = (m+1)÷2 # finding the zero-momentum mode
+    if P == 0 # zero total momentum
+        bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
+        bfs1[c] = n; bfs2[c] = 1
+        dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
+    elseif P == (n+1) # maximum total momentum
+        bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
+        bfs1[c+1] = n; bfs2[c+1] = 1
+        dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
+    else
+        # move impurity to c+1
+        bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
+        bfs1[c] = n-(P-1); bfs1[c+1] = P-1; bfs2[c+1] = 1
+        dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
+        # move bosons to c+1
+        bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
+        bfs1[c] = n-P; bfs1[c+1] = P; bfs2[c] = 1
+        dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
+        # move impurity to c+P
+        bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
+        bfs1[c] = n; bfs2[c+P] = 1
+        dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
+        # move impurity to c-1 and a boson to c+1
+        if (n-1) >= P >(n÷2)
+            bfs1 = zeros(Int, m);bfs2 = zeros(Int, m)
+            bfs1[c] = n-(P+1); bfs1[c+1] = P+1; bfs2[c-1] = 1
+            dv[BoseFS2C(BoseFS(bfs1),BoseFS(bfs2))]+=1.0
+        end
+    end
+    return dv
+end
+
+# Now let's first do some MPI sanity checks and print some information:
+mpi_barrier() # optional, use for debugging and sanity checks
+@info "After barrier 1" mpi_rank() mpi_size() Threads.nthreads()
+
+# Now we specify parameters for constructing a two-component Hamiltonian
+P = 3 # total momentum
+m = 8 # number of modes
+na= 4 # number of non-impurity bosons
+γ = 0.2 # boson-boson coupling strength, dimensionless quantity
+η = 0.5 # impurity-boson coupling strength, dimensionless quantity
+T = m^2/2 # normalised hopping strength
+U = m*γ*na/(γ*na/(m*π^2) + 1) # converting γ to U
+V = m*η*na/(η*na/(m*π^2) + 1) # converting η to V
+# Here we use an initial address `aIni` for constructing the Hamiltonian, but 
+# it will not be used in the starting vector
+aIni = BoseFS2C(BoseFS([na; zeros(Int, m-1)]), BoseFS([1; zeros(Int, m-1)]))
+ham = BoseHubbardMom1D2C(aIni;ta=T,tb=T,ua=U,v=V,dispersion=continuum_dispersion)
+
+# Here we are constructing a secondary Hamiltonian `ham2` with equal boson-boson and impurity coupling
+# strength. We use this Hamiltonian to further generate a batter staring vector. From previous experiences 
+# calculating impurity problems, this setup can significantly speed up the convergence and help FCIQMC to 
+# sample the important part of the Hilbert space, especially useful when `η` is very small.
+η2 = γ
+V2 = m*η2*na/(η2*na/(m*π^2) + 1)
+ham2 = BoseHubbardMom1D2C(aIni;ta=T,tb=T,ua=U,v=V2,dispersion=continuum_dispersion)
+
+# Now we can setup the Monte Carlo parameters
+steps_warmup = 10_000 # number of QMC steps running with `ham2`
+steps_equilibrate = 10_000 # number of QMC steps running with the real `ham`
+steps_final = 1_000 # number of QMC steps running with G2 correlators, very slow, be caution!
+tw = 1_000 # number of walkers
+
+# Specifying the shift strategy:
+s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = tw)
+# We use very small time-step size and high starting value of shift
+params = RunTillLastStep(step = 0, dτ = 0.00001, laststep = steps_warmup,shift = 3_000.0)
+# As we only use the secondary Hamiltonian `ham2` to generate a staring vector, we don't have to
+# save any data in this stage
+r_strat = ReportDFAndInfo(reporting_interval = 1_000, info_interval = 1_000, writeinfo = is_mpi_root())
+
+# Wrapping `dv` for MPI:
+dv = MPIData(init_dv(P,m,na))
+
+# Now we run FCIQMC with `lomc!()` and track the elapsed time. 
+# Both `df` and `state` will be overwritten late with the "real" data
+el = @elapsed df, state = lomc!(ham2, dv; params, s_strat, r_strat,)
+@mpi_root @info "Initial fciqmc completed in $(el) seconds."
+
+# New we are ready to run the real Hamiltonian, here we redefine some variables for saving outputs.
+# We save the Monte Carlo data every 1000 steps.
+r_strat = ReportToFile(
+		save_if = is_mpi_root(),
+		filename = "mpi_df_$(η)_$(P).arrow",
+		chunk_size = 1000,
+        return_df = true # change it to `false` when running the real job
+		)
+
+# We will turn on the replica, but without operators for a fast equilibration.
+el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica=AllOverlaps(2, nothing),
+				 laststep=(steps_equilibrate+steps_warmup))
+@mpi_root @info "Replica fciqmc completed in $(el2) seconds."
+
+
+# We now at the last stage of the calculation, doing replica FCIQMC with a serious of 
+# G2 correlators with distance `d` from `0` to `m`. See [`G2Correlator`](@ref).
+# Save data every 10 steps as they are slow and you don't want to loose too much data if
+# the job stops before finishes.
+r_strat = ReportToFile(
+		       save_if = is_mpi_root(),
+		       filename = "mpi_df_g2_$(η)_$(P).arrow",
+		       chunk_size = 10,
+               return_df = true # change it to `false` when running the real job
+		       )
+
+# Setting up a tuple of G2 correlators:
+g = Tuple(G2Correlator.(0:m))
+
+# Carry over information from the previous stage and set up a new `QMCState`:
+new_state = Rimu.QMCState(
+			  state.hamiltonian, state.replicas, Ref(Int(state.maxlength)),
+			  state.m_strat, r_strat, state.s_strat, state.τ_strat, state.threading, state.post_step, AllOverlaps(2, g)
+			  )
+# The final stage 
+el3 = @elapsed df2, state2 = lomc!(new_state;laststep=(steps_equilibrate+steps_warmup+steps_final))
+@mpi_root @info "Replica fciqmc with G2 completed in $(el3) seconds."
+@mpi_root println("Done!")
