@@ -1,8 +1,9 @@
 # # Example 4: Impurity Yrast States
 
-# This is an example calculation of the lowest energy eigenstates of a mobile
+# This is an example calculation of the lowest energy eigenstates at given total momentum (yrast states) of a mobile
 # impurity coupled with a one-dimensional Bose gas. We will be using MPI parallelisation
-# as such calculations are typically expensive. 
+# as such calculations are typically expensive. This script is designed to be run effectively
+# on a high performance computing (HPC) unit. 
 
 # The aim of this example is to showcase how a two-component Hamiltonian in momentum-space can be set up, 
 # as well as how a multi-stage FCIQMC can be run. Furthermore, this momentum-space setup will incur the 
@@ -17,16 +18,14 @@
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/Impurity-example.jl).
 # Run it with `mpirun -np [# of CPUs] julia Impurity-example.jl`.
 
-# ## Setup
+# ## Initial setup and parameters
 
-# Firstly, we load all needed modules.
-# `Rimu` and `Rimu.RMPI` for parallel FCIQMC calculation, and `DataFrames` for output
+# Firstly, we load all needed modules `Rimu` and `Rimu.RMPI` for parallel FCIQMC calculation.
 
 using Rimu
 using Rimu.RMPI
-# using DataFrames
 
-# Firstly, let's define a function for constructing the starting vector based on
+# Let's define a function for constructing the starting vector based on
 # the total momentum of the coupled system `P`, the number of modes `m` and the 
 # number of non-impurity bosons `n`. The maximum allowed total momentum equals to the total
 # number of particles including the impurity, hence `n+1`. Apart from the zero and the maximum
@@ -84,23 +83,17 @@ T = m^2/2 # normalised hopping strength
 U = m*γ*na/(γ*na/(m*π^2) + 1) # converting γ to U
 V = m*η*na/(η*na/(m*π^2) + 1) # converting η to V
 # Here we use an initial address `aIni` for constructing the Hamiltonian, but 
-# it will not be used in the starting vector
+# it will not be used in the starting vector.
 aIni = BoseFS2C(BoseFS([na; zeros(Int, m-1)]), BoseFS([1; zeros(Int, m-1)]))
 ham = BoseHubbardMom1D2C(aIni;ta=T,tb=T,ua=U,v=V,dispersion=continuum_dispersion)
 
-# Here we are constructing a secondary Hamiltonian `ham2` with equal boson-boson and impurity coupling
-# strength. We use this Hamiltonian to further generate a batter staring vector. From previous experiences 
-# calculating impurity problems, this setup can significantly speed up the convergence and help FCIQMC to 
-# sample the important part of the Hilbert space, especially useful when `η` is very small.
-η2 = γ
-V2 = m*η2*na/(η2*na/(m*π^2) + 1)
-ham2 = BoseHubbardMom1D2C(aIni;ta=T,tb=T,ua=U,v=V2,dispersion=continuum_dispersion)
+
 
 # Now we can setup the Monte Carlo parameters
 steps_warmup = 10_000 # number of QMC steps running with `ham2`
 steps_equilibrate = 10_000 # number of QMC steps running with the real `ham`
 steps_final = 10_000 # number of QMC steps running with G2 correlators, very slow, be caution!
-tw = 1_000 # number of walkers
+tw = 1_000 # number of walkers, be sure to use a larger enough number to eliminate biases
 
 # Specifying the shift strategy:
 s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = tw)
@@ -111,20 +104,28 @@ params = RunTillLastStep(step = 0, dτ = 0.00001, laststep = steps_warmup,shift 
 r_strat = ReportDFAndInfo(reporting_interval = 1_000, info_interval = 1_000, writeinfo = is_mpi_root(), io = devnull)
 
 # Wrapping `dv` for MPI:
-dv = MPIData(init_dv(P,m,na))
+dv = MPIData(init_dv(P,m,na));
 
 # Let's have a look of the starting vector, in this particular case, all 4 different ways of 
 # distributing total momenta `P` with `init_dv()` are triggered:
 @mpi_root @show dv
 
-# ## Stage 1: Running the "dummy" Hamiltonian
+# ## Stage 1: Running with the "dummy" Hamiltonian
+
+# Here we are constructing a secondary Hamiltonian `ham2` with equal boson-boson and impurity coupling
+# strength. We use this Hamiltonian to further generate a batter staring vector. From previous experiences 
+# calculating impurity problems, this setup can significantly speed up the convergence and help FCIQMC to 
+# sample the important part of the Hilbert space, especially useful when `η` is very small.
+η2 = γ
+V2 = m*η2*na/(η2*na/(m*π^2) + 1)
+ham2 = BoseHubbardMom1D2C(aIni;ta=T,tb=T,ua=U,v=V2,dispersion=continuum_dispersion)
 
 # Now we run FCIQMC with `lomc!()` and track the elapsed time. 
 # Both `df` and `state` will be overwritten late with the "real" data.
 el = @elapsed df, state = lomc!(ham2, dv; params, s_strat, r_strat,)
 @mpi_root @info "Initial fciqmc completed in $(el) seconds."
 
-# ## Stage 2: Running the real Hamiltonian with replica but no observables
+# ## Stage 2: Running with the real Hamiltonian with replica but no observables
 
 # We are ready to run the real Hamiltonian, here we redefine some variables for saving outputs.
 # We save the Monte Carlo data every 1000 steps.
@@ -142,7 +143,7 @@ r_strat = ReportToFile(
 el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica = AllOverlaps(2, nothing), laststep = (steps_equilibrate+steps_warmup))
 @mpi_root @info "Replica fciqmc completed in $(el2) seconds."
 
-# ## Stage 3: Running the real Hamiltonian with replica with observables
+# ## Stage 3: Running with the real Hamiltonian with replica and observables
 
 # We now at the last stage of the calculation, doing replica FCIQMC with a serious of 
 # G2 correlators with distance `d` from `0` to `m`. See [`G2Correlator`](@ref).
@@ -178,7 +179,8 @@ println("MPI run finished!")
 # ## Post-calculation analysis
 
 # Typically, one should not include any analyses when using MPI, as they will be calculated multiple
-# time unless you put the `@mpi_root` macro everywhere.
+# time unless you put the `@mpi_root` macro everywhere. Even so, all other MPI ranks apart from the root
+# will be idling and wasting CPU hours on a HPC unit.
 # But here, let's have a look of the calculated G2 correlations:
 @mpi_root println("Two-body correlator from 2 replicas:")
 @mpi_root for d in 0:m
