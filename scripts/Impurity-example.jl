@@ -5,7 +5,8 @@
 # as such calculations are typically expensive. 
 
 # The aim of this example is to showcase how a two-component Hamiltonian in momentum-space can be set up, 
-# as well as how a multi-stage FCIQMC can be run.
+# as well as how a multi-stage FCIQMC can be run. Furthermore, this momentum-space setup will incur the 
+# sign problem, hence the initiator approach for FCIQMC will be used.
 
 # A detailed description of the physical system and the physics behind the model can be found 
 # at our published paper (open access) "Polaron-Depleton Transition in the Yrast Excitations of a One-Dimensional 
@@ -23,7 +24,7 @@
 
 using Rimu
 using Rimu.RMPI
-using DataFrames
+# using DataFrames
 
 # Firstly, let's define a function for constructing the starting vector based on
 # the total momentum of the coupled system `P`, the number of modes `m` and the 
@@ -65,6 +66,9 @@ function init_dv(P,m,n)
     end
     return dv
 end
+
+# Note that the `dv` will be constructed with `InitiatorDVec()`, meaning 
+# that the initiator-FCIQMC algorithm will be used.
 
 # Now let's first do some MPI sanity checks and print some information:
 mpi_barrier() # optional, use for debugging and sanity checks
@@ -109,29 +113,30 @@ r_strat = ReportDFAndInfo(reporting_interval = 1_000, info_interval = 1_000, wri
 # Wrapping `dv` for MPI:
 dv = MPIData(init_dv(P,m,na))
 
-# Let's have a look of the starting vector:
+# Let's have a look of the starting vector, in this particular case, all 4 different ways of 
+# distributing total momenta `P` with `init_dv()` are triggered:
 @mpi_root @show dv
 
 # ## Stage 1: Running the "dummy" Hamiltonian
 
 # Now we run FCIQMC with `lomc!()` and track the elapsed time. 
-# Both `df` and `state` will be overwritten late with the "real" data
+# Both `df` and `state` will be overwritten late with the "real" data.
 el = @elapsed df, state = lomc!(ham2, dv; params, s_strat, r_strat,)
 @mpi_root @info "Initial fciqmc completed in $(el) seconds."
 
 # ## Stage 2: Running the real Hamiltonian with replica but no observables
 
-# New we are ready to run the real Hamiltonian, here we redefine some variables for saving outputs.
+# We are ready to run the real Hamiltonian, here we redefine some variables for saving outputs.
 # We save the Monte Carlo data every 1000 steps.
 # Progress messages are suppressed with `io=devnull`, for a real job one should remove the 
 # line to invoke the default `io` and reenable the output messages.
 r_strat = ReportToFile(
-		save_if = is_mpi_root(),
-		filename = "mpi_df_$(η)_$(P).arrow",
-		chunk_size = 1000,
-        return_df = true, # change it to `false` when running the real job
-        io=devnull
-		)
+    save_if = is_mpi_root(),
+    filename = "mpi_df_$(η)_$(P).arrow",
+    chunk_size = 1000,
+    return_df = true, # change it to `false` when running the real job
+    io=devnull # remove this line when running the real job
+    )
 
 # We will turn on the replica, but without operators for a fast equilibration.
 el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica = AllOverlaps(2, nothing), laststep = (steps_equilibrate+steps_warmup))
@@ -147,12 +152,12 @@ el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica = All
 # Progress messages are suppressed with `io=devnull`, for a real job one should remove the 
 # line to invoke the default `io` and reenable the output messages.
 r_strat = ReportToFile(
-		       save_if = is_mpi_root(),
-		       filename = "mpi_df_g2_$(η)_$(P).arrow",
-		       chunk_size = 1000,
-               return_df = true, # change it to `false` when running the real job
-               io = devnull 
-		       )
+    save_if = is_mpi_root(),
+    filename = "mpi_df_g2_$(η)_$(P).arrow",
+    chunk_size = 1000,
+    return_df = true, # change it to `false` when running the real job
+    io = devnull # remove this line when running the real job
+    )
 
 # Setting up a tuple of G2 correlators:
 g = Tuple(G2Correlator.(0:m))
@@ -162,9 +167,9 @@ g = Tuple(G2Correlator.(0:m))
 
 # Carry over information from the previous stage and set up a new `QMCState`:
 new_state = Rimu.QMCState(
-			  state.hamiltonian, state.replicas, Ref(Int(state.maxlength)),
-			  state.m_strat, r_strat, state.s_strat, state.τ_strat, state.threading, state.post_step, AllOverlaps(2, g)
-			  )
+    state.hamiltonian, state.replicas, Ref(Int(state.maxlength)),
+    state.m_strat, r_strat, state.s_strat, state.τ_strat, state.threading, state.post_step, AllOverlaps(2, g)
+    )
 # The final stage 
 el3 = @elapsed df2, state2 = lomc!(new_state; laststep = (steps_equilibrate+steps_warmup+steps_final))
 @mpi_root @info "Replica fciqmc with G2 completed in $(el3) seconds."
@@ -177,8 +182,14 @@ println("MPI run finished!")
 # But here, let's have a look of the calculated G2 correlations:
 @mpi_root println("Two-body correlator from 2 replicas:")
 @mpi_root for d in 0:m
-    r = rayleigh_replica_estimator(df2; op_name = "Op$(d+1)", skip = 1_000)
+    r = rayleigh_replica_estimator(df2; op_name = "Op$(d+1)", skip = 5_000)
     println("   G2($d) = $(r.f) ± $(r.σ_f)")
 end
 # A symmetry between `G2(d)` and `G2(m-d)` can be observed above, which is the expected outcome due 
 # the periodic boundary conditions. 
+
+# Finished !
+
+using Test #src
+r = rayleigh_replica_estimator(df2; op_name = "Op1", skip = 5_000) #src
+@test r.f ≈ 0.6294961872457038 rtol = 0.01 #src
