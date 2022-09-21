@@ -90,18 +90,13 @@ ham = BoseHubbardMom1D2C(aIni;ta=T,tb=T,ua=U,v=V,dispersion=continuum_dispersion
 
 
 # Now we can setup the Monte Carlo parameters
-steps_warmup = 10_000 # number of QMC steps running with `ham2`
+steps_warmup = 10_000 # number of QMC steps running with a dummy Hamiltonian, see Stage 1
 steps_equilibrate = 10_000 # number of QMC steps running with the real `ham`
 steps_final = 10_000 # number of QMC steps running with G2 correlators, very slow, be caution!
 tw = 1_000 # number of walkers, be sure to use a larger enough number to eliminate biases
 
 # Specifying the shift strategy:
 s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = tw)
-# We use very small time-step size and high starting value of shift
-params = RunTillLastStep(step = 0, dτ = 0.00001, laststep = steps_warmup,shift = 200.0)
-# As we only use the secondary Hamiltonian `ham2` to generate a staring vector, we don't have to
-# save any data in this stage. Progress messages are suppressed with `io=devnull`.
-r_strat = ReportDFAndInfo(reporting_interval = 1_000, info_interval = 1_000, writeinfo = is_mpi_root(), io = devnull)
 
 # Wrapping `dv` for MPI:
 dv = MPIData(init_dv(P,m,na));
@@ -120,8 +115,14 @@ dv = MPIData(init_dv(P,m,na));
 V2 = m*η2*na/(η2*na/(m*π^2) + 1)
 ham2 = BoseHubbardMom1D2C(aIni;ta=T,tb=T,ua=U,v=V2,dispersion=continuum_dispersion)
 
+# We use very small time-step size and high starting value of shift
+params = RunTillLastStep(step = 0, dτ = 0.00001, laststep = steps_warmup,shift = 200.0)
+# As we only use the secondary Hamiltonian `ham2` to generate a staring vector, we don't have to
+# save any data in this stage. Progress messages are suppressed with `io=devnull`.
+r_strat = ReportDFAndInfo(reporting_interval = 1_000, info_interval = 1_000, writeinfo = is_mpi_root(), io = devnull)
+
 # Now we run FCIQMC with `lomc!()` and track the elapsed time. 
-# Both `df` and `state` will be overwritten late with the "real" data.
+# Both `df` and `state` will be overwritten later with the "real" data.
 el = @elapsed df, state = lomc!(ham2, dv; params, s_strat, r_strat,)
 @mpi_root @info "Initial fciqmc completed in $(el) seconds."
 
