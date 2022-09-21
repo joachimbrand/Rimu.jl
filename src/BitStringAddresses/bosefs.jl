@@ -21,17 +21,41 @@ struct BoseFS{N,M,S} <: SingleComponentFockAddress{N,M}
     bs::S
 end
 
-###
-### General
-###
-# TODO generalize for both storage types
-function BoseFS{N}(onr::Union{SVector{M},NTuple{M}}) where {N,M}
-    return BoseFS{N,M}(onr)
+@inline function BoseFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,S}
+    @boundscheck begin
+        sum(onr) == N || throw(ArgumentError(
+            "invalid ONR: $N particles expected, $(sum(onr)) given"
+        ))
+        M + N - 1 == B || throw(ArgumentError(
+            "invalid ONR: $B-bit BitString does not fit $N particles in $M modes"
+        ))
+    end
+    return BoseFS{N,M,S}(from_bose_onr(S, onr))
 end
-function BoseFS(onr::Union{AbstractVector,Tuple})
+function BoseFS{N,M}(onr::Union{AbstractVector,NTuple{M}}; dense=nothing) where {N,M}
+    @boundscheck begin
+        sum(onr) == N || throw(ArgumentError(
+            "invalid ONR: $N particles expected, $(sum(onr)) given"
+        ))
+    end
+    spl_type = select_int_type(M)
+    S_sparse = SortedParticleList{N,M,spl_type}
+    S_dense = typeof(BitString{M + N - 1}(0))
+    # pick smaller address type, but prefer sparse as bose addresses are complicated.
+    if !isnothing(dense) && dense || sizeof(S_dense) < sizeof(S_sparse)
+        S = S_dense
+    else
+        S = S_sparse
+    end
+    return BoseFS{N,M,S}(from_bose_onr(S, SVector{M,Int}(onr)))
+end
+function BoseFS{N}(onr::Union{SVector{M},NTuple{M}}; kwargs...) where {N,M}
+    return BoseFS{N,M}(onr; kwargs...)
+end
+function BoseFS(onr::Union{AbstractVector,Tuple}; kwargs...)
     M = length(onr)
     N = sum(onr)
-    return BoseFS{N,M}(onr)
+    return BoseFS{N,M}(onr; kwargs...)
 end
 
 function print_address(io::IO, b::BoseFS{N,M}) where {N,M}
@@ -47,79 +71,6 @@ Base.bitstring(b::BoseFS) = bitstring(b.bs) # TODO rename?
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
 Base.:(==)(a::BoseFS, b::BoseFS) = a.bs == b.bs
-
-
-###
-###
-###
-function BoseFS{N,M}(bs::BitString{B}) where {N,M,B}
-    # Check for consistency between parameter, but NOT for the correct number of bits.
-    N + M - 1 == B || throw(ArgumentError("type parameter mismatch"))
-    return BoseFS{N,M,typeof(bs)}(bs)
-end
-
-function BoseFS(bs::BitString{B}) where B
-    N = count_ones(bs)
-    M = B - N + 1
-    return BoseFS{N,M}(bs)
-end
-
-@inline function BoseFS{N,M,S}(
-    onr::Union{SVector{M},NTuple{M}}
-) where {N,M,S<:BitString{<:Any,1}}
-    @boundscheck sum(onr) == N || error("invalid ONR")
-    T = chunk_type(S)
-    result = zero(T)
-    for i in M:-1:1
-        curr_occnum = T(onr[i])
-        result <<= curr_occnum + T(1)
-        result |= one(T) << curr_occnum - T(1)
-    end
-    return BoseFS{N,M,S}(S(SVector(result)))
-end
-
-@inline function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString}
-    @boundscheck sum(onr) == N || error("invalid ONR")
-    K = num_chunks(S)
-    result = zeros(MVector{K,UInt64})
-    offset = 0
-    bits_left = chunk_bits(S, K)
-    i = 1
-    j = K
-    while true
-        # Write number to result
-        curr_occnum = onr[i]
-        while curr_occnum > 0
-            x = min(curr_occnum, bits_left)
-            mask = (one(UInt64) << x - 1) << offset
-            @inbounds result[j] |= mask
-            bits_left -= x
-            offset += x
-            curr_occnum -= x
-
-            if bits_left == 0
-                j -= 1
-                offset = 0
-                bits_left = chunk_bits(S, j)
-            end
-        end
-        offset += 1
-        bits_left -= 1
-
-        if bits_left == 0
-            j -= 1
-            offset = 0
-            bits_left = chunk_bits(S, j)
-        end
-        i += 1
-        i > M && break
-    end
-    return BoseFS{N,M}(S(SVector(result)))
-end
-function BoseFS{N,M}(onr::Union{AbstractVector,Tuple}) where {N,M}
-    S = typeof(BitString{N + M - 1}(0))
-    return BoseFS{N,M,S}(SVector{M}(onr))
-end
 
 """
     near_uniform_onr(N, M) -> onr::SVector{M,Int}
@@ -171,7 +122,7 @@ address `bs` as an `SVector{M,Int32}`, where `M` is the number of modes.
 onr(b::BoseFS{<:Any,M}) where {M} = bose_onr(b.bs, Val(M))
 
 function Base.reverse(b::BoseFS)
-    return typeof(b)(bitreverse(b.bs))
+    return typeof(b)(reverse(b.bs))
 end
 
 # For vacuum state
@@ -181,7 +132,6 @@ end
 function num_occupied_modes(b::BoseFS)
     return bose_num_occupied_modes(b.bs)
 end
-
 function occupied_modes(b::BoseFS{N,M,S}) where {N,M,S}
     return BoseOccupiedModes{N,M,S}(b.bs)
 end

@@ -547,10 +547,55 @@ end
 ###
 ### Bose occupied modes
 ###
+function from_bose_onr(::Type{S}, onr) where {T,S<:BitString{<:Any,1,T}}
+    result = zero(T)
+    for i in length(onr):-1:1
+        curr_occnum = T(onr[i])
+        result <<= curr_occnum + T(1)
+        result |= one(T) << curr_occnum - T(1)
+    end
+    return S(SVector(result))
+end
+function from_bose_onr(::Type{S}, onr) where {K,S<:BitString{<:Any,K}}
+    result = zeros(MVector{K,UInt64})
+    offset = 0
+    bits_left = chunk_bits(S, K)
+    i = 1
+    j = K
+    while true
+        # Write number to result
+        curr_occnum = onr[i]
+        while curr_occnum > 0
+            x = min(curr_occnum, bits_left)
+            mask = (one(UInt64) << x - 1) << offset
+            @inbounds result[j] |= mask
+            bits_left -= x
+            offset += x
+            curr_occnum -= x
+
+            if bits_left == 0
+                j -= 1
+                offset = 0
+                bits_left = chunk_bits(S, j)
+            end
+        end
+        offset += 1
+        bits_left -= 1
+
+        if bits_left == 0
+            j -= 1
+            offset = 0
+            bits_left = chunk_bits(S, j)
+        end
+        i += 1
+        i > length(onr) && break
+    end
+    return S(SVector(result))
+end
+
 const DenseBoseOccupiedModes{K} = BoseOccupiedModes{N,M,BitString{B,K,T}} where {N,M,B,T}
 
 Base.length(bom::DenseBoseOccupiedModes) = bose_num_occupied_modes(bom.storage)
-Base.eltype(::DenseBoseOccupiedModes) = BoseFSIndex
 
 # Single chunk versions are simpler.
 @inline function Base.iterate(bom::DenseBoseOccupiedModes{1})
@@ -627,14 +672,8 @@ end
     return BoseFSIndex(result, mode, bit_position), (i, chunk, bits_left, mode)
 end
 
-"""
-    m_onr(bs)
-
-Compute and return the occupation number representation of the bit string
-address `bs` as an `MVector{M,Int32}`, where `M` is the number of modes.
-"""
 # Version specialized for single-chunk addresses.
-@inline function m_onr(bs::BitString{<:Any,1}, ::Val{M}) where {M}
+@inline function bose_onr(bs::BitString{<:Any,1}, ::Val{M}) where {M}
     result = zeros(MVector{M,Int32})
     for mode in 1:M
         bosons = Int32(trailing_ones(bs))
@@ -642,12 +681,12 @@ address `bs` as an `MVector{M,Int32}`, where `M` is the number of modes.
         bs >>>= (bosons + 1) % UInt
         iszero(bs) && break
     end
-    return result
+    return SVector(result)
 end
 
 # Version specialized for multi-chunk addresses. This is quite a bit faster for large
 # addresses.
-@inline function m_onr(bs::BitString{<:Any,K}, ::Val{M}) where {K,M}
+@inline function bose_onr(bs::BitString{<:Any,K}, ::Val{M}) where {K,M}
     B = num_bits(bs)
     result = zeros(MVector{M,Int32})
     mode = 1
@@ -668,7 +707,133 @@ end
         i -= 1
         mode += bits_left
     end
-    return result
+    return SVector(result)
 end
 
-bose_onr(bs::BitString, ::Val{M}) where {M} = SVector(m_onr(bs, Val(M)))
+###
+### FermiFS interface
+###
+function from_fermi_onr(::Type{S}, onr) where {M,C,T,S<:BitString{M,C,T}}
+    result = zero(SVector{C,T})
+    for mode in 1:M
+        iszero(onr[mode]) && continue
+        minus_j, offset = fldmod(mode - 1, 64)
+        j = C - minus_j
+        new = result[j] | T(1) << T(offset)
+        result = setindex(result, new, j)
+    end
+    return S(result)
+end
+
+function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString})
+    c = 0
+    chunk = o.storage.chunks[end]
+    while iszero(chunk)
+        c += 1
+        chunk = o.storage.chunks[end - c]
+    end
+    zeros = trailing_zeros(chunk % Int)
+    return iterate(o, (chunk >> (zeros % UInt64), c * 64 + zeros, c))
+end
+function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString}, st)
+    chunk, index, c = st
+    while iszero(chunk)
+        c += 1
+        c == num_chunks(o.storage) && return nothing
+        chunk = o.storage.chunks[end - c]
+        index = c * 64
+    end
+    zeros = trailing_zeros(chunk % Int)
+    index += zeros
+    chunk >>= zeros
+    return FermiFSIndex(1, index + 1, index), (chunk >> 1, index + 1, c)
+end
+
+function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}) where {T}
+    chunk = o.storage.chunks[end]
+    zeros = trailing_zeros(chunk % Int)
+    return iterate(o, (chunk >> (zeros % T), zeros))
+end
+function Base.iterate(o::FermiOccupiedModes{<:Any,<:BitString{<:Any,1,T}}, st) where {T}
+    chunk, index = st
+    iszero(chunk) && return nothing
+    chunk >>= 0x1
+    index += 1
+    zeros = trailing_zeros(chunk % Int)
+    return FermiFSIndex(1, index, index - 1), (chunk >> (zeros % T), index + zeros)
+end
+
+"""
+    _flip_and_count(bs::BitString, k)
+
+Count the number of ones before the `k`-th mode, flip the `k`th bit. Return the new
+bitstring, the count, and the value of the bit after the flip.
+"""
+@inline function _flip_and_count(bs::BitString{<:Any,1,T}, k::Unsigned) where {T}
+    chunk = bs.chunks[1]
+    # highlights the k-th bit
+    kmask = one(T) << k
+
+    count = count_ones((kmask - 0x1) & chunk)
+    chunk = chunk ⊻ kmask
+    val = chunk & kmask > 0
+    return typeof(bs)(chunk), count, val
+end
+@inline function _flip_and_count(bs::BitString, k::Unsigned)
+    j, i = fldmod(k % Int, UInt(64))
+    j = length(bs.chunks) - j
+    chunk = bs.chunks[j]
+
+    kmask = one(UInt64) << i
+
+    count = count_ones((kmask - 0x1) & chunk)
+    chunk = chunk ⊻ kmask
+    val = chunk & kmask > 0
+
+    for k in j + 1:num_chunks(bs)
+        count += count_ones(bs.chunks[k])
+    end
+    return typeof(bs)(setindex(bs.chunks, chunk, j)), count, val
+end
+
+function fermi_excitation(
+    bs::BitString, creations::NTuple{N}, destructions::NTuple{N}
+) where {N}
+    orig_bs = bs
+    count = 0
+    for i in N:-1:1
+        d = destructions[i].mode
+        bs, x, val = _flip_and_count(bs, UInt(d - 0x1))
+        val && return orig_bs, 0.0
+        count += x
+    end
+    for i in N:-1:1
+        c = creations[i].mode
+        bs, x, val = _flip_and_count(bs, UInt(c - 0x1))
+        !val && return orig_bs, 0.0
+        count += x
+    end
+
+    return bs, ifelse(iseven(count), 1.0, -1.0)
+end
+
+function _is_occupied(bs::BitString{M,1,T}, mode) where {M,T}
+    @boundscheck 1 ≤ mode ≤ M || throw(BoundsError(bs, mode))
+    return bs.chunks[1] & (T(1) << (mode - 1) % T) > 0
+end
+function _is_occupied(bs::BitString{M}, mode) where {M}
+    @boundscheck 1 ≤ mode ≤ M || throw(BoundsError(bs, mode))
+    j, i = fldmod1(mode, 64)
+    return bs.chunks[end + 1 - j] & (UInt(1) << UInt(i - 1)) > 0
+end
+
+fermi_find_mode(bs::BitString, i) = FermiFSIndex(Int(_is_occupied(bs, i)), i, i-1)
+function fermi_find_mode(bs::BitString, is::Tuple)
+    return map(i -> FermiFSIndex(fermi_find_mode(bs, i)), is)
+end
+
+function LinearAlgebra.dot(
+    occ_a::FermiOccupiedModes{<:Any,S}, occ_b::FermiOccupiedModes{<:Any,S}
+) where {S}
+    return count_ones(occ_a.storage & occ_b.storage)
+end

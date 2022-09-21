@@ -67,7 +67,7 @@ Base.size(s::Offdiagonals) = (s.length,)
     new_address, product = hopnextneighbour(add, chosen)
 
 Compute the new address of a hopping event for the Bose-Hubbard model. Returns the new
-address and the product of occupation numbers of the involved modes.
+address and the square root of product of occupation numbers of the involved modes.
 
 The off-diagonals are indexed as follows:
 
@@ -82,12 +82,12 @@ The off-diagonals are indexed as follows:
 julia> using Rimu.Hamiltonians: hopnextneighbour
 
 julia> hopnextneighbour(BoseFS((1, 0, 1)), 3)
-(BoseFS{2,3}((2, 0, 0)), 2)
+(BoseFS{2,3}((2, 0, 0)), 1.4142135623730951)
 julia> hopnextneighbour(BoseFS((1, 0, 1)), 4)
-(BoseFS{2,3}((1, 1, 0)), 1)
+(BoseFS{2,3}((1, 1, 0)), 1.0)
 ```
 """
-function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
+function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
     address = b.bs
     T = chunk_type(address)
     site = (chosen + 1) >>> 0x1
@@ -134,5 +134,13 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A}
             prod = curr * (prev + 1)
         end
     end
-    return BoseFS{N,M,A}(new_address), prod
+    return BoseFS{N,M,A}(new_address), √prod
+end
+# TODO Hack
+function hopnextneighbour(b::BoseFS, i)
+    src = find_occupied_mode(b, (i + 1) >>> 0x1)
+    dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
+
+    new_b, val = excitation(b, (dst,), (src,))
+    return new_b, val
 end

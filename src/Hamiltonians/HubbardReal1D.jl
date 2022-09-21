@@ -62,8 +62,11 @@ julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((3,0,1,0)))
 6
 ```
 """
-function bose_hubbard_interaction(b::BoseFS{<:Any,<:Any,A}) where A
+function bose_hubbard_interaction(b::BoseFS{<:Any,<:Any,A}) where {A<:BitString}
     return bose_hubbard_interaction(Val(num_chunks(A)), b)
+end
+function bose_hubbard_interaction(b::BoseFS)
+    return bose_hubbard_interaction(nothing, b)
 end
 
 @inline function bose_hubbard_interaction(_, b::BoseFS)
@@ -95,5 +98,5 @@ end
 
 function get_offdiagonal(h::HubbardReal1D, add::BoseFS, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
-    return naddress, - h.t * sqrt(onproduct)
+    return naddress, - h.t * onproduct
 end

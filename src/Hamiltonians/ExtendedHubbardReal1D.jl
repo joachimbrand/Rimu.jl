@@ -88,5 +88,5 @@ end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, add::BoseFS, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
-    return naddress, - h.t * sqrt(onproduct)
+    return naddress, - h.t * onproduct
 end

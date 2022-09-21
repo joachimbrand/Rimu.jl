@@ -17,50 +17,11 @@ See also [`BoseFS`](@ref), [`FermiFS`](@ref), [`CompositeFS`](@ref).
 """
 local_interaction(b::BoseFS, u) = u * bose_hubbard_interaction(b) / 2
 local_interaction(f::FermiFS, _) = 0
-local_interaction(f::FermiFS, g::FermiFS, v) = v * count_ones(f.bs & g.bs)
-local_interaction(f::FermiFS, b::BoseFS, v) = local_interaction(b, f, v)
-
-function local_interaction(a::BoseFS, b::BoseFS, v)
-    occ_a = occupied_modes(a)
-    occ_b = occupied_modes(b)
-
-    (n_a, i_a, _), st_a = iterate(occ_a)
-    (n_b, i_b, _), st_b = iterate(occ_b)
-
-    acc = 0
-    while true
-        if i_a > i_b
-            # b is behind and needs to do a step
-            iter = iterate(occ_b, st_b)
-            isnothing(iter) && return acc * v
-            (n_b, i_b, _), st_b = iter
-        elseif i_a < i_b
-            # a is behind and needs to do a step
-            iter = iterate(occ_a, st_a)
-            isnothing(iter) && return acc * v
-            (n_a, i_a, _), st_a = iter
-        else
-            # a and b are at the same position
-            acc += n_a * n_b
-            # now both need to do a step
-            iter = iterate(occ_a, st_a)
-            isnothing(iter) && return acc * v
-            (n_a, i_a, _), st_a = iter
-            iter = iterate(occ_b, st_b)
-            isnothing(iter) && return acc * v
-            (n_b, i_b, _), st_b = iter
-        end
-    end
+function local_interaction(a::SingleComponentFockAddress, b::SingleComponentFockAddress, u)
+    u * dot(occupied_modes(a), occupied_modes(b))
 end
-function local_interaction(b::BoseFS, f::FermiFS, v)
-    acc = 0
-    for (n, i) in occupied_modes(b)
-        acc += is_occupied(f, i) * n
-    end
-    return acc * v
-end
-function local_interaction(fs::CompositeFS, m)
-    _interactions(fs.components, m)
+function local_interaction(fs::CompositeFS, u)
+    _interactions(fs.components, u)
 end
 
 """

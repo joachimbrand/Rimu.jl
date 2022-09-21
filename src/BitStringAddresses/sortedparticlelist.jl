@@ -1,5 +1,3 @@
-export SortedParticleList
-
 """
     select_int_type(M)
 
@@ -22,8 +20,11 @@ end
 """
     SortedParticleList{N,M,T<:Unsigned}
 
-Type for storing sparse fock states. Stores the mode number of each particle as an entry.
-The entries are always kept sorted.
+Type for storing sparse fock states. Stores the mode number of each particle as an entry
+with only its mode stored. The entries are always kept sorted.
+
+Iterating over `SortedParticleList`s yields occupied modes as a tuple of occupation number,
+mode number, and position in list.
 
 # Constructors
 
@@ -43,22 +44,27 @@ function SortedParticleList{N,M}() where {N,M}
     T = select_int_type(M)
     return SortedParticleList{N,M,T}(ones(SVector{N,T}))
 end
-function SortedParticleList(arr)
-    M = length(arr)
-    T = select_int_type(M)
-    vals = T[]
-    for (i, v) in enumerate(arr)
+function from_onr(::Type{S}, onr) where {N,M,T,S<:SortedParticleList{N,M,T}}
+    spl = zeros(MVector{N,T})
+    curr = 1
+    for (n, v) in enumerate(onr)
         for _ in 1:v
-            push!(vals, i)
+            spl[curr] = n
+            curr += 1
         end
     end
-    N = length(vals)
-    return SortedParticleList{N,M,T}(SVector{N,T}(vals))
+    return SortedParticleList{N,M,T}(SVector(spl))
+end
+
+function Base.isless(ss1::SortedParticleList, ss2::SortedParticleList)
+    return isless(ss1.storage, ss2.storage)
 end
 
 ###
 ### General functions
 ###
+Base.eltype(::SortedParticleList) = Tuple{Int,Int}
+
 function Base.length(ss::SortedParticleList{<:Any,<:Any,T}) where {T}
     curr = zero(T)
     res = 0
@@ -81,7 +87,7 @@ function Base.iterate(ss::SortedParticleList{N}, i=1) where {N}
             occnum += 1
             i += 1
         end
-        return (Int(mode), occnum, i - 1), i
+        return (occnum, Int(mode), i - occnum - 1), i
     end
 end
 
@@ -92,73 +98,145 @@ function Base.reverse(ss::SortedParticleList{N,M,T}) where {N,M,T}
     return SortedParticleList{N,M,T}(new_storage)
 end
 
-# In this case, getting the ONR is the same for bosons and fermions, assuming the address
+# Somehow this is faster than the default method.
+Base.hash(ss::SortedParticleList, u::UInt) = hash(ss.storage, u)
+
+# In this case, getting the ONR is the same for bosons and fermions, and assumes the address
 # is not malformed.
 function onr(ss::SortedParticleList{<:Any,M}) where {M}
     mvec = zeros(MVector{M,Int})
-    @inbounds for (mode, occnum) in ss
+    @inbounds for (occnum, mode, _) in ss
         mvec[mode] = occnum
     end
-    return SVector(vec)
+    return SVector(mvec)
 end
 
 # Same as above.
 function find_mode(ss::SortedParticleList, n)
-    for (mode, occnum, offset) in ss
+    offset = 0
+    for (occnum, mode, _) in ss
         if mode == n
-            return (mode, occnum, offset)
+            return (occnum, mode, offset)
         elseif mode > n
-            return (0, 0, 0)
+            return (0, n, offset)
         end
+        offset += occnum
     end
-    return (0, 0, 0)
+    return (0, n, offset)
+end
+
+"""
+    move_particles(ss::SortedParticleList, dsts, srcs)
+
+Move several particles at once. Moves `srcs[i]` to `dsts[i]`.  `dsts` and `srcs` should be
+tuples of [`BoseFSIndex`](@ref) or [`FermiFSIndex`](@ref). The legality of the moves is not
+checked - the result of an illegal move is undefined!
+"""
+function move_particles(ss::SortedParticleList{N,M,T}, dsts, srcs) where {N,M,T}
+    new_storage = ss.storage
+    for (dst, src) in zip(dsts, srcs)
+        src_pos = 1
+        @inbounds for i in 1:N
+            src_pos = max(src_pos, i * (new_storage[i] == src.mode % T))
+        end
+        @boundscheck 0 < dst.mode ≤ M || throw(BoundsError(ss, dst.mode))
+        new_storage = setindex(new_storage, dst.mode % T, src_pos)
+    end
+    return SortedParticleList{N,M,T}(sort(new_storage))
 end
 
 ###
 ### Bose interface
 ###
-@inline function bose_excitation(ss::SortedParticleList{N,M,T}, srcs, dsts) where {N,M,T}
-    new_storage = ss.storage
-    src_pos = 1
-    for (src, dst) in zip(srcs, dsts)
-        @inbounds for i in 1:N
-            src_pos = max(src_pos, i * (ss.storage[i] == src % T))
-        end
-        new_storage = setindex(new_storage, dst % T, src_pos)
-    end
-    return SortedParticleList{N,M,T}(sort(new_storage))
+function from_bose_onr(::Type{S}, onr) where{S<:SortedParticleList}
+    from_onr(S, onr)
 end
-bose_onr(ss::SortedParticleList) = onr(ss)
+
+@inline function bose_excitation(
+    ss::SortedParticleList{N,M,T}, creations, destructions
+) where {N,M,T}
+    creations_rev = reverse(creations)
+    value = compute_excitation_value(creations_rev, destructions)
+    if iszero(value)
+        return ss, 0.0
+    else
+        return move_particles(ss, creations_rev, destructions), √value
+    end
+end
+bose_onr(ss::SortedParticleList, _) = onr(ss)
 bose_find_mode(ss::SortedParticleList, n) = find_mode(ss, n)
 bose_num_occupied_modes(ss::SortedParticleList) = length(ss)
 
-Base.length(bom::BoseOccupiedModes{<:SortedParticleList}) = length(bom)
-function Base.iterate(bom::BoseOccupiedModes{<:SortedParticleList}, i=1)
-    res, i = iterate(bom, i)
-    return BoseFSIndex(res...), i
+Base.length(bom::BoseOccupiedModes{<:Any,<:Any,<:SortedParticleList}) = length(bom.storage)
+function Base.iterate(bom::BoseOccupiedModes{<:Any,<:Any,<:SortedParticleList}, i=1)
+    it = iterate(bom.storage, i)
+    if isnothing(it)
+        return nothing
+    else
+        res, i = it
+        return BoseFSIndex(res...), i
+    end
 end
 
 ###
 ### Fermi interface
 ###
-@inline function fermi_excitation(ss::SortedParticleList{N,M,T}, srcs, dsts) where {N,M,T}
-    new_storage = ss.storage
-    src_pos = 1
-    dst_pos = 1
-    for (src, dst) in zip(srcs, dsts)
-        @inbounds for i in 1:N
-            src_pos = max(src_pos, i * (ss.storage[i] == src % T))
-            dst_pos = max(dst_pos, i * (ss.storage[i] < dst % T))
-        end
-        new_storage = setindex(new_storage, dst % T, src_pos)
-    end
-    return SortedParticleList{N,M,T}(sort(new_storage))
+function from_fermi_onr(::Type{S}, onr) where {S<:SortedParticleList}
+    from_onr(S, onr)
 end
-fermi_onr(ss::SortedParticleList) = onr(ss)
-fermi_find_mode(ss::SortedParticleList, n) = find_mode(ss::SortedParticleList, n)
 
-Base.length(fom::FermiOccupiedModes{N,<:SortedParticleList}) where {N} = length(bom)
+function _fix_pos_create(c, index)
+    index = @set index.offset += (c.mode < index.mode)
+    index = @set index.occnum += (c.mode == index.mode)
+    return index
+end
+_fix_pos_create(c) = Base.Fix1(_fix_pos_create, c)
+function _fix_pos_destroy(d, index)
+    index = @set index.offset -= (d.mode < index.mode)
+    index = @set index.occnum -= (d.mode == index.mode)
+    return index
+end
+_fix_pos_destroy(d) = Base.Fix1(_fix_pos_destroy, d)
+
+@inline count_minus_signs(::Tuple{}, ::Tuple{}) = 1.0
+@inline function count_minus_signs((c, cs...), ::Tuple{})
+    cs = map(_fix_pos_create(c), cs)
+    return count_minus_signs(cs, ()) * ifelse(isodd(c.offset), -1, 1) * (c.occnum == 0)
+end
+@inline function count_minus_signs(cs, (d, ds...))
+    cs = map(_fix_pos_destroy(d), cs)
+    ds = map(_fix_pos_destroy(d), ds)
+    return count_minus_signs(cs, ds) * ifelse(isodd(d.offset), -1, 1) * (d.occnum == 1)
+end
+
+@inline function fermi_excitation(
+    ss::SortedParticleList{N,M,T}, creations::NTuple{K}, destructions::NTuple{K}
+) where {N,M,T,K}
+    creations_rev = reverse(creations)
+    destructions_rev = reverse(destructions)
+    value = count_minus_signs(creations_rev, destructions_rev)
+    if iszero(value)
+        return ss, 0.0
+    else
+        return move_particles(ss, creations_rev, destructions), float(value)
+    end
+end
+
+fermi_onr(ss::SortedParticleList, _) = onr(ss)
+fermi_find_mode(ss::SortedParticleList, n) = FermiFSIndex(find_mode(ss, n))
+function fermi_find_mode(ss::SortedParticleList, ns::Tuple)
+    # It's OK to do that instead of the fancy method used with bosons, because the
+    # assumption is that `N` is small.
+    return map(n -> FermiFSIndex(find_mode(ss, n)), ns)
+end
+
+Base.length(fom::FermiOccupiedModes{N,<:SortedParticleList}) where {N} = length(fom.storage)
 function Base.iterate(fom::FermiOccupiedModes{<:Any,<:SortedParticleList}, i=1)
-    res, i = iterate(fom, i)
-    return FermiFSIndex(res...), i
+    itr = iterate(fom.storage, i)
+    if isnothing(itr)
+        return nothing
+    else
+        res, i = itr
+        return FermiFSIndex(res...), i
+    end
 end

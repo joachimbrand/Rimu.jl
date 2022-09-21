@@ -150,17 +150,20 @@ end
 using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextneighbour
 
 @testset "BoseFS" begin
-    middle_full = BoseFS{67,100}(
-        BitString{166,3,UInt64}(SVector(1, ~UInt64(0), UInt64(1) << 63 | UInt64(2)))
+    bs = BitString{166,3,UInt64}(SVector(1, ~UInt64(0), UInt64(1) << 63 | UInt64(2)))
+    middle_full = BoseFS{67,100,typeof(bs)}(bs)
+
+    bs = BitString{159,3,UInt64}(SVector{3,UInt64}(255, 0, 3))
+    middle_empty = BoseFS{10,150,typeof(bs)}(bs)
+
+
+    bs = BitString{271,5,UInt64}(
+        SVector(UInt64(0), UInt64(0), UInt64(255), ~UInt64(0), ~UInt64(0))
     )
-    middle_empty = BoseFS{10,150}(
-        BitString{159,3,UInt64}(SVector{3,UInt64}(255, 0, 3))
-    )
-    two_full = BoseFS{136,136}(
-        BitString{271,5,UInt64}(
-            SVector(UInt64(0), UInt64(0), UInt64(255), ~UInt64(0), ~UInt64(0))
-        )
-    )
+    two_full = BoseFS{136,136,typeof(bs)}(bs)
+
+    @test_throws ArgumentError BoseFS{2}((1, 2, 3))
+    @test_throws DimensionMismatch BoseFS{6,2}([1, 2, 3])
 
     @testset "onr" begin
         middle_full_onr = onr(middle_full)
@@ -242,9 +245,9 @@ using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextne
             end
             o[i] -= 1
             o[j] += 1
-            return BoseFS{N}(SVector(o)), (o[i] + 1) * (o[j])
+            return BoseFS{N}(SVector(o)), √((o[i] + 1) * o[j])
         end
-        for (N, M) in ((16, 16), (10, 32), (64, 32), (200, 200), (200, 20), (20, 200))
+        for (N, M) in ((16, 16), (3, 32), (64, 32), (200, 200), (200, 20), (20, 200))
             @testset "$N, $M" begin
                 for _ in 1:10
                     input = rand_onr_bose(N, M)
@@ -298,8 +301,9 @@ end
             @test typeof(f)(onr(f)) == f
         end
 
-        @test_throws ErrorException FermiFS((1, 2, 3))
-        @test_throws ErrorException FermiFS{2,3}((1, 1, 1))
+        @test_throws ArgumentError FermiFS((1, 2, 3))
+        @test_throws DimensionMismatch FermiFS{3,2}((1, 1, 1))
+        @test_throws ArgumentError FermiFS{2,3}((1, 1, 1))
     end
     @testset "occupied_modes" begin
         for o in (small, big, giant)
