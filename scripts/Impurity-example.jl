@@ -117,7 +117,7 @@ dv = MPIData(init_dv(P,m,na))
 # Now we run FCIQMC with `lomc!()` and track the elapsed time. 
 # Both `df` and `state` will be overwritten late with the "real" data
 el = @elapsed df, state = lomc!(ham2, dv; params, s_strat, r_strat,)
-@mpi_root @info "Initial fciqmc completed in $(el) seconds."
+@mpi_root println("Initial fciqmc completed in $(el) seconds.")
 
 # ## Stage 2: Running the real Hamiltonian with replica but no observables
 
@@ -133,7 +133,7 @@ r_strat = ReportToFile(
 # We will turn on the replica, but without operators for a fast equilibration.
 el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica=AllOverlaps(2, nothing),
 				 laststep=(steps_equilibrate+steps_warmup))
-@mpi_root @info "Replica fciqmc completed in $(el2) seconds."
+@mpi_root println("Replica fciqmc completed in $(el2) seconds.")
 
 # ## Stage 3: Running the real Hamiltonian with replica with observables
 
@@ -162,7 +162,7 @@ new_state = Rimu.QMCState(
 			  )
 # The final stage 
 el3 = @elapsed df2, state2 = lomc!(new_state;laststep=(steps_equilibrate+steps_warmup+steps_final))
-@mpi_root @info "Replica fciqmc with G2 completed in $(el3) seconds."
+@mpi_root println("Replica fciqmc with G2 completed in $(el3) seconds.")
 @mpi_root println("MPI run finished!")
 
 # ## Post-calculation analysis
