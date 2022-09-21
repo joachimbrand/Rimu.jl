@@ -65,7 +65,7 @@ julia> find_mode(BoseFS((1, 0, 2)), 2)
 BoseFSIndex(occnum=0, mode=2, offset=2)
 
 julia> find_mode(FermiFS((1, 1, 1, 0)), (2,3))
-(FermiFSIndex(occnum=1, mode=2), FermiFSIndex(occnum=1, mode=3))
+(FermiFSIndex(occnum=1, mode=2, offset=1), FermiFSIndex(occnum=1, mode=3, offset=2))
 ```
 
 See [`SingleComponentFockAddress`](@ref).
@@ -84,7 +84,7 @@ Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and [`FermiFSIndex`](@ref) f
 
 ```jldoctest
 julia> find_occupied_mode(FermiFS((1, 1, 1, 0)), 2)
-FermiFSIndex(occnum=1, mode=2)
+FermiFSIndex(occnum=1, mode=2, offset=1)
 
 julia> find_occupied_mode(BoseFS((1, 0, 2)), 1)
 BoseFSIndex(occnum=1, mode=1, offset=0)
@@ -149,10 +149,10 @@ BoseFSIndex(occnum=4, mode=4, offset=9)
 julia> f = FermiFS((1,1,0,1,0,0,1));
 
 julia> foreach(println, occupied_modes(f))
-FermiFSIndex(occnum=1, mode=1)
-FermiFSIndex(occnum=1, mode=2)
-FermiFSIndex(occnum=1, mode=4)
-FermiFSIndex(occnum=1, mode=7)
+FermiFSIndex(occnum=1, mode=1, offset=0)
+FermiFSIndex(occnum=1, mode=2, offset=1)
+FermiFSIndex(occnum=1, mode=4, offset=3)
+FermiFSIndex(occnum=1, mode=7, offset=6)
 ```
 See also [`find_occupied_mode`](@ref),
 [`SingleComponentFockAddress`](@ref).
@@ -181,7 +181,7 @@ julia> f = FermiFS((1,1,0,0,1,1,1,1))
 FermiFS{6,8}((1, 1, 0, 0, 1, 1, 1, 1))
 
 julia> i, j, k, l = find_mode(f, (3,4,2,5))
-(FermiFSIndex(occnum=0, mode=3), FermiFSIndex(occnum=0, mode=4), FermiFSIndex(occnum=1, mode=2), FermiFSIndex(occnum=1, mode=5))
+(FermiFSIndex(occnum=0, mode=3, offset=2), FermiFSIndex(occnum=0, mode=4, offset=3), FermiFSIndex(occnum=1, mode=2, offset=1), FermiFSIndex(occnum=1, mode=5, offset=4))
 
 julia> excitation(f, (i,j), (k,l))
 (FermiFS{6,8}((1, 0, 1, 1, 0, 1, 1, 1)), -1.0)
@@ -220,11 +220,11 @@ FermiFS{5,9}((1, 1, 1, 1, 0, 0, 1, 0, 0))
 
 julia> mf = OccupiedModeMap(f)
 5-element OccupiedModeMap{5, FermiFSIndex}:
- FermiFSIndex(occnum=1, mode=1)
- FermiFSIndex(occnum=1, mode=2)
- FermiFSIndex(occnum=1, mode=3)
- FermiFSIndex(occnum=1, mode=4)
- FermiFSIndex(occnum=1, mode=7)
+ FermiFSIndex(occnum=1, mode=1, offset=0)
+ FermiFSIndex(occnum=1, mode=2, offset=1)
+ FermiFSIndex(occnum=1, mode=3, offset=2)
+ FermiFSIndex(occnum=1, mode=4, offset=3)
+ FermiFSIndex(occnum=1, mode=7, offset=6)
 
 julia> mf == collect(occupied_modes(f))
 true
