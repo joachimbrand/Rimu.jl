@@ -68,7 +68,7 @@ end
 
 # Now let's first do some MPI sanity checks and print some information:
 mpi_barrier() # optional, use for debugging and sanity checks
-@info "After barrier 1" mpi_rank() mpi_size() Threads.nthreads()
+println("After barrier 1 mpi_rank() = $(mpi_rank()) mpi_size() = $(mpi_size()) Threads.nthreads() = $(Threads.nthreads())")
 
 # Now we specify parameters for constructing a two-component Hamiltonian
 P = 3 # total momentum
