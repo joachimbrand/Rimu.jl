@@ -103,7 +103,7 @@ s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = tw)
 # We use very small time-step size and high starting value of shift
 params = RunTillLastStep(step = 0, dτ = 0.00001, laststep = steps_warmup,shift = 200.0)
 # As we only use the secondary Hamiltonian `ham2` to generate a staring vector, we don't have to
-# save any data in this stage
+# save any data in this stage. Progress messages are suppressed with `io=devnull`.
 r_strat = ReportDFAndInfo(reporting_interval = 1_000, info_interval = 1_000, writeinfo = is_mpi_root(), io = devnull)
 
 # Wrapping `dv` for MPI:
@@ -123,6 +123,8 @@ el = @elapsed df, state = lomc!(ham2, dv; params, s_strat, r_strat,)
 
 # New we are ready to run the real Hamiltonian, here we redefine some variables for saving outputs.
 # We save the Monte Carlo data every 1000 steps.
+# Progress messages are suppressed with `io=devnull`, for a real job one should remove the 
+# line to invoke the default `io` and reenable the output messages.
 r_strat = ReportToFile(
 		save_if = is_mpi_root(),
 		filename = "mpi_df_$(η)_$(P).arrow",
@@ -142,6 +144,8 @@ el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica = All
 # Here we save data every 1000 steps, but using a smaller `chunk_size` like 10 or even 1
 # is highly recommended as replica FCIQMC with many observables being calculated are very 
 # expensive and you don't want to loose too much data if the job stops before finishes.
+# Progress messages are suppressed with `io=devnull`, for a real job one should remove the 
+# line to invoke the default `io` and reenable the output messages.
 r_strat = ReportToFile(
 		       save_if = is_mpi_root(),
 		       filename = "mpi_df_g2_$(η)_$(P).arrow",
