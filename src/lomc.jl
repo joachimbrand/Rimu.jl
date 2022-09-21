@@ -118,7 +118,7 @@ function QMCState(
 
     # Set up threading
     threading = select_threading_strategy(threading, _n_walkers(v, s_strat))
-    wm = working_memory(threading, v)
+    wm = isnothing(wm) ? working_memory(threading, v) : wm
 
     # Set up post_step
     if !(post_step isa Tuple)
@@ -286,7 +286,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
         @assert replica.params.laststep == laststep
     end
     check_transform(state.replica, state.hamiltonian)
-            
+
     # main loop
     initial_step = step
     update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
