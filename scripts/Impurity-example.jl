@@ -104,20 +104,20 @@ s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = tw)
 params = RunTillLastStep(step = 0, dτ = 0.00001, laststep = steps_warmup,shift = 200.0)
 # As we only use the secondary Hamiltonian `ham2` to generate a staring vector, we don't have to
 # save any data in this stage
-r_strat = ReportDFAndInfo(reporting_interval = 1_000, info_interval = 1_000, writeinfo = is_mpi_root())
+r_strat = ReportDFAndInfo(reporting_interval = 1_000, info_interval = 1_000, writeinfo = is_mpi_root(), io = devnull)
 
 # Wrapping `dv` for MPI:
 dv = MPIData(init_dv(P,m,na))
 
 # Let's have a look of the starting vector:
-@show dv
+@mpi_root @show dv
 
 # ## Stage 1: Running the "dummy" Hamiltonian
 
 # Now we run FCIQMC with `lomc!()` and track the elapsed time. 
 # Both `df` and `state` will be overwritten late with the "real" data
 el = @elapsed df, state = lomc!(ham2, dv; params, s_strat, r_strat,)
-@info "Initial fciqmc completed in $(el) seconds."
+@mpi_root @info "Initial fciqmc completed in $(el) seconds."
 
 # ## Stage 2: Running the real Hamiltonian with replica but no observables
 
@@ -127,13 +127,13 @@ r_strat = ReportToFile(
 		save_if = is_mpi_root(),
 		filename = "mpi_df_$(η)_$(P).arrow",
 		chunk_size = 1000,
-        return_df = true # change it to `false` when running the real job
+        return_df = true, # change it to `false` when running the real job
+        io=devnull
 		)
 
 # We will turn on the replica, but without operators for a fast equilibration.
-el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica=AllOverlaps(2, nothing),
-				 laststep=(steps_equilibrate+steps_warmup))
-@info "Replica fciqmc completed in $(el2) seconds."
+el2 = @elapsed df, state = lomc!(ham,dv; params, s_strat, r_strat, replica = AllOverlaps(2, nothing), laststep = (steps_equilibrate+steps_warmup))
+@mpi_root @info "Replica fciqmc completed in $(el2) seconds."
 
 # ## Stage 3: Running the real Hamiltonian with replica with observables
 
@@ -146,7 +146,8 @@ r_strat = ReportToFile(
 		       save_if = is_mpi_root(),
 		       filename = "mpi_df_g2_$(η)_$(P).arrow",
 		       chunk_size = 1000,
-               return_df = true # change it to `false` when running the real job
+               return_df = true, # change it to `false` when running the real job
+               io = devnull 
 		       )
 
 # Setting up a tuple of G2 correlators:
@@ -161,8 +162,8 @@ new_state = Rimu.QMCState(
 			  state.m_strat, r_strat, state.s_strat, state.τ_strat, state.threading, state.post_step, AllOverlaps(2, g)
 			  )
 # The final stage 
-el3 = @elapsed df2, state2 = lomc!(new_state;laststep=(steps_equilibrate+steps_warmup+steps_final))
-@info "Replica fciqmc with G2 completed in $(el3) seconds."
+el3 = @elapsed df2, state2 = lomc!(new_state; laststep = (steps_equilibrate+steps_warmup+steps_final))
+@mpi_root @info "Replica fciqmc with G2 completed in $(el3) seconds."
 println("MPI run finished!")
 
 # ## Post-calculation analysis
@@ -170,9 +171,9 @@ println("MPI run finished!")
 # Typically, one should not include any analyses when using MPI, as they will be calculated multiple
 # time unless you put the `@mpi_root` macro everywhere.
 # But here, let's have a look of the calculated G2 correlations:
-println("Two-body correlator from 2 replicas:")
-for d in 0:m
-    r = rayleigh_replica_estimator(df2; op_name = "Op$(d+1)", skip=1_000)
+@mpi_root println("Two-body correlator from 2 replicas:")
+@mpi_root for d in 0:m
+    r = rayleigh_replica_estimator(df2; op_name = "Op$(d+1)", skip = 1_000)
     println("   G2($d) = $(r.f) ± $(r.σ_f)")
 end
 # A symmetry between `G2(d)` and `G2(m-d)` can be observed above, which is the expected outcome due 
