@@ -47,51 +47,6 @@ function num_offdiagonals(::HubbardReal1D, address::BoseFS)
     return 2 * num_occupied_modes(address)
 end
 
-"""
-    bose_hubbard_interaction(address)
-
-Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction (without the
-*U* prefactor.)
-
-# Example
-
-```jldoctest
-julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((2,1,1,0)))
-2
-julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((3,0,1,0)))
-6
-```
-"""
-function bose_hubbard_interaction(b::BoseFS{<:Any,<:Any,A}) where {A<:BitString}
-    return bose_hubbard_interaction(Val(num_chunks(A)), b)
-end
-function bose_hubbard_interaction(b::BoseFS)
-    return bose_hubbard_interaction(nothing, b)
-end
-
-@inline function bose_hubbard_interaction(_, b::BoseFS)
-    result = 0
-    for (n, _, _) in occupied_modes(b)
-        result += n * (n - 1)
-    end
-    return result
-end
-
-@inline function bose_hubbard_interaction(::Val{1}, b::BoseFS)
-    # currently this ammounts to counting occupation numbers of modes
-    chunk = chunks(b.bs)[1]
-    matrixelementint = 0
-    while !iszero(chunk)
-        chunk >>>= (trailing_zeros(chunk) % UInt) # proceed to next occupied mode
-        bosonnumber = trailing_ones(chunk) # count how many bosons inside
-        # surpsingly it is faster to not check whether this is nonzero and do the
-        # following operations anyway
-        chunk >>>= (bosonnumber % UInt) # remove the counted mode
-        matrixelementint += bosonnumber * (bosonnumber - 1)
-    end
-    return matrixelementint
-end
-
 function diagonal_element(h::HubbardReal1D, address::BoseFS)
     h.u * bose_hubbard_interaction(address) / 2
 end

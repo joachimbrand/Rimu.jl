@@ -119,7 +119,7 @@ near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
 Compute and return the occupation number representation of the bit string
 address `bs` as an `SVector{M,Int32}`, where `M` is the number of modes.
 """
-onr(b::BoseFS{<:Any,M}) where {M} = bose_onr(b.bs, Val(M))
+onr(b::BoseFS{<:Any,M}) where {M} = to_bose_onr(b.bs, Val(M))
 
 function Base.reverse(b::BoseFS)
     return typeof(b)(reverse(b.bs))
@@ -211,4 +211,130 @@ end
 function excitation(b::B, creations, destructions) where {B<:BoseFS}
     new_bs, val = bose_excitation(b.bs, creations, destructions)
     return B(new_bs), val
+end
+
+"""
+    new_address, product = hopnextneighbour(add, chosen)
+
+Compute the new address of a hopping event for the Bose-Hubbard model. Returns the new
+address and the square root of product of occupation numbers of the involved modes.
+
+The off-diagonals are indexed as follows:
+
+* `(chosen + 1) ÷ 2` selects the hopping site.
+* Even `chosen` indicates a hop to the left.
+* Odd `chosen` indicates a hop to the right.
+* Boundary conditions are periodic.
+
+# Example
+
+```jldoctest
+julia> using Rimu.Hamiltonians: hopnextneighbour
+
+julia> hopnextneighbour(BoseFS((1, 0, 1)), 3)
+(BoseFS{2,3}((2, 0, 0)), 1.4142135623730951)
+julia> hopnextneighbour(BoseFS((1, 0, 1)), 4)
+(BoseFS{2,3}((1, 1, 0)), 1.0)
+```
+"""
+function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
+    address = b.bs
+    T = chunk_type(address)
+    site = (chosen + 1) >>> 0x1
+    if isodd(chosen) # Hopping to the right
+        next = 0
+        curr = 0
+        offset = 0
+        sc = 0
+        reached_end = false
+        for (i, (num, sn, bit)) in enumerate(occupied_modes(b))
+            next = num * (sn == sc + 1) # only set next to > 0 if sites are neighbours
+            reached_end = i == site + 1
+            reached_end && break
+            curr = num
+            offset = bit + num
+            sc = sn
+        end
+        if sc == M
+            new_address = (address << 0x1) | A(T(1))
+            prod = curr * (trailing_ones(address) + 1) # mul occupation num of first obital
+        else
+            next *= reached_end
+            new_address = address ⊻ A(T(3)) << ((offset - 1) % T)
+            prod = curr * (next + 1)
+        end
+    else # Hopping to the left
+        if site == 1 && isodd(address)
+            # For leftmost site, we shift the whole address circularly by one bit.
+            new_address = (address >>> 0x1) | A(T(1)) << ((N + M - 2) % T)
+            prod = trailing_ones(address) * leading_ones(new_address)
+        else
+            prev = 0
+            curr = 0
+            offset = 0
+            sp = 0
+            for (i, (num, sc, bit)) in enumerate(occupied_modes(b))
+                prev = curr * (sc == sp + 1) # only set prev to > 0 if sites are neighbours
+                curr = num
+                offset = bit
+                i == site && break
+                sp = sc
+            end
+            new_address = address ⊻ A(T(3)) << ((offset - 1) % T)
+            prod = curr * (prev + 1)
+        end
+    end
+    return BoseFS{N,M,A}(new_address), √prod
+end
+function hopnextneighbour(b::BoseFS, i)
+    src = find_occupied_mode(b, (i + 1) >>> 0x1)
+    dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
+
+    new_b, val = excitation(b, (dst,), (src,))
+    return new_b, val
+end
+
+"""
+    bose_hubbard_interaction(address)
+
+Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction (without the
+*U* prefactor.)
+
+# Example
+
+```jldoctest
+julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((2,1,1,0)))
+2
+julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((3,0,1,0)))
+6
+```
+"""
+function bose_hubbard_interaction(b::BoseFS{<:Any,<:Any,A}) where {A<:BitString}
+    return bose_hubbard_interaction(Val(num_chunks(A)), b)
+end
+function bose_hubbard_interaction(b::BoseFS)
+    return bose_hubbard_interaction(nothing, b)
+end
+
+@inline function bose_hubbard_interaction(_, b::BoseFS)
+    result = 0
+    for (n, _, _) in occupied_modes(b)
+        result += n * (n - 1)
+    end
+    return result
+end
+
+@inline function bose_hubbard_interaction(::Val{1}, b::BoseFS)
+    # currently this ammounts to counting occupation numbers of modes
+    chunk = chunks(b.bs)[1]
+    matrixelementint = 0
+    while !iszero(chunk)
+        chunk >>>= (trailing_zeros(chunk) % UInt) # proceed to next occupied mode
+        bosonnumber = trailing_ones(chunk) # count how many bosons inside
+        # surpsingly it is faster to not check whether this is nonzero and do the
+        # following operations anyway
+        chunk >>>= (bosonnumber % UInt) # remove the counted mode
+        matrixelementint += bosonnumber * (bosonnumber - 1)
+    end
+    return matrixelementint
 end

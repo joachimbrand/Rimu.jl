@@ -1,5 +1,6 @@
 using Rimu
 using Rimu.BitStringAddresses
+using Rimu.BitStringAddresses: BitString, num_chunks, chunks
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
 using Rimu.BitStringAddresses: occupied_modes, update_component
 using Rimu.BitStringAddresses: parse_address
@@ -146,8 +147,6 @@ include("excitation_tests.jl")
         end
     end
 end
-
-using Rimu.Hamiltonians: num_occupied_modes, bose_hubbard_interaction, hopnextneighbour
 
 @testset "BoseFS" begin
     bs = BitString{166,3,UInt64}(SVector(1, ~UInt64(0), UInt64(1) << 63 | UInt64(2)))

@@ -270,7 +270,6 @@ Iterator over occupied modes with `eltype` [`BoseFSIndex`](@ref) or
 """
 abstract type OccupiedModeIterator end
 
-
 """
     dot(map::OccupiedModeMap, vec::AbstractVector)
     dot(map1::OccupiedModeMap, map2::OccupiedModeMap)
@@ -443,6 +442,9 @@ Iterator for occupied modes in [`BoseFS`](@ref). The definition of `iterate` is 
 on the storage type.
 
 See [`occupied_modes`](@ref).
+
+Defining `Base.length` and `Base.iterate` for this struct is a part of the interface for an
+underlying storage format used by [`BoseFS`](@ref).
 """
 struct BoseOccupiedModes{N,M,S}<:OccupiedModeIterator
     storage::S
@@ -456,18 +458,69 @@ Base.eltype(::BoseOccupiedModes) = BoseFSIndex
 @inline _create(c, index::BoseFSIndex) = @set index.occnum += (c.mode == index.mode)
 @inline _create(c) = Base.Fix1(_create, c)
 
-# Compute the value of an excitation. Starts by applying all destruction operators, and
-# then applying all creation operators. The operators must be given in reverse order.
-# Will return 0 if move is illegal.
-@inline compute_excitation_value(::Tuple{}, ::Tuple{}) = 1
-@inline function compute_excitation_value((c, cs...)::NTuple{<:Any,BoseFSIndex}, ::Tuple{})
-    return compute_excitation_value(map(_create(c), cs), ()) * (c.occnum + 1)
+"""
+    bose_excitation_value(
+        creations::NTuple{_,BoseFSIndex}, destructions::NTuple{_,::BoseFSIndex}
+    ) -> Float64
+
+Compute the value of an excitation from indices. Starts by applying all destruction
+operators, and then applying all creation operators. The operators must be given in reverse
+order.  Will return 0 if move is illegal.
+"""
+@inline bose_excitation_value(::Tuple{}, ::Tuple{}) = 1
+@inline function bose_excitation_value((c, cs...)::NTuple{<:Any,BoseFSIndex}, ::Tuple{})
+    return bose_excitation_value(map(_create(c), cs), ()) * (c.occnum + 1)
 end
-@inline function compute_excitation_value(
+@inline function bose_excitation_value(
     creations::NTuple{<:Any,BoseFSIndex}, (d, ds...)::NTuple{<:Any,BoseFSIndex}
 )
-    return compute_excitation_value(map(_destroy(d), creations), map(_destroy(d), ds)) * d.occnum
+    return bose_excitation_value(map(_destroy(d), creations), map(_destroy(d), ds)) * d.occnum
 end
+
+"""
+    from_bose_onr(::Type{B}, onr::AbstractArray) -> B
+
+Convert array `onr` to type `B`. It is safe to assume `onr` contains a valid
+occupation-number representation array. The checks are preformed in the [`BoseFS`](@ref)
+constructor.
+
+This function is a part of the interface for an underlying storage format used by
+[`BoseFS`](@ref).
+"""
+from_bose_onr
+
+"""
+    to_bose_onr(bs::B) -> SVector
+
+Convert `bs` to a static vector in the occupation number representation format.
+
+This function is a part of the interface for an underlying storage format used by
+[`BoseFS`](@ref).
+"""
+to_bose_onr
+
+"""
+    bose_excitation(
+        bs::B, creations::NTuple{N,BoseFSIndex}, destructions::NTuple{N,BoseFSIndex}
+    ) -> Tuple{B,Float64}
+
+Perform excitation as if `bs` was a bosonic address. See also
+[`bose_excitation_value`](@ref).
+
+This function is a part of the interface for an underlying storage format used by
+[`BoseFS`](@ref).
+"""
+bose_excitation
+
+"""
+    bose_num_occupied_modes(bs::B)
+
+Return the number of occupied modes, if `bs` represents a bosonic address.
+
+This function is a part of the interface for an underlying storage format used by
+[`BoseFS`](@ref).
+"""
+bose_num_occupied_modes
 
 ###
 ### Fermion stuff
@@ -509,6 +562,44 @@ end
 Base.length(::FermiOccupiedModes{N}) where {N} = N
 Base.eltype(::FermiOccupiedModes) = FermiFSIndex
 
+"""
+    from_fermi_onr(::Type{B}, onr) -> B
+
+Convert array `onr` to type `B`. It is safe to assume `onr` contains a valid
+occupation-number representation array. The checks are preformed in the [`FermiFS`](@ref)
+constructor.
+
+This function is a part of the interface for an underlying storage format used by
+[`FermiFS`](@ref).
+"""
+from_fermi_onr
+
+"""
+    fermi_find_mode(bs::B, i::Integer) -> FermiFSIndex
+
+Find `i`-th mode in `bs` if `bs` is a fermionic address. Should return an appropriately
+formatted [`FermiFSIndex`](@ref).
+
+This function is a part of the interface for an underlying storage format used by
+[`FermiFS`](@ref).
+"""
+fermi_find_mode
+
+"""
+    fermi_excitation(
+        bs::B, creations::NTuple{N,FermiFSIndex}, destructions::NTuple{N,FermiFSIndex}
+    ) -> Tuple{B,Float64}
+
+Perform excitation as if `bs` was a fermionic address.
+
+This function is a part of the interface for an underlying storage format used by
+[`FermiFS`](@ref).
+"""
+fermi_excitation
+
+###
+### General
+###
 function LinearAlgebra.dot(occ_a::OccupiedModeIterator, occ_b::OccupiedModeIterator)
     (n_a, i_a, _), st_a = iterate(occ_a)
     (n_b, i_b, _), st_b = iterate(occ_b)

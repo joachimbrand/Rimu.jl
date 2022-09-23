@@ -151,21 +151,23 @@ end
 function from_bose_onr(::Type{S}, onr) where{S<:SortedParticleList}
     from_onr(S, onr)
 end
+to_bose_onr(ss::SortedParticleList, _) = onr(ss)
+
+bose_num_occupied_modes(ss::SortedParticleList) = length(ss)
+
+bose_find_mode(ss::SortedParticleList, n) = find_mode(ss, n)
 
 @inline function bose_excitation(
     ss::SortedParticleList{N,M,T}, creations, destructions
 ) where {N,M,T}
     creations_rev = reverse(creations)
-    value = compute_excitation_value(creations_rev, destructions)
+    value = bose_excitation_value(creations_rev, destructions)
     if iszero(value)
         return ss, 0.0
     else
         return move_particles(ss, creations_rev, destructions), √value
     end
 end
-bose_onr(ss::SortedParticleList, _) = onr(ss)
-bose_find_mode(ss::SortedParticleList, n) = find_mode(ss, n)
-bose_num_occupied_modes(ss::SortedParticleList) = length(ss)
 
 Base.length(bom::BoseOccupiedModes{<:Any,<:Any,<:SortedParticleList}) = length(bom.storage)
 function Base.iterate(bom::BoseOccupiedModes{<:Any,<:Any,<:SortedParticleList}, i=1)
@@ -209,6 +211,13 @@ end
     return count_minus_signs(cs, ds) * ifelse(isodd(d.offset), -1, 1) * (d.occnum == 1)
 end
 
+fermi_find_mode(ss::SortedParticleList, n) = FermiFSIndex(find_mode(ss, n))
+function fermi_find_mode(ss::SortedParticleList, ns::Tuple)
+    # It's OK to do that instead of the fancy method used with bosons, because the
+    # assumption is that `N` is small.
+    return map(n -> FermiFSIndex(find_mode(ss, n)), ns)
+end
+
 @inline function fermi_excitation(
     ss::SortedParticleList{N,M,T}, creations::NTuple{K}, destructions::NTuple{K}
 ) where {N,M,T,K}
@@ -220,14 +229,6 @@ end
     else
         return move_particles(ss, creations_rev, destructions), float(value)
     end
-end
-
-fermi_onr(ss::SortedParticleList, _) = onr(ss)
-fermi_find_mode(ss::SortedParticleList, n) = FermiFSIndex(find_mode(ss, n))
-function fermi_find_mode(ss::SortedParticleList, ns::Tuple)
-    # It's OK to do that instead of the fancy method used with bosons, because the
-    # assumption is that `N` is small.
-    return map(n -> FermiFSIndex(find_mode(ss, n)), ns)
 end
 
 Base.length(fom::FermiOccupiedModes{N,<:SortedParticleList}) where {N} = length(fom.storage)
