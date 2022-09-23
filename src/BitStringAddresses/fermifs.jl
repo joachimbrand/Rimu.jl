@@ -54,8 +54,8 @@ function FermiFS(onr::Union{AbstractVector,Tuple}; kwargs...)
     return FermiFS{N,M}(onr; kwargs...)
 end
 
-function print_address(io::IO, f::FermiFS{N,M}) where {N,M}
-    if get(io, :compact, false)
+function print_address(io::IO, f::FermiFS{N,M}; compact=false) where {N,M}
+    if compact
         print(io, "|", join(map(o -> o == 0 ? '⋅' : '↑', onr(f))), "⟩")
     else
         print(io, "FermiFS{$N,$M}(", tuple(onr(f)...), ")")

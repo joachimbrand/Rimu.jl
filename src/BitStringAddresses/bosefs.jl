@@ -58,8 +58,8 @@ function BoseFS(onr::Union{AbstractVector,Tuple}; kwargs...)
     return BoseFS{N,M}(onr; kwargs...)
 end
 
-function print_address(io::IO, b::BoseFS{N,M}) where {N,M}
-    if get(io, :compact, false)
+function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}
+    if compact
         print(io, "|", join(onr(b), ' '), "⟩")
     else
         print(io, "BoseFS{$N,$M}(", tuple(onr(b)...), ")")
@@ -91,27 +91,24 @@ function near_uniform_onr(::Val{N}, ::Val{M}) where {N, M}
 end
 
 """
-    near_uniform(BoseFS{N,M})
-    near_uniform(BoseFS{N,M,S}) -> bfs::BoseFS{N,M,S}
+    near_uniform(BoseFS{N,M}) -> BoseFS{N,M}
 
 Create bosonic Fock state with near uniform occupation number of `M` modes with
-a total of `N` particles. Specifying the bit address type `S` is optional.
+a total of `N` particles.
 
 # Examples
 ```jldoctest
-julia> near_uniform(BoseFS{7,5,BitString{14}})
-BoseFS{7,5}((2, 2, 1, 1, 1))
-
 julia> near_uniform(BoseFS{7,5})
 BoseFS{7,5}((2, 2, 1, 1, 1))
+
+julia> near_uniform(FermiFS{3,5})
+FermiFS{3,5}((1, 1, 1, 0, 0))
 ```
 """
 function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
     return BoseFS{N,M}(near_uniform_onr(Val(N),Val(M)))
 end
 near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
-
-@deprecate nearUniform near_uniform
 
 """
     onr(bs)

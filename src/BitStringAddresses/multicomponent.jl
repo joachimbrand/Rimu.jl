@@ -19,8 +19,8 @@ function BoseFS2C(bsa::BoseFS{NA,M,SA}, bsb::BoseFS{NB,M,SB}) where {NA,NB,M,SA,
 end
 BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
 
-function print_address(io::IO, b::BoseFS2C)
-    if get(io, :compact, false)
+function print_address(io::IO, b::BoseFS2C; compact)
+    if compact
         print_address(io, b.bsa)
         print(io, " ⊗ ")
         print_address(io, b.bsb)
@@ -75,8 +75,8 @@ end
 num_components(::CompositeFS{C}) where {C} = C
 Base.hash(c::CompositeFS, u::UInt) = hash(c.components, u)
 
-function print_address(io::IO, c::CompositeFS{C}) where {C}
-    if get(io, :compact, false)
+function print_address(io::IO, c::CompositeFS{C}; compact=false) where {C}
+    if compact
         for add in c.components[1:end-1]
             print_address(io, add)
             print(io, " ⊗ ")
@@ -150,8 +150,8 @@ const FermiFS2C{N1,N2,M,N,F1,F2} =
 FermiFS2C(f1::FermiFS{<:Any,M}, f2::FermiFS{<:Any,M}) where {M} = CompositeFS(f1, f2)
 FermiFS2C(onr_a, onr_b) = FermiFS2C(FermiFS(onr_a), FermiFS(onr_b))
 
-function print_address(io::IO, f::FermiFS2C)
-    if get(io, :compact, false)
+function print_address(io::IO, f::FermiFS2C; compact=false)
+    if compact
         o1, o2 = onr(f)
         str = join(
             [i && j ? '⇅' : i ? '↑' : j ? '↓' : '⋅' for (i, j) in zip(Bool.(o1), Bool.(o2))]

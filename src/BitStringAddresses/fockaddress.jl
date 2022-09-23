@@ -397,12 +397,12 @@ This function is used to implement `Base.show` for [`AbstractFockAddress`](@ref)
 print_address
 
 function Base.show(io::IO, add::AbstractFockAddress)
-    if get(io, :compact, false)
+    if get(io, :typeinfo, nothing) == typeof(add) || get(io, :compact, false)
         print(io, "fs\"")
-        print_address(io, add)
+        print_address(io, add; compact=true)
         print(io, "\"")
     else
-        print_address(io, add)
+        print_address(io, add; compact=false)
     end
 end
 
