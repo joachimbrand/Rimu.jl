@@ -42,7 +42,6 @@ Implemented subtypes: [`BoseFS`](@ref), [`FermiFS`](@ref).
 
 * [`find_mode`](@ref)
 * [`find_occupied_mode`](@ref)
-* [`is_occupied`](@ref)
 * [`num_occupied_modes`](@ref)
 * [`occupied_modes`](@ref): Lazy iterator.
 * [`OccupiedModeMap`](@ref): `AbstractVector` with eager construction.
@@ -97,15 +96,6 @@ See also [`occupied_modes`](@ref), [`OccupiedModeMap`](@ref),
 [`SingleComponentFockAddress`](@ref).
 """
 find_occupied_mode
-
-"""
-    is_occupied(::SingleComponentFockAddress, i)
-
-Return `true` if index `i` points to an occupied mode.
-
-See [`SingleComponentFockAddress`](@ref).
-"""
-is_occupied
 
 """
     num_occupied_modes(::SingleComponentFockAddress)
