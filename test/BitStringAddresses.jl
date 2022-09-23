@@ -1,6 +1,6 @@
 using Rimu
 using Rimu.BitStringAddresses
-using Rimu.BitStringAddresses: BitString, num_chunks, chunks
+using Rimu.BitStringAddresses: num_chunks, chunks
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
 using Rimu.BitStringAddresses: occupied_modes, update_component
 using Rimu.BitStringAddresses: parse_address
