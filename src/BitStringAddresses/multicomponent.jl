@@ -21,9 +21,9 @@ BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
 
 function print_address(io::IO, b::BoseFS2C; compact)
     if compact
-        print_address(io, b.bsa)
+        print_address(io, b.bsa; compact)
         print(io, " ⊗ ")
-        print_address(io, b.bsb)
+        print_address(io, b.bsb; compact)
     else
         print(io, "BoseFS2C(", b.bsa, ", ", b.bsb, ")")
     end
@@ -78,10 +78,10 @@ Base.hash(c::CompositeFS, u::UInt) = hash(c.components, u)
 function print_address(io::IO, c::CompositeFS{C}; compact=false) where {C}
     if compact
         for add in c.components[1:end-1]
-            print_address(io, add)
+            print_address(io, add; compact)
             print(io, " ⊗ ")
         end
-        print_address(io, c.components[end])
+        print_address(io, c.components[end]; compact)
     else
         println(io, "CompositeFS(")
         for add in c.components
