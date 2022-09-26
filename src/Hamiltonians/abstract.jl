@@ -313,15 +313,7 @@ function BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); kwargs...
     # symmetrisation of the sparse matrix
     return _bsr_ensure_symmetry(AdjointUnknown(), h, addr; kwargs...)
 end
-
-function BasisSetRep(
-    h::Union{ParitySymmetry,TimeReversalSymmetry}, addr=starting_address(h);
-    kwargs...
-)
-    # For symmetry wrappers it is necessary to explicity symmetrise the matrix to
-    # avoid the loss of matrix symmetry due to floating point rounding errors
-    return _bsr_ensure_symmetry(LOStructure(h), h, addr; kwargs...)
-end
+# special cases are needed for symmetry wrappers and are defined there
 
 # default, does not enforce symmetries
 function _bsr_ensure_symmetry(
