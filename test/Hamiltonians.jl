@@ -1,5 +1,5 @@
 using KrylovKit
-using LinearAlgebra
+using LinearAlgebra, Random
 using Rimu
 using Test
 
@@ -1078,7 +1078,7 @@ end
 
     using Rimu.Hamiltonians: make_hermitian!, isapprox_enforce_hermitian!
     using Rimu.Hamiltonians: build_sparse_matrix_from_LO
-    using Random, SparseArrays
+    using Random
     @testset "make_hermitian!" begin
         # generic `Matrix`
         Random.seed!(17)
