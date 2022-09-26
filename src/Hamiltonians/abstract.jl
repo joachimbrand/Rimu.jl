@@ -334,25 +334,28 @@ function _bsr_ensure_symmetry(
     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
     check_address_type(h, addr)
     sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
-    make_hermitian!(sm; test_approx_symmetry) # enforce hermitian symmetry after building
+    fix_approx_hermitian!(sm; test_approx_symmetry) # enforce hermitian symmetry after building
     return BasisSetRep(sm, basis, h)
 end
 
 """
-    make_hermitian!(A; test_approx_symmetry=false, kwargs...)
+    fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
 Replaces the matrix `A` by `½(A + A')` in place. This will be successful and the result
 is guaranteed to pass the `ishermitian` test only if the matrix is square and already
 approximately hermitian.
 
-Use the keyword `test_approx_symmetry` to trigger logging an error message if the matrix
-`A` is found to not be approximately hermitian. Other keyword arguments are passed on to
-`isapprox`.
+By default logs an error message if the matrix `A` is found to not be approximately
+hermitian. Set `test_approx_symmetry=false` to bypass testing.
+Other keyword arguments are passed on to `isapprox`.
 """
-function make_hermitian!(A; test_approx_symmetry=false, kwargs...)
+function fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
     # Generic and inefficient version. Make sure to replace by efficient specialised code.
     if test_approx_symmetry
         passed = isapprox(A, A'; kwargs...)
-        passed || @error "Matrix is not approximately hermitian."
+        if !passed
+            @error "Matrix is not approximately hermitian."
+            return A
+        end
     end
     @. A = 1/2*(A + A')
     return A
@@ -362,7 +365,7 @@ end
 using SparseArrays: AbstractSparseMatrixCSC, getcolptr, rowvals, nonzeros
 
 # special case for sparse matrices; avoids most allocations, testing is free
-function make_hermitian!(A::AbstractSparseMatrixCSC; test_approx_symmetry=false, kwargs...)
+function fix_approx_hermitian!(A::AbstractSparseMatrixCSC; test_approx_symmetry=false, kwargs...)
     passed = isapprox_enforce_hermitian!(A; kwargs...)
     test_approx_symmetry && !passed && @error "Matrix is not approximately hermitian."
     return A
