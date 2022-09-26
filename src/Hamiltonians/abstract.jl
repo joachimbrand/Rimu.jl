@@ -298,14 +298,180 @@ struct BasisSetRep{A,SM,H}
     h::H
 end
 
+# function BasisSetRep(
+#     h::AbstractHamiltonian, addr=starting_address(h);
+#     sizelim=10^6, kwargs...
+# )
+#     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
+#     check_address_type(h, addr)
+#     sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
+#     return BasisSetRep(sm, basis, h)
+# end
+
+function BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
+    # In the default case we pass `AdjointUnknown()` in order to skip the
+    # symmetrisation of the sparse matrix
+    return _bsr_ensure_symmetry(AdjointUnknown(), h, addr; kwargs...)
+end
+
 function BasisSetRep(
-    h::AbstractHamiltonian, addr=starting_address(h);
-    sizelim=10^6, kwargs...
+    h::Union{ParitySymmetry,TimeReversalSymmetry}, addr=starting_address(h);
+    kwargs...
+)
+    # For symmetry wrappers it is necessary to explicity symmetrise the matrix to
+    # avoid the loss of matrix symmetry due to floating point rounding errors
+    return _bsr_ensure_symmetry(LOStructure(h), h, addr; kwargs...)
+end
+
+# default, does not enforce symmetries
+function _bsr_ensure_symmetry(
+    ::LOStructure, h::AbstractHamiltonian, addr;
+    sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
     check_address_type(h, addr)
     sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
     return BasisSetRep(sm, basis, h)
+end
+
+# build the BasisSetRep while enforcing hermitian symmetry
+function _bsr_ensure_symmetry(
+    ::IsHermitian, h::AbstractHamiltonian, addr;
+    sizelim=10^6, test_approx_symmetry=true, kwargs...
+)
+    dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
+    check_address_type(h, addr)
+    sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
+    make_hermitian!(sm; test_approx_symmetry) # enforce hermitian symmetry after building
+    return BasisSetRep(sm, basis, h)
+end
+
+"""
+    make_hermitian!(A; test_approx_symmetry=false, kwargs...)
+Replaces the matrix `A` by `½(A + A')` in place. This will be successful and the result
+is guaranteed to pass the `ishermitian` test only if the matrix is square and already
+approximately hermitian.
+
+Use the keyword `test_approx_symmetry` to trigger logging an error message if the matrix
+`A` is found to not be approximately hermitian. Other keyword arguments are passed on to
+`isapprox`.
+"""
+function make_hermitian!(A; test_approx_symmetry=false, kwargs...)
+    # Generic and inefficient version. Make sure to replace by efficient specialised code.
+    if test_approx_symmetry
+        passed = isapprox(A, A'; kwargs...)
+        passed || @error "Matrix is not approximately hermitian."
+    end
+    @. A = 1/2*(A + A')
+    return A
+end
+
+# specialised code for sparse matrices
+using SparseArrays: AbstractSparseMatrixCSC, getcolptr, rowvals, nonzeros
+
+# special case for sparse matrices; avoids most allocations, testing is free
+function make_hermitian!(A::AbstractSparseMatrixCSC; test_approx_symmetry=false, kwargs...)
+    passed = isapprox_enforce_hermitian!(A; kwargs...)
+    test_approx_symmetry && !passed && @error "Matrix is not approximately hermitian."
+    return A
+end
+
+"""
+    isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...) -> Bool
+Checks whether the matrix `A` is approximately hermitian by checking each pair of transposed
+matrix elements with `isapprox`. Keyword arguments are passed on to `isapprox`.
+Returns boolean `true` is the test is passed and `false` if not.
+
+Furthermore, the matrix `A` is modified to become exactly equal to `½(A + A')` if the test
+is passed.
+"""
+function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
+    # based on `ishermsym()` from `SparseArrays`; relies on `SparseArrays` internals
+    # https://github.com/JuliaSparse/SparseArrays.jl/blob/1bae96dc8f9a8ca8b7879eef4cf71e186598e982/src/sparsematrix.jl#L3793
+    m, n = size(A)
+    if m != n; return false ; end
+
+    colptr = getcolptr(A)
+    rowval = rowvals(A)
+    nzval = nonzeros(A)
+    tracker = copy(getcolptr(A))
+    for col = 1:size(A, 2)
+        # `tracker` is updated such that, for symmetric matrices,
+        # the loop below starts from an element at or below the
+        # diagonal element of column `col`"
+        for p = tracker[col]:colptr[col+1]-1
+            val = nzval[p]
+            row = rowval[p]
+
+            # Ignore stored zeros
+            if iszero(val)
+                continue
+            end
+
+            # If the matrix was symmetric we should have updated
+            # the tracker to start at the diagonal or below. Here
+            # we are above the diagonal so the matrix can't be symmetric.
+            if row < col
+                return false
+            end
+
+            # Diagonal element
+            if row == col
+                if isapprox(val, conj(val); kwargs...)
+                    nzval[p] = real(val)
+                else
+                    return false
+                end
+                # if val != conj(val)
+                #     return false
+                # end
+            else
+                offset = tracker[row]
+
+                # If the matrix is unsymmetric, there might not exist
+                # a rowval[offset]
+                if offset > length(rowval)
+                    return false
+                end
+
+                row2 = rowval[offset]
+
+                # row2 can be less than col if the tracker didn't
+                # get updated due to stored zeros in previous elements.
+                # We therefore "catch up" here while making sure that
+                # the elements are actually zero.
+                while row2 < col
+                    if !iszero(nzval[offset])
+                        return false
+                    end
+                    offset += 1
+                    row2 = rowval[offset]
+                    tracker[row] += 1
+                end
+
+                # Non zero A[i,j] exists but A[j,i] does not exist
+                if row2 > col
+                    return false
+                end
+
+                # A[i,j] and A[j,i] exists
+                if row2 == col
+                    if isapprox(val, conj(nzval[offset]); kwargs...)
+                        val = 1/2 * (val + conj(nzval[offset]))
+                        nzval[p] = val
+                        nzval[offset] = conj(val)
+                    else
+                        return false
+                    end
+                    # if val != conj(nzval[offset])
+                    #     return false
+                    # end
+                    tracker[row] += 1
+                end
+            end
+        end
+    end
+    return true
 end
 
 function Base.show(io::IO, b::BasisSetRep)

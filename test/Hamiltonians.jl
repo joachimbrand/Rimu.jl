@@ -982,7 +982,6 @@ end
 
         @test ham_m == even_m
         @test issymmetric(even_m)
-        @test issymmetric(odd_m)
     end
 end
 
@@ -1020,7 +1019,7 @@ end
 
         @test issymmetric(Matrix(odd))
         @test issymmetric(Matrix(even))
-        @test LOStructure(odd) isa IsHermitian()
+        @test LOStructure(odd) isa IsHermitian
     end
 
 end
