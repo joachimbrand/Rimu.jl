@@ -32,7 +32,7 @@ end
     end
     return BoseFS{N,M,S}(from_bose_onr(S, onr))
 end
-function BoseFS{N,M}(onr::Union{AbstractVector,NTuple{M}}; dense=nothing) where {N,M}
+function BoseFS{N,M}(onr::Union{AbstractArray,NTuple{M}}) where {N,M}
     @boundscheck begin
         sum(onr) == N || throw(ArgumentError(
             "invalid ONR: $N particles expected, $(sum(onr)) given"
@@ -41,21 +41,24 @@ function BoseFS{N,M}(onr::Union{AbstractVector,NTuple{M}}; dense=nothing) where 
     spl_type = select_int_type(M)
     S_sparse = SortedParticleList{N,M,spl_type}
     S_dense = typeof(BitString{M + N - 1}(0))
-    # pick smaller address type, but prefer sparse as bose addresses are complicated.
-    if !isnothing(dense) && dense || sizeof(S_dense) < sizeof(S_sparse)
+    # Pick smaller address type, but prefer sparse.
+    # Alway pick dense if it fits into one chunk.
+    sparse_size_64 = ceil(Int, sizeof(S_dense) / 8)
+    dense_size_64 = ceil(Int, sizeof(S_dense) / 8)
+    if num_chunks(S_dense) == 1 || dense_size_64 < sparse_size_64
         S = S_dense
     else
         S = S_sparse
     end
     return BoseFS{N,M,S}(from_bose_onr(S, SVector{M,Int}(onr)))
 end
-function BoseFS{N}(onr::Union{SVector{M},NTuple{M}}; kwargs...) where {N,M}
-    return BoseFS{N,M}(onr; kwargs...)
+function BoseFS{N}(onr::Union{SVector{M},NTuple{M}}) where {N,M}
+    return BoseFS{N,M}(onr)
 end
-function BoseFS(onr::Union{AbstractVector,Tuple}; kwargs...)
+function BoseFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)
     N = sum(onr)
-    return BoseFS{N,M}(onr; kwargs...)
+    return BoseFS{N,M}(onr)
 end
 
 function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}

@@ -32,26 +32,29 @@ function FermiFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,
     @boundscheck check_fermi_onr(onr, N)
     return FermiFS{N,M,S}(from_fermi_onr(S, onr))
 end
-function FermiFS{N,M}(onr::Union{AbstractVector,Tuple}; dense=nothing) where {N,M}
+function FermiFS{N,M}(onr::Union{AbstractArray,Tuple}) where {N,M}
     @boundscheck check_fermi_onr(onr, N)
     spl_type = select_int_type(M)
     S_sparse = SortedParticleList{N,M,spl_type}
     S_dense = typeof(BitString{M}(0))
-    # pick smaller address type, but prefer dense as fermi addresses are simple.
-    if !isnothing(dense) && dense || sizeof(S_dense) ≤ sizeof(S_sparse)
+    # Pick smaller address type, but prefer dense.
+    # Alway pick dense if it fits into one chunk.
+    sparse_size_64 = ceil(Int, sizeof(S_dense) / 8)
+    dense_size_64 = ceil(Int, sizeof(S_dense) / 8)
+    if num_chunks(S_dense) == 1 || dense_size_64 ≤ sparse_size_64
         S = S_dense
     else
         S = S_sparse
     end
     return FermiFS{N,M,S}(from_fermi_onr(S, SVector{M,Int}(onr)))
 end
-function FermiFS{N}(onr::Union{SVector{M},Tuple{M}}; kwargs...) where {N,M}
-    return FermiFS{N,M}(onr; kwargs...)
+function FermiFS{N}(onr::Union{SVector{M},Tuple{M}}) where {N,M}
+    return FermiFS{N,M}(onr)
 end
-function FermiFS(onr::Union{AbstractVector,Tuple}; kwargs...)
+function FermiFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)
     N = sum(onr)
-    return FermiFS{N,M}(onr; kwargs...)
+    return FermiFS{N,M}(onr)
 end
 
 function print_address(io::IO, f::FermiFS{N,M}; compact=false) where {N,M}
