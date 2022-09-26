@@ -63,10 +63,6 @@ function starting_address(h::ParitySymmetry)
     return min(add, reverse(add))
 end
 
-function Base.adjoint(h::ParitySymmetry)
-    return ParitySymmetry(adjoint(h.hamiltonian); even=h.even)
-end
-
 get_offdiagonal(h::ParitySymmetry, add, i) = offdiagonals(h, add)[i]
 num_offdiagonals(h::ParitySymmetry, add) = num_offdiagonals(h.hamiltonian, add)
 
