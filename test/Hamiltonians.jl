@@ -1075,6 +1075,38 @@ end
         @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
         @test Matrix(ham, add1) ≠ Matrix(ham, add2)
     end
+
+    using Rimu.Hamiltonians: make_hermitian!, isapprox_enforce_hermitian!
+    using Rimu.Hamiltonians: build_sparse_matrix_from_LO
+    using Random, SparseArrays
+    @testset "make_hermitian!" begin
+        # generic `Matrix`
+        Random.seed!(17)
+        mat = rand(5,5)
+        @test !ishermitian(mat)
+        @test_logs (:error,) make_hermitian!(mat; test_approx_symmetry=true)
+        @test ishermitian(mat) # now it is hermitian
+
+        # sparse matrix
+        Random.seed!(17)
+        mat = sparse(rand(5,5))
+        @test !ishermitian(mat)
+        @test_logs (:error,) make_hermitian!(mat; test_approx_symmetry=true)
+        @test !ishermitian(mat) # still not hermitian
+        # expected behaviour due to specialised code for sparse matrix
+
+        # subtle symmetry violation due to `ParitySymmetry` wrapper
+        ham = HubbardMom1D(BoseFS((1, 0, 1, 2, 0)))
+        even = ParitySymmetry(ham; odd=false)
+        odd = ParitySymmetry(ham; even=false)
+
+        even_sm, _ = build_sparse_matrix_from_LO(even)
+        even_m = Matrix(even) # symmetrised version via BasisSetRep
+
+        @test !issymmetric(even_sm) # not symmetric due to floating point errors
+        @test issymmetric(even_m) # because it was passed through `make_hermitian!`
+        @test even_sm ≈ even_m # still approximately the same!
+    end
 end
 
 @testset "Stoquastic" begin
