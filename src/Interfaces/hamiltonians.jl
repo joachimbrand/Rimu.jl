@@ -154,7 +154,7 @@ julia> H = HubbardReal1D(addr);
 
 
 julia> h = offdiagonals(H, addr)
-6-element Rimu.Hamiltonians.Offdiagonals{BoseFS{6, 3, Rimu.BitStringAddresses.BitString{8, 1, UInt8}}, Float64, HubbardReal1D{Float64, BoseFS{6, 3, Rimu.BitStringAddresses.BitString{8, 1, UInt8}}, 1.0, 1.0}}:
+6-element Rimu.Hamiltonians.Offdiagonals{BoseFS{6, 3, BitString{8, 1, UInt8}}, Float64, HubbardReal1D{Float64, BoseFS{6, 3, BitString{8, 1, UInt8}}, 1.0, 1.0}}:
  (fs"|2 3 1⟩", -3.0)
  (fs"|2 2 2⟩", -2.449489742783178)
  (fs"|3 1 2⟩", -2.0)
