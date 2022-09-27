@@ -43,7 +43,7 @@ function BoseFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) w
     S_dense = typeof(BitString{M + N - 1}(0))
     # Pick smaller address type, but prefer sparse.
     # Alway pick dense if it fits into one chunk.
-    sparse_size_64 = ceil(Int, sizeof(S_dense) / 8)
+    sparse_size_64 = ceil(Int, sizeof(S_sparse) / 8)
     dense_size_64 = ceil(Int, sizeof(S_dense) / 8)
     if num_chunks(S_dense) == 1 || dense_size_64 < sparse_size_64
         S = S_dense

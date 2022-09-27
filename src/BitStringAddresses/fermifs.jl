@@ -39,7 +39,7 @@ function FermiFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) 
     S_dense = typeof(BitString{M}(0))
     # Pick smaller address type, but prefer dense.
     # Alway pick dense if it fits into one chunk.
-    sparse_size_64 = ceil(Int, sizeof(S_dense) / 8)
+    sparse_size_64 = ceil(Int, sizeof(S_sparse) / 8)
     dense_size_64 = ceil(Int, sizeof(S_dense) / 8)
     if num_chunks(S_dense) == 1 || dense_size_64 ≤ sparse_size_64
         S = S_dense
