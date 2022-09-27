@@ -32,7 +32,7 @@ function FermiFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,
     @boundscheck check_fermi_onr(onr, N)
     return FermiFS{N,M,S}(from_fermi_onr(S, onr))
 end
-function FermiFS{N,M}(onr::Union{AbstractArray,Tuple}) where {N,M}
+function FermiFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) where {N,M}
     @boundscheck check_fermi_onr(onr, N)
     spl_type = select_int_type(M)
     S_sparse = SortedParticleList{N,M,spl_type}
@@ -48,20 +48,25 @@ function FermiFS{N,M}(onr::Union{AbstractArray,Tuple}) where {N,M}
     end
     return FermiFS{N,M,S}(from_fermi_onr(S, SVector{M,Int}(onr)))
 end
-function FermiFS{N}(onr::Union{SVector{M},Tuple{M}}) where {N,M}
-    return FermiFS{N,M}(onr)
-end
 function FermiFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)
     N = sum(onr)
     return FermiFS{N,M}(onr)
 end
 
+# Sparse constructors
+FermiFS(M, pair::Pair) = FermiFS(M, (pair,))
+FermiFS(M, pairs...) = FermiFS(M, pairs)
+FermiFS(M, pairs) = FermiFS(sparse_to_onr(M, pairs))
+FermiFS{1,M}(pair::Pair) where {M} = FermiFS{1,M}((pair,))
+FermiFS{N,M}(pairs...) where {N,M} = FermiFS{N,M}(pairs)
+FermiFS{N,M}(pairs) where {N,M} = FermiFS{N,M}(sparse_to_onr(M, pairs))
+
 function print_address(io::IO, f::FermiFS{N,M}; compact=false) where {N,M}
     if compact
         print(io, "|", join(map(o -> o == 0 ? '⋅' : '↑', onr(f))), "⟩")
     else
-        print(io, "FermiFS{$N,$M}(", tuple(onr(f)...), ")")
+        print(io, "FermiFS{$N,$M}(", onr_compact_string(onr(f)), ")")
     end
 end
 

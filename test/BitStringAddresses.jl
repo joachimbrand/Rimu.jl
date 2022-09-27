@@ -161,7 +161,7 @@ end
     )
     two_full = BoseFS{136,136,typeof(bs)}(bs)
 
-    @test_throws ArgumentError BoseFS{2}((1, 2, 3))
+    @test_throws ArgumentError BoseFS{2,3}((1, 2, 3))
     @test_throws DimensionMismatch BoseFS{6,2}([1, 2, 3])
 
     @testset "onr" begin
@@ -244,7 +244,7 @@ end
             end
             o[i] -= 1
             o[j] += 1
-            return BoseFS{N}(SVector(o)), √((o[i] + 1) * o[j])
+            return BoseFS{N,M}(SVector(o)), √((o[i] + 1) * o[j])
         end
         for (N, M) in ((16, 16), (3, 32), (64, 32), (200, 200), (200, 20), (20, 200))
             @testset "$N, $M" begin
@@ -301,7 +301,7 @@ end
         end
 
         @test_throws ArgumentError FermiFS((1, 2, 3))
-        @test_throws DimensionMismatch FermiFS{3,2}((1, 1, 1))
+        @test_throws BoundsError FermiFS{3,2}((1, 1, 1))
         @test_throws ArgumentError FermiFS{2,3}((1, 1, 1))
     end
     @testset "occupied_modes" begin

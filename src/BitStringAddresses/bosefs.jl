@@ -32,7 +32,7 @@ end
     end
     return BoseFS{N,M,S}(from_bose_onr(S, onr))
 end
-function BoseFS{N,M}(onr::Union{AbstractArray,NTuple{M}}) where {N,M}
+function BoseFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) where {N,M}
     @boundscheck begin
         sum(onr) == N || throw(ArgumentError(
             "invalid ONR: $N particles expected, $(sum(onr)) given"
@@ -52,20 +52,24 @@ function BoseFS{N,M}(onr::Union{AbstractArray,NTuple{M}}) where {N,M}
     end
     return BoseFS{N,M,S}(from_bose_onr(S, SVector{M,Int}(onr)))
 end
-function BoseFS{N}(onr::Union{SVector{M},NTuple{M}}) where {N,M}
-    return BoseFS{N,M}(onr)
-end
 function BoseFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)
     N = sum(onr)
     return BoseFS{N,M}(onr)
 end
 
+BoseFS(M, pair::Pair) = BoseFS(M, (pair,))
+BoseFS(M, pairs...) = BoseFS(M, pairs)
+BoseFS(M, pairs) = BoseFS(sparse_to_onr(M, pairs))
+BoseFS{N,M}(pair::Pair) where {N,M} = BoseFS{N,M}((pair,))
+BoseFS{N,M}(pairs...) where {N,M} = BoseFS{N,M}(pairs)
+BoseFS{N,M}(pairs) where {N,M} = BoseFS{N,M}(sparse_to_onr(M, pairs))
+
 function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}
     if compact
         print(io, "|", join(onr(b), ' '), "⟩")
     else
-        print(io, "BoseFS{$N,$M}(", tuple(onr(b)...), ")")
+        print(io, "BoseFS{$N,$M}(", onr_compact_string(onr(b)), ")")
     end
 end
 
@@ -232,7 +236,7 @@ The off-diagonals are indexed as follows:
 julia> using Rimu.Hamiltonians: hopnextneighbour
 
 julia> hopnextneighbour(BoseFS((1, 0, 1)), 3)
-(BoseFS{2,3}((2, 0, 0)), 1.4142135623730951)
+(BoseFS{2,3}(1 => 2), 1.4142135623730951)
 julia> hopnextneighbour(BoseFS((1, 0, 1)), 4)
 (BoseFS{2,3}((1, 1, 0)), 1.0)
 ```

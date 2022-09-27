@@ -265,7 +265,7 @@ are passed on to `Base.sortperm`.
 julia> h = HubbardReal1D(BoseFS((1,0,0)));
 
 julia> bsr = BasisSetRep(h)
-BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
+BasisSetRep(HubbardReal1D(BoseFS{1,3}(1 => 1); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0

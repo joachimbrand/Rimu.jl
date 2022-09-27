@@ -396,6 +396,14 @@ function Base.show(io::IO, add::AbstractFockAddress)
     end
 end
 
+function onr_compact_string(o)
+    str_dense = string(tuple(o...))
+    ps = map(p -> p[1] => p[2], Iterators.filter(p -> !iszero(p[2]), enumerate(o)))
+    str_sparse = join(ps, ", ")
+
+    return argmin(length, (str_dense, str_sparse))
+end
+
 ###
 ### Boson stuff
 ###
@@ -618,4 +626,14 @@ function LinearAlgebra.dot(occ_a::OccupiedModeIterator, occ_b::OccupiedModeItera
             (n_b, i_b, _), st_b = iter
         end
     end
+end
+
+function sparse_to_onr(M, pairs)
+    onr = zeros(Int, M)
+    for (k, v) in pairs
+        v ≥ 0 || throw(ArgumentError("Invalid pair `$k=>$v`: particle number negtive"))
+        0 < k ≤ M || throw(ArgumentError("Invalid pair `$k => $v`: key of of range `1:$M`"))
+        onr[k] += v
+    end
+    return onr
 end
