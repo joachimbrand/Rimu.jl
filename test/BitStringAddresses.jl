@@ -164,6 +164,27 @@ end
     @test_throws ArgumentError BoseFS{2,3}((1, 2, 3))
     @test_throws DimensionMismatch BoseFS{6,2}([1, 2, 3])
 
+    @testset "constructors" begin
+        small_dense = BoseFS(ones(Int, 32))
+        @test small_dense.bs isa BitString
+        @test small_dense isa BoseFS{32,32}
+
+        small_sparse = BoseFS(32, 1 => 2, 1 => 1)
+        @test small_sparse.bs isa BitString
+        @test small_sparse isa BoseFS{3,32}
+
+        med_dense = BoseFS(ones(Int, 64))
+        @test med_dense.bs isa BitString
+        @test med_dense isa BoseFS{64,64}
+
+        med_sparse = BoseFS{4,64}(32 => 4)
+        @test med_sparse.bs isa SortedParticleList
+        @test med_sparse isa BoseFS{4,64}
+
+        @test_throws ArgumentError BoseFS(10, 11 => 1)
+        @test_throws ArgumentError BoseFS(10, 10 => -1)
+        @test_throws MethodError BoseFS(10 => 1)
+    end
     @testset "onr" begin
         middle_full_onr = onr(middle_full)
         @test length(middle_full_onr) == 100
@@ -300,6 +321,21 @@ end
             @test typeof(f)(onr(f)) == f
         end
 
+        @test FermiFS(small).bs isa BitString
+        @test FermiFS(big).bs isa BitString
+        @test FermiFS(giant_sparse).bs isa SortedParticleList
+        @test FermiFS(giant_dense).bs isa BitString
+
+        sp_10 = FermiFS(10, 1 => 1, 5 => 1)
+        @test num_modes(sp_10) == 10
+        @test num_particles(sp_10) == 2
+        sp_20 = FermiFS{4,20}(1 => 1, 3 => 1, 5 => 1, 7 => 1)
+        @test num_modes(sp_20) == 20
+        @test num_particles(sp_20) == 4
+
+        @test_throws ArgumentError FermiFS(3, 4 => 1)
+        @test_throws ArgumentError FermiFS(3, 2 => -1)
+        @test_throws ArgumentError FermiFS(3, 2 => 2)
         @test_throws ArgumentError FermiFS((1, 2, 3))
         @test_throws BoundsError FermiFS{3,2}((1, 1, 1))
         @test_throws ArgumentError FermiFS{2,3}((1, 1, 1))
