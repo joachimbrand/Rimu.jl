@@ -1,21 +1,47 @@
 """
     BoseFS{N,M,S} <: SingleComponentFockAddress
 
-Address type that represents a Fock state of `N` spinless bosons in `M` modes
-by wrapping a bitstring of type `S <: BitString`.
+Address type that represents a Fock state of `N` spinless bosons in `M` modes by wrapping a
+`[`BitString`](@ref), or a [`SortedParticleList`](@ref). Which is wrapped is chosen
+automatically based on the properties of the address.
 
 # Constructors
 
-* `BoseFS{N,M}(bs::BitString)`: Unsafe constructor. Does not check whether the number of
+* `BoseFS{[N,M]}(onr)`: Create `BoseFS{N,M}` from [`onr`](@ref) representation. This is
+  efficient if `N` and `M` are provided, and `onr` is a statically-sized collection, such as
+  a `Tuple` or `SVector`.
+
+* `BoseFS{[N,M]}(M, pairs...)`: Provide the number of modes and `mode => occupation_number`
+  pairs. If `N` and `M` are provided, the first argument is not needed. Useful for creating
+  sparse addresses. `pairs` can be multiple arguments or an iterator of pairs.
+
+* `BoseFS{N,M,S}(bs::S)`: Unsafe constructor. Does not check whether the number of
   particles in `bs` is equal to `N`.
 
-* `BoseFS(::BitString)`: Automatically determine `N` and `M`. This constructor is not type
-  stable!
+* [`@fs_str`](@ref): addresses are sometimes printed in a compact manner. This
+  representation can also be used as a constructor. See the last example below.
 
-* `BoseFS{[N,M,S]}(onr)`: Create `BoseFS{N,M}` from [`onr`](@ref) representation. This is
-  efficient as long as at least `N` is provided.
+# Examples
 
-See also: [`SingleComponentFockAddress`](@ref), [`FermiFS`](@ref), [`BitString`](@ref).
+```jldoctest
+julia> BoseFS{6,5}((0, 1, 2, 3, 0))
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> BoseFS([abs(i - 3) ≤ 1 ? i - 1 : 0 for i in 1:5])
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> BoseFS(5, 2 => 1, 3 => 2, 4 => 3)
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> BoseFS{6,5}(i => i - 1 for i in 2:4)
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> fs"|0 1 2 3 0⟩"
+BoseFS{6,5}((0, 1, 2, 3, 0))
+```
+
+See also: [`SingleComponentFockAddress`](@ref), [`FermiFS`](@ref), [`CompositeFS`](@ref),
+[`FermiFS2C`](@ref).
 """
 struct BoseFS{N,M,S} <: SingleComponentFockAddress{N,M}
     bs::S
