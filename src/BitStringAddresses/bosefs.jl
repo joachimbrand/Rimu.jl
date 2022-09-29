@@ -38,6 +38,9 @@ BoseFS{6,5}((0, 1, 2, 3, 0))
 
 julia> fs"|0 1 2 3 0⟩"
 BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> fs"|b; M5: 2 3 3 4 4 4⟩"
+BoseFS{6,5}((0, 1, 2, 3, 0))
 ```
 
 See also: [`SingleComponentFockAddress`](@ref), [`FermiFS`](@ref), [`CompositeFS`](@ref),

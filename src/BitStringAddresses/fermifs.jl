@@ -40,6 +40,9 @@ FermiFS{3,5}((0, 1, 1, 1, 0))
 
 julia> fs"|⋅↑↑↑⋅⟩"
 FermiFS{3,5}((0, 1, 1, 1, 0))
+
+julia> fs"|f; M5: 2 3 4⟩"
+FermiFS{3,5}((0, 1, 1, 1, 0))
 ```
 
 See also: [`SingleComponentFockAddress`](@ref), [`BoseFS`](@ref), [`CompositeFS`](@ref),

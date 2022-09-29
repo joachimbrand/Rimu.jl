@@ -383,6 +383,8 @@ DVec{BoseFS{3, 4, BitString{6, 1, UInt8}},Int64} with 1 enrty, style = IsStochas
 julia> fs"|0 1 2 0⟩" => 1 # Copied from above printout
 BoseFS{3,4}((0, 1, 2, 0)) => 1
 ```
+
+See also [`FermiFS`](@ref), [`BoseFS`](@ref), [`CompositeFS`](@ref), [`FermiFS2C`](@ref).
 """
 macro fs_str(str)
     return parse_address(str)
