@@ -2,12 +2,16 @@
     ParitySymmetry(ham::AbstractHamiltonian{T}; even=true) <: AbstractHamiltonian{T}
 
 Impose even or odd parity on all states and the Hamiltonian `ham` as controlled by the
-keyword argument `even`. For some Hamiltonians, this reduces the size of the Hilbert space
+keyword argument `even`. Parity symmetry of the Hamiltonian is assumed.
+For some Hamiltonians, `ParitySymmetry` reduces the size of the Hilbert space
 by half.
 
-`ParitySymmetry` changes the basis set to states with defined parity. Effectively, a
+`ParitySymmetry` performs a unitary
+transformation, leaving the eigenvalues unchanged and preserving the [`LOStructure`](@ref).
+This is achieved by changing the basis set to states with defined parity. Effectively, a
 non-even address ``|α⟩`` is replaced by ``\\frac{1}{√2}(|α⟩ ± |ᾱ⟩)`` for even and odd
 parity, respectively, where `ᾱ == reverse(α)`.
+
 
 # Notes
 
@@ -34,6 +38,7 @@ julia> size(Matrix(ParitySymmetry(ham; odd=true)))
 julia> eigvals(Matrix(ham))[1] ≈ eigvals(Matrix(ParitySymmetry(ham)))[1]
 true
 ```
+See also [`TimeReversalSymmetry`](@ref).
 """
 struct ParitySymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     hamiltonian::H
