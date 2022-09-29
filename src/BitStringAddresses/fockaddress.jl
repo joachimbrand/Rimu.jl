@@ -1,7 +1,10 @@
 """
-    AbstractFockAddress
+    AbstractFockAddress{N,M}
 
-Supertype representing a Fock state.
+Abstract type representing a Fock state with `N` particles and `M` modes.
+
+See also [`SingleComponentFockAddress`](@ref), [`CompositeFS`](@ref), [`BoseFS`](@ref),
+[`FermiFS`](@ref).
 """
 abstract type AbstractFockAddress{N,M} end
 
@@ -32,9 +35,9 @@ Number of components in address.
 num_components(b::AbstractFockAddress) = num_components(typeof(b))
 
 """
-    SingleComponentFockAddress{M}
+    SingleComponentFockAddress{N,M} <: AbstractFockAddress{N,M}
 
-A type representing a single component Fock state with `M` modes.
+A type representing a single component Fock state with `N` particles and `M` modes.
 
 Implemented subtypes: [`BoseFS`](@ref), [`FermiFS`](@ref).
 
@@ -48,6 +51,8 @@ Implemented subtypes: [`BoseFS`](@ref), [`FermiFS`](@ref).
 * [`OccupiedModeMap`](@ref): `AbstractVector` with eager construction.
 * [`excitation`](@ref): Create a new address.
 * [`BoseFSIndex`](@ref) and [`FermiFSIndex`](@ref) for indexing.
+
+See also [`CompositeFS`](@ref), [`AbstractFockAddress`](@ref).
 """
 abstract type SingleComponentFockAddress{N,M} <: AbstractFockAddress{N,M} end
 
