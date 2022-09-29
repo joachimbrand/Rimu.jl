@@ -1084,14 +1084,14 @@ end
         Random.seed!(17)
         mat = rand(5,5)
         @test !ishermitian(mat)
-        @test_logs (:error,) fix_approx_hermitian!(mat; test_approx_symmetry=true)
+        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
         @test !ishermitian(mat) # still not hermitian
 
         # sparse matrix
         Random.seed!(17)
         mat = sparse(rand(5,5))
         @test !ishermitian(mat)
-        @test_logs (:error,) fix_approx_hermitian!(mat; test_approx_symmetry=true)
+        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
         @test !ishermitian(mat) # still not hermitian
 
         # subtle symmetry violation due to `ParitySymmetry` wrapper

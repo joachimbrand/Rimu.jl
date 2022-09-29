@@ -353,7 +353,7 @@ function fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
     if test_approx_symmetry
         passed = isapprox(A, A'; kwargs...)
         if !passed
-            @error "Matrix is not approximately hermitian."
+            throw(ArgumentError("Matrix is not approximately hermitian."))
             return A
         end
     end
@@ -367,7 +367,9 @@ using SparseArrays: AbstractSparseMatrixCSC, getcolptr, rowvals, nonzeros
 # special case for sparse matrices; avoids most allocations, testing is free
 function fix_approx_hermitian!(A::AbstractSparseMatrixCSC; test_approx_symmetry=false, kwargs...)
     passed = isapprox_enforce_hermitian!(A; kwargs...)
-    test_approx_symmetry && !passed && @error "Matrix is not approximately hermitian."
+    if test_approx_symmetry && !passed 
+        throw(ArgumentError("Matrix is not approximately hermitian."))
+    end
     return A
 end
 
