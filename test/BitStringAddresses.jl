@@ -431,7 +431,7 @@ end
         @test parse_address(sprint(show, fermi; context=:compact => true)) == fermi
 
         @test fs"|↑⋅⇅⋅↓⟩" == CompositeFS(FermiFS((1,0,1,0,0)), FermiFS((0,0,1,0,1)))
-        @test fs"|↑⋅⟩ ⊗ |0 2⟩ ⊗ |b; M2: 1 1⟩ ⊗ |f; M2: 1 2⟩" == CompositeFS(
+        @test fs"|↑⋅⟩ ⊗ |0 2⟩ ⊗ |b 2: 1 1⟩ ⊗ |f 2: 1 2⟩" == CompositeFS(
             FermiFS((1, 0)), BoseFS((0, 2)), BoseFS((2, 0)), FermiFS((1, 1))
         )
         @test_throws ArgumentError parse_address("|2 3⟩ ⊗ |↓↑⟩")

@@ -41,7 +41,7 @@ FermiFS{3,5}((0, 1, 1, 1, 0))
 julia> fs"|⋅↑↑↑⋅⟩"
 FermiFS{3,5}((0, 1, 1, 1, 0))
 
-julia> fs"|f; M5: 2 3 4⟩"
+julia> fs"|f 5: 2 3 4⟩"
 FermiFS{3,5}((0, 1, 1, 1, 0))
 ```
 
@@ -95,7 +95,7 @@ FermiFS{N,M}(pairs) where {N,M} = FermiFS{N,M}(sparse_to_onr(M, pairs))
 
 function print_address(io::IO, f::FermiFS{N,M}; compact=false) where {N,M}
     if compact && f.bs isa SortedParticleList
-        print(io, "|f; M", M, ": ", join(Int.(f.bs.storage), ' '), "⟩")
+        print(io, "|f ", M, ": ", join(Int.(f.bs.storage), ' '), "⟩")
     elseif compact
         print(io, "|", join(map(o -> o == 0 ? '⋅' : '↑', onr(f))), "⟩")
     elseif f.bs isa SortedParticleList

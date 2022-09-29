@@ -39,7 +39,7 @@ BoseFS{6,5}((0, 1, 2, 3, 0))
 julia> fs"|0 1 2 3 0⟩"
 BoseFS{6,5}((0, 1, 2, 3, 0))
 
-julia> fs"|b; M5: 2 3 3 4 4 4⟩"
+julia> fs"|b 5: 2 3 3 4 4 4⟩"
 BoseFS{6,5}((0, 1, 2, 3, 0))
 ```
 
@@ -96,7 +96,7 @@ BoseFS{N,M}(pairs) where {N,M} = BoseFS{N,M}(sparse_to_onr(M, pairs))
 
 function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}
     if compact && b.bs isa SortedParticleList
-        print(io, "|b; M", M, ": ", join(Int.(b.bs.storage), ' '), "⟩")
+        print(io, "|b ", M, ": ", join(Int.(b.bs.storage), ' '), "⟩")
     elseif compact
         print(io, "|", join(onr(b), ' '), "⟩")
     elseif b.bs isa SortedParticleList
