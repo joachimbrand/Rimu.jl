@@ -116,14 +116,14 @@ end
 """
     external_potential(add::AbstractFockAddress, pot)
 
-Calculate the value of a diagonal single particle operator (e.g. a trap potential) at 
-the address `add`. 
+Calculate the value of a diagonal single particle operator (e.g. a trap potential) at
+the address `add`.
 ```math
 \\sum_{iσ} v_{iσ} n_{iσ}
 ```
-The (precomputed) potential energy per particle at each mode passed as `pot` should be 
-a length `M` vector for a [`SingleComponentFockAddress`](@ref), or a `M×C` matrix for 
-a [`CompositeFS `](@ref), where `M` is the number of modes and `C` the number of 
+The (precomputed) potential energy per particle at each mode passed as `pot` should be
+a length `M` vector for a [`SingleComponentFockAddress`](@ref), or a `M×C` matrix for
+a [`CompositeFS `](@ref), where `M` is the number of modes and `C` the number of
 components.
 """
 Base.@propagate_inbounds function external_potential(add::SingleComponentFockAddress, pot)
@@ -160,12 +160,12 @@ in `D` dimensions.
   \\frac{1}{2}\\sum_{i,σ≠τ}u_{στ} n_{iσ} n_{iτ}
 ```
 
-If `v` is nonzero then this calculates ``\\hat{H} + \\hat{V}`` by adding the 
+If `v` is nonzero then this calculates ``\\hat{H} + \\hat{V}`` by adding the
 harmonic trapping potential
 ```math
     \\hat{V} = \\sum_{i,σ,d} v_{σd} x_{di}^2 n_{iσ}
 ```
-where ``x_{di}`` is the distance of site ``i`` from the centre of the trap 
+where ``x_{di}`` is the distance of site ``i`` from the centre of the trap
 along dimension ``d``.
 
 ## Address types
@@ -174,7 +174,7 @@ along dimension ``d``.
 * [`FermiFS`](@ref): Single-component Fermi-Hubbard model.
 * [`CompositeFS`](@ref): For multi-component models.
 
-Note that a single component of fermions cannot interact with itself. A warning 
+Note that a single component of fermions cannot interact with itself. A warning
 is produced if `address`is incompatible with the interaction parameters `u`.
 
 ## Geometries
@@ -185,7 +185,7 @@ Implemented [`LatticeGeometry`](@ref)s for keyword `geometry`
 * [`HardwallBoundaries`](@ref)
 * [`LadderBoundaries`](@ref)
 
-Default is `geometry=PeriodicBoundaries(M,)`, i.e. a one-dimensional lattice with the 
+Default is `geometry=PeriodicBoundaries(M,)`, i.e. a one-dimensional lattice with the
 number of sites `M` inferred from the number of modes in `address`.
 
 ## Other parameters
@@ -200,7 +200,10 @@ number of sites `M` inferred from the number of modes in `address`.
   the strength of the trap for component `i` in the `j`th dimension.
 """
 struct HubbardRealSpace{
-    C,A,G,D, # C: components
+    C, # components
+    A<:AbstractFockAddress,
+    G<:LatticeGeometry,
+    D, # dimension
     # The following need to be type params.
     T<:SVector{C,Float64},
     U<:Union{SMatrix{C,C,Float64},Nothing},
@@ -209,17 +212,17 @@ struct HubbardRealSpace{
 } <: AbstractHamiltonian{Float64}
     address::A
     t::T # hopping strengths
-    u::U # interactions    
+    u::U # interactions
     v::V # trap strengths
     potential::P # potential energy of each component at each lattice site
     geometry::G
 end
 
 function HubbardRealSpace(
-    address;
-    geometry=PeriodicBoundaries((num_modes(address),)),
+    address::AbstractFockAddress;
+    geometry::LatticeGeometry=PeriodicBoundaries((num_modes(address),)),
     t=ones(num_components(address)),
-    u=ones(num_components(address), num_components(address)),    
+    u=ones(num_components(address), num_components(address)),
     v=zeros(num_components(address), num_dimensions(geometry))
 )
     C = num_components(address)
