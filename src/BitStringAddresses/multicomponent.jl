@@ -137,7 +137,7 @@ Construct by specifying either two compatible [`FermiFS`](@ref)s or [`onr`](@ref
 ```jldoctest
 julia> f2c = FermiFS2C((1,0,0),(0,1,1))
 CompositeFS(
-  FermiFS{1,3}(1 => 1),
+  FermiFS{1,3}((1, 0, 0)),
   FermiFS{2,3}((0, 1, 1)),
 )
 

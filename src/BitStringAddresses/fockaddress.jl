@@ -326,43 +326,44 @@ function parse_address(str)
         if !isnothing(match(r"[↓⇅]", str))
             throw(ArgumentError("invalid fock state format \"$str\""))
         else
-            return CompositeFS(map(parse_address, split(str, " ⊗ "))...)
+            return CompositeFS(map(parse_address, split(str, " *⊗ *"))...)
         end
     end
     # FermiFS2C
     m = match(r"[↓⇅]", str)
     if !isnothing(m)
-        m = match(r"\|([↑↓⇅⋅]+)⟩", str)
+        m = match(r"\|([↑↓⇅⋅ ]+)⟩", str)
         if isnothing(m)
             throw(ArgumentError("invalid fock state format \"$str\""))
         else
-            chars = Vector{Char}(m.captures[1])
+            chars = filter(!=(' '), Vector{Char}(m.captures[1]))
             f1 = FermiFS((chars .== '↑') .| (chars .== '⇅'))
             f2 = FermiFS((chars .== '↓') .| (chars .== '⇅'))
             return CompositeFS(f1, f2)
         end
     end
     # Sparse BoseFS
-    m = match(r"\|b; M([0-9]+): ([ 0-9]+)⟩", str)
+    m = match(r"\|b; *M([0-9]+): *([ 0-9]+)⟩", str)
     if !isnothing(m)
-        particles = parse.(Int, split(m.captures[2], ' '))
+        particles = parse.(Int, filter(!isempty, split(m.captures[2], r" +")))
         return BoseFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
     end
     # Sparse FermiFS
-    m = match(r"\|f; M([0-9]+): ([ 0-9]+)⟩", str)
+    m = match(r"\|f; *M([0-9]+): *([ 0-9]+)⟩", str)
     if !isnothing(m)
-        particles = parse.(Int, split(m.captures[2], ' '))
+        particles = parse.(Int, filter(!isempty, split(m.captures[2], r" +")))
         return FermiFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
     end
     # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)
     if !isnothing(m)
-        return BoseFS(parse.(Int, split(m.captures[1], ' ')))
+        return BoseFS(parse.(Int, split(m.captures[1], r" *")))
     end
     # Single FermiFS
-    m = match(r"\|([⋅↑]+)⟩", str)
+    m = match(r"\|([ ⋅↑]+)⟩", str)
     if !isnothing(m)
-        return FermiFS(Vector{Char}(m.captures[1]) .== '↑')
+        chars = filter(!=(' '), Vector{Char}(m.captures[1]))
+        return FermiFS(chars .== '↑')
     end
     throw(ArgumentError("invalid fock state format \"$str\""))
 end
