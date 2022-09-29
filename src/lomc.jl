@@ -207,7 +207,7 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
   diagonal_element(ham, starting_address(ham)))` -
   basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
 * `laststep` - can be used to override information otherwise contained in `params`
-* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 100, ζ = 0.08, ξ = ζ^2/4)` -
+* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4)` -
   how to update the `shift`, see [`ShiftStrategy`](@ref)
 * `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
   reached, `lomc!` will abort
