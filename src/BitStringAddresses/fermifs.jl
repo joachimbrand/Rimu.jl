@@ -91,10 +91,14 @@ FermiFS{N,M}(pairs...) where {N,M} = FermiFS{N,M}(pairs)
 FermiFS{N,M}(pairs) where {N,M} = FermiFS{N,M}(sparse_to_onr(M, pairs))
 
 function print_address(io::IO, f::FermiFS{N,M}; compact=false) where {N,M}
-    if compact
+    if compact && f.bs isa SortedParticleList
+        print(io, "|f; M", M, ": ", join(Int.(f.bs.storage), ' '), "⟩")
+    elseif compact
         print(io, "|", join(map(o -> o == 0 ? '⋅' : '↑', onr(f))), "⟩")
+    elseif f.bs isa SortedParticleList
+        print(io, "FermiFS{$N,$M}(", onr_sparse_string(onr(f)), ")")
     else
-        print(io, "FermiFS{$N,$M}(", onr_compact_string(onr(f)), ")")
+        print(io, "FermiFS{$N,$M}(", tuple(onr(f)...), ")")
     end
 end
 

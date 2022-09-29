@@ -92,10 +92,14 @@ BoseFS{N,M}(pairs...) where {N,M} = BoseFS{N,M}(pairs)
 BoseFS{N,M}(pairs) where {N,M} = BoseFS{N,M}(sparse_to_onr(M, pairs))
 
 function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}
-    if compact
+    if compact && b.bs isa SortedParticleList
+        print(io, "|b; M", M, ": ", join(Int.(b.bs.storage), ' '), "⟩")
+    elseif compact
         print(io, "|", join(onr(b), ' '), "⟩")
+    elseif b.bs isa SortedParticleList
+        print(io, "BoseFS{$N,$M}(", onr_sparse_string(onr(b)), ")")
     else
-        print(io, "BoseFS{$N,$M}(", onr_compact_string(onr(b)), ")")
+        print(io, "BoseFS{$N,$M}(", tuple(onr(b)...), ")")
     end
 end
 

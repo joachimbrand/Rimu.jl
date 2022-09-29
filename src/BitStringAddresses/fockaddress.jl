@@ -342,6 +342,18 @@ function parse_address(str)
             return CompositeFS(f1, f2)
         end
     end
+    # Sparse BoseFS
+    m = match(r"\|b; M([0-9]+): ([ 0-9]+)⟩", str)
+    if !isnothing(m)
+        particles = parse.(Int, split(m.captures[2], ' '))
+        return BoseFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
+    end
+    # Sparse FermiFS
+    m = match(r"\|f; M([0-9]+): ([ 0-9]+)⟩", str)
+    if !isnothing(m)
+        particles = parse.(Int, split(m.captures[2], ' '))
+        return FermiFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
+    end
     # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)
     if !isnothing(m)
@@ -396,12 +408,9 @@ function Base.show(io::IO, add::AbstractFockAddress)
     end
 end
 
-function onr_compact_string(o)
-    str_dense = string(tuple(o...))
+function onr_sparse_string(o)
     ps = map(p -> p[1] => p[2], Iterators.filter(p -> !iszero(p[2]), enumerate(o)))
-    str_sparse = join(ps, ", ")
-
-    return argmin(length, (str_dense, str_sparse))
+    return join(ps, ", ")
 end
 
 ###
