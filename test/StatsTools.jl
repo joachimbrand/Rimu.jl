@@ -42,7 +42,7 @@ using Rimu.StatsTools: blocker
     @test mean(v) ≈ br.mean ≈ brs.mean
     @test 0.01 < brs.err < 0.04
     @test 5 < brs.k ≤ 7 # should be 5+1
-    bor = blocking_analysis(ones(2000)) # blocking fails
+    bor = @test_logs (:warn,) blocking_analysis(ones(2000)) # blocking fails
     @test bor.k == -1
     @test isnan(bor.err)
 
@@ -56,7 +56,8 @@ using Rimu.StatsTools: blocker
     @test mean(w) ≈ bc.mean ≈ bcs.mean
     @test 5 < bcs.k ≤ 7 # should be 5+1
 
-    @test blocking_analysis([1]).k == -1 == blocking_analysis(Int[]).k
+    @test -1 == (@test_logs (:warn,) blocking_analysis([1]).k)
+    @test -1 == (@test_logs (:error,) blocking_analysis(Int[]).k)
 end
 
 using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
@@ -251,7 +252,7 @@ end
     dv = DVec(starting_address(ham) => 2; capacity = dimension(ham))
     dvals = [0,1]
     best_g2 = [0.220679, 0.907466]    # results for tw = 10K, 2^18 steps, no reweighting
-    
+
     skipsteps = 2^8
     runsteps = 2^10
     num_reps = 2
