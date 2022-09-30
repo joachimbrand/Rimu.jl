@@ -281,7 +281,6 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
     # Sanity checks.
     step, laststep = state.step, state.laststep
     for replica in state.replicas
-        ConsistentRNG.check_crng_independence(replica.v)
         @assert replica.params.step == step
         @assert replica.params.laststep == laststep
     end

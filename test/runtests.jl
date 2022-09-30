@@ -31,19 +31,6 @@ end
     include("BitStringAddresses.jl")
 end
 
-using Rimu.ConsistentRNG
-@testset "ConsistentRNG" begin
-    seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
-    @test cRand(UInt128) == 0x50f0f296b239b257a8c2ac2f11d6d2cb
-
-    @test rand(ConsistentRNG.CRNGs[][1],UInt128) == 0xba97314c00e092e448993a2bef41d28d
-    # Only looks at first element of the `NTuple`. This should be reproducible
-    # regardless of `numthreads()`.
-    @test rand(trng(),UInt16) == 0x4e65
-    @test rand(newChildRNG(),UInt16) == 0x03aa
-    @test ConsistentRNG.check_crng_independence(0) == Threads.nthreads()
-end
-
 @safetestset "StochasticStyles" begin
     include("StochasticStyles.jl")
 end
@@ -58,72 +45,6 @@ end
 
 @safetestset "lomc!" begin
     include("lomc.jl")
-end
-
-@testset "MemoryStrategy" begin
-    # Define the initial Fock state with n particles and m modes
-    n = m = 9
-    add = near_uniform(BoseFS{n,m})
-    H = HubbardReal1D(add; u = 6.0, t = 1.0)
-    dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
-    s_strat = DoubleLogUpdate(targetwalkers=100)
-
-    @testset "NoMemory" begin
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2698 atol=1
-    end
-
-    @testset "DeltaMemory" begin
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2698 atol=1
-
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2005 atol=1
-    end
-
-    @testset "DeltaMemory2" begin
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2698 atol=1
-
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 1848 atol=1
-    end
-
-    @testset "ShiftMemory" begin
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2698 atol=1
-
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2811 atol=1
-    end
 end
 
 @testset "IsDeterministic with Vector" begin
@@ -152,7 +73,7 @@ end
         @test walkernumber(dvc) == 2.0 + 0.0im
         dvi= DVec(:a=>Complex{Int32}(2-5im))
         @test StochasticStyle(dvi) isa StochasticStyles.IsStochastic2Pop
-        dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
+        dvr = DVec(i => randn() for i in 1:100; capacity = 100)
         @test walkernumber(dvr) ≈ norm(dvr,1)
     end
     @testset "MultiScalar" begin

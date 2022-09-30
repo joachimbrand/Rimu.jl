@@ -36,7 +36,6 @@ module Interfaces
 using LinearAlgebra
 using StaticArrays
 
-using ..ConsistentRNG
 import OrderedCollections: freeze
 
 export

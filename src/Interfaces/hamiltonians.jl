@@ -181,7 +181,7 @@ by `ham`. Alternatively, pass as argument an iterator over the accessible matrix
 """
 function random_offdiagonal(offdiagonals::AbstractVector)
     nl = length(offdiagonals) # check how many sites we could get_offdiagonal to
-    chosen = cRand(1:nl) # choose one of them
+    chosen = rand(1:nl) # choose one of them
     naddress, melem = offdiagonals[chosen]
     return naddress, 1.0/nl, melem
 end

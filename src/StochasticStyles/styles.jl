@@ -276,7 +276,7 @@ function fciqmc_col!(s::IsExplosive{T}, w, ham, add, val, shift, dτ) where {T}
 
     pd = dτ * (diagonal_element(ham, add) - shift)
     if abs(val) ≤ s.explosion_threshold && 0 ≤ pd < 1
-        if cRand() < pd
+        if rand() < pd
             _, _, attempts, explosive_spawns, _ = spawn!(
                 DynamicSemistochastic(strat=WithReplacement(zero(T), s.splatter_factor)),
                 w, ham, add, val / pd, dτ,

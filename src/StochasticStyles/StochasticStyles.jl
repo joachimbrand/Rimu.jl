@@ -23,7 +23,6 @@ module StochasticStyles
 
 using StaticArrays
 using StatsBase
-using ..ConsistentRNG
 using ..Rimu: MultiScalar, localpart
 
 using ..Interfaces

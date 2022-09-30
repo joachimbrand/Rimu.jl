@@ -4,15 +4,6 @@ using Rimu.RMPI
 using Rimu.RMPI: sort_and_count!
 using Test
 
-@testset "RNG independence" begin
-    m = n = 6
-    add = near_uniform(BoseFS{n,m})
-    svec = DVec(add => 2)
-    dv = MPIData(svec)
-    @test ConsistentRNG.check_crng_independence(dv) ==
-        mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)
-end
-
 @testset "DistributeStrategies" begin
     # `DistributeStrategy`s
     ham = HubbardReal1D(BoseFS((1,2,3)))

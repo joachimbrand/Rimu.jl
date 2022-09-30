@@ -8,7 +8,6 @@ using Test
 
 using Rimu.RMPI
 using Rimu.StatsTools
-using Rimu.ConsistentRNG
 using Rimu.RMPI: targetrank, mpi_synchronize!
 
 const N_REPEATS = 5
@@ -185,7 +184,7 @@ end
                     (; setup=RMPI.mpi_one_sided, capacity=10_000),
                     (; setup=RMPI.mpi_all_to_all),
                 )) do kw
-                    Random.seed!(2021 * hash(mpi_rank()) * i)
+                    mpi_seed!(i)
                     source = DVec([BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10_000])
                     target = MPIData(similar(source); kw...)
                     RMPI.mpi_combine_walkers!(target, source)
@@ -203,9 +202,9 @@ end
 
     @testset "Ground state energy estimates" begin
         # H1 = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
-        # E0 = eigsolve(H1, DVec(starting_address(H1) => 1.0), 1, :SR; issymmetric=true)[1][1]
-        E0 = -4.6285244934941305
-        mpi_seed_CRNGs!(1000_000_000)
+        # E0 = eigvals(Matrix(H1))[1]
+        E0 = -4.628524493494574
+        mpi_seed!(1000_000_000)
 
         for (setup, kwargs) in (
             (RMPI.mpi_point_to_point, (;)),
@@ -266,12 +265,12 @@ end
         dv = DVec(add => 1)
 
         dv_ptp = MPIData(copy(dv); setup=RMPI.mpi_point_to_point)
-        mpi_seed_CRNGs!(17)
-        df_ptp = lomc!(H, dv_ptp).df
+        mpi_seed!(17)
+        df_ptp = lomc!(H, dv_ptp; threading=false).df
 
         dv_os = MPIData(copy(dv); setup=RMPI.mpi_one_sided, capacity=1000)
-        mpi_seed_CRNGs!(17)
-        df_os = lomc!(H, dv_os).df
+        mpi_seed!(17)
+        df_os = lomc!(H, dv_os; threading=false).df
 
         @test df_ptp == df_os
     end

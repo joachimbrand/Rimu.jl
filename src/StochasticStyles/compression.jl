@@ -15,7 +15,7 @@ function compress!(t::ThresholdCompression, v)
     for (add, val) in pairs(w)
         prob = abs(val) / t.threshold
         if prob < 1 # projection is only necessary if abs(val) < s.threshold
-            val = ifelse(prob > cRand(), t.threshold * sign(val), zero(val))
+            val = ifelse(prob > rand(), t.threshold * sign(val), zero(val))
             w[add] = val
         end
     end
@@ -40,7 +40,7 @@ function compress!(d::DoubleOrNothing, v)
     w = localpart(v)
     for (add, val) in pairs(w)
         if abs(val) < d.threshold
-            val = ifelse(cRand() > d.prob, zero(valtype(w)), val / d.prob)
+            val = ifelse(rand() > d.prob, zero(valtype(w)), val / d.prob)
             w[add] = val
         end
     end
@@ -94,10 +94,10 @@ function compress!(d::DoubleOrNothingWithThreshold, v)
         if abs(val) < d.threshold_lo
             # Threshold projection
             prob = abs(val) / d.threshold_lo
-            w[add] = ifelse(prob > cRand(), d.threshold_lo * sign(val), zero(val))
+            w[add] = ifelse(prob > rand(), d.threshold_lo * sign(val), zero(val))
         elseif abs(val) < d.threshold_hi
             # Double or nothing projection
-            val = ifelse(cRand() > d.prob, zero(valtype(w)), val / d.prob)
+            val = ifelse(rand() > d.prob, zero(valtype(w)), val / d.prob)
             w[add] = val
         end
     end

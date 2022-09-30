@@ -47,7 +47,6 @@ using Setfield
 using ..StochasticStyles
 using ..DictVectors
 using ..BitStringAddresses
-using ..ConsistentRNG
 
 using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
