@@ -182,6 +182,7 @@ end
 @testset "HubbardRealSpace" begin
     @testset "Constructor" begin
         bose = BoseFS((1, 2, 3, 4, 5, 6))
+        @test_throws MethodError HubbardRealSpace(BoseFS{10,10})
         @test_throws ArgumentError HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
         @test_throws ArgumentError HubbardRealSpace(
             bose; geometry=PeriodicBoundaries(3,2), t=[1, 2],
