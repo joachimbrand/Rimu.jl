@@ -11,9 +11,10 @@ automatically based on the properties of the address.
   efficient if `N` and `M` are provided, and `onr` is a statically-sized collection, such as
   a `Tuple` or `SVector`.
 
-* `BoseFS{[N,M]}(M, pairs...)`: Provide the number of modes and `mode => occupation_number`
-  pairs. If `N` and `M` are provided, the first argument is not needed. Useful for creating
-  sparse addresses. `pairs` can be multiple arguments or an iterator of pairs.
+* `BoseFS{[N,M]}([M, ]pairs...)`: Provide the number of modes `M` and `mode =>
+  occupation_number` pairs. If `M` is provided as a type parameter, it should not be
+  provided as the first argument.  Useful for creating sparse addresses. `pairs` can be
+  multiple arguments or an iterator of pairs.
 
 * `BoseFS{N,M,S}(bs::S)`: Unsafe constructor. Does not check whether the number of
   particles in `bs` is equal to `N`.

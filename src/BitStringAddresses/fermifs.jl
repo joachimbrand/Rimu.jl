@@ -11,9 +11,10 @@ chosen automatically based on the properties of the address.
   efficient if `N` and `M` are provided, and `onr` is a statically-sized collection, such as
   a `Tuple{M}` or `SVector{M}`.
 
-* `FermiFS{[N,M]}(M, pairs...)`: Provide the number of modes and `mode => occupation_number`
-  pairs. If `N` and `M` are provided, the first argument is not needed. Useful for creating
-  sparse addresses. `pairs` can be multiple arguments or an iterator of pairs.
+* `FermiFS{[N,M]}([M, ]pairs...)`: Provide the number of modes `M` and pairs of the form
+  `mode => 1`. If `M` is provided as a type parameter, it should not be provided as the
+  first argument.  Useful for creating sparse addresses. `pairs` can be multiple arguments
+  or an iterator of pairs.
 
 * `FermiFS{N,M,S}(bs::S)`: Unsafe constructor. Does not check whether the number of
   particles in `bs` is equal to `N`, or whether each mode only contains one particle.
