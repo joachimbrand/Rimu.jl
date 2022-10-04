@@ -140,7 +140,7 @@ component. See examples below.
 # Examples
 
 ```jldoctest
-julia> FermiFS2C(FermiFS(1,0,0), FermiFS(0,1,1))
+julia> FermiFS2C(FermiFS((1,0,0)), FermiFS((0,1,1)))
 CompositeFS(
   FermiFS{1,3}((1, 0, 0)),
   FermiFS{2,3}((0, 1, 1)),
