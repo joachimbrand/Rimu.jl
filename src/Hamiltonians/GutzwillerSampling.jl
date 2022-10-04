@@ -20,34 +20,22 @@ After construction, we can access the underlying Hamiltonian with `G.hamiltonian
 # Example
 
 ```jldoctest
-julia> H = HubbardMom1D(BoseFS{3}((1,1,1)); u=6.0, t=1.0)
-ERROR: MethodError: no method matching (BoseFS{3})(::Tuple{Int64, Int64, Int64})
-Stacktrace:
- [1] top-level scope
-   @ none:1
+julia> H = HubbardMom1D(BoseFS((1,1,1)); u=6.0, t=1.0)
+HubbardMom1D(BoseFS{3,3}((1, 1, 1)); u=6.0, t=1.0)
 
 julia> G = GutzwillerSampling(H, g=0.3)
-ERROR: UndefVarError: H not defined
-Stacktrace:
- [1] top-level scope
-   @ none:1
+GutzwillerSampling(HubbardMom1D(BoseFS{3,3}((1, 1, 1)); u=6.0, t=1.0); g=0.3)
 
 julia> get_offdiagonal(H, BoseFS((2, 1, 0)), 1)
-ERROR: UndefVarError: H not defined
-Stacktrace:
- [1] top-level scope
-   @ none:1
+(BoseFS{3,3}((1, 0, 2)), 2.0)
 
 julia> get_offdiagonal(G, BoseFS((2, 1, 0)), 1)
-ERROR: UndefVarError: G not defined
-Stacktrace:
- [1] top-level scope
-   @ none:1
+(BoseFS{3,3}((1, 0, 2)), 0.8131393194811987)
 ```
 
 # Observables
 
-To calculate observables, pass the transformed Hamiltonian `G` to 
+To calculate observables, pass the transformed Hamiltonian `G` to
 [`AllOverlaps`](@ref) with keyword argument `transform=G`.
 """
 struct GutzwillerSampling{A,T,H<:AbstractHamiltonian{T},G} <: AbstractHamiltonian{T}
@@ -132,11 +120,11 @@ Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
     TransformUndoer(k::GutzwillerSampling, op::AbstractHamiltonian)
     TransformUndoer(k::GutzwillerSampling)
 
-For a Gutzwiller similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}`` 
-define the operator ``f^{-1} \\hat{A} f^{-1}``, and special case ``f^{-2}``, in order 
-to calculate observables. Here ``f`` is a diagonal operator whose entries are 
+For a Gutzwiller similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}``
+define the operator ``f^{-1} \\hat{A} f^{-1}``, and special case ``f^{-2}``, in order
+to calculate observables. Here ``f`` is a diagonal operator whose entries are
 ``f_{ii} = e^{-g H_{ii}}``.
-    
+
 See [`AllOverlaps`](@ref), [`GutzwillerSampling`](@ref).
 """
 function TransformUndoer(k::GutzwillerSampling, op::Union{Nothing,AbstractHamiltonian})

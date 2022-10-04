@@ -471,11 +471,11 @@ Base.eltype(::BoseOccupiedModes) = BoseFSIndex
 """
     bose_excitation_value(
         creations::NTuple{_,BoseFSIndex}, destructions::NTuple{_,::BoseFSIndex}
-    ) -> Float64
+    ) -> Int
 
-Compute the value of an excitation from indices. Starts by applying all destruction
+Compute the squared value of an excitation from indices. Starts by applying all destruction
 operators, and then applying all creation operators. The operators must be given in reverse
-order.  Will return 0 if move is illegal.
+order. Will return 0 if move is illegal.
 """
 @inline bose_excitation_value(::Tuple{}, ::Tuple{}) = 1
 @inline function bose_excitation_value((c, cs...)::NTuple{<:Any,BoseFSIndex}, ::Tuple{})

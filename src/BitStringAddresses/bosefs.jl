@@ -2,7 +2,7 @@
     BoseFS{N,M,S} <: SingleComponentFockAddress
 
 Address type that represents a Fock state of `N` spinless bosons in `M` modes by wrapping a
-`[`BitString`](@ref), or a [`SortedParticleList`](@ref). Which is wrapped is chosen
+[`BitString`](@ref), or a [`SortedParticleList`](@ref). Which is wrapped is chosen
 automatically based on the properties of the address.
 
 # Constructors
@@ -56,9 +56,16 @@ end
         sum(onr) == N || throw(ArgumentError(
             "invalid ONR: $N particles expected, $(sum(onr)) given"
         ))
-        M + N - 1 == B || throw(ArgumentError(
-            "invalid ONR: $B-bit BitString does not fit $N particles in $M modes"
-        ))
+        if S <: BitString
+            B = num_bits(S)
+            M + N - 1 == B || throw(ArgumentError(
+                "invalid ONR: $B-bit BitString does not fit $N particles in $M modes"
+            ))
+        elseif S <: SortedParticleList
+            N == num_particles(S) && M == num_modes(S) || throw(ArgumentError(
+                "invalid ONR: $S does not fit $N particles in $M modes"
+            ))
+        end
     end
     return BoseFS{N,M,S}(from_bose_onr(S, onr))
 end

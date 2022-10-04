@@ -272,6 +272,7 @@ end
                 for _ in 1:10
                     input = rand_onr_bose(N, M)
                     bose = BoseFS(input)
+                    @test BoseFS{N,M,typeof(bose.bs)}(bose.bs) === bose
                     @test num_particles(bose) == N
                     @test num_modes(bose) == M
                     @test onr(bose) == input
@@ -356,6 +357,7 @@ end
                 for _ in 1:10
                     input = rand_onr_fermi(N, M)
                     fermi = FermiFS(input)
+                    @test FermiFS{N,M,typeof(fermi.bs)}(fermi.bs) === fermi
 
                     @test num_particles(fermi) == N
                     @test num_modes(fermi) == M

@@ -2,7 +2,7 @@
     FermiFS{N,M,S} <: SingleComponentFockAddress
 
 Address type that represents a Fock state of `N` fermions of the same spin in `M` modes by
-wrapping a `[`BitString`](@ref), or a [`SortedParticleList`](@ref). Which is wrapped is
+wrapping a [`BitString`](@ref), or a [`SortedParticleList`](@ref). Which is wrapped is
 chosen automatically based on the properties of the address.
 
 # Constructors
@@ -61,7 +61,18 @@ function check_fermi_onr(onr, N)
 end
 
 function FermiFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,S}
-    @boundscheck check_fermi_onr(onr, N)
+    @boundscheck begin
+        check_fermi_onr(onr, N)
+        if S <: BitString
+            M == num_bits(S) || throw(ArgumentError(
+                "invalid ONR: $B-bit BitString does not fit $M modes"
+            ))
+        elseif S <: SortedParticleList
+            N == num_particles(S) && M == num_modes(S) || throw(ArgumentError(
+                "invalid ONR: $S does not fit $N particles in $M modes"
+            ))
+        end
+    end
     return FermiFS{N,M,S}(from_fermi_onr(S, onr))
 end
 function FermiFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) where {N,M}

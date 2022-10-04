@@ -60,10 +60,13 @@ function Base.isless(ss1::SortedParticleList, ss2::SortedParticleList)
     return isless(ss1.storage, ss2.storage)
 end
 
+num_particles(::Type{<:SortedParticleList{N}}) where {N} = N
+num_modes(::Type{<:SortedParticleList{<:Any,M}}) where {M} = M
+
 ###
 ### General functions
 ###
-Base.eltype(::SortedParticleList) = Tuple{Int,Int}
+Base.eltype(::SortedParticleList) = Tuple{Int,Int,Int}
 
 function Base.length(ss::SortedParticleList{<:Any,<:Any,T}) where {T}
     curr = zero(T)
@@ -187,6 +190,8 @@ function from_fermi_onr(::Type{S}, onr) where {S<:SortedParticleList}
     from_onr(S, onr)
 end
 
+# Fix offsets and occupation numbers after creation/destruction operator is applied.
+# The idea behind these is to allow computing the value from the indices alone.
 function _fix_pos_create(c, index)
     index = @set index.offset += (c.mode < index.mode)
     index = @set index.occnum += (c.mode == index.mode)
@@ -200,15 +205,26 @@ function _fix_pos_destroy(d, index)
 end
 _fix_pos_destroy(d) = Base.Fix1(_fix_pos_destroy, d)
 
-@inline count_minus_signs(::Tuple{}, ::Tuple{}) = 1.0
-@inline function count_minus_signs((c, cs...), ::Tuple{})
+"""
+    fermi_excitation_value_spl(
+        creations::NTuple{_,FermiFSIndex}, destructions::NTuple{_,::FermiFSIndex}
+    ) -> {-1,0,1}
+
+Compute the value of an excitation from indices. Starts by applying all destruction
+operators, and then applying all creation operators. The operators must be given in reverse
+order. Will return 0 if move is illegal.
+
+Note that this function only works on indices obtained from a [`SortedParticleList`](@ref).
+"""
+@inline fermi_excitation_value_spl(::Tuple{}, ::Tuple{}) = 1.0
+@inline function fermi_excitation_value_spl((c, cs...), ::Tuple{})
     cs = map(_fix_pos_create(c), cs)
-    return count_minus_signs(cs, ()) * ifelse(isodd(c.offset), -1, 1) * (c.occnum == 0)
+    return fermi_excitation_value_spl(cs, ()) * ifelse(isodd(c.offset), -1, 1) * (c.occnum == 0)
 end
-@inline function count_minus_signs(cs, (d, ds...))
+@inline function fermi_excitation_value_spl(cs, (d, ds...))
     cs = map(_fix_pos_destroy(d), cs)
     ds = map(_fix_pos_destroy(d), ds)
-    return count_minus_signs(cs, ds) * ifelse(isodd(d.offset), -1, 1) * (d.occnum == 1)
+    return fermi_excitation_value_spl(cs, ds) * ifelse(isodd(d.offset), -1, 1) * (d.occnum == 1)
 end
 
 fermi_find_mode(ss::SortedParticleList, n) = FermiFSIndex(find_mode(ss, n))
@@ -223,7 +239,7 @@ end
 ) where {N,M,T,K}
     creations_rev = reverse(creations)
     destructions_rev = reverse(destructions)
-    value = count_minus_signs(creations_rev, destructions_rev)
+    value = fermi_excitation_value_spl(creations_rev, destructions_rev)
     if iszero(value)
         return ss, 0.0
     else
