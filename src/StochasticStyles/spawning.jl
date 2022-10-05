@@ -30,9 +30,7 @@ end
     return abs(val)
 end
 # Round to integer
-@inline function projected_deposit!(
-    ::Type{T}, w, add, val, parent, ::Any
-) where {T<:Integer}
+@inline function projected_deposit!(::Type{T}, w, add, val, parent, _) where {T<:Integer}
     intval = T(sign(val)) * floor(T, abs(val) + cRand())
     if !iszero(intval)
         deposit!(w, add, intval, parent)
@@ -41,9 +39,8 @@ end
 end
 # Complex/Int
 @inline function projected_deposit!(
-    ::Type{T}, w, add, val, parent, ::Any
+    ::Type{T}, w, add, val, parent, _
 ) where {I<:Integer,T<:Complex{I}}
-
     r_val, i_val = reim(val)
 
     r_intval = I(sign(r_val)) * floor(I, abs(r_val) + cRand())
@@ -57,23 +54,18 @@ end
 end
 
 """
-    diagonal_step!(w, ham, add, val, dτ, shift, threshold=0, report_stats=false)
-    -> (clones, deaths, zombies)
+    diagonal_step!(w, ham, add, val, dτ, shift, threshold=0) -> (clones, deaths, zombies)
 
 Perform diagonal step on a walker `add => val`. Optional argument `threshold` sets the
 projection threshold. If `eltype(w)` is an `Integer`, the `val` is rounded to the nearest
 integer stochastically.
 """
-@inline function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0, report_stats=false)
+@inline function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
     pd = dτ * (diagonal_element(ham, add) - shift)
     new_val = (1 - pd) * val
-    res = projected_deposit!(w, add, new_val, add => val, threshold, report_stats)
-    if report_stats
-        return (clones_deaths_zombies(pd, res, val)...)
-    else
-        z = zero(valtype(w))
-        return (z, z, z)
-    end
+    res = projected_deposit!(w, add, new_val, add => val, threshold)
+
+    return clones_deaths_zombies(pd, res, val)
 end
 
 @inline function clones_deaths_zombies(pd::Real, res::Real, val::Real)
