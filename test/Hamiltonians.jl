@@ -183,6 +183,7 @@ end
 @testset "HubbardRealSpace" begin
     @testset "Constructor" begin
         bose = BoseFS((1, 2, 3, 4, 5, 6))
+        @test_throws MethodError HubbardRealSpace(BoseFS{10,10})
         @test_throws ArgumentError HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
         @test_throws ArgumentError HubbardRealSpace(
             bose; geometry=PeriodicBoundaries(3,2), t=[1, 2],
@@ -972,6 +973,8 @@ end
         odd_m = Matrix(odd)
 
         @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "2-particle HubbardMom1DEP" begin
         ham = HubbardMom1DEP(BoseFS((0,0,1,1,0)))
@@ -1005,6 +1008,8 @@ end
 
         @test size(ham_m, 1) == size(even_m, 1) + size(odd_m, 1)
         @test sort(real.(vcat(eigvals(even_m), eigvals(odd_m)))) ≈ real.(eigvals(ham_m))
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "Even Hamiltonian" begin
         # This Hamiltonian only has even addresses.
@@ -1015,6 +1020,7 @@ end
         even_m = Matrix(even_b)
 
         @test ham_m == even_m
+        @test issymmetric(even_m)
     end
 end
 
@@ -1025,6 +1031,7 @@ end
         TimeReversalSymmetry(HubbardRealSpace(CompositeFS(FermiFS((1, 1)),BoseFS((2,1)))))
     end
     @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)));odd=true)
+    @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)); u=2+3im))
 
     @testset "HubbardMom1D" begin
         ham = HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))
@@ -1036,6 +1043,8 @@ end
         odd_m = Matrix(odd)
 
         @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "2-particle BoseHubbardMom1D2C" begin
         ham = BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))
@@ -1048,9 +1057,9 @@ end
         @test starting_address(even) == time_reverse(starting_address(ham))
         @test h_eigs ≈ p_eigs
 
-        @test ishermitian(Matrix(odd))
-        @test ishermitian(Matrix(even)) == false
-        @test LOStructure(odd) isa AdjointUnknown
+        @test issymmetric(Matrix(odd))
+        @test issymmetric(Matrix(even))
+        @test LOStructure(odd) isa IsHermitian
     end
 
 end
@@ -1105,6 +1114,37 @@ end
 
         @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
         @test Matrix(ham, add1) ≠ Matrix(ham, add2)
+    end
+
+    using Rimu.Hamiltonians: fix_approx_hermitian!, isapprox_enforce_hermitian!
+    using Rimu.Hamiltonians: build_sparse_matrix_from_LO
+    using Random
+    @testset "fix_approx_hermitian!" begin
+        # generic `Matrix`
+        Random.seed!(17)
+        mat = rand(5,5)
+        @test !ishermitian(mat)
+        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
+        @test !ishermitian(mat) # still not hermitian
+
+        # sparse matrix
+        Random.seed!(17)
+        mat = sparse(rand(5,5))
+        @test !ishermitian(mat)
+        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
+        @test !ishermitian(mat) # still not hermitian
+
+        # subtle symmetry violation due to `ParitySymmetry` wrapper
+        ham = HubbardMom1D(BoseFS((1, 0, 1, 2, 0)))
+        even = ParitySymmetry(ham; odd=false)
+        odd = ParitySymmetry(ham; even=false)
+
+        even_sm, _ = build_sparse_matrix_from_LO(even)
+        even_m = Matrix(even) # symmetrised version via BasisSetRep
+
+        @test !issymmetric(even_sm) # not symmetric due to floating point errors
+        @test issymmetric(even_m) # because it was passed through `fix_approx_hermitian!`
+        @test even_sm ≈ even_m # still approximately the same!
     end
 end
 
