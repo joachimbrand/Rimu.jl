@@ -185,17 +185,28 @@ end
                     (; setup=RMPI.mpi_all_to_all),
                 )) do kw
                     mpi_seed!(i)
-                    source = DVec([BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10_000])
+                    source = DVec(
+                        [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10_000]
+                    )
                     target = MPIData(similar(source); kw...)
                     RMPI.mpi_combine_walkers!(target, source)
+                    #@test norm(source) ≈ norm(target)
                     return target
                 end
 
                 for v in sorted
                     @test correct_ranks(v)
                 end
-                @test localpart(sorted[1]) == localpart(sorted[2])
-                @test localpart(sorted[2]) == localpart(sorted[3])
+
+                ptp_pairs = sort(collect(pairs(localpart(sorted[1]))))
+                os_pairs = sort(collect(pairs(localpart(sorted[3]))))
+                ata_pairs = sort(collect(pairs(localpart(sorted[2]))))
+
+                @test first.(ptp_pairs) == first.(os_pairs)
+                @test first.(ata_pairs) == first.(os_pairs)
+
+                @test last.(ptp_pairs) ≈ last.(os_pairs)
+                @test last.(ata_pairs) ≈ last.(os_pairs)
             end
         end
     end
@@ -257,22 +268,27 @@ end
     end
 
     @testset "Same seed gives same results" begin
-        # Note: all_to_all will give different results here, as it sorts slightly differently.
-        # The entries in the vectors are the same (tested above), but they appear in a
-        # different order.
-        add = BoseFS2C((1, 1, 1, 1, 1), (1, 0, 0, 0, 0))
-        H = BoseHubbardReal1D2C(add; v=2)
-        dv = DVec(add => 1)
+        for kwargs in (
+            (; setup=RMPI.mpi_point_to_point),
+            (; setup=RMPI.mpi_one_sided, capacity=10_000),
+            (; setup=RMPI.mpi_all_to_all),
+        )
+            # The entries in the vectors are the same (tested above), but they appear in a
+            # different order.
+            add = BoseFS2C((1, 1, 1, 1, 1), (1, 0, 0, 0, 0))
+            H = BoseHubbardReal1D2C(add; v=2)
+            dv = DVec(add => 1)
 
-        dv_ptp = MPIData(copy(dv); setup=RMPI.mpi_point_to_point)
-        mpi_seed!(17)
-        df_ptp = lomc!(H, dv_ptp; threading=false).df
+            dv_1 = MPIData(copy(dv); kwargs...)
+            mpi_seed!(17)
+            df_1 = lomc!(H, dv_1; threading=false).df
 
-        dv_os = MPIData(copy(dv); setup=RMPI.mpi_one_sided, capacity=1000)
-        mpi_seed!(17)
-        df_os = lomc!(H, dv_os; threading=false).df
+            dv_2 = MPIData(copy(dv); kwargs...)
+            mpi_seed!(17)
+            df_2 = lomc!(H, dv_2; threading=false).df
 
-        @test df_ptp == df_os
+            @test df_1 == df_1
+        end
     end
 
     # Make sure all ranks came this far.
