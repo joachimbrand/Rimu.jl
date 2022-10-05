@@ -134,8 +134,9 @@ end
 Fock state address with two fermionic (spin) components. Alias for [`CompositeFS`](@ref)
 with two [`FermiFS`](@ref) components. Construct by specifying either two compatible
 [`FermiFS`](@ref)s, two [`onr`](@ref)s, or the number of modes followed by `mode =>
-occupation_number` pairs, where negative occupation numbers will go to the second
-component. See examples below.
+occupation_number` pairs, where `occupation_number=1` will put a particle in the first 
+component and `occupation_number=-1` will put a particle in the second component.
+See examples below.
 
 # Examples
 
