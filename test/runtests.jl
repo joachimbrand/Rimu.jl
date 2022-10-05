@@ -47,6 +47,72 @@ end
     include("lomc.jl")
 end
 
+@testset "MemoryStrategy" begin
+    # Define the initial Fock state with n particles and m modes
+    n = m = 9
+    add = near_uniform(BoseFS{n,m})
+    H = HubbardReal1D(add; u = 6.0, t = 1.0)
+    dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
+    s_strat = DoubleLogUpdate(targetwalkers=100)
+
+    @testset "NoMemory" begin
+        Random.seed!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2195 atol=1
+    end
+
+    @testset "DeltaMemory" begin
+        Random.seed!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2195 atol=1
+
+        Random.seed!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2140 atol=1
+    end
+
+    @testset "DeltaMemory2" begin
+        Random.seed!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2195 atol=1
+
+        Random.seed!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 1913 atol=1
+    end
+
+    @testset "ShiftMemory" begin
+        Random.seed!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 2195 atol=1
+
+        Random.seed!(12345)
+        df = lomc!(
+            H, copy(dv);
+            laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
+        ).df
+        @test sum(df[:,:norm]) ≈ 1872 atol=1
+    end
+end
+
 @testset "IsDeterministic with Vector" begin
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
