@@ -14,16 +14,16 @@ IsStochasticInteger() =  IsStochasticInteger{Int}()
 function step_stats(::IsStochasticInteger{T}) where {T}
     z = zero(T)
     return (
-        (:spawn_attempts, :spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(0, z, z, z, z, z),
+        (:spawn_attempts, :spawns, :deaths, :clones, :zombies),
+        MultiScalar(0, z, z, z, z),
     )
 end
 function fciqmc_col!(
     ::IsStochasticInteger, w, ham, add, num::Real, shift, dτ
 )
-    clones, deaths, zombies, ann_diag = diagonal_step!(w, ham, add, num, dτ, shift, 0, true)
-    attempts, spawns, ann_offdiag = spawn!(WithReplacement(), w, ham, add, num, dτ)
-    return (attempts, spawns, deaths, clones, zombies, ann_diag + ann_offdiag)
+    clones, deaths, zombies = diagonal_step!(w, ham, add, num, dτ, shift, 0, true)
+    attempts, spawns = spawn!(WithReplacement(), w, ham, add, num, dτ)
+    return (attempts, spawns, deaths, clones, zombies)
 end
 
 """
@@ -45,23 +45,23 @@ IsStochastic2Pop() = IsStochastic2Pop{Complex{Int}}()
 function step_stats(::IsStochastic2Pop{T}) where {T}
     z = zero(T)
     return (
-        (:spawns, :deaths, :clones, :zombies, :annihilations),
-        MultiScalar(z, z, z, z, z)
+        (:spawns, :deaths, :clones, :zombies),
+        MultiScalar(z, z, z, z)
     )
 end
 function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
     offdiags = offdiagonals(ham, add)
-    spawns = deaths = clones = zombies = ann_o = ann_d = 0 + 0im
+    spawns = deaths = clones = zombies = 0 + 0im
     # off-diagonal real.
     s, a = spawn!(WithReplacement(), w, offdiags, add, real(val), dτ)
-    spawns += s; ann_o += a
+    spawns += s
     # off-diagonal complex: complex dτ ensures spawning to the correct population.
     s, a = spawn!(WithReplacement(), w, offdiags, add, imag(val), dτ * im)
-    spawns += s; ann_o += a
+    spawns += s
 
-    clones, deaths, zombies, ann_d = diagonal_step!(w, ham, add, val, dτ, shift, 0, true)
+    clones, deaths, zombies = diagonal_step!(w, ham, add, val, dτ, shift, 0, true)
 
-    return (spawns, deaths, clones, zombies, ann_o + ann_d)
+    return (spawns, deaths, clones, zombies)
 end
 
 """
@@ -147,27 +147,35 @@ spawns is controlled  by the `spawning` keyword.
 
 By default, a stochastic vector compression is applied after annihilations are completed.
 This behaviour can be changed to on-the-fly projection (as in [`IsStochasticInteger`](@ref)
-or [`IsStochasticWithThreshold`](@ref)) by setting a threshold to `spawning` and
-setting `compression` to [`NoCompression`](@ref).
+or [`IsStochasticWithThreshold`](@ref)) by setting `late_compression=false`, or modifying
+`spawning` and `compression`. See parameters below for a more detailed explanation.
 
 ## Parameters:
 
-* `rel_threshold = 1.0`: If the walker number on a configuration times this threshold
-  is greater than the number of offdiagonals, spawning is done deterministically. Should be
-  set to 1 or more for best performance.
-
-* `abs_threshold = Inf`: If the walker number on a configuration is greater than this value,
-  spawning is done deterministically. Can be set to e.g.
-  `abs_threshold = 0.1 * target_walkers`.
-
-* `proj_threshold = 1.0`: Values below this number are stochastically projected to this
+* `threshold = 1.0`: Values below this number are stochastically projected to this
   value or zero. See also [`ThresholdCompression`](@ref).
 
+* `late_compression = true`: If this is set to `true`, stochastic vector compression is
+  performed after all the spawns are performed. If it is set to `false`, values are
+  stochastically projected as they are being spawned. `late_compression=true` is equivalent
+  to setting `compression=`[`ThresholdCompression`](@ref)`(threshold)` and
+  `spawning=`[`WithReplacement`](@ref)`()`.  `late_compression=false` is equivalent to
+  `compression=`[`NoCompression`](@ref)`()` and
+  `spawning=WithReplacement(threshold)`.
+
+* `rel_spawning_threshold = 1.0`: If the walker number on a configuration times this
+  threshold is greater than the number of offdiagonals, spawning is done
+  deterministically. Should be set to 1 or more for best performance.
+
+* `abs_spawning_threshold = Inf`: If the walker number on a configuration is greater than
+  this value, spawning is done deterministically. Can be set to e.g.  `abs_threshold = 0.1 *
+  target_walkers`.
+
 * `spawning = WithReplacement()`: [`SpawningStrategy`](@ref) to use for the non-exact
-  spawns. See [`WithReplacement`](@ref) for behaviour and possible arguments.
+  spawns.
 
 * `compression = ThresholdCompression(proj_threshold)`: [`CompressionStrategy`](@ref) used
-  to compress the vector after a step. Overrides `proj_threshold`.
+  to compress the vector after a step. Overrides `threshold`.
 
 See also [`StochasticStyle`](@ref).
 """
@@ -179,11 +187,12 @@ struct IsDynamicSemistochastic{
 end
 function IsDynamicSemistochastic{T}(
     ;
-    proj_threshold=1.0, strength=1.0, rel_threshold=1.0, abs_threshold=Inf,
-    compression=ThresholdCompression(proj_threshold),
-    spawning=WithReplacement(),
+    threshold=1.0, rel_spawning_threshold=1.0, abs_spawning_threshold=Inf,
+    late_compression=true,
+    compression=late_compression ? ThresholdCompression(proj_threshold) : NoCompression(),
+    spawning=late_compression ? WithReplacement() : WithReplacement(threshold),
 ) where {T}
-    s = DynamicSemistochastic(spawning, rel_threshold, abs_threshold)
+    s = DynamicSemistochastic(spawning, rel_spawning_threshold, abs_spawning_threshold)
     return IsDynamicSemistochastic{T,typeof(compression),typeof(s)}(compression, s)
 end
 IsDynamicSemistochastic(; kwargs...) = IsDynamicSemistochastic{Float64}(; kwargs...)
