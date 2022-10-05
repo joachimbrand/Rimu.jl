@@ -170,7 +170,7 @@ const FermiFS2C{N1,N2,M,N,F1,F2} =
 
 FermiFS2C(f1::FermiFS{<:Any,M}, f2::FermiFS{<:Any,M}) where {M} = CompositeFS(f1, f2)
 FermiFS2C(onr_a, onr_b) = FermiFS2C(FermiFS(onr_a), FermiFS(onr_b))
-FermiFS2C(M::Integer, pairs...) = FermiFS2C(M, pairs)
+FermiFS2C(M::Integer, pairs::Pair...) = FermiFS2C(M, pairs)
 function FermiFS2C(M::Integer, pairs)
     up_pairs = filter(p -> p[2] > 0, pairs)
     down_pairs = map(p -> p[1] => -p[2], filter(p -> p[2] < 0, pairs))

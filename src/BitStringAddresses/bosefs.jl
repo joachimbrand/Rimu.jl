@@ -95,11 +95,9 @@ function BoseFS(onr::Union{AbstractArray,Tuple})
     return BoseFS{N,M}(onr)
 end
 
-BoseFS(M, pair::Pair) = BoseFS(M, (pair,))
-BoseFS(M, pairs...) = BoseFS(M, pairs)
-BoseFS(M, pairs) = BoseFS(sparse_to_onr(M, pairs))
-BoseFS{N,M}(pair::Pair) where {N,M} = BoseFS{N,M}((pair,))
-BoseFS{N,M}(pairs...) where {N,M} = BoseFS{N,M}(pairs)
+BoseFS(M::Integer, pairs::Pair...) = BoseFS(M, pairs)
+BoseFS(M::Integer, pairs) = BoseFS(sparse_to_onr(M, pairs))
+BoseFS{N,M}(pairs::Pair...) where {N,M} = BoseFS{N,M}(pairs)
 BoseFS{N,M}(pairs) where {N,M} = BoseFS{N,M}(sparse_to_onr(M, pairs))
 
 function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}

@@ -98,11 +98,9 @@ function FermiFS(onr::Union{AbstractArray,Tuple})
 end
 
 # Sparse constructors
-FermiFS(M, pair::Pair) = FermiFS(M, (pair,))
-FermiFS(M, pairs...) = FermiFS(M, pairs)
-FermiFS(M, pairs) = FermiFS(sparse_to_onr(M, pairs))
-FermiFS{1,M}(pair::Pair) where {M} = FermiFS{1,M}((pair,))
-FermiFS{N,M}(pairs...) where {N,M} = FermiFS{N,M}(pairs)
+FermiFS(M::Integer, pairs::Pair...) = FermiFS(M, pairs)
+FermiFS(M::Integer, pairs) = FermiFS(sparse_to_onr(M, pairs))
+FermiFS{N,M}(pairs::Vararg{Pair,N}) where {N,M} = FermiFS{N,M}(pairs)
 FermiFS{N,M}(pairs) where {N,M} = FermiFS{N,M}(sparse_to_onr(M, pairs))
 
 function print_address(io::IO, f::FermiFS{N,M}; compact=false) where {N,M}

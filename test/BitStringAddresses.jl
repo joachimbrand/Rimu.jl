@@ -438,6 +438,8 @@ end
         )
         @test_throws ArgumentError parse_address("|2 3⟩ ⊗ |↓↑⟩")
         @test_throws ArgumentError parse_address("|⋅↓⟩ ⊗ |2 3⟩")
+        @test num_particles(FermiFS2C(3, 1 => 1)) == 1
+        @test num_particles(FermiFS2C(3, 1 => -1)) == 1
     end
 
     @testset "BoseFS2C" begin

@@ -643,7 +643,7 @@ end
 function sparse_to_onr(M, pairs)
     onr = zeros(Int, M)
     for (k, v) in pairs
-        v ≥ 0 || throw(ArgumentError("Invalid pair `$k=>$v`: particle number negtive"))
+        v ≥ 0 || throw(ArgumentError("Invalid pair `$k=>$v`: particle number negative"))
         0 < k ≤ M || throw(ArgumentError("Invalid pair `$k => $v`: key of of range `1:$M`"))
         onr[k] += v
     end
