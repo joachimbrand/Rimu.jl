@@ -45,7 +45,6 @@ Implemented subtypes: [`BoseFS`](@ref), [`FermiFS`](@ref).
 
 * [`find_mode`](@ref)
 * [`find_occupied_mode`](@ref)
-* [`is_occupied`](@ref)
 * [`num_occupied_modes`](@ref)
 * [`occupied_modes`](@ref): Lazy iterator.
 * [`OccupiedModeMap`](@ref): `AbstractVector` with eager construction.
@@ -70,7 +69,7 @@ julia> find_mode(BoseFS((1, 0, 2)), 2)
 BoseFSIndex(occnum=0, mode=2, offset=2)
 
 julia> find_mode(FermiFS((1, 1, 1, 0)), (2,3))
-(FermiFSIndex(occnum=1, mode=2), FermiFSIndex(occnum=1, mode=3))
+(FermiFSIndex(occnum=1, mode=2, offset=1), FermiFSIndex(occnum=1, mode=3, offset=2))
 ```
 
 See [`SingleComponentFockAddress`](@ref).
@@ -89,7 +88,7 @@ Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and [`FermiFSIndex`](@ref) f
 
 ```jldoctest
 julia> find_occupied_mode(FermiFS((1, 1, 1, 0)), 2)
-FermiFSIndex(occnum=1, mode=2)
+FermiFSIndex(occnum=1, mode=2, offset=1)
 
 julia> find_occupied_mode(BoseFS((1, 0, 2)), 1)
 BoseFSIndex(occnum=1, mode=1, offset=0)
@@ -102,15 +101,6 @@ See also [`occupied_modes`](@ref), [`OccupiedModeMap`](@ref),
 [`SingleComponentFockAddress`](@ref).
 """
 find_occupied_mode
-
-"""
-    is_occupied(::SingleComponentFockAddress, i)
-
-Return `true` if index `i` points to an occupied mode.
-
-See [`SingleComponentFockAddress`](@ref).
-"""
-is_occupied
 
 """
     num_occupied_modes(::SingleComponentFockAddress)
@@ -154,10 +144,10 @@ BoseFSIndex(occnum=4, mode=4, offset=9)
 julia> f = FermiFS((1,1,0,1,0,0,1));
 
 julia> foreach(println, occupied_modes(f))
-FermiFSIndex(occnum=1, mode=1)
-FermiFSIndex(occnum=1, mode=2)
-FermiFSIndex(occnum=1, mode=4)
-FermiFSIndex(occnum=1, mode=7)
+FermiFSIndex(occnum=1, mode=1, offset=0)
+FermiFSIndex(occnum=1, mode=2, offset=1)
+FermiFSIndex(occnum=1, mode=4, offset=3)
+FermiFSIndex(occnum=1, mode=7, offset=6)
 ```
 See also [`find_occupied_mode`](@ref),
 [`SingleComponentFockAddress`](@ref).
@@ -186,7 +176,7 @@ julia> f = FermiFS((1,1,0,0,1,1,1,1))
 FermiFS{6,8}((1, 1, 0, 0, 1, 1, 1, 1))
 
 julia> i, j, k, l = find_mode(f, (3,4,2,5))
-(FermiFSIndex(occnum=0, mode=3), FermiFSIndex(occnum=0, mode=4), FermiFSIndex(occnum=1, mode=2), FermiFSIndex(occnum=1, mode=5))
+(FermiFSIndex(occnum=0, mode=3, offset=2), FermiFSIndex(occnum=0, mode=4, offset=3), FermiFSIndex(occnum=1, mode=2, offset=1), FermiFSIndex(occnum=1, mode=5, offset=4))
 
 julia> excitation(f, (i,j), (k,l))
 (FermiFS{6,8}((1, 0, 1, 1, 0, 1, 1, 1)), -1.0)
@@ -225,11 +215,11 @@ FermiFS{5,9}((1, 1, 1, 1, 0, 0, 1, 0, 0))
 
 julia> mf = OccupiedModeMap(f)
 5-element OccupiedModeMap{5, FermiFSIndex}:
- FermiFSIndex(occnum=1, mode=1)
- FermiFSIndex(occnum=1, mode=2)
- FermiFSIndex(occnum=1, mode=3)
- FermiFSIndex(occnum=1, mode=4)
- FermiFSIndex(occnum=1, mode=7)
+ FermiFSIndex(occnum=1, mode=1, offset=0)
+ FermiFSIndex(occnum=1, mode=2, offset=1)
+ FermiFSIndex(occnum=1, mode=3, offset=2)
+ FermiFSIndex(occnum=1, mode=4, offset=3)
+ FermiFSIndex(occnum=1, mode=7, offset=6)
 
 julia> mf == collect(occupied_modes(f))
 true
@@ -265,6 +255,15 @@ function Base.getindex(om::OccupiedModeMap, i)
     @boundscheck 1 ≤ i ≤ om.length || throw(BoundsError(om, i))
     return om.indices[i]
 end
+
+"""
+    abstract type OccupiedModeIterator
+
+Iterator over occupied modes with `eltype` [`BoseFSIndex`](@ref) or
+[`FermiFSIndex`](@ref). A subtype of this should be returned when calling
+[`occupied_modes`](@ref) on a Fock state.
+"""
+abstract type OccupiedModeIterator end
 
 """
     dot(map::OccupiedModeMap, vec::AbstractVector)
@@ -332,31 +331,44 @@ function parse_address(str)
         if !isnothing(match(r"[↓⇅]", str))
             throw(ArgumentError("invalid fock state format \"$str\""))
         else
-            return CompositeFS(map(parse_address, split(str, " ⊗ "))...)
+            return CompositeFS(map(parse_address, split(str, r" *⊗ *"))...)
         end
     end
     # FermiFS2C
     m = match(r"[↓⇅]", str)
     if !isnothing(m)
-        m = match(r"\|([↑↓⇅⋅]+)⟩", str)
+        m = match(r"\|([↑↓⇅⋅ ]+)⟩", str)
         if isnothing(m)
             throw(ArgumentError("invalid fock state format \"$str\""))
         else
-            chars = Vector{Char}(m.captures[1])
+            chars = filter(!=(' '), Vector{Char}(m.captures[1]))
             f1 = FermiFS((chars .== '↑') .| (chars .== '⇅'))
             f2 = FermiFS((chars .== '↓') .| (chars .== '⇅'))
             return CompositeFS(f1, f2)
         end
     end
+    # Sparse BoseFS
+    m = match(r"\|b *([0-9]+): *([ 0-9]+)⟩", str)
+    if !isnothing(m)
+        particles = parse.(Int, filter(!isempty, split(m.captures[2], r" +")))
+        return BoseFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
+    end
+    # Sparse FermiFS
+    m = match(r"\|f *([0-9]+): *([ 0-9]+)⟩", str)
+    if !isnothing(m)
+        particles = parse.(Int, filter(!isempty, split(m.captures[2], r" +")))
+        return FermiFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
+    end
     # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)
     if !isnothing(m)
-        return BoseFS(parse.(Int, split(m.captures[1], ' ')))
+        return BoseFS(parse.(Int, split(m.captures[1], r" +")))
     end
     # Single FermiFS
-    m = match(r"\|([⋅↑]+)⟩", str)
+    m = match(r"\|([ ⋅↑]+)⟩", str)
     if !isnothing(m)
-        return FermiFS(Vector{Char}(m.captures[1]) .== '↑')
+        chars = filter(!=(' '), Vector{Char}(m.captures[1]))
+        return FermiFS(chars .== '↑')
     end
     throw(ArgumentError("invalid fock state format \"$str\""))
 end
@@ -377,6 +389,8 @@ DVec{BoseFS{3, 4, BitString{6, 1, UInt8}},Int64} with 1 enrty, style = IsStochas
 julia> fs"|0 1 2 0⟩" => 1 # Copied from above printout
 BoseFS{3,4}((0, 1, 2, 0)) => 1
 ```
+
+See also [`FermiFS`](@ref), [`BoseFS`](@ref), [`CompositeFS`](@ref), [`FermiFS2C`](@ref).
 """
 macro fs_str(str)
     return parse_address(str)
@@ -393,11 +407,250 @@ This function is used to implement `Base.show` for [`AbstractFockAddress`](@ref)
 print_address
 
 function Base.show(io::IO, add::AbstractFockAddress)
-    if get(io, :compact, false)
+    if get(io, :typeinfo, nothing) == typeof(add) || get(io, :compact, false)
         print(io, "fs\"")
-        print_address(io, add)
+        print_address(io, add; compact=true)
         print(io, "\"")
     else
-        print_address(io, add)
+        print_address(io, add; compact=false)
     end
+end
+
+function onr_sparse_string(o)
+    ps = map(p -> p[1] => p[2], Iterators.filter(p -> !iszero(p[2]), enumerate(o)))
+    return join(ps, ", ")
+end
+
+###
+### Boson stuff
+###
+"""
+    BoseFSIndex
+
+Struct used for indexing and performing [`excitation`](@ref)s on a [`BoseFS`](@ref).
+
+## Fields:
+
+* `occnum`: the occupation number.
+* `mode`: the index of the mode.
+* `offset`: the position of the mode in the address. This is the bit offset of the mode when
+ the address is represented by a bitstring, and the position in the list when it is
+ represented by `SortedParticleList`.
+
+"""
+struct BoseFSIndex<:FieldVector{3,Int}
+    occnum::Int
+    mode::Int
+    offset::Int
+end
+
+function Base.show(io::IO, i::BoseFSIndex)
+    @unpack occnum, mode, offset = i
+    print(io, "BoseFSIndex(occnum=$occnum, mode=$mode, offset=$offset)")
+end
+Base.show(io::IO, ::MIME"text/plain", i::BoseFSIndex) = show(io, i)
+
+"""
+    BoseOccupiedModes{C,S<:BoseFS}
+
+Iterator for occupied modes in [`BoseFS`](@ref). The definition of `iterate` is dispatched
+on the storage type.
+
+See [`occupied_modes`](@ref).
+
+Defining `Base.length` and `Base.iterate` for this struct is a part of the interface for an
+underlying storage format used by [`BoseFS`](@ref).
+"""
+struct BoseOccupiedModes{N,M,S}<:OccupiedModeIterator
+    storage::S
+end
+Base.eltype(::BoseOccupiedModes) = BoseFSIndex
+
+# Apply destruction operator to BoseFSIndex.
+@inline _destroy(d, index::BoseFSIndex) = @set index.occnum -= (d.mode == index.mode)
+@inline _destroy(d) = Base.Fix1(_destroy, d)
+# Apply creation operator to BoseFSIndex.
+@inline _create(c, index::BoseFSIndex) = @set index.occnum += (c.mode == index.mode)
+@inline _create(c) = Base.Fix1(_create, c)
+
+"""
+    bose_excitation_value(
+        creations::NTuple{_,BoseFSIndex}, destructions::NTuple{_,::BoseFSIndex}
+    ) -> Int
+
+Compute the squared value of an excitation from indices. Starts by applying all destruction
+operators, and then applying all creation operators. The operators must be given in reverse
+order. Will return 0 if move is illegal.
+"""
+@inline bose_excitation_value(::Tuple{}, ::Tuple{}) = 1
+@inline function bose_excitation_value((c, cs...)::NTuple{<:Any,BoseFSIndex}, ::Tuple{})
+    return bose_excitation_value(map(_create(c), cs), ()) * (c.occnum + 1)
+end
+@inline function bose_excitation_value(
+    creations::NTuple{<:Any,BoseFSIndex}, (d, ds...)::NTuple{<:Any,BoseFSIndex}
+)
+    return bose_excitation_value(map(_destroy(d), creations), map(_destroy(d), ds)) * d.occnum
+end
+
+"""
+    from_bose_onr(::Type{B}, onr::AbstractArray) -> B
+
+Convert array `onr` to type `B`. It is safe to assume `onr` contains a valid
+occupation-number representation array. The checks are preformed in the [`BoseFS`](@ref)
+constructor.
+
+This function is a part of the interface for an underlying storage format used by
+[`BoseFS`](@ref).
+"""
+from_bose_onr
+
+"""
+    to_bose_onr(bs::B) -> SVector
+
+Convert `bs` to a static vector in the occupation number representation format.
+
+This function is a part of the interface for an underlying storage format used by
+[`BoseFS`](@ref).
+"""
+to_bose_onr
+
+"""
+    bose_excitation(
+        bs::B, creations::NTuple{N,BoseFSIndex}, destructions::NTuple{N,BoseFSIndex}
+    ) -> Tuple{B,Float64}
+
+Perform excitation as if `bs` was a bosonic address. See also
+[`bose_excitation_value`](@ref).
+
+This function is a part of the interface for an underlying storage format used by
+[`BoseFS`](@ref).
+"""
+bose_excitation
+
+"""
+    bose_num_occupied_modes(bs::B)
+
+Return the number of occupied modes, if `bs` represents a bosonic address.
+
+This function is a part of the interface for an underlying storage format used by
+[`BoseFS`](@ref).
+"""
+bose_num_occupied_modes
+
+###
+### Fermion stuff
+###
+"""
+    FermiFSIndex
+
+Struct used for indexing and performing [`excitation`](@ref)s on a [`FermiFS`](@ref).
+
+## Fields:
+
+* `occnum`: the occupation number.
+* `mode`: the index of the mode.
+* `offset`: the position of the mode in the address. This is `mode - 1` when the address is
+  represented by a bitstring, and the position in the list when using `SortedParticleList`.
+
+"""
+struct FermiFSIndex<:FieldVector{3,Int}
+    occnum::Int
+    mode::Int
+    offset::Int
+end
+
+function Base.show(io::IO, i::FermiFSIndex)
+    @unpack occnum, mode, offset = i
+    print(io, "FermiFSIndex(occnum=$occnum, mode=$mode, offset=$offset)")
+end
+Base.show(io::IO, ::MIME"text/plain", i::FermiFSIndex) = show(io, i)
+
+"""
+    FermiOccupiedModes{N,S<:BitString}
+
+Iterator over occupied modes in address. `N` is the number of fermions. See [`occupied_modes`](@ref).
+"""
+struct FermiOccupiedModes{N,S}<:OccupiedModeIterator
+    storage::S
+end
+
+Base.length(::FermiOccupiedModes{N}) where {N} = N
+Base.eltype(::FermiOccupiedModes) = FermiFSIndex
+
+"""
+    from_fermi_onr(::Type{B}, onr) -> B
+
+Convert array `onr` to type `B`. It is safe to assume `onr` contains a valid
+occupation-number representation array. The checks are preformed in the [`FermiFS`](@ref)
+constructor.
+
+This function is a part of the interface for an underlying storage format used by
+[`FermiFS`](@ref).
+"""
+from_fermi_onr
+
+"""
+    fermi_find_mode(bs::B, i::Integer) -> FermiFSIndex
+
+Find `i`-th mode in `bs` if `bs` is a fermionic address. Should return an appropriately
+formatted [`FermiFSIndex`](@ref).
+
+This function is a part of the interface for an underlying storage format used by
+[`FermiFS`](@ref).
+"""
+fermi_find_mode
+
+"""
+    fermi_excitation(
+        bs::B, creations::NTuple{N,FermiFSIndex}, destructions::NTuple{N,FermiFSIndex}
+    ) -> Tuple{B,Float64}
+
+Perform excitation as if `bs` was a fermionic address.
+
+This function is a part of the interface for an underlying storage format used by
+[`FermiFS`](@ref).
+"""
+fermi_excitation
+
+###
+### General
+###
+function LinearAlgebra.dot(occ_a::OccupiedModeIterator, occ_b::OccupiedModeIterator)
+    (n_a, i_a, _), st_a = iterate(occ_a)
+    (n_b, i_b, _), st_b = iterate(occ_b)
+
+    acc = 0
+    while true
+        if i_a > i_b
+            # b is behind and needs to do a step
+            iter = iterate(occ_b, st_b)
+            isnothing(iter) && return acc
+            (n_b, i_b, _), st_b = iter
+        elseif i_a < i_b
+            # a is behind and needs to do a step
+            iter = iterate(occ_a, st_a)
+            isnothing(iter) && return acc
+            (n_a, i_a, _), st_a = iter
+        else
+            # a and b are at the same position
+            acc += n_a * n_b
+            # now both need to do a step
+            iter = iterate(occ_a, st_a)
+            isnothing(iter) && return acc
+            (n_a, i_a, _), st_a = iter
+            iter = iterate(occ_b, st_b)
+            isnothing(iter) && return acc
+            (n_b, i_b, _), st_b = iter
+        end
+    end
+end
+
+function sparse_to_onr(M, pairs)
+    onr = zeros(Int, M)
+    for (k, v) in pairs
+        v ≥ 0 || throw(ArgumentError("Invalid pair `$k=>$v`: particle number negative"))
+        0 < k ≤ M || throw(ArgumentError("Invalid pair `$k => $v`: key of of range `1:$M`"))
+        onr[k] += v
+    end
+    return onr
 end

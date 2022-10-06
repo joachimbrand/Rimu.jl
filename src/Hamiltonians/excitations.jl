@@ -195,7 +195,7 @@ function transcorrelated_three_body_excitation(add_a, add_b, i, map_a, map_b)
         return add_a, add_b, 0.0, k,l
     end
     p_k_index, q_l_index = find_mode(add_a, (p_k, q_l))
-    s_kl_index = find_mode(add_a, s_kl)
+    s_kl_index = find_mode(add_b, s_kl)
     new_add_a, val1 = excitation(add_a, (p_k_index, q_l_index), (q_index, p_index))
     new_add_b, val2 = excitation(add_b, (s_kl_index,), (s_index,))
 
