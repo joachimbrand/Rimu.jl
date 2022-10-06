@@ -287,7 +287,7 @@ end
             mpi_seed!(17)
             df_2 = lomc!(H, dv_2; threading=false).df
 
-            @test df_1 == df_1
+            @test df_1 == df_2
         end
     end
 
