@@ -19,11 +19,11 @@ function BoseFS2C(bsa::BoseFS{NA,M,SA}, bsb::BoseFS{NB,M,SB}) where {NA,NB,M,SA,
 end
 BoseFS2C(onr_a::Tuple, onr_b::Tuple) = BoseFS2C(BoseFS(onr_a),BoseFS(onr_b))
 
-function print_address(io::IO, b::BoseFS2C)
-    if get(io, :compact, false)
-        print_address(io, b.bsa)
+function print_address(io::IO, b::BoseFS2C; compact)
+    if compact
+        print_address(io, b.bsa; compact)
         print(io, " ⊗ ")
-        print_address(io, b.bsb)
+        print_address(io, b.bsb; compact)
     else
         print(io, "BoseFS2C(", b.bsa, ", ", b.bsb, ")")
     end
@@ -75,13 +75,13 @@ end
 num_components(::CompositeFS{C}) where {C} = C
 Base.hash(c::CompositeFS, u::UInt) = hash(c.components, u)
 
-function print_address(io::IO, c::CompositeFS{C}) where {C}
-    if get(io, :compact, false)
+function print_address(io::IO, c::CompositeFS{C}; compact=false) where {C}
+    if compact
         for add in c.components[1:end-1]
-            print_address(io, add)
+            print_address(io, add; compact)
             print(io, " ⊗ ")
         end
-        print_address(io, c.components[end])
+        print_address(io, c.components[end]; compact)
     else
         println(io, "CompositeFS(")
         for add in c.components
@@ -132,26 +132,54 @@ end
     FermiFS2C(onr_a, onr_b)
 
 Fock state address with two fermionic (spin) components. Alias for [`CompositeFS`](@ref)
-with two [`FermiFS`](@ref) components.
-Construct by specifying either two compatible [`FermiFS`](@ref)s or [`onr`](@ref)s.
+with two [`FermiFS`](@ref) components. Construct by specifying either two compatible
+[`FermiFS`](@ref)s, two [`onr`](@ref)s, or the number of modes followed by `mode =>
+occupation_number` pairs, where `occupation_number=1` will put a particle in the first 
+component and `occupation_number=-1` will put a particle in the second component.
+See examples below.
+
+# Examples
+
 ```jldoctest
-julia> f2c = FermiFS2C((1,0,0),(0,1,1))
+julia> FermiFS2C(FermiFS((1,0,0)), FermiFS((0,1,1)))
 CompositeFS(
   FermiFS{1,3}((1, 0, 0)),
   FermiFS{2,3}((0, 1, 1)),
 )
 
-julia> f2c isa FermiFS2C
-true
+julia> FermiFS2C((1,0,0), (0,1,1))
+CompositeFS(
+  FermiFS{1,3}((1, 0, 0)),
+  FermiFS{2,3}((0, 1, 1)),
+)
+
+julia> FermiFS2C(3, 1 => 1, 2 => -1, 3 => -1)
+CompositeFS(
+  FermiFS{1,3}((1, 0, 0)),
+  FermiFS{2,3}((0, 1, 1)),
+)
+
+julia> fs"|↑↓↓⟩"
+CompositeFS(
+  FermiFS{1,3}((1, 0, 0)),
+  FermiFS{2,3}((0, 1, 1)),
+)
 ```
 """
 const FermiFS2C{N1,N2,M,N,F1,F2} =
     CompositeFS{2,N,M,Tuple{F1,F2}} where {F1<:FermiFS{N1,M},F2<:FermiFS{N2,M}}
+
 FermiFS2C(f1::FermiFS{<:Any,M}, f2::FermiFS{<:Any,M}) where {M} = CompositeFS(f1, f2)
 FermiFS2C(onr_a, onr_b) = FermiFS2C(FermiFS(onr_a), FermiFS(onr_b))
+FermiFS2C(M::Integer, pairs::Pair...) = FermiFS2C(M, pairs)
+function FermiFS2C(M::Integer, pairs)
+    up_pairs = filter(p -> p[2] > 0, pairs)
+    down_pairs = map(p -> p[1] => -p[2], filter(p -> p[2] < 0, pairs))
+    return FermiFS2C(FermiFS(M, up_pairs), FermiFS(M, down_pairs))
+end
 
-function print_address(io::IO, f::FermiFS2C)
-    if get(io, :compact, false)
+function print_address(io::IO, f::FermiFS2C; compact=false)
+    if compact
         o1, o2 = onr(f)
         str = join(
             [i && j ? '⇅' : i ? '↑' : j ? '↓' : '⋅' for (i, j) in zip(Bool.(o1), Bool.(o2))]

@@ -5,12 +5,12 @@
     AbstractHamiltonian{T}
 
 Supertype that provides an interface for linear operators over a linear space with scalar
-type `T` that are suitable for FCIQMC (with [`lomc!`](@ref Main.lomc!)). Indexing is done 
-with addresses (typically not integers) from an address space that may be large (and will 
+type `T` that are suitable for FCIQMC (with [`lomc!`](@ref Main.lomc!)). Indexing is done
+with addresses (typically not integers) from an address space that may be large (and will
 not need to be completely generated).
 
 `AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) from the
-module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress) 
+module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress)
 from the module `BitStringAddresses`. The type works well with the external package
 [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
 
@@ -155,12 +155,12 @@ julia> H = HubbardReal1D(addr);
 
 julia> h = offdiagonals(H, addr)
 6-element Rimu.Hamiltonians.Offdiagonals{BoseFS{6, 3, BitString{8, 1, UInt8}}, Float64, HubbardReal1D{Float64, BoseFS{6, 3, BitString{8, 1, UInt8}}, 1.0, 1.0}}:
- (BoseFS{6,3}((2, 3, 1)), -3.0)
- (BoseFS{6,3}((2, 2, 2)), -2.449489742783178)
- (BoseFS{6,3}((3, 1, 2)), -2.0)
- (BoseFS{6,3}((4, 1, 1)), -2.8284271247461903)
- (BoseFS{6,3}((4, 2, 0)), -2.0)
- (BoseFS{6,3}((3, 3, 0)), -1.7320508075688772)
+ (fs"|2 3 1⟩", -3.0)
+ (fs"|2 2 2⟩", -2.449489742783178)
+ (fs"|3 1 2⟩", -2.0)
+ (fs"|4 1 1⟩", -2.8284271247461903)
+ (fs"|4 2 0⟩", -2.0)
+ (fs"|3 3 0⟩", -1.7320508075688772)
 ```
 """
 function offdiagonals(m::AbstractMatrix, i)

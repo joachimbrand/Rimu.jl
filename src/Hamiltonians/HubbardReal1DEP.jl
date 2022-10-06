@@ -3,7 +3,7 @@
 Circular shift contiguous indices `is` in interval `[M÷2, M÷2)` such that set starts with 0,
 where `M=length(is)`.
 
-Inverse operation: [`shift_lattice_inv`](@ref). Used in [`HubbardReal1DEP`](@ref) and 
+Inverse operation: [`shift_lattice_inv`](@ref). Used in [`HubbardReal1DEP`](@ref) and
 [`HubbardMom1DEP`](@ref)
 """
 shift_lattice(is) = circshift(is, cld(length(is),2))
@@ -13,7 +13,7 @@ shift_lattice(is) = circshift(is, cld(length(is),2))
 Circular shift indices starting with 0 into a contiguous set in interval `[M÷2, M÷2)`,
 where `M=length(js)`.
 
-Inverse operation of [`shift_lattice`](@ref). Used in [`HubbardReal1DEP`](@ref) and 
+Inverse operation of [`shift_lattice`](@ref). Used in [`HubbardReal1DEP`](@ref) and
 [`HubbardMom1DEP`](@ref)
 """
 shift_lattice_inv(js) = circshift(js, fld(length(js),2))
@@ -85,5 +85,5 @@ end
 
 function get_offdiagonal(h::HubbardReal1DEP, add::BoseFS, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
-    return naddress, - h.t * sqrt(onproduct)
+    return naddress, - h.t * onproduct
 end
