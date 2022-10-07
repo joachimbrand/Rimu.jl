@@ -113,7 +113,8 @@ end
 
 Stochastic propagation with floating point walker numbers. During the vector matrix product
 each individual diagonal and spawning result is rounded stochastically if smaller than
-`threshold` (before annihilations).
+`threshold` (before annihilations). For a more customizable stochastic style, see
+[`IsDynamicSemistochastic`](@ref).
 
 See also [`StochasticStyle`](@ref).
 """
@@ -129,67 +130,6 @@ end
 function fciqmc_col!(s::IsStochasticWithThreshold, w, ham, add, val, shift, dτ)
     diagonal_step!(w, ham, add, val, dτ, shift)
     attempts, spawns = spawn!(WithReplacement(s.threshold), w, ham, add, val, dτ)
-    return (attempts, spawns)
-end
-
-"""
-    IsStochastic{T=Float64}(; kwargs...) <: StochasticStyle{T}
-
-QMC propagation with floating-point walker numbers. Stochastic selection of spawns is
-controlled by the `spawning` keyword.
-
-By default, the spawns below 1 are stochastically rounded to 1 or 0. This behaviour can be
-changed to vector compression by setting `late_compression=true`, or modifying `spawning`
-and `compression`. See parameters below for a more detailed explanation.
-
-## Parameters:
-
-* `threshold = 1.0`: Values below this number are stochastically projected to this
-  value or zero.
-
-* `late_compression = true`: If this is set to `true`, stochastic vector compression is
-  performed after all the spawns are performed. If it is set to `false`, values are
-  stochastically projected as they are being spawned. `late_compression=true` is equivalent
-  to setting `compression=`[`ThresholdCompression`](@ref)`(threshold)` and
-  `spawning=`[`WithReplacement`](@ref)`()`.  `late_compression=false` is equivalent to
-  `compression=`[`NoCompression`](@ref)`()` and
-  `spawning=WithReplacement(threshold)`.
-
-* `spawning = WithReplacement(threshold)`: [`SpawningStrategy`](@ref) to use for
-  spawns. Overrides `threshold`.
-
-* `compression = NoCompression(threshold)`: [`CompressionStrategy`](@ref) used
-  to compress the vector after a step. Overrides `threshold`.
-
-See also [`StochasticStyle`](@ref).
-"""
-struct IsStochasticFloat{T<:AbstractFloat,C,S} <: StochasticStyle{T}
-    proj_threshold::T # needed for diagonal elements
-    compression::C
-    spawning::S
-end
-function IsStochasticFloat{T}(
-    ;
-    threshold=1.0,
-    late_compression=false,
-    compression=late_compression ? ThresholdCompression(threshold) : NoCompression(),
-    spawning=late_compression ? WithReplacement() : WithReplacement(threshold),
-) where {T}
-    C = typeof(compression)
-    S = typeof(spawning)
-    proj_threshold = T(spawning.threshold)
-    return IsStochasticFloat(proj_threshold, compression, spawning)
-end
-IsStochasticFloat(; kwargs...) = IsStochasticFloat{Float64}(; kwargs...)
-
-CompressionStrategy(s::IsStochasticFloat) = s.compression
-
-function step_stats(::IsStochasticFloat{T}) where {T}
-    return ((:spawn_attempts, :spawns), MultiScalar(0, zero(T)))
-end
-function fciqmc_col!(s::IsStochasticFloat, w, ham, add, val, shift, dτ)
-    diagonal_step!(w, ham, add, val, dτ, shift, s.proj_threshold)
-    attempts, spawns = spawn!(s.spawning, w, ham, add, val, dτ)
     return (attempts, spawns)
 end
 
