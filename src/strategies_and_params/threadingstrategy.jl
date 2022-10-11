@@ -41,7 +41,7 @@ end
 Perform a single matrix(/operator)-vector multiplication:
 
 ```math
-v^{(n + 1)} = [1 - dτ(\\hat{H} - S)]⋅v^n ,
+v^{(n + 1)} = [1 - dτ(\\hat{H} - S)]⋅v^{(n)} ,
 ```
 
 where `Ĥ == ham` and `S == shift`.
