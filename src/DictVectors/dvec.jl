@@ -73,7 +73,7 @@ function DVec{K,V}(; style::StochasticStyle=default_style(V), capacity=0) where 
     return DVec(Dict{K,V}(); style, capacity)
 end
 # From another DVec
-function DVec(dv::AbstractDVec{K,V}, style=StochasticStyle(dv), capacity=0) where {K,V}
+function DVec(dv::AbstractDVec{K,V}; style=StochasticStyle(dv), capacity=0) where {K,V}
     dvec = DVec{K,V}(; style, capacity=max(capacity, length(dv)))
     return copyto!(dvec, dv)
 end

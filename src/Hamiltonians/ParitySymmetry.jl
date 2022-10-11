@@ -2,12 +2,16 @@
     ParitySymmetry(ham::AbstractHamiltonian{T}; even=true) <: AbstractHamiltonian{T}
 
 Impose even or odd parity on all states and the Hamiltonian `ham` as controlled by the
-keyword argument `even`. For some Hamiltonians, this reduces the size of the Hilbert space
+keyword argument `even`. Parity symmetry of the Hamiltonian is assumed.
+For some Hamiltonians, `ParitySymmetry` reduces the size of the Hilbert space
 by half.
 
-`ParitySymmetry` changes the basis set to states with defined parity. Effectively, a
+`ParitySymmetry` performs a unitary
+transformation, leaving the eigenvalues unchanged and preserving the [`LOStructure`](@ref).
+This is achieved by changing the basis set to states with defined parity. Effectively, a
 non-even address ``|α⟩`` is replaced by ``\\frac{1}{√2}(|α⟩ ± |ᾱ⟩)`` for even and odd
 parity, respectively, where `ᾱ == reverse(α)`.
+
 
 # Notes
 
@@ -34,6 +38,7 @@ julia> size(Matrix(ParitySymmetry(ham; odd=true)))
 julia> eigvals(Matrix(ham))[1] ≈ eigvals(Matrix(ParitySymmetry(ham)))[1]
 true
 ```
+See also [`TimeReversalSymmetry`](@ref).
 """
 struct ParitySymmetry{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     hamiltonian::H
@@ -56,13 +61,11 @@ function Base.show(io::IO, h::ParitySymmetry)
 end
 
 LOStructure(h::ParitySymmetry) = LOStructure(h.hamiltonian)
+Base.adjoint(h::ParitySymmetry) = ParitySymmetry(h.hamiltonian', even=h.even)
+
 function starting_address(h::ParitySymmetry)
     add = starting_address(h.hamiltonian)
     return min(add, reverse(add))
-end
-
-function Base.adjoint(h::ParitySymmetry)
-    return ParitySymmetry(adjoint(h.hamiltonian); even=h.even)
 end
 
 get_offdiagonal(h::ParitySymmetry, add, i) = offdiagonals(h, add)[i]
@@ -71,26 +74,52 @@ num_offdiagonals(h::ParitySymmetry, add) = num_offdiagonals(h.hamiltonian, add)
 struct ParitySymmetryOffdiagonals{
     A,T,O<:AbstractVector{Tuple{A,T}}
 } <: AbstractOffdiagonals{A,T}
+    add::A
+    add_even::Bool
     od::O
     even::Bool
 end
 Base.size(o::ParitySymmetryOffdiagonals) = size(o.od)
 
 function offdiagonals(h::ParitySymmetry, add)
-    return ParitySymmetryOffdiagonals(offdiagonals(h.hamiltonian, add), h.even)
+    add_even = add == reverse(add)
+    return ParitySymmetryOffdiagonals(add, add_even, offdiagonals(h.hamiltonian, add), h.even)
 end
 
 function Base.getindex(o::ParitySymmetryOffdiagonals, i)
-    add, val = o.od[i]
-    rev_add = reverse(add)
-    left_add = min(rev_add, add)
-    if !o.even && left_add ≠ add
-        val *= -1
-    elseif !o.even && rev_add == add
-        val = zero(val)
+    in = o.add
+    out, val = o.od[i]
+
+    rev_out = reverse(out)
+    in_even = o.add_even
+    out_even = out == rev_out
+
+    if in_even && !out_even
+        new_val = 1/√2 * val
+    elseif out_even && !in_even
+        new_val = √2 * val
+    else
+        new_val = float(val)
     end
-    return left_add, val
+
+    left_out = min(rev_out, out)
+    if !o.even && left_out ≠ out
+        new_val = -new_val
+    elseif !o.even && out_even
+        new_val = zero(new_val)
+    end
+    return left_out, new_val
 end
+
 function diagonal_element(h::ParitySymmetry, add)
     return diagonal_element(h.hamiltonian, add)
+end
+
+function BasisSetRep(
+    h::ParitySymmetry, addr=starting_address(h);
+    kwargs...
+)
+    # For symmetry wrappers it is necessary to explicity symmetrise the matrix to
+    # avoid the loss of matrix symmetry due to floating point rounding errors
+    return _bsr_ensure_symmetry(LOStructure(h), h, addr; kwargs...)
 end

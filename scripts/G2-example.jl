@@ -112,3 +112,8 @@ for i in 1:num_reps
 end
 
 # Finished !
+
+using Test                                  #hide
+r = rayleigh_replica_estimator(df; op_name = "Op1", skip=steps_equilibrate) #hide
+@test r.f ≈ 0.23371704332410984 rtol=0.01   #hide
+nothing                                     #hide

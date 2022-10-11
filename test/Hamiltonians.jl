@@ -1,5 +1,5 @@
 using KrylovKit
-using LinearAlgebra
+using LinearAlgebra, Random
 using Rimu
 using Test
 
@@ -182,6 +182,7 @@ end
 @testset "HubbardRealSpace" begin
     @testset "Constructor" begin
         bose = BoseFS((1, 2, 3, 4, 5, 6))
+        @test_throws MethodError HubbardRealSpace(BoseFS{10,10})
         @test_throws ArgumentError HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
         @test_throws ArgumentError HubbardRealSpace(
             bose; geometry=PeriodicBoundaries(3,2), t=[1, 2],
@@ -196,6 +197,10 @@ end
         )
         @test_throws ArgumentError HubbardRealSpace(
             comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
+        )
+
+        @test_throws ArgumentError HubbardRealSpace(
+            comp; geometry=PeriodicBoundaries(3,2), v=[1 1; 1 1; 1 1],
         )
 
         @test_throws ArgumentError HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
@@ -325,7 +330,29 @@ end
         )
         @test exact_energy(H4) < -9
     end
+    @testset "1D trap" begin
+        H1 = HubbardReal1DEP(BoseFS((1,2,3,4)); u=2, t=3, v_ho=4)
+        H2 = HubbardRealSpace(BoseFS((1,2,3,4)); u=[2], t=[3], v=[4])
 
+        @test exact_energy(H1) ≈ exact_energy(H2)
+
+        # composite
+        add3 = CompositeFS(
+            BoseFS((1, 1, 1, 0, 0, 0)),
+            BoseFS((1, 0, 0, 0, 0, 0)),
+        )
+        H3 = HubbardRealSpace(add3, v=[1,4], u=[2 3; 3 0])
+
+        add4 = CompositeFS(
+            BoseFS((1, 0, 0, 0, 0, 0)),
+            BoseFS((1, 1, 1, 0, 0, 0)),
+        )
+        H4 = HubbardRealSpace(add4, v=[4,1], u=[0 3; 3 2])
+
+        E3 = exact_energy(H3)
+        E4 = exact_energy(H4)
+        @test E3 ≈ E4 rtol=0.0001
+    end
     @testset "2D Fermions" begin
         @testset "2 × 2" begin
             p22 = PeriodicBoundaries(2, 2)
@@ -696,27 +723,38 @@ end
 end
 
 @testset "G2RealCorrelator" begin
+    m = 6
+    n1 = 4
+    n2 = m
+    add1 = BoseFS((n1,0,0,0,0,0))
+    add2 = near_uniform(BoseFS{n2,m})
+
     # localised state
-    n = m = 6
-    add = BoseFS((0,0,n,0,0,0))
-    @test num_offdiagonals(G2RealCorrelator(1), add) == 0
-    v = DVec(add => 1)
-    @test dot(v, G2RealCorrelator(0), v) == n*(n-1)/m
-    @test dot(v, G2RealCorrelator(m), v) == n*(n-1)/m
-    for d in 1:m-1
-        @test dot(v, G2RealCorrelator(d), v) == 0.
-    end
+    @test diagonal_element(G2RealCorrelator(0), add1) == n1 * (n1 - 1) / m
+    @test diagonal_element(G2RealCorrelator(1), add1) == 0.
 
     # constant density state
-    add = near_uniform(BoseFS{n,m})
-    @test num_offdiagonals(G2RealCorrelator(1), add) == 0
-    v = DVec(add => 1)
-    @test dot(v, G2RealCorrelator(0), v) == 0.
-    @test dot(v, G2RealCorrelator(m), v) == 0.
-    for d in 1:m-1
-        @test dot(v, G2RealCorrelator(d), v) == 1.
-    end
+    @test diagonal_element(G2RealCorrelator(0), add2) == (n2/m) * ((n2/m) - 1)
+    @test diagonal_element(G2RealCorrelator(1), add2) == (n2/m)^2
 
+    # local-local
+    comp = CompositeFS(add1,add1)
+    @test diagonal_element(G2RealCorrelator(0), comp) == 2n1 * (2n1 - 1) / m
+    @test diagonal_element(G2RealCorrelator(1), comp) == 0.
+
+    # local-uniform (assuming unit filling)
+    comp = CompositeFS(add1,add2)
+    @test diagonal_element(G2RealCorrelator(0), comp) == (n1 + 1) * n1 / m
+    @test diagonal_element(G2RealCorrelator(1), comp) == (2 * (n1 + 1) + (m - 2)) / m
+
+    # uniform-uniform
+    comp = CompositeFS(add2,add2)
+    @test diagonal_element(G2RealCorrelator(0), comp) == (2n2 / m) * (2 * (n2 / m) - 1)
+    @test diagonal_element(G2RealCorrelator(1), comp) == (2n2 / m)^2
+
+    # offdiagonals
+    @test num_offdiagonals(G2RealCorrelator(0), add1) == 0
+    @test num_offdiagonals(G2RealCorrelator(0), comp) == 0
 end
 
 @testset "Momentum" begin
@@ -934,6 +972,8 @@ end
         odd_m = Matrix(odd)
 
         @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "2-particle HubbardMom1DEP" begin
         ham = HubbardMom1DEP(BoseFS((0,0,1,1,0)))
@@ -967,6 +1007,8 @@ end
 
         @test size(ham_m, 1) == size(even_m, 1) + size(odd_m, 1)
         @test sort(real.(vcat(eigvals(even_m), eigvals(odd_m)))) ≈ real.(eigvals(ham_m))
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "Even Hamiltonian" begin
         # This Hamiltonian only has even addresses.
@@ -977,6 +1019,7 @@ end
         even_m = Matrix(even_b)
 
         @test ham_m == even_m
+        @test issymmetric(even_m)
     end
 end
 
@@ -987,6 +1030,7 @@ end
         TimeReversalSymmetry(HubbardRealSpace(CompositeFS(FermiFS((1, 1)),BoseFS((2,1)))))
     end
     @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)));odd=true)
+    @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)); u=2+3im))
 
     @testset "HubbardMom1D" begin
         ham = HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))
@@ -998,6 +1042,8 @@ end
         odd_m = Matrix(odd)
 
         @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "2-particle BoseHubbardMom1D2C" begin
         ham = BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))
@@ -1010,9 +1056,9 @@ end
         @test starting_address(even) == time_reverse(starting_address(ham))
         @test h_eigs ≈ p_eigs
 
-        @test ishermitian(Matrix(odd))
-        @test ishermitian(Matrix(even)) == false
-        @test LOStructure(odd) isa AdjointUnknown
+        @test issymmetric(Matrix(odd))
+        @test issymmetric(Matrix(even))
+        @test LOStructure(odd) isa IsHermitian
     end
 
 end
@@ -1067,6 +1113,37 @@ end
 
         @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
         @test Matrix(ham, add1) ≠ Matrix(ham, add2)
+    end
+
+    using Rimu.Hamiltonians: fix_approx_hermitian!, isapprox_enforce_hermitian!
+    using Rimu.Hamiltonians: build_sparse_matrix_from_LO
+    using Random
+    @testset "fix_approx_hermitian!" begin
+        # generic `Matrix`
+        Random.seed!(17)
+        mat = rand(5,5)
+        @test !ishermitian(mat)
+        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
+        @test !ishermitian(mat) # still not hermitian
+
+        # sparse matrix
+        Random.seed!(17)
+        mat = sparse(rand(5,5))
+        @test !ishermitian(mat)
+        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
+        @test !ishermitian(mat) # still not hermitian
+
+        # subtle symmetry violation due to `ParitySymmetry` wrapper
+        ham = HubbardMom1D(BoseFS((1, 0, 1, 2, 0)))
+        even = ParitySymmetry(ham; odd=false)
+        odd = ParitySymmetry(ham; even=false)
+
+        even_sm, _ = build_sparse_matrix_from_LO(even)
+        even_m = Matrix(even) # symmetrised version via BasisSetRep
+
+        @test !issymmetric(even_sm) # not symmetric due to floating point errors
+        @test issymmetric(even_m) # because it was passed through `fix_approx_hermitian!`
+        @test even_sm ≈ even_m # still approximately the same!
     end
 end
 

@@ -42,4 +42,10 @@ at (or near) the top of the script:
 ```
 where the number `N` and `Title` will be extracted automatically.
 
-Tests for the results and output of specific scripts should be added to `test/example.jl`.
+Tests for the results and output of specific scripts should be added at the end of each example. The code to run the test should be hidden from the final generated document by
+appending "#hide" to each line of testing code. For example, 
+```
+using Test                          #hide
+@test isfile("result.out")          #hide
+@test result == expected_result     #hide
+```

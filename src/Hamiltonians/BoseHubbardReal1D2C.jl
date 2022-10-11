@@ -90,12 +90,12 @@ function get_offdiagonal(ham::BoseHubbardReal1D2C, add, chosen)
     nhops_a = 2 * num_occupied_modes(add.bsa)
     if chosen ≤ nhops_a
         naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen)
-        elem = - ham.ha.t*sqrt(onproduct)
+        elem = - ham.ha.t * onproduct
         return BoseFS2C(naddress_from_bsa,add.bsb), elem
     else
         chosen -= nhops_a
         naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen)
-        elem = -ham.hb.t * sqrt(onproduct)
+        elem = -ham.hb.t * onproduct
         return BoseFS2C(add.bsa,naddress_from_bsb), elem
     end
     # return new address and matrix element

@@ -118,7 +118,7 @@ function QMCState(
 
     # Set up threading
     threading = select_threading_strategy(threading, _n_walkers(v, s_strat))
-    wm = working_memory(threading, v)
+    wm = isnothing(wm) ? working_memory(threading, v) : wm
 
     # Set up post_step
     if !(post_step isa Tuple)
@@ -207,7 +207,7 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
   diagonal_element(ham, starting_address(ham)))` -
   basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
 * `laststep` - can be used to override information otherwise contained in `params`
-* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 100, ζ = 0.08, ξ = ζ^2/4)` -
+* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4)` -
   how to update the `shift`, see [`ShiftStrategy`](@ref)
 * `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
   reached, `lomc!` will abort
@@ -286,7 +286,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
         @assert replica.params.laststep == laststep
     end
     check_transform(state.replica, state.hamiltonian)
-            
+
     # main loop
     initial_step = step
     update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
