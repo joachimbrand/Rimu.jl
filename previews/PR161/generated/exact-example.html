@@ -97,25 +97,25 @@ sm = sparse(ham)
 vals_ar, vecs_ar = eigs(sm; which=:SR, nev=num_eigvals)
 vals_ar</code></pre><pre><code class="nohighlight hljs">3-element Vector{Float64}:
  -6.979863998321619
- -3.363124291613358
- -0.759019192277075</code></pre><p>Using KrylovKit is similar, but the <code>nev</code> and <code>which</code> are given as positional arguments. KrylovKit may sometimes return more than <code>nev</code> eigenpairs.</p><pre><code class="language-julia hljs">using KrylovKit
+ -3.363124291613356
+ -0.7590191922770757</code></pre><p>Using KrylovKit is similar, but the <code>nev</code> and <code>which</code> are given as positional arguments. KrylovKit may sometimes return more than <code>nev</code> eigenpairs.</p><pre><code class="language-julia hljs">using KrylovKit
 
 vals_kk, vecs_kk = eigsolve(sm, num_eigvals, :SR)
 vals_kk</code></pre><pre><code class="nohighlight hljs">14-element Vector{Float64}:
- -6.979863998321598
- -3.3631242916133726
- -0.7590191922770853
-  0.13584182219622143
-  0.15789998694608265
-  0.876711441178152
-  1.530592997097334
-  1.5835732611867446
+ -6.97986399832163
+ -3.36312429161336
+ -0.7590191922770888
+  0.13584182219622676
+  0.157899986946072
+  0.8767114411781325
+  1.530592997097325
+  1.5835732611867392
   3.072870330325866
-  3.125672653951832
-  4.862107221562171
-  6.26069485038059
-  6.402671211183107
-  9.093371706203957</code></pre><p>Both solvers use the <a href="https://en.wikipedia.org/wiki/Lanczos_algorithm">Lanczos algorithm</a> for Hermitian matrices and the <a href="https://en.wikipedia.org/wiki/Arnoldi_iteration">Arnoldi algorithm</a> for non-Hermitian ones. They may in some cases miss degenerate eigenpairs.</p><p>If diagonalisation takes too long, you can reduce the tolerance by setting the <code>tol</code> keyword argument to <code>eigs</code> or <code>eigsolve</code>. Using drastically lower tolerances than default can still produce good results in practice. This, however, should be checked on a case-by-case basis.</p><p>For very large Hamiltonians, where the sparse matrix would not fit into memory, you can use <code>eigsolve</code> matrix-free. While this method is by far the slowest of the ones discussed, its advantage is that it circumvents the need to build and store the matrix - only a few copies of the vectors are needed.</p><p>To use it, you first need a starting vector:</p><pre><code class="language-julia hljs">dvec = DVec(add =&gt; 1.0)</code></pre><pre><code class="nohighlight hljs">DVec{BoseFS{4, 5, BitString{8, 1, UInt8}},Float64} with 1 entry, style = IsDeterministic{Float64}()
+  3.125672653951831
+  4.862107221562172
+  6.260694850380594
+  6.402671211183115
+  9.093371706203955</code></pre><p>Both solvers use the <a href="https://en.wikipedia.org/wiki/Lanczos_algorithm">Lanczos algorithm</a> for Hermitian matrices and the <a href="https://en.wikipedia.org/wiki/Arnoldi_iteration">Arnoldi algorithm</a> for non-Hermitian ones. They may in some cases miss degenerate eigenpairs.</p><p>If diagonalisation takes too long, you can reduce the tolerance by setting the <code>tol</code> keyword argument to <code>eigs</code> or <code>eigsolve</code>. Using drastically lower tolerances than default can still produce good results in practice. This, however, should be checked on a case-by-case basis.</p><p>For very large Hamiltonians, where the sparse matrix would not fit into memory, you can use <code>eigsolve</code> matrix-free. While this method is by far the slowest of the ones discussed, its advantage is that it circumvents the need to build and store the matrix - only a few copies of the vectors are needed.</p><p>To use it, you first need a starting vector:</p><pre><code class="language-julia hljs">dvec = DVec(add =&gt; 1.0)</code></pre><pre><code class="nohighlight hljs">DVec{BoseFS{4, 5, BitString{8, 1, UInt8}},Float64} with 1 entry, style = IsDeterministic{Float64}()
   fs&quot;|0 0 4 0 0⟩&quot; =&gt; 1.0</code></pre><p>Then, you pass that vector and the Hamiltonian to <code>eigsolve</code>. Since <code>eigsolve</code> has no way of knowing the Hamiltonian is Hermitian, we have to provide that information through the <code>issymmetric</code> or <code>ishermitian</code> keyword arguments. Make sure to only pass this argument when the Hamiltonian is actually symmetric. One way to check is to use the <code>LOStructure</code>:</p><pre><code class="language-julia hljs">LOStructure(ham)</code></pre><pre><code class="nohighlight hljs">IsHermitian()</code></pre><pre><code class="language-julia hljs">vals_mf, vecs_mf = eigsolve(ham, dvec, num_eigvals, :SR; issymmetric=true)
 vals_mf</code></pre><pre><code class="nohighlight hljs">10-element Vector{Float64}:
  -6.979863998321612
@@ -161,4 +161,4 @@ odd_eigs = eigvals(Matrix(ParitySymmetry(HubbardMom1D(add_odd); even=false)))</c
   fs&quot;|0 2 1 0 1⟩&quot; =&gt; -0.0214153</code></pre><p>The eigenvectors these methods produce are normalized, hence we can use the three-argument <code>dot</code> to compute the values of observables.</p><pre><code class="language-julia hljs">[dot(dvec, DensityMatrixDiagonal(i), dvec) for i in 1:M]
 </code></pre><pre><code class="nohighlight hljs">Test Passed
   Expression: vals_ar[1:num_eigvals] ≈ eig.values[1:num_eigvals]
-   Evaluated: [-6.979863998321619, -3.363124291613358, -0.759019192277075] ≈ [-6.979863998321612, -3.363124291613369, -0.7590191922770675]</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="G2-example.html">« Calculating observables</a><a class="docs-footer-nextpage" href="../statstools.html">StatsTools »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 13 October 2022 23:49">Thursday 13 October 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+   Evaluated: [-6.979863998321619, -3.363124291613356, -0.7590191922770757] ≈ [-6.979863998321612, -3.363124291613369, -0.7590191922770675]</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="G2-example.html">« Calculating observables</a><a class="docs-footer-nextpage" href="../statstools.html">StatsTools »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.23 on <span class="colophon-date" title="Thursday 13 October 2022 23:53">Thursday 13 October 2022</span>. Using Julia version 1.7.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
