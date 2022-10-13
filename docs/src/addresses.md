@@ -29,11 +29,11 @@ The atomic addresses, [`BoseFS`](@ref) and [`FermiFS`](@ref), are implemented as
 Using this approach over an occupation number representation makes the addresses much more
 space-efficient. The API for [`BitString`](@ref)s is as follows.
 
-### BitString API
+### Internal APIs
 
 ```@autodocs
 Modules = [BitStringAddresses]
-Pages = ["bitstring.jl"]
+Pages = ["bitstring.jl", "sortedparticlelist.jl"]
 Private = false
 ```
 
