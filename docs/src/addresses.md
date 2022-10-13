@@ -23,18 +23,18 @@ Pages = ["fockaddress.jl","bosefs.jl","fermifs.jl","multicomponent.jl"]
 Private = false
 ```
 
-## BitStrings
+## Internal representations
 
-The atomic addresses, [`BoseFS`](@ref) and [`FermiFS`](@ref), are implemented as bitstrings.
-Using this approach over an occupation number representation makes the addresses much more
-space-efficient. The API for [`BitString`](@ref)s is as follows.
+The atomic addresses, [`BoseFS`](@ref) and [`FermiFS`](@ref), are implemented as either
+bitstrings or sorted lists of particles. Using these approaches over an occupation number
+representation makes the addresses much more space-efficient.
 
 ### Internal APIs
 
 ```@autodocs
 Modules = [BitStringAddresses]
 Pages = ["bitstring.jl", "sortedparticlelist.jl"]
-Private = false
+Private = true
 ```
 
 ## Index
