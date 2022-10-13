@@ -67,9 +67,14 @@ sparse(ham)
 # Now that we have a way of constructing matrices from Hamiltonians, we can use standard
 # Julia functionality to diagonalize them.
 
-# Let's begin by looking at the `eigen` function from the LinearAlgebra standard library.
-# It operates on dense matrices and returns the full spectrum, hence it is only useful for
-# small systems, or when all eigenvalues are required.
+# Let's begin by looking at the
+# [`eigen`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen),
+# [`eigvecs`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigvecs),
+# and
+# [`eigvals`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigvals)
+# functions from the LinearAlgebra standard library. They operate on dense matrices and
+# return the full spectra, hence they are only useful for small systems, or when all
+# eigenvalues are required.
 
 using LinearAlgebra
 
@@ -85,11 +90,14 @@ eig.values
 eig.vectors
 
 # If you need the full spectrum, but would like to use less memory, consider using the
-# in-place `eigen!`.
+# in-place
+# [`eigen!`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen!).
 
 # For larger Hamiltonians, it is better to use an iterative solver. There are several
-# options. We will look at `eigs` from
-# [`Arpack.jl`](https://github.com/JuliaLinearAlgebra/Arpack.jl) and `eigsolve` from
+# options. We will look at
+# [`eigs`](https://arpack.julialinearalgebra.org/stable/api/#Arpack.eigs-Tuple{Any}) from
+# [`Arpack.jl`](https://github.com/JuliaLinearAlgebra/Arpack.jl) and
+# [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve) from
 # [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl/).
 
 # The relevant function from Arpack is `eigs`. It is important to set the `nev` and `which`
@@ -105,6 +113,7 @@ vals_ar, vecs_ar = eigs(sm; which=:SR, nev=num_eigvals)
 vals_ar
 
 # Using KrylovKit is similar, but the `nev` and `which` are given as positional arguments.
+# KrylovKit may sometimes return more than `nev` eigenpairs.
 
 using KrylovKit
 
@@ -189,6 +198,9 @@ sort([even_eigs; odd_eigs]) ≈ all_eigs
 # Since building a matrix from an operator only builds the part that is reachable from the
 # starting address, we need to use a different approach when computing observables.
 
+# To demonstrate this, we will use the [`DensityMatrixDiagonal`](@ref) operator, which in
+# this case will give the momentum density.
+
 # The approach to take here is to construct a [`DVec`](@ref) from the computed eigenvector
 # and use it directly with the operator.
 
@@ -198,3 +210,9 @@ dvec = DVec(zip(bsr.basis, eigvecs(Matrix(ham))[:, 1]))
 # `dot` to compute the values of observables.
 
 [dot(dvec, DensityMatrixDiagonal(i), dvec) for i in 1:M]
+
+using Test #hide
+@test length(vals_mf) == length(vals_mf) ≥ num_eigvals   #hide
+@test vals_ar[1:num_eigvals] ≈ vals_kk[1:num_eigvals]    #hide
+@test vals_kk[1:num_eigvals] ≈ vals_mf[1:num_eigvals]    #hide
+@test vals_ar[1:num_eigvals] ≈ eig.values[1:num_eigvals] #hide
