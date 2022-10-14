@@ -138,7 +138,7 @@ vals_kk
 # can still produce good results in practice. This, however, should be checked on a
 # case-by-case basis.
 
-# ## The matrix-free method
+# ### The matrix-free method
 
 # Amazingly, KrylovKit's
 # [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve)
