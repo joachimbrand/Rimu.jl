@@ -1,7 +1,7 @@
 # # Example 4: Exact diagonalisation
 
 # When working with smaller systems, or when multiple eigenvalues of a system are required,
-# it's better to work with an exact diagonalization method. There are a few ways to go about
+# it's better to work with an exact diagonalisation method. There are a few ways to go about
 # this, each with its pros and cons. The purpose of this tutorial is to show off the methods
 # as well as provide a few tips regarding them.
 
@@ -65,7 +65,7 @@ sparse(ham)
 # ## Computing eigenvalues
 
 # Now that we have a way of constructing matrices from Hamiltonians, we can use standard
-# Julia functionality to diagonalize them.
+# Julia functionality to diagonalise them.
 
 # ### The bulit-in method
 
@@ -143,12 +143,12 @@ vals_kk
 # Amazingly, KrylovKit's
 # [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve)
 # function is implemented in a way that does not require the linear operator and vector to
-# be Julia arrays. Rimu leverages this functionality, which allows diagonalizing
+# be Julia arrays. Rimu leverages this functionality, which allows diagonalising
 # Hamiltonians without ever needing to construct the matrix - all matrix elements are
 # generated on the fly.
 
 # While this method is by far the slowest of the ones discussed, it also uses drastically
-# less memory. This allows us to diagonalize much larger Hamiltonians.
+# less memory. This allows us to diagonalise much larger Hamiltonians.
 
 # To use this method, you first need a starting vector:
 
