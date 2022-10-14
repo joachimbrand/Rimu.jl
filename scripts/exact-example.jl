@@ -13,7 +13,7 @@
 
 using Rimu
 
-# ## Preliminaries
+# ## Introduction
 
 # In this example, we will look at a bosonic system of 4 particles in 5 sites, formulated in
 # momentum space. Let's start by building the Hamiltonian. To create a Fock state where all
@@ -24,12 +24,12 @@ N = 4
 add = BoseFS(M, cld(M, 2) => N)
 ham = HubbardMom1D(add)
 
-# Before doing exact diagonalisation, it is a good idea to check the dimension of the
+# Before performing exact diagonalisation, it is a good idea to check the dimension of the
 # Hamiltonian.
 
 dimension(ham)
 
-# Keep in mind that this is an estimate on the number of Fock states the Hamiltonian can act
+# Keep in mind that this is an estimate of the number of Fock states the Hamiltonian can act
 # on, not the actual matrix size. It can still be used as a guide to decide whether a
 # Hamiltonian is amenable to exact diagonalisation and which algorithm would be best suited
 # to diagonalising it.
@@ -67,13 +67,15 @@ sparse(ham)
 # Now that we have a way of constructing matrices from Hamiltonians, we can use standard
 # Julia functionality to diagonalize them.
 
+# ### The bulit-in method
+
 # Let's begin by looking at the
 # [`eigen`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen),
 # [`eigvecs`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigvecs),
 # and
 # [`eigvals`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigvals)
 # functions from the LinearAlgebra standard library. They operate on dense matrices and
-# return the full spectra, hence they are only useful for small systems, or when all
+# return the full spectra, hence they are only useful for small systems or when all
 # eigenvalues are required.
 
 using LinearAlgebra
@@ -92,6 +94,8 @@ eig.vectors
 # If you need the full spectrum, but would like to use less memory, consider using the
 # in-place
 # [`eigen!`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen!).
+
+# ### Sparse matrix-based solvers
 
 # For larger Hamiltonians, it is better to use an iterative solver. There are several
 # options. We will look at
@@ -134,16 +138,23 @@ vals_kk
 # can still produce good results in practice. This, however, should be checked on a
 # case-by-case basis.
 
-# For very large Hamiltonians, where the sparse matrix would not fit into memory, you can
-# use `eigsolve` matrix-free. While this method is by far the slowest of the ones discussed,
-# its advantage is that it circumvents the need to build and store the matrix - only a few
-# copies of the vectors are needed.
+# ## The matrix-free method
 
-# To use it, you first need a starting vector:
+# Amazingly, KrylovKit's
+# [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve)
+# function is implemented in a way that does not require the linear operator and vector to
+# be Julia arrays. Rimu leverages this functionality, which allows diagonalizing
+# Hamiltonians without ever needing to construct the matrix - all matrix elements are
+# generated on the fly.
+
+# While this method is by far the slowest of the ones discussed, it also uses drastically
+# less memory. This allows us to diagonalize much larger Hamiltonians.
+
+# To use this method, you first need a starting vector:
 
 dvec = DVec(add => 1.0)
 
-# Then, you pass that vector and the Hamiltonian to `eigsolve`. Since `eigsolve` has no way
+# Then, pass that vector and the Hamiltonian to `eigsolve`. Since `eigsolve` has no way
 # of knowing the Hamiltonian is Hermitian, we have to provide that information through the
 # `issymmetric` or `ishermitian` keyword arguments. Make sure to only pass this argument
 # when the Hamiltonian is actually symmetric. One way to check is to use the `LOStructure`:
@@ -163,14 +174,14 @@ eigsolve(ham, vecs_mf[2], num_eigvals, :SR, issymmetric=true)[1]
 # ## Reducing matrix size with symmetries
 
 # As these matrices tend to get large quickly, memory is usually the bottleneck.  There are
-# currently two methods implemented to reduce the matrix size, `ParitySymmetry` and
-# `TimeReversalSymmetry`. You should only use these where the relevant symmetries actually
-# apply - no checks are performed to make sure they do. There is also currently no way to
-# use both at the same time. Please consult the documentation for a more in-depth
+# currently two methods implemented to reduce the matrix size, [`ParitySymmetry`](@ref) and
+# [`TimeReversalSymmetry`](@ref). You should only use these where the relevant symmetries
+# actually apply - no checks are performed to make sure they do. There is also currently no
+# way of using both at the same time. Please consult the documentation for a more in-depth
 # description of these options.
 
-# The Hamiltonian presented in this example is compatible with the `ParitySymmetry`. Let's
-# see how the matrix size is reduced when applying it.
+# The Hamiltonian presented in this example is compatible with the
+# [`ParitySymmetry`](@ref). Let's see how the matrix size is reduced when applying it.
 
 size(sparse(ham))
 
@@ -179,16 +190,14 @@ size(sparse(ham))
 size(sparse(ParitySymmetry(ham)))
 
 # In this small example, the size reduction is modest, but for larger systems, you can
-# expect to reduce the dimension of the matrix by about half.
-
-# The eigenvalues of the transformed Hamiltonian are a subset of the full spectrum. To get
-# the other half, we can pass the `even` keyword argument to it. When doing that, we need to
-# make sure the starting address of the Hamiltonian is odd.
+# expect to reduce the dimension of the matrix by a bit less than half.
 
 all_eigs = eigvals(Matrix(ham))
 even_eigs = eigvals(Matrix(ParitySymmetry(ham)))
 
-# For the odd part, we have to come with an equivalent address that is odd:
+# The eigenvalues of the transformed Hamiltonian are a subset of the full spectrum. To get
+# the other half, we can pass the `even=false` keyword argument to it. When doing that, we
+# need to make sure the starting address of the Hamiltonian is odd:
 
 add_odd = BoseFS(M, cld(M, 2) => N - 3, cld(M, 2) - 1 => 2, cld(M, 2) + 2 => 1)
 odd_eigs = eigvals(Matrix(ParitySymmetry(HubbardMom1D(add_odd); even=false)))
@@ -205,8 +214,8 @@ sort([even_eigs; odd_eigs]) ≈ all_eigs
 # To demonstrate this, we will use the [`DensityMatrixDiagonal`](@ref) operator, which in
 # this case will give the momentum density.
 
-# The approach to take here is to construct a [`DVec`](@ref) from the computed eigenvector
-# and use it directly with the operator.
+# The idea here is to construct a [`DVec`](@ref) from the computed eigenvector and use it
+# directly with the operator.
 
 dvec = DVec(zip(bsr.basis, eigvecs(Matrix(ham))[:, 1]))
 
@@ -220,3 +229,4 @@ using Test #hide
 @test vals_ar[1:num_eigvals] ≈ vals_kk[1:num_eigvals]    #hide
 @test vals_kk[1:num_eigvals] ≈ vals_mf[1:num_eigvals]    #hide
 @test vals_ar[1:num_eigvals] ≈ eig.values[1:num_eigvals] #hide
+nothing #hide
