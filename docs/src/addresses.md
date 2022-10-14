@@ -34,7 +34,7 @@ representation makes the addresses much more space-efficient.
 ```@autodocs
 Modules = [BitStringAddresses]
 Pages = ["bitstring.jl", "sortedparticlelist.jl"]
-Private = true
+Private = false
 ```
 
 ## Index

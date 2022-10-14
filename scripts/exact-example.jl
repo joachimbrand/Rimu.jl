@@ -100,9 +100,11 @@ eig.vectors
 # [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve) from
 # [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl/).
 
-# The relevant function from Arpack is `eigs`. It is important to set the `nev` and `which`
-# keyowrd arguments. `nev` sets the number of eigenpairs to find. `which` should in most
-# cases be set to `:SR`, which will find the eigenvalues with the smallest real part.
+# Let's start with Arpack's
+# [`eigs`](https://arpack.julialinearalgebra.org/stable/api/#Arpack.eigs-Tuple{Any}). It is
+# important to set the `nev` and `which` keyowrd arguments. `nev` sets the number of
+# eigenpairs to find. `which` should in most cases be set to `:SR`, which will find the
+# eigenvalues with the smallest real part.
 
 using Arpack
 
@@ -112,8 +114,10 @@ sm = sparse(ham)
 vals_ar, vecs_ar = eigs(sm; which=:SR, nev=num_eigvals)
 vals_ar
 
-# Using KrylovKit is similar, but the `nev` and `which` are given as positional arguments.
-# KrylovKit may sometimes return more than `nev` eigenpairs.
+# Using KrylovKit's
+# [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve) is
+# similar, but the `nev` and `which` are given as positional arguments. Note that KrylovKit
+# may sometimes return more than `nev` eigenpairs if it happens to find them.
 
 using KrylovKit
 
