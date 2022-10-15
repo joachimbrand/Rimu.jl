@@ -466,10 +466,19 @@ using Logging
             df8, s8 = lomc!(
                 H, deepcopy(dv); threading=Rimu.ThreadsXForeachThreading(), laststep, s_strat
             )
+            Random.seed!(17)
+            df9, s9 = lomc!(
+                H, deepcopy(dv); threading=:reproducible, laststep, s_strat
+            )
+            Random.seed!(17)
+            df10, s10 = lomc!(
+                H, deepcopy(dv); threading=Rimu.ReproducibleThreading(), laststep, s_strat
+            )
 
             @test s1.threading == Rimu.SplittablesThreading()
             @test s2.threading == Rimu.SplittablesThreading()
             @test s3.threading == Rimu.NoThreading()
+            @test s9.threading == Rimu.ReproducibleThreading()
 
             # Check that working memory was selected correctly.
             N = Threads.nthreads()
@@ -482,6 +491,8 @@ using Logging
             @test s6.replicas[1].w isa NTuple{N,D}
             @test s7.replicas[1].w isa NTuple{N,D}
             @test s8.replicas[1].w isa NTuple{N,D}
+            @test s9.replicas[1].w isa D
+            @test s10.replicas[1].w isa D
 
             # Check energies.
             E1, _ = mean_and_se(df1.shift[900:end])
@@ -492,6 +503,7 @@ using Logging
             E6, _ = mean_and_se(df6.shift[900:end])
             E7, _ = mean_and_se(df7.shift[900:end])
             E8, _ = mean_and_se(df8.shift[900:end])
+            E9, _ = mean_and_se(df9.shift[900:end])
 
             @test E1 ≈ E2 rtol=0.1
             @test E2 ≈ E3 rtol=0.1
@@ -500,6 +512,10 @@ using Logging
             @test E5 ≈ E6 rtol=0.1
             @test E6 ≈ E7 rtol=0.1
             @test E7 ≈ E8 rtol=0.1
+            @test E8 ≈ E9 rtol=0.1
+
+            # ReproducibleThreading has reproducible random numbers:
+            @test df10.len == df9.len
         end
     end
 end

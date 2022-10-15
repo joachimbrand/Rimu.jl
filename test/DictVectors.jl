@@ -279,3 +279,14 @@ end
         @test !isreal(dvec4)
     end
 end
+
+@testset "SkinnyDVec" begin
+    @test_throws ArgumentError DictVectors.SkinnyDVec([:a,:b,:c], [1,2,3,4])
+    sdv = DictVectors.SkinnyDVec([:a,:b,:c], [1,2,3])
+    @test StochasticStyle(sdv) == default_style(Int)
+    @test length(sdv) == 3
+    @test sdv[:a] == 0 == sdv[:d] # getindex always returns zero
+    sdv[:d] = 4 # setindex appends to the list
+    sdv[:a] = 5
+    @test length(sdv) == 5
+end

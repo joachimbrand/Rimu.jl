@@ -205,9 +205,12 @@ Select a [`ThreadingStrategy`](@ref) to control threading in [`lomc!`](@ref).
 
 `threading` can be:
 
-* `:auto`: decide whether threading should be done or not based on `targetwalkers` and
+* `:auto`: Decide whether threading should be done or not based on `targetwalkers` and
   whether threads are available.
-* `true` or `false`: use the default [`ThreadingStrategy`](@ref) or [`NoThreading`](@ref).
+* `:reproducible`: Use threading in a way that guarantees reproducible outcomes with
+  if random numbers are seeded and the same number of threads is used.
+  See [`ReproducibleThreading`](@ref).
+* `true` or `false`: Use the default [`ThreadingStrategy`](@ref) or [`NoThreading`](@ref).
 * Any [`ThreadingStrategy`](@ref).
 
 The default [`ThreadingStrategy`](@ref) is currently [`SplittablesThreading`](@ref).
@@ -218,6 +221,13 @@ function select_threading_strategy(threading::Symbol, targetwalkers)
     if threading == :auto
         t = targetwalkers > 500 && Threads.nthreads() > 1
         return select_threading_strategy(t, targetwalkers)
+    elseif threading == :reproducible
+        if Threads.nthreads() == 1
+            @warn "threading was requested, but only one thread is available"
+            return NoThreading()
+        else
+            return ReproducibleThreading()
+        end
     else
         throw(ArgumentError("invalid threading strategy `$threading`"))
     end
@@ -233,4 +243,67 @@ function select_threading_strategy(threading::Bool, _)
     else
         return NoThreading()
     end
+end
+
+"""
+    ReproducibleThreading(; batch_base = Threads.nthreads()) <: ThreadingStrategy
+Use threads in a way that reproducible Monte Carlo results are obtained when the
+random number generator is seeded before calling [`lomc!`](@ref). When the keyword argument
+`batch_base` is set, the results will be reproducible independently of the number of
+available threads.
+
+Notes:
+- This [`ThreadingStrategy`](@ref) leads to appreciable memory allocations and it
+typically a little (but not much) slower than the default.
+- Doesn't return spawning stats.
+
+See [`ThreadingStrategy`](@ref).
+"""
+struct ReproducibleThreading{N} <: ThreadingStrategy
+    n::N
+end
+ReproducibleThreading(; batch_base=Threads.nthreads()) = ReproducibleThreading(batch_base)
+
+working_memory(::ReproducibleThreading, dv) = empty(localpart(dv))
+
+@inline function _rt_loop_configs!(w, ham, pairs, shift, dτ, batchsize)
+    if amount(pairs) > batchsize # recursively halve `pairs` iterator
+        two_halves = halve(pairs)
+
+        # first_half gets new working memory; is spawned off to another task/thread
+        w_fh = DictVectors.SkinnyDVec(keytype(w)[], valtype(w)[], StochasticStyle(w))
+
+        first_half_task = Threads.@spawn _rt_loop_configs!(
+            w_fh, ham, two_halves[1], shift, dτ, batchsize
+        )
+
+        # second half uses the passed-in working memory
+        w = _rt_loop_configs!(
+            w, ham, two_halves[2], shift, dτ, batchsize
+        )
+
+        # harvest the results from the spawned task and combine them
+        w_fh = fetch(first_half_task)
+        add!(w, w_fh) # combine the DVecs
+    else # amount of `pairs` too small, process them on this thread and task
+        # stats = sum(pairs) do (add, val)
+        #     MultiScalar(fciqmc_col!(w, ham, add, val, shift, dτ))
+        # end
+        # # Returning stats this way is allocating and costs time. Therefore we skip it.
+        for (add, num) in pairs
+            fciqmc_col!(w, ham, add, num, shift, dτ)
+        end
+    end
+    return w # results are returned in the passed-in working memory `w`
+end
+
+function fciqmc_step!(t::ReproducibleThreading, wm::AbstractDVec, ham, dv, shift, dτ)
+    v = localpart(dv)
+    stat_names, stats_def = step_stats(StochasticStyle(v))
+    batchsize = max(100.0, min(amount(pairs(v))/t.n, sqrt(amount(pairs(v))) * 10))
+
+    zero!(wm)
+    wm = _rt_loop_configs!(wm, ham, pairs(v), shift, dτ, batchsize)
+
+    return stat_names, stats_def
 end

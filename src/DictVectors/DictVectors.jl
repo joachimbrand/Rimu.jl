@@ -49,5 +49,6 @@ include("delegate.jl")
 include("abstractdvec.jl")
 include("dvec.jl")
 include("initiators.jl")
+include("skinnydvec.jl") # does not support the full interface
 
 end # module
