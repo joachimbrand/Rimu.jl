@@ -59,6 +59,7 @@ makedocs(;
             "Stochastic styles" => "stochasticstyles.md",
             "RMPI" => "RMPI.md",
             "I/O" => "rimuio.md",
+            "Random numbers" => "randomnumbers.md",
             "Documentation generation" => "documentation.md",
             "Code testing" => "testing.md",
         ],
