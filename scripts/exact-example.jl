@@ -67,7 +67,7 @@ sparse(ham)
 # Now that we have a way of constructing matrices from Hamiltonians, we can use standard
 # Julia functionality to diagonalise them.
 
-# ### The bulit-in method
+# ### The built-in method
 
 # Let's begin by looking at the
 # [`eigen`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen),
@@ -83,7 +83,7 @@ using LinearAlgebra
 mat = Matrix(ham)
 eig = eigen(mat);
 
-# The values can be accesses like so:
+# The values can be accessed like so:
 
 eig.values
 
@@ -106,7 +106,7 @@ eig.vectors
 
 # Let's start with Arpack's
 # [`eigs`](https://arpack.julialinearalgebra.org/stable/api/#Arpack.eigs-Tuple{Any}). It is
-# important to set the `nev` and `which` keyowrd arguments. `nev` sets the number of
+# important to set the `nev` and `which` keyword arguments. `nev` sets the number of
 # eigenpairs to find. `which` should in most cases be set to `:SR`, which will find the
 # eigenvalues with the smallest real part.
 
@@ -177,10 +177,14 @@ eigsolve(ham, vecs_mf[2], num_eigvals, :SR, issymmetric=true)[1]
 
 # As these matrices tend to get large quickly, memory is usually the bottleneck.  There are
 # currently two methods implemented to reduce the matrix size, [`ParitySymmetry`](@ref) and
-# [`TimeReversalSymmetry`](@ref). You should only use these where the relevant symmetries
-# actually apply - no checks are performed to make sure they do. There is also currently no
-# way of using both at the same time. Please consult the documentation for a more in-depth
-# description of these options.
+# [`TimeReversalSymmetry`](@ref). These symmetries work by performing a similarity transform
+# on the Hamiltonian which causes it to become block-diagonal. When building a matrix from a
+# block-diagonal Hamiltonian, only the block that contains the starting address is
+# constructed.
+
+# You should only use these where the relevant symmetries actually apply - no checks are
+# performed to make sure they do. There is also currently no way of using both at the same
+# time. Please consult the documentation for a more in-depth description of these options.
 
 # The Hamiltonian presented in this example is compatible with the
 # [`ParitySymmetry`](@ref). Let's see how the matrix size is reduced when applying it.
@@ -199,7 +203,8 @@ even_eigs = eigvals(Matrix(ParitySymmetry(ham)))
 
 # The eigenvalues of the transformed Hamiltonian are a subset of the full spectrum. To get
 # the other half, we can pass the `even=false` keyword argument to it. When doing that, we
-# need to make sure the starting address of the Hamiltonian is odd:
+# need to make sure the starting address of the Hamiltonian is odd. In this case, an odd
+# address is one that is not symmetric under reversal:
 
 add_odd = BoseFS(M, cld(M, 2) => N - 3, cld(M, 2) - 1 => 2, cld(M, 2) + 2 => 1)
 
