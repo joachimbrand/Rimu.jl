@@ -1,7 +1,7 @@
 # # Example 4: Exact diagonalisation
 
 # When working with smaller systems, or when multiple eigenvalues of a system are required,
-# it's better to work with an exact diagonalisation method. There are a few ways to go about
+# one can use an exact diagonalisation method. There are a few ways to go about
 # this, each with its pros and cons. The purpose of this tutorial is to show off the methods
 # as well as provide a few tips regarding them.
 
@@ -9,15 +9,15 @@
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/exact-example.jl).
 # Run it with `julia exact-example.jl`.
 
-# We start by loading the required modules.
+# We start by loading Rimu.
 
 using Rimu
 
 # ## Introduction
 
-# In this example, we will look at a bosonic system of 4 particles in 5 sites, formulated in
-# momentum space. Let's start by building the Hamiltonian. To create a Fock state where all
-# particles have zero momentum, we put all the particles in the middle mode of the address.
+# We will look at a bosonic system of 4 particles in 5 sites, formulated in momentum
+# space. Let's start by building the Hamiltonian. To create a Fock state where all particles
+# have zero momentum, we put all the particles in the mode at the centre of the address.
 
 M = 5
 N = 4
@@ -30,9 +30,9 @@ ham = HubbardMom1D(add)
 dimension(ham)
 
 # Keep in mind that this is an estimate of the number of Fock states the Hamiltonian can act
-# on, not the actual matrix size. It can still be used as a guide to decide whether a
-# Hamiltonian is amenable to exact diagonalisation and which algorithm would be best suited
-# to diagonalising it.
+# on, not the actual matrix size - the matrix size can sometimes be smaller. It can still be
+# used as a guide to decide whether a Hamiltonian is amenable to exact diagonalisation and
+# to determine which algorithm would be best suited to diagonalising it.
 
 # ## The BasisSetRep
 
@@ -95,7 +95,7 @@ eig.vectors
 # in-place
 # [`eigen!`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen!).
 
-# ### Sparse matrix-based solvers
+# ### Iterative sparse solvers
 
 # For larger Hamiltonians, it is better to use an iterative solver. There are several
 # options. We will look at
@@ -128,19 +128,19 @@ using KrylovKit
 vals_kk, vecs_kk = eigsolve(sm, num_eigvals, :SR)
 vals_kk
 
-# Both solvers use the [Lanczos algorithm](https://en.wikipedia.org/wiki/Lanczos_algorithm)
-# for Hermitian matrices and the
+# Both solvers use variants of the [Lanczos
+# algorithm](https://en.wikipedia.org/wiki/Lanczos_algorithm) for Hermitian matrices and the
 # [Arnoldi algorithm](https://en.wikipedia.org/wiki/Arnoldi_iteration) for non-Hermitian
-# ones. They may in some cases miss degenerate eigenpairs.
+# ones. These may in some cases miss degenerate eigenpairs.
 
 # If diagonalisation takes too long, you can reduce the tolerance by setting the `tol`
-# keyword argument to `eigs` or `eigsolve`. Using drastically lower tolerances than default
-# can still produce good results in practice. This, however, should be checked on a
+# keyword argument to `eigs` or `eigsolve`. Using drastically lower tolerances than the
+# default can still produce good results in practice. This, however, should be checked on a
 # case-by-case basis.
 
 # ### The matrix-free method
 
-# Amazingly, KrylovKit's
+# KrylovKit's
 # [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve)
 # function is implemented in a way that does not require the linear operator and vector to
 # be Julia arrays. Rimu leverages this functionality, which allows diagonalising
@@ -150,14 +150,16 @@ vals_kk
 # While this method is by far the slowest of the ones discussed, it also uses drastically
 # less memory. This allows us to diagonalise much larger Hamiltonians.
 
-# To use this method, you first need a starting vector:
+# To use this method, you first need a starting [`DVec`](@ref):
 
 dvec = DVec(add => 1.0)
 
-# Then, pass that vector and the Hamiltonian to `eigsolve`. Since `eigsolve` has no way
-# of knowing the Hamiltonian is Hermitian, we have to provide that information through the
-# `issymmetric` or `ishermitian` keyword arguments. Make sure to only pass this argument
-# when the Hamiltonian is actually symmetric. One way to check is to use the `LOStructure`:
+# Then, pass that vector and the Hamiltonian to
+# [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve). Since
+# the function has no way of knowing the Hamiltonian is Hermitian, we have to provide that
+# information through the `issymmetric` or `ishermitian` keyword arguments. Make sure to
+# only pass this argument when the Hamiltonian is actually symmetric. To check that,
+# look at the `LOStructure` trait:
 
 LOStructure(ham)
 
@@ -190,7 +192,7 @@ size(sparse(ham))
 size(sparse(ParitySymmetry(ham)))
 
 # In this small example, the size reduction is modest, but for larger systems, you can
-# expect to reduce the dimension of the matrix by a bit less than half.
+# expect to reduce the dimension of the matrix by about half.
 
 all_eigs = eigvals(Matrix(ham))
 even_eigs = eigvals(Matrix(ParitySymmetry(ham)))
@@ -200,9 +202,13 @@ even_eigs = eigvals(Matrix(ParitySymmetry(ham)))
 # need to make sure the starting address of the Hamiltonian is odd:
 
 add_odd = BoseFS(M, cld(M, 2) => N - 3, cld(M, 2) - 1 => 2, cld(M, 2) + 2 => 1)
-odd_eigs = eigvals(Matrix(ParitySymmetry(HubbardMom1D(add_odd); even=false)))
 
 #
+
+odd_eigs = eigvals(Matrix(ParitySymmetry(HubbardMom1D(add_odd); even=false)))
+
+# Now, let's check that combining the two sets of eigenvalues indeed recovers the whole
+# spectrum.
 
 sort([even_eigs; odd_eigs]) ≈ all_eigs
 
@@ -223,6 +229,8 @@ dvec = DVec(zip(bsr.basis, eigvecs(Matrix(ham))[:, 1]))
 # `dot` to compute the values of observables.
 
 [dot(dvec, DensityMatrixDiagonal(i), dvec) for i in 1:M]
+
+#
 
 using Test #hide
 @test length(vals_mf) == length(vals_mf) ≥ num_eigvals   #hide

@@ -3,7 +3,7 @@
 # This is an example calculation finding the ground state of
 # a 1D Bose-Hubbard chain with 6 particles in 6 lattice sites.
 
-# A runnable script for this example is located 
+# A runnable script for this example is located
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example.jl).
 # Run it with `julia BHM-example.jl`.
 
@@ -105,7 +105,7 @@ println("Energy from $steps_measure steps with $targetwalkers walkers:
          Shift: $(se.mean) ± $(se.err);
          Projected Energy: $(v.val) ± ($(v.val_l), $(v.val_u))")
 
-# Finished !
+# Finished!
 
 using Test                                      #hide
 @test isfile("fciqmcdata.arrow")                #hide
