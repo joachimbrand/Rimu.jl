@@ -177,7 +177,7 @@ eigsolve(ham, vecs_mf[2], num_eigvals, :SR, issymmetric=true)[1]
 
 # As these matrices tend to get large quickly, memory is usually the bottleneck.  There are
 # currently two methods implemented to reduce the matrix size, [`ParitySymmetry`](@ref) and
-# [`TimeReversalSymmetry`](@ref). These symmetries work by performing a similarity transform
+# [`TimeReversalSymmetry`](@ref). These symmetries work by performing a unitary transformation
 # on the Hamiltonian which causes it to become block-diagonal. When building a matrix from a
 # block-diagonal Hamiltonian, only the block that contains the starting address is
 # constructed.
@@ -203,8 +203,7 @@ even_eigs = eigvals(Matrix(ParitySymmetry(ham)))
 
 # The eigenvalues of the transformed Hamiltonian are a subset of the full spectrum. To get
 # the other half, we can pass the `even=false` keyword argument to it. When doing that, we
-# need to make sure the starting address of the Hamiltonian is odd. In this case, an odd
-# address is one that is not symmetric under reversal:
+# need to make sure the starting address of the Hamiltonian is not symmetric under reversal:
 
 add_odd = BoseFS(M, cld(M, 2) => N - 3, cld(M, 2) - 1 => 2, cld(M, 2) + 2 => 1)
 
@@ -231,7 +230,9 @@ sort([even_eigs; odd_eigs]) ≈ all_eigs
 dvec = DVec(zip(bsr.basis, eigvecs(Matrix(ham))[:, 1]))
 
 # The eigenvectors these methods produce are normalized, hence we can use the three-argument
-# `dot` to compute the values of observables.
+# `dot` to compute the values of observables. Here we are computing the single particle 
+# momentum density distribution, which is just the diagonal of the single-particle density
+# matrix in momentum space:
 
 [dot(dvec, DensityMatrixDiagonal(i), dvec) for i in 1:M]
 
