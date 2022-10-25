@@ -112,7 +112,7 @@ for i in 1:num_reps
     println("   Replica $i: $(se.mean) ± $(se.err)")
 end
 
-# Finished !
+# Finished!
 
 using Test                                  #hide
 r = rayleigh_replica_estimator(df; op_name = "Op1", skip=steps_equilibrate) #hide

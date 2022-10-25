@@ -106,7 +106,7 @@ println("Energy from $steps_measure steps with $targetwalkers walkers:
          Shift: $(se.mean) ± $(se.err);
          Projected Energy: $(v.val) ± ($(v.val_l), $(v.val_u))")
 
-# Finished !
+# Finished!
 
 using Test                                      #hide
 @test isfile("fciqmcdata.arrow")                #hide
