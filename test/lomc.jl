@@ -1,7 +1,7 @@
 using Rimu
 using Test
 using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator
-using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement, IsExplosive
+using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement
 using Rimu.StochasticStyles: ThresholdCompression
 using Rimu.StatsTools
 using Rimu.RMPI
