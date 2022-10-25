@@ -207,13 +207,12 @@ Select a [`ThreadingStrategy`](@ref) to control threading in [`lomc!`](@ref).
 
 * `:auto`: Decide whether threading should be done or not based on `targetwalkers` and
   whether threads are available.
-* `:reproducible`: Use threading in a way that guarantees reproducible outcomes with
-  if random numbers are seeded and the same number of threads is used.
-  See [`ReproducibleThreading`](@ref).
-* `true` or `false`: Use the default [`ThreadingStrategy`](@ref) or [`NoThreading`](@ref).
+* `:threadlocal`: Use [`SplittablesThreading`](@ref) with thread-local working memory. This
+  minimises allocations and can be faster than the default, but it is not guaranteed to be
+  safe.
+* `true` or `false`: Use [`ReproducibleThreading`](@ref) as the default
+  [`ThreadingStrategy`](@ref), or [`NoThreading`](@ref).
 * Any [`ThreadingStrategy`](@ref).
-
-The default [`ThreadingStrategy`](@ref) is currently [`SplittablesThreading`](@ref).
 """
 select_threading_strategy(t::ThreadingStrategy, _) = t
 
@@ -221,12 +220,12 @@ function select_threading_strategy(threading::Symbol, targetwalkers)
     if threading == :auto
         t = targetwalkers > 500 && Threads.nthreads() > 1
         return select_threading_strategy(t, targetwalkers)
-    elseif threading == :reproducible
+    elseif threading == :threadlocal
         if Threads.nthreads() == 1
             @warn "threading was requested, but only one thread is available"
             return NoThreading()
         else
-            return ReproducibleThreading()
+            return SplittablesThreading()
         end
     else
         throw(ArgumentError("invalid threading strategy `$threading`"))
@@ -238,7 +237,7 @@ function select_threading_strategy(threading::Bool, _)
             @warn "threading was requested, but only one thread is available"
             return NoThreading()
         else
-            return SplittablesThreading()
+            return ReproducibleThreading()
         end
     else
         return NoThreading()
@@ -253,8 +252,8 @@ random number generator is seeded before calling [`lomc!`](@ref). When the keywo
 available threads.
 
 Notes:
-- This [`ThreadingStrategy`](@ref) leads to appreciable memory allocations and it
-typically a little (but not much) slower than the default.
+- This [`ThreadingStrategy`](@ref) leads to appreciable memory allocations and it is
+  typically a little (but not much) slower than [`SplittablesThreading`](@ref).
 - Doesn't return spawning stats.
 
 See [`ThreadingStrategy`](@ref).

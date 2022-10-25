@@ -442,9 +442,11 @@ using Logging
         for dv in (DVec(add => 1), InitiatorDVec(add => 1), MPIData(DVec(add => 1)))
             @test_throws ArgumentError lomc!(H; threading=:something, laststep, s_strat)
 
+            Random.seed!(17)
             df1, s1 = lomc!(
                 H, deepcopy(dv); threading=:auto, laststep, s_strat
             )
+            Random.seed!(17)
             df2, s2 = lomc!(
                 H, deepcopy(dv); threading=true, laststep, s_strat
             )
@@ -466,32 +468,31 @@ using Logging
             df8, s8 = lomc!(
                 H, deepcopy(dv); threading=Rimu.ThreadsXForeachThreading(), laststep, s_strat
             )
-            Random.seed!(17)
             df9, s9 = lomc!(
-                H, deepcopy(dv); threading=:reproducible, laststep, s_strat
+                H, deepcopy(dv); threading=:threadlocal, laststep, s_strat
             )
             Random.seed!(17)
             df10, s10 = lomc!(
                 H, deepcopy(dv); threading=Rimu.ReproducibleThreading(), laststep, s_strat
             )
 
-            @test s1.threading == Rimu.SplittablesThreading()
-            @test s2.threading == Rimu.SplittablesThreading()
+            @test s1.threading == Rimu.ReproducibleThreading()
+            @test s2.threading == Rimu.ReproducibleThreading()
             @test s3.threading == Rimu.NoThreading()
-            @test s9.threading == Rimu.ReproducibleThreading()
+            @test s9.threading == Rimu.SplittablesThreading()
 
             # Check that working memory was selected correctly.
             N = Threads.nthreads()
             D = typeof(localpart(dv))
-            @test s1.replicas[1].w isa NTuple{N,D}
-            @test s2.replicas[1].w isa NTuple{N,D}
+            @test s1.replicas[1].w isa D
+            @test s2.replicas[1].w isa D
             @test s3.replicas[1].w isa D
             @test s4.replicas[1].w isa D
             @test s5.replicas[1].w isa NTuple{N,D}
             @test s6.replicas[1].w isa NTuple{N,D}
             @test s7.replicas[1].w isa NTuple{N,D}
             @test s8.replicas[1].w isa NTuple{N,D}
-            @test s9.replicas[1].w isa D
+            @test s9.replicas[1].w isa NTuple{N,D}
             @test s10.replicas[1].w isa D
 
             # Check energies.
@@ -515,7 +516,7 @@ using Logging
             @test E8 ≈ E9 rtol=0.1
 
             # ReproducibleThreading has reproducible random numbers:
-            @test df10.len == df9.len
+            @test df10.len == df1.len == df2.len
         end
     end
 end
