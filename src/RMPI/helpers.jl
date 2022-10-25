@@ -107,51 +107,15 @@ function Rimu.sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
 end
 
 """
-    ConsistentRNG.sync_cRandn(md::MPIData)
-Generate one random number with [`cRandn()`](@ref) in a synchronous way such
-that all MPI ranks have the same random number.
-The argument is ignored unless it is of type `MPIData`, in which case a random
-number from the root rank is broadcasted to all MPI ranks. MPI syncronizing.
-"""
-function ConsistentRNG.sync_cRandn(md::MPIData)
-    MPI.bcast(cRandn(), md.root, md.comm)
-end
-
-"""
-    ConsistentRNGs.check_crng_independence(dv::MPIData)
-Does a sanity check to detect dependence of random number generators across
-all MPI ranks. Returns the size of the combined RNG state,
-i.e. `mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)`.
-MPI syncronizing.
-"""
-ConsistentRNG.check_crng_independence(dv::MPIData) = _check_crng_independence(dv.comm)
-
-function _check_crng_independence(comm::MPI.Comm) # MPI syncronizing
-    # get vector of threaded RNGs on this rank
-    crngs = ConsistentRNG.CRNGs[]
-    # extract the numbers that make up the state of the RNGs and package into
-    # an MPI-suitable buffer
-    statebuffer = [getfield(rng,i) for rng in crngs for i in 1:fieldcount(typeof(rng))]
-    # gather from all ranks
-    combined_statebuffer = MPI.Allgather(statebuffer, comm)  # MPI syncronizing
-    # check independence
-    @mpi_root @assert union(combined_statebuffer) == combined_statebuffer "Dependency in parallel rngs detected"
-
-    @assert length(ConsistentRNG.CRNGs[]) == Threads.nthreads() "Number of CNRGs should be equal to nthreads()"
-    return length(combined_statebuffer)
-end
-
-"""
-    mpi_seed_CRNGs!(seed = rand(Random.RandomDevice(), UInt))
+    mpi_seed!(seed = rand(Random.RandomDevice(), UInt))
 Re-seed the random number generators in an MPI-safe way. If seed is provided,
-the random numbers from [`cRand()`](@ref) will follow a deterministic sequence.
+the random numbers from `rand` will follow a deterministic sequence.
 
 Independence of the random number generators on different MPI ranks is achieved
 by adding `hash(mpi_rank())` to `seed`.
 """
-function mpi_seed_CRNGs!(seed = rand(Random.RandomDevice(), UInt))
-    rngs = seedCRNG!(seed + hash(mpi_rank()))
-    _check_crng_independence(mpi_comm())
+function mpi_seed!(seed = rand(Random.RandomDevice(), UInt))
+    rngs = Random.seed!(seed + hash(mpi_rank()))
     return rngs
 end
 

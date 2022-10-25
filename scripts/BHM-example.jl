@@ -11,6 +11,7 @@
 # `Rimu` for FCIQMC calculation;
 
 using Rimu
+using Random
 
 # Now we define the physical problem:
 # Setting the number of lattice sites `m = 6`;
@@ -47,7 +48,7 @@ reporting_interval = 1
 # Putting one of walkers into the initial address `aIni`
 svec = DVec(aIni => 1)
 # Let's plant a seed for the random number generator to get consistent result:
-seedCRNG!(17)
+Random.seed!(17)
 
 # Now let's setup all the FCIQMC strategies.
 
@@ -109,5 +110,5 @@ println("Energy from $steps_measure steps with $targetwalkers walkers:
 
 using Test                                      #hide
 @test isfile("fciqmcdata.arrow")                #hide
-@test se.mean ≈ -4.171133393316872 rtol=0.01    #hide
+@test se.mean ≈ -3.9 rtol=0.01                  #hide
 rm("fciqmcdata.arrow", force=true)              #hide

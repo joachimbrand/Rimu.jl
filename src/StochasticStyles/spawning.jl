@@ -17,7 +17,7 @@ end
 
     absval = abs(val)
     if absval < threshold
-        if cRand() < abs(val) / threshold
+        if rand() < abs(val) / threshold
             val = sign(val) * threshold
         else
             val = zero(val)
@@ -31,7 +31,7 @@ end
 end
 # Round to integer
 @inline function projected_deposit!(::Type{T}, w, add, val, parent, _) where {T<:Integer}
-    intval = T(sign(val)) * floor(T, abs(val) + cRand())
+    intval = T(sign(val)) * floor(T, abs(val) + rand())
     if !iszero(intval)
         deposit!(w, add, intval, parent)
     end
@@ -43,8 +43,8 @@ end
 ) where {I<:Integer,T<:Complex{I}}
     r_val, i_val = reim(val)
 
-    r_intval = I(sign(r_val)) * floor(I, abs(r_val) + cRand())
-    i_intval = I(sign(i_val)) * floor(I, abs(i_val) + cRand())
+    r_intval = I(sign(r_val)) * floor(I, abs(r_val) + rand())
+    i_intval = I(sign(i_val)) * floor(I, abs(i_val) + rand())
     intval = r_intval + im * i_intval
 
     if !iszero(intval)
@@ -335,7 +335,7 @@ end
     prob = abs(val) * s.strength / num_offdiags
     num_attempts = 0
     for i in 1:num_offdiags
-        if cRand() > prob
+        if rand() > prob
             new_add, mat_elem = offdiags[i]
             new_val = -mat_elem / prob * dτ * val
             spw = projected_deposit!(w, new_add, new_val, add => val, s.threshold)

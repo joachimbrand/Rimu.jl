@@ -4,8 +4,8 @@ using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator
 using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement, IsExplosive
 using Rimu.StochasticStyles: ThresholdCompression
 using Rimu.StatsTools
-using Rimu.ConsistentRNG: seedCRNG!
 using Rimu.RMPI
+using Random
 using KrylovKit
 using Suppressor
 using Statistics
@@ -245,7 +245,7 @@ using Logging
         H = HubbardMom1D(add; u=6.0)
         dv = DVec(add => 1; style=IsDynamicSemistochastic())
 
-        seedCRNG!(1336)
+        Random.seed!(1336)
 
         df = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4).df
         @test all(df.len[1:end-1] .≤ 10)
@@ -353,7 +353,7 @@ using Logging
         dv = DVec(add => 1)
 
         @testset "Projector, ProjectedEnergy" begin
-            ConsistentRNG.seedCRNG!(1337)
+            Random.seed!(1337)
 
             post_step = (
                 Projector(p1=NormProjector()),
@@ -375,7 +375,7 @@ using Logging
         end
 
         @testset "SignCoherence" begin
-            ConsistentRNG.seedCRNG!(1337)
+            Random.seed!(1337)
 
             ref = eigsolve(H, dv, 1, :SR; issymmetric=true)[2][1]
             post_step = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
@@ -390,7 +390,7 @@ using Logging
         end
 
         @testset "WalkerLoneliness" begin
-            ConsistentRNG.seedCRNG!(1337)
+            Random.seed!(1337)
 
             post_step = WalkerLoneliness()
             df, _ = lomc!(H, copy(dv); post_step)
@@ -535,7 +535,7 @@ end
         H = HubbardReal1D(add)
         E0 = -8.280991746582686
 
-        seedCRNG!(1234)
+        Random.seed!(1234)
         dv_st = DVec(add => 1; style=IsStochasticInteger())
         dv_th = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
         dv_cx = DVec(add => 1 + im; style=IsStochastic2Pop())
@@ -622,7 +622,7 @@ end
         )
 
         @testset "Energies below the plateau & initiator bias" begin
-            seedCRNG!(8008)
+            Random.seed!(8008)
 
             H = HubbardMom1D(add; u=4.0)
             E0 = -9.251592973178997
@@ -654,7 +654,7 @@ end
         end
 
         @testset "Energies above the plateau" begin
-            seedCRNG!(1337)
+            Random.seed!(1337)
 
             H = HubbardMom1D(add)
             E0 = -16.36048582876015

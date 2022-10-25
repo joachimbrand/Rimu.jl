@@ -15,7 +15,7 @@ function compress!(t::ThresholdCompression, v)
     for (add, val) in pairs(w)
         prob = abs(val) / t.threshold
         if prob < 1 # projection is only necessary if abs(val) < s.threshold
-            val = ifelse(prob > cRand(), t.threshold * sign(val), zero(val))
+            val = ifelse(prob > rand(), t.threshold * sign(val), zero(val))
             w[add] = val
         end
     end
