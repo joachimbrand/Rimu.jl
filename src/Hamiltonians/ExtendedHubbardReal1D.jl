@@ -51,34 +51,24 @@ end
 Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
 sum_j n_j n_{j+1} with periodic boundary conditions.
 """
-function extended_bose_hubbard_interaction(b::BoseFS{<:Any,M}) where M
-    address = b.bs
-    # compute the diagonal matrix element of the Extended Bose Hubbard Hamiltonian
-    # currently this ammounts to counting occupation numbers of modes
-    bhmmatrixelementint = 0
-    ebhmmatrixelementint = 0
-    bosonnumber2=0
-    bosonnumber1 = trailing_ones(address) # count how many bosons inside
-    # surpsingly it is faster to not check whether this is nonzero and do the
-    # following operations anyway
-    bhmmatrixelementint += bosonnumber1 * (bosonnumber1-1)
-    firstbosonnumber = bosonnumber1 #keap on memory the boson number of the first
-    #to do the calculation with the last boson
-    address >>>= bosonnumber1 # remove the countedmode
-    address >>>= 1
-    for i in 1:M-1
-        # proceed to next occupied mode
-        bosonnumber2 = trailing_ones(address) # count how many bosons inside
-        # surpsingly it is faster to not check whether this is nonzero and do the
-        # following operations anyway
-        address >>>= bosonnumber2 # remove the countedmode
-        ebhmmatrixelementint += bosonnumber2 * (bosonnumber1)
-        bhmmatrixelementint+= bosonnumber2 * (bosonnumber2-1)
-        bosonnumber1=bosonnumber2
-        address >>>= 1
+function extended_bose_hubbard_interaction(b::BoseFS)
+    omm = OccupiedModeMap(b)
+
+    prev = zero(eltype(omm))
+    ext_result = 0
+    reg_result = 0
+    for curr in omm
+        ext_result += ifelse(prev.mode == curr.mode - 1, prev.occnum * curr.occnum, 0)
+        reg_result += curr.occnum * (curr.occnum - 1)
+        prev = curr
     end
-    ebhmmatrixelementint+= bosonnumber2 * firstbosonnumber  #periodic bondary condition
-    return ebhmmatrixelementint , bhmmatrixelementint
+
+    # Handle periodic boundaries
+    last = ifelse(omm[end].mode == num_modes(b), omm[end], zero(eltype(omm)))
+    first = ifelse(omm[1].mode == 1, omm[1], zero(eltype(omm)))
+    ext_result += last.occnum * first.occnum
+
+    return ext_result, reg_result
 end
 
 function diagonal_element(h::ExtendedHubbardReal1D, b::BoseFS)
@@ -88,5 +78,5 @@ end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, add::BoseFS, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
-    return naddress, - h.t * sqrt(onproduct)
+    return naddress, - h.t * onproduct
 end
