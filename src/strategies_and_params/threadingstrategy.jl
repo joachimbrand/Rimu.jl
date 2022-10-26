@@ -263,7 +263,7 @@ struct ReproducibleThreading{N} <: ThreadingStrategy
 end
 ReproducibleThreading(; batch_base=Threads.nthreads()) = ReproducibleThreading(batch_base)
 
-working_memory(::ReproducibleThreading, dv) = empty(localpart(dv))
+working_memory(::ReproducibleThreading, dv) = zero(localpart(dv))
 
 @inline function _rt_loop_configs!(w, ham, pairs, shift, dτ, batchsize)
     if amount(pairs) > batchsize # recursively halve `pairs` iterator
@@ -296,7 +296,7 @@ working_memory(::ReproducibleThreading, dv) = empty(localpart(dv))
     return w # results are returned in the passed-in working memory `w`
 end
 
-function fciqmc_step!(t::ReproducibleThreading, wm::AbstractDVec, ham, dv, shift, dτ)
+function fciqmc_step!(t::ReproducibleThreading, wm, ham, dv, shift, dτ)
     v = localpart(dv)
     stat_names, stats_def = step_stats(StochasticStyle(v))
     batchsize = max(100.0, min(amount(pairs(v))/t.n, sqrt(amount(pairs(v))) * 10))
