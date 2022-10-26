@@ -26,10 +26,6 @@ See [Module `BitStringAddresses`](@ref)
 
 See [Module `DictVectors`](@ref)
 
-## ConsistentRNG
-
-See [Module `ConsistentRNG`](@ref)
-
 ## StatsTools
 
 See [Module `Rimu/StatsTools`](@ref)

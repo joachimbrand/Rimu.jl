@@ -28,15 +28,13 @@ const PACKAGE_VERSION = VersionNumber(TOML.parsefile(pkgdir(Rimu, "Project.toml"
     Rimu
 **Random integrators for many-body quantum systems**
 
-Welcome to `Rimu` version $PACKAGE_VERSION. 
+Welcome to `Rimu` version $PACKAGE_VERSION.
 Read the documentation [online](https://joachimbrand.github.io/Rimu.jl/).
 """
 Rimu
 
 include("helpers.jl") # non MPI-dependent helper functions
 
-include("ConsistentRNG.jl")
-@reexport using .ConsistentRNG
 include("Interfaces/Interfaces.jl")
 @reexport using .Interfaces
 include("StochasticStyles/StochasticStyles.jl")

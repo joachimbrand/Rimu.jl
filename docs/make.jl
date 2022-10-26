@@ -1,6 +1,5 @@
 using Documenter
 using Rimu
-using Rimu.ConsistentRNG
 using Rimu.BitStringAddresses
 using Rimu.StatsTools
 using Literate
@@ -44,7 +43,7 @@ for fn in EXAMPLES_FILES
 end
 
 makedocs(;
-    modules=[Rimu,Rimu.ConsistentRNG,Rimu.RimuIO],
+    modules=[Rimu,Rimu.RimuIO],
     format=Documenter.HTML(prettyurls = false),
     pages=[
         "Guide" => "index.md",
@@ -59,8 +58,8 @@ makedocs(;
             "BitString addresses" => "addresses.md",
             "Stochastic styles" => "stochasticstyles.md",
             "RMPI" => "RMPI.md",
-            "Random Numbers" => "consistentrng.md",
             "I/O" => "rimuio.md",
+            "Random numbers" => "randomnumbers.md",
             "Documentation generation" => "documentation.md",
             "Code testing" => "testing.md",
         ],

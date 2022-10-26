@@ -1,5 +1,6 @@
 using Rimu, Rimu.StatsTools
 using Statistics, DataFrames, Random, Distributions
+using Suppressor
 using Test
 using KrylovKit, LinearAlgebra
 using MonteCarloMeasurements
@@ -67,7 +68,7 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     br = ratio_of_means(rand(n_samples), rand(n_samples); α=0.05)
     @test br.blocks * 2^(br.k - 1) ≤ n_samples
     @test begin
-        show(br)
+        show(devnull, br)
         true
     end # does not throw error
 
@@ -79,32 +80,32 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     end
 
     # badly behaved example of Cauchy distribution for ratio
-    r = ratio_of_means(randn(2000), randn(2000))
+    r = @suppress ratio_of_means(randn(2000), randn(2000))
     q95 = pquantile(r.ratio, [0.025, 0.975])
     @test q95[1] < 0 < q95[2]
 
     # complex time series
-    r = ratio_of_means(randn(ComplexF64, 2000), randn(ComplexF64, 2000))
+    r = @suppress ratio_of_means(randn(ComplexF64, 2000), randn(ComplexF64, 2000))
     qr95 = pquantile(real(r.ratio), [0.025, 0.975])
     @test qr95[1] < 0 < qr95[2]
     qi95 = pquantile(imag(r.ratio), [0.025, 0.975])
     @test qi95[1] < 0 < qi95[2]
     @test_throws ErrorException pquantile(r, [0.025, 0.975])
     @test begin
-        show(r)
+        show(devnull, r)
         true
     end # does not throw error
 
     # mixed real and complex
-    r = @inferred ratio_of_means(randn(1000), randn(ComplexF64, 1000))
+    r = @suppress @inferred ratio_of_means(randn(1000), randn(ComplexF64, 1000))
     @test r.k ≤ 4
-    r = @inferred ratio_of_means(randn(ComplexF64, 1000), randn(1000))
+    r = @suppress @inferred ratio_of_means(randn(ComplexF64, 1000), randn(1000))
     @test r.k ≤ 4
 
     # zero variance example
-    r = ratio_of_means([0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 2])
+    r = @suppress ratio_of_means([0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 2])
     @test Tuple(val_and_errs(r)) == (0, 0, 0)
-    r = ratio_of_means(complex.(ones(2000)), complex.(ones(2000)))
+    r = @suppress ratio_of_means(complex.(ones(2000)), complex.(ones(2000)))
     @test pvar(real(r.ratio)) == 0 == pvar(imag(r.ratio))
 
     # well behaved real example
@@ -192,6 +193,7 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
 end
 
 @testset "Reweighting" begin
+    Random.seed!(133)
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)), u=6.0, t=1.0)
     # using KrylovKit
     # fv = DVec(starting_address(ham)=>1.0; capacity=dimension(ham))
@@ -205,46 +207,49 @@ end
     p = RunTillLastStep(laststep=steps_equi + steps_meas)
     post_step = ProjectedEnergy(ham, v)
     s_strat = DoubleLogUpdate(targetwalkers=10)
-    seedCRNG!(174)
-    @time df = lomc!(ham, v; params=p, s_strat, post_step).df
+    df = lomc!(ham, v; params=p, s_strat, post_step).df
     @test_throws ArgumentError variational_energy_estimator(df) # see next testset
     bs = shift_estimator(df; skip=steps_equi)
     @test bs == blocking_analysis(df.shift[steps_equi+1:end])
     pcb = bs.mean - exact_energy
-    # TODO
+
     @test pcb > 0.0 # the shift has a large population control bias
     # test growth_estimator
     h = 2^(bs.k - 1) # approximate number of steps to decorrelate the shift
     E_r = bs.mean # set up reference energy
-    ge = growth_estimator(df, h; E_r, skip=steps_equi)
+    ge = @suppress growth_estimator(df, h; E_r, skip=steps_equi)
     pcb_est = E_r - ge.ratio # estimated PCB in the shift from reweighting
     @test 0.2 < pmedian(pcb_est) < pcb
     @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01; change_type=to_measurement)
     @inferred growth_estimator(rand(1000), 100 .+ rand(1000), 20, 0.01)
     # fails due to type instability in MonteCarloMeasurements
     # test w_lin()
-    @test ge.ratio ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights=w_lin).ratio
+    @test @suppress ge.ratio ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights=w_lin).ratio
     # test growth_estimator_analysis
-    df_ge, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(df; skip=steps_equi, threading=true)
+    df_ge, correlation_estimate, se, se_l, se_u = @suppress begin
+        growth_estimator_analysis(df; skip=steps_equi, threading=true)
+    end
     @test correlation_estimate == h
     @test se ≈ bs.mean
-    df_nt = growth_estimator_analysis(df; skip=steps_equi, threading=false).df_ge
+    df_nt = @suppress growth_estimator_analysis(df; skip=steps_equi, threading=false).df_ge
     @test all(abs.(df_nt.val .- df_ge.val) .< df_nt.val_l)
     # projected energy
-    bp = projected_energy(df; skip=steps_equi)
-    me = @inferred mixed_estimator(
+    bp = @suppress projected_energy(df; skip=steps_equi)
+    me = @suppress @inferred mixed_estimator(
         df.hproj, df.vproj, df.shift, h, df.dτ[end];
         skip=steps_equi, E_r
     )
     @test me.ratio ≈ bp.ratio # reweighting has not significantly improved the projected energy
-    val(projected_energy(df; skip=steps_equi)) ≈ val(mixed_estimator(df, 0; skip=steps_equi))
+    @test val(projected_energy(df; skip=steps_equi)) ≈
+        val(mixed_estimator(df, 0; skip=steps_equi)) rtol=0.1
     # test mixed_estimator_analysis
-    df_me, correlation_estimate, se, se_l, se_u = mixed_estimator_analysis(df; skip=steps_equi, threading=true)
+    df_me, correlation_estimate, se, se_l, se_u = @suppress begin
+        mixed_estimator_analysis(df; skip=steps_equi, threading=true)
+    end
     @test correlation_estimate == h
     @test se ≈ bs.mean
-    df_met = mixed_estimator_analysis(df; skip=steps_equi, threading=false).df_me
+    df_met = @suppress mixed_estimator_analysis(df; skip=steps_equi, threading=false).df_me
     @test all(abs.(df_met.val .- df_me.val) .< df_met.val_l)
-
 end
 
 @testset "Rayleigh quotient reweighting" begin
@@ -262,20 +267,24 @@ end
     s_strat = DoubleLogUpdate(targetwalkers = tw)
     G2list = ([G2RealCorrelator(i) for i in dvals]...,)
 
-    seedCRNG!(174)
-    @time df = lomc!(ham, dv; params, s_strat, replica = AllOverlaps(num_reps; operator = G2list)).df
+    Random.seed!(174)
+    df = lomc!(ham, dv; params, s_strat, replica = AllOverlaps(num_reps; operator = G2list)).df
 
     for d in dvals
         # without reweighting
         r = rayleigh_replica_estimator(df; op_name = "Op$(d+1)", skip = skipsteps)
         g2_h0 = val_and_errs(r).val
         # with reweighting
-        df_rre, _ = rayleigh_replica_estimator_analysis(df; op_name = "Op$(d+1)", skip = skipsteps, threading = false)
+        df_rre, _ = @suppress rayleigh_replica_estimator_analysis(
+            df; op_name = "Op$(d+1)", skip = skipsteps, threading = false
+        )
         g2_rw = df_rre[end,:val]
         # reweighting improves the estimate
         @test abs(g2_h0 - best_g2[d+1]) > abs(g2_rw - best_g2[d+1])
         # compare threading
-        df_rre_t, _ = rayleigh_replica_estimator_analysis(df; op_name = "Op$(d+1)", skip = skipsteps, threading = true)
+        df_rre_t, _ = @suppress rayleigh_replica_estimator_analysis(
+            df; op_name = "Op$(d+1)", skip = skipsteps, threading = true
+        )
         @test all(abs.(df_rre_t.val .- df_rre.val) .< df_rre_t.val_l)
     end
 end
@@ -306,8 +315,8 @@ using Rimu.StatsTools: replica_fidelity
     s_strat = DoubleLogUpdate(targetwalkers=10)
 
     # run replica fciqmc
-    seedCRNG!(17)
-    @time rr = lomc!(ham, v; params=p, s_strat, post_step, replica=AllOverlaps()).df
+    Random.seed!(17)
+    rr = lomc!(ham, v; params=p, s_strat, post_step, replica=AllOverlaps()).df
 
     # check fidelity with ground state
     fid_gs = replica_fidelity(rr; p_field=:vproj, skip=steps_equi)
@@ -356,7 +365,7 @@ comp_tuples(a, b; atol=0) = mapreduce((x, y) -> isapprox(x, y; atol), &, Tuple(a
     @test comp_tuples(val_and_errs(m, n=2), (v, 2σ, 2σ))
     @test comp_tuples(val_and_errs(mp, n=2), (v, 2σ, 2σ); atol=0.01)
 
-    r = ratio_of_means(randn(2000), randn(2000))
+    r = @suppress ratio_of_means(randn(2000), randn(2000))
     @test comp_tuples(val_and_errs(r), (v=val(r), errs(r)...))
     @test NamedTuple(r).val_k == r.k
     @test NamedTuple(r).val_δ_y == r.δ_y
@@ -366,7 +375,7 @@ comp_tuples(a, b; atol=0) = mapreduce((x, y) -> isapprox(x, y; atol), &, Tuple(a
     @test NamedTuple(br).val_blocks == br.blocks
 
     # complex time series
-    r = ratio_of_means(randn(ComplexF64, 2000), randn(ComplexF64, 2000))
+    r = @suppress ratio_of_means(randn(ComplexF64, 2000), randn(ComplexF64, 2000))
     nt = val_and_errs(r)
     @test imag(nt.val_l) ≠ 0 ≠ real(nt.val_l)
     r = blocking_analysis(rand(ComplexF64, 2000))

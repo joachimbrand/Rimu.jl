@@ -24,7 +24,7 @@ end
 
     absval = abs(val)
     if absval < threshold
-        if cRand() < abs(val) / threshold
+        if rand() < abs(val) / threshold
             val = sign(val) * threshold
         else
             val = zero(val)
@@ -47,7 +47,7 @@ end
 @inline function projected_deposit!(
     ::Type{T}, w, add, val, parent, ::Any, report_annihilations
 ) where {T<:Integer}
-    intval = T(sign(val)) * floor(T, abs(val) + cRand())
+    intval = T(sign(val)) * floor(T, abs(val) + rand())
     annihilations = zero(T)
     if !iszero(intval)
         if report_annihilations
@@ -67,8 +67,8 @@ end
 
     r_val, i_val = reim(val)
 
-    r_intval = I(sign(r_val)) * floor(I, abs(r_val) + cRand())
-    i_intval = I(sign(i_val)) * floor(I, abs(i_val) + cRand())
+    r_intval = I(sign(r_val)) * floor(I, abs(r_val) + rand())
+    i_intval = I(sign(i_val)) * floor(I, abs(i_val) + rand())
     intval = r_intval + im * i_intval
 
     annihilations = zero(T)
@@ -380,7 +380,7 @@ end
     prob = abs(val) * s.strength / num_offdiags
     num_attempts = 0
     for i in 1:num_offdiags
-        if cRand() > prob
+        if rand() > prob
             new_add, mat_elem = offdiags[i]
             new_val = -mat_elem / prob * dτ * val
             spw, ann = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
