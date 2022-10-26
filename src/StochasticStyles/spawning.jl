@@ -254,7 +254,9 @@ end
 """
     WithoutReplacement(threshold=0.0, strength=1.0) <: SpawningStrategy
 
-[`SpawningStrategy`](@ref) where spawn targets are sampled without replacement.
+[`SpawningStrategy`](@ref) where spawn targets are sampled without replacement. This
+strategy needs to allocate a temporary array during spawning, which makes is significantly
+less efficient than [`WithReplacement`](@ref).
 
 If the number of spawn attempts is greater than the number of offdiagonals, this functions
 like [`Exact`](@ref), but is less efficient. For best performance, this strategy is to be
@@ -304,7 +306,8 @@ end
 
 Perform Bernoulli sampling. A spawn is attempted on each offdiagonal element with a
 probability that results in an expected number of spawns equal to the number of walkers on
-the spawning configuration.
+the spawning configuration. This is significantly less efficient than
+[`WithReplacement`](@ref).
 
 If the number of spawn attempts is greater than the number of offdiagonals, this functions
 like [`Exact`](@ref), but is less efficient. For best performance, this strategy is to be

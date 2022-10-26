@@ -32,7 +32,7 @@ end
 Stochastic propagation with complex walker numbers representing two populations of integer
 walkers.
 
-When using this style, make sure to set a complex target number walkers in the
+When using this style, make sure to set a complex number as target walkers in the
 [`ShiftStrategy`](@ref Main.ShiftStrategy)!
 
 This style is experimental.
