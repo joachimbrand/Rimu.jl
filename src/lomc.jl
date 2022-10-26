@@ -226,7 +226,8 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
 * `threading = :auto` - can be used to control the use of multithreading (overridden by
   `wm`)
   * `:auto` - use multithreading if `s_strat.targetwalkers ≥ 500`
-  * `:reproducible` -  use multithreading with reproducible random numbers
+  * `:threadlocal` -  use multithreading minimising allocations (warning: potentially 
+    unsafe)
   * `true` - use multithreading if available (set shell variable `JULIA_NUM_THREADS`!)
   * `false` - run on single thread
 * `wm` - working memory; if set, it controls the use of multithreading and overrides
