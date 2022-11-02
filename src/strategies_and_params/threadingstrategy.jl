@@ -306,3 +306,84 @@ function fciqmc_step!(t::ReproducibleThreading, wm, ham, dv, shift, dτ)
 
     return stat_names, stats_def
 end
+
+"""
+    TaskLocalThreading(;
+        batch_base = Threads.nthreads(),
+        task_base = 1 + ceil(Int, log2(Threads.nthreads()))
+    ) <: ThreadingStrategy
+Use threads in a way that reproducible Monte Carlo results are obtained when the
+random number generator is seeded before calling [`lomc!`](@ref). When the keyword argument
+`batch_base` is set, the results will be reproducible independently of the number of
+available threads.
+
+A fixed number of tasks are used for parallel execution with working memory that is local
+to each task and re-usable. The maximum number of tasks spawend is ``2^b`` where
+``b=```task_base`.
+
+See [`ThreadingStrategy`](@ref).
+"""
+struct TaskLocalThreading{N} <: ThreadingStrategy
+    n::N
+    task_base::Int
+end
+function TaskLocalThreading(;
+    batch_base=Threads.nthreads(),
+    task_base = 1 + ceil(Int, log2(Threads.nthreads()))
+)
+    return TaskLocalThreading(batch_base, task_base)
+end
+
+function working_memory(tlt::TaskLocalThreading, dv)
+    worker_storage = Tuple(
+        DictVectors.SkinnyDVec(keytype(dv)[], valtype(dv)[], StochasticStyle(dv)) for
+        _ in 1 : (2^tlt.task_base-1)
+    )
+    main_storage = zero(localpart(dv))
+    return (;main_storage, worker_storage)
+end
+
+@inline function _tlt_loop_configs!(w, worker_storage, ham, pairs, shift, dτ, batchsize, depth, id)
+    if amount(pairs) > batchsize && depth > 0 # recursively halve `pairs` iterator
+        two_halves = halve(pairs)
+        depth -= 1
+        # first_half gets new working memory; is spawned off to another task/thread
+        new_id = id + 2^depth
+        w_fh = zero!(worker_storage[new_id-1])
+
+        first_half_task = Threads.@spawn _tlt_loop_configs!(
+            w_fh, worker_storage, ham, two_halves[1], shift, dτ, batchsize, depth, new_id
+        )
+
+        # second half uses the passed-in working memory
+        w = _tlt_loop_configs!(
+            w, worker_storage, ham, two_halves[2], shift, dτ, batchsize, depth, id
+        )
+
+        # harvest the results from the spawned task and combine them
+        w_fh = fetch(first_half_task)
+        add!(w, w_fh) # combine the DVecs
+    else # amount of `pairs` too small, process them on this thread and task
+        # stats = sum(pairs) do (add, val)
+        #     MultiScalar(fciqmc_col!(w, ham, add, val, shift, dτ))
+        # end
+        # # Returning stats this way is allocating and costs time. Therefore we skip it.
+        for (add, num) in pairs
+            fciqmc_col!(w, ham, add, num, shift, dτ)
+        end
+    end
+    return w # results are returned in the passed-in working memory `w`
+end
+
+function fciqmc_step!(tlt::TaskLocalThreading, wm, ham, dv, shift, dτ)
+    v = localpart(dv)
+    stat_names, stats_def = step_stats(StochasticStyle(v))
+    batchsize = max(100.0, min(amount(pairs(v))/tlt.n, sqrt(amount(pairs(v))) * 10))
+
+    w = zero!(wm.main_storage)
+    _tlt_loop_configs!(
+        w, wm.worker_storage, ham, pairs(v), shift, dτ, batchsize, tlt.task_base, 1
+    )
+
+    return stat_names, stats_def
+end

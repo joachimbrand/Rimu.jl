@@ -32,3 +32,9 @@ Base.getindex(w::SkinnyDVec, key) = zero(valtype(w)) # always return zero
     end
     return w
 end
+
+function Base.empty!(w::SkinnyDVec)
+    empty!(w.keys)
+    empty!(w.vals)
+    return w
+end

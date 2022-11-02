@@ -65,6 +65,12 @@ working memory.
 sort_into_targets!(target, w, stats) =  w, target, stats
 # default serial (single thread, no MPI) version: don't copy just swap
 
+# used by TaskLocalThreading
+function sort_into_targets!(target, wm::NamedTuple, stats)
+    copy!(target, first(wm))
+    return target, wm, stats
+end
+
 combine_stats(stats) = sum(stats)
 combine_stats(stats::MultiScalar) = stats # special case for fciqmc_step!() using ThreadsX
 

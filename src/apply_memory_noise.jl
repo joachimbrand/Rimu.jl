@@ -24,7 +24,7 @@ function apply_memory_noise!(w::Union{AbstractArray,AbstractDVec}, args...)
     apply_memory_noise!(StochasticStyle(w), w, args...)
 end
 
-function apply_memory_noise!(ws::NTuple, args...)
+function apply_memory_noise!(ws::Union{NTuple,NamedTuple}, args...)
     apply_memory_noise!(StochasticStyle(first(ws)), ws, args...)
 end
 
