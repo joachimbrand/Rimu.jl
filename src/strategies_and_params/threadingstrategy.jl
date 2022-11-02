@@ -335,11 +335,12 @@ function TaskLocalThreading(;
 end
 
 function working_memory(tlt::TaskLocalThreading, dv)
+    v = localpart(dv)
     worker_storage = Tuple(
-        DictVectors.SkinnyDVec(keytype(dv)[], valtype(dv)[], StochasticStyle(dv)) for
+        DictVectors.SkinnyDVec(keytype(v)[], valtype(v)[], StochasticStyle(v)) for
         _ in 1 : (2^tlt.task_base-1)
     )
-    main_storage = zero(localpart(dv))
+    main_storage = zero(v)
     return (;main_storage, worker_storage)
 end
 

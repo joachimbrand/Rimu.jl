@@ -67,7 +67,7 @@ sort_into_targets!(target, w, stats) =  w, target, stats
 
 # used by TaskLocalThreading
 function sort_into_targets!(target, wm::NamedTuple, stats)
-    copy!(target, first(wm))
+    copy!(localpart(target), first(wm))
     return target, wm, stats
 end
 
