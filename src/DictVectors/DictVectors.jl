@@ -13,6 +13,8 @@ using LinearAlgebra
 using Folds
 import SplittablesBase
 
+using ..Hamiltonians
+
 using ..Interfaces
 import ..Interfaces: deposit!, zero!, storage, StochasticStyle, default_style, freeze
 
@@ -48,6 +50,8 @@ export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1
 
 include("delegate.jl")
 include("abstractdvec.jl")
+include("projectors.jl")
+
 include("dvec.jl")
 include("initiators.jl")
 include("initiatordvec.jl")

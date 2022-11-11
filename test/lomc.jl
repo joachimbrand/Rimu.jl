@@ -1,6 +1,6 @@
 using Rimu
 using Test
-using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator
+using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, NoInitiator
 using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement
 using Rimu.StochasticStyles: ThresholdCompression
 using Rimu.StatsTools
@@ -556,6 +556,11 @@ end
             initiator=CoherentInitiator(1),
             style=IsDynamicSemistochastic(),
         )
+        dv_ni = InitiatorDVec(
+            add => 1;
+            initiator=NoInitiator(),
+            style=IsDynamicSemistochastic(),
+        )
 
         @testset "Energies below the plateau & initiator bias" begin
             Random.seed!(8008)
@@ -570,14 +575,18 @@ end
             df_i1 = lomc!(H, copy(dv_i1); s_strat, laststep, dτ).df
             df_i2 = lomc!(H, copy(dv_i2); s_strat, laststep, dτ).df
             df_i3 = lomc!(H, copy(dv_i3); s_strat, laststep, dτ).df
+            df_ni = lomc!(H, copy(dv_ni); s_strat, laststep, dτ).df
 
             E_no, σ_no = mean_and_se(df_no.shift[2000:end])
             E_i1, σ_i1 = mean_and_se(df_i1.shift[2000:end])
             E_i2, σ_i2 = mean_and_se(df_i2.shift[2000:end])
             E_i3, σ_i3 = mean_and_se(df_i3.shift[2000:end])
+            E_ni, σ_ni = mean_and_se(df_ni.shift[2000:end])
 
             # Garbage energy from no initiator.
             @test E_no < E0
+            @test E_ni < E0
+            @test E_no ≈ E_ni atol=3 * σ_no
             # Initiator has a bias.
             @test E_i1 > E0
             @test E_i2 > E0
@@ -602,17 +611,20 @@ end
             df_i1 = lomc!(H, copy(dv_i1); s_strat, laststep, dτ).df
             df_i2 = lomc!(H, copy(dv_i2); s_strat, laststep, dτ).df
             df_i3 = lomc!(H, copy(dv_i3); s_strat, laststep, dτ).df
+            df_ni = lomc!(H, copy(dv_ni); s_strat, laststep, dτ).df
 
             E_no, σ_no = mean_and_se(df_no.shift[500:end])
             E_i1, σ_i1 = mean_and_se(df_i1.shift[500:end])
             E_i2, σ_i2 = mean_and_se(df_i2.shift[500:end])
             E_i3, σ_i3 = mean_and_se(df_i3.shift[500:end])
+            E_ni, σ_ni = mean_and_se(df_ni.shift[500:end])
 
             # All estimates should be fairly good.
             @test E_no ≈ E0 atol=3σ_no
             @test E_i1 ≈ E0 atol=3σ_i1
             @test E_i2 ≈ E0 atol=3σ_i2
             @test E_i3 ≈ E0 atol=3σ_i3
+            @test E_ni ≈ E0 atol=3σ_ni
         end
     end
 end

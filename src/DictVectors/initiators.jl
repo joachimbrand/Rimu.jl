@@ -52,6 +52,7 @@ the default initiator rule for [`PDVec`](@ref).
 struct NonInitiatorValue{V} <: AbstractInitiatorValue{V}
     value::V
     NonInitiatorValue{V}(v) where {V} = new{V}(V(v))
+    NonInitiatorValue(v::V) where {V} = new{V}(V(v))
 end
 
 function Base.:+(v::NonInitiatorValue, w::NonInitiatorValue)

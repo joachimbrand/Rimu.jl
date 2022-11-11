@@ -45,7 +45,6 @@ using FFTW
 using Setfield
 
 using ..StochasticStyles
-using ..DictVectors
 using ..BitStringAddresses
 
 using ..Interfaces
@@ -78,7 +77,6 @@ export sparse # from SparseArrays
 
 include("abstract.jl")
 include("offdiagonals.jl")
-include("operations.jl")
 include("geometry.jl")
 include("excitations.jl")
 
