@@ -10,6 +10,8 @@ module DictVectors
 
 using Random
 using LinearAlgebra
+using Folds
+import SplittablesBase
 
 using ..Interfaces
 import ..Interfaces: deposit!, zero!, storage, StochasticStyle, default_style, freeze
@@ -48,5 +50,6 @@ include("delegate.jl")
 include("abstractdvec.jl")
 include("dvec.jl")
 include("initiators.jl")
+include("initiatordvec.jl")
 
 end # module
