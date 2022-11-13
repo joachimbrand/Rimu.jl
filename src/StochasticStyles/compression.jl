@@ -12,12 +12,23 @@ ThresholdCompression() = ThresholdCompression(1)
 
 function compress!(t::ThresholdCompression, v)
     w = localpart(v)
-    for (add, val) in pairs(w)
+    for (key, val) in pairs(w)
         prob = abs(val) / t.threshold
         if prob < 1 # projection is only necessary if abs(val) < s.threshold
             val = ifelse(prob > rand(), t.threshold * sign(val), zero(val))
-            w[add] = val
+            w[key] = val
         end
     end
     return v
+end
+function move_and_compress!(t::ThresholdCompression, target, source)
+    for (key, val) in source
+        prob = abs(val) / t.threshold
+        if prob < 1 && prob > rand()
+            target[key] = t.threshold * sign(val)
+        elseif prob ≥ 1
+            target[key] = val
+        end
+    end
+    return target
 end

@@ -40,7 +40,7 @@ import OrderedCollections: freeze
 
 export
     StochasticStyle, default_style, StyleUnknown, fciqmc_col!, step_stats, update_dvec!,
-    CompressionStrategy, NoCompression, compress!
+    CompressionStrategy, NoCompression, compress!, move_and_compress!
 export
     AbstractDVec, deposit!, storage, localpart, freeze, working_memory,
     fciqmc_step!, sort_into_targets!

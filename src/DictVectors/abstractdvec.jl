@@ -5,7 +5,7 @@
 function Base.show(io::IO, dvec::AbstractDVec)
     summary(io, dvec)
     limit, _ = displaysize()
-    for (i, p) in enumerate(pairs(dvec))
+    for (i, p) in enumerate(pairs(localpart(dvec)))
         if length(dvec) > i > limit - 4
             print(io, "\n  ⋮   => ⋮")
             break
@@ -44,7 +44,7 @@ end
 
 @inline function Base.copyto!(w::AbstractDVec, v)
     sizehint!(w, length(v))
-    for (key, val) in pairs(v)
+    foreach(pairs(v)) do (key, val)
         w[key] = val
     end
     return w
@@ -63,12 +63,13 @@ function Base.sum(f, x::AbstractDVec)
 end
 
 function LinearAlgebra.norm(x::AbstractDVec, p::Real=2)
+    T = float(promote_type(valtype(x), typeof(p)))
     if p === 1
-        return float(sum(abs, values(x)))
+        return sum(abs, values(x); init=zero(T))
     elseif p === 2
-        return sqrt(sum(abs2, values(x)))
+        return sqrt(sum(abs2, values(x); init=zero(T)))
     elseif p === Inf
-        return float(mapreduce(abs, max, values(x), init=real(zero(valtype(x)))))
+        return mapreduce(abs, max, values(x), init=real(zero(T)))
     else
         error("$p-norm of $(typeof(x)) is not implemented.")
     end
@@ -77,7 +78,7 @@ end
 @inline function LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α)
     empty!(w)
     sizehint!(w, length(v))
-    for (key, val) in pairs(v)
+    foreach(pairs(v)) do (key, val)
         w[key] = val * α
     end
     return w
@@ -95,12 +96,25 @@ Base.:*(x::AbstractDVec, α) = α * x
 Inplace add `x+y` and store result in `x`.
 """
 @inline function add!(x::AbstractDVec{K}, y::AbstractDVec{K}) where {K}
-    for (k, v) in pairs(y)
+    foreach(pairs(y)) do (k, v)
         x[k] += v
     end
     return x
 end
 add!(x::AbstractVector, y) = x .+= values(y)
+
+function add!(d::Dict, s, α=true)
+    for (key, s_value) in s
+        d_value = get(d, key, zero(valtype(d)))
+        new_value = d_value + α * s_value
+        if iszero(new_value)
+            delete!(d, key)
+        else
+            d[key] = new_value
+        end
+    end
+end
+
 
 @inline function LinearAlgebra.axpy!(α, x::AbstractDVec, y::AbstractDVec)
     for (k, v) in pairs(x)
@@ -128,15 +142,14 @@ function LinearAlgebra.dot(x::AbstractDVec, y::AbstractDVec)
     if isempty(x) || isempty(y)
         return zero(promote_type(valtype(x), valtype(y)))
     elseif length(x) < length(y)
-        result = sum(pairs(x)) do (key, val)
+        return sum(pairs(x)) do (key, val)
             conj(val) * y[key]
         end
     else
-        result = sum(pairs(y)) do (key, val)
+        return sum(pairs(y)) do (key, val)
             conj(x[key]) * val
         end
     end
-    return result # the type is promote_type(T1,T2) - could be complex!
 end
 
 Base.isequal(x::AbstractDVec{K1}, y::AbstractDVec{K2}) where {K1,K2} = false
@@ -167,17 +180,8 @@ walkernumber(::StochasticStyle, w) = dot(Norm1ProjectorPPop(), w)
 # complex walkers as two populations
 # the following default is fast and generic enough to be good for real walkers and
 
-function Base.:*(h::AbstractHamiltonian{E}, v::AbstractDVec{K,V}) where {E, K, V}
-    T = promote_type(E, V) # allow for type promotion
-    w = empty(v, T) # allocate new vector; non-mutating version
-    for (key, val) in pairs(v)
-        w[key] += diagonal_element(h, key)*val
-        off = offdiagonals(h, key)
-        for (add, elem) in off
-            w[add] += elem*val
-        end
-    end
-    return w
+function Base.:*(h::AbstractHamiltonian, v::AbstractDVec)
+    return mul!(empty(v, promote_type(eltype(h), valtype(v))), h, v)
 end
 
 # three argument version
@@ -228,4 +232,37 @@ function dot_from_right(
         end
     end
     return result
+end
+
+function Base.:+(v::AbstractDVec, w::AbstractDVec)
+    result = similar(v, promote_type(valtype(v), valtype(w)))
+    copy!(result, v)
+    add!(result, w)
+    return result
+end
+function Base.:-(v::AbstractDVec, w::AbstractDVec)
+    result = similar(v, promote_type(valtype(v), valtype(w)))
+    copy!(result, v)
+    return axpy!(-one(valtype(result)), w, result)
+end
+
+function LinearAlgebra.normalize!(v::AbstractDVec, p=2)
+    n = norm(v, p)
+    rmul!(v, inv(n))
+    return v
+end
+function LinearAlgebra.normalize(v::AbstractDVec, p=2)
+    res = copy(v)
+    return normalize!(res, p)
+end
+
+function Base.isapprox(v::AbstractDVec, w::AbstractDVec; kwargs...)
+    # Length may be different, but vectors still approximately the same when `atol` is used.
+    left = all(pairs(w)) do (key, val)
+        isapprox(v[key], val; kwargs...)
+    end
+    right = all(pairs(v)) do (key, val)
+        isapprox(w[key], val; kwargs...)
+    end
+    return left && right
 end

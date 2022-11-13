@@ -88,6 +88,20 @@ Compress the vector `v` and return it.
 compress!(::NoCompression, v) = v
 
 """
+    move_and_compress!(::CompressionStrategy, target, source)
+
+Move elements from `source` to `target`, compressing them on the way according to the
+compression strategy. `target` must be a dict-like structure and `source` must be an
+iterator of pairs.
+"""
+function move_and_compress!(::NoCompression, target, source)
+    for (key, val) in source
+        target[key] = val
+    end
+    return target
+end
+
+"""
     update_dvec!([::StochasticStyle,] dvec) -> dvec, nt
 
 Perform an arbitrary transformation on `dvec` after the spawning step is completed and

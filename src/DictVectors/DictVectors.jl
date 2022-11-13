@@ -11,15 +11,17 @@ module DictVectors
 using Random
 using LinearAlgebra
 using Folds
+using MPI
 import SplittablesBase
 
 using ..Hamiltonians
 
 using ..Interfaces
-import ..Interfaces: deposit!, zero!, storage, StochasticStyle, default_style, freeze
+import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
+    move_and_compress!
 
-export zero!, add!, deposit!, storage, walkernumber
-export DVec, InitiatorDVec
+export zero!, add!, deposit!, storage, walkernumber, propagate!, working_memory
+export DVec, InitiatorDVec, PDVec, PDWorkingMemory
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 
 
@@ -52,8 +54,14 @@ include("delegate.jl")
 include("abstractdvec.jl")
 include("projectors.jl")
 
-include("dvec.jl")
 include("initiators.jl")
+include("communicators.jl")
+
+include("dvec.jl")
 include("initiatordvec.jl")
+
+include("pdvec.jl")
+include("pdworkingmemory.jl")
+include("propagators.jl")
 
 end # module
