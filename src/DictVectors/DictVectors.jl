@@ -10,13 +10,14 @@ module DictVectors
 
 using Random
 using LinearAlgebra
-using Folds
+using Folds, FoldsThreads
 using MPI
 import SplittablesBase
 
-using ..Hamiltonians
-
 using ..Interfaces
+using ..Hamiltonians
+using ..StochasticStyles
+
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
     move_and_compress!
 

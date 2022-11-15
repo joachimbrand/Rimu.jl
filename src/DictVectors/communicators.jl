@@ -263,8 +263,8 @@ function PointToPoint{K,V}(
         SegmentedBuffer{Pair{K,V}}(),
         SegmentedBuffer{Pair{K,V}}(),
         mpi_comm,
-        MPI.Comm_rank(mpi_comm),
-        MPI.Comm_size(mpi_comm),
+        mpi_rank,
+        mpi_size,
     )
 end
 
@@ -287,6 +287,7 @@ end
 
 function copy_to_local!(ptp::PointToPoint, w, t)
     insert_collections!(ptp.send_buffer, t.segments, w.executor)
+
     Folds.foreach(copy!, local_segments(w, mpi_rank(ptp)), t.segments)
 
     for offset in 1:ptp.mpi_size - 1

@@ -79,6 +79,7 @@ struct OperatorMulPropagator{O,T,W<:PDWorkingMemory{<:Any,T}} <: AbstractPropaga
 end
 function OperatorMulPropagator(operator, t::PDVec)
     if eltype(operator) === valtype(t)
+        # TODO: for this to work, we need IsDeterministic
         wm = PDWorkingMemory(t; style=IsDeterministic{eltype(operator)}())
     else
         T = promote_type(eltype(operator), valtype(t))
@@ -111,9 +112,9 @@ function LinearAlgebra.mul!(dst::PDVec, op, src::PDVec, w)
 end
 
 function Base.:*(op::AbstractHamiltonian, t::PDVec)
-    w = PDWorkingMemory(t)
-    dst = similar(t, promote_type(eltype(op), valtype(t)))
-    return mul!(dst, op, t, w)
+    prop = OperatorMulPropagator(op, t)
+    dst = similar(t, eltype(prop))
+    return mul!(dst, prop, t)
 end
 
 # This is the exact dot. Also TODO non-exact dot.
@@ -136,9 +137,10 @@ function LinearAlgebra.dot(
 end
 
 function _dot(target, op, source, w)
-    return sum(pairs(source)) do (k, v)
+    T = promote_type(valtype(target), valtype(source), eltype(op))
+    return sum(pairs(source); init=zero(T)) do (k, v)
         diag = conj(target[k]) * diagonal_element(op, k) * v
-        offdiag = sum(offdiagonals(op, k)) do (k_off, v_off)
+        offdiag = sum(offdiagonals(op, k); init=zero(T)) do (k_off, v_off)
             conj(target[k_off]) * v_off * v
         end
         diag + offdiag
@@ -146,12 +148,12 @@ function _dot(target, op, source, w)
 end
 
 function LinearAlgebra.dot(t::PDVec, ops::Tuple, source::PDVec, w)
-    if any(LOStructure(op) ≢ IsDiagonal(), ops)
-        target = copy_to_local!(w, target)
+    if any(LOStructure(op) ≢ IsDiagonal() for op in ops)
+        target = copy_to_local!(w, t)
     else
         target = t
     end
     return map(ops) do op
-        _dot(target, op, source)
+        _dot(target, op, source, w)
     end
 end

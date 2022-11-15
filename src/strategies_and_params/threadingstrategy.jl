@@ -250,7 +250,7 @@ function select_threading_strategy(threading::Symbol, targetwalkers, v)
         throw(ArgumentError("invalid threading strategy `$threading`"))
     end
 end
-function select_threading_strategy(threading::Bool, _, _)
+function select_threading_strategy(threading::Bool, _, v)
     if v isa PDVec
         @warn "setting threading is not supported when using `PDVec`"
     elseif threading
