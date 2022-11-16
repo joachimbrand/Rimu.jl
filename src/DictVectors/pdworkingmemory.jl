@@ -200,7 +200,9 @@ end
 Return the "main" column of the working memory wrapped in a [`PDVec`](@ref).
 """
 function main_column(w)
-    return PDVec(w.columns[1].segments, w.style, NoInitiator(), LocalPart(), w.executor)
+    return PDVec(
+        w.columns[1].segments, w.style, NoInitiator(), LocalPart(w.communicator), w.executor
+    )
 end
 
 function copy_to_local!(w, t::PDVec)

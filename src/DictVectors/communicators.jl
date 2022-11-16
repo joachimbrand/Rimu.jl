@@ -212,33 +212,20 @@ function mpi_send(buf::SegmentedBuffer, dest, comm)
 end
 
 """
-    mpi_recv!(buf::SegmentedBuffer, dest, comm)
+    mpi_recv_any!(buf::SegmentedBuffer, comm) -> Int
 
-Receive the buffers from `source`.
+Find a source that is ready to send a buffer and receive from it. Return the rank ID of the
+sender.
 """
-function mpi_recv!(buf::SegmentedBuffer, source, comm)
-    offset_status = MPI.Probe(source, 0, comm)
+function mpi_recv_any!(buf::SegmentedBuffer, source, comm)
+    status = offset_status = MPI.Probe(MPI.ANY_SOURCE, 0, comm)
+    source = status.source
     resize!(buf.offsets, MPI.Get_count(offset_status, Int))
     MPI.Recv!(buf.offsets, comm; source, tag=0)
 
-    # Done for checking only
-    buffer_status = MPI.Probe(source, 1, comm)
-    buffer_length = MPI.Get_count(buffer_status, eltype(eltype(buf)))
-
-    resize!(buf.buffer, buffer_length)
+    resize!(buf.buffer, last(buf.offsets))
     MPI.Recv!(buf.buffer, comm; source, tag=1)
-
-    # TODO: reproduce, fix and remove
-    if buffer_length != last(buf.offsets)
-        error(
-            "Something went wrong.\n       ",
-            "buffer_length: ", buffer_length, "\n       ",
-            "last(buf.offsets): ", last(buf.offsets), "\n       ",
-            buf.buffer,
-        )
-    end
-
-    return buf
+    return source
 end
 
 """
@@ -247,7 +234,7 @@ end
 [`Communicator`](@ref) that uses circular communication using `MPI.Isend` and `MPI.Recv!`.
 """
 struct PointToPoint{K,V} <: Communicator
-    send_buffer::SegmentedBuffer{Pair{K,V}}
+    send_buffers::Vector{SegmentedBuffer{Pair{K,V}}}
     recv_buffer::SegmentedBuffer{Pair{K,V}}
     mpi_comm::MPI.Comm
     mpi_rank::Int
@@ -260,7 +247,7 @@ function PointToPoint{K,V}(
     mpi_size=MPI.Comm_size(mpi_comm),
 ) where {K,V}
     return PointToPoint(
-        SegmentedBuffer{Pair{K,V}}(),
+        [SegmentedBuffer{Pair{K,V}}() for _ in 1:mpi_size-1],
         SegmentedBuffer{Pair{K,V}}(),
         mpi_comm,
         mpi_rank,
@@ -273,31 +260,40 @@ mpi_size(ptp::PointToPoint) = ptp.mpi_size
 mpi_comm(ptp::PointToPoint) = ptp.mpi_comm
 
 function synchronize_remote!(ptp::PointToPoint, w)
+    # Asynchronously send all buffers.
     for offset in 1:ptp.mpi_size - 1
         dst_rank = mod(ptp.mpi_rank + offset, ptp.mpi_size)
-        src_rank = mod(ptp.mpi_rank - offset, ptp.mpi_size)
+        send_buffer = ptp.send_buffers[offset]
+        insert_collections!(send_buffer, remote_segments(w, dst_rank), w.executor)
+        mpi_send(send_buffer, dst_rank, ptp.mpi_comm)
+    end
 
-        insert_collections!(ptp.send_buffer, remote_segments(w, dst_rank), w.executor)
-        mpi_send(ptp.send_buffer, dst_rank, ptp.mpi_comm)
-        mpi_recv!(ptp.recv_buffer, src_rank, ptp.mpi_comm)
-
+    # Receive and insert from each rank. The order is first come first serve.
+    for _ in 1:ptp.mpi_size - 1
+        mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
         Folds.foreach(add!, local_segments(w), ptp.recv_buffer, w.executor)
     end
 end
 
 function copy_to_local!(ptp::PointToPoint, w, t)
-    insert_collections!(ptp.send_buffer, t.segments, w.executor)
-
-    Folds.foreach(copy!, local_segments(w, mpi_rank(ptp)), t.segments)
+    # Same data sent to all ranks, so we can reuse the buffer.
+    send_buffer = first(ptp.send_buffers)
+    insert_collections!(send_buffer, t.segments, w.executor)
 
     for offset in 1:ptp.mpi_size - 1
         dst_rank = mod(ptp.mpi_rank + offset, ptp.mpi_size)
-        src_rank = mod(ptp.mpi_rank - offset, ptp.mpi_size)
+        mpi_send(send_buffer, dst_rank, ptp.mpi_comm)
+    end
 
-        mpi_send(ptp.send_buffer, dst_rank, ptp.mpi_comm)
-        mpi_recv!(ptp.recv_buffer, src_rank, ptp.mpi_comm)
+    # We need all the data, including local in w.
+    Folds.foreach(copy!, local_segments(w, mpi_rank(ptp)), t.segments)
 
+    # Receive and insert from each rank. The order is first come first serve.
+    for _ in 1:ptp.mpi_size - 1
+        src_rank = mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
         Folds.foreach(copy!, remote_segments(w, src_rank), ptp.recv_buffer, w.executor)
     end
+
+    # Pack the segments into a PDVec and return it.
     return main_column(w)
 end
