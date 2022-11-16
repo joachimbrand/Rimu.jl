@@ -217,7 +217,7 @@ end
 Find a source that is ready to send a buffer and receive from it. Return the rank ID of the
 sender.
 """
-function mpi_recv_any!(buf::SegmentedBuffer, source, comm)
+function mpi_recv_any!(buf::SegmentedBuffer, comm)
     status = offset_status = MPI.Probe(MPI.ANY_SOURCE, 0, comm)
     source = status.source
     resize!(buf.offsets, MPI.Get_count(offset_status, Int))
