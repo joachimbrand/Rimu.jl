@@ -62,6 +62,43 @@ function test_hamiltonian_interface(H)
     end
 end
 
+using Rimu.Hamiltonians: momentum_transfer_excitation
+
+@testset "momentum_transfer_excitation" begin
+    add1 = BoseFS((0,1,1,0))
+    add2 = BoseFS((1,0,0,1))
+    @test all(1:4) do i
+        momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=true)
+        ex[1] == add2
+        ex[2] == 1
+
+        ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=false)
+        @test ex[1] == add2
+        @test ex[2] == 1
+    end
+
+    add3 = BoseFS((1,1,0,0))
+    for i in 1:4
+        ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=true)
+        @test ex[2] == 1
+
+        ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=false)
+        @test ex[2] == 0
+    end
+
+    add4 = BoseFS((0,3,0))
+    add5 = BoseFS((1,1,1))
+    for i in 1:2
+        ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=false)
+        @test ex[1] == add5
+        @test ex[2] ≈ √6
+
+        ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=true)
+        @test ex[1] == add5
+        @test ex[2] ≈ √6
+    end
+end
+
 @testset "Interface tests" begin
     for H in (
         HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),

@@ -69,7 +69,7 @@ See [`excitation`](@ref), [`OccupiedModeMap`](@ref).
     elseif !all(1 .≤ dst_modes .≤ M)
         # Using a positive momentum change would have folded, so we try to use its negative
         # equivalent.
-        mom_change = -mod1(M - mom_change, M)
+        mom_change = mom_change - M
         dst_modes = src_modes .+ (mom_change, -mom_change)
         if !all(1 .≤ dst_modes .≤ M)
             return add, 0.0, src_modes..., -mom_change
