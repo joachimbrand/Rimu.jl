@@ -26,7 +26,7 @@ default_style
 
 ## Compression strategies
 
-```
+```@docs
 CompressionStrategy
 NoCompression
 StochasticStyles.ThresholdCompression
