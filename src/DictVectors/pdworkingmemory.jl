@@ -205,6 +205,10 @@ function main_column(w)
     )
 end
 
+function copy_to_local!(w, v::AbstractDVec)
+    return v
+end
+
 function copy_to_local!(w, t::PDVec)
     return copy_to_local!(w.communicator, w, t)
 end

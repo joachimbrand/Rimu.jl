@@ -102,16 +102,27 @@ function PDVec{K,V}(
     return PDVec(segments, style, irule, comm, ex)
 end
 function PDVec(pairs; kwargs...)
-    keys = getindex.(pairs, 1) # to get eltypes
-    vals = getindex.(pairs, 2)
-    t = PDVec{eltype(keys),eltype(vals)}(; kwargs...)
-    for (k, v) in zip(keys, vals)
+    K = typeof(first(pairs)[1])
+    V = typeof(first(pairs)[2])
+    t = PDVec{K,V}(; kwargs...)
+    for (k, v) in pairs
         t[k] = v
     end
     return t
 end
 function PDVec(pairs::Vararg{Pair}; kwargs...)
     return PDVec(pairs; kwargs...)
+end
+function PDVec(dict::Dict{K,V}; kwargs...) where {K,V}
+    t = PDVec{K,V}(; kwargs...)
+    for (k, v) in dict
+        t[k] = v
+    end
+    return t
+end
+function PDVec(dv::AbstractDVec{K,V}; style=StochasticStyle(dv), kwargs...) where {K,V}
+    t = PDVec{K,V}(; style, kwargs...)
+    return copyto!(t, dv)
 end
 
 function Base.summary(io::IO, t::PDVec)
@@ -244,6 +255,10 @@ function deposit!(t::PDVec{K,V}, k::K, val, parent=nothing) where {K,V}
     end
     return nothing
 end
+function Base.delete!(t::PDVec{K,V}, k::K) where {K,V}
+    t[k] = zero(V)
+    return t
+end
 
 ###
 ### empty(!), similar, copy, etc.
@@ -331,7 +346,7 @@ end
 num_segments(t::PDVecIterator) = num_segments(t.vector)
 is_distributed(t::PDVecIterator) = is_distributed(t.vector)
 Base.eltype(t::Type{<:PDVecIterator{<:Any,T}}) where {T} = T
-Base.length(t::PDVecIterator) = length(t)
+Base.length(t::PDVecIterator) = length(t.vector)
 
 const PDVecKeys{T,V} = PDVecIterator{typeof(keys),T,V}
 const PDVecVals{T,V} = PDVecIterator{typeof(values),T,V}
@@ -348,7 +363,7 @@ Base.pairs(t::PDVec) = PDVecIterator(pairs, eltype(t), t)
 function Base.iterate(t::PDVecIterator)
     if t.vector.communicator isa NotDistributed
         # TODO: this may be a bit annoying.
-        @warn "iteration is not supported. Please use `localpart`."
+        @warn "iteration is not supported. Please use `localpart`." maxlog=1
     elseif !(t.vector.communicator isa LocalPart)
         throw(CommunicatorError(
             "iteration over distributed vectors is not supported.",
@@ -440,20 +455,6 @@ function Base.map!(f, dst::PDVec, src::PDVecVals)
     return dst
 end
 
-function Base.map(f, t::PDVecVals)
-    error("TODO")
-    return map!(f, similar(t.tvec), t) # <- TODO: need to add t.tvec, need return type
-end
-
-function Base.map(f, t::PDVecPairs)
-    error("TODO")
-    # Idea: create new segment buffer
-    # move all new pairs to them (and sort etc.)
-    # synchronize them across MPI
-    # put in vector and return
-    # generalize for Keys as well
-end
-
 function Base.:*(α::Number, t::PDVec)
     T = promote_type(typeof(α), valtype(t))
     if T === valtype(t)
@@ -520,12 +521,12 @@ function LinearAlgebra.dot(left::PDVec, right::PDVec)
         T = promote_type(valtype(left), valtype(right))
         result = Folds.sum(zip(left.segments, right.segments), right.executor) do (l_segs, r_segs)
             sum(r_segs; init=zero(T)) do (k, v)
-                get(l_segs, k, zero(valtype(l_segs))) * v
+                conj(get(l_segs, k, zero(valtype(l_segs)))) * v
             end
         end::T
     else
         result = sum(pairs(right)) do (k, v)
-            left[k] + v
+            conj(left[k]) + v
         end
     end
     return reduce_remote(right.communicator, +, result)
@@ -533,9 +534,9 @@ end
 
 function Base.real(v::PDVec)
     dst = similar(v, real(valtype(v)))
-    map!(real, dst, values(v))
+    return map!(real, dst, values(v))
 end
 function Base.imag(v::PDVec)
     dst = similar(v, real(valtype(v)))
-    map!(imag, dst, values(v))
+    return map!(imag, dst, values(v))
 end

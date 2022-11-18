@@ -129,6 +129,12 @@ function LinearAlgebra.rmul!(x::AbstractDVec, α)
     end
     return x
 end
+function LinearAlgebra.lmul!(α, x::AbstractDVec)
+    for (k, v) in pairs(x)
+        x[k] = α * v
+    end
+    return x
+end
 
 # BLAS-like function: y = α*x + β*y
 function LinearAlgebra.axpby!(α, x::AbstractDVec, β, y::AbstractDVec)

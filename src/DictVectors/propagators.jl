@@ -49,9 +49,9 @@ w = v + dτ (S - H) v
 
 where ``S`` is the `shift`, ``H`` the `hamiltonian`, and ``w`` and ``v`` the vectors.
 """
-struct FCIQMCPropagator{H,T,W<:PDWorkingMemory{<:Any,T}} <: AbstractPropagator{T}
+struct FCIQMCPropagator{H,S,T,W<:PDWorkingMemory{<:Any,T}} <: AbstractPropagator{T}
     hamiltonian::H
-    shift::T
+    shift::S
     dτ::Float64
     working_memory::W
 end
