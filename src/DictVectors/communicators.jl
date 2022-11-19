@@ -135,6 +135,8 @@ struct LocalPart{C} <: Communicator
 end
 
 is_distributed(::LocalPart) = false
+mpi_rank(lp::LocalPart) = mpi_rank(lp.communicator)
+mpi_size(lp::LocalPart) = mpi_size(lp.communicator)
 
 function synchronize_remote!(::LocalPart, w)
     throw(CommunicatorError("attemted to synchronize localpart"))

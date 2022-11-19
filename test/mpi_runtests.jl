@@ -5,6 +5,7 @@ using Rimu
 using StaticArrays
 using Statistics
 using Test
+using KrylovKit
 
 using Rimu.RMPI
 using Rimu.StatsTools
@@ -190,7 +191,6 @@ end
                     )
                     target = MPIData(similar(source); kw...)
                     RMPI.mpi_combine_walkers!(target, source)
-                    #@test norm(source) ≈ norm(target)
                     return target
                 end
 
@@ -211,6 +211,55 @@ end
         end
     end
 
+    @testset "PDVec" begin
+        add = FermiFS2C((1,1,1,0,0,0),(1,1,1,0,0,0))
+        ham = HubbardRealSpace(add)
+
+        dv = DVec(add => 1.0)
+        pv = PDVec(add => 1.0)
+
+        res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
+        res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
+        # TODO: make an interface for this
+        prop = Rimu.DictVectors.OperatorMulPropagator(ham, pv)
+        res_prop = eigsolve(prop, pv, 1, :SR; issymmetric=true)
+
+        @test res_dv[1][1] ≈ res_pv[1][1]
+        @test res_dv[1][1] ≈ res_prop[1][1]
+
+        dv = res_dv[2][1]
+        pv = copy(res_pv[2][1])
+        @test norm(pv) ≈ 1
+        @test length(pv) == length(dv)
+        @test sum(values(pv)) ≈ sum(values(dv))
+        normalize!(pv, 1)
+        @test norm(pv, 1) ≈ 1
+        rmul!(pv, 2)
+        @test norm(pv, 1) ≈ 2
+
+        pv1 = copy(res_pv[2][1])
+        pv2 = mul!(similar(pv), ham, pv)
+
+        @test dot(pv2, pv1) ≈ dot(pv2, dv)
+        @test dot(pv1, pv2) ≈ dot(dv, pv2)
+        @test dot(freeze(pv2), pv1) ≈ dot(pv2, pv1)
+
+        if mpi_size() > 1
+            @test pv.communicator isa DictVectors.PointToPoint
+            @test mpi_size() == mpi_size(pv.communicator)
+            @test_throws DictVectors.CommunicatorError iterate(pairs(pv))
+
+            local_pairs = collect(pairs(localpart(pv)))
+            local_vals = sum(abs2, values(localpart(pv)))
+
+            total_len = MPI.Allreduce(length(local_pairs), +, MPI.COMM_WORLD)
+            total_vals = MPI.Allreduce(local_vals, +, MPI.COMM_WORLD)
+
+            @test total_len == length(dv)
+            @test total_vals == sum(abs2, values(pv))
+        end
+    end
+
     @testset "Ground state energy estimates" begin
         # H1 = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
         # E0 = eigvals(Matrix(H1))[1]
@@ -221,14 +270,19 @@ end
             (RMPI.mpi_point_to_point, (;)),
             (RMPI.mpi_all_to_all, (;)),
             (RMPI.mpi_one_sided, (; capacity=1000)),
+            (:PDVec, :PDVec),
         )
             @testset "Regular with $setup and post-steps" begin
                 H = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
-                dv = MPIData(
-                    DVec(starting_address(H) => 3; style=IsDynamicSemistochastic());
-                    setup,
-                    kwargs...
-                )
+                if setup == :PDVec
+                    dv = PDVec(starting_address(H) => 3; style=IsDynamicSemistochastic())
+                else
+                    dv = MPIData(
+                        DVec(starting_address(H) => 3; style=IsDynamicSemistochastic());
+                        setup,
+                        kwargs...
+                    )
+                end
 
                 post_step = (
                     ProjectedEnergy(H, dv),
@@ -240,7 +294,7 @@ end
 
                 # Shift estimate.
                 Es, σs = mean_and_se(df.shift[2000:end])
-                s_low, s_high = Es - 2σs, Es + 2σs
+                s_low, s_high = Es - 3σs, Es + 3σs
                 # Projected estimate.
                 r = ratio_of_means(df.hproj[2000:end], df.vproj[2000:end])
                 p_low, p_high = pquantile(r, [0.0015, 0.9985])
@@ -252,17 +306,43 @@ end
             end
             @testset "Initiator with $setup" begin
                 H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)
-                dv = MPIData(
-                    InitiatorDVec(starting_address(H) => 3);
-                    setup,
-                    kwargs...
-                )
+                add = starting_address(H)
+
+                if setup == :PDVec
+                    dv = PDVec(add => 3; initiator_threshold=1)
+                else
+                    dv = MPIData(InitiatorDVec(add => 3); setup, kwargs...)
+                end
                 s_strat = DoubleLogUpdate(targetwalkers=100)
                 df = lomc!(H, dv; laststep=5000, s_strat).df
 
                 # Shift estimate.
                 Es, _ = mean_and_se(df.shift[2000:end])
                 @test E0 ≤ Es
+            end
+            @testset "AllOverlaps with $setup" begin
+                #=
+                H = HubbardMom1D(FermiFS2C((1,1,1,0,0,0), (0,0,0,1,1,1)))
+                add = starting_address(H)
+
+                if setup == :PDVec
+                    dv = PDVec(add => 3; style=IsDynamicSemistochastic())
+                else
+                    dv = MPIData(
+                        DVec(add => 3; style=IsDynamicSemistochastic()); setup, kwargs...
+                    )
+                end
+
+                # Diagonal
+                replica = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, 2))
+                df,_ = lomc!(H, dv; replica)
+
+                # Not Diagonal
+                ops = (G2MomCorrelator(0), ntuple(DensityMatrixDiagonal, 2))
+                replica = AllOverlaps(2; operator=ops)
+                df,_ = lomc!(H, dv; replica)
+                #TODO what to check here?
+                =#
             end
         end
     end

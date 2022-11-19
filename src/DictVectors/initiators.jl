@@ -37,7 +37,7 @@ function Base.:-(v::InitiatorValue{V}) where {V}
     return InitiatorValue{V}(-v.safe, -v.unsafe, -v.initiator)
 end
 function Base.:*(α, v::InitiatorValue)
-    return NonInitiatorValue(α * v.safe, α * v.unsafe, α * v.initiator)
+    return InitiatorValue(α * v.safe, α * v.unsafe, α * v.initiator)
 end
 Base.zero(::Type{InitiatorValue{V}}) where {V} = InitiatorValue{V}()
 

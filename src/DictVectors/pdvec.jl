@@ -54,7 +54,7 @@ end
 
 function PDVec{K,V}(
     ; style=default_style(V), num_segments=Threads.nthreads(),
-    initiator=false, initiator_threshold=1,
+    initiator_threshold=0, initiator=initiator_threshold > 0,
     communicator=nothing,
     executor=nothing,
 ) where {K,V}
@@ -64,8 +64,10 @@ function PDVec{K,V}(
     if initiator == false
         irule = NoInitiator()
     elseif initiator == true
+        initiator_threshold = initiator_threshold == 0 ? 1 : initiator_threshold
         irule = Initiator(initiator_threshold)
     elseif initiator == :eco
+        initiator_threshold = initiator_threshold == 0 ? 1 : initiator_threshold
         irule = EcoInitiator(initiator_threshold)
     elseif initiator isa InitiatorRule
         irule = initiator
@@ -263,7 +265,7 @@ end
 ###
 ### empty(!), similar, copy, etc.
 ###
-# TODO: executorm this does not work with changing eltypes. Must fix the initiator,
+# TODO: this does not work with changing eltypes. Must fix the initiator,
 # executor, and communicator.
 function Base.empty(
     t::PDVec{K,V}; style=t.style, initiator=t.initiator, communicator=t.communicator,
@@ -516,21 +518,37 @@ function LinearAlgebra.axpy!(α, v::PDVec, w::PDVec)
     return add!(w, v, α)
 end
 
-function LinearAlgebra.dot(left::PDVec, right::PDVec)
-    if are_compatible(left, right)
-        T = promote_type(valtype(left), valtype(right))
-        result = Folds.sum(zip(left.segments, right.segments), right.executor) do (l_segs, r_segs)
-            sum(r_segs; init=zero(T)) do (k, v)
-                conj(get(l_segs, k, zero(valtype(l_segs)))) * v
+function LinearAlgebra.dot(l::PDVec, r::PDVec)
+    if are_compatible(l, r)
+        T = promote_type(valtype(l), valtype(r))
+        res = Folds.sum(zip(l.segments, r.segments), r.executor) do (l_segment, r_segment)
+            sum(r_segment; init=zero(T)) do (k, v)
+                conj(get(l_segment, k, zero(valtype(l_segment)))) * v
             end
         end::T
+        return reduce_remote(r.communicator, +, res)
     else
-        result = sum(pairs(right)) do (k, v)
-            conj(left[k]) + v
+        res = sum(pairs(r)) do (k, v)
+            conj(l[k]) + v
         end
+        return res
     end
-    return reduce_remote(right.communicator, +, result)
 end
+function LinearAlgebra.dot(fd::FrozenDVec, p::PDVec)
+    res = zero(promote_type(valtype(fd), valtype(p)))
+    for (k, v) in pairs(fd)
+        res += conj(p[k]) * v
+    end
+    return reduce_remote(p.communicator, +, res)
+end
+function LinearAlgebra.dot(l::AbstractDVec, r::PDVec)
+    res = sum(pairs(r)) do (k, v)
+        conj(l[k]) * v
+    end
+    return res
+end
+LinearAlgebra.dot(p::PDVec, fd::FrozenDVec) = conj(dot(fd, p))
+LinearAlgebra.dot(l::PDVec, r::AbstractDVec) = conj(dot(r, l))
 
 function Base.real(v::PDVec)
     dst = similar(v, real(valtype(v)))

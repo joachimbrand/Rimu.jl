@@ -47,7 +47,11 @@ end
 ###
 # Vararg
 function InitiatorDVec(args::Vararg{Pair}; kwargs...)
-    storage = Dict(args...)
+    return InitiatorDVec(args; kwargs...)
+end
+# Iterator
+function InitiatorDVec(pairs; kwargs...)
+    storage = Dict(pairs)
     return InitiatorDVec(storage; kwargs...)
 end
 # Dict with InitiatorValues

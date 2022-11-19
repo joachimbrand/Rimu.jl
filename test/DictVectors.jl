@@ -38,7 +38,7 @@ function test_dvec_interface(type, keys, vals; kwargs...)
             end
         end
         @testset "empty, similar" begin
-            dvec1 = type(pairs...; kwargs...)
+            dvec1 = type(pairs; kwargs...)
             dvec2 = empty(empty(empty(empty(dvec1))))
             dvec3 = similar(similar(similar(similar(dvec1))))
             @test typeof(dvec1) == typeof(dvec2) == typeof(dvec3)

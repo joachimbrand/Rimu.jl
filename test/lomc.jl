@@ -70,6 +70,7 @@ using Logging
         H = HubbardReal1D(add)
         G = GutzwillerSampling(H, g=1)
         @testset "NoStats" begin
+            dv = DVec(add => 1, style=IsDynamicSemistochastic())
             df, state = lomc!(H, dv; replica=NoStats(1))
             @test state.replica == NoStats(1)
             @test length(state.replicas) == 1
@@ -85,15 +86,15 @@ using Logging
             @test isnothing(Rimu.check_transform(NoStats(), H))
         end
 
+        # column names are of the form c{i}_dot_c{j} and c{i}_Op{k}_c{j}.
+        function num_stats(df)
+            return length(filter(x -> match(r"^c[0-9]", x) ≠ nothing, names(df)))
+        end
         @testset "AllOverlaps" begin
             for dv in (
                 DVec(add => 1, style=IsDynamicSemistochastic()),
                 PDVec(add => 1, style=IsDynamicSemistochastic()),
             )
-                # column names are of the form c{i}_dot_c{j} and c{i}_Op{k}_c{j}.
-                function num_stats(df)
-                    return length(filter(x -> match(r"^c[0-9]", x) ≠ nothing, names(df)))
-                end
 
                 # No operator: N choose 2 reports.
                 df, _ = lomc!(H, dv; replica=AllOverlaps(4))
@@ -154,7 +155,7 @@ using Logging
             @test df.c1_Op1_c2 isa Vector{ComplexF64}
 
             # MPIData
-            dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
+            dv = DVec(add => 1, style=IsDynamicSemistochastic())
             df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
             df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))

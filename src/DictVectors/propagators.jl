@@ -79,7 +79,6 @@ struct OperatorMulPropagator{O,T,W<:PDWorkingMemory{<:Any,T}} <: AbstractPropaga
 end
 function OperatorMulPropagator(operator, t::PDVec)
     if eltype(operator) === valtype(t)
-        # TODO: for this to work, we need IsDeterministic
         wm = PDWorkingMemory(t; style=IsDeterministic{eltype(operator)}())
     else
         T = promote_type(eltype(operator), valtype(t))
@@ -106,7 +105,7 @@ end
 Perform `y = A * x`. The working memory `w` is required to facilitate threaded/distributed
 operations. `y` and `x` may be the same vector.
 """
-function LinearAlgebra.mul!(dst::PDVec, op, src::PDVec, w)
+function LinearAlgebra.mul!(dst::PDVec, op::AbstractHamiltonian, src::PDVec, w=PDWorkingMemory(dst))
     prop = OperatorMulPropagator(op, w)
     return mul!(dst, prop, src)
 end
