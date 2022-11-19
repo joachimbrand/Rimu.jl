@@ -271,24 +271,28 @@ end
     include("doctests.jl")
 end
 
+using MPI
 # Note: This test is only for local testing, as MPI is tested separately on CI
 @testset "MPI" begin
-    # read name of mpi executable from environment variable if defined
-    # necessary for allow-run-as root workaround for Pipelines
-    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
-    is_local = !haskey(ENV, "CI")
+    if !haskey(ENV, "CI") # skip test if running on CI
+        if VERSION ≥ v"1.9" && pkgversion(MPI) ≥ v"0.20"
+            mpiexec_cmd = mpiexec()
+        else
+            # read name of mpi executable from environment variable if defined
+            mpiexec_cmd = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
+        end
+        is_local = !haskey(ENV, "CI")
 
-    juliaexec = Base.julia_cmd()
+        juliaexec = Base.julia_cmd()
 
-    if is_local
         mpi_test_filename = isfile("mpi_runtests.jl") ?  "mpi_runtests.jl" : "test/mpi_runtests.jl"
         if isfile(mpi_test_filename)
-            rr = run(`$mpiexec -np 2 $juliaexec -t 1 $mpi_test_filename`)
+            rr = run(`$mpiexec_cmd -np 2 $juliaexec -t 1 --project $mpi_test_filename`)
             @test rr.exitcode == 0
         else
             @warn "Could not find mpi_runtests.jl. Not testing MPI."
         end
     else
-        @info "not testing MPI on CI"
+        @info "Skip testing MPI from `runtests.jl` on CI"
     end
 end
