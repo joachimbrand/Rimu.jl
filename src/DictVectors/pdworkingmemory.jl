@@ -35,11 +35,6 @@ Base.eltype(::PDWorkingMemoryColumn{K,V}) where {K,V} = Pair{K,V}
 num_segments(c::PDWorkingMemoryColumn) = length(c.segments)
 segment_type(::Type{<:PDWorkingMemoryColumn{K,<:Any,W}}) where {K,W} = Dict{K,W}
 
-function Base.getindex(c::PDWorkingMemoryColumn, k)
-    # TODO: Remove once spring cleaning ii is merged.
-    return zero(valtype(c))
-end
-
 """
     PDWorkingMemory(t::PDVec)
 
