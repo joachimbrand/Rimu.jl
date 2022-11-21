@@ -65,37 +65,68 @@ end
 using Rimu.Hamiltonians: momentum_transfer_excitation
 
 @testset "momentum_transfer_excitation" begin
-    add1 = BoseFS((0,1,1,0))
-    add2 = BoseFS((1,0,0,1))
-    @test all(1:4) do i
-        ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=true)
-        ex[1] == add2
-        ex[2] == 1
+    @testset "BoseFS" begin
+        add1 = BoseFS((0,1,1,0))
+        add2 = BoseFS((1,0,0,1))
+        for i in 1:4
+            ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=true)
+            @test ex[1] == add2
+            @test ex[2] == 1
 
-        ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=false)
-        @test ex[1] == add2
-        @test ex[2] == 1
+            ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=false)
+            @test ex[1] == add2
+            @test ex[2] == 1
+        end
+
+        add3 = BoseFS((1,1,0,0))
+        for i in 1:4
+            ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=true)
+            @test ex[2] == 1
+
+            ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=false)
+            @test ex[2] == 0
+        end
+
+        add4 = BoseFS((0,3,0))
+        add5 = BoseFS((1,1,1))
+        for i in 1:2
+            ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=false)
+            @test ex[1] == add5
+            @test ex[2] ≈ √6
+
+            ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=true)
+            @test ex[1] == add5
+            @test ex[2] ≈ √6
+        end
     end
+    @testset "FermiFS" begin
+        add1 = FermiFS((0,0,1,0))
+        add2 = FermiFS((0,1,0,0))
+        occ1 = OccupiedModeMap(add1)
+        occ2 = OccupiedModeMap(add2)
+        for i in 1:3
+            ex = momentum_transfer_excitation(add1, add2, i, occ1, occ2; fold=true)
+            @test ex[3] == 1
 
-    add3 = BoseFS((1,1,0,0))
-    for i in 1:4
-        ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=true)
-        @test ex[2] == 1
+            ex = momentum_transfer_excitation(add1, add2, i, occ1, occ2; fold=false)
+            @test ex[3] == 1
+        end
 
-        ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=false)
-        @test ex[2] == 0
-    end
-
-    add4 = BoseFS((0,3,0))
-    add5 = BoseFS((1,1,1))
-    for i in 1:2
-        ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=false)
-        @test ex[1] == add5
-        @test ex[2] ≈ √6
-
-        ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=true)
-        @test ex[1] == add5
-        @test ex[2] ≈ √6
+        add3 = FermiFS((1,0,0,0))
+        add4 = FermiFS((0,1,0,0))
+        occ3 = OccupiedModeMap(add3)
+        occ4 = OccupiedModeMap(add4)
+        for i in 1:3
+            ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=true)
+            @test ex[3] == 1
+            @show ex[1],ex[2]
+        end
+        num_nonzero = 0
+        for i in 1:3
+            ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=false)
+            num_nonzero += ex[3] == 1
+        end
+        @test num_nonzero == 1
     end
 end
 
