@@ -21,11 +21,16 @@ StochasticStyle
 step_stats
 fciqmc_col!
 update_dvec!
+default_style
+```
+
+## Compression strategies
+
+```@docs
 CompressionStrategy
 NoCompression
 StochasticStyles.ThresholdCompression
 compress!
-default_style
 ```
 
 ## Spawning strategies and convenience functions

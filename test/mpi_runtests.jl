@@ -144,8 +144,8 @@ end
 
                         @test dot(v, H, w) ≈ dot(v, H, dw)
                         @test dot(w, H, v) ≈ dot(w, H, dv)
-                        G1 = G2Correlator(1)
-                        G3 = G2Correlator(3)
+                        G1 = G2MomCorrelator(1)
+                        G3 = G2MomCorrelator(3)
                         @test dot(v, G1, w) ≈ dot(v, G1, dw)
                         @test dot(w, G3, v) ≈ dot(w, G3, dv)
                         @test dot(w, G3, v) ≈ dot(dw, G3, v)
