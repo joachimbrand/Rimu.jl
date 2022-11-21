@@ -202,7 +202,7 @@ choice is
 ```julia
 v = DVec(starting_address(ham) => 10; style=IsStochasticInteger())
 ```
-and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
+and triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref), [`DVec`](@ref) and
 [`StochasticStyle`](@ref).
 
 # Keyword arguments, defaults, and precedence:
@@ -267,7 +267,7 @@ function lomc!(ham, v; df=DataFrame(), name="lomc!", kwargs...)
     return lomc!(state, df; name)
 end
 function lomc!(ham; style=IsStochasticInteger(), kwargs...)
-    v = DVec(starting_address(ham)=>10; style)
+    v = PDVec(starting_address(ham) => 10; style)
     return lomc!(ham, v; kwargs...)
 end
 # For continuation, you can pass a QMCState and a DataFrame

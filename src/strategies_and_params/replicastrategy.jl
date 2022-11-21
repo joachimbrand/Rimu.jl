@@ -148,7 +148,7 @@ function all_overlaps(
             push!(names, "c$(i)_dot_c$(j)")
             push!(values, dot(vecs[i], vecs[j]))
         end
-        if all(op -> LOStructure(op) == IsDiagonal(), operators)
+        if all(isdiag, operators)
             v = vecs[i]
         else
             v = DictVectors.copy_to_local!(wms[i], vecs[i])
