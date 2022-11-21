@@ -68,7 +68,7 @@ using Rimu.Hamiltonians: momentum_transfer_excitation
     add1 = BoseFS((0,1,1,0))
     add2 = BoseFS((1,0,0,1))
     @test all(1:4) do i
-        momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=true)
+        ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=true)
         ex[1] == add2
         ex[2] == 1
 
