@@ -26,9 +26,9 @@ using Rimu.StochasticStyles:
     @test StochasticStyle(Float32.(vec)) == IsDeterministic{Float32}()
 
     names, values = step_stats(vec, Val(2))
-    @test names == (:spawn_attempts, :spawns, :deaths, :clones, :zombies, :annihilations)
+    @test names == (:spawn_attempts, :spawns, :deaths, :clones, :zombies)
     @test length(values) == 2
-    @test values[1] == values[2] == Rimu.MultiScalar((0, 0, 0, 0, 0, 0))
+    @test values[1] == values[2] == Rimu.MultiScalar((0, 0, 0, 0, 0))
 
     w = [1.0, 2.0, 3.0]
 
@@ -40,51 +40,45 @@ end
 
 @testset "projected_deposit!" begin
     @testset "Integer" begin
-        for r in (true, false)
-            for _ in 1:20
-                dv = DVec(:a => 1)
-                @test projected_deposit!(dv, :a, 0.5, :a => 1, 0, r) isa Tuple{Int, Int}
-                @test dv[:a] == 1 || dv[:a] == 2
+        for _ in 1:20
+            dv = DVec(:a => 1)
+            @test projected_deposit!(dv, :a, 0.5, :a => 1, 0) isa Int
+            @test dv[:a] == 1 || dv[:a] == 2
 
-                @test projected_deposit!(dv, :b, -5.5, :a => 1, 0, r) isa Tuple{Int, Int}
-                @test dv[:b] == -5 || dv[:b] == -6
+            @test projected_deposit!(dv, :b, -5.5, :a => 1, 0) isa Int
+            @test dv[:b] == -5 || dv[:b] == -6
 
-                for i in 1:13
-                    @test projected_deposit!(dv, :c, 1, :a => 1, 0, r) isa Tuple{Int, Int}
-                end
-                @test dv[:c] == 13
+            for i in 1:13
+                @test projected_deposit!(dv, :c, 1, :a => 1, 0) isa Int
             end
+            @test dv[:c] == 13
         end
     end
 
     @testset "Exact" begin
-        for r in (true, false)
-            for _ in 1:20
-                dv = DVec(:a => 1.0)
-                projected_deposit!(dv, :a, -1, :a => 1.0, 0, r)
-                @test isempty(dv)
+        for _ in 1:20
+            dv = DVec(:a => 1.0)
+            @test projected_deposit!(dv, :a, -1, :a => 1.0, 0) isa Float64
+            @test isempty(dv)
 
-                projected_deposit!(dv, :a, 1e-9, :a => 1.0, 0, r)
-                projected_deposit!(dv, :b, -1 - 1e-9, :a => 1.0, 0, r)
-                @test dv[:a] == 1e-9
-                @test dv[:b] == -1 - 1e-9
-            end
+            @test projected_deposit!(dv, :a, 1e-9, :a => 1.0, 0) isa Float64
+            @test projected_deposit!(dv, :b, -1 - 1e-9, :a => 1.0, 0) isa Float64
+            @test dv[:a] == 1e-9
+            @test dv[:b] == -1 - 1e-9
         end
     end
 
     @testset "Projected" begin
-        for r in (true, false)
-            for _ in 1:20
-                dv = DVec(:a => 1.0)
-                projected_deposit!(dv, :a, 0.5, :a => 1.0, 1.0, r)
-                projected_deposit!(dv, :b, -0.5, :a => 1.0, 1.0, r)
-                projected_deposit!(dv, :c, 1.1, :a => 1.0, 1.0, r)
-                projected_deposit!(dv, :d, 0.1, :a => 1.0, 0.685, r)
-                @test dv[:a] == 1.0 || dv[:a] == 2.0
-                @test dv[:b] == 0.0 || dv[:b] == -1.0
-                @test dv[:c] == 1.1
-                @test dv[:d] == 0.685 || dv[:d] == 0
-            end
+        for _ in 1:20
+            dv = DVec(:a => 1.0)
+            @test projected_deposit!(dv, :a, 0.5, :a => 1.0, 1.0) isa Float64
+            @test projected_deposit!(dv, :b, -0.5, :a => 1.0, 1.0) isa Float64
+            @test projected_deposit!(dv, :c, 1.1, :a => 1.0, 1.0) isa Float64
+            @test projected_deposit!(dv, :d, 0.1, :a => 1.0, 0.685) isa Float64
+            @test dv[:a] == 1.0 || dv[:a] == 2.0
+            @test dv[:b] == 0.0 || dv[:b] == -1.0
+            @test dv[:c] == 1.1
+            @test dv[:d] == 0.685 || dv[:d] == 0
         end
     end
 end
@@ -95,29 +89,27 @@ end
     @testset "Integer" begin
         # nothing happens - one annihilation
         dv = DVec(add => -1)
-        @test diagonal_step!(dv, H, add, 1, 1e-5, 0, 0, true) == (0, 0, 0, 1)
-        dv = DVec(add => -1)
-        @test diagonal_step!(dv, H, add, 1, 1e-5, 0, 0, false) == (0, 0, 0, 0)
+        @test diagonal_step!(dv, H, add, 1, 1e-5, 0, 0) == (0, 0, 0)
         @test dv[add] == 0
 
         # clones
         for _ in 1:20
             dv = DVec(add => 0)
-            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 0, true)
+            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 0)
             @test st[1] == 4 || st[1] == 5
             @test dv[BoseFS((2,0,1))] == 5 || dv[BoseFS((2,0,1))] == 6
         end
         # deaths
         for _ in 1:20
             dv = DVec(add => 0)
-            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 0, true)
+            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 0)
             @test st[2] == 0 || st[2] == 1
             @test dv[BoseFS((2,0,1))] == 0 || dv[BoseFS((2,0,1))] == 1
         end
         # zombies
         for _ in 1:20
             dv = DVec(add => 0)
-            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 0, true)
+            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 0)
             @test st[2] == 1
             @test st[3] == 4 || st[3] == 5
             @test dv[BoseFS((2,0,1))] == -4 || dv[BoseFS((2,0,1))] == -5
@@ -126,21 +118,21 @@ end
     @testset "Exact" begin
         # nothing happens - one annihilation
         dv = DVec(add => -1.0)
-        @test diagonal_step!(dv, H, add, 1, 1e-5, 0, 0, true) == (0, 0, 0, 1)
+        @test diagonal_step!(dv, H, add, 1, 1e-5, 0, 0) == (0, 0, 0)
         @test dv[add] == 0
         # clones
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 0, true)
+        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 0)
         @test st[1] == 4.5
         @test dv[BoseFS((2,0,1))] == 5.5
         # deaths
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 0, true)
+        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 0)
         @test st[2] == 0.75
         @test dv[BoseFS((2,0,1))] == 0.25
         # zombies
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 0, true)
+        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 0)
         @test st[2] == 1
         @test st[3] == 4.5
         @test dv[BoseFS((2,0,1))] == -4.5
@@ -149,26 +141,26 @@ end
         # nothing happens - but may be projected anyway
         for _ in 1:20
             dv = DVec(add => 0.0)
-            st = diagonal_step!(dv, H, add, 1, 1e-5, 0, 1.5, true)
+            st = diagonal_step!(dv, H, add, 1, 1e-5, 0, 1.5)
             @test st[2] == 1.0 || st[2] == 0.5
             @test dv[add] == 0.0 || dv[add] == 1.5
         end
 
         # clones
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 1, true)
+        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 1)
         @test st[1] == 4.5
         @test dv[BoseFS((2,0,1))] == 5.5
         # deaths
         for _ in 1:20
             dv = DVec(add => 0.0)
-            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 1, true)
+            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 1)
             @test st[2] == 0.0 || st[2] == 1.0
             @test dv[BoseFS((2,0,1))] == 0.0 || dv[BoseFS((2,0,1))] == 1.0
         end
         # zombies
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 1, true)
+        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 1)
         @test st[2] == 1
         @test st[3] == 4.5
         @test dv[BoseFS((2,0,1))] == -4.5
@@ -237,10 +229,6 @@ end
     for compression in (
         StochasticStyles.ThresholdCompression(),
         StochasticStyles.ThresholdCompression(2),
-        StochasticStyles.DoubleOrNothing(),
-        StochasticStyles.DoubleOrNothing(prob=0.1),
-        StochasticStyles.DoubleOrNothingWithThreshold(),
-        StochasticStyles.DoubleOrNothingWithTarget(target=500),
     )
         target = similar(dv)
         for _ in 1:1000
