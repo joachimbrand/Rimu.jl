@@ -30,6 +30,7 @@ jobs:
         # exclude:
         #   - os: macOS-latest
         #     julia-arch: x86
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v2

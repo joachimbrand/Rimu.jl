@@ -14,6 +14,7 @@ jobs:
       matrix:
         julia-version: [1, 'nightly']
         julia-arch: [x64]
+      fail-fast: false
 
     steps:
       - uses: actions/checkout@v2
