@@ -514,10 +514,6 @@ function Base.Matrix(h::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
-# common methods
-starting_address(s::TransformUndoer) = starting_address(s.transform)
-dimension(::Type{T}, s::TransformUndoer) where {T} = dimension(T, s.transform)
-
 function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
     # calculate the matrix element when only two bitstring addresses are given
     # this is NOT used for the QMC algorithm and is currenlty not used either
@@ -587,3 +583,7 @@ function TransformUndoer(k::AbstractHamiltonian, op)
     throw(ArgumentError("Unsupported transformation: $k"))
 end
 TransformUndoer(k::AbstractHamiltonian) = TransformUndoer(k::AbstractHamiltonian, nothing)
+
+# common methods
+starting_address(s::TransformUndoer) = starting_address(s.transform)
+dimension(::Type{T}, s::TransformUndoer) where {T} = dimension(T, s.transform)
