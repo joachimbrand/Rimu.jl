@@ -67,7 +67,13 @@ See [`excitation`](@ref), [`OccupiedModeMap`](@ref).
     if fold
         dst_modes = mod1.(dst_modes, M)
     elseif !all(1 .≤ dst_modes .≤ M)
-        return add, 0.0, src_modes..., -mom_change
+        # Using a positive momentum change would have folded, so we try to use its negative
+        # equivalent.
+        mom_change = mom_change - M
+        dst_modes = src_modes .+ (mom_change, -mom_change)
+        if !all(1 .≤ dst_modes .≤ M)
+            return add, 0.0, src_modes..., -mom_change
+        end
     end
     dst_indices = find_mode(add, dst_modes)
     return excitation(add, dst_indices, src_indices)..., src_modes..., -mom_change
