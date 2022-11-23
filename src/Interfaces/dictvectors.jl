@@ -123,6 +123,7 @@ function fciqmc_step!(working_memory, target, source, ham, shift, dτ)
     for (add, val) in pairs(v)
         stats += fciqmc_col!(working_memory, ham, add, val, shift, dτ)
     end
+
     # Now, working_memory holds the new values - they need to be moved into the target.
     target, working_memory, stats = sort_into_targets!(target, working_memory, stats)
 
