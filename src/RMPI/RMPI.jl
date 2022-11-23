@@ -13,7 +13,7 @@ using LinearAlgebra
 using Random
 using StaticArrays
 
-import Rimu: sort_into_targets!
+import ..Interfaces: sort_into_targets!
 
 export MPIData
 export mpi_rank, is_mpi_root, @mpi_root, mpi_barrier

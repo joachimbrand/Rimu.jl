@@ -34,13 +34,6 @@ Base.ndims(::AbstractDVec) = 1
 ###
 ### copy*, zero*
 ###
-"""
-    zero!(v)
-
-Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types it means
-removing all non-zero elements. For `AbstractArrays`, it sets all of the values to zero.
-"""
-zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
 zero!(v::AbstractDVec) = empty!(v)
 
 Base.zero(dv::AbstractDVec) = empty(dv)
