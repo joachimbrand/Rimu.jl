@@ -19,7 +19,7 @@ function fciqmc_step!(working_memory, curr_dv, prev_dv, ham, shift, dτ)
     @assert working_memory ≢ v "`w` and `v` must not be the same object"
     zero!(working_memory)
 
-    stat_names, stats = step_stats(v, Val(1))
+    stat_names, stats = step_stats(v)
     for (add, val) in pairs(v)
         stats += fciqmc_col!(working_memory, ham, add, val, shift, dτ)
     end
