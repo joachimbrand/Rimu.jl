@@ -2,6 +2,16 @@ using Rimu
 using Rimu.Interfaces: fciqmc_step!
 using Test
 
+"""
+    fciqmc_step_wrap!(r::ReplicaState)
+
+Returning the vectors is tracked as an allocation. This wrapper takes care of that.
+"""
+function fciqmc_step_wrap!(r)
+    fciqmc_step!(r.w, r.v, r.pv, r.hamiltonian, r.shift, r.dτ)
+    return nothing
+end
+
 @testset "Allocations" begin
     # The purpose of these tests is to find type instabilities that might appear as the
     # Julia compiler changes. If allocations suddenly increase by a lot, there is a good
@@ -96,12 +106,13 @@ using Test
                     p = r.params
 
                     # Warmup for step!
-                    fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
-                    fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
-                    fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
-                    fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
+                    fciqmc_step_wrap!(r)
+                    fciqmc_step_wrap!(r)
+                    fciqmc_step_wrap!(r)
+                    fciqmc_step_wrap!(r)
+                    fciqmc_step_wrap!(r)
 
-                    allocs_step = @allocated fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
+                    allocs_step = @allocated fciqmc_step_wrap!(r)
                     @test allocs_step ≤ 512
 
                     dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
