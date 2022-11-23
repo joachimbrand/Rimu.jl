@@ -109,5 +109,5 @@ println("Energy from $steps_measure steps with $targetwalkers walkers:
 
 using Test                                      #hide
 @test isfile("fciqmcdata.arrow")                #hide
-@test se.mean ≈ -3.9 rtol=0.01                  #hide
+@test se.mean ≈ -4.0215 rtol=0.1                #hide
 rm("fciqmcdata.arrow", force=true)              #hide
