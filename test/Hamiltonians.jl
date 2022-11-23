@@ -119,7 +119,6 @@ using Rimu.Hamiltonians: momentum_transfer_excitation
         for i in 1:3
             ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=true)
             @test ex[3] == 1
-            @show ex[1],ex[2]
         end
         num_nonzero = 0
         for i in 1:3
@@ -703,8 +702,8 @@ end
     sm, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
     # run lomc! in deterministic mode with Matrix and Vector
-    a = lomc!(sm, ones(dim); threading=true).df # no actual threading is done, though
-    b = lomc!(sm, ones(dim); threading=false).df
+    a = lomc!(sm, ones(dim)).df
+    b = lomc!(sm, ones(dim)).df
     @test a.shift ≈ b.shift
     # run lomc! in deterministic mode with Hamiltonian and DVec
     v = DVec(k=>1.0 for k in basis; style=IsDeterministic()) # corresponds to `ones(dim)`

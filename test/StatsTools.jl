@@ -227,11 +227,11 @@ end
     @test @suppress ge.ratio ≈ growth_estimator(df, h; E_r, skip=steps_equi, weights=w_lin).ratio
     # test growth_estimator_analysis
     df_ge, correlation_estimate, se, se_l, se_u = @suppress begin
-        growth_estimator_analysis(df; skip=steps_equi, threading=true)
+        growth_estimator_analysis(df; skip=steps_equi)
     end
     @test correlation_estimate == h
     @test se ≈ bs.mean
-    df_nt = @suppress growth_estimator_analysis(df; skip=steps_equi, threading=false).df_ge
+    df_nt = @suppress growth_estimator_analysis(df; skip=steps_equi).df_ge
     @test all(abs.(df_nt.val .- df_ge.val) .< df_nt.val_l)
     # projected energy
     bp = @suppress projected_energy(df; skip=steps_equi)
@@ -244,11 +244,11 @@ end
         val(mixed_estimator(df, 0; skip=steps_equi)) rtol=0.1
     # test mixed_estimator_analysis
     df_me, correlation_estimate, se, se_l, se_u = @suppress begin
-        mixed_estimator_analysis(df; skip=steps_equi, threading=true)
+        mixed_estimator_analysis(df; skip=steps_equi)
     end
     @test correlation_estimate == h
     @test se ≈ bs.mean
-    df_met = @suppress mixed_estimator_analysis(df; skip=steps_equi, threading=false).df_me
+    df_met = @suppress mixed_estimator_analysis(df; skip=steps_equi).df_me
     @test all(abs.(df_met.val .- df_me.val) .< df_met.val_l)
 end
 
@@ -276,16 +276,11 @@ end
         g2_h0 = val_and_errs(r).val
         # with reweighting
         df_rre, _ = @suppress rayleigh_replica_estimator_analysis(
-            df; op_name = "Op$(d+1)", skip = skipsteps, threading = false
+            df; op_name = "Op$(d+1)", skip = skipsteps
         )
         g2_rw = df_rre[end,:val]
         # reweighting improves the estimate
         @test abs(g2_h0 - best_g2[d+1]) > abs(g2_rw - best_g2[d+1])
-        # compare threading
-        df_rre_t, _ = @suppress rayleigh_replica_estimator_analysis(
-            df; op_name = "Op$(d+1)", skip = skipsteps, threading = true
-        )
-        @test all(abs.(df_rre_t.val .- df_rre.val) .< df_rre_t.val_l)
     end
 end
 
@@ -315,7 +310,7 @@ using Rimu.StatsTools: replica_fidelity
     s_strat = DoubleLogUpdate(targetwalkers=10)
 
     # run replica fciqmc
-    Random.seed!(17)
+    Random.seed!(170)
     rr = lomc!(ham, v; params=p, s_strat, post_step, replica=AllOverlaps()).df
 
     # check fidelity with ground state

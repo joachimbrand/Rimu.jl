@@ -281,11 +281,11 @@ end
 
             dv_1 = MPIData(copy(dv); kwargs...)
             mpi_seed!(17)
-            df_1 = lomc!(H, dv_1; threading=false).df
+            df_1 = lomc!(H, dv_1).df
 
             dv_2 = MPIData(copy(dv); kwargs...)
             mpi_seed!(17)
-            df_2 = lomc!(H, dv_2; threading=false).df
+            df_2 = lomc!(H, dv_2).df
 
             @test df_1 == df_2
         end

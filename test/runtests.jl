@@ -113,21 +113,6 @@ end
     end
 end
 
-@testset "IsDeterministic with Vector" begin
-    ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
-    dim = dimension(ham)
-    sm, basis = Rimu.Hamiltonians.build_sparse_matrix_from_LO(ham, starting_address(ham))
-    @test dim == length(basis)
-    # run lomc! in deterministic mode with Matrix and Vector
-    a = lomc!(sm, ones(dim); threading=true).df # no actual threading is done, though
-    b = lomc!(sm, ones(dim); threading=false).df
-    @test a.shift ≈ b.shift
-    # run lomc! in deterministic mode with Hamiltonian and DVec
-    v = DVec(k=>1.0 for k in basis) # corresponds to `ones(dim)`
-    c = lomc!(ham, v).df
-    @test a.shift ≈ c.shift
-end
-
 @testset "helpers" begin
     @testset "walkernumber" begin
         v = [1,2,3]
@@ -144,13 +129,19 @@ end
     end
     @testset "MultiScalar" begin
         a = Rimu.MultiScalar(1, 1.0, SVector(1))
+        @test a[1] ≡ 1
+        @test a[2] ≡ 1.0
+        @test a[3] ≡ SVector(1)
+        @test length(a) == 3
+        @test collect(a) == [1, 1.0, SVector(1)]
         b = Rimu.MultiScalar(SVector(2, 3.0, SVector(4)))
-        c = Rimu.MultiScalar((3, 4.0, SVector(5)))
-        @test a + b == c
+        for op in (+, min, max)
+            c = op(a, b)
+            @test op(a[1], b[1]) == c[1]
+            @test op(a[2], b[2]) == c[2]
+            @test op(a[2], b[2]) == c[2]
+        end
         @test_throws MethodError a + Rimu.MultiScalar(1, 1, 1)
-
-        @test Rimu.combine_stats(a) == a
-        @test Rimu.combine_stats([a, b]) == c
     end
 end
 

@@ -80,7 +80,6 @@ df, state = lomc!(Ĥ,svec;
             r_strat,
             τ_strat,
             post_step,
-            threading = false, # only for reproducible runs
 );
 
 # Here is how to save the output data stored in `df` into a `.arrow` file,

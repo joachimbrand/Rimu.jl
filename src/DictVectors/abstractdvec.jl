@@ -146,15 +146,6 @@ function LinearAlgebra.dot(x::AbstractDVec, y::AbstractDVec)
 end
 # For MPI version see mpi_helpers.jl
 
-# threaded dot()
-function LinearAlgebra.dot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T2}}) where {N, K, T1, T2}
-    results = zeros(promote_type(T1,T2), N)
-    Threads.@threads for i in 1:N
-        results[i] = x⋅ys[i]
-    end
-    return sum(results)
-end
-
 Base.isequal(x::AbstractDVec{K1}, y::AbstractDVec{K2}) where {K1,K2} = false
 function Base.isequal(x::AbstractDVec{K}, y::AbstractDVec{K}) where {K}
     x === y && return true

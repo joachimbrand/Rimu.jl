@@ -18,8 +18,10 @@ See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
 [`lomc!`](@ref).
 """
 mutable struct ReplicaState{H,T,V,W,R<:FciqmcRunStrategy{T}}
+    # Future TODO: rename these fields, add interface for accessing them.
     hamiltonian::H
     v::V       # vector
+    pv::V      # previous vector.
     w::W       # working memory. Maybe working memories could be shared among replicas?
     pnorm::T   # previous walker number - used to control the shift
     params::R  # params: step, laststep, dτ...
@@ -30,7 +32,9 @@ function ReplicaState(h, v, w, params, id="")
     if isnothing(w)
         w = similar(v)
     end
-    return ReplicaState(h, v, w, walkernumber(v), params, id)
+    pv = similar(v)
+    zero!(localpart(pv))
+    return ReplicaState(h, v, pv, w, walkernumber(v), params, id)
 end
 
 function Base.show(io::IO, r::ReplicaState)
@@ -56,7 +60,6 @@ struct QMCState{
     RS<:ReportingStrategy,
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
-    TH<:ThreadingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
 }
@@ -68,7 +71,6 @@ struct QMCState{
     r_strat::RS
     s_strat::SS
     τ_strat::TS
-    threading::TH
     post_step::PS
     replica::RRS
 end
@@ -101,7 +103,7 @@ function QMCState(
     s_strat::ShiftStrategy=DoubleLogUpdate(),
     r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
-    threading=:auto,
+    threading=nothing,
     m_strat::MemoryStrategy=NoMemory(),
     replica::ReplicaStrategy=NoStats(),
     post_step=(),
@@ -116,9 +118,10 @@ function QMCState(
         params.dτ = dτ
     end
 
-    # Set up threading
-    threading = select_threading_strategy(threading, _n_walkers(v, s_strat))
-    wm = isnothing(wm) ? working_memory(threading, v) : wm
+    if threading ≠ nothing
+        @warn "Threading has been removed. Ignoring `threading=$threading`."
+    end
+    wm = isnothing(wm) ? working_memory(v) : wm
 
     # Set up post_step
     if !(post_step isa Tuple)
@@ -137,7 +140,7 @@ function QMCState(
 
     return QMCState(
         hamiltonian, replicas, Ref(Int(maxlength)),
-        m_strat, r_strat, s_strat, τ_strat, threading, post_step, replica
+        m_strat, r_strat, s_strat, τ_strat, post_step, replica
     )
 end
 
@@ -223,11 +226,6 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
   [`TimeStepStrategy`](@ref)
 * `m_strat::MemoryStrategy = NoMemory()` - experimental: inject memory noise, see
   [`MemoryStrategy`](@ref)
-* `threading = :auto` - can be used to control the use of multithreading (overridden by
-  `wm`)
-  * `:auto` - use multithreading if `s_strat.targetwalkers ≥ 500`
-  * `true` - use multithreading if available (set shell variable `JULIA_NUM_THREADS`!)
-  * `false` - run on single thread
 * `wm` - working memory; if set, it controls the use of multithreading and overrides
   `threading`; is mutated
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
@@ -333,20 +331,18 @@ involved. Steps, stats, and computed quantities are written to the `report`.
 Returns `true` if the step was successful and calculation should proceed, `false` when
 it should terminate.
 """
-function advance!(
-    report, state::QMCState, replica::ReplicaState{T}
-) where {T}
-    @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat, threading = state
-    @unpack v, w, pnorm, params, id = replica
+function advance!(report, state::QMCState, replica::ReplicaState)
+
+    @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat = state
+    @unpack v, pv, w, pnorm, params, id = replica
     @unpack step, shiftMode, shift, dτ = params
     step += 1
 
     # Step
-    step_stat_names, raw_step_stats = fciqmc_step!(
-        threading, w, hamiltonian, v, shift, dτ
+    step_stat_names, step_stat_values, w, v, pv = fciqmc_step!(
+        w, v, pv, hamiltonian, shift, dτ
     )
-    shift_noise = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat)
-    v, w, step_stat_values = sort_into_targets!(v, w, raw_step_stats)
+    shift_noise = apply_memory_noise!(v, pv, shift, dτ, pnorm, m_strat)
     v, update_dvec_stats = update_dvec!(v)
 
     # Stats
@@ -355,12 +351,12 @@ function advance!(
 
     # Updates
     shift, shiftMode, pnorm, proceed = update_shift(
-        s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
+        s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, pv
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
 
     @pack! params = step, shiftMode, shift, dτ
-    @pack! replica = v, w, pnorm, params
+    @pack! replica = v, pv, w, pnorm, params
 
     if step % reporting_interval(state.r_strat) == 0
         # Note: post_step must be called after packing the values.

@@ -59,6 +59,10 @@ function Base.show(io::IO, md::MPIData)
     end
 end
 
+function Base.similar(md::MPIData)
+    return MPIData(similar(md.data), md.comm, md.root, md.s)
+end
+
 ###
 ### Iterators
 ###
@@ -340,6 +344,6 @@ function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, ::Val{B}) 
         get_overlaps_nondiagonal!(names, values, operators, vecs, Val(B))
     end
 
-    num_reports = (N * (N - 1) ÷ 2) * (B + length(operators)) 
+    num_reports = (N * (N - 1) ÷ 2) * (B + length(operators))
     return Tuple(SVector{num_reports,String}(names)), Tuple(SVector{num_reports,T}(values))
 end

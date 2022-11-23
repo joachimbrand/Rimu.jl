@@ -8,10 +8,8 @@ using OrderedCollections # for LittleDict
 using Parameters
 using Reexport
 using Setfield
-using SplittablesBase
 using StaticArrays
 using StatsBase
-using ThreadsX
 using ProgressLogging
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger

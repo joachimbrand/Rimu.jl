@@ -304,13 +304,11 @@ end
 ###
 ### Iterators
 ###
-# These are needed because `Iterators.map` does not infer `eltype` correctly and does not work
-# with SplittablesBase.jl.
+# These are needed because `Iterators.map` does not infer `eltype` correctly.
 """
     InitiatorIterator
 
-Iterator over pairs or values of an `InitiatorDVec`. Supports the `SplittablesBase`
-interface.
+Iterator over pairs or values of an `InitiatorDVec`.
 """
 struct InitiatorIterator{T,D,I}
     iter::D
@@ -318,11 +316,6 @@ struct InitiatorIterator{T,D,I}
 
     InitiatorIterator{T}(iter::D, initiator::I) where {T,D,I} = new{T,D,I}(iter, initiator)
 end
-function SplittablesBase.halve(p::InitiatorIterator{T}) where {T}
-    left, right = SplittablesBase.halve(p.iter)
-    return InitiatorIterator{T}(left, p.initiator), InitiatorIterator{T}(right, p.initiator)
-end
-SplittablesBase.amount(p::InitiatorIterator) = SplittablesBase.amount(p.iter)
 
 Base.length(p::InitiatorIterator) = length(p.iter)
 Base.IteratorSize(::InitiatorIterator) = Base.HasLength()
