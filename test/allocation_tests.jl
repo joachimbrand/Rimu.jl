@@ -1,5 +1,5 @@
 using Rimu
-using Rimu: fciqmc_step!
+using Rimu.Interfaces: fciqmc_step!
 using Test
 
 @testset "Allocations" begin
@@ -96,12 +96,12 @@ using Test
                     p = r.params
 
                     # Warmup for step!
-                    fciqmc_step!(r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(r.w, H, r.v, p.shift, dτ)
+                    fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
+                    fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
+                    fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
+                    fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
 
-                    allocs_step = @allocated fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
+                    allocs_step = @allocated fciqmc_step!(r.w, r.v, r.pv, H, p.shift, dτ)
                     @test allocs_step ≤ 512
 
                     dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
