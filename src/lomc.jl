@@ -340,9 +340,11 @@ function advance!(report, state::QMCState, replica::ReplicaState)
     step += 1
 
     # Step
-    step_stat_names, step_stat_values, wm, v, pv = fciqmc_step!(
+    step_stat_names, step_stat_values, wm, pv = fciqmc_step!(
         wm, pv, v, hamiltonian, shift, dτ
     )
+    # pv was mutated and now contains the new vector.
+    v, pv = (pv, v)
     shift_noise = apply_memory_noise!(v, pv, shift, dτ, pnorm, m_strat)
     v, update_dvec_stats = update_dvec!(v)
 

@@ -21,7 +21,7 @@ freeze
 localpart
 fciqmc_step!
 sort_into_targets!
-working_memory!
+working_memory
 ```
 
 ## Supported operations
