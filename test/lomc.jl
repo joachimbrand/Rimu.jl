@@ -21,7 +21,7 @@ using Logging
         v = copy(dv)
         wm = copy(dv)
         df, state = lomc!(H, v; wm, laststep=9)
-        @test state.replicas[1].w === wm # after number of steps divisible by 3
+        @test state.replicas[1].wm === wm # after number of steps divisible by 3
         @test state.replicas[1].v === v
         @test state.replicas[1].pv !== v && state.replicas[1].pv !== wm
 

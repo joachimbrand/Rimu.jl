@@ -1,5 +1,5 @@
 """
-    ReplicaState(v, w, pnorm, params, id)
+    ReplicaState(v, wm, pnorm, params, id)
 
 Struct that holds all information needed for an independent run of the algorithm.
 
@@ -9,10 +9,11 @@ Can be advanced a step forward with [`advance!`](@ref).
 
 * `hamiltonian`: the model Hamiltonian.
 * `v`: vector.
-* `w`: working memory.
+* `pv`: vector from the previous step.
+* `wm`: working memory.
 * `pnorm`: previous walker number (see [`walkernumber`](@ref)).
 * `params`: the [`FciqmcRunStrategy`](@ref).
-* `id`: appended to reported columns.
+* `id`: string ID appended to reported column names.
 
 See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
 [`lomc!`](@ref).
@@ -22,26 +23,26 @@ mutable struct ReplicaState{H,T,V,W,R<:FciqmcRunStrategy{T}}
     hamiltonian::H
     v::V       # vector
     pv::V      # previous vector.
-    w::W       # working memory. Maybe working memories could be shared among replicas?
+    wm::W      # working memory. Maybe working memories could be shared among replicas?
     pnorm::T   # previous walker number - used to control the shift
     params::R  # params: step, laststep, dτ...
     id::String # id is appended to column names
 end
 
-function ReplicaState(h, v, w, params, id="")
-    if isnothing(w)
-        w = similar(v)
+function ReplicaState(h, v, wm, params, id="")
+    if isnothing(wm)
+        wm = similar(v)
     end
     pv = similar(v)
     zero!(localpart(pv))
-    return ReplicaState(h, v, pv, w, walkernumber(v), params, id)
+    return ReplicaState(h, v, pv, wm, walkernumber(v), params, id)
 end
 
 function Base.show(io::IO, r::ReplicaState)
     print(
         io,
         "ReplicaState(v: ", length(r.v), "-element ", nameof(typeof(r.v)),
-        ", w: ", length(r.w), "-element ", nameof(typeof(r.w)), ")"
+        ", wm: ", length(r.wm), "-element ", nameof(typeof(r.wm)), ")"
     )
 end
 
@@ -334,13 +335,13 @@ it should terminate.
 function advance!(report, state::QMCState, replica::ReplicaState)
 
     @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat = state
-    @unpack v, pv, w, pnorm, params, id = replica
+    @unpack v, pv, wm, pnorm, params, id = replica
     @unpack step, shiftMode, shift, dτ = params
     step += 1
 
     # Step
-    step_stat_names, step_stat_values, w, v, pv = fciqmc_step!(
-        w, v, pv, hamiltonian, shift, dτ
+    step_stat_names, step_stat_values, wm, v, pv = fciqmc_step!(
+        wm, pv, v, hamiltonian, shift, dτ
     )
     shift_noise = apply_memory_noise!(v, pv, shift, dτ, pnorm, m_strat)
     v, update_dvec_stats = update_dvec!(v)
@@ -356,7 +357,7 @@ function advance!(report, state::QMCState, replica::ReplicaState)
     dτ = update_dτ(τ_strat, dτ, tnorm)
 
     @pack! params = step, shiftMode, shift, dτ
-    @pack! replica = v, pv, w, pnorm, params
+    @pack! replica = v, pv, wm, pnorm, params
 
     if step % reporting_interval(state.r_strat) == 0
         # Note: post_step must be called after packing the values.
