@@ -101,8 +101,8 @@ Perform a single matrix(/operator)-vector multiplication:
 v^{(n + 1)} = [1 - dτ(\\hat{H} - S)]⋅v^{(n)} ,
 ```
 
-where ``Ĥ`` is the `hamiltonian`, ``S`` is the `shift`, v^{(n+1)} is the `target` and
-v^{(n)} is the `source`.
+where ``Ĥ`` is the `hamiltonian`, ``S`` is the `shift`, ``v^{(n+1)}`` is the `target` and
+``v^{(n)}`` is the `source`.
 
 Whether the operation is performed in stochastic, semistochastic, or determistic way is
 controlled by the trait `StochasticStyle(w)`. See [`StochasticStyle`](@ref).
