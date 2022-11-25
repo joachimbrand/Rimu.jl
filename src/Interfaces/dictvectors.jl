@@ -23,10 +23,11 @@ To iterate over an `AbstractDVec`, use `keys`, `pairs`, or `values`.
 
 # Interface
 
-The interface is similar to the `AbstractDict` interface, but with the changed behaviour
-as noted above.
-Implement what would be needed for the `AbstractDict` interface (`pairs`, `keys`, `values`,
-`setindex!, getindex, delete!, length, haskey, empty!, isempty`) and, in addition:
+The interface is similar to the `AbstractDict` interface, but with the changed behaviour as
+noted above.  Implement what would be needed for the `AbstractDict` interface (`pairs`,
+`keys`, `values`, `setindex!`, `getindex`, `delete!`, `length`, `haskey`, `empty!`,
+`isempty`) and, in addition:
+
 * [`StochasticStyle`](@ref)
 * [`storage`](@ref) returns an `AbstractDict` storing the raw data with possibly
   different `valtype` than `V`.
@@ -129,10 +130,11 @@ function fciqmc_step!(working_memory, target, source, ham, shift, dτ)
 end
 
 """
-    sort_into_targets!(target, source, stats) -> agg, wm, agg_stats
+    sort_into_targets!(target, source, stats) -> target, source, agg_stats
 
-Aggregate coefficients from `source` to `agg` and from `stats` to `agg_stats`
-according to thread- or MPI-level parallelism. `wm` passes back a reference to
-working memory.
+Aggregate coefficients from `source` to `target` and from `stats` to `agg_stats`
+according to thread- or MPI-level parallelism.
+
+Returns the new `target` and `source`, as the sorting process may involve swapping them.
 """
 sort_into_targets!(dv::T, wm::T, stats) where {T} = wm, dv, stats
