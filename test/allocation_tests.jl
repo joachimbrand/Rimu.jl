@@ -8,7 +8,7 @@ using Test
 Returning the vectors is tracked as an allocation. This wrapper takes care of that.
 """
 function fciqmc_step_wrap!(r)
-    fciqmc_step!(r.w, r.pv, r.v, r.hamiltonian, r.params.shift, r.params.dτ)
+    fciqmc_step!(r.wm, r.pv, r.v, r.hamiltonian, r.params.shift, r.params.dτ)
     return nothing
 end
 
