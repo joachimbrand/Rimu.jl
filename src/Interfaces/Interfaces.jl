@@ -22,12 +22,16 @@ Follow the links for the definitions of the interfaces!
 
 ## working with  [`AbstractDVec`](@ref)s and [`StochasticStyle`](@ref)
 * [`deposit!`](@ref)
+* [`zero!`](@ref)
 * [`default_style`](@ref)
 * [`CompressionStrategy`](@ref)
 
 ## Functions Rimu.jl uses to do FCIQMC:
 
 * [`fciqmc_col!`](@ref)
+* [`fciqmc_step!`](@ref)
+* [`sort_into_targets!`](@ref)
+* [`working_memory`](@ref)
 * [`step_stats`](@ref)
 * [`update_dvec!`](@ref)
 """
