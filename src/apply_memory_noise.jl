@@ -12,20 +12,8 @@ error exception is thrown. See [`MemoryStrategy`](@ref).
 `w` is the walker array after fciqmc step, `v` the previous one, `pnorm` the
 norm of `v`, and `r` the instantaneously applied noise.
 """
-function apply_memory_noise!(w::Union{AbstractArray{T},AbstractDVec{K,T}},
-         v, shift, dτ, pnorm, m
-    ) where  {K,T<:Real}
+function apply_memory_noise!(w, v, shift, dτ, pnorm, m)
     apply_memory_noise!(StochasticStyle(w), w, v, real(shift), dτ, real(pnorm), m)
-end
-# only use real part of the shift and norm if the coefficients are real
-
-# otherwise, pass on complex shift in generic method
-function apply_memory_noise!(w::Union{AbstractArray,AbstractDVec}, args...)
-    apply_memory_noise!(StochasticStyle(w), w, args...)
-end
-
-function apply_memory_noise!(ws::NTuple, args...)
-    apply_memory_noise!(StochasticStyle(first(ws)), ws, args...)
 end
 
 function apply_memory_noise!(s::StochasticStyle, w, v, shift, dτ, pnorm, m::NoMemory)

@@ -34,13 +34,6 @@ Base.ndims(::AbstractDVec) = 1
 ###
 ### copy*, zero*
 ###
-"""
-    zero!(v)
-
-Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types it means
-removing all non-zero elements. For `AbstractArrays`, it sets all of the values to zero.
-"""
-zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
 zero!(v::AbstractDVec) = empty!(v)
 
 Base.zero(dv::AbstractDVec) = empty(dv)
@@ -145,15 +138,6 @@ function LinearAlgebra.dot(x::AbstractDVec, y::AbstractDVec)
     return result # the type is promote_type(T1,T2) - could be complex!
 end
 # For MPI version see mpi_helpers.jl
-
-# threaded dot()
-function LinearAlgebra.dot(x::AbstractDVec{K,T1}, ys::NTuple{N, AbstractDVec{K,T2}}) where {N, K, T1, T2}
-    results = zeros(promote_type(T1,T2), N)
-    Threads.@threads for i in 1:N
-        results[i] = x⋅ys[i]
-    end
-    return sum(results)
-end
 
 Base.isequal(x::AbstractDVec{K1}, y::AbstractDVec{K2}) where {K1,K2} = false
 function Base.isequal(x::AbstractDVec{K}, y::AbstractDVec{K}) where {K}

@@ -3,7 +3,7 @@
 
 Abstract type. When called as a function it returns the native style of the
 generalised vector `v` that determines how simulations are to proceed.
- 
+
 # Usage
 
 Concrete `StochasticStyle`s can be used for the `style` keyword argument of
@@ -52,7 +52,7 @@ default_style(::Type{T}) where T = StyleUnknown{T}()
 """
     CompressionStrategy
 
-The `CompressionStrategy` controls how a vector is compressed after a step. 
+The `CompressionStrategy` controls how a vector is compressed after a step.
 
 ## Default implementation:
 * [`NoCompression`](@ref): no vector compression
@@ -64,9 +64,9 @@ constructors for some [`StochasticStyle`](@ref)s. Calling
 default is [`NoCompression`](@ref).
 
 ## Interface
-When defining a new `CompressionStrategy`, subtype it as 
+When defining a new `CompressionStrategy`, subtype it as
 `MyCompressionStrategy <: CompressionStrategy` and define
-a method for 
+a method for
 * [`compress!(s::MyCompressionStrategy, v)`](@ref compress!)
 """
 abstract type CompressionStrategy end
@@ -116,15 +116,7 @@ end
 Return a tuple of names (`Symbol` or `String`) and a tuple of zeros of values of the same
 length. These will be reported as columns in the `DataFrame` returned by [`lomc!`](@ref Main.lomc!).
 """
-step_stats(v, n) = step_stats(StochasticStyle(v), n)
-function step_stats(s::StochasticStyle, ::Val{N}) where N
-    if N == 1
-        return step_stats(s)
-    else
-        names, stats = step_stats(s)
-        return names, MVector(ntuple(_ -> stats, Val(N)))
-    end
-end
+step_stats(v) = step_stats(StochasticStyle(v))
 
 """
     fciqmc_col!(w, ham, add, num, shift, dτ)

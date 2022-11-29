@@ -25,10 +25,9 @@ using Rimu.StochasticStyles:
     @test StochasticStyle(vec) == IsStochasticInteger{Int64}()
     @test StochasticStyle(Float32.(vec)) == IsDeterministic{Float32}()
 
-    names, values = step_stats(vec, Val(2))
+    names, values = step_stats(vec)
     @test names == (:spawn_attempts, :spawns, :deaths, :clones, :zombies)
-    @test length(values) == 2
-    @test values[1] == values[2] == Rimu.MultiScalar((0, 0, 0, 0, 0))
+    @test values == Rimu.MultiScalar((0, 0, 0, 0, 0))
 
     w = [1.0, 2.0, 3.0]
 

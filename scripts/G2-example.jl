@@ -69,7 +69,6 @@ df, state = lomc!(H, svec;
             r_strat,
             τ_strat,
             replica,
-            threading = false, # only for reproducible runs
 );
 
 # The output `DataFrame` has FCIQMC statistics for each replica

@@ -42,7 +42,8 @@ export
     StochasticStyle, default_style, StyleUnknown, fciqmc_col!, step_stats, update_dvec!,
     CompressionStrategy, NoCompression, compress!
 export
-    AbstractDVec, deposit!, storage, localpart, freeze
+    AbstractDVec, deposit!, storage, localpart, freeze, working_memory,
+    fciqmc_step!, sort_into_targets!
 export
     AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
     random_offdiagonal, starting_address,

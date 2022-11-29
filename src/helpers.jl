@@ -1,11 +1,9 @@
 # small functions supporting fciqmc!()
 # versions without dependence on MPI.jl
-using Base.Threads: nthreads
-
 """
     MultiScalar
 
-Wrapper over a tuple that supports `+`, `-`, `min`, and `max`. Used with MPI communication
+Wrapper over a tuple that supports `+`, `*`, `min`, and `max`. Used with MPI communication
 because `SVector`s are treated as arrays by `MPI.Allreduce` and `Tuples` do not support
 scalar operations.
 
@@ -38,6 +36,8 @@ MultiScalar(v::SVector) = MultiScalar(Tuple(v))
 MultiScalar(m::MultiScalar) = m
 MultiScalar(arg) = MultiScalar((arg,))
 
+Base.getindex(m::MultiScalar, i) = m.tuple[i]
+
 const SVecOrTuple = Union{SVector,Tuple}
 
 for op in (:+, :*, :max, :min)
@@ -54,29 +54,6 @@ end
 
 Base.iterate(m::MultiScalar, args...) = iterate(m.tuple, args...)
 Base.length(m::MultiScalar) = length(m.tuple)
-
-# three-argument version
-"""
-    sort_into_targets!(target, source, stats) -> agg, wm, agg_stats
-Aggregate coefficients from `source` to `agg` and from `stats` to `agg_stats`
-according to thread- or MPI-level parallelism. `wm` passes back a reference to
-working memory.
-"""
-sort_into_targets!(target, w, stats) =  w, target, stats
-# default serial (single thread, no MPI) version: don't copy just swap
-
-combine_stats(stats) = sum(stats)
-combine_stats(stats::MultiScalar) = stats # special case for fciqmc_step!() using ThreadsX
-
-function sort_into_targets!(target, ws::NTuple{NT,W}, statss) where {NT,W}
-    # multi-threaded non-MPI version
-    zero!(target)
-    for w in ws # combine new walkers generated from different threads
-        add!(target, w)
-    end
-    return target, ws, combine_stats(statss)
-end
-# three argument version for MPIData to be found in RMPI.jl
 
 # this is run during Rimu initialisation and sets the default
 """

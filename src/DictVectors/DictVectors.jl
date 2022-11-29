@@ -10,10 +10,9 @@ module DictVectors
 
 using Random
 using LinearAlgebra
-import SplittablesBase
 
 using ..Interfaces
-import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze
+import ..Interfaces: deposit!, zero!, storage, StochasticStyle, default_style, freeze
 
 export zero!, add!, deposit!, storage, walkernumber
 export DVec, InitiatorDVec

@@ -19,6 +19,9 @@ deposit!
 storage
 freeze
 localpart
+fciqmc_step!
+sort_into_targets!
+working_memory
 ```
 
 ## Supported operations

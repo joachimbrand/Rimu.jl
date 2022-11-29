@@ -1,6 +1,16 @@
 using Rimu
-using Rimu: fciqmc_step!
+using Rimu.Interfaces: fciqmc_step!
 using Test
+
+"""
+    fciqmc_step_wrap!(r::ReplicaState)
+
+Returning the vectors is tracked as an allocation. This wrapper takes care of that.
+"""
+function fciqmc_step_wrap!(r)
+    fciqmc_step!(r.wm, r.pv, r.v, r.hamiltonian, r.params.shift, r.params.dτ)
+    return nothing
+end
 
 @testset "Allocations" begin
     # The purpose of these tests is to find type instabilities that might appear as the
@@ -89,25 +99,25 @@ using Test
                     # Warmup for lomc!
                    params = RunTillLastStep(shift=float(diagonal_element(H, add)), dτ=dτ)
                     _, st = lomc!(
-                        H, dv; params, threading=false, maxlength=10_000, laststep=1
+                        H, dv; params, maxlength=10_000, laststep=1
                     )
 
                     r = only(st.replicas)
                     p = r.params
-                    t = Rimu.NoThreading()
 
                     # Warmup for step!
-                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
+                    fciqmc_step_wrap!(r)
+                    fciqmc_step_wrap!(r)
+                    fciqmc_step_wrap!(r)
+                    fciqmc_step_wrap!(r)
+                    fciqmc_step_wrap!(r)
 
-                    allocs_step = @allocated fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
+                    allocs_step = @allocated fciqmc_step_wrap!(r)
                     @test allocs_step ≤ 512
 
                     dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
                     allocs_full = @allocated lomc!(
-                        H, dv; dτ, laststep=200, threading=false, maxlength=10_000
+                        H, dv; dτ, laststep=200, maxlength=10_000
                     )
                     @test allocs_full ≤ 1e8 # 100MiB
 

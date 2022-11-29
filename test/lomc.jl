@@ -20,9 +20,15 @@ using Logging
         # test passing working memory
         v = copy(dv)
         wm = copy(dv)
-        df, state = lomc!(H, v; wm, laststep=10, threading=false)
-        @test state.replicas[1].w === wm # after even number of steps
+        df, state = lomc!(H, v; wm, laststep=9)
+        @test state.replicas[1].wm === wm # after number of steps divisible by 3
         @test state.replicas[1].v === v
+        @test state.replicas[1].pv !== v && state.replicas[1].pv !== wm
+
+        state.laststep = 10
+        df = lomc!(state, df).df
+        @test state.replicas[1].v === wm
+        @test state.replicas[1].pv === v
 
         @test size(df, 1) == 10
         @test state.replicas[1].params.step == 10
@@ -271,7 +277,7 @@ using Logging
         dv = DVec(add => 1.0, style=IsDeterministic())
 
         # Run lomc!, then change laststep and continue.
-        df, state = lomc!(H, copy(dv); threading=false)
+        df, state = lomc!(H, copy(dv))
         state.laststep = 200
         df1 = lomc!(state, df).df
 
@@ -430,76 +436,6 @@ using Logging
                 @test single_particle_density(add; component=1) == (1, 2, 3)
                 @test single_particle_density(add; component=2) == (0, 1, 0)
             end
-        end
-    end
-
-    # only test threading if more than one thread is available
-    Threads.nthreads() > 1 && @testset "Threading" begin
-        add = BoseFS((0,0,0,0,10,0,0,0,0,0))
-        H = HubbardMom1D(add)
-        s_strat = DoubleLogUpdate(targetwalkers=10_000)
-        laststep = 1000
-        for dv in (DVec(add => 1), InitiatorDVec(add => 1), MPIData(DVec(add => 1)))
-            @test_throws ArgumentError lomc!(H; threading=:something, laststep, s_strat)
-
-            df1, s1 = lomc!(
-                H, deepcopy(dv); threading=:auto, laststep, s_strat
-            )
-            df2, s2 = lomc!(
-                H, deepcopy(dv); threading=true, laststep, s_strat
-            )
-            df3, s3 = lomc!(
-                H, deepcopy(dv); threading=false, laststep, s_strat
-            )
-            df4, s4 = lomc!(
-                H, deepcopy(dv); threading=Rimu.NoThreading(), laststep, s_strat
-            )
-            df5, s5 = lomc!(
-                H, deepcopy(dv); threading=Rimu.ThreadsThreading(), laststep, s_strat
-            )
-            df6, s6 = lomc!(
-                H, deepcopy(dv); threading=Rimu.SplittablesThreading(), laststep, s_strat
-            )
-            df7, s7 = lomc!(
-                H, deepcopy(dv); threading=Rimu.ThreadsXSumThreading(), laststep, s_strat
-            )
-            df8, s8 = lomc!(
-                H, deepcopy(dv); threading=Rimu.ThreadsXForeachThreading(), laststep, s_strat
-            )
-
-            @test s1.threading == Rimu.SplittablesThreading()
-            @test s2.threading == Rimu.SplittablesThreading()
-            @test s3.threading == Rimu.NoThreading()
-
-            # Check that working memory was selected correctly.
-            N = Threads.nthreads()
-            D = typeof(localpart(dv))
-            @test s1.replicas[1].w isa NTuple{N,D}
-            @test s2.replicas[1].w isa NTuple{N,D}
-            @test s3.replicas[1].w isa D
-            @test s4.replicas[1].w isa D
-            @test s5.replicas[1].w isa NTuple{N,D}
-            @test s6.replicas[1].w isa NTuple{N,D}
-            @test s7.replicas[1].w isa NTuple{N,D}
-            @test s8.replicas[1].w isa NTuple{N,D}
-
-            # Check energies.
-            E1, _ = mean_and_se(df1.shift[900:end])
-            E2, _ = mean_and_se(df2.shift[900:end])
-            E3, _ = mean_and_se(df3.shift[900:end])
-            E4, _ = mean_and_se(df4.shift[900:end])
-            E5, _ = mean_and_se(df5.shift[900:end])
-            E6, _ = mean_and_se(df6.shift[900:end])
-            E7, _ = mean_and_se(df7.shift[900:end])
-            E8, _ = mean_and_se(df8.shift[900:end])
-
-            @test E1 ≈ E2 rtol=0.1
-            @test E2 ≈ E3 rtol=0.1
-            @test E3 ≈ E4 rtol=0.1
-            @test E4 ≈ E5 rtol=0.1
-            @test E5 ≈ E6 rtol=0.1
-            @test E6 ≈ E7 rtol=0.1
-            @test E7 ≈ E8 rtol=0.1
         end
     end
 end
