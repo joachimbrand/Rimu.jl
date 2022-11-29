@@ -207,3 +207,27 @@ end
 function copy_to_local!(w, t::PDVec)
     return copy_to_local!(w.communicator, w, t)
 end
+
+function working_memory(::PDVecThreading, t::PDVec)
+    return PDWorkingMemory(t)
+end
+function fciqmc_step!(w::PDWorkingMemory, ham, src::PDVec, shift, dτ)
+    stat_names, _ = step_stats(StochasticStyle(src))
+    prop = DictVectors.FCIQMCPropagator(ham, shift, dτ, w)
+    stats = propagate!(src, prop, src)
+    return stat_names, stats
+end
+
+# TODO: hacks below
+function apply_memory_noise!(w::PDWorkingMemory, t::PDVec, args...)
+    return 0.0
+end
+function sort_into_targets!(dst::PDVec, w::PDWorkingMemory, stats)
+    return dst, w, stats
+end
+function StochasticStyles.compress!(::StochasticStyles.ThresholdCompression, t::PDVec)
+    return t
+end
+function StochasticStyles.compress!(::Interfaces.NoCompression, t::PDVec)
+    return t
+end
