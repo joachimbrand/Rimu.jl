@@ -156,7 +156,7 @@ Collect each row in `w` into its main segment. This step must be performed befor
 """
 function collect_local!(w::PDWorkingMemory)
     ncols = num_columns(w)
-    Folds.foreach(1:num_rows(w), w.executor) do i # TODO: referencables?
+    Folds.foreach(1:num_rows(w), w.executor) do i
         for j in 2:ncols
             add!(w.columns[1].segments[i], w.columns[j].segments[i])
         end
