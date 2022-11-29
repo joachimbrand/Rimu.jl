@@ -208,9 +208,8 @@ function copy_to_local!(w, t::PDVec)
     return copy_to_local!(w.communicator, w, t)
 end
 
-function working_memory(::PDVecThreading, t::PDVec)
-    return PDWorkingMemory(t)
-end
+working_memory(t::PDVec) = PDWorkingMemory(t)
+
 function fciqmc_step!(w::PDWorkingMemory, ham, src::PDVec, shift, dτ)
     stat_names, _ = step_stats(StochasticStyle(src))
     prop = DictVectors.FCIQMCPropagator(ham, shift, dτ, w)

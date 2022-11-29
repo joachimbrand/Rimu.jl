@@ -12,14 +12,15 @@ using Random
 using LinearAlgebra
 using Folds, FoldsThreads
 using MPI
-import SplittablesBase
+using SplittablesBase
 
 using ..Interfaces
 using ..Hamiltonians
 using ..StochasticStyles
 
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
-    move_and_compress!
+    move_and_compress!,
+    working_memory, fciqmc_step!, sort_into_targets!
 
 export zero!, add!, deposit!, storage, walkernumber, propagate!, working_memory
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory

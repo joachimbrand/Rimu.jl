@@ -58,7 +58,7 @@ export ReplicaStrategy, NoStats, AllOverlaps
 export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness, Timer,
     SingleParticleDensity, single_particle_density
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
-export threadedWorkingMemory, localpart, walkernumber
+export localpart, walkernumber
 export smart_logger, default_logger
 
 function __init__()
@@ -73,7 +73,6 @@ include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
-include("strategies_and_params/threadingstrategy.jl")
 include("strategies_and_params/deprecated.jl")
 
 include("apply_memory_noise.jl")
