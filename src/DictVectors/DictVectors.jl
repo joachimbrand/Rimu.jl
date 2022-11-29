@@ -18,11 +18,12 @@ using ..Interfaces
 using ..Hamiltonians
 using ..StochasticStyles
 
+# TODO: ordering
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
-    move_and_compress!,
+    move_and_compress!, zero!,
     working_memory, fciqmc_step!, sort_into_targets!
 
-export zero!, add!, deposit!, storage, walkernumber, propagate!, working_memory
+export add!, deposit!, storage, walkernumber, propagate!
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 

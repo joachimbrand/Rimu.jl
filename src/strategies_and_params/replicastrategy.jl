@@ -127,7 +127,7 @@ end
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replicas::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.
     vecs = ntuple(i -> replicas[i].v, Val(N))
-    wms = ntuple(i -> replicas[i].w, Val(N))
+    wms = ntuple(i -> replicas[i].wm, Val(N))
     return all_overlaps(rs.operators, vecs, wms, Val(B))
 end
 

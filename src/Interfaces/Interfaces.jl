@@ -47,7 +47,7 @@ export
     CompressionStrategy, NoCompression, compress!, move_and_compress!
 export
     AbstractDVec, deposit!, storage, localpart, freeze, working_memory,
-    fciqmc_step!, sort_into_targets!
+    fciqmc_step!, sort_into_targets!, zero!
 export
     AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
     random_offdiagonal, starting_address,

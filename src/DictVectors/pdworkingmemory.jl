@@ -62,6 +62,10 @@ function PDWorkingMemory(t::PDVec{K,V,S,D,I}; style=t.style) where {K,V,S,D,I}
     return PDWorkingMemory(columns, style, t.initiator, t.communicator, t.executor)
 end
 
+function Base.show(io::IO, w::PDWorkingMemory{K,V}) where {K,V}
+    print(io, "PDWorkingMemory{$K,$V} with $(length(w.columns)) columns")
+end
+
 StochasticStyle(w::PDWorkingMemory) = w.style
 Base.keytype(w::PDWorkingMemory{K}) where {K} = K
 Base.valtype(w::PDWorkingMemory{<:Any,V}) where {V} = V
@@ -210,19 +214,16 @@ end
 
 working_memory(t::PDVec) = PDWorkingMemory(t)
 
-function fciqmc_step!(w::PDWorkingMemory, ham, src::PDVec, shift, dτ)
-    stat_names, _ = step_stats(StochasticStyle(src))
-    prop = DictVectors.FCIQMCPropagator(ham, shift, dτ, w)
-    stats = propagate!(src, prop, src)
-    return stat_names, stats
+function fciqmc_step!(wm::PDWorkingMemory, target::PDVec, source::PDVec, ham, shift, dτ)
+    stat_names, _ = step_stats(StochasticStyle(source))
+    prop = DictVectors.FCIQMCPropagator(ham, shift, dτ, wm)
+    stats = propagate!(target, prop, source)
+    return stat_names, stats, wm, target
 end
 
-# TODO: hacks below
-function apply_memory_noise!(w::PDWorkingMemory, t::PDVec, args...)
-    return 0.0
-end
+# TODO: hacks
 function sort_into_targets!(dst::PDVec, w::PDWorkingMemory, stats)
-    return dst, w, stats
+    error()
 end
 function StochasticStyles.compress!(::StochasticStyles.ThresholdCompression, t::PDVec)
     return t
