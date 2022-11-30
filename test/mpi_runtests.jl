@@ -1,9 +1,6 @@
 using LinearAlgebra
-using MPI
 using Random
 using Rimu
-using StaticArrays
-using Statistics
 using Test
 using KrylovKit
 
@@ -11,6 +8,8 @@ using Rimu.RMPI
 using Rimu.StatsTools
 using Rimu.RMPI: targetrank, mpi_synchronize!
 
+# To avoid problems with CI
+const MPI = Rimu.RMPI.MPI
 const N_REPEATS = 5
 
 """
