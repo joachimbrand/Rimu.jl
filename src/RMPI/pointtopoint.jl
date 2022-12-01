@@ -63,7 +63,7 @@ function receive!(target, s::MPIPointToPoint{P}, id) where P
     count = MPI.Get_count(status, s.datatype)
     resize!(recvbuff(s), count)
     rb = recvbuff(s)
-    MPI.Recv!(MPI.Buffer(rb, length(rb), s.datatype), id, 0, s.comm)
+    MPI.Recv!(MPI.Buffer(rb, length(rb), s.datatype), s.comm; source=id, tag=0)
     for (key, val) in recvbuff(s)
         deposit!(target, key, val, nothing)
     end
