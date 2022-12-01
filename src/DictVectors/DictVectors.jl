@@ -8,11 +8,12 @@ See [`Interfaces`](@ref).
 """
 module DictVectors
 
-using Random
-using LinearAlgebra
 using Folds, FoldsThreads
-using MPI
+using LinearAlgebra
+using Random
 using SplittablesBase
+
+import MPI
 
 using ..Interfaces
 using ..Hamiltonians

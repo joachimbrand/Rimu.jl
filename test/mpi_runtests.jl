@@ -3,13 +3,13 @@ using Random
 using Rimu
 using Test
 using KrylovKit
+using StaticArrays
+using MPI
 
 using Rimu.RMPI
 using Rimu.StatsTools
 using Rimu.RMPI: targetrank, mpi_synchronize!
 
-# To avoid problems with CI
-const MPI = Rimu.RMPI.MPI
 const N_REPEATS = 5
 
 """
