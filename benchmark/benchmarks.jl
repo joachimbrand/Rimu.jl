@@ -34,7 +34,7 @@ const SUITE = @benchmarkset "Rimu" begin
             near_uniform(FermiFS{3,12}),
         )
         ham = HubbardRealSpace(add, geometry=PeriodicBoundaries(4, 3))
-        dv = PDVec(add => 1.0, style=IsDynamicSemistochastic(), initator=true)
+        dv = PDVec(add => 1.0, style=IsDynamicSemistochastic(), initiator=true)
         s_strat = DoubleLogUpdate(targetwalkers=10_000)
 
         lomc!(ham, dv; s_strat, laststep=15_000, dτ=1e-2)
