@@ -51,8 +51,9 @@ jobs:
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           export PATH=$PATH:/home/runner/.julia/bin
 
-          # Run mpi tests
-          julia --depwarn=yes --project=test test/mpi_runtests.jl
+          # MPI tests need to run with the Rimu/test/Project.toml to have access to
+          # KrylovKit. Since it's not in the project, we need to first install there.
+          julia --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.dev("."); Pkg.build()'
           mpiexecjl -n 2 julia --depwarn=yes --project=test test/mpi_runtests.jl
           # Run regular tests
           julia --project=@. -t2 -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
