@@ -51,13 +51,16 @@ jobs:
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           export PATH=$PATH:/home/runner/.julia/bin
 
-          # MPI tests need to run with the Rimu/test/Project.toml to have access to
-          # KrylovKit. Since it's not in the project, we need to first install there.
-          julia --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.develop(path="."); Pkg.build()'
-          mpiexecjl -n 2 julia --depwarn=yes --project=test test/mpi_runtests.jl
           # Run regular tests
           julia --project=@. -t2 -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
 
+          # MPI tests need to run with the Rimu/test/Project.toml to have access to
+          # KrylovKit. Since it's not in the project, we need to first install there.
+          # Note: this messes up the test Project.toml, but we don't need it anymore,
+          # so testing Rimu will no longer work. This is fine if this step is done
+          # after the testing.
+          julia --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.develop(path="."); Pkg.build()'
+          mpiexecjl -n 2 julia --depwarn=yes --project=test test/mpi_runtests.jl
 
       - uses: julia-actions/julia-processcoverage@latest
       - uses: coverallsapp/github-action@v1.1.2
