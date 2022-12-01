@@ -116,26 +116,62 @@ function Base.:*(op::AbstractHamiltonian, t::PDVec)
     return mul!(dst, prop, t)
 end
 
-# This is the exact dot. Also TODO non-exact dot.
-function LinearAlgebra.dot(
-    t::PDVec, op::AbstractHamiltonian, u::PDVec, w=PDWorkingMemory(u)
-)
+function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec, w)
     return dot(LOStructure(op), t, op, u, w)
 end
+function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec)
+    return dot(LOStructure(op), t, op, u)
+end
 
-function LinearAlgebra.dot(::IsDiagonal, t::PDVec, op::AbstractHamiltonian, u::PDVec, _)
+function LinearAlgebra.dot(
+    ::IsDiagonal, t::PDVec, op::AbstractHamiltonian, u::PDVec, w=nothing
+)
     return sum(pairs(u)) do (k, v)
         conj(t[k]) * diagonal_element(op, k) * v
     end
 end
 function LinearAlgebra.dot(
-    ::LOStructure, t::PDVec, op::AbstractHamiltonian, source::PDVec, w
+    ::LOStructure, left::PDVec, op::AbstractHamiltonian, right::PDVec, w=nothing
 )
-    target = copy_to_local!(w, t)
-    return _dot(target, op, source, w)
+    # First two cases: only one vector is distrubuted. Avoid shuffling things around
+    # by placing that one on the left to reduce the need for communication.
+    if !is_distributed(left) && is_distributed(right)
+        return dot(AdjointUnknown(), left, op, right)
+    elseif is_distributed(left) && !is_distributed(right)
+        return conj(dot(AdjointUnknown(), right, op', left))
+    end
+    # Other cases: both vectors distributed or not distributed. Put the shorter vector
+    # on the right as is done for regular DVecs.
+    if length(left) < length(right)
+        return conj(dot(AdjointUnknown(), right, op', left))
+    else
+        return dot(AdjointUnknown(), left, op, right)
+    end
 end
 
-function _dot(target, op, source, w)
+function LinearAlgebra.dot(
+    ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec, w
+)
+    if is_distributed(t)
+        target = copy_to_local!(w, t)
+    else
+        target = t
+    end
+    return _dot(target, op, source)
+end
+function LinearAlgebra.dot(
+    ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec
+)
+    if is_distributed(t)
+        w = PDWorkingMemory(t)
+        target = copy_to_local!(w, t)
+    else
+        target = t
+    end
+    return _dot(target, op, source)
+end
+
+function _dot(target, op, source)
     T = promote_type(valtype(target), valtype(source), eltype(op))
     return sum(pairs(source); init=zero(T)) do (k, v)
         diag = conj(target[k]) * diagonal_element(op, k) * v
@@ -147,12 +183,12 @@ function _dot(target, op, source, w)
 end
 
 function LinearAlgebra.dot(t::PDVec, ops::Tuple, source::PDVec, w)
-    if any(LOStructure(op) ≢ IsDiagonal() for op in ops)
+    if is_distributed(t) && any(LOStructure(op) ≢ IsDiagonal() for op in ops)
         target = copy_to_local!(w, t)
     else
         target = t
     end
     return map(ops) do op
-        _dot(target, op, source, w)
+        _dot(target, op, source)
     end
 end
