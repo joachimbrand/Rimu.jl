@@ -25,14 +25,12 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v2
-      - name: "Set up Julia"
-        uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
-      - name: "Run tests"
-        uses: julia-actions/julia-buildpkg@latest
-        uses: julia-actions/julia-runtest@latest
+      - uses: julia-actions/julia-buildpkg@latest
+      - uses: julia-actions/julia-runtest@latest
       - uses: julia-actions/julia-processcoverage@latest
       - uses: coverallsapp/github-action@v1.1.2
         with:
