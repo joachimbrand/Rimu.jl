@@ -15,21 +15,40 @@ on:
       - feature/github-actions
 
 jobs:
-  test:
+  test-default:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        julia-version: ['1', 'nightly']
+        julia-arch: [x64]
+        os: [ubuntu-latest]
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v2
+      - name: "Set up Julia"
+        uses: julia-actions/setup-julia@v1
+        with:
+          version: ${{ matrix.julia-version }}
+          arch: ${{ matrix.julia-arch }}
+      - name: "Run tests"
+        uses: julia-actions/julia-buildpkg@latest
+        uses: julia-actions/julia-runtest@latest
+      - uses: julia-actions/julia-processcoverage@latest
+      - uses: coverallsapp/github-action@v1.1.2
+        with:
+          github-token: ${{ secrets.github_token }}
+          path-to-lcov: ./lcov.info
+        if: ${{ matrix.julia-version == '1' }}
+
+  test-mpi:
     runs-on: ${{ matrix.os }}
     # env:
     #   ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     strategy:
       matrix:
         julia-version: ['1', 'nightly']
-        # julia-arch: [x64, x86]
         julia-arch: [x64]
-        # os: [ubuntu-latest, windows-latest, macOS-latest]
         os: [ubuntu-latest]
-        # 32-bit Julia binaries are not available on macOS
-        # exclude:
-        #   - os: macOS-latest
-        #     julia-arch: x86
       fail-fast: false
 
     steps:
@@ -43,16 +62,11 @@ jobs:
         run: |
           export JULIA_PROJECT=@.
           export JULIA_MPIEXEC=mpiexecjl
-          # echo -e '#!/bin/bash\nmpiexec --allow-run-as-root $@' > $JULIA_MPIEXEC
-          # chmod +x $JULIA_MPIEXEC
           export JULIA_NUM_THREADS=1
           julia --project -e 'ENV["JULIA_MPI_BINARY"]=""; using Pkg; Pkg.add("MPI"); Pkg.build("MPI"; verbose=true); using MPI; MPI.install_mpiexecjl()'
           julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
           export PATH=$PATH:/home/runner/.julia/bin
-
-          # Run regular tests
-          julia --project=@. -t2 -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
 
           # MPI tests need to run with the Rimu/test/Project.toml to have access to
           # KrylovKit. Since it's not in the project, we need to first install there.
@@ -60,7 +74,7 @@ jobs:
           # so testing Rimu will no longer work. This is fine if this step is done
           # after the testing.
           julia --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.develop(path="."); Pkg.build()'
-          mpiexecjl -n 2 julia --depwarn=yes --project=test test/mpi_runtests.jl
+          mpiexecjl -n 2 julia --code-coverage=user --depwarn=yes --project=test test/mpi_runtests.jl
 
       - uses: julia-actions/julia-processcoverage@latest
       - uses: coverallsapp/github-action@v1.1.2
