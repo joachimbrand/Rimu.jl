@@ -60,7 +60,7 @@ jobs:
           # so testing Rimu will no longer work. This is fine if this step is done
           # after the testing.
           julia --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.develop(path="."); Pkg.build()'
-          mpiexecjl -n 2 julia --depwarn=yes --project=test test/mpi_runtests.jl
+          mpiexecjl -n 2 julia --code-coverage=lcov.info --depwarn=yes --project=test test/mpi_runtests.jl
 
       - uses: julia-actions/julia-processcoverage@latest
       - uses: coverallsapp/github-action@v1.1.2
