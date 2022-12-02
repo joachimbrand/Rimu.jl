@@ -51,10 +51,7 @@ jobs:
           # so testing Rimu will no longer work. This is fine if this step is done
           # after the testing.
           julia --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.develop(path="."); Pkg.build()'
-          mpiexecjl -n 2 julia --code-coverage=lcov-mpi.info --depwarn=yes --project=test test/mpi_runtests.jl
-
-          # Merge coverage info
-          cat lcov-mpi.info >> lcov.info
+          mpiexecjl -n 2 julia --code-coverage=user --depwarn=yes --project=test test/mpi_runtests.jl
 
       - name: "Process coverage"
         uses: julia-actions/julia-processcoverage@latest
