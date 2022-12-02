@@ -1,8 +1,3 @@
-import Pkg
-println("project path: ", Pkg.project().path)
-println("deps:")
-foreach(println, keys(Pkg.project().dependencies))
-
 using LinearAlgebra
 using Random
 using Rimu
