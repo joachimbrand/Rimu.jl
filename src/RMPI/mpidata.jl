@@ -167,7 +167,8 @@ function mpi_communicate_buffers!(target, buffers, comm)
     datatype = MPI.Datatype(eltype(target))
     # Receive from lower ranks.
     for id in 0:(myrank - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(comm; source=id, tag=0), datatype))
+        count = MPI.Get_count(MPI.Probe(comm, MPI.Status; source=id, tag=0), datatype)
+        resize!(recbuf, count)
         MPI.Recv!(recbuf, comm; source=id, tag=0)
         for (add, value) in recbuf
             target[add] += value
@@ -180,7 +181,8 @@ function mpi_communicate_buffers!(target, buffers, comm)
     end
     # Receive from higher ranks.
     for id in (myrank + 1):(mpi_size(comm) - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(comm; source=id, tag=0), datatype))
+        count = MPI.Get_count(MPI.Probe(comm, MPI.Status; source=id, tag=0), datatype)
+        resize!(recbuf, count)
         MPI.Recv!(recbuf, comm; source=id, tag=0)
         for (add, value) in recbuf
             target[add] += value
@@ -266,7 +268,8 @@ function copy_to_local!(target, md::MPIData)
 
     # Receive from lower ranks.
     for id in 0:(myrank - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(comm; source=id, tag=0), datatype))
+        count = MPI.Get_count(MPI.Probe(comm, MPI.Status; source=id, tag=0), datatype)
+        resize!(recbuf, count)
         MPI.Recv!(recbuf, comm; source=id, tag=0)
         for (add, value) in recbuf
             target[add] += value
@@ -279,7 +282,8 @@ function copy_to_local!(target, md::MPIData)
     end
     # Receive from higher ranks.
     for id in (myrank + 1):(mpi_size(comm) - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(comm; source=id, tag=0), datatype))
+        count = MPI.Get_count(MPI.Probe(comm, MPI.Status; source=id, tag=0), datatype)
+        resize!(recbuf, count)
         MPI.Recv!(recbuf, comm; source=id, tag=0)
         for (add, value) in recbuf
             target[add] += value

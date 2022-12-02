@@ -59,7 +59,7 @@ end
 Recieve from rank with `id` and move recieved values to `target`.
 """
 function receive!(target, s::MPIPointToPoint{P}, id) where P
-    status = MPI.Probe(s.comm; source=id, tag=0)
+    status = MPI.Probe(s.comm, MPI.Status; source=id, tag=0)
     count = MPI.Get_count(status, s.datatype)
     resize!(recvbuff(s), count)
     rb = recvbuff(s)
