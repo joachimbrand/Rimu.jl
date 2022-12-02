@@ -58,6 +58,8 @@ function setup_dv(type, args...; md_kwargs=(;), kwargs...)
     return v, dv
 end
 
+@info "Running MPI tests..."
+
 @testset "MPI tests" begin
     @testset "MPIData" begin
         for type in (InitiatorDVec, DVec)
