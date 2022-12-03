@@ -15,7 +15,7 @@ on:
       - feature/github-actions
 
 jobs:
-  test-default:
+  test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

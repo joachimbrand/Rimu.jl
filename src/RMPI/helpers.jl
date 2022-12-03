@@ -85,6 +85,13 @@ function mpi_combine_walkers!(dtarget::MPIData, source::AbstractDVec)
     mpi_combine_walkers!(ltarget, storage(source), strategy)
 end
 
+function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
+    # single threaded MPI version
+    mpi_combine_walkers!(dtarget,w) # combine walkers from different MPI ranks
+    res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
+    return dtarget, w, res_stats
+end
+
 """
     mpi_seed!(seed = rand(Random.RandomDevice(), UInt))
 Re-seed the random number generators in an MPI-safe way. If seed is provided,
