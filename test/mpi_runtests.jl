@@ -36,6 +36,9 @@ function correct_ranks(md)
     end
 end
 
+@mpi_root @info "Running MPI tests..."
+RMPI.mpi_allprintln("hello")
+
 # Ignore all printing on ranks other than root.
 if mpi_rank() != mpi_root
     redirect_stderr(devnull)
@@ -57,8 +60,6 @@ function setup_dv(type, args...; md_kwargs=(;), kwargs...)
     end
     return v, dv
 end
-
-@info "Running MPI tests..."
 
 @testset "MPI tests" begin
     @testset "MPIData" begin
