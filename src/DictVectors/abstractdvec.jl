@@ -44,7 +44,7 @@ end
 
 @inline function Base.copyto!(w::AbstractDVec, v)
     sizehint!(w, length(v))
-    foreach(pairs(v)) do (key, val)
+    for (key, val) in pairs(v)
         w[key] = val
     end
     return w
@@ -78,7 +78,7 @@ end
 @inline function LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α)
     empty!(w)
     sizehint!(w, length(v))
-    foreach(pairs(v)) do (key, val)
+    for (key, val) in pairs(v)
         w[key] = val * α
     end
     return w
@@ -96,7 +96,7 @@ Base.:*(x::AbstractDVec, α) = α * x
 Inplace add `x+y` and store result in `x`.
 """
 @inline function add!(x::AbstractDVec{K}, y::AbstractDVec{K}) where {K}
-    foreach(pairs(y)) do (k, v)
+    for (k, v) in pairs(y)
         x[k] += v
     end
     return x
@@ -223,7 +223,7 @@ function LinearAlgebra.dot(::LOStructure, x, LO::AbstractHamiltonian, v)
 end
 
 """
-    Hamiltonians.dot_from_right(x, LO, v)
+    dot_from_right(x, LO, v)
 Internal function evaluates the 3-argument `dot()` function in order from right
 to left.
 """
