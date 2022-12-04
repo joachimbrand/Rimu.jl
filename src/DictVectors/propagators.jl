@@ -100,14 +100,15 @@ end
 ### Operator linear algebra operations
 ###
 """
-    mul!(y::PDVec, A::AbstractHamiltonian, x::PDVec, w::PDWorkingMemory)
+    mul!(y::PDVec, A::AbstractHamiltonian, x::PDVec[, w::PDWorkingMemory])
 
-Perform `y = A * x`. The working memory `w` is required to facilitate threaded/distributed
-operations. `y` and `x` may be the same vector.
+Perform `y = A * x` in-place. The working memory `w` is required to facilitate
+threaded/distributed operations. If not passed a new instance will be allocated. `y` and `x`
+may be the same vector.
 """
-function LinearAlgebra.mul!(dst::PDVec, op::AbstractHamiltonian, src::PDVec, w=PDWorkingMemory(dst))
+function LinearAlgebra.mul!(y::PDVec, op::AbstractHamiltonian, x::PDVec, w=PDWorkingMemory(y))
     prop = OperatorMulPropagator(op, w)
-    return mul!(dst, prop, src)
+    return mul!(y, prop, x)
 end
 
 function Base.:*(op::AbstractHamiltonian, t::PDVec)
@@ -116,13 +117,19 @@ function Base.:*(op::AbstractHamiltonian, t::PDVec)
     return mul!(dst, prop, t)
 end
 
+"""
+    dot(y::PDVec, A::AbstractHamiltonian, x::PDVec[, w::PDWorkingMemory])
+
+Perform `y ⋅ A ⋅ x`. The working memory `w` is required to facilitate threaded/distributed
+operations with non-diagonal `A`. If needed and not passed a new instance will be
+allocated. `A` can be replaced with a tuple of operators.
+"""
 function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec, w)
     return dot(LOStructure(op), t, op, u, w)
 end
 function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec)
     return dot(LOStructure(op), t, op, u)
 end
-
 function LinearAlgebra.dot(
     ::IsDiagonal, t::PDVec, op::AbstractHamiltonian, u::PDVec, w=nothing
 )
@@ -148,7 +155,7 @@ function LinearAlgebra.dot(
         return dot(AdjointUnknown(), left, op, right)
     end
 end
-
+# Default variant: also called from other LOStructures.
 function LinearAlgebra.dot(
     ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec, w
 )

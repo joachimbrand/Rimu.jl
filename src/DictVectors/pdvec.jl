@@ -14,13 +14,19 @@ end
     PDVec(pairs...; kwargs...)
 
 Dictionary-based vector-like data structure for use with FCIQMC and
-[KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl). While mostly behaving like a Dict, it
-supports various linear algebra operations such as `norm` and `dot`.
+[KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl). While mostly behaving like a `Dict`,
+it supports various linear algebra operations such as `norm` and `dot`.
 
-# Keyword arguments
+The P in `PDVec` stands for parallel. `PDVec`s perform `mapreduce`, `foreach`, and various
+linear algebra operations in a threaded manner. If MPI is available, these operations are
+automatically distributed as well. As such it is not recommended to iterate over `pairs`,
+`keys`, or `values` directly unless explicitly performing them on the [`localpart`](@ref) of
+the vector.
+
+## Keyword arguments
 
 * `style = `[`default_style`](@ref)`(V)`: A [`StochasticStyle`](@ref) that is used to select
-  the spawning startegy in the FCIQMC algorithm.
+  the spawning strategy in the FCIQMC algorithm.
 
 * `initiator = `[`NoInitiator`](@ref)`()`: An [`InitiatorRule`](@ref), used in FCIQMC to
   remove the sign problem.
@@ -32,15 +38,125 @@ supports various linear algebra operations such as `norm` and `dot`.
 * `num_segments = Threads.nthreads()`: Number of segments to divide the vector into. This is
   best left at its default value. See the extended help for more info.
 
-* `executor = Folds.ThreadedEx()`: Experimental. Change the executor to use. See
+* `executor = Folds.ThreadedEx()`: Experimental. Change the threaded executor to use. See
   [FoldsThreads.jl](https://juliafolds.github.io/FoldsThreads.jl/dev/) for more info on
   executors.
 
 # Extended Help
 
-* Explain why/how it is segmented
-* Explain iteration / reductions / localpart
+## Segmentation
 
+The vector is split into `num_segments` subdictionaries called segments. Which dictionary a
+key-value pair is mapped to is determined by the hash of the key. The purpose of this
+segmentation is to allow parallel processing - functions such as `mapreduce`, `add!` or
+`dot` (full list below) process each subdictionary on a separate thread.
+
+### Example
+
+```jldoctest
+julia> add = BoseFS((0,0,5,0,0));
+
+julia> op = HubbardMom1D(add; u=6.0);
+
+julia> pv = PDVec(add => 1.0; num_segments=8)
+1-element PDVec: style = IsDeterministic{Float64}()
+  fs"|0 0 5 0 0⟩" => 1.0
+
+julia> pv = op * pv
+3-element PDVec: style = IsDeterministic{Float64}()
+  fs"|1 0 3 0 1⟩" => 5.36656
+  fs"|0 0 5 0 0⟩" => 2.0
+  fs"|0 1 3 1 0⟩" => 5.36656
+
+julia> pv.segments
+8-element Vector{Dict{BoseFS{5, 5, BitString{9, 1, UInt16}}, Float64}}:
+ Dict()
+ Dict()
+ Dict(fs"|1 0 3 0 1⟩" => 5.366563145999495)
+ Dict(fs"|0 0 5 0 0⟩" => 2.0)
+ Dict()
+ Dict(fs"|0 1 3 1 0⟩" => 5.366563145999495)
+ Dict()
+ Dict()
+
+julia> map!(x -> -x, values(pv)); pv
+3-element PDVec: style = IsDeterministic{Float64}()
+  fs"|1 0 3 0 1⟩" => -5.36656
+  fs"|0 0 5 0 0⟩" => -2.0
+  fs"|0 1 3 1 0⟩" => -5.36656
+
+julia> dest = similar(pv)
+0-element PDVec: style = IsDeterministic{Float64}()
+
+julia> map!(x -> x + 2, dest, values(pv))
+2-element PDVec: style = IsDeterministic{Float64}()
+  fs"|1 0 3 0 1⟩" => -3.36656
+  fs"|0 1 3 1 0⟩" => -3.36656
+
+julia> sum(values(pv))
+-12.73312629199899
+
+julia> dot(dest, pv)
+36.133747416002024
+
+julia> dot(dest, op, pv)
+715.4481988368399
+```
+
+## MPI
+
+When MPI is active, all parallel reductions are automatically reduced across MPI ranks
+with a call to `MPI.Allreduce`.
+
+In a distributed setting, `PDVec` does not support iteration without first making it
+explicit the iteration is only to be performed on the local segments of the vector. This is
+done with [`localpart`](@ref). In general, even when not using MPI, it is best practice to
+use [`localpart`](@ref) when explicit iteration is required.
+
+## Use with KrylovKit
+
+`PDVec` can be used with [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl) to find
+the eigenpairs of an operator in a matrix-free manner. For best performance, wrap the
+operator in `DictVectors.OperatorMulPropagator` first (see example below).
+
+Performing the `eigsolve` this way allow it to be run in a threaded and distributed manner.
+Using multiple MPI ranks with this method does not distribute the memory load effectively,
+but does result in significant speedups.
+
+### Example
+
+```jldoctest
+julia> using KrylovKit
+
+julia> add = BoseFS((0,0,5,0,0));
+
+julia> op = HubbardMom1D(add; u=6.0);
+
+julia> pv = PDVec(add => 1.0);
+
+julia> propagator = DictVectors.OperatorMulPropagator(op, pv);
+
+julia> results = eigsolve(propagator, pv, 4, :SR; issymmetric=true);
+
+julia> results[1][1:4]
+4-element Vector{Float64}:
+ -3.4311156892322234
+  1.1821748602612363
+  3.7377753753082823
+  6.996390417443125
+```
+
+## Parallel functionality
+
+The following functions are parallelized and MPI-compatible:
+
+* [`mapreduce`](@ref) and derivatives (`sum`, `prod`, `reduce`...),
+* [`all`](@ref), [`any`](@ref),
+* [`map!`](@ref) (on values only),
+* `rmul!`, `lmul!`, `mul!`, `*`,
+* `add!`, `axpy!`, `axpby!`, `+`, `-`,
+* `dot`,
+* `*`, [`mul!`](@ref) and [`dot!`](@ref) with operators.
 """
 struct PDVec{
     K,V,S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,E
@@ -193,16 +309,18 @@ function are_compatible(t, u)
 end
 
 function Base.isequal(t::PDVec, u::PDVec)
-    if are_compatible(t, u)
-        result = Folds.all(zip(t.segments, u.segments), u.executor) do (t_seg, u_seg)
-            isequal(t_seg, u_seg)
-        end
-    elseif length(t) == length(u)
-        result = Folds.all(u.segments, u.executor) do seg
-            for (k, v) in seg
-                isequal(t[k], v) || return false
+    if length(t) == length(u)
+        if are_compatible(t, u)
+            result = Folds.all(zip(t.segments, u.segments), u.executor) do (t_seg, u_seg)
+                isequal(t_seg, u_seg)
             end
-            return true
+        else
+            result = Folds.all(u.segments, u.executor) do seg
+                for (k, v) in seg
+                    isequal(t[k], v) || return false
+                end
+                return true
+            end
         end
     else
         result = false
@@ -243,6 +361,7 @@ function Base.setindex!(t::PDVec{K,V}, val, k::K) where {K,V}
     end
     return v
 end
+# TODO: this is not needed. Only needs to be defined for a working memory.
 function deposit!(t::PDVec{K,V}, k::K, val, parent=nothing) where {K,V}
     iszero(val) && return nothing
     segment_id, is_local = target_segment(t, k)
@@ -396,6 +515,14 @@ function Base.iterate(t::PDVecIterator, (segment_id, state))
     end
 end
 
+"""
+    mapreduce(f, op, keys(::PDVec); kwargs...)
+    mapreduce(f, op, values(::PDVec); kwargs...)
+    mapreduce(f, op, pairs(::PDVec); kwargs...)
+
+Perform a parallel reduction operation on [`PDVec`](@ref)s. MPI-compatible. Is used in the
+definition of various functions from Base such as `reduce`, `sum`, `prod`, etc.
+"""
 function Base.mapreduce(f, op, t::PDVecIterator; kwargs...)
     result = Folds.mapreduce(
         op, Iterators.filter(!isempty, t.vector.segments), t.vector.executor; kwargs...
@@ -405,6 +532,14 @@ function Base.mapreduce(f, op, t::PDVecIterator; kwargs...)
     return reduce_remote(t.vector.communicator, op, result)
 end
 
+"""
+    all(predicate, keys(::PDVec); kwargs...)
+    all(predicate, values(::PDVec); kwargs...)
+    all(predicate, pairs(::PDVec); kwargs...)
+
+Determine whether `predicate` returns `true` for all elements of iterator on
+[`PDVec`](@ref). Parallel MPI-compatible.
+"""
 function Base.all(f, t::PDVecIterator)
     result = Folds.all(t.vector.segments) do segment
         all(f, t.selector(segment))
@@ -412,18 +547,29 @@ function Base.all(f, t::PDVecIterator)
     return reduce_remote(t.vector.communicator, &, result)
 end
 
-function LinearAlgebra.norm(x::PDVec, p::Real=2)
-    if p === 1
-        return float(sum(abs, values(x), init=real(zero(valtype(x)))))
-    elseif p === 2
-        return sqrt(sum(abs2, values(x), init=real(zero(valtype(x)))))
-    elseif p === Inf
-        return float(mapreduce(abs, max, values(x), init=real(zero(valtype(x)))))
-    else
-        error("$p-norm of $(typeof(x)) is not implemented.")
+"""
+    any(predicate, keys(::PDVec); kwargs...)
+    any(predicate, values(::PDVec); kwargs...)
+    any(predicate, pairs(::PDVec); kwargs...)
+
+Determine whether `predicate` returns `true` for any element in iterator on
+[`PDVec`](@ref). Parallel and MPI-compatible.
+"""
+function Base.any(f, t::PDVecIterator)
+    result = Folds.any(t.vector.segments) do segment
+        any(f, t.selector(segment))
     end
+    return reduce_remote(t.vector.communicator, |, result)
 end
 
+"""
+    map!(f, values(::PDVec))
+    map!(f, dst, values(::PDVec))
+
+In-place parallel `map!` on values of a [`PDVec`](@ref). If `dst` is provided, results are
+written there. Only defined for `values` as efficiently changing keys in a thread-safe and
+distributed way is not possible.
+"""
 function Base.map!(f, t::PDVecVals)
     Folds.foreach(t.vector.segments, t.vector.executor) do segment
         for (k, v) in segment
@@ -438,7 +584,9 @@ function Base.map!(f, t::PDVecVals)
     return t
 end
 function Base.map!(f, dst::PDVec, src::PDVecVals)
-    if are_compatible(dst, src)
+    if dst === src.vector
+        map!(f, src)
+    elseif are_compatible(dst, src)
         Folds.foreach(dst.segments, src.vector.segments, src.vector.executor) do d, s
             empty!(d)
             for (k, v) in s
@@ -455,24 +603,6 @@ function Base.map!(f, dst::PDVec, src::PDVecVals)
         end
     end
     return dst
-end
-
-function Base.:*(α::Number, t::PDVec)
-    T = promote_type(typeof(α), valtype(t))
-    if T === valtype(t)
-        if !iszero(α)
-            result = copy(t)
-            map!(Base.Fix1(*, α), values(result))
-        else
-            result = similar(t)
-        end
-    else
-        result = similar(t, T)
-        if !iszero(α)
-            map!(Base.Fix1(*, α), result, values(t))
-        end
-    end
-    return result
 end
 
 ###
@@ -509,13 +639,6 @@ function add!(dst::PDVec, src::PDVec, α=true)
         end
     end
     return dst
-end
-function LinearAlgebra.axpby!(α, v::PDVec, β::Number, w::PDVec)
-    rmul!(w, β)
-    axpy!(α, v, w)
-end
-function LinearAlgebra.axpy!(α, v::PDVec, w::PDVec)
-    return add!(w, v, α)
 end
 
 function LinearAlgebra.dot(l::PDVec, r::PDVec)
