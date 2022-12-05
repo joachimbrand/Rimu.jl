@@ -338,7 +338,7 @@ end
 
                 # Diagonal
                 replica = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
-                df,_ = lomc!(H, copy(dv); replica, laststep=10_000)
+                df,_ = lomc!(H, dv; replica, laststep=10_000)
 
                 density_sum = sum(1:M) do i
                     top = df[!, Symbol("c1_Op", i, "_c2")]
@@ -350,7 +350,7 @@ end
                 # Not Diagonal
                 ops = ntuple(x -> G2Correlator(x - cld(M, 2)), M)
                 replica = AllOverlaps(2; operator=ops)
-                df,_ = lomc!(H, copy(dv); replica, laststep=10_000)
+                df,_ = lomc!(H, dv; replica, laststep=10_000)
 
                 g2s = map(1:M) do i
                     top = df[!, Symbol("c1_Op", i, "_c2")]
@@ -362,7 +362,7 @@ end
                     @test imag(g2s[i]) ≈ -imag(g2s[end - i + 1]) rtol=1e-3
                 end
                 @test real(sum(g2s)) ≈ N^2 rtol=1e-2
-                @test imag(sum(g2s)) ≈ 0 atol=1e-5
+                @test imag(sum(g2s)) ≈ 0 atol=1e-3
             end
         end
     end
