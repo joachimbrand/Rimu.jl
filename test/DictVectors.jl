@@ -308,6 +308,7 @@ using Rimu.DictVectors: num_segments, is_distributed
 
             @test length(pd1) == length(pd2) == length(pd3) == 10
             @test_logs (:warn,) pd1 == pd2
+            @suppress pd1 == pd2
             @test pd1 == pd2 == pd3
             @test pd2 ≈ pd3
 

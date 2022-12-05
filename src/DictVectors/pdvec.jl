@@ -471,10 +471,7 @@ Base.values(t::PDVec) = PDVecIterator(values, valtype(t), t)
 Base.pairs(t::PDVec) = PDVecIterator(pairs, eltype(t), t)
 
 function Base.iterate(t::PDVecIterator)
-    if t.vector.communicator isa NotDistributed
-        # TODO: this may be a bit annoying.
-        @warn "iteration is not supported. Please use `localpart`." maxlog=1
-    elseif !(t.vector.communicator isa LocalPart)
+    if !(t.vector.communicator isa LocalPart) && !(t.vector.communicator isa NotDistributed)
         throw(CommunicatorError(
             "iteration over distributed vectors is not supported.",
             "Use `localpart` to iterate over the local part only."

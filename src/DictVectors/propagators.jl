@@ -165,7 +165,7 @@ function LinearAlgebra.dot(
     else
         target = t
     end
-    return _dot(target, op, source)
+    return dot_from_right(target, op, source)
 end
 function LinearAlgebra.dot(
     ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec
@@ -176,7 +176,7 @@ function LinearAlgebra.dot(
     else
         target = t
     end
-    return _dot(target, op, source)
+    return dot_from_right(target, op, source)
 end
 
 function dot_from_right(target, op, source::PDVec)
@@ -197,6 +197,6 @@ function LinearAlgebra.dot(t::PDVec, ops::Tuple, source::PDVec, w)
         target = t
     end
     return map(ops) do op
-        _dot(target, op, source)
+        dot_from_right(target, op, source)
     end
 end
