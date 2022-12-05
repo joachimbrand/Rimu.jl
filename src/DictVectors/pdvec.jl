@@ -171,9 +171,6 @@ function PDVec{K,V}(
     elseif initiator == true
         initiator_threshold = initiator_threshold == 0 ? 1 : initiator_threshold
         irule = Initiator(initiator_threshold)
-    elseif initiator == :eco
-        initiator_threshold = initiator_threshold == 0 ? 1 : initiator_threshold
-        irule = EcoInitiator(initiator_threshold)
     elseif initiator isa InitiatorRule
         irule = initiator
     else
@@ -288,12 +285,17 @@ Return true if `t` and `u` have the same number of segments and show a warning o
 function are_compatible(t, u)
     if num_segments(t) == num_segments(u)
         return true
-    else
+    elseif !is_distributed(t) && !is_distributed(u)
         @warn string(
             "vectors have different numbers of segments. ",
             "This prevents parallelization.",
         ) maxlog=1
         return false
+    else
+        throw(ArgumentError(
+            "vectors have different numbers of segments. ",
+            "This is not supported when using MPI."
+        ))
     end
 end
 
@@ -350,7 +352,6 @@ function Base.setindex!(t::PDVec{K,V}, val, k::K) where {K,V}
     end
     return v
 end
-# TODO: this is not needed. Only needs to be defined for a working memory.
 function deposit!(t::PDVec{K,V}, k::K, val, parent=nothing) where {K,V}
     iszero(val) && return nothing
     segment_id, is_local = target_segment(t, k)
@@ -365,6 +366,7 @@ function deposit!(t::PDVec{K,V}, k::K, val, parent=nothing) where {K,V}
     end
     return nothing
 end
+
 function Base.delete!(t::PDVec{K,V}, k::K) where {K,V}
     t[k] = zero(V)
     return t
@@ -377,20 +379,15 @@ end
 # executor, and communicator.
 function Base.empty(
     t::PDVec{K,V}; style=t.style, initiator=t.initiator, communicator=t.communicator,
+    num_segments=length(t.segments)
 ) where {K,V}
-    return PDVec{K,V}(; style, initiator, communicator, num_segments=num_segments(t))
+    return PDVec{K,V}(; style, initiator, communicator, num_segments)
 end
-function Base.empty(
-    t::PDVec{K}, ::Type{V};
-    style=t.style, initiator=t.initiator, communicator=t.communicator,
-) where {K,V}
-    return PDVec{K,V}(; style, initiator, communicator, num_segments=num_segments(t))
+function Base.empty(t::PDVec{K}, ::Type{V}; kwargs...) where {K,V}
+    return PDVec{K,V}(; kwargs...)
 end
-function Base.empty(
-    t::PDVec, ::Type{K}, ::Type{V};
-    style=t.style, initiator=t.initiator, communicator=t.communicator,
-) where {K,V}
-    return PDVec{K,V}(; style, initiator, communicator, num_segments=num_segments(t))
+function Base.empty(t::PDVec, ::Type{K}, ::Type{V}; kwargs...) where {K,V}
+    return PDVec{K,V}(; kwargs...)
 end
 Base.similar(t::PDVec, args...; kwargs...) = empty(t, args...; kwargs...)
 
@@ -584,7 +581,7 @@ function Base.map!(f, dst::PDVec, src::PDVecVals)
         end
     else
         empty!(dst)
-        for (k, v) in src
+        for (k, v) in pairs(src.vector)
             dst[k] = f(v)
         end
     end
@@ -620,7 +617,7 @@ function add!(dst::PDVec, src::PDVec, α=true)
             add!(d, s, α)
         end
     else
-        for (k, v) in src
+        for (k, v) in pairs(src)
             deposit!(dst, k, α * v)
         end
     end

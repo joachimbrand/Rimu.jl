@@ -94,14 +94,22 @@ function LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α)
     return w
 end
 function LinearAlgebra.rmul!(x::AbstractDVec, α)
-    for (k, v) in pairs(x)
-        x[k] = v * α
+    if iszero(α)
+        empty!(x)
+    else
+        for (k, v) in pairs(x)
+            x[k] = v * α
+        end
     end
     return x
 end
 function LinearAlgebra.lmul!(α, x::AbstractDVec)
-    for (k, v) in pairs(x)
-        x[k] = α * v
+    if iszero(α)
+        empty!(x)
+    else
+        for (k, v) in pairs(x)
+            x[k] = α * v
+        end
     end
     return x
 end
@@ -193,12 +201,12 @@ function LinearAlgebra.norm(x::AbstractDVec, p::Real=2)
     end
 end
 
-function LinearAlgebra.normalize!(v::AbstractDVec, p=2)
+function LinearAlgebra.normalize!(v::AbstractDVec, p::Real=2)
     n = norm(v, p)
     rmul!(v, inv(n))
     return v
 end
-function LinearAlgebra.normalize(v::AbstractDVec, p=2)
+function LinearAlgebra.normalize(v::AbstractDVec, p::Real=2)
     res = copy(v)
     return normalize!(res, p)
 end

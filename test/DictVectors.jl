@@ -1,3 +1,4 @@
+using Folds
 using LinearAlgebra
 using Random
 using Rimu
@@ -36,6 +37,8 @@ function test_dvec_interface(type, keys, vals; kwargs...)
             for (k, v) in pairs
                 @test dvec6[k] == v
             end
+
+            @test sizehint!(dvec1, 1000) === dvec1
         end
         @testset "empty, similar" begin
             dvec1 = type(pairs; kwargs...)
@@ -45,6 +48,14 @@ function test_dvec_interface(type, keys, vals; kwargs...)
             @test isempty(dvec2)
             @test isempty(dvec3)
             @test keytype(dvec1) == keytype(dvec2) == keytype(dvec3)
+
+            dvec4 = empty(dvec1, String)
+            @test keytype(dvec4) == keytype(dvec1)
+            @test valtype(dvec4) == String
+
+            dvec5 = empty(dvec1, String, String)
+            @test keytype(dvec5) == String
+            @test valtype(dvec5) == String
         end
         @testset "setindex, delete" begin
             dvec = type(pairs...; kwargs...)
@@ -98,8 +109,7 @@ function test_dvec_interface(type, keys, vals; kwargs...)
             @test norm(empty(dvec), Inf) == 0
 
             if valtype(dvec) == float(valtype(dvec))
-                normalize!(dvec)
-                @test norm(dvec) ≈ 1
+                @test norm(normalize(dvec)) ≈ 1
 
                 normalize!(dvec, 1)
                 @test norm(dvec, 1) ≈ 1
@@ -122,6 +132,29 @@ function test_dvec_interface(type, keys, vals; kwargs...)
             empty!(dvec1)
             for (k, v) in pairs
                 @test dvec3[k] == v
+            end
+        end
+        @testset "all, any" begin
+            dvec = type(DVec(pairs))
+
+            @test all(Base.pairs(dvec)) do p
+                p in pairs
+            end
+            @test all(Base.keys(dvec)) do k
+                k in keys
+            end
+            @test all(Base.values(dvec)) do v
+                v in vals
+            end
+
+            @test any(Base.pairs(dvec)) do p
+                p == pairs[end]
+            end
+            @test any(Base.keys(dvec)) do k
+                k == keys[1]
+            end
+            @test any(Base.values(dvec)) do v
+                v == vals[end ÷ 2]
             end
         end
         @testset "mul!, *, rmul!, lmul!" begin
@@ -148,6 +181,8 @@ function test_dvec_interface(type, keys, vals; kwargs...)
             for (k, v) in pairs
                 @test dvec[k] == 6v
             end
+            @test isempty(lmul!(0, copy(dvec)))
+            @test isempty(rmul!(copy(dvec), 0))
         end
         @testset "add!" begin
             dvec1 = type(Dict(pairs))
@@ -313,6 +348,40 @@ using Rimu.DictVectors: num_segments, is_distributed
             @test pd2 ≈ pd3
 
             @test !is_distributed(pd1)
+
+            @test real(pd1) == pd1
+            @test isempty(imag(pd1))
+        end
+
+        @testset "uneven vs even segemnts" begin
+            pd1 = PDVec(zip(1:10, 10:-1:1))
+            pd2 = PDVec{Int,Int}(; num_segments=Threads.nthreads() * 2)
+            copyto!(pd2, pd1)
+            @test pd1 == pd2
+            @test dot(pd1, pd2) > 0
+
+            dv = DVec(pd1)
+            pd3 = PDVec(dv)
+            @test dv == pd3 == pd1
+
+            add!(pd1, pd2)
+            @test pd1 == 2 * pd2
+        end
+
+        @testset "map!" begin
+            pd1 = PDVec(zip(2:2:12, [1,-1,2,-2,3,-3]))
+            map!(x -> x + 1, values(pd1))
+            @test length(pd1) == 5
+            @test pd1[2] == 2
+
+            pd2 = similar(pd1; num_segments=Threads.nthreads() * 2)
+            map!(x -> x - 2, pd2, values(pd1))
+            @test length(pd2) == 4
+            @test pd2[6] == 1
+
+            pd3 = map!(x -> x + 4, pd2, values(pd2))
+            @test pd3 === pd2
+            @test length(pd2) == 3
         end
     end
 
@@ -339,5 +408,7 @@ using Rimu.DictVectors: num_segments, is_distributed
 
         dvec4 = PDVec(:a => 1.0, style=IsStochastic2Pop())
         @test !isreal(dvec4)
+        @test isreal(real(dvec4))
+        @test isreal(imag(dvec4))
     end
 end
