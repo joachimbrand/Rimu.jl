@@ -58,7 +58,7 @@ julia> add = BoseFS((0,0,5,0,0));
 
 julia> op = HubbardMom1D(add; u=6.0);
 
-julia> pv = PDVec(add => 1.0; num_segments=8)
+julia> pv = PDVec(add => 1.0)
 1-element PDVec: style = IsDeterministic{Float64}()
   fs"|0 0 5 0 0⟩" => 1.0
 
@@ -67,17 +67,6 @@ julia> pv = op * pv
   fs"|1 0 3 0 1⟩" => 5.36656
   fs"|0 0 5 0 0⟩" => 2.0
   fs"|0 1 3 1 0⟩" => 5.36656
-
-julia> pv.segments
-8-element Vector{Dict{BoseFS{5, 5, BitString{9, 1, UInt16}}, Float64}}:
- Dict()
- Dict()
- Dict(fs"|1 0 3 0 1⟩" => 5.366563145999495)
- Dict(fs"|0 0 5 0 0⟩" => 2.0)
- Dict()
- Dict(fs"|0 1 3 1 0⟩" => 5.366563145999495)
- Dict()
- Dict()
 
 julia> map!(x -> -x, values(pv)); pv
 3-element PDVec: style = IsDeterministic{Float64}()

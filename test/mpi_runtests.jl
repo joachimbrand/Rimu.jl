@@ -323,9 +323,10 @@ end
                 @test E0 ≤ Es
             end
             @testset "AllOverlaps with $setup" begin
-                #=
-                H = HubbardMom1D(FermiFS2C((1,1,1,0,0,0), (0,0,0,1,1,1)))
+                H = HubbardMom1D(BoseFS((0,0,5,0,0)))
                 add = starting_address(H)
+                N = num_particles(add)
+                M = num_modes(add)
 
                 if setup == :PDVec
                     dv = PDVec(add => 3; style=IsDynamicSemistochastic())
@@ -336,15 +337,32 @@ end
                 end
 
                 # Diagonal
-                replica = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, 2))
-                df,_ = lomc!(H, dv; replica)
+                replica = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
+                df,_ = lomc!(H, copy(dv); replica, laststep=10_000)
+
+                density_sum = sum(1:M) do i
+                    top = df[!, Symbol("c1_Op", i, "_c2")]
+                    bot = df.c1_dot_c2
+                    mean(ratio_of_means(top, bot; skip=5000))
+                end
+                @test density_sum ≈ N rtol=1e-3
 
                 # Not Diagonal
-                ops = (G2MomCorrelator(0), ntuple(DensityMatrixDiagonal, 2))
+                ops = ntuple(x -> G2Correlator(x - cld(M, 2)), M)
                 replica = AllOverlaps(2; operator=ops)
-                df,_ = lomc!(H, dv; replica)
-                #TODO what to check here?
-                =#
+                df,_ = lomc!(H, copy(dv); replica, laststep=10_000)
+
+                g2s = map(1:M) do i
+                    top = df[!, Symbol("c1_Op", i, "_c2")]
+                    bot = df.c1_dot_c2
+                    mean(ratio_of_means(top, bot; skip=5000))
+                end
+                for i in 1:cld(M, 2)
+                    @test real(g2s[i]) ≈ real(g2s[end - i + 1]) rtol=1e-3
+                    @test imag(g2s[i]) ≈ -imag(g2s[end - i + 1]) rtol=1e-3
+                end
+                @test real(sum(g2s)) ≈ N^2 rtol=1e-2
+                @test imag(sum(g2s)) ≈ 0 atol=1e-5
             end
         end
     end
