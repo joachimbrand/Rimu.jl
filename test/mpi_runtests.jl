@@ -39,10 +39,14 @@ end
 @mpi_root @info "Running MPI tests..."
 RMPI.mpi_allprintln("hello")
 
-# Ignore all printing on ranks other than root.
-if mpi_rank() != mpi_root
+# Ignore all printing on ranks other than root. Passing an argument to this script disables
+# this.
+if isnothing(get(ARGS, 1, nothing)) && mpi_rank() != mpi_root
     redirect_stderr(devnull)
     redirect_stdout(devnull)
+end
+if !isnothing(get(ARGS, 1, nothing))
+    @mpi_root @info "Debug printing enabled"
 end
 
 """
@@ -222,7 +226,7 @@ end
 
         res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
         res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
-        # TODO: make an interface for this
+
         prop = Rimu.DictVectors.OperatorMulPropagator(ham, pv)
         res_prop = eigsolve(prop, pv, 1, :SR; issymmetric=true)
 
@@ -245,6 +249,7 @@ end
         @test dot(pv2, pv1) ≈ dot(pv2, dv)
         @test dot(pv1, pv2) ≈ dot(dv, pv2)
         @test dot(freeze(pv2), pv1) ≈ dot(pv2, pv1)
+        @test dot(pv1, freeze(pv2)) ≈ dot(pv1, pv2)
 
         if mpi_size() > 1
             @test pv.communicator isa DictVectors.PointToPoint
@@ -272,7 +277,7 @@ end
             (RMPI.mpi_point_to_point, (;)),
             (RMPI.mpi_all_to_all, (;)),
             (RMPI.mpi_one_sided, (; capacity=1000)),
-            (:PDVec, :PDVec),
+            (:PDVec, (;)),
         )
             @testset "Regular with $setup and post-steps" begin
                 H = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
@@ -322,47 +327,53 @@ end
                 Es, _ = mean_and_se(df.shift[2000:end])
                 @test E0 ≤ Es
             end
-            @testset "AllOverlaps with $setup" begin
-                H = HubbardMom1D(BoseFS((0,0,5,0,0)))
-                add = starting_address(H)
-                N = num_particles(add)
-                M = num_modes(add)
+            for initiator in (true, false)
+                @testset "AllOverlaps with $setup and initiator=$initiator" begin
+                    H = HubbardMom1D(BoseFS((0,0,5,0,0)))
+                    add = starting_address(H)
+                    N = num_particles(add)
+                    M = num_modes(add)
 
-                if setup == :PDVec
-                    dv = PDVec(add => 3; style=IsDynamicSemistochastic())
-                else
-                    dv = MPIData(
-                        DVec(add => 3; style=IsDynamicSemistochastic()); setup, kwargs...
-                    )
+                    if setup == :PDVec
+                        dv = PDVec(add => 3; style=IsDynamicSemistochastic(), initiator)
+                    elseif initiator
+                        dv = MPIData(InitiatorDVec(
+                            add => 3; style=IsDynamicSemistochastic()
+                        ); setup, kwargs...)
+                    else
+                        dv = MPIData(DVec(
+                            add => 3; style=IsDynamicSemistochastic()
+                        ); setup, kwargs...)
+                    end
+
+                    # Diagonal
+                    replica = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
+                    df,_ = lomc!(H, dv; replica, laststep=10_000)
+
+                    density_sum = sum(1:M) do i
+                        top = df[!, Symbol("c1_Op", i, "_c2")]
+                        bot = df.c1_dot_c2
+                        mean(ratio_of_means(top, bot; skip=5000))
+                    end
+                    @test density_sum ≈ N rtol=1e-3
+
+                    # Not Diagonal
+                    ops = ntuple(x -> G2Correlator(x - cld(M, 2)), M)
+                    replica = AllOverlaps(2; operator=ops)
+                    df,_ = lomc!(H, dv; replica, laststep=10_000)
+
+                    g2s = map(1:M) do i
+                        top = df[!, Symbol("c1_Op", i, "_c2")]
+                        bot = df.c1_dot_c2
+                        mean(ratio_of_means(top, bot; skip=5000))
+                    end
+                    for i in 1:cld(M, 2)
+                        @test real(g2s[i]) ≈ real(g2s[end - i + 1]) rtol=1e-3
+                        @test imag(g2s[i]) ≈ -imag(g2s[end - i + 1]) rtol=1e-3
+                    end
+                    @test real(sum(g2s)) ≈ N^2 rtol=1e-2
+                    @test imag(sum(g2s)) ≈ 0 atol=1e-3
                 end
-
-                # Diagonal
-                replica = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
-                df,_ = lomc!(H, dv; replica, laststep=10_000)
-
-                density_sum = sum(1:M) do i
-                    top = df[!, Symbol("c1_Op", i, "_c2")]
-                    bot = df.c1_dot_c2
-                    mean(ratio_of_means(top, bot; skip=5000))
-                end
-                @test density_sum ≈ N rtol=1e-3
-
-                # Not Diagonal
-                ops = ntuple(x -> G2Correlator(x - cld(M, 2)), M)
-                replica = AllOverlaps(2; operator=ops)
-                df,_ = lomc!(H, dv; replica, laststep=10_000)
-
-                g2s = map(1:M) do i
-                    top = df[!, Symbol("c1_Op", i, "_c2")]
-                    bot = df.c1_dot_c2
-                    mean(ratio_of_means(top, bot; skip=5000))
-                end
-                for i in 1:cld(M, 2)
-                    @test real(g2s[i]) ≈ real(g2s[end - i + 1]) rtol=1e-3
-                    @test imag(g2s[i]) ≈ -imag(g2s[end - i + 1]) rtol=1e-3
-                end
-                @test real(sum(g2s)) ≈ N^2 rtol=1e-2
-                @test imag(sum(g2s)) ≈ 0 atol=1e-3
             end
         end
     end

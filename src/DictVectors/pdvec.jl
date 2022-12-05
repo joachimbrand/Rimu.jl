@@ -631,16 +631,18 @@ function add!(dst::PDVec, src::PDVec, α=true)
 end
 
 function LinearAlgebra.dot(l::PDVec, r::PDVec)
+    T = promote_type(valtype(l), valtype(r))
     if are_compatible(l, r)
-        T = promote_type(valtype(l), valtype(r))
-        res = Folds.sum(zip(l.segments, r.segments), r.executor) do (l_segment, r_segment)
-            sum(r_segment; init=zero(T)) do (k, v)
-                conj(get(l_segment, k, zero(valtype(l_segment)))) * v
+        l_segs = l.segments
+        r_segs = r.segments
+        res = Folds.sum(zip(l_segs, r_segs), r.executor; init=zero(T)) do (l_seg, r_seg)
+            sum(r_seg; init=zero(T)) do (k, v)
+                conj(get(l_seg, k, zero(valtype(l_seg)))) * v
             end
         end::T
         return reduce_remote(r.communicator, +, res)
     else
-        res = sum(pairs(r)) do (k, v)
+        res = sum(pairs(r); init=zero(T)) do (k, v)
             conj(l[k]) + v
         end
         return res

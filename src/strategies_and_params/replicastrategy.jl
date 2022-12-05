@@ -155,7 +155,9 @@ function all_overlaps(
         end
         for (k, op) in enumerate(operators)
             push!(names, "c$(i)_Op$(k)_c$(j)")
-            push!(values, dot(v, op, vecs[j]))
+            # Using dot_from_right here because dot will try to copy_to_local! if
+            # called directly.
+            push!(values, dot_from_right(v, op, vecs[j]))
         end
     end
 

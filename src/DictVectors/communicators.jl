@@ -195,8 +195,8 @@ function insert_collections!(buf::SegmentedBuffer, iters, ex=ThreadedEx())
 
     # Copy over the data
     Folds.foreach(buf, iters, ex) do dst, src
-        for (i, x) in enumerate(src)
-            dst[i] = x
+        for (i, v) in enumerate(src)
+            dst[i] = v
         end
     end
     return buf
@@ -288,12 +288,17 @@ function copy_to_local!(ptp::PointToPoint, w, t)
     end
 
     # We need all the data, including local in w.
-    Folds.foreach(copy!, local_segments(w, mpi_rank(ptp)), t.segments)
+    Folds.foreach(copy!, local_segments(w), t.segments)
 
     # Receive and insert from each rank. The order is first come first serve.
     for _ in 1:ptp.mpi_size - 1
         src_rank = mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
-        Folds.foreach(copy!, remote_segments(w, src_rank), ptp.recv_buffer, w.executor)
+        Folds.foreach(remote_segments(w, src_rank), ptp.recv_buffer, w.executor) do dst, src
+            empty!(dst)
+            for (k, v) in src
+                dst[k] = valtype(dst)(v)
+            end
+        end
     end
 
     # Pack the segments into a PDVec and return it.

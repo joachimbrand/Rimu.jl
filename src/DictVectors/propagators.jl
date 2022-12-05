@@ -133,8 +133,9 @@ end
 function LinearAlgebra.dot(
     ::IsDiagonal, t::PDVec, op::AbstractHamiltonian, u::PDVec, w=nothing
 )
-    return sum(pairs(u)) do (k, v)
-        conj(t[k]) * diagonal_element(op, k) * v
+    T = promote_type(valtype(t), eltype(op), valtype(u))
+    return sum(pairs(u); init=zero(T)) do (k, v)
+        T(conj(t[k]) * diagonal_element(op, k) * v)
     end
 end
 function LinearAlgebra.dot(
@@ -178,14 +179,14 @@ function LinearAlgebra.dot(
     return _dot(target, op, source)
 end
 
-function _dot(target, op, source)
+function dot_from_right(target, op, source::PDVec)
     T = promote_type(valtype(target), valtype(source), eltype(op))
     return sum(pairs(source); init=zero(T)) do (k, v)
         diag = conj(target[k]) * diagonal_element(op, k) * v
         offdiag = sum(offdiagonals(op, k); init=zero(T)) do (k_off, v_off)
             conj(target[k_off]) * v_off * v
         end
-        diag + offdiag
+        T(diag + offdiag)
     end
 end
 

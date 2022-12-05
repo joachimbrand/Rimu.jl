@@ -24,7 +24,7 @@ import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, 
     move_and_compress!, zero!,
     working_memory, fciqmc_step!, sort_into_targets!
 
-export add!, deposit!, storage, walkernumber, propagate!
+export add!, deposit!, storage, walkernumber, propagate!, dot_from_right
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 

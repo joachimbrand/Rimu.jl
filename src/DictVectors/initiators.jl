@@ -11,6 +11,9 @@ Must define:
 abstract type AbstractInitiatorValue{V} end
 Base.zero(v::AbstractInitiatorValue) = zero(typeof(v))
 
+Base.convert(::Type{T}, x) where {T<:AbstractInitiatorValue} = T(x)
+Base.convert(::Type{T}, x::T) where {T<:AbstractInitiatorValue} = x
+
 """
     InitiatorValue{V}(; safe::V, unsafe::V, initiator::V) where V
 Composite "walker" with three fields. For use with [`InitiatorDVec`](@ref)s.
@@ -26,6 +29,11 @@ end
 function InitiatorValue{V}(i::InitiatorValue) where {V}
     return InitiatorValue{V}(V(i.safe), V(i.unsafe), V(i.initiator))
 end
+function InitiatorValue{V}(x) where {V}
+    return InitiatorValue{V}(safe=x)
+end
+
+Base.convert(::Type{V}, x::InitiatorValue{V}) where {V} = x.safe + x.unsafe + x.initiator
 
 function Base.:+(v::InitiatorValue, w::InitiatorValue)
     return InitiatorValue(v.safe + w.safe, v.unsafe + w.unsafe, v.initiator + w.initiator)
@@ -41,7 +49,6 @@ function Base.:*(α, v::InitiatorValue)
 end
 Base.zero(::Type{InitiatorValue{V}}) where {V} = InitiatorValue{V}()
 
-InitiatorValue{V}(x) where {V} = InitiatorValue{V}(safe=x)
 
 """
     NonInitiatorValue{V}
@@ -51,9 +58,14 @@ the default initiator rule for [`PDVec`](@ref).
 """
 struct NonInitiatorValue{V} <: AbstractInitiatorValue{V}
     value::V
+
     NonInitiatorValue{V}(v) where {V} = new{V}(V(v))
-    NonInitiatorValue(v::V) where {V} = new{V}(V(v))
+    NonInitiatorValue{V}(v::NonInitiatorValue{V}) where {V} = v
 end
+
+NonInitiatorValue(v::V) where {V} = NonInitiatorValue{V}(v)
+
+Base.convert(::Type{V}, x::NonInitiatorValue{V}) where {V} = x.value
 
 function Base.:+(v::NonInitiatorValue, w::NonInitiatorValue)
     return NonInitiatorValue(v.value + w.value)

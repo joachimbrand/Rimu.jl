@@ -27,6 +27,13 @@ function deposit!(c::PDWorkingMemoryColumn{K,V,W}, k::K, val, parent) where {K,V
     end
     return nothing
 end
+
+function Base.getindex(c::PDWorkingMemoryColumn{K,V,W}, k::K) where {K,V,W}
+    segment_id = fastrange_hash(k, num_segments(c))
+    segment = c.segments[segment_id]
+    return convert(V, get(segment, k, zero(W)))
+end
+
 Base.length(c::PDWorkingMemoryColumn) = sum(length, c.segments)
 Base.empty!(c::PDWorkingMemoryColumn) = foreach(empty!, c.segments)
 Base.keytype(::PDWorkingMemoryColumn{K}) where {K} = K
@@ -198,10 +205,8 @@ end
 
 Return the "main" column of the working memory wrapped in a [`PDVec`](@ref).
 """
-function main_column(w)
-    return PDVec(
-        w.columns[1].segments, w.style, NoInitiator(), LocalPart(w.communicator), w.executor
-    )
+function main_column(w::PDWorkingMemory{K,V,W,S}) where {K,V,W,S}
+    return w.columns[1]
 end
 
 function copy_to_local!(w, v::AbstractDVec)
