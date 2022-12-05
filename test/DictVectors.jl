@@ -1,4 +1,3 @@
-using Folds
 using LinearAlgebra
 using Random
 using Rimu
