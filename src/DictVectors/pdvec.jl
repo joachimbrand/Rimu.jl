@@ -114,7 +114,7 @@ but does result in significant speedups.
 
 ### Example
 
-```jldoctest
+```julia
 julia> using KrylovKit
 
 julia> add = BoseFS((0,0,5,0,0));
