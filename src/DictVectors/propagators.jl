@@ -192,7 +192,7 @@ function dot_from_right(target, op, source::PDVec)
     result = sum(pairs(source); init=zero(T)) do (k, v)
         res = conj(target[k]) * diagonal_element(op, k) * v
         for (k_off, v_off) in offdiagonals(op, k)
-            res += T(conj(target[k_off])) * T(v_off) * T(v)
+            res += conj(target[k_off]) * v_off * v
         end
         res
     end
