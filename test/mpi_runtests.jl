@@ -267,15 +267,21 @@ end
         end
 
         @testset "dot" begin
-
             add = BoseFS((0,0,10,0,0))
             H = HubbardMom1D(add)
+
+            # Need to seed here to get the same random vectors on all ranks.
+            Random.seed!(1)
             pairs_v = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
             pairs_w = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:20]
+
             v = DVec(pairs_v)
             w = DVec(pairs_w)
             pv = PDVec(pairs_v)
             pw = PDVec(pairs_w)
+
+            @test norm(v) ≈ norm(pv)
+            @test length(w) == length(pw)
 
             @test dot(v, w) ≈ dot(pv, pw)
 
@@ -283,10 +289,8 @@ end
             @test dot(freeze(pv), pw) ≈ dot(v, w) ≈ dot(pv, freeze(pw))
 
             for op in (H, DensityMatrixDiagonal(1))
-                @test dot(v, op, w) ≈ dot(v, op, pw)
-                @test dot(w, op, v) ≈ dot(w, op, pv)
+                @test dot(v, op, w) ≈ dot(pv, op, pw)
                 @test dot(w, op, v) ≈ dot(pw, op, pv)
-                @test dot(w, op, v) ≈ dot(pw, op, v)
 
                 pu = op * pv
                 u = op * v
