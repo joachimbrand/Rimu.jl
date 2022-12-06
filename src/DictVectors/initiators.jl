@@ -38,12 +38,6 @@ Base.convert(::Type{V}, x::InitiatorValue{V}) where {V} = x.safe + x.unsafe + x.
 function Base.:+(v::InitiatorValue, w::InitiatorValue)
     return InitiatorValue(v.safe + w.safe, v.unsafe + w.unsafe, v.initiator + w.initiator)
 end
-function Base.:-(v::InitiatorValue, w::InitiatorValue)
-    return InitiatorValue(v.safe - w.safe, v.unsafe - w.unsafe, v.initiator - w.initiator)
-end
-function Base.:-(v::InitiatorValue{V}) where {V}
-    return InitiatorValue{V}(-v.safe, -v.unsafe, -v.initiator)
-end
 function Base.:*(α, v::InitiatorValue)
     return InitiatorValue(α * v.safe, α * v.unsafe, α * v.initiator)
 end
@@ -69,12 +63,6 @@ Base.convert(::Type{V}, x::NonInitiatorValue{V}) where {V} = x.value
 
 function Base.:+(v::NonInitiatorValue, w::NonInitiatorValue)
     return NonInitiatorValue(v.value + w.value)
-end
-function Base.:-(v::NonInitiatorValue, w::NonInitiatorValue)
-    return NonInitiatorValue(v.value - w.value)
-end
-function Base.:-(v::NonInitiatorValue)
-    return NonInitiatorValue(-v.value)
 end
 function Base.:*(α, v::NonInitiatorValue)
     return NonInitiatorValue(α * v.value)

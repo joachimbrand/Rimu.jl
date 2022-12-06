@@ -265,6 +265,37 @@ end
             @test total_len == length(dv)
             @test total_vals == sum(abs2, values(pv))
         end
+
+        @testset "dot" begin
+
+            add = BoseFS((0,0,10,0,0))
+            H = HubbardMom1D(add)
+            pairs_v = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
+            pairs_w = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:20]
+            v = DVec(pairs_v)
+            w = DVec(pairs_w)
+            pv = PDVec(pairs_v)
+            pw = PDVec(pairs_w)
+
+            @test dot(v, w) ≈ dot(pv, pw)
+
+            @test dot(freeze(pw), pv) ≈ dot(w, v) ≈ dot(pw, freeze(pv))
+            @test dot(freeze(pv), pw) ≈ dot(v, w) ≈ dot(pv, freeze(pw))
+
+            for op in (H, DensityMatrixDiagonal(1))
+                @test dot(v, op, w) ≈ dot(v, op, pw)
+                @test dot(w, op, v) ≈ dot(w, op, pv)
+                @test dot(w, op, v) ≈ dot(pw, op, pv)
+                @test dot(w, op, v) ≈ dot(pw, op, v)
+
+                pu = op * pv
+                u = op * v
+                @test length(u) == length(pu)
+                @test norm(u, 1) ≈ norm(pu, 1)
+                @test norm(u, 2) ≈ norm(pu, 2)
+                @test norm(u, Inf) ≈ norm(pu, Inf)
+            end
+        end
     end
 
     @testset "Ground state energy estimates" begin

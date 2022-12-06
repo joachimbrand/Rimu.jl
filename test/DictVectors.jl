@@ -38,6 +38,8 @@ function test_dvec_interface(type, keys, vals; kwargs...)
             end
 
             @test sizehint!(dvec1, 1000) === dvec1
+
+            @test localpart(dvec1) === localpart(localpart(dvec1))
         end
         @testset "empty, similar" begin
             dvec1 = type(pairs; kwargs...)
@@ -183,7 +185,7 @@ function test_dvec_interface(type, keys, vals; kwargs...)
             @test isempty(lmul!(0, copy(dvec)))
             @test isempty(rmul!(copy(dvec), 0))
         end
-        @testset "add!" begin
+        @testset "add!, +, -" begin
             dvec1 = type(Dict(pairs))
             dvec2 = type(Dict(pairs[1:2:end]))
             add!(dvec1, dvec2)
@@ -194,10 +196,14 @@ function test_dvec_interface(type, keys, vals; kwargs...)
                     @test dvec1[k] == v
                 end
             end
+            @test dvec1 == type(Dict(pairs)) + dvec2
 
             copy!(dvec2, dvec1)
             add!(dvec1, type{K,V}())
             @test dvec1 == dvec2
+
+            @test isempty(dvec1 - dvec1)
+            @test type(pairs) - type(pairs[1:2:end]) == type(pairs[2:2:end])
         end
         @testset "axpy!" begin
             dvec1 = type(Dict(pairs))

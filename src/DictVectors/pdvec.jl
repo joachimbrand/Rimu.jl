@@ -300,7 +300,7 @@ function are_compatible(t, u)
 end
 
 function Base.isequal(t::PDVec, u::PDVec)
-    if length(t) == length(u)
+    if length(localpart(t)) == length(localpart(u))
         if are_compatible(t, u)
             result = Folds.all(zip(t.segments, u.segments), u.executor) do (t_seg, u_seg)
                 isequal(t_seg, u_seg)
@@ -427,6 +427,9 @@ function localpart(t::PDVec{K,V,S,I,<:Any,E}) where {K,V,S,I,E}
     return PDVec{K,V,S,I,LocalPart,E}(
         t.segments, t.style, t.initiator, LocalPart(t.communicator), t.executor
     )
+end
+function localpart(t::PDVec{K,V,S,I,<:LocalPart,E}) where {K,V,S,I,E}
+    return t
 end
 
 ###

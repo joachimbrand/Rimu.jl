@@ -226,10 +226,7 @@ function fciqmc_step!(wm::PDWorkingMemory, target::PDVec, source::PDVec, ham, sh
     return stat_names, stats, wm, target
 end
 
-# TODO: hacks
-function sort_into_targets!(dst::PDVec, w::PDWorkingMemory, stats)
-    error()
-end
+# TODO: this is a hack. When we revamp propagators, this can be changed.
 function StochasticStyles.compress!(::StochasticStyles.ThresholdCompression, t::PDVec)
     return t
 end
