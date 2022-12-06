@@ -189,13 +189,14 @@ end
 
 function dot_from_right(target, op, source::PDVec)
     T = promote_type(valtype(target), valtype(source), eltype(op))
-    return sum(pairs(source); init=zero(T)) do (k, v)
-        diag = conj(target[k]) * diagonal_element(op, k) * v
-        offdiag = sum(offdiagonals(op, k); init=zero(T)) do (k_off, v_off)
-            conj(target[k_off]) * v_off * v
+    result = sum(pairs(source); init=zero(T)) do (k, v)
+        res = conj(target[k]) * diagonal_element(op, k) * v
+        for (k_off, v_off) in offdiagonals(op, k)
+            res += T(conj(target[k_off])) * T(v_off) * T(v)
         end
-        T(diag + offdiag)
+        res
     end
+    return result::T
 end
 
 function LinearAlgebra.dot(t::PDVec, ops::Tuple, source::PDVec, w)
