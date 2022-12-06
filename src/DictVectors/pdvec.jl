@@ -56,7 +56,7 @@ ensure this, it is best to leave the number of segments at its default value.
 
 ### Example
 
-```jldoctest
+```julia
 julia> add = FermiFS2C((1,1,0,0), (0,0,1,1));
 
 julia> op = HubbardMom1D(add; t=4/π^2, u=4);

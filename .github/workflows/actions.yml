@@ -35,7 +35,7 @@ jobs:
         uses: julia-actions/julia-buildpkg@latest
       - name: "Run tests"
         run: |
-          julia --project=@. -t2 -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
+          julia --color=yes --project=@. -t2 -e "using Pkg; Pkg.test(\"Rimu\"; coverage=true);"
 
       - name: "Run MPI tests"
         run: |
@@ -52,7 +52,7 @@ jobs:
           # Note: this messes up the test Project.toml, but we don't need it anymore,
           # so testing Rimu will no longer work. This is fine if this step is done
           # after the testing.
-          julia --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.develop(path="."); Pkg.build()'
+          julia --color=yes --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.develop(path="."); Pkg.build()'
           mpiexecjl -n 2 julia --code-coverage=user --depwarn=yes --project=test test/mpi_runtests.jl
 
       - name: "Process coverage"
