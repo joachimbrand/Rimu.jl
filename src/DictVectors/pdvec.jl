@@ -77,13 +77,13 @@ julia> pv = op * pv
 
 julia> map!(x -> -x, values(pv)); pv
 7-element PDVec: style = IsDeterministic{Float64}()
-  fs"|↑↓↑↓⟩" => 1.0
-  fs"|↑↑↓↓⟩" => 4.0
-  fs"|↓↑↓↑⟩" => 1.0
-  fs"|↓↑↑↓⟩" => -1.0
-  fs"|⇅⋅⋅⇅⟩" => 1.0
-  fs"|↑↓↓↑⟩" => -1.0
-  fs"|⋅⇅⇅⋅⟩" => 1.0
+  fs"|↑↓↑↓⟩" => -1.0
+  fs"|↑↑↓↓⟩" => -4.0
+  fs"|↓↑↓↑⟩" => -1.0
+  fs"|↓↑↑↓⟩" => 1.0
+  fs"|⇅⋅⋅⇅⟩" => -1.0
+  fs"|↑↓↓↑⟩" => 1.0
+  fs"|⋅⇅⇅⋅⟩" => -1.0
 
 julia> dest = similar(pv)
 0-element PDVec: style = IsDeterministic{Float64}()
