@@ -57,42 +57,55 @@ ensure this, it is best to leave the number of segments at its default value.
 ### Example
 
 ```jldoctest
-julia> add = BoseFS((0,0,5,0,0));
+julia> add = FermiFS2C((1,1,0,0), (0,0,1,1));
 
-julia> op = HubbardMom1D(add; u=6.0);
+julia> op = HubbardMom1D(add; t=4/π^2, u=4);
 
 julia> pv = PDVec(add => 1.0)
 1-element PDVec: style = IsDeterministic{Float64}()
-  fs"|0 0 5 0 0⟩" => 1.0
+  fs"|↑↑↓↓⟩" => 1.0
 
 julia> pv = op * pv
-3-element PDVec: style = IsDeterministic{Float64}()
-  fs"|1 0 3 0 1⟩" => 5.36656
-  fs"|0 0 5 0 0⟩" => 2.0
-  fs"|0 1 3 1 0⟩" => 5.36656
+7-element PDVec: style = IsDeterministic{Float64}()
+  fs"|↑↓↑↓⟩" => 1.0
+  fs"|↑↑↓↓⟩" => 4.0
+  fs"|↓↑↓↑⟩" => 1.0
+  fs"|↓↑↑↓⟩" => -1.0
+  fs"|⇅⋅⋅⇅⟩" => 1.0
+  fs"|↑↓↓↑⟩" => -1.0
+  fs"|⋅⇅⇅⋅⟩" => 1.0
 
 julia> map!(x -> -x, values(pv)); pv
-3-element PDVec: style = IsDeterministic{Float64}()
-  fs"|1 0 3 0 1⟩" => -5.36656
-  fs"|0 0 5 0 0⟩" => -2.0
-  fs"|0 1 3 1 0⟩" => -5.36656
+7-element PDVec: style = IsDeterministic{Float64}()
+  fs"|↑↓↑↓⟩" => 1.0
+  fs"|↑↑↓↓⟩" => 4.0
+  fs"|↓↑↓↑⟩" => 1.0
+  fs"|↓↑↑↓⟩" => -1.0
+  fs"|⇅⋅⋅⇅⟩" => 1.0
+  fs"|↑↓↓↑⟩" => -1.0
+  fs"|⋅⇅⇅⋅⟩" => 1.0
 
 julia> dest = similar(pv)
 0-element PDVec: style = IsDeterministic{Float64}()
 
 julia> map!(x -> x + 2, dest, values(pv))
-2-element PDVec: style = IsDeterministic{Float64}()
-  fs"|1 0 3 0 1⟩" => -3.36656
-  fs"|0 1 3 1 0⟩" => -3.36656
+7-element PDVec: style = IsDeterministic{Float64}()
+  fs"|↑↓↑↓⟩" => 1.0
+  fs"|↑↑↓↓⟩" => -2.0
+  fs"|↓↑↓↑⟩" => 1.0
+  fs"|↓↑↑↓⟩" => 3.0
+  fs"|⇅⋅⋅⇅⟩" => 1.0
+  fs"|↑↓↓↑⟩" => 3.0
+  fs"|⋅⇅⇅⋅⟩" => 1.0
 
 julia> sum(values(pv))
--12.73312629199899
+-6.0
 
 julia> dot(dest, pv)
-36.133747416002024
+10.0
 
 julia> dot(dest, op, pv)
-715.4481988368399
+44.0
 ```
 
 ## MPI
