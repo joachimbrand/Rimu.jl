@@ -51,6 +51,9 @@ key-value pair is mapped to is determined by the hash of the key. The purpose of
 segmentation is to allow parallel processing - functions such as `mapreduce`, `add!` or
 `dot` (full list below) process each subdictionary on a separate thread.
 
+For parallel binary operations, the numbers of segments in both vectors must match. To
+ensure this, it is best to leave the number of segments at its default value.
+
 ### Example
 
 ```jldoctest
@@ -137,7 +140,7 @@ julia> results[1][1:4]
 
 ## Parallel functionality
 
-The following functions are parallelized and MPI-compatible:
+The following functions are parallelised and MPI-compatible:
 
 * [`mapreduce`](@ref) and derivatives (`sum`, `prod`, `reduce`...),
 * [`all`](@ref), [`any`](@ref),

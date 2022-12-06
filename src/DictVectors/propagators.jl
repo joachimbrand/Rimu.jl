@@ -14,10 +14,18 @@ abstract type AbstractPropagator{T} end
 Base.eltype(::Type{<:AbstractPropagator{T}}) where {T} = T
 
 """
-# TODO
+    spawn_column!(target, propagator, key, value)
+
+Spawn a full of a column at index `key` with value in vector `value` and store them to
+`target` dictionary. Returns a tuple of statistics that are recorded when running Rimu.
 """
 spawn_column!
 
+"""
+    propagate!(target, propagator, source)
+
+Perform a single application of a (possibly stochastic) `propagator`.
+"""
 function propagate!(dst::PDVec, prop::AbstractPropagator, src)
     w = working_memory(prop)
     stats = perform_spawns!(w, src, prop)

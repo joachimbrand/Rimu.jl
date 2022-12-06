@@ -45,9 +45,20 @@ segment_type(::Type{<:PDWorkingMemoryColumn{K,<:Any,W}}) where {K,W} = Dict{K,W}
 """
     PDWorkingMemory(t::PDVec)
 
-The working memory handles threading and MPI distribution for operations that involve
+The working memory that handles threading and MPI distribution for operations that involve
 operators, such as FCIQMC propagation, operator-vector multiplication and three-way
-dot products. #TODO does not support eltypes bigger than V (which you need for KK).
+dot products with [`PDVec`](@ref)s.
+
+The working memory is structured in a series of columns, where each has a number of segments
+(see [`PDVec`](@ref)) equal to the number of segments across all MPI ranks. The purpose of
+this organisation is to allow spawning in parallel without using locks or atomic operations.
+
+The steps performed on a `PDWorkingMemory` during a typical operation are
+[`perform_spawns!`](@ref), [`collect_local!`](@ref), [`synchronize_remote!`](@ref), and
+[`move_and_compress!`](@ref).
+
+When used with three-argument dot products, a full copy of the left-hand side vector is
+materialized in the first column of the working memory on all ranks.
 """
 struct PDWorkingMemory{
     K,V,W<:AbstractInitiatorValue{V},S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,E
@@ -139,7 +150,7 @@ end
 """
     perform_spawns!(w::PDWorkingMemory, t::PDVec, prop)
 
-Perform spawns as directed by [`Propagator`](@ref) `prop` and write them to `w`.
+Perform spawns from `t` to `w` as required by [`Propagator`](@ref) `prop`.
 """
 function perform_spawns!(w::PDWorkingMemory, t::PDVec, prop)
     if num_columns(w) ≠ num_segments(t)
@@ -173,7 +184,7 @@ end
 """
     synchronize_remote!(w::PDWorkingMemory)
 
-Synchronize non-local segments across MPI.  Controlled by the [`Communicator`](@ref). This
+Synchronize non-local segments across MPI. Controlled by the [`Communicator`](@ref). This
 can only be perfomed after [`collect_local!`](@ref).
 """
 function synchronize_remote!(w::PDWorkingMemory)
