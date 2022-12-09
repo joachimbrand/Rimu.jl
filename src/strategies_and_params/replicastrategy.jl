@@ -29,7 +29,7 @@ num_replicas(::ReplicaStrategy{N}) where {N} = N
 Return the names and values of statistics related to `N` replicas consistent with the
 [`ReplicaStrategy`](@ref) `RS`. `names`
 should be a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same
-length. This fuction will be called every [`reporting_interval`](@ref) steps from [`lomc!`](@ref),
+length. This function will be called every [`reporting_interval`](@ref) steps from [`lomc!`](@ref),
 or once per time step if `reporting_interval` is not defined.
 
 Part of the [`ReplicaStrategy`](@ref) interface. See also [`ReplicaState`](@ref).
