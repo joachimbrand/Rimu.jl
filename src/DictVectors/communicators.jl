@@ -85,9 +85,9 @@ Return the `MPI.Comm` that the communicator operates on.
 mpi_comm
 
 """
-    copy_to_local!([::Communicator,] w::WorkingMemory, t::TVec) -> TVec
+    copy_to_local!([::Communicator,] w::WorkingMemory, t::PDVec) -> PDVec
 
-Copy pairs in `t` from all ranks and return them as (possibly) new [`TVec`](@ref), possibly
+Copy pairs in `t` from all ranks and return them as (possibly) new [`PDVec`](@ref), possibly
 using the [`WorkingMemory`](@ref) as temporary storage.
 """
 copy_to_local!
