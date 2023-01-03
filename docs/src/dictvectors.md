@@ -10,6 +10,7 @@ AbstractDVec
 ```@docs
 DVec
 InitiatorDVec
+PDVec
 ```
 
 ## Interface functions
@@ -55,13 +56,16 @@ Norm1ProjectorPPop
 
 ## Initiator rules
 
-```@docs
-Rimu.DictVectors.InitiatorRule
-Rimu.DictVectors.InitiatorValue
-Rimu.DictVectors.value
-Rimu.DictVectors.Initiator
-Rimu.DictVectors.SimpleInitiator
-Rimu.DictVectors.CoherentInitiator
+```@autodocs
+Modules = [DictVectors]
+Pages = ["initiators.jl"]
+```
+
+## PDVec communicators
+
+```@autodocs
+Modules = [DictVectors]
+Pages = ["communicators.jl"]
 ```
 
 ## Index
