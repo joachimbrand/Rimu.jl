@@ -23,7 +23,7 @@ When implementing a communicator, use [`local_segments`](@ref) and
 # Optional interface
 
 * [`is_distributed`](@ref): defaults to returning `true`.
-* [`reduce_remote`](@ref): defaults to using `MPI.Allreduce`.
+* [`merge_remote_reductions`](@ref): defaults to using `MPI.Allreduce`.
 * [`total_num_segments`](@ref): defaults to `n * mpi_size`.
 * [`target_segment`](@ref): defaults to selecting using fastrange to pick the segment.
 
@@ -38,11 +38,11 @@ Return `true` if communicator operates over MPI.
 is_distributed(::Communicator) = true
 
 """
-    reduce_remote(c::Communicator, op, x)
+    merge_remote_reductions(c::Communicator, op, x)
 
-Perform a reduction over MPI, by using `MPI.Allreduce`.
+Merge the results of reductions over MPI. By default, it uses `MPI.Allreduce`.
 """
-reduce_remote(c::Communicator, op, x) = MPI.Allreduce(x, op, mpi_comm(c))
+merge_remote_reductions(c::Communicator, op, x) = MPI.Allreduce(x, op, mpi_comm(c))
 
 """
     total_num_segments(c::Communicator, n) -> Int
@@ -118,7 +118,7 @@ function copy_to_local!(::NotDistributed, w, t)
     return t
 end
 
-reduce_remote(::NotDistributed, _, x) = x
+merge_remote_reductions(::NotDistributed, _, x) = x
 
 total_num_segments(::NotDistributed, n) = n
 
@@ -142,7 +142,7 @@ function synchronize_remote!(::LocalPart, w)
     throw(CommunicatorError("attemted to synchronize localpart"))
 end
 
-reduce_remote(::LocalPart, _, x) = x
+merge_remote_reductions(::LocalPart, _, x) = x
 
 function target_segment(c::LocalPart, k, num_segments)
     total_segments = num_segments * mpi_size(c)
@@ -159,7 +159,7 @@ end
 
 Multiple vectors stored in a simple buffer with MPI communication.
 
-See [`insert_collections!`](@ref), [`mpi_send`](@ref), [`mpi_recv!`](@ref).
+See [`replace_collections!`](@ref), [`mpi_send`](@ref), [`mpi_recv!`](@ref).
 """
 struct SegmentedBuffer{T} <: AbstractVector{SubArray{T,1,Vector{T},Tuple{UnitRange{Int64}},true}}
     offsets::Vector{Int}
@@ -178,11 +178,11 @@ function Base.getindex(buf::SegmentedBuffer, i)
 end
 
 """
-    insert_collections!(buf::SegmentedBuffer, iters, ex=ThreadedEx())
+    replace_collections!(buf::SegmentedBuffer, iters, ex=ThreadedEx())
 
 Insert collections in `iters` into buffers.
 """
-function insert_collections!(buf::SegmentedBuffer, iters, ex=ThreadedEx())
+function replace_collections!(buf::SegmentedBuffer, iters, ex=ThreadedEx())
     resize!(buf.offsets, length(iters))
     resize!(buf.buffer, sum(length, iters))
 
@@ -266,7 +266,7 @@ function synchronize_remote!(ptp::PointToPoint, w)
     for offset in 1:ptp.mpi_size - 1
         dst_rank = mod(ptp.mpi_rank + offset, ptp.mpi_size)
         send_buffer = ptp.send_buffers[offset]
-        insert_collections!(send_buffer, remote_segments(w, dst_rank), w.executor)
+        replace_collections!(send_buffer, remote_segments(w, dst_rank), w.executor)
         mpi_send(send_buffer, dst_rank, ptp.mpi_comm)
     end
 
@@ -280,7 +280,7 @@ end
 function copy_to_local!(ptp::PointToPoint, w, t)
     # Same data sent to all ranks, so we can reuse the buffer.
     send_buffer = first(ptp.send_buffers)
-    insert_collections!(send_buffer, t.segments, w.executor)
+    replace_collections!(send_buffer, t.segments, w.executor)
 
     for offset in 1:ptp.mpi_size - 1
         dst_rank = mod(ptp.mpi_rank + offset, ptp.mpi_size)

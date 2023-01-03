@@ -288,7 +288,7 @@ StochasticStyle(t::PDVec) = t.style
 
 function Base.length(t::PDVec)
     result = sum(length, t.segments)
-    return reduce_remote(t.communicator, +, result)
+    return merge_remote_reductions(t.communicator, +, result)
 end
 
 Base.isempty(t::PDVec) = iszero(length(t))
@@ -332,7 +332,7 @@ function Base.isequal(t::PDVec, u::PDVec)
     else
         result = false
     end
-    return reduce_remote(t.communicator, &, result)
+    return merge_remote_reductions(t.communicator, &, result)
 end
 
 """
@@ -531,7 +531,7 @@ function Base.mapreduce(f, op, t::PDVecIterator; kwargs...)
     ) do segment
         mapreduce(f, op, t.selector(segment); kwargs...)
     end
-    return reduce_remote(t.vector.communicator, op, result)
+    return merge_remote_reductions(t.vector.communicator, op, result)
 end
 
 """
@@ -546,7 +546,7 @@ function Base.all(f, t::PDVecIterator)
     result = Folds.all(t.vector.segments) do segment
         all(f, t.selector(segment))
     end
-    return reduce_remote(t.vector.communicator, &, result)
+    return merge_remote_reductions(t.vector.communicator, &, result)
 end
 
 """
@@ -561,7 +561,7 @@ function Base.any(f, t::PDVecIterator)
     result = Folds.any(t.vector.segments) do segment
         any(f, t.selector(segment))
     end
-    return reduce_remote(t.vector.communicator, |, result)
+    return merge_remote_reductions(t.vector.communicator, |, result)
 end
 
 """
@@ -653,7 +653,7 @@ function LinearAlgebra.dot(l::PDVec, r::PDVec)
                 conj(get(l_seg, k, zero(valtype(l_seg)))) * v
             end
         end::T
-        return reduce_remote(r.communicator, +, res)
+        return merge_remote_reductions(r.communicator, +, res)
     else
         res = sum(pairs(r); init=zero(T)) do (k, v)
             conj(l[k]) + v
@@ -666,7 +666,7 @@ function LinearAlgebra.dot(fd::FrozenDVec, p::PDVec)
     for (k, v) in pairs(fd)
         res += conj(p[k]) * v
     end
-    return reduce_remote(p.communicator, +, res)
+    return merge_remote_reductions(p.communicator, +, res)
 end
 function LinearAlgebra.dot(l::AbstractDVec, r::PDVec)
     res = sum(pairs(r)) do (k, v)
