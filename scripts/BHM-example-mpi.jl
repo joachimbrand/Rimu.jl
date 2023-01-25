@@ -1,8 +1,8 @@
 # # Example 2: Rimu with MPI
 
-# In this example, we will demonstrate using Rimu with MPI. 
+# In this example, we will demonstrate using Rimu with MPI.
 
-# A runnable script for this example is located 
+# A runnable script for this example is located
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example-mpi.jl).
 # Run it with `mpirun julia BHM-example-mpi.jl`.
 
@@ -22,11 +22,11 @@ address = BoseFS((0, 0, 0, 0, 10, 0, 0, 0, 0, 0))
 
 hamiltonian = HubbardMom1D(address; u=6.0)
 
-# Next, we construct the starting vector. Wrap a vector in `MPIData` to make it MPI
-# distributed. We set the vector's style to [`IsDynamicSemistochastic`](@ref), which
-# improves statistics and reduces the sign problem.
+# Next, we construct the starting vector. We use a `PDVec` to make it MPI distributed. We
+# set the vector's style to [`IsDynamicSemistochastic`](@ref), which improves statistics and
+# reduces the sign problem.
 
-dvec = MPIData(DVec(address => 1.0; style=IsDynamicSemistochastic()))
+dvec = PDVec(address => 1.0; style=IsDynamicSemistochastic())
 
 # We set a reporting strategy. We will use [`ReportToFile`](@ref), which writes the reports
 # directly to a file. This is useful for reducing memory use in long-running jobs, as we
@@ -43,7 +43,7 @@ s_strat = DoubleLogUpdate(targetwalkers=10_000)
 post_step = ProjectedEnergy(hamiltonian, dvec)
 
  # The `@mpi_root` macro performs an action on the root rank only, which is useful for printing.
- 
+
 @mpi_root println("Running FCIQMC with ", mpi_size(), " rank(s).")
 
 # Finally, we can run the computation.
