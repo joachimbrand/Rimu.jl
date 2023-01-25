@@ -107,7 +107,7 @@ num_columns(w::PDWorkingMemory) = length(w.columns)
 
 function Base.length(w::PDWorkingMemory)
     result = sum(length, w.columns)
-    return reduce_remote(w.communicator, +, result)
+    return merge_remote_reductions(w.communicator, +, result)
 end
 
 """

@@ -397,13 +397,13 @@ function Base.empty(
     t::PDVec{K,V}; style=t.style, initiator=t.initiator, communicator=t.communicator,
     num_segments=length(t.segments)
 ) where {K,V}
-    return PDVec{K,V}(; style, initiator, communicator, num_segments)
+    return PDVec{K,V}(; style, initiator, communicator, num_segments, executor=t.executor)
 end
 function Base.empty(t::PDVec{K}, ::Type{V}; kwargs...) where {K,V}
-    return PDVec{K,V}(; kwargs...)
+    return PDVec{K,V}(; kwargs..., executor=t.executor)
 end
 function Base.empty(t::PDVec, ::Type{K}, ::Type{V}; kwargs...) where {K,V}
-    return PDVec{K,V}(; kwargs...)
+    return PDVec{K,V}(; kwargs..., executor=t.executor)
 end
 Base.similar(t::PDVec, args...; kwargs...) = empty(t, args...; kwargs...)
 
