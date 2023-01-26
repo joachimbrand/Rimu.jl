@@ -71,6 +71,7 @@ TerminalLoggers = "0.1.4"
 julia = "1.6"
 
 [extras]
+KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
