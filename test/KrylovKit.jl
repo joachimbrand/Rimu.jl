@@ -14,7 +14,7 @@ using Test
     @test energy ≈ -4.0215 atol=0.0001
 end
 
-if VERSION ≥ v"1.9.0"
+if VERSION ≥ v"1.9"
     @testset "KrylovKit Extension" begin
         add = FermiFS2C((1,1,0,0,0), (1,1,0,0,0))
         ham_bm = HubbardMom1D(add)
