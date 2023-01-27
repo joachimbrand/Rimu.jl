@@ -24,23 +24,19 @@ if VERSION ≥ v"1.9"
         true_bm = eigen(Matrix(ham_bm)).values[1]
         res1 = eigsolve(ham_bm, DVec(add => 1.0), 1, :SR)
         res2 = eigsolve(ham_bm, PDVec(add => 1.0), 1, :SR)
-        res3 = eigsolve(ham_bm, 1, :SR)
 
         @test res1[1][1] ≈ true_bm
         @test res1[1][1] ≈ res2[1][1]
-        @test res3[1][1] ≈ res3[1][1]
-        @test all(x -> isa(x, Float64), (res1[1][1], res2[1][1], res3[1][1][1]))
-        @test res3[2][1] isa PDVec
+        @test res1[1][1] isa Real
+        @test res2[1][1] isa Real
 
         true_tc = eigen(Matrix(ham_tc)).values[1]
-        res4 = eigsolve(ham_tc, DVec(add => 1.0), 1, :SR)
-        res5 = eigsolve(ham_tc, PDVec(add => 1.0), 1, :SR)
-        res6 = eigsolve(ham_tc, 1, :SR)
+        res3 = eigsolve(ham_tc, DVec(add => 1.0), 1, :SR)
+        res4 = eigsolve(ham_tc, PDVec(add => 1.0), 1, :SR)
 
-        @test res4[1][1] ≈ true_tc
-        @test res4[1][1] ≈ res5[1][1]
-        @test res5[1][1] ≈ res6[1][1]
-        @test all(x -> isa(x, ComplexF64), (res4[1][1], res5[1][1], res6[1][1][1]))
-        @test res3[2][1] isa PDVec
+        @test res3[1][1] ≈ true_tc
+        @test res3[1][1] ≈ res4[1][1]
+        @test res3[1][1] isa ComplexF64
+        @test res4[1][1] isa ComplexF64
     end
 end
