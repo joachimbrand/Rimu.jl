@@ -13,6 +13,7 @@ import ..DictVectors: deposit!, value
 import ..Rimu: sort_into_targets!
 
 export StratonovichCorrection
+export StratCompression, BiasCorrectCompression
 
 """
     StratonovichCorrection() <: InitiatorRule
@@ -52,7 +53,7 @@ value(::StratonovichCorrection, v::InitiatorValue) = v.safe
 # with MPIData!
 # need new method for `deposit!` because we need to avoid the usual initiator behaviour
 function deposit!(
-    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection},
+    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any,<:StratonovichCorrection},
     add, val, (p_add, p_val)
 )
     # for `StratonovichCorrection` we do not need initiator behaviour but simply add
@@ -74,7 +75,7 @@ end
 
 # remember the diagonal element in `unsafe` and previous coefficient
 @inline function diagonal_step!(
-    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection},
+    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any,<:StratonovichCorrection},
     ham, add, val, dτ, shift, threshold=0, report_stats=false
 )
     pd = dτ * (diagonal_element(ham, add) - shift)
@@ -83,9 +84,10 @@ end
     V = valtype(w)
     old_ival = get(w.storage, add, zero(InitiatorValue{V}))
     new_ival = InitiatorValue{V}(;
-        safe = old_ival.safe + new_val, # updated coefficient
-        unsafe = -pd, # remember diagonal multiplicator; to be used for Strat correction
-        initiator = old_ival.safe # remember previous coefficient
+        safe=old_ival.safe + new_val, # updated coefficient
+        unsafe=-pd, # remember diagonal multiplicator; to be used for Strat correction
+        initiator=val # remember previous coefficient
+        # initiator=old_ival.safe # remember previous coefficient
     )
     # add all contributions in `safe`, remember diagonal contribution `-pd` in `unsafe`
     if iszero(new_ival)
@@ -116,9 +118,20 @@ end
 #     return w, target, stats # swap DVecs
 # end
 
+"""
+    StratCompression(threshold=1) <: CompressionStrategy
+
+Like [`ThresholdCompression`](@ref) but add the orignal [`StratonovichCorrection`](@ref) of
+February 2022.
+"""
+struct StratCompression{T} <: CompressionStrategy
+    threshold::T
+end
+StratCompression() = StratCompression(1)
+
 # here the Stratonovich correction is applied
-function compress!(t::ThresholdCompression,
-    w::InitiatorDVec{<:Any,<:Any,<:Any,<:Any, <:StratonovichCorrection},
+function compress!(t::StratCompression,
+    w::InitiatorDVec,
     hamiltonian,
     shift,
     dτ
@@ -132,10 +145,94 @@ function compress!(t::ThresholdCompression,
             pd = -ival.unsafe
         end
         σ = sign(ival.safe - ival.initiator) # sign of change in coefficient
-        val = ival.safe - σ * pd/2 * s_factor
+        val = ival.safe - σ * pd / 2 * s_factor
         # apply Stratonovich correction
         prob = abs(val) / t.threshold
         if prob < 1 # projection is only necessary if abs(val) < s.threshold
+            val = ifelse(prob > cRand(), t.threshold * sign(val), zero(val))
+            w[add] = val
+        end
+    end
+    return w
+end
+
+"""
+    BiasCorrectCompression(threshold=1) <: CompressionStrategy
+
+Like [`ThresholdCompression`](@ref) but add the new bias correction of
+January 2023.
+"""
+struct BiasCorrectCompression{T} <: CompressionStrategy
+    threshold::T
+end
+BiasCorrectCompression() = BiasCorrectCompression(1)
+
+function bias_correction(c̃, c)
+    iszero(c) && return c # bias correction only applies if c ≂̸ 0
+    Δ = c̃ - c
+    s = sign(Δ)
+    b = s * Δ / (2c - s)
+    # b = s * Δ / 2c
+    return b
+end
+
+function compress!(t::BiasCorrectCompression,
+    w::InitiatorDVec,
+    hamiltonian,
+    shift,
+    dτ
+)
+    # w = localpart(v) # fix MPI later!
+    s_factor = w.initiator.threshold # the parameter stored in `StratonovichCorrection`
+    for (add, ival) in pairs(w.storage) # `ival` is an `InitiatorValue
+        c = ival.initiator # old value
+        c̃ = ival.safe # new value, to be compressed
+
+        # Δ = c̃ - c
+        # b = abs(Δ) / (2c - sign(Δ))
+        val = c̃ + s_factor * bias_correction(c̃, c) # apply bias correction
+
+        # val = c̃ + s_factor * bias_correction(c̃, c) # apply bias correction
+
+        prob = abs(val) / t.threshold
+        if prob < 1 # projection is only necessary if abs(val) < s.threshold
+            val = ifelse(prob > cRand(), t.threshold * sign(val), zero(val))
+            w[add] = val
+        end
+    end
+    return w
+end
+
+struct UnBiasCompression{T} <: CompressionStrategy
+    threshold::T
+end
+UnBiasCompression() = UnBiasCompression(1)
+
+function unbias_correction(Δ, c)
+    iszero(c) && return c # bias correction only applies if c ≂̸ 0
+    s = sign(Δ * c)
+    b = s * Δ * c / (2c - s)
+    # b = s * Δ / 2c
+    return b
+end
+
+# Note: We are ignoring `t.threshold`
+function compress!(t::UnBiasCompression,
+    w::InitiatorDVec,
+    hamiltonian,
+    shift,
+    dτ
+)
+    # w = localpart(v) # fix MPI later!
+    s_factor = w.initiator.threshold # the parameter stored in `StratonovichCorrection`
+    for (add, ival) in pairs(w.storage) # `ival` is an `InitiatorValue
+        c = ival.initiator # old value
+        c̃ = ival.safe # new value, to be compressed
+
+        if abs(c̃) < 1 # projection is only necessary if abs(c̃) < s.threshold
+            val = c̃ + s_factor * unbias_correction(ival.unsafe, c) # apply bias correction
+
+            prob = abs(val)
             val = ifelse(prob > cRand(), t.threshold * sign(val), zero(val))
             w[add] = val
         end
