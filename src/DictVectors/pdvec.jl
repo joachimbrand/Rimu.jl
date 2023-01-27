@@ -656,7 +656,7 @@ function LinearAlgebra.dot(l::PDVec, r::PDVec)
         return merge_remote_reductions(r.communicator, +, res)
     else
         res = sum(pairs(r); init=zero(T)) do (k, v)
-            conj(l[k]) + v
+            conj(l[k]) * v
         end
         return res
     end
