@@ -832,6 +832,6 @@ end
 # Default implementation uses iterating over occupied modes.
 function LinearAlgebra.dot(
     occ_a::FermiOccupiedModes{<:Any,S}, occ_b::FermiOccupiedModes{<:Any,S}
-) where {S}
+) where {S<:BitString}
     return count_ones(occ_a.storage & occ_b.storage)
 end
