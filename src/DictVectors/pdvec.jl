@@ -38,10 +38,6 @@ the vector.
 * `num_segments = Threads.nthreads()`: Number of segments to divide the vector into. This is
   best left at its default value. See the extended help for more info.
 
-* `executor = Folds.ThreadedEx()`: Experimental. Change the threaded executor to use. See
-  [FoldsThreads.jl](https://juliafolds.github.io/FoldsThreads.jl/dev/) for more info on
-  executors.
-
 # Extended Help
 
 ## Segmentation
@@ -164,23 +160,21 @@ The following functions are parallelised and MPI-compatible:
 * `*`, [`mul!`](@ref) and [`dot!`](@ref) with operators.
 """
 struct PDVec{
-    K,V,S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,E
+    K,V,S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,N
 } <: AbstractDVec{K,V}
-    segments::Vector{Dict{K,V}}
+    segments::NTuple{N,Dict{K,V}}
     style::S
     initiator::I
     communicator::C
-    executor::E
 end
 
 function PDVec{K,V}(
     ; style=default_style(V), num_segments=Threads.nthreads(),
     initiator_threshold=0, initiator=initiator_threshold > 0,
     communicator=nothing,
-    executor=nothing,
 ) where {K,V}
     W = eltype(style)
-    segments = [Dict{K,W}() for _ in 1:num_segments]
+    segments = ntuple(_ -> Dict{K,W}(), num_segments)
 
     if initiator == false
         irule = NoInitiator()
@@ -209,17 +203,7 @@ function PDVec{K,V}(
         throw(ArgumentError("Invalid communicator $communicator"))
     end
 
-    if isnothing(executor)
-        if Threads.nthreads() == 1 || num_segments == 1
-            ex = NonThreadedEx()
-        else
-            ex = ThreadedEx()
-        end
-    else
-        ex = executor
-    end
-
-    return PDVec(segments, style, irule, comm, ex)
+    return PDVec(segments, style, irule, comm)
 end
 function PDVec(pairs; kwargs...)
     K = typeof(first(pairs)[1])
@@ -318,11 +302,11 @@ end
 function Base.isequal(t::PDVec, u::PDVec)
     if length(localpart(t)) == length(localpart(u))
         if are_compatible(t, u)
-            result = Folds.all(zip(t.segments, u.segments), u.executor) do (t_seg, u_seg)
+            result = Folds.all(zip(t.segments, u.segments)) do (t_seg, u_seg)
                 isequal(t_seg, u_seg)
             end
         else
-            result = Folds.all(u.segments, u.executor) do seg
+            result = Folds.all(u.segments) do seg
                 for (k, v) in seg
                     isequal(t[k], v) || return false
                 end
@@ -391,36 +375,34 @@ end
 ###
 ### empty(!), similar, copy, etc.
 ###
-# TODO: this does not work with changing eltypes. Must fix the initiator,
-# executor, and communicator.
 function Base.empty(
     t::PDVec{K,V}; style=t.style, initiator=t.initiator, communicator=t.communicator,
     num_segments=length(t.segments)
 ) where {K,V}
-    return PDVec{K,V}(; style, initiator, communicator, num_segments, executor=t.executor)
+    return PDVec{K,V}(; style, initiator, communicator, num_segments)
 end
 function Base.empty(t::PDVec{K}, ::Type{V}; kwargs...) where {K,V}
-    return PDVec{K,V}(; kwargs..., executor=t.executor)
+    return PDVec{K,V}(; kwargs...)
 end
 function Base.empty(t::PDVec, ::Type{K}, ::Type{V}; kwargs...) where {K,V}
-    return PDVec{K,V}(; kwargs..., executor=t.executor)
+    return PDVec{K,V}(; kwargs...)
 end
 Base.similar(t::PDVec, args...; kwargs...) = empty(t, args...; kwargs...)
 
 function Base.empty!(t::PDVec)
-    Folds.foreach(empty!, t.segments, t.executor)
+    Folds.foreach(empty!, t.segments, )
     return t
 end
 
 function Base.sizehint!(t::PDVec, n)
     n_per_segment = cld(n, length(t.segments))
-    Folds.foreach(d -> sizehint!(d, n_per_segment), t.segments, t.executor)
+    Folds.foreach(d -> sizehint!(d, n_per_segment), t.segments, )
     return t
 end
 
 function Base.copyto!(dst::PDVec, src::PDVec)
     if are_compatible(dst, src)
-        Folds.foreach(dst.segments, src.segments, src.executor) do d_seg, s_seg
+        Folds.foreach(dst.segments, src.segments) do d_seg, s_seg
             copy!(d_seg, s_seg)
         end
         return dst
@@ -439,12 +421,12 @@ function Base.copy(src::PDVec)
     return copy!(empty(src), src)
 end
 
-function localpart(t::PDVec{K,V,S,I,<:Any,E}) where {K,V,S,I,E}
-    return PDVec{K,V,S,I,LocalPart,E}(
-        t.segments, t.style, t.initiator, LocalPart(t.communicator), t.executor
+function localpart(t::PDVec{K,V,S,I,<:Any,N}) where {K,V,S,I,N}
+    return PDVec{K,V,S,I,LocalPart,N}(
+        t.segments, t.style, t.initiator, LocalPart(t.communicator),
     )
 end
-function localpart(t::PDVec{K,V,S,I,<:LocalPart,E}) where {K,V,S,I,E}
+function localpart(t::PDVec{<:Any,<:Any,<:Any,<:Any,<:LocalPart})
     return t
 end
 
@@ -527,7 +509,7 @@ definition of various functions from Base such as `reduce`, `sum`, `prod`, etc.
 """
 function Base.mapreduce(f, op, t::PDVecIterator; kwargs...)
     result = Folds.mapreduce(
-        op, Iterators.filter(!isempty, t.vector.segments), t.vector.executor; kwargs...
+        op, Iterators.filter(!isempty, t.vector.segments); kwargs...
     ) do segment
         mapreduce(f, op, t.selector(segment); kwargs...)
     end
@@ -573,7 +555,7 @@ written there. Only defined for `values` as efficiently changing keys in a threa
 distributed way is not possible.
 """
 function Base.map!(f, t::PDVecVals)
-    Folds.foreach(t.vector.segments, t.vector.executor) do segment
+    Folds.foreach(t.vector.segments) do segment
         for (k, v) in segment
             new_val = f(v)
             if !iszero(new_val)
@@ -589,7 +571,7 @@ function Base.map!(f, dst::PDVec, src::PDVecVals)
     if dst === src.vector
         map!(f, src)
     elseif are_compatible(dst, src)
-        Folds.foreach(dst.segments, src.vector.segments, src.vector.executor) do d, s
+        Folds.foreach(dst.segments, src.vector.segments) do d, s
             empty!(d)
             for (k, v) in s
                 new_val = f(v)
@@ -632,7 +614,7 @@ end
 
 function add!(dst::PDVec, src::PDVec, α=true)
     if are_compatible(dst, src)
-        Folds.foreach(dst.segments, src.segments, src.executor) do d, s
+        Folds.foreach(dst.segments, src.segments) do d, s
             add!(d, s, α)
         end
     else
@@ -648,7 +630,7 @@ function LinearAlgebra.dot(l::PDVec, r::PDVec)
     if are_compatible(l, r)
         l_segs = l.segments
         r_segs = r.segments
-        res = Folds.sum(zip(l_segs, r_segs), r.executor; init=zero(T)) do (l_seg, r_seg)
+        res = Folds.sum(zip(l_segs, r_segs); init=zero(T)) do (l_seg, r_seg)
             sum(r_seg; init=zero(T)) do (k, v)
                 conj(get(l_seg, k, zero(valtype(l_seg)))) * v
             end

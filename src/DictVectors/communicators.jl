@@ -178,11 +178,11 @@ function Base.getindex(buf::SegmentedBuffer, i)
 end
 
 """
-    replace_collections!(buf::SegmentedBuffer, iters, ex=ThreadedEx())
+    replace_collections!(buf::SegmentedBuffer, iters)
 
 Insert collections in `iters` into buffers.
 """
-function replace_collections!(buf::SegmentedBuffer, iters, ex=ThreadedEx())
+function replace_collections!(buf::SegmentedBuffer, iters)
     resize!(buf.offsets, length(iters))
     resize!(buf.buffer, sum(length, iters))
 
@@ -194,7 +194,7 @@ function replace_collections!(buf::SegmentedBuffer, iters, ex=ThreadedEx())
     end
 
     # Copy over the data
-    Folds.foreach(buf, iters, ex) do dst, src
+    Folds.foreach(buf, iters) do dst, src
         for (i, v) in enumerate(src)
             dst[i] = v
         end
@@ -266,21 +266,21 @@ function synchronize_remote!(ptp::PointToPoint, w)
     for offset in 1:ptp.mpi_size - 1
         dst_rank = mod(ptp.mpi_rank + offset, ptp.mpi_size)
         send_buffer = ptp.send_buffers[offset]
-        replace_collections!(send_buffer, remote_segments(w, dst_rank), w.executor)
+        replace_collections!(send_buffer, remote_segments(w, dst_rank))
         mpi_send(send_buffer, dst_rank, ptp.mpi_comm)
     end
 
     # Receive and insert from each rank. The order is first come first serve.
     for _ in 1:ptp.mpi_size - 1
         mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
-        Folds.foreach(add!, local_segments(w), ptp.recv_buffer, w.executor)
+        Folds.foreach(add!, local_segments(w), ptp.recv_buffer)
     end
 end
 
 function copy_to_local!(ptp::PointToPoint, w, t)
     # Same data sent to all ranks, so we can reuse the buffer.
     send_buffer = first(ptp.send_buffers)
-    replace_collections!(send_buffer, t.segments, w.executor)
+    replace_collections!(send_buffer, t.segments)
 
     for offset in 1:ptp.mpi_size - 1
         dst_rank = mod(ptp.mpi_rank + offset, ptp.mpi_size)
@@ -293,7 +293,7 @@ function copy_to_local!(ptp::PointToPoint, w, t)
     # Receive and insert from each rank. The order is first come first serve.
     for _ in 1:ptp.mpi_size - 1
         src_rank = mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
-        Folds.foreach(remote_segments(w, src_rank), ptp.recv_buffer, w.executor) do dst, src
+        Folds.foreach(remote_segments(w, src_rank), ptp.recv_buffer) do dst, src
             empty!(dst)
             for (k, v) in src
                 dst[k] = valtype(dst)(v)
