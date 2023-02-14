@@ -548,7 +548,7 @@ end
 
 """
     map!(f, values(::PDVec))
-    map!(f, dst, values(::PDVec))
+    map!(f, dst::PDVec, values(::PDVec))
 
 In-place parallel `map!` on values of a [`PDVec`](@ref). If `dst` is provided, results are
 written there. Only defined for `values` as efficiently changing keys in a thread-safe and
