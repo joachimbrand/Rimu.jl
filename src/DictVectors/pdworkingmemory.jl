@@ -39,7 +39,7 @@ Base.empty!(c::PDWorkingMemoryColumn) = foreach(empty!, c.segments)
 Base.keytype(::PDWorkingMemoryColumn{K}) where {K} = K
 Base.valtype(::PDWorkingMemoryColumn{<:Any,V}) where {V} = V
 Base.eltype(::PDWorkingMemoryColumn{K,V}) where {K,V} = Pair{K,V}
-num_segments(c::PDWorkingMemoryColumn) = length(c.segments)
+num_segments(c::PDWorkingMemoryColumn{<:Any,<:Any,<:Any,<:Any,N}) where {N} = N
 segment_type(::Type{<:PDWorkingMemoryColumn{K,<:Any,W}}) where {K,W} = Dict{K,W}
 
 """

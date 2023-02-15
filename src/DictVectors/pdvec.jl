@@ -35,17 +35,14 @@ the vector.
   using MPI. The defaults are [`NotDistributed`](@ref) when not using MPI and
   [`PointToPoint`](@ref) when using MPI.
 
-* `num_segments = Threads.nthreads()`: Number of segments to divide the vector into. This is
-  best left at its default value. See the extended help for more info.
-
 # Extended Help
 
 ## Segmentation
 
-The vector is split into `num_segments` subdictionaries called segments. Which dictionary a
-key-value pair is mapped to is determined by the hash of the key. The purpose of this
-segmentation is to allow parallel processing - functions such as `mapreduce`, `add!` or
-`dot` (full list below) process each subdictionary on a separate thread.
+The vector is split into `Threads.nthreads()` subdictionaries called segments. Which
+dictionary a key-value pair is mapped to is determined by the hash of the key. The purpose
+of this segmentation is to allow parallel processing - functions such as `mapreduce`, `add!`
+or `dot` (full list below) process each subdictionary on a separate thread.
 
 For parallel binary operations, the numbers of segments in both vectors must match. To
 ensure this, it is best to leave the number of segments at its default value.
@@ -160,7 +157,7 @@ The following functions are parallelised and MPI-compatible:
 * `*`, [`mul!`](@ref) and [`dot!`](@ref) with operators.
 """
 struct PDVec{
-    K,V,S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,N
+    K,V,N,S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator
 } <: AbstractDVec{K,V}
     segments::NTuple{N,Dict{K,V}}
     style::S
@@ -169,12 +166,12 @@ struct PDVec{
 end
 
 function PDVec{K,V}(
-    ; style=default_style(V), num_segments=Threads.nthreads(),
+    ; style=default_style(V),
     initiator_threshold=0, initiator=initiator_threshold > 0,
     communicator=nothing,
 ) where {K,V}
     W = eltype(style)
-    segments = ntuple(_ -> Dict{K,W}(), num_segments)
+    segments = ntuple(_ -> Dict{K,W}(), Threads.nthreads())
 
     if initiator == false
         irule = NoInitiator()
@@ -266,7 +263,7 @@ is_distributed(t::PDVec) = is_distributed(t.communicator)
 
 Return the number of segments in `t`.
 """
-num_segments(t::PDVec) = length(t.segments)
+num_segments(t::PDVec{<:Any,<:Any,N}) where {N} = N
 
 StochasticStyle(t::PDVec) = t.style
 
@@ -278,40 +275,23 @@ end
 Base.isempty(t::PDVec) = iszero(length(t))
 
 """
-    are_compatible(t, u)
+    check_compatibility(t, u)
 
-Return true if `t` and `u` have the same number of segments and show a warning otherwise.
+Return true if `t` and `u` have the same number of segments and throw otherwise.
 """
-function are_compatible(t, u)
+function check_compatibility(t, u)
     if num_segments(t) == num_segments(u)
         return true
-    elseif !is_distributed(t) && !is_distributed(u)
-        @warn string(
-            "vectors have different numbers of segments. ",
-            "This prevents parallelization.",
-        ) maxlog=1
-        return false
     else
-        throw(ArgumentError(
-            "vectors have different numbers of segments. ",
-            "This is not supported when using MPI."
-        ))
+        throw(ArgumentError("vectors have different numbers of segments."))
     end
 end
 
 function Base.isequal(t::PDVec, u::PDVec)
+    check_compatibiliy(t, u)
     if length(localpart(t)) == length(localpart(u))
-        if are_compatible(t, u)
-            result = Folds.all(zip(t.segments, u.segments)) do (t_seg, u_seg)
-                isequal(t_seg, u_seg)
-            end
-        else
-            result = Folds.all(u.segments) do seg
-                for (k, v) in seg
-                    isequal(t[k], v) || return false
-                end
-                return true
-            end
+        result = Folds.all(zip(t.segments, u.segments)) do (t_seg, u_seg)
+            isequal(t_seg, u_seg)
         end
     else
         result = false
@@ -377,9 +357,8 @@ end
 ###
 function Base.empty(
     t::PDVec{K,V}; style=t.style, initiator=t.initiator, communicator=t.communicator,
-    num_segments=length(t.segments)
 ) where {K,V}
-    return PDVec{K,V}(; style, initiator, communicator, num_segments)
+    return PDVec{K,V}(; style, initiator, communicator)
 end
 function Base.empty(t::PDVec{K}, ::Type{V}; kwargs...) where {K,V}
     return PDVec{K,V}(; kwargs...)
@@ -401,16 +380,9 @@ function Base.sizehint!(t::PDVec, n)
 end
 
 function Base.copyto!(dst::PDVec, src::PDVec)
-    if are_compatible(dst, src)
-        Folds.foreach(dst.segments, src.segments) do d_seg, s_seg
-            copy!(d_seg, s_seg)
-        end
-        return dst
-    else
-        empty!(dst)
-        for (k, v) in pairs(src)
-            dst[k] = v
-        end
+    check_compatibility(dst, src)
+    Folds.foreach(dst.segments, src.segments) do d_seg, s_seg
+        copy!(d_seg, s_seg)
     end
     return dst
 end
@@ -568,9 +540,10 @@ function Base.map!(f, t::PDVecVals)
     return t
 end
 function Base.map!(f, dst::PDVec, src::PDVecVals)
+    check_compatibilit!(dst, src)
     if dst === src.vector
         map!(f, src)
-    elseif are_compatible(dst, src)
+    else
         Folds.foreach(dst.segments, src.vector.segments) do d, s
             empty!(d)
             for (k, v) in s
@@ -581,11 +554,6 @@ function Base.map!(f, dst::PDVec, src::PDVecVals)
             end
         end
     else
-        empty!(dst)
-        for (k, v) in pairs(src.vector)
-            dst[k] = f(v)
-        end
-    end
     return dst
 end
 
@@ -613,35 +581,24 @@ function LinearAlgebra.mul!(dst::PDVec, src::PDVec, α::Number)
 end
 
 function add!(dst::PDVec, src::PDVec, α=true)
-    if are_compatible(dst, src)
-        Folds.foreach(dst.segments, src.segments) do d, s
-            add!(d, s, α)
-        end
-    else
-        for (k, v) in pairs(src)
-            deposit!(dst, k, α * v)
-        end
+    check_compatibilit!(dst, src)
+    Folds.foreach(dst.segments, src.segments) do d, s
+        add!(d, s, α)
     end
     return dst
 end
 
 function LinearAlgebra.dot(l::PDVec, r::PDVec)
+    check_compatibilit!(dst, src)
     T = promote_type(valtype(l), valtype(r))
-    if are_compatible(l, r)
-        l_segs = l.segments
-        r_segs = r.segments
-        res = Folds.sum(zip(l_segs, r_segs); init=zero(T)) do (l_seg, r_seg)
-            sum(r_seg; init=zero(T)) do (k, v)
-                conj(get(l_seg, k, zero(valtype(l_seg)))) * v
-            end
-        end::T
-        return merge_remote_reductions(r.communicator, +, res)
-    else
-        res = sum(pairs(r); init=zero(T)) do (k, v)
-            conj(l[k]) * v
+    l_segs = l.segments
+    r_segs = r.segments
+    res = Folds.sum(zip(l_segs, r_segs); init=zero(T)) do (l_seg, r_seg)
+        sum(r_seg; init=zero(T)) do (k, v)
+            conj(get(l_seg, k, zero(valtype(l_seg)))) * v
         end
-        return res
-    end
+    end::T
+    return merge_remote_reductions(r.communicator, +, res)
 end
 function LinearAlgebra.dot(fd::FrozenDVec, p::PDVec)
     res = zero(promote_type(valtype(fd), valtype(p)))
