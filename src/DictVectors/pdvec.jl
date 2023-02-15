@@ -288,7 +288,7 @@ function check_compatibility(t, u)
 end
 
 function Base.isequal(t::PDVec, u::PDVec)
-    check_compatibiliy(t, u)
+    check_compatibility(t, u)
     if length(localpart(t)) == length(localpart(u))
         result = Folds.all(zip(t.segments, u.segments)) do (t_seg, u_seg)
             isequal(t_seg, u_seg)
@@ -393,12 +393,12 @@ function Base.copy(src::PDVec)
     return copy!(empty(src), src)
 end
 
-function localpart(t::PDVec{K,V,S,I,<:Any,N}) where {K,V,S,I,N}
-    return PDVec{K,V,S,I,LocalPart,N}(
+function localpart(t::PDVec{K,V,N,S,I}) where {K,V,S,I,N}
+    return PDVec{K,V,N,S,I,LocalPart}(
         t.segments, t.style, t.initiator, LocalPart(t.communicator),
     )
 end
-function localpart(t::PDVec{<:Any,<:Any,<:Any,<:Any,<:LocalPart})
+function localpart(t::PDVec{<:Any,<:Any,<:Any,<:Any,<:Any,<:LocalPart})
     return t
 end
 
@@ -540,7 +540,7 @@ function Base.map!(f, t::PDVecVals)
     return t
 end
 function Base.map!(f, dst::PDVec, src::PDVecVals)
-    check_compatibilit!(dst, src)
+    check_compatibility(dst, src)
     if dst === src.vector
         map!(f, src)
     else
@@ -553,7 +553,7 @@ function Base.map!(f, dst::PDVec, src::PDVecVals)
                 end
             end
         end
-    else
+    end
     return dst
 end
 
@@ -581,7 +581,7 @@ function LinearAlgebra.mul!(dst::PDVec, src::PDVec, α::Number)
 end
 
 function add!(dst::PDVec, src::PDVec, α=true)
-    check_compatibilit!(dst, src)
+    check_compatibility(dst, src)
     Folds.foreach(dst.segments, src.segments) do d, s
         add!(d, s, α)
     end
@@ -589,7 +589,7 @@ function add!(dst::PDVec, src::PDVec, α=true)
 end
 
 function LinearAlgebra.dot(l::PDVec, r::PDVec)
-    check_compatibilit!(dst, src)
+    check_compatibility(l, r)
     T = promote_type(valtype(l), valtype(r))
     l_segs = l.segments
     r_segs = r.segments

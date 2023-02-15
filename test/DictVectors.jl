@@ -336,21 +336,22 @@ using Rimu.DictVectors: num_segments, is_distributed
     # This is done first to catch the maxlog=1 warnings
     @testset "operations" begin
         @testset "properties" begin
-            pd1 = PDVec(zip(1:10, 10:-1:1))
-            pd2 = PDVec(zip(1:10, 10:-1:1); num_segments=5)
-            pd3 = PDVec(zip(1:10, 10:-1:1); style=IsDynamicSemistochastic())
+            pd1 = PDVec(zip(1:10, 10:-1.0:1))
+            pd2 = PDVec(zip(1:10, 10:-1.0:1))
+            pd2[1] += 1e-13
+            pd3 = PDVec(zip(1:10, 10:-1.0:1); style=IsDynamicSemistochastic())
 
             @test num_segments(pd1) == Threads.nthreads()
-            @test num_segments(pd2) == 5
+            @test num_segments(pd2) == Threads.nthreads()
 
-            @test StochasticStyle(pd1) ≡ IsStochasticInteger()
+            @test StochasticStyle(pd1) ≡ IsDeterministic()
             @test StochasticStyle(pd3) ≡ IsDynamicSemistochastic()
 
             @test length(pd1) == length(pd2) == length(pd3) == 10
-            @test_logs (:warn,) pd1 == pd2
-            @suppress pd1 == pd2
-            @test pd1 == pd2 == pd3
+            @test pd1 == pd3
+            @test pd1 != pd2
             @test pd2 ≈ pd3
+            @test pd2 ≉ pd3 atol=1e-16
 
             @test !is_distributed(pd1)
 
@@ -360,7 +361,7 @@ using Rimu.DictVectors: num_segments, is_distributed
 
         @testset "uneven vs even segemnts" begin
             pd1 = PDVec(zip(1:10, 10:-1:1))
-            pd2 = PDVec{Int,Int}(; num_segments=Threads.nthreads() * 2)
+            pd2 = PDVec{Int,Int}()
             copyto!(pd2, pd1)
             @test pd1 == pd2
             @test dot(pd1, pd2) > 0
@@ -379,7 +380,7 @@ using Rimu.DictVectors: num_segments, is_distributed
             @test length(pd1) == 5
             @test pd1[2] == 2
 
-            pd2 = similar(pd1; num_segments=Threads.nthreads() * 2)
+            pd2 = similar(pd1)
             map!(x -> x - 2, pd2, values(pd1))
             @test length(pd2) == 4
             @test pd2[6] == 1
