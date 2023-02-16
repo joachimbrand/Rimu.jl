@@ -288,12 +288,11 @@ end
 
             @test dot(freeze(pw), pv) ≈ dot(w, v) ≈ dot(pw, freeze(pv))
             @test dot(freeze(pv), pw) ≈ dot(v, w) ≈ dot(pv, freeze(pw))
+            wm = PDWorkingMemory(pv)
 
             for op in (H, D)
                 @test dot(v, op, w) ≈ dot(pv, op, pw)
                 @test dot(w, op, v) ≈ dot(pw, op, pv)
-
-                wm = PDWorkingMemory(pv)
 
                 @test dot(v, op, w) ≈ dot(pv, op, pw, wm)
                 @test dot(w, op, v) ≈ dot(pw, op, pv, wm)
@@ -306,6 +305,7 @@ end
                 @test norm(u, Inf) ≈ norm(pu, Inf)
             end
 
+            @test dot(pv, (H, D), pw, wm) == (dot(pv, H, pw), dot(pv, D, pw))
             @test dot(pv, (H, D), pw) == (dot(pv, H, pw), dot(pv, D, pw))
         end
     end
