@@ -594,15 +594,19 @@ end
 
 function LinearAlgebra.dot(l::PDVec, r::PDVec)
     check_compatibility(l, r)
-    T = promote_type(valtype(l), valtype(r))
-    l_segs = l.segments
-    r_segs = r.segments
-    res = Folds.sum(zip(l_segs, r_segs); init=zero(T)) do (l_seg, r_seg)
-        sum(r_seg; init=zero(T)) do (k, v)
-            conj(get(l_seg, k, zero(valtype(l_seg)))) * v
-        end
-    end::T
-    return merge_remote_reductions(r.communicator, +, res)
+    if l === r
+        return sum(abs2, values(l))
+    else
+        T = promote_type(valtype(l), valtype(r))
+        l_segs = l.segments
+        r_segs = r.segments
+        res = Folds.sum(zip(l_segs, r_segs); init=zero(T)) do (l_seg, r_seg)
+            sum(r_seg; init=zero(T)) do (k, v)
+                conj(get(l_seg, k, zero(valtype(l_seg)))) * v
+            end
+        end::T
+        return merge_remote_reductions(r.communicator, +, res)
+    end
 end
 function LinearAlgebra.dot(fd::FrozenDVec, p::PDVec)
     res = zero(promote_type(valtype(fd), valtype(p)))
