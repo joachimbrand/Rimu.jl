@@ -293,7 +293,7 @@ end
                 @test dot(v, op, w) ≈ dot(pv, op, pw)
                 @test dot(w, op, v) ≈ dot(pw, op, pv)
 
-                wm = PDWorkingMemory(v)
+                wm = PDWorkingMemory(pv)
 
                 @test dot(v, op, w) ≈ dot(pv, op, pw, wm)
                 @test dot(w, op, v) ≈ dot(pw, op, pv, wm)
