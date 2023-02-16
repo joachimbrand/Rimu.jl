@@ -398,7 +398,7 @@ end
                     @test density_sum ≈ N rtol=1e-3
 
                     # Not Diagonal
-                    ops = ntuple(x -> G2Correlator(x - cld(M, 2)), M)
+                    ops = ntuple(x -> G2MomCorrelator(x - cld(M, 2)), M)
                     replica = AllOverlaps(2; operator=ops)
                     df,_ = lomc!(H, dv; replica, laststep=10_000)
 

@@ -379,7 +379,7 @@ end
 
 function Base.sizehint!(t::PDVec, n)
     n_per_segment = cld(n, length(t.segments))
-    Folds.foreach(d -> sizehint!(d, n_per_segment), t.segments, )
+    Folds.foreach(d -> sizehint!(d, n_per_segment), t.segments)
     return t
 end
 
