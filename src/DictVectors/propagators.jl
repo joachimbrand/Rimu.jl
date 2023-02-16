@@ -41,7 +41,7 @@ function LinearAlgebra.mul!(dst, prop::AbstractPropagator, src)
 end
 
 function Base.:*(prop::AbstractPropagator, v::PDVec)
-    w = similar(v, promote_type(eltype(prop), valtype(v)); num_segments=num_segments(v))
+    w = similar(v, promote_type(eltype(prop), valtype(v)))
     return mul!(w, prop, v)
 end
 (prop::AbstractPropagator)(v) = prop * v
