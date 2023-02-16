@@ -121,7 +121,7 @@ end
 
 function Base.:*(op::AbstractHamiltonian, t::PDVec)
     prop = OperatorMulPropagator(op, t)
-    dst = similar(t, eltype(prop); num_segments=num_segments(t))
+    dst = similar(t, eltype(prop))
     return mul!(dst, prop, t)
 end
 

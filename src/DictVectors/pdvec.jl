@@ -308,6 +308,10 @@ numbers that are out of range and `is_local=false`.
 function target_segment(t::PDVec{K}, k::K) where {K}
     return target_segment(t.communicator, k, num_segments(t))
 end
+# Special case for single-threaded operation.
+function target_segment(t::PDVec{K,<:Any,1,<:Any,<:Any,NotDistributed}, k::K) where {K}
+    return 1, true
+end
 
 ###
 ### getting and setting
