@@ -1151,14 +1151,13 @@ end
         @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
     end
 
+    using SparseArrays: nnz
     @testset "basis-only" begin
         H = HubbardReal1D(BoseFS((1,2,3)))
         bsr = BasisSetRep(H)
         bsr_nosparse = BasisSetRep(H, basis_only = true)
         @test bsr.basis == bsr_nosparse.basis
-        @test isnothing(bsr_nosparse.sm)
-        @test_warn sparse(bsr_nosparse)
-        @test_warn Matrix(bsr_nosparse)
+        @test nnz(bsr_nosparse.sm) == 0
     end
 
     @testset "filtering" begin

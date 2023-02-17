@@ -242,60 +242,6 @@ function build_sparse_matrix_from_LO(
     end
 end
 
-function build_sparse_matrix_from_LO_basis_only(
-    ham, address=starting_address(ham);
-    cutoff=nothing,
-    filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    nnzs=dimension(ham),
-    sort=false, kwargs...,
-)
-    if !isnothing(filter) && !filter(address)
-        throw(ArgumentError(string(
-            "Starting address does not pass `filter`. ",
-            "Please pick a different address or a different filter."
-        )))
-    end
-    T = eltype(ham)
-    adds = [address]          # Queue of addresses. Also returned as the basis.
-    dict = Dict(address => 1) # Mapping from addresses to indices
-    col = Dict{Int,T}()       # Temporary column storage
-    sizehint!(col, num_offdiagonals(ham, address))
-
-    i = 0
-    while i < length(adds)
-        i += 1
-        add = adds[i]
-
-        empty!(col)
-        for (off, v) in offdiagonals(ham, add)
-            iszero(v) && continue
-            j = get(dict, off, nothing)
-            if isnothing(j)
-                # Energy cutoff: remember skipped addresses, but avoid adding them to `adds`
-                if !isnothing(filter) && !filter(off)
-                    dict[off] = 0
-                    j = 0
-                else
-                    push!(adds, off)
-                    j = length(adds)
-                    dict[off] = j
-                end
-            end
-            if !iszero(j)
-                col[j] = get(col, j, zero(T)) + v
-            end
-        end
-    end
-
-    matrix = spzeros(nnzs, nnzs)    # empty sparse matrix
-    if sort
-        perm = sortperm(adds; kwargs...)
-        return matrix, permute!(adds, perm)
-    else
-        return matrix, adds
-    end
-end
-
 """
     BasisSetRep(
         h::AbstractHamiltonian, addr=starting_address(h);
@@ -389,11 +335,7 @@ function _bsr_ensure_symmetry(
 )
     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
     check_address_type(h, addr)
-    # if basis_only 
-    #     sm, basis = build_sparse_matrix_from_LO_basis_only(h, addr; kwargs...)
-    # else
-        sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
-    # end
+    sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
     return BasisSetRep(sm, basis, h)
 end
 
@@ -546,9 +488,6 @@ function Base.show(io::IO, b::BasisSetRep)
     print(io, "BasisSetRep($(b.h)) with dimension $(dimension(b)) and $(nnz(b.sm)) stored entries:")
     show(io, MIME"text/plain"(), b.sm)
 end
-function Base.show(io::IO, b::BasisSetRep{<:Any,Nothing,<:Any})
-    print(io, "BasisSetRep($(b.h)) with dimension $(dimension(b)) (sparse matrix not generated).")
-end
 
 starting_address(bsr::BasisSetRep) = bsr.basis[1]
 
@@ -569,10 +508,6 @@ function SparseArrays.sparse(h::AbstractHamiltonian, args...; kwargs...)
     return sparse(BasisSetRep(h, args...; kwargs...))
 end
 SparseArrays.sparse(bsr::BasisSetRep) = bsr.sm
-function SparseArrays.sparse(bsr::BasisSetRep{<:Any,Nothing,<:Any})
-    @warn "BasisSetRep did not generate a sparse matrix."
-    return bsr.sm
-end
 
 """
     Matrix(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, kwargs...)
@@ -587,10 +522,6 @@ function Base.Matrix(h::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
     return Matrix(BasisSetRep(h, args...; sizelim, kwargs...))
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
-function Base.Matrix(bsr::BasisSetRep{<:Any,Nothing,<:Any})
-    @warn "BasisSetRep did not generate a sparse matrix."
-    return nothing
-end
 
 """
     TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
