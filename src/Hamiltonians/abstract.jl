@@ -165,7 +165,7 @@ function build_sparse_matrix_from_LO(
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
     nnzs=dimension(ham),
-    sort=false, kwargs...,
+    sort=false, basis_only = false, kwargs...,
 )
     if !isnothing(filter) && !filter(address)
         throw(ArgumentError(string(
@@ -179,21 +179,25 @@ function build_sparse_matrix_from_LO(
     col = Dict{Int,T}()       # Temporary column storage
     sizehint!(col, num_offdiagonals(ham, address))
 
-    is = Int[] # row indices
-    js = Int[] # column indice
-    vs = T[]   # non-zero values
+    if !basis_only
+        is = Int[] # row indices
+        js = Int[] # column indice
+        vs = T[]   # non-zero values
 
-    sizehint!(is, nnzs)
-    sizehint!(js, nnzs)
-    sizehint!(vs, nnzs)
+        sizehint!(is, nnzs)
+        sizehint!(js, nnzs)
+        sizehint!(vs, nnzs)
+    end
 
     i = 0
     while i < length(adds)
         i += 1
         add = adds[i]
-        push!(is, i)
-        push!(js, i)
-        push!(vs, diagonal_element(ham, add))
+        if !basis_only
+            push!(is, i)
+            push!(js, i)
+            push!(vs, diagonal_element(ham, add))
+        end
 
         empty!(col)
         for (off, v) in offdiagonals(ham, add)
@@ -214,16 +218,22 @@ function build_sparse_matrix_from_LO(
                 col[j] = get(col, j, zero(T)) + v
             end
         end
-        # Copy the column into the sparse matrix vectors.
-        for (j, v) in col
-            iszero(v) && continue
-            push!(is, i)
-            push!(js, j)
-            push!(vs, v)
+        if !basis_only
+            # Copy the column into the sparse matrix vectors.
+            for (j, v) in col
+                iszero(v) && continue
+                push!(is, i)
+                push!(js, j)
+                push!(vs, v)
+            end
         end
     end
 
-    matrix = sparse(js, is, vs, length(adds), length(adds))
+    if !basis_only
+        matrix = sparse(js, is, vs, length(adds), length(adds))
+    else
+        matrix = spzeros(nnzs,nnzs)
+    end
     if sort
         perm = sortperm(adds; kwargs...)
         return permute!(matrix, perm, perm), permute!(adds, perm)
@@ -277,11 +287,12 @@ function build_sparse_matrix_from_LO_basis_only(
         end
     end
 
+    matrix = spzeros(nnzs, nnzs)    # empty sparse matrix
     if sort
         perm = sortperm(adds; kwargs...)
-        return nothing, permute!(adds, perm)
+        return matrix, permute!(adds, perm)
     else
-        return nothing, adds
+        return matrix, adds
     end
 end
 
@@ -374,15 +385,15 @@ end
 # default, does not enforce symmetries
 function _bsr_ensure_symmetry(
     ::LOStructure, h::AbstractHamiltonian, addr;
-    sizelim=10^6, test_approx_symmetry=true, basis_only = false, kwargs...
+    sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
     check_address_type(h, addr)
-    if basis_only 
-        sm, basis = build_sparse_matrix_from_LO_basis_only(h, addr; kwargs...)
-    else
+    # if basis_only 
+    #     sm, basis = build_sparse_matrix_from_LO_basis_only(h, addr; kwargs...)
+    # else
         sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
-    end
+    # end
     return BasisSetRep(sm, basis, h)
 end
 
