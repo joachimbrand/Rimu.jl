@@ -1151,6 +1151,16 @@ end
         @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
     end
 
+    @testset "basis-only" begin
+        H = HubbardReal1D(BoseFS((1,2,3)))
+        bsr = BasisSetRep(H)
+        bsr_nosparse = BasisSetRep(H, basis_only = true)
+        @test bsr.basis == bsr_nosparse.basis
+        @test isnothing(bsr_nosparse.sm)
+        @test_warn sparse(bsr_nosparse)
+        @test_warn Matrix(bsr_nosparse)
+    end
+
     @testset "filtering" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
         @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
