@@ -4,15 +4,15 @@
 A column in [`PDWorkingMemory`](@ref). Supports [`deposit!`](@ref) and
 [`StochasticStyle`](@ref) and acts as a target for spawning.
 """
-struct PDWorkingMemoryColumn{K,V,W<:AbstractInitiatorValue{V},I<:InitiatorRule}
-    segments::Vector{Dict{K,W}}
+struct PDWorkingMemoryColumn{K,V,W<:AbstractInitiatorValue{V},I<:InitiatorRule,N}
+    segments::NTuple{N,Dict{K,W}}
     initiator::I
 end
 function PDWorkingMemoryColumn(t::PDVec{K,V}) where {K,V}
     n = total_num_segments(t.communicator, num_segments(t))
     W = initiator_valtype(t.initiator, V)
 
-    segments = [Dict{K,W}() for _ in 1:n]
+    segments = ntuple(_ -> Dict{K,W}(), n)
     return PDWorkingMemoryColumn(segments, t.initiator)
 end
 
@@ -39,7 +39,7 @@ Base.empty!(c::PDWorkingMemoryColumn) = foreach(empty!, c.segments)
 Base.keytype(::PDWorkingMemoryColumn{K}) where {K} = K
 Base.valtype(::PDWorkingMemoryColumn{<:Any,V}) where {V} = V
 Base.eltype(::PDWorkingMemoryColumn{K,V}) where {K,V} = Pair{K,V}
-num_segments(c::PDWorkingMemoryColumn) = length(c.segments)
+num_segments(c::PDWorkingMemoryColumn{<:Any,<:Any,<:Any,<:Any,N}) where {N} = N
 segment_type(::Type{<:PDWorkingMemoryColumn{K,<:Any,W}}) where {K,W} = Dict{K,W}
 
 """
@@ -61,13 +61,12 @@ When used with three-argument dot products, a full copy of the left-hand side ve
 materialized in the first column of the working memory on all ranks.
 """
 struct PDWorkingMemory{
-    K,V,W<:AbstractInitiatorValue{V},S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,E
+    K,V,W<:AbstractInitiatorValue{V},S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,N
 }
-    columns::Vector{PDWorkingMemoryColumn{K,V,W,I}}
+    columns::Vector{PDWorkingMemoryColumn{K,V,W,I,N}}
     style::S
     initiator::I
     communicator::C
-    executor::E
 end
 function PDWorkingMemory(t::PDVec{K,V,S,D,I}; style=t.style) where {K,V,S,D,I}
     if !(style isa StochasticStyle{V})
@@ -77,7 +76,7 @@ function PDWorkingMemory(t::PDVec{K,V,S,D,I}; style=t.style) where {K,V,S,D,I}
     columns = [PDWorkingMemoryColumn(t) for _ in 1:num_segments(t)]
 
     W = initiator_valtype(t.initiator, V)
-    return PDWorkingMemory(columns, style, t.initiator, t.communicator, t.executor)
+    return PDWorkingMemory(columns, style, t.initiator, t.communicator)
 end
 
 function Base.show(io::IO, w::PDWorkingMemory{K,V}) where {K,V}
@@ -157,7 +156,7 @@ function perform_spawns!(w::PDWorkingMemory, t::PDVec, prop)
         error("working memory incompatible with vector")
     end
     _, stats = step_stats(w.style)
-    stats = Folds.sum(zip(w.columns, t.segments), w.executor) do (column, segment)
+    stats = Folds.sum(zip(w.columns, t.segments)) do (column, segment)
         empty!(column)
         sum(segment; init=stats) do (k, v)
             spawn_column!(column, prop, k, v)
@@ -174,7 +173,7 @@ Collect each row in `w` into its main segment. This step must be performed befor
 """
 function collect_local!(w::PDWorkingMemory)
     ncols = num_columns(w)
-    Folds.foreach(1:num_rows(w), w.executor) do i
+    Folds.foreach(1:num_rows(w)) do i
         for j in 2:ncols
             add!(w.columns[1].segments[i], w.columns[j].segments[i])
         end
@@ -201,7 +200,7 @@ Move the values in `src` to `dst`, compressing the according to the
 """
 function move_and_compress!(dst::PDVec, src::PDWorkingMemory)
     compression = CompressionStrategy(StochasticStyle(src))
-    Folds.foreach(dst.segments, local_segments(src), src.executor) do dst_seg, src_seg
+    Folds.foreach(dst.segments, local_segments(src)) do dst_seg, src_seg
         empty!(dst_seg)
         move_and_compress!(
             compression, dst_seg,

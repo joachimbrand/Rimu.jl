@@ -333,53 +333,63 @@ end
 using Rimu.DictVectors: num_segments, is_distributed
 
 @testset "PDVec" begin
-    # This is done first to catch the maxlog=1 warnings
+    @testset "constructor errors" begin
+        @test_throws ArgumentError PDVec(1 => 1; initiator="none")
+        @test_throws ArgumentError PDVec(1 => 1; communicator="none")
+    end
+
     @testset "operations" begin
         @testset "properties" begin
-            pd1 = PDVec(zip(1:10, 10:-1:1))
-            pd2 = PDVec(zip(1:10, 10:-1:1); num_segments=5)
-            pd3 = PDVec(zip(1:10, 10:-1:1); style=IsDynamicSemistochastic())
+            pd1 = PDVec(zip(1:10, 10:-1.0:1))
+            pd2 = PDVec(zip(1:10, 10:-1.0:1))
+            pd2[1] += 1e-13
+            pd3 = PDVec(zip(1:10, 10:-1.0:1); style=IsDynamicSemistochastic())
+            pd4 = PDVec(zip(1:9, 10:-1.0:2))
 
             @test num_segments(pd1) == Threads.nthreads()
-            @test num_segments(pd2) == 5
+            @test num_segments(pd2) == Threads.nthreads()
 
-            @test StochasticStyle(pd1) ≡ IsStochasticInteger()
+            @test StochasticStyle(pd1) ≡ IsDeterministic()
             @test StochasticStyle(pd3) ≡ IsDynamicSemistochastic()
 
             @test length(pd1) == length(pd2) == length(pd3) == 10
-            @test_logs (:warn,) pd1 == pd2
-            @suppress pd1 == pd2
-            @test pd1 == pd2 == pd3
+            @test pd1 == pd3
+            @test pd1 != pd2
             @test pd2 ≈ pd3
+            @test pd2 ≉ pd3 atol=1e-16
+            @test pd3 != pd4
+
+            @test length(pd4 - pd3) == 1
+
+            @test dot(pd1, pd1) == sum(abs2, values(pd1))
+            @test dot(pd1, pd3) == sum(abs2, values(pd1))
 
             @test !is_distributed(pd1)
+            @test !is_distributed(values(pd1))
 
             @test real(pd1) == pd1
             @test isempty(imag(pd1))
         end
 
-        @testset "uneven vs even segemnts" begin
-            pd1 = PDVec(zip(1:10, 10:-1:1))
-            pd2 = PDVec{Int,Int}(; num_segments=Threads.nthreads() * 2)
-            copyto!(pd2, pd1)
-            @test pd1 == pd2
-            @test dot(pd1, pd2) > 0
+        @testset "DVec with PDVec" begin
+            pv = PDVec(zip(1:10, 10:-1:1))
+            dv = PDVec{Int,Int}()
+            copyto!(dv, pv)
+            @test dv == pv
+            @test dot(dv, pv) / (norm(dv) * norm(pv)) ≈ 1
 
-            dv = DVec(pd1)
-            pd3 = PDVec(dv)
-            @test dv == pd3 == pd1
-
-            add!(pd1, pd2)
-            @test pd1 == 2 * pd2
+            add!(pv, dv)
+            @test pv == 2 * dv
+            @test 0.5 * pv == dv
         end
 
         @testset "map!" begin
-            pd1 = PDVec(zip(2:2:12, [1,-1,2,-2,3,-3]))
+            pd1 = PDVec(zip(2:2:12, [1, -1, 2, -2, 3, -3]))
             map!(x -> x + 1, values(pd1))
             @test length(pd1) == 5
             @test pd1[2] == 2
 
-            pd2 = similar(pd1; num_segments=Threads.nthreads() * 2)
+            pd2 = similar(pd1)
             map!(x -> x - 2, pd2, values(pd1))
             @test length(pd2) == 4
             @test pd2[6] == 1
@@ -387,6 +397,26 @@ using Rimu.DictVectors: num_segments, is_distributed
             pd3 = map!(x -> x + 4, pd2, values(pd2))
             @test pd3 === pd2
             @test length(pd2) == 3
+        end
+
+        @testset "operator dot" begin
+            add = FermiFS2C((1,1,0,0), (0,0,1,1))
+            H = HubbardMom1D(add)
+            T = Transcorrelated1D(add)
+            D = DensityMatrixDiagonal(1)
+
+            dv1 = H * DVec(add => 1.0)
+            dv2 = T * DVec(add => 1.0)
+            pv1 = H * PDVec(add => 1.0)
+            pv2 = T * PDVec(add => 1.0)
+            wm = PDWorkingMemory(pv1)
+
+            for op in (H, T, D)
+                @test dot(pv1, op, pv2) ≈ dot(dv1, op, dv2)
+                @test dot(dv1, op, pv2) ≈ dot(pv1, op, dv2)
+
+                @test dot(pv1, op, pv2, wm) ≈ dot(pv1, op, dv2)
+            end
         end
     end
 

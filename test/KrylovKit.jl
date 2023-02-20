@@ -31,8 +31,8 @@ if VERSION ≥ v"1.9"
         @test res2[1][1] isa Real
 
         true_tc = eigen(Matrix(ham_tc)).values[1]
-        res3 = eigsolve(ham_tc, DVec(add => 1.0), 1, :SR)
-        res4 = eigsolve(ham_tc, PDVec(add => 1.0), 1, :SR)
+        res3 = eigsolve(ham_tc, DVec(add => 1), 1, :SR)
+        res4 = eigsolve(ham_tc, PDVec(add => 1), 1, :SR)
 
         @test res3[1][1] ≈ true_tc
         @test res3[1][1] ≈ res4[1][1]
