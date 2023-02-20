@@ -269,6 +269,7 @@ end
         @testset "dot" begin
             add = BoseFS((0,0,10,0,0))
             H = HubbardMom1D(add)
+            D = DensityMatrixDiagonal(1)
 
             # Need to seed here to get the same random vectors on all ranks.
             Random.seed!(1)
@@ -287,10 +288,14 @@ end
 
             @test dot(freeze(pw), pv) ≈ dot(w, v) ≈ dot(pw, freeze(pv))
             @test dot(freeze(pv), pw) ≈ dot(v, w) ≈ dot(pv, freeze(pw))
+            wm = PDWorkingMemory(pv)
 
-            for op in (H, DensityMatrixDiagonal(1))
+            for op in (H, D)
                 @test dot(v, op, w) ≈ dot(pv, op, pw)
                 @test dot(w, op, v) ≈ dot(pw, op, pv)
+
+                @test dot(v, op, w) ≈ dot(pv, op, pw, wm)
+                @test dot(w, op, v) ≈ dot(pw, op, pv, wm)
 
                 pu = op * pv
                 u = op * v
@@ -299,6 +304,9 @@ end
                 @test norm(u, 2) ≈ norm(pu, 2)
                 @test norm(u, Inf) ≈ norm(pu, Inf)
             end
+
+            @test dot(pv, (H, D), pw, wm) == (dot(pv, H, pw), dot(pv, D, pw))
+            @test dot(pv, (H, D), pw) == (dot(pv, H, pw), dot(pv, D, pw))
         end
     end
 
@@ -398,7 +406,7 @@ end
                     @test density_sum ≈ N rtol=1e-3
 
                     # Not Diagonal
-                    ops = ntuple(x -> G2Correlator(x - cld(M, 2)), M)
+                    ops = ntuple(x -> G2MomCorrelator(x - cld(M, 2)), M)
                     replica = AllOverlaps(2; operator=ops)
                     df,_ = lomc!(H, dv; replica, laststep=10_000)
 

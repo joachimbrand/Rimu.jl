@@ -41,7 +41,7 @@ function LinearAlgebra.mul!(dst, prop::AbstractPropagator, src)
 end
 
 function Base.:*(prop::AbstractPropagator, v::PDVec)
-    w = similar(v, promote_type(eltype(prop), valtype(v)); num_segments=num_segments(v))
+    w = similar(v, promote_type(eltype(prop), valtype(v)))
     return mul!(w, prop, v)
 end
 (prop::AbstractPropagator)(v) = prop * v
@@ -121,7 +121,7 @@ end
 
 function Base.:*(op::AbstractHamiltonian, t::PDVec)
     prop = OperatorMulPropagator(op, t)
-    dst = similar(t, eltype(prop); num_segments=num_segments(t))
+    dst = similar(t, eltype(prop))
     return mul!(dst, prop, t)
 end
 
@@ -159,28 +159,21 @@ function LinearAlgebra.dot(
     # Other cases: both vectors distributed or not distributed. Put the shorter vector
     # on the right as is done for regular DVecs.
     if length(left) < length(right)
-        return conj(dot(AdjointUnknown(), right, op', left))
+        return conj(dot(AdjointUnknown(), right, op', left, w))
     else
-        return dot(AdjointUnknown(), left, op, right)
+        return dot(AdjointUnknown(), left, op, right, w)
     end
 end
 # Default variant: also called from other LOStructures.
 function LinearAlgebra.dot(
-    ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec, w
+    ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec, w=nothing
 )
     if is_distributed(t)
-        target = copy_to_local!(w, t)
-    else
-        target = t
-    end
-    return dot_from_right(target, op, source)
-end
-function LinearAlgebra.dot(
-    ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec
-)
-    if is_distributed(t)
-        w = PDWorkingMemory(t)
-        target = copy_to_local!(w, t)
+        if isnothing(w)
+            target = copy_to_local!(PDWorkingMemory(t), t)
+        else
+            target = copy_to_local!(w, t)
+        end
     else
         target = t
     end
@@ -199,9 +192,13 @@ function dot_from_right(target, op, source::PDVec)
     return result::T
 end
 
-function LinearAlgebra.dot(t::PDVec, ops::Tuple, source::PDVec, w)
+function LinearAlgebra.dot(t::PDVec, ops::Tuple, source::PDVec, w=nothing)
     if is_distributed(t) && any(LOStructure(op) ≢ IsDiagonal() for op in ops)
-        target = copy_to_local!(w, t)
+        if isnothing(w)
+            target = copy_to_local!(PDWorkingMemory(t), t)
+        else
+            target = copy_to_local!(w, t)
+        end
     else
         target = t
     end
