@@ -11,7 +11,7 @@ using Test
     @test vector == [2, 2, 3]
     @test storage(vector) ≡ vector
     @test localpart(vector) ≡ vector
-    zero!(vector)
+    zerovector!(vector)
     @test vector == [0, 0, 0]
 
     ham = [1 0 0; 2 3 0; 5 6 0]

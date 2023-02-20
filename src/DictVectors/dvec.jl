@@ -81,7 +81,10 @@ end
 function Base.empty(dvec::DVec{K,V}) where {K,V}
     return DVec{K,V}(; style=StochasticStyle(dvec))
 end
-function Base.empty(dvec::DVec{K}, ::Type{V}) where {K,V}
+function Base.empty(dvec::DVec{K,V}, ::Type{V}) where {K,V}
+    return empty(dvec)
+end
+function Base.empty(dvec::DVec{K,V}, ::Type{W}) where {K,V,W}
     return DVec{K,V}()
 end
 function Base.empty(dvec::DVec, ::Type{K}, ::Type{V}) where {K,V}

@@ -18,6 +18,9 @@ Define a method for `LinearAlgebra.dot(projector, v)`.
 """
 abstract type AbstractProjector end
 
+LinearAlgebra.dot(p::AbstractProjector, v) = VectorInterface.inner(p, v)
+VectorInterface.inner(v, p::AbstractProjector) = conj(inner(p, v))
+
 """
     UniformProjector() <: AbstractProjector
 Represents a vector with all elements 1. To be used with [`dot()`](@ref).
@@ -33,10 +36,10 @@ of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct UniformProjector <: AbstractProjector end
 
-LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(values(y))
+VectorInterface.inner(::UniformProjector, y::DVecOrVec) = sum(values(y))
 Base.getindex(::UniformProjector, add) = 1
 
-function LinearAlgebra.dot(::UniformProjector, op::AbstractHamiltonian, v::AbstractDVec)
+function VectorInterface.inner(::UniformProjector, op::AbstractHamiltonian, v::AbstractDVec)
     return sum(pairs(v)) do (key, val)
         diag = diagonal_element(op, key) * val
         offdiag = sum(offdiagonals(op, key)) do (add, elem)
@@ -60,7 +63,7 @@ of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct NormProjector <: AbstractProjector end
 
-LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = norm(y, 1)
+VectorInterface.inner(::NormProjector, y::DVecOrVec) = norm(y, 1)
 
 """
     Norm2Projector() <: AbstractProjector
@@ -75,7 +78,7 @@ of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct Norm2Projector <: AbstractProjector end
 
-LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y, 2)
+VectorInterface.inner(::Norm2Projector, y::DVecOrVec) = norm(y, 2)
 # NOTE that this returns a `Float64` opposite to the convention for
 # dot to return the promote_type of the arguments.
 
@@ -92,7 +95,7 @@ of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct Norm1ProjectorPPop <: AbstractProjector end
 
-function LinearAlgebra.dot(::Norm1ProjectorPPop, y::DVecOrVec)
+function VectorInterface.inner(::Norm1ProjectorPPop, y::DVecOrVec)
     T = float(valtype(y))
     if T <: Complex
         return T(sum(values(y)) do p
@@ -121,7 +124,7 @@ of projectors in [`lomc!`](@ref Main.lomc!).
 """
 struct PopsProjector <: AbstractProjector end
 
-function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
+function VectorInterface.inner(::PopsProjector, y::DVecOrVec)
     T = float(real(valtype(y)))
     return T(sum(values(y)) do p
         real(p) * imag(p)
@@ -133,7 +136,7 @@ end
 
 See: [`freeze`](@ref).
 """
-struct FrozenDVec{K,V}
+struct FrozenDVec{K,V} <: AbstractProjector
     pairs::Vector{Pair{K,V}}
 end
 Base.keytype(::FrozenDVec{K}) where {K} = K
@@ -145,11 +148,10 @@ freeze(dv) = FrozenDVec(collect(pairs(localpart(dv))))
 
 freeze(p::AbstractProjector) = p
 
-function LinearAlgebra.dot(fd::FrozenDVec, dv::AbstractDVec)
+function VectorInterface.inner(fd::FrozenDVec, dv::AbstractDVec)
     result = zero(promote_type(valtype(fd), valtype(dv)))
     for (k, v) in pairs(fd)
         result += dv[k] ⋅ v
     end
     return result
 end
-LinearAlgebra.dot(dv::AbstractDVec, fd::FrozenDVec) = conj(dot(fd, dv))

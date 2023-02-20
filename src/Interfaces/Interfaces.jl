@@ -22,9 +22,9 @@ Follow the links for the definitions of the interfaces!
 
 ## working with  [`AbstractDVec`](@ref)s and [`StochasticStyle`](@ref)
 * [`deposit!`](@ref)
-* [`zero!`](@ref)
 * [`default_style`](@ref)
 * [`CompressionStrategy`](@ref)
+* The interface from [VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl).
 
 ## Functions Rimu.jl uses to do FCIQMC:
 
@@ -37,8 +37,11 @@ Follow the links for the definitions of the interfaces!
 """
 module Interfaces
 
-using LinearAlgebra
+using Reexport
 using StaticArrays
+
+@reexport using LinearAlgebra
+@reexport using VectorInterface
 
 import OrderedCollections: freeze
 

@@ -175,7 +175,7 @@ function collect_local!(w::PDWorkingMemory)
     ncols = num_columns(w)
     Folds.foreach(1:num_rows(w)) do i
         for j in 2:ncols
-            add!(w.columns[1].segments[i], w.columns[j].segments[i])
+            dict_add!(w.columns[1].segments[i], w.columns[j].segments[i])
         end
     end
 end

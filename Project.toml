@@ -36,6 +36,7 @@ StrFormat = "b5087856-efa9-5a6d-8e6f-97303a7af894"
 StrLiterals = "68059f60-971f-57ff-a2d0-18e7de9ccc84"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 TerminalLoggers = "5d786b92-1e48-4d6f-9151-6b4477ca9bed"
+VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 
 [weakdeps]
 KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"

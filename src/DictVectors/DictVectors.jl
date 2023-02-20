@@ -12,6 +12,7 @@ using Folds, FoldsThreads
 using LinearAlgebra
 using Random
 using SplittablesBase
+using VectorInterface
 
 import MPI
 
@@ -21,10 +22,10 @@ using ..StochasticStyles
 
 # TODO: ordering
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
-    move_and_compress!, zero!,
+    move_and_compress!,
     working_memory, fciqmc_step!, sort_into_targets!
 
-export add!, deposit!, storage, walkernumber, propagate!, dot_from_right
+export deposit!, storage, walkernumber, propagate!, dot_from_right
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 

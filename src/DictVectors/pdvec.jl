@@ -146,15 +146,17 @@ julia> results[1][1:4]
 
 ## Parallel functionality
 
-The following functions are parallelised and MPI-compatible:
+The following functions are threaded MPI-compatible:
 
-* [`mapreduce`](@ref) and derivatives (`sum`, `prod`, `reduce`...),
-* [`all`](@ref), [`any`](@ref),
-* [`map!`](@ref) (on values only),
-* `rmul!`, `lmul!`, `mul!`, `*`,
-* `add!`, `axpy!`, `axpby!`, `+`, `-`,
-* `dot`,
-* `*`, [`mul!`](@ref) and [`dot!`](@ref) with operators.
+* From Base: `mapreduce` and derivatives (`sum`, `prod`, `reduce`...), `all`,
+  `any`,`map!` (on values only), `+`, `-`, `*`
+
+* From LinearAlgebra: `rmul!`, `lmul!`, `mul!`, `axpy!`, `axpby!`, `dot`, `norm`,
+  `normalize`, `normalize!`
+
+* The full interface defined in
+  [VectorInterface](https://github.com/Jutho/VectorInterface.jl)
+
 """
 struct PDVec{
     K,V,N,S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator
@@ -321,7 +323,7 @@ function Base.getindex(t::PDVec{K,V}, k::K) where {K,V}
     if is_local
         return get(t.segments[segment_id], k, zero(V))
     else
-        error("Attempted to access non-local key `$k`")
+        throw(CommunicatorError("Attempted to access non-local key `$k`"))
     end
 end
 function Base.setindex!(t::PDVec{K,V}, val, k::K) where {K,V}
@@ -447,8 +449,9 @@ Base.pairs(t::PDVec) = PDVecIterator(pairs, eltype(t), t)
 function Base.iterate(t::PDVecIterator)
     if !(t.vector.communicator isa LocalPart) && !(t.vector.communicator isa NotDistributed)
         throw(CommunicatorError(
-            "iteration over distributed vectors is not supported.",
-            "Use `localpart` to iterate over the local part only."
+            "Direct iteration over distributed vectors is not supported.",
+            "Use `localpart` to iterate over the local part only, ",
+            "or use a reduction function such as mapreduce."
         ))
     end
     return iterate(t, 1)
@@ -584,10 +587,23 @@ function LinearAlgebra.mul!(dst::PDVec, src::PDVec, α::Number)
     return map!(Base.Fix1(*, α), dst, values(src))
 end
 
-function add!(dst::PDVec, src::PDVec, α=true)
+function dict_add!(d::Dict, s, α=true, β=true)
+    for (key, s_value) in s
+        d_value = get(d, key, zero(valtype(d)))
+        new_value = β * d_value + α * s_value
+        if iszero(new_value)
+            delete!(d, key)
+        else
+            d[key] = new_value
+        end
+    end
+    return d
+end
+
+function VectorInterface.add!(dst::PDVec, src::PDVec, α::Number=true, β::Number=true)
     check_compatibility(dst, src)
     Folds.foreach(dst.segments, src.segments) do d, s
-        add!(d, s, α)
+        dict_add!(d, s, α, β)
     end
     return dst
 end

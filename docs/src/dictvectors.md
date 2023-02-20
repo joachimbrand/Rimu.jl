@@ -28,7 +28,9 @@ working_memory
 ## Supported operations
 
 [`AbstractDVec`](@ref)s generally support most operations that are defined on `Vector`s and
-`Dict`s. This includes common linear algebra operations such as `dot` or `norm`.
+`Dict`s. This includes common linear algebra operations such as `dot` or `norm`. They also
+implement the interface from
+[VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl).
 
 A significant difference between [`AbstractDVec`](@ref)s, `Vector`s, and `Dict`s, is that
 iteration on them is disabled by default. Iteration must be explicitly performed on `keys`,
@@ -36,11 +38,9 @@ iteration on them is disabled by default. Iteration must be explicitly performed
 similar functions when performing reductions, as that will make the operations compatible
 with MPI.
 
-In addition, Rimu defines the following functions.
+In addition, Rimu defines the following function.
 
 ```@docs
-zero!
-add!
 walkernumber
 ```
 
@@ -52,6 +52,7 @@ NormProjector
 Norm2Projector
 UniformProjector
 Norm1ProjectorPPop
+FrozenDVec
 ```
 
 ## Initiator rules
