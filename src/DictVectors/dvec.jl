@@ -120,20 +120,11 @@ end
 
 Base.pairs(dvec::DVec) = dvec.storage
 
-function LinearAlgebra.rmul!(dvec::DVec, α::Number)
+function VectorInterface.scale!(dvec::DVec, α::Number)
     if iszero(α)
-        empty!(dvec)
+        zerovector!(dvec)
     else
-        rmul!(dvec.storage.vals, α)
-    end
-    return dvec
-end
-
-function LinearAlgebra.lmul!(α::Number, dvec::DVec)
-    if iszero(α)
-        empty!(dvec)
-    else
-        lmul!(α, dvec.storage.vals)
+        scale!(dvec.storage.vals, α)
     end
     return dvec
 end

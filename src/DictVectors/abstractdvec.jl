@@ -87,7 +87,7 @@ function Base.sum(f, v::AbstractDVec)
     return sum(f, values(v))
 end
 
-function LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α)
+function VectorInterface.scale!(w::AbstractDVec, v::AbstractDVec, α)
     zerovector!(w)
     sizehint!(w, length(v))
     if !iszero(α)
@@ -114,12 +114,13 @@ function VectorInterface.scale(v::AbstractDVec, α::Number)
         return copy(v)
     else
         result = zerovector(v, promote_type(typeof(α), scalartype(v)))
-        mul!(result, v, α)
+        scale!(result, v, α)
         return result
     end
 end
 VectorInterface.scale!!(v::AbstractDVec, α::Number) = scale!(v, α)
 
+LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α) = scale!(w, v, α)
 LinearAlgebra.lmul!(α, v::AbstractDVec) = scale!(v, α)
 LinearAlgebra.rmul!(v::AbstractDVec, α) = scale!(v, α)
 
@@ -244,7 +245,7 @@ end
 function LinearAlgebra.dot(::AdjointUnknown, w, op::AbstractHamiltonian, v)
     return dot_from_right(w, op, v)
 end
-function LinearAlgebra.dot(::opStructure, w, op::AbstractHamiltonian, v)
+function LinearAlgebra.dot(::LOStructure, w, op::AbstractHamiltonian, v)
     if length(w) < length(v)
         return conj(dot_from_right(v, op', w)) # turn args around to execute faster
     else
