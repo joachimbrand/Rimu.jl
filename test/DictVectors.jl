@@ -59,7 +59,7 @@ function test_dvec_interface(type; kwargs...)
             end
             @testset "show" begin
                 h, _ = displaysize()
-                @test length(split(sprint(show, type(Dict(ps))), '\n')) < h
+                @test length(split(sprint(show, type(zip(rand(100), rand(100))), '\n'))) < h
             end
             @testset "$type is a default dict" begin
                 u = type(zip(1:5, 1:5); kwargs...)

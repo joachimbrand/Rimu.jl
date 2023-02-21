@@ -23,10 +23,6 @@ using Rimu.StatsTools, Rimu.RimuIO
     include("Interfaces.jl")
 end
 
-@safetestset "StatsTools" begin
-    include("StatsTools.jl")
-end
-
 @safetestset "BitStringAddresses" begin
     include("BitStringAddresses.jl")
 end
@@ -45,6 +41,10 @@ end
 
 @safetestset "lomc!" begin
     include("lomc.jl")
+end
+
+@safetestset "StatsTools" begin
+    include("StatsTools.jl")
 end
 
 @testset "MemoryStrategy" begin
