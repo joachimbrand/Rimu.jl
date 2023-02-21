@@ -233,6 +233,69 @@ function build_sparse_matrix_from_LO(
 end
 
 """
+    basis = build_basis_only_from_LO(
+        ham, add; cutoff, filter=nothing, sort=false, kwargs...
+    )
+
+Get a vector of all basis element of a linear operator `ham` that are reachable (via 
+non-zero matrix elements) from the address `add`. Does not compute or return the matrix.
+
+Providing an energy cutoff will skip addresses with diagonal elements greater
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
+not enabled by default.
+
+Setting `sort` to `true` will sort the basis. Any additional keyword arguments
+are passed on to `Base.sortperm`.
+
+See [`build_sparse_matrix_from_LO`](@ref).
+"""
+function build_basis_only_from_LO(
+    ham, address=starting_address(ham);
+    cutoff=nothing,
+    filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
+    sort=false, kwargs...,
+)
+    check_address_type(ham, address)
+    if !isnothing(filter) && !filter(address)
+        throw(ArgumentError(string(
+            "Starting address does not pass `filter`. ",
+            "Please pick a different address or a different filter."
+        )))
+    end
+    adds = [address]          # Queue of addresses. Also returned as the basis.
+    dict = Dict(address => 1) # Mapping from addresses to indices
+
+    i = 0
+    while i < length(adds)
+        i += 1
+        add = adds[i]
+
+        for (off, v) in offdiagonals(ham, add)
+            iszero(v) && continue
+            j = get(dict, off, nothing)
+            if isnothing(j)
+                # Energy cutoff: remember skipped addresses, but avoid adding them to `adds`
+                if !isnothing(filter) && !filter(off)
+                    dict[off] = 0
+                    j = 0
+                else
+                    push!(adds, off)
+                    j = length(adds)
+                    dict[off] = j
+                end
+            end
+        end
+    end
+
+    if sort
+        perm = sortperm(adds; kwargs...)
+        return permute!(adds, perm)
+    else
+        return adds
+    end
+end
+
+"""
     BasisSetRep(
         h::AbstractHamiltonian, addr=starting_address(h);
         sizelim=10^6, nnzs, cutoff, filter, sort, kwargs...

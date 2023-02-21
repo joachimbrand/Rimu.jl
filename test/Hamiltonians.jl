@@ -1151,6 +1151,23 @@ end
         @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
     end
 
+    @testset "basis-only" begin
+        m = 5
+        n = 5
+        add = BoseFS(m, 1 => n)
+        ham = HubbardReal1D(add)
+        @test_throws ArgumentError build_basis_only_from_LO(ham, BoseFS((1,2,3))) # wrong address type
+        # starting address
+        bsr = BasisSetRep(ham)
+        basis = build_basis_only_from_LO(ham)
+        @test basis == bsr.basis
+        # other address
+        add = BoseFS(m, m => n)
+        bsr = BasisSetRep(ham, add)
+        basis = build_basis_only_from_LO(ham, add)
+        @test basis == bsr.basis
+    end
+
     @testset "filtering" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
         @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
