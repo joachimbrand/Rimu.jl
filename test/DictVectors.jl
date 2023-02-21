@@ -7,69 +7,81 @@ using StaticArrays
 using Suppressor
 using Test
 
-function test_dvec_interface(type, keys, vals, cap)
-    K = eltype(keys)
-    V = eltype(vals)
-    pairs = [k => v for (k, v) in zip(keys, vals)]
+function test_dvec_interface(type, ks, vs; kwargs...)
+    K = eltype(ks)
+    V = eltype(vs)
+    ps = [k => v for (k, v) in zip(ks, vs)]
 
     @testset "$type{$K,$V}" begin
         @testset "constructors" begin
-            dvec1 = type(pairs...; capacity=cap)
-            dvec2 = type(Dict(pairs...))
-            for (k, v) in pairs
+            dvec1 = type(ps...; kwargs...)
+            dvec2 = type(Dict(ps...))
+            for (k, v) in ps
                 @test dvec1[k] == dvec2[k] == v
             end
             @test dvec1 == dvec2
 
-            dvec3 = type(Dict{K,V}(); capacity=cap)
+            dvec3 = type(Dict{K,V}(); kwargs...)
             dvec4 = type{K,V}()
 
             @test isempty(dvec4)
-            for (k, _) in pairs
+            for (k, _) in ps
                 @test dvec3[k] == dvec4[k] == zero(V)
             end
 
-            dvec5 = type(dvec2; capacity=2cap)
+            dvec5 = type(dvec2; kwargs...)
             @test dvec5 == dvec2
 
-            dvec6 = type(IdDict(pairs))
-            for (k, v) in pairs
+            dvec6 = type(IdDict(ps))
+            for (k, v) in ps
                 @test dvec6[k] == v
             end
+
+            @test sizehint!(dvec1, 1000) === dvec1
+
+            @test localpart(dvec1) === localpart(localpart(dvec1))
         end
         @testset "empty, similar" begin
-            dvec1 = type(pairs...; capacity=cap)
+            dvec1 = type(ps; kwargs...)
             dvec2 = empty(empty(empty(empty(dvec1))))
             dvec3 = similar(similar(similar(similar(dvec1))))
             @test typeof(dvec1) == typeof(dvec2) == typeof(dvec3)
             @test isempty(dvec2)
             @test isempty(dvec3)
             @test keytype(dvec1) == keytype(dvec2) == keytype(dvec3)
+
+            dvec4 = empty(dvec1, String)
+            @test keytype(dvec4) == keytype(dvec1)
+            @test valtype(dvec4) == String
+
+            dvec5 = empty(dvec1, String, String)
+            @test keytype(dvec5) == String
+            @test valtype(dvec5) == String
         end
         @testset "setindex, delete" begin
-            dvec = type(pairs...; capacity=cap)
-            @test length(dvec) == length(pairs)
-            zero!(dvec)
+            dvec = type(ps...; kwargs...)
+            @test length(dvec) == length(ps)
+            zerovector!(dvec)
             @test length(dvec) == 0
-            for (k, v) in shuffle(pairs)
+            for (k, v) in shuffle(ps)
                 dvec[k] = v
             end
-            for (k, v) in shuffle(pairs)
+            for (k, v) in shuffle(ps)
                 @test dvec[k] == v
                 delete!(dvec, k)
                 @test iszero(dvec[k])
             end
             @test isempty(dvec)
-            for (k, v) in shuffle(pairs)
+            for (k, v) in shuffle(ps)
                 dvec[k] += v
             end
-            for (k, v) in shuffle(pairs)
+            for (k, v) in shuffle(ps)
                 dvec[k] -= v
             end
             @test isempty(dvec)
         end
         @testset "types and traits" begin
-            dvec = type(pairs...; capacity=cap)
+            dvec = type(ps...; kwargs...)
             @test dvec isa AbstractDVec{K,V}
 
             @test eltype(dvec) ≡ Pair{K,V}
@@ -84,10 +96,10 @@ function test_dvec_interface(type, keys, vals, cap)
             @test isreal(dvec) == (V <: Real)
             @test ndims(dvec) == 1
         end
-        @testset "norm" begin
-            dvec = type(Dict(pairs))
+        @testset "norm, normalize" begin
+            dvec = type(Dict(ps))
             for p in (1, 2, Inf)
-                @test norm(dvec, p) == norm(vals, p)
+                @test norm(dvec, p) == norm(vs, p)
             end
             @test norm(dvec) == norm(dvec, 2)
             @test_throws ErrorException norm(dvec, 3)
@@ -96,24 +108,58 @@ function test_dvec_interface(type, keys, vals, cap)
             @test norm(empty(dvec), 1) == 0
             @test norm(empty(dvec), 2) == 0
             @test norm(empty(dvec), Inf) == 0
+
+            if valtype(dvec) == float(valtype(dvec))
+                @test norm(normalize(dvec)) ≈ 1
+
+                normalize!(dvec, 1)
+                @test norm(dvec, 1) ≈ 1
+
+                @test norm(dvec, Inf) == maximum(abs, values(dvec))
+                normalize!(dvec, Inf)
+                @test norm(dvec, Inf) ≈ 1
+            end
         end
         @testset "copy" begin
-            dvec1 = type(Dict(pairs))
+            dvec1 = type(Dict(ps))
             dvec2 = type{K,V}()
 
             copy!(dvec2, dvec1)
-            for (k, v) in pairs
+            for (k, v) in ps
                 @test dvec2[k] == v
             end
 
             dvec3 = copy(dvec1)
             empty!(dvec1)
-            for (k, v) in pairs
+            for (k, v) in ps
                 @test dvec3[k] == v
             end
         end
-        @testset "mul!, *, rmul!" begin
-            dvec = type(Dict(pairs))
+        @testset "all, any" begin
+            dvec = type(DVec(ps))
+
+            @test all(pairs(dvec)) do p
+                p in ps
+            end
+            @test all(keys(dvec)) do k
+                k in ks
+            end
+            @test all(values(dvec)) do v
+                v in vs
+            end
+
+            @test any(pairs(dvec)) do p
+                p == ps[end]
+            end
+            @test any(keys(dvec)) do k
+                k == ks[1]
+            end
+            @test any(values(dvec)) do v
+                v == vs[end ÷ 2]
+            end
+        end
+        @testset "mul!, *, rmul!, lmul!" begin
+            dvec = type(Dict(ps))
             res1 = type{K,V}()
             mul!(res1, dvec, one(V))
             @test res1 == dvec
@@ -123,36 +169,47 @@ function test_dvec_interface(type, keys, vals, cap)
             res2 = V(2) * dvec
             res3 = dvec * V(2)
             @test res1 == res2 == res3
-            for (k, v) in pairs
+            for (k, v) in ps
                 @test res1[k] == 2v
             end
 
             rmul!(dvec, V(3))
-            for (k, v) in pairs
+            for (k, v) in ps
                 @test dvec[k] == 3v
             end
+
+            lmul!(V(2), dvec)
+            for (k, v) in ps
+                @test dvec[k] == 6v
+            end
+            @test isempty(lmul!(0, copy(dvec)))
+            @test isempty(rmul!(copy(dvec), 0))
         end
-        @testset "add!" begin
-            dvec1 = type(Dict(pairs))
-            dvec2 = type(Dict(pairs[1:2:end]))
+        @testset "add!, +, -" begin
+            dvec1 = type(Dict(ps))
+            dvec2 = type(Dict(ps[1:2:end]))
             add!(dvec1, dvec2)
-            for (i, (k, v)) in enumerate(pairs)
+            for (i, (k, v)) in enumerate(ps)
                 if isodd(i)
                     @test dvec1[k] == 2v
                 else
                     @test dvec1[k] == v
                 end
             end
+            @test dvec1 == type(Dict(ps)) + dvec2
 
             copy!(dvec2, dvec1)
             add!(dvec1, type{K,V}())
             @test dvec1 == dvec2
+
+            @test isempty(dvec1 - dvec1)
+            @test type(ps) - type(ps[1:2:end]) == type(ps[2:2:end])
         end
         @testset "axpy!" begin
-            dvec1 = type(Dict(pairs))
-            dvec2 = type(Dict(pairs[1:2:end]))
+            dvec1 = type(Dict(ps))
+            dvec2 = type(Dict(ps[1:2:end]))
             axpy!(V(2), dvec1, dvec2)
-            for (i, (k, v)) in enumerate(pairs)
+            for (i, (k, v)) in enumerate(ps)
                 if isodd(i)
                     @test dvec2[k] == 3v
                 else
@@ -161,10 +218,10 @@ function test_dvec_interface(type, keys, vals, cap)
             end
         end
         @testset "axpby!" begin
-            dvec1 = type(Dict(pairs))
-            dvec2 = type(Dict(pairs[1:2:end]))
+            dvec1 = type(Dict(ps))
+            dvec2 = type(Dict(ps[1:2:end]))
             axpby!(V(2), dvec1, V(3), dvec2)
-            for (i, (k, v)) in enumerate(pairs)
+            for (i, (k, v)) in enumerate(ps)
                 if isodd(i)
                     @test dvec2[k] == 5v
                 else
@@ -173,28 +230,28 @@ function test_dvec_interface(type, keys, vals, cap)
             end
         end
         @testset "dot" begin
-            dvec1 = type(Dict(pairs))
-            dvec2 = type(Dict(pairs[1:2:end]))
-            dvec3 = type(Dict(pairs[2:2:end]))
+            dvec1 = type(Dict(ps))
+            dvec2 = type(Dict(ps[1:2:end]))
+            dvec3 = type(Dict(ps[2:2:end]))
 
             @test dvec1 ⋅ dvec1 ≈ norm(dvec1)^2
             @test dvec1 ⋅ dvec2 ≈ norm(dvec2)^2
         end
         @testset "iteration" begin
-            dvec = type(Dict(pairs))
+            dvec = type(Dict(ps))
 
-            dvec_pairs = [kv for kv in Base.pairs(dvec)]
-            @test issetequal(pairs, dvec_pairs)
+            dvec_pairs = [kv for kv in pairs(dvec)]
+            @test issetequal(ps, dvec_pairs)
 
-            dvec_keys = [k for k in Base.keys(dvec)]
-            @test issetequal(dvec_keys, keys)
+            dvec_keys = [k for k in keys(dvec)]
+            @test issetequal(dvec_keys, ks)
 
-            dvec_vals = [k for k in Base.values(dvec)]
-            @test issetequal(dvec_vals, vals)
+            dvec_vals = [k for k in values(dvec)]
+            @test issetequal(dvec_vals, vs)
         end
         @testset "projection" begin
-            dvec = type(Dict(pairs))
-            @test UniformProjector() ⋅ dvec == sum(dvec) == sum(vals)
+            dvec = type(Dict(ps))
+            @test UniformProjector() ⋅ dvec == sum(dvec) == sum(vs)
             @test UniformProjector()[2] == 1
             if valtype(dvec) isa AbstractFloat
                 @test NormProjector() ⋅ dvec == norm(dvec, 1)
@@ -207,15 +264,15 @@ function test_dvec_interface(type, keys, vals, cap)
         end
         @testset "show" begin
             h, _ = displaysize()
-            @test length(split(sprint(show, type(Dict(pairs))), '\n')) < h
+            @test length(split(sprint(show, type(Dict(ps))), '\n')) < h
         end
     end
 
     @testset "StochasticStyle" begin
         @test StochasticStyle(type(:a => 1)) isa IsStochasticInteger{Int}
-        @test StochasticStyle(type(:a => 1.5; capacity=5)) isa IsDeterministic
-        @test StochasticStyle(type(:a => 1 + 2im; capacity=5)) isa IsStochastic2Pop
-        @test StochasticStyle(type(:a => SA[1 1; 1 1]; capacity=5)) isa StyleUnknown
+        @test StochasticStyle(type(:a => 1.5; kwargs...)) isa IsDeterministic
+        @test StochasticStyle(type(:a => 1 + 2im; kwargs...)) isa IsStochastic2Pop
+        @test StochasticStyle(type(:a => SA[1 1; 1 1]; kwargs...)) isa StyleUnknown
     end
 end
 
@@ -223,11 +280,11 @@ end
     @testset "interface tests" begin
         keys1 = shuffle(1:20)
         vals1 = shuffle(1:20)
-        test_dvec_interface(DVec, keys1, vals1, 100)
+        test_dvec_interface(DVec, keys1, vals1; capacity=100)
 
         keys2 = ['x', 'y', 'z', 'w', 'v']
         vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
-        test_dvec_interface(DVec, keys2, vals2, 200)
+        test_dvec_interface(DVec, keys2, vals2; capacity=200)
     end
 
     @testset "Stochastic styles convert eltype" begin
@@ -250,11 +307,11 @@ end
     @testset "interface tests" begin
         keys1 = shuffle(1:20)
         vals1 = shuffle(1:20)
-        test_dvec_interface(InitiatorDVec, keys1, vals1, 100)
+        test_dvec_interface(InitiatorDVec, keys1, vals1; capacity=100)
 
         keys2 = ['x', 'y', 'z', 'w', 'v']
         vals2 = [1.0 + 2.0im, 3.0 - 4.0im, 0.0 - 5.0im, -2.0 + 0.0im, 12.0 + im]
-        test_dvec_interface(InitiatorDVec, keys2, vals2, 200)
+        test_dvec_interface(InitiatorDVec, keys2, vals2; capacity=200)
     end
 
     @testset "Stochastic styles convert eltype" begin

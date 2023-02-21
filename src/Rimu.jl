@@ -35,14 +35,14 @@ include("helpers.jl") # non MPI-dependent helper functions
 
 include("Interfaces/Interfaces.jl")
 @reexport using .Interfaces
-include("StochasticStyles/StochasticStyles.jl")
-@reexport using .StochasticStyles
-include("DictVectors/DictVectors.jl")
-@reexport using .DictVectors
 include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
+include("StochasticStyles/StochasticStyles.jl")
+@reexport using .StochasticStyles
+include("DictVectors/DictVectors.jl")
+@reexport using .DictVectors
 include("RimuIO.jl")
 @reexport using .RimuIO
 include("StatsTools/StatsTools.jl")

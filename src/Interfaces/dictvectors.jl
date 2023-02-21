@@ -48,13 +48,7 @@ function deposit!(w, add, val, _)
     w[add] += convert(valtype(w), val)
 end
 
-"""
-    zero!(v)
-
-Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types it means
-removing all non-zero elements. For `AbstractArrays`, it sets all of the values to zero.
-"""
-zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
+@deprecate zero! zerovector!
 
 """
     localpart(dv) -> AbstractDVec
@@ -117,12 +111,13 @@ function fciqmc_step!(working_memory, target, source, ham, shift, dτ)
     v = localpart(source)
     @assert working_memory ≢ v "`w` and `v` must not be the same object"
     @assert localpart(target) ≢ v "`pv` and `v` must not be the same object"
-    zero!(working_memory)
+    zerovector!(working_memory)
 
     stat_names, stats = step_stats(v)
     for (add, val) in pairs(v)
         stats += fciqmc_col!(working_memory, ham, add, val, shift, dτ)
     end
+
     # Now, working_memory holds the new values - they need to be moved into the target.
     target, working_memory, stats = sort_into_targets!(target, working_memory, stats)
 

@@ -8,19 +8,27 @@ See [`Interfaces`](@ref).
 """
 module DictVectors
 
-using Random
 using LinearAlgebra
+using Random
+using VectorInterface
+
+import MPI
 
 using ..Interfaces
-import ..Interfaces: deposit!, zero!, storage, StochasticStyle, default_style, freeze
+using ..Hamiltonians
+using ..StochasticStyles
 
-export zero!, add!, deposit!, storage, walkernumber
+# TODO: ordering
+import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
+    working_memory, fciqmc_step!, sort_into_targets!
+
+export deposit!, storage, walkernumber, propagate!, dot_from_right
 export DVec, InitiatorDVec
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 
 
 # The idea is to do linear algebra with data structures that are not
-# subtyped to AbstractVector, much in the spirit of KrylovKit.jl.
+# subtyped to AbstractVector, much in the spirit of VectorInterfaces.jl and KrylovKit.jl.
 # In particular we provide concrete data structures with the aim of being
 # suitable for use with KrylovKit. From the manual:
 
@@ -46,7 +54,11 @@ export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1
 
 include("delegate.jl")
 include("abstractdvec.jl")
-include("dvec.jl")
+include("projectors.jl")
+
 include("initiators.jl")
+
+include("dvec.jl")
+include("initiatordvec.jl")
 
 end # module

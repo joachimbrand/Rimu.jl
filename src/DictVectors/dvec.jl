@@ -81,8 +81,11 @@ end
 function Base.empty(dvec::DVec{K,V}) where {K,V}
     return DVec{K,V}(; style=StochasticStyle(dvec))
 end
-function Base.empty(dvec::DVec{K}, ::Type{V}) where {K,V}
-    return DVec{K,V}()
+function Base.empty(dvec::DVec{K,V}, ::Type{V}) where {K,V}
+    return empty(dvec)
+end
+function Base.empty(dvec::DVec{K,V}, ::Type{W}) where {K,V,W}
+    return DVec{K,W}()
 end
 function Base.empty(dvec::DVec, ::Type{K}, ::Type{V}) where {K,V}
     return DVec{K,V}()
@@ -118,7 +121,20 @@ end
 Base.pairs(dvec::DVec) = dvec.storage
 
 function LinearAlgebra.rmul!(dvec::DVec, α::Number)
-    rmul!(dvec.storage.vals, α)
+    if iszero(α)
+        empty!(dvec)
+    else
+        rmul!(dvec.storage.vals, α)
+    end
+    return dvec
+end
+
+function LinearAlgebra.lmul!(α::Number, dvec::DVec)
+    if iszero(α)
+        empty!(dvec)
+    else
+        lmul!(α, dvec.storage.vals)
+    end
     return dvec
 end
 
