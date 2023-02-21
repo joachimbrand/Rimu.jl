@@ -77,17 +77,20 @@ function Base.isapprox(v::AbstractDVec, w::AbstractDVec; kwargs...)
     left = all(pairs(w)) do (key, val)
         isapprox(v[key], val; kwargs...)
     end
-    right = all(pairs(v)) do (key, val)
-        isapprox(w[key], val; kwargs...)
+    if left
+        return all(pairs(v)) do (key, val)
+            isapprox(w[key], val; kwargs...)
+        end
+    else
+        return false
     end
-    return left && right
 end
 
 function Base.sum(f, v::AbstractDVec)
     return sum(f, values(v))
 end
 
-function VectorInterface.scale!(w::AbstractDVec, v::AbstractDVec, α)
+function VectorInterface.scale!(w::AbstractDVec, v::AbstractDVec, α::Number)
     zerovector!(w)
     sizehint!(w, length(v))
     if !iszero(α)
@@ -110,13 +113,10 @@ function VectorInterface.scale!(v::AbstractDVec, α::Number)
 end
 
 function VectorInterface.scale(v::AbstractDVec, α::Number)
-    if α == one(α)
-        return copy(v)
-    else
-        result = zerovector(v, promote_type(typeof(α), scalartype(v)))
-        scale!(result, v, α)
-        return result
-    end
+    T = promote_type(typeof(α), scalartype(v))
+    result = zerovector(v, T)
+    scale!(result, v, α)
+    return result
 end
 VectorInterface.scale!!(v::AbstractDVec, α::Number) = scale!(v, α)
 
@@ -127,26 +127,24 @@ LinearAlgebra.rmul!(v::AbstractDVec, α) = scale!(v, α)
 Base.:*(α, x::AbstractDVec) = scale(x, α)
 Base.:*(x::AbstractDVec, α) = α * x
 
-"""
-    add!(x::AbstractDVec,y::AbstactDVec)
-
-Inplace add `x+y` and store result in `x`.
-"""
 @inline function VectorInterface.add!(
-    v::AbstractDVec{K}, w::AbstractDVec{K}, α::Number=true, β::Number=true
+    w::AbstractDVec{K}, v::AbstractDVec{K}, α::Number=true, β::Number=true
 ) where {K}
-    for (key, val) in pairs(w)
-        v[key] = β * v[key] + α * val
+    if β ≠ one(β)
+        scale!(w, β)
     end
-    return v
+    for (key, val) in pairs(v)
+        w[key] += α * val
+    end
+    return w
 end
 
 function VectorInterface.add(
-    v::AbstractDVec{K}, w::AbstractDVec{K}, α::Number=true, β::Number=true
+    w::AbstractDVec{K}, v::AbstractDVec{K}, α::Number=true, β::Number=true
 ) where {K}
     T = promote_type(scalartype(v), scalartype(w), typeof(α), typeof(β))
-    result = scale(v, T(β))
-    return add!(result, w, one(T), T(α))
+    result = scale(w, T(β))
+    return add!(result, v, α)
 end
 
 function VectorInterface.add!!(
