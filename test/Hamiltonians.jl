@@ -1219,20 +1219,19 @@ end
         n = 5
         add = near_uniform(BoseFS{n,m})
         ham = HubbardReal1D(add)
-        @test_throws ArgumentError build_basis_only_from_LO(ham, BoseFS((1,2,3))) # wrong address type
+        @test_throws ArgumentError build_basis(ham, BoseFS((1,2,3))) # wrong address type
         # same basis as BSR
         bsr = BasisSetRep(ham)
-        basis = build_basis_only_from_LO(ham)
+        basis = build_basis(ham)
         @test basis == bsr.basis
         # sorting
-        bsr = BasisSetRep(ham, add; sort = true)
-        basis = build_basis_only_from_LO(ham, add; sort = true)
-        @test basis == bsr.basis
+        basis = build_basis(ham, add; sort = true)
+        @test basis == sort!(bsr.basis)
         # filtering
-        @test_throws ArgumentError build_basis_only_from_LO(ham, add; cutoff = -1)
+        @test_throws ArgumentError build_basis(ham, add; cutoff = -1)
         cutoff = n * (n-1) / 4  # half maximum energy
         bsr = BasisSetRep(ham, add; cutoff)
-        basis = build_basis_only_from_LO(ham, add; cutoff)
+        basis = build_basis(ham, add; cutoff)
         @test basis == bsr.basis
     end
 end

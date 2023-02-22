@@ -140,7 +140,7 @@ momentum
 
 """
     sm, basis = build_sparse_matrix_from_LO(
-        ham, add; cutoff, filter=nothing, nnzs, sort=false, kwargs...
+        ham, address=starting_address(ham); cutoff, filter=nothing, nnzs, sort=false, kwargs...
     )
 
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
@@ -233,23 +233,22 @@ function build_sparse_matrix_from_LO(
 end
 
 """
-    basis = build_basis_only_from_LO(
-        ham, add; cutoff, filter=nothing, sort=false, kwargs...
+    basis = build_basis(
+        ham, address=starting_address(ham); cutoff=nothing, filter=nothing, sort=false, kwargs...
     )
 
-Get a vector of all basis element of a linear operator `ham` that are reachable (via 
-non-zero matrix elements) from the address `add`. Does not compute or return the matrix.
+Get all basis element of a linear operator `ham` that are reachable (via 
+non-zero matrix elements) from the address `add`, returned as a vector. 
+Does not compute or return the matrix, for that purpose see [`BasisSetRep`](@ref).
 
 Providing an energy cutoff will skip addresses with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
 not enabled by default.
 
 Setting `sort` to `true` will sort the basis. Any additional keyword arguments
-are passed on to `Base.sortperm`.
-
-See [`build_sparse_matrix_from_LO`](@ref).
+are passed on to `Base.sort!`.
 """
-function build_basis_only_from_LO(
+function build_basis(
     ham, address=starting_address(ham);
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
@@ -262,8 +261,8 @@ function build_basis_only_from_LO(
             "Please pick a different address or a different filter."
         )))
     end
-    adds = [address]          # Queue of addresses. Also returned as the basis.
-    dict = Dict(address => 1) # Mapping from addresses to indices
+    adds = [address]        # Queue of addresses. Also returned as the basis.
+    known_basis = Set(adds)     # known addresses
 
     i = 0
     while i < length(adds)
@@ -271,25 +270,15 @@ function build_basis_only_from_LO(
         add = adds[i]
 
         for (off, v) in offdiagonals(ham, add)
-            iszero(v) && continue
-            j = get(dict, off, nothing)
-            if isnothing(j)
-                # Energy cutoff: remember skipped addresses, but avoid adding them to `adds`
-                if !isnothing(filter) && !filter(off)
-                    dict[off] = 0
-                    j = 0
-                else
-                    push!(adds, off)
-                    j = length(adds)
-                    dict[off] = j
-                end
-            end
+            (iszero(v) || off in known_basis) && continue   # check if valid
+            push!(known_basis, off)
+            !isnothing(filter) && !filter(off) && continue  # check filter
+            push!(adds, off)
         end
     end
 
     if sort
-        perm = sortperm(adds; kwargs...)
-        return permute!(adds, perm)
+        return sort!(adds, kwargs...)
     else
         return adds
     end
