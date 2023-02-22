@@ -229,7 +229,7 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::Abstract
 end
 
 function Base.:*(h::AbstractHamiltonian, v::AbstractDVec)
-    return mul!(similar(v, promote_type(eltype(h), valtype(v))), h, v)
+    return mul!(zerovector(v, promote_type(eltype(h), valtype(v))), h, v)
 end
 
 """

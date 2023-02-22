@@ -10,28 +10,33 @@ Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec)
 and [`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
 
 `AbstractDvec`s lie somewhere between `AbstractDict`s and sparse `AbstractVector`s, while
-being subtyped to neither.
-Generally they behave
-like a dictionary, while supportting various linear algebra functionality. Indexing with a
-value not stored in the dictionary returns `zero(V)`. Setting a stored value to 0 or below
+being subtyped to neither. Generally they behave like a dictionary, while supportting
+various linear algebra functionality by implementing the interface from
+[VectorInterfaces.jl](https://github.com/Jutho/VectorInterface.jl). Indexing with a value
+not stored in the dictionary returns `zero(V)`. Setting a stored value to 0 or below
 `eps(V::AbstractFloat)` removes the value from the dictionary. Their `length` signals the
 number of stored elements, not the size of the vector space.
 
 They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in `FCIQMC`.
 
-To iterate over an `AbstractDVec`, use `keys`, `pairs`, or `values`.
+To iterate over an `AbstractDVec`, use `keys`, `pairs`, or `values`. When possible, use
+reduction functions such as `sum` or `mapreduce`.
 
 # Interface
 
 The interface is similar to the `AbstractDict` interface, but with the changed behaviour as
 noted above.  Implement what would be needed for the `AbstractDict` interface (`pairs`,
-`keys`, `values`, `setindex!`, `getindex`, `delete!`, `length`, `haskey`, `empty!`,
-`isempty`) and, in addition:
+`keys`, `values`, `setindex!`, `getindex`, `delete!`, `length`, `empty`, `empty!`) and, in
+addition:
 
 * [`StochasticStyle`](@ref)
 * [`storage`](@ref) returns an `AbstractDict` storing the raw data with possibly
   different `valtype` than `V`.
 * [`deposit!`](@ref)
+
+A default implementation for the
+[VectorInterfaces.jl](https://github.com/Jutho/VectorInterface.jl) interface is provided
+through the above functions.
 
 See also [`DictVectors`](@ref Main.DictVectors), [`Interfaces`](@ref).
 """
