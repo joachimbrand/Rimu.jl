@@ -60,6 +60,7 @@ StatsBase = "0.33"
 StrFormat = "1"
 StrLiterals = "1"
 TerminalLoggers = "0.1.4"
+VectorInterface = "0.2"
 julia = "1.6"
 
 [extras]
