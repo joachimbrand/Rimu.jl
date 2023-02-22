@@ -126,11 +126,12 @@ function test_dvec_interface(type; kwargs...)
                 u = type(45 => 10.0, 12 => 3.5; kwargs...)
                 v = type(45 => -10.0, 13 => -1.0, 12 => 1.0; kwargs...)
                 w = type(13 => -1.0, 12 => 4.5; kwargs...)
-                x = type(13 => -7, 45 => -90; kwargs...)
 
                 @test add(u, v) == u + v == w
                 @test add!(copy(u), v) == w
                 @test axpy!(1, u, copy(v)) == w
+
+                x = type(13 => -7, 45 => -90; kwargs...)
                 @test add(v, u, 2, -7) == 2u - 7v == x
                 @test axpby!(2, u, -7, copy(v)) == x
 
@@ -142,12 +143,20 @@ function test_dvec_interface(type; kwargs...)
                 result = im + 1.5*1.2 + -1
                 @test inner(u, v) == dot(u, v) == result
                 @test inner(v, u) == dot(v, u) == conj(result)
+
+                w = type{Int,Int}(; kwargs...)
+                @test iszero(inner(w, w))
+                @test iszero(inner(w, v))
+                @test iszero(inner(u, w))
             end
             @testset "norm" begin
                 vector = rand(10)
                 u = type(zip(rand(Int, 10), vector); kwargs...)
                 @test norm(normalize!(copy(u))) == norm(normalize(u)) ≈ 1
                 @test norm(u) ≈ norm(vector)
+
+                v = type{Int,ComplexF64}(; kwargs...)
+                @test iszero(norm(v))
             end
         end
         @testset "iteration and reductions" begin
@@ -174,8 +183,8 @@ function test_dvec_interface(type; kwargs...)
 
                 u = type(Dict(ps); kwargs...)
 
-                @test reduce(+, values(u)) == sum(vs)
-                @test reduce(+, keys(u)) == sum(ks)
+                @test reduce(+, values(u); init=1) == sum(vs) + 1
+                @test reduce(+, keys(u); init=-1) == sum(ks) - 1
 
                 @test mapreduce(x -> x + 1.1, +, values(u)) ≈ sum(x -> x + 1.1, vs)
                 @test mapreduce(abs2, *, keys(u)) == prod(abs2, ks)
