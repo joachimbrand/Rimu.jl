@@ -150,7 +150,8 @@ freeze(dv) = FrozenDVec(collect(pairs(localpart(dv))))
 freeze(p::AbstractProjector) = p
 
 function VectorInterface.inner(fd::FrozenDVec, dv::AbstractDVec)
-    return sum(pairs(fd)) do (k, v)
+    T = promote_type(valtype(fd), valtype(dv))
+    return sum(pairs(fd); init=zero(T)) do (k, v)
         dv[k] ⋅ v
     end
 end
