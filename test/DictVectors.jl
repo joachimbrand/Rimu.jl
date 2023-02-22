@@ -23,6 +23,9 @@ function test_dvec_interface(type; kwargs...)
                 @test sizehint!(u, 100) == u
                 @test sizehint!(u, 100) ≡ u
                 @test localpart(u) ≡ localpart(localpart(u))
+
+                @test type(u; kwargs...) == u
+                @test type(v; kwargs...) ≢ v
             end
             @testset "isapprox" begin
                 u = type(1 => 1.0, 2 => 2.0; kwargs...)
@@ -102,6 +105,10 @@ function test_dvec_interface(type; kwargs...)
                 @test e == zerovector(u) == empty(u) == similar(u)
                 @test e == zerovector!(copy(u)) == zerovector!(copy(u)) == empty!(copy(u))
                 @test e ≡ zerovector!(e) ≡ zerovector!!(e) ≡ empty!(e)
+
+                @test scalartype(zerovector(u, Int)) ≡ Int
+                @test scalartype(empty(u, Int)) ≡ Int
+                @test eltype(similar(u, Float64, Int)) ≡ Pair{Float64,Int}
             end
             @testset "scale(!)" begin
                 u = type(1 => 1.0 + im, 2 => -2.0im; kwargs...)
