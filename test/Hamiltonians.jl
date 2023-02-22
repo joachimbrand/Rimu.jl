@@ -1151,23 +1151,6 @@ end
         @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
     end
 
-    @testset "basis-only" begin
-        m = 5
-        n = 5
-        add = BoseFS(m, 1 => n)
-        ham = HubbardReal1D(add)
-        @test_throws ArgumentError build_basis_only_from_LO(ham, BoseFS((1,2,3))) # wrong address type
-        # starting address
-        bsr = BasisSetRep(ham)
-        basis = build_basis_only_from_LO(ham)
-        @test basis == bsr.basis
-        # other address
-        add = BoseFS(m, m => n)
-        bsr = BasisSetRep(ham, add)
-        basis = build_basis_only_from_LO(ham, add)
-        @test basis == bsr.basis
-    end
-
     @testset "filtering" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
         @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
@@ -1229,6 +1212,28 @@ end
         @test !issymmetric(even_sm) # not symmetric due to floating point errors
         @test issymmetric(even_m) # because it was passed through `fix_approx_hermitian!`
         @test even_sm ≈ even_m # still approximately the same!
+    end
+
+    @testset "basis-only" begin
+        m = 5
+        n = 5
+        add = near_uniform(BoseFS{n,m})
+        ham = HubbardReal1D(add)
+        @test_throws ArgumentError build_basis_only_from_LO(ham, BoseFS((1,2,3))) # wrong address type
+        # same basis as BSR
+        bsr = BasisSetRep(ham)
+        basis = build_basis_only_from_LO(ham)
+        @test basis == bsr.basis
+        # sorting
+        bsr = BasisSetRep(ham, add; sort = true)
+        basis = build_basis_only_from_LO(ham, add; sort = true)
+        @test basis == bsr.basis
+        # filtering
+        @test_throws ArgumentError build_basis_only_from_LO(ham, add; cutoff = -1)
+        cutoff = n * (n-1) / 4  # half maximum energy
+        bsr = BasisSetRep(ham, add; cutoff)
+        basis = build_basis_only_from_LO(ham, add; cutoff)
+        @test basis == bsr.basis
     end
 end
 
