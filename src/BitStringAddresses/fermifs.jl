@@ -53,7 +53,7 @@ struct FermiFS{N,M,S} <: SingleComponentFockAddress{N,M}
     bs::S
 end
 
-function check_fermi_onr(onr, N)
+function check_fermi_onr(onr, N, M)
     sum(onr) == N ||
         throw(ArgumentError("Invalid ONR: $N particles expected, $(sum(onr)) given."))
     length(onr) == M ||
