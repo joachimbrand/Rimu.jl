@@ -1228,6 +1228,7 @@ end
         basis = build_basis(ham, add; sort = true)
         @test basis == sort!(bsr.basis)
         # filtering
+        @test_throws ArgumentError build_basis(ham, add; max_size = 100)
         @test_throws ArgumentError build_basis(ham, add; cutoff = -1)
         cutoff = n * (n-1) / 4  # half maximum energy
         bsr = BasisSetRep(ham, add; cutoff)
