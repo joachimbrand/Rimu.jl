@@ -144,7 +144,7 @@ momentum
     )
 
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
-starting from the address `add`. The vector `basis` contains the addresses of basis
+starting from `address`. The vector `basis` contains the addresses of basis
 configurations.
 
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
@@ -234,16 +234,19 @@ end
 
 """
     basis = build_basis(
-        ham, address=starting_address(ham); cutoff=nothing, filter=nothing, sort=false, kwargs...
+        ham, address=starting_address(ham); 
+        cutoff=nothing, filter=nothing, sort=false, max_size=Inf, kwargs...
     )
 
 Get all basis element of a linear operator `ham` that are reachable (via 
-non-zero matrix elements) from the address `add`, returned as a vector. 
-Does not compute or return the matrix, for that purpose see [`BasisSetRep`](@ref).
+non-zero matrix elements) from the address `address`, returned as a vector. 
+Does not return the matrix, for that purpose use [`BasisSetRep`](@ref).
 
 Providing an energy cutoff will skip addresses with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
-not enabled by default.
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. 
+A maximum basis size `max_size` can be set which will throw an error if the expected dimension
+of `ham` is larger than `max_size`. This may be useful when memory may be a concern. 
+These options are disabled by default.
 
 Setting `sort` to `true` will sort the basis. Any additional keyword arguments
 are passed on to `Base.sort!`.
@@ -252,7 +255,9 @@ function build_basis(
     ham, address=starting_address(ham);
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    sort=false, kwargs...,
+    sort=false, 
+    max_size=Inf, 
+    kwargs...,
 )
     check_address_type(ham, address)
     if !isnothing(filter) && !filter(address)
@@ -261,6 +266,7 @@ function build_basis(
             "Please pick a different address or a different filter."
         )))
     end
+    dimension(Float64, ham) < max_size || throw(ArgumentError("dimension larger than max_size"))
     adds = [address]        # Queue of addresses. Also returned as the basis.
     known_basis = Set(adds)     # known addresses
 
