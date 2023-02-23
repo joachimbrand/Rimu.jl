@@ -1,21 +1,15 @@
 """
     AbstractDVec{K,V}
 
-Abstract type for data structures that behave similar to sparse vectors, but are indexed
-by an arbitrary type `V` (could be non-integers) similarly to dictionaries. `AbstractDVec`s
-are  designed to work well with [`lomc!`](@ref Main.lomc!) and
-[KrylovKit](https://github.com/Jutho/KrylovKit.jl).
+Abstract data type for vector-like data structures with sparse storage. While conceptually
+`AbstractDVec`s represent elements of a vector space over a scalar type `V`, they are
+indexed by an arbitrary type `K` (could be non-integers) similar to dictionaries. They
+support the interface from [VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl)
+and are designed to work well for quantum Monte Carlo with [`lomc!`](@ref Main.lomc!) and
+for matrix-free linear algebra with [KrylovKit](https://github.com/Jutho/KrylovKit.jl).
 
-Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec)
-and [`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
-
-`AbstractDvec`s lie somewhere between `AbstractDict`s and sparse `AbstractVector`s, while
-being subtyped to neither. Generally they behave like a dictionary, while supportting
-various linear algebra functionality by implementing the interface from
-[VectorInterfaces.jl](https://github.com/Jutho/VectorInterface.jl). Indexing with a value
-not stored in the dictionary returns `zero(V)`. Setting a stored value to 0 or below
-`eps(V::AbstractFloat)` removes the value from the dictionary. Their `length` signals the
-number of stored elements, not the size of the vector space.
+Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec) and
+[`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
 
 They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in `FCIQMC`.
 
