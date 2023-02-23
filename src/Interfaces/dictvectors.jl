@@ -16,7 +16,7 @@ They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in
 zero, and setting a value to zero should remove it from the vector. To iterate over an
 `AbstractDVec`, use `keys`, `pairs`, or `values`. When possible, use reduction functions
 such as `sum` or `mapreduce` as those are compatible with MPI via [`MPIData`](@ref
-Main.RMPI).
+Main.RMPI.MPIData).
 
 # Interface
 

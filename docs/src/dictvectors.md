@@ -55,6 +55,7 @@ Norm1ProjectorPPop
 
 ```@docs
 Rimu.DictVectors.InitiatorRule
+Rimu.DictVectors.AbstractInitiatorValue
 Rimu.DictVectors.InitiatorValue
 Rimu.DictVectors.initiator_valtype
 Rimu.DictVectors.to_initiator_value

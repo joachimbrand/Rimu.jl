@@ -47,8 +47,7 @@ Base.zero(::Type{InitiatorValue{V}}) where {V} = InitiatorValue{V}()
 """
     NonInitiatorValue{V}
 
-Value that does not contain any additional information - used with [`NonInitiator`](@ref),
-the default initiator rule for [`PDVec`](@ref).
+Value that does not contain any additional information - used with [`NonInitiator`](@ref).
 """
 struct NonInitiatorValue{V} <: AbstractInitiatorValue{V}
     value::V
@@ -115,8 +114,8 @@ to_initiator_value
 """
     Initiator(threshold) <: InitiatorRule
 
-Initiator rule to be passed to [`PDVec`](@ref) or [`InitiatorDVec`](@ref). An initiator is a
-configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
+Initiator rule to be passed to [`InitiatorDVec`](@ref). An initiator is a configuration
+`add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
 
 * Initiators can spawn anywhere.
 * Non-initiators can spawn to initiators.
@@ -156,8 +155,8 @@ end
 """
     SimpleInitiator(threshold) <: InitiatorRule
 
-Initiator rule to be passed to [`PDVec`](@ref) or [`InitiatorDVec`](@ref). An initiator is
-a configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
+Initiator rule to be passed to [`InitiatorDVec`](@ref). An initiator is a configuration
+`add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
 
 * Initiators can spawn anywhere.
 * Non-initiators cannot spawn.
@@ -179,7 +178,7 @@ end
 """
     CoherentInitiator(threshold) <: InitiatorRule
 
-Initiator rule to be passed to [`PDVec`](@ref) or [`InitiatorDVec`](@ref). An initiator is
+Initiator rule to be passed to [`InitiatorDVec`](@ref). An initiator is
 a configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
 
 * Initiators can spawn anywhere.
@@ -208,7 +207,7 @@ end
 """
     NonInitiator{V} <: InitiatorRule{V}
 
-Default initiator rule for [`PDVec`](@ref), that disables the approximation.
+Initiator rule that disables the approximation.
 
 See [`InitiatorRule`](@ref).
 """
