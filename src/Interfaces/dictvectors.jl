@@ -15,8 +15,7 @@ They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in
 `FCIQMC`. Looking up an element that is not stored in the `AbstractDVec` should return a
 zero, and setting a value to zero should remove it from the vector. To iterate over an
 `AbstractDVec`, use `keys`, `pairs`, or `values`. When possible, use reduction functions
-such as `sum` or `mapreduce` as those are compatible with MPI via [`MPIData`](@ref
-Main.RMPI.MPIData).
+such as `sum` or `mapreduce`.
 
 # Interface
 
