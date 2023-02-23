@@ -87,7 +87,7 @@ function BoseFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) w
     else
         S = S_sparse
     end
-    return BoseFS{N,M,S}(from_bose_onr(S, SVector{M,Int}(onr)))
+    return BoseFS{N,M,S}(from_bose_onr(S, onr))
 end
 function BoseFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)

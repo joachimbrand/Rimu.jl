@@ -89,7 +89,7 @@ function FermiFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) 
     else
         S = S_sparse
     end
-    return FermiFS{N,M,S}(from_fermi_onr(S, SVector{M,Int}(onr)))
+    return FermiFS{N,M,S}(from_fermi_onr(S, onr))
 end
 function FermiFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)

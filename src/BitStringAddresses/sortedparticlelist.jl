@@ -55,6 +55,17 @@ function from_onr(::Type{S}, onr) where {N,M,T,S<:SortedParticleList{N,M,T}}
     end
     return SortedParticleList{N,M,T}(SVector(spl))
 end
+function from_onr(::Type{S}, onr::SparseVector) where {N,M,T,S<:SortedParticleList{N,M,T}}
+    spl = zeros(MVector{N,T})
+    curr = 1
+    for (n, v) in zip(rowvals(onr), nonzeros(onr))
+        for _ in 1:v
+            spl[curr] = n
+            curr += 1
+        end
+    end
+    return SortedParticleList{N,M,T}(SVector(spl))
+end
 
 function Base.isless(ss1::SortedParticleList, ss2::SortedParticleList)
     return isless(ss1.storage, ss2.storage)
