@@ -56,13 +56,15 @@ end
 function check_fermi_onr(onr, N)
     sum(onr) == N ||
         throw(ArgumentError("Invalid ONR: $N particles expected, $(sum(onr)) given."))
+    length(onr) == M ||
+        throw(ArgumentError("Invalid ONR: $M modes expected, $(length(onr)) given."))
     all(in((0, 1)), onr) ||
         throw(ArgumentError("Invalid ONR: may only contain 0s and 1s."))
 end
 
 function FermiFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,S}
     @boundscheck begin
-        check_fermi_onr(onr, N)
+        check_fermi_onr(onr, N, M)
         if S <: BitString
             M == num_bits(S) || throw(ArgumentError(
                 "invalid ONR: $B-bit BitString does not fit $M modes"
@@ -76,7 +78,7 @@ function FermiFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,
     return FermiFS{N,M,S}(from_fermi_onr(S, onr))
 end
 function FermiFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) where {N,M}
-    @boundscheck check_fermi_onr(onr, N)
+    @boundscheck check_fermi_onr(onr, N, M)
     spl_type = select_int_type(M)
     # Pick smaller address type, but prefer dense.
     # Alway pick dense if it fits into one chunk.

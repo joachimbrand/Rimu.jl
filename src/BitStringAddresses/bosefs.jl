@@ -74,6 +74,9 @@ function BoseFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) w
         sum(onr) == N || throw(ArgumentError(
             "invalid ONR: $N particles expected, $(sum(onr)) given"
         ))
+        length(onr) == M || throw(ArgumentError(
+            "invalid ONR: $M modes expected, $(length(onr)) given"
+        ))
     end
     spl_type = select_int_type(M)
 
