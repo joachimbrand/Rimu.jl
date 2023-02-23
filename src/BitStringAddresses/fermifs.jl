@@ -53,16 +53,18 @@ struct FermiFS{N,M,S} <: SingleComponentFockAddress{N,M}
     bs::S
 end
 
-function check_fermi_onr(onr, N)
+function check_fermi_onr(onr, N, M)
     sum(onr) == N ||
         throw(ArgumentError("Invalid ONR: $N particles expected, $(sum(onr)) given."))
+    length(onr) == M ||
+        throw(ArgumentError("Invalid ONR: $M modes expected, $(length(onr)) given."))
     all(in((0, 1)), onr) ||
         throw(ArgumentError("Invalid ONR: may only contain 0s and 1s."))
 end
 
 function FermiFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,S}
     @boundscheck begin
-        check_fermi_onr(onr, N)
+        check_fermi_onr(onr, N, M)
         if S <: BitString
             M == num_bits(S) || throw(ArgumentError(
                 "invalid ONR: $B-bit BitString does not fit $M modes"
@@ -76,20 +78,20 @@ function FermiFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,
     return FermiFS{N,M,S}(from_fermi_onr(S, onr))
 end
 function FermiFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) where {N,M}
-    @boundscheck check_fermi_onr(onr, N)
+    @boundscheck check_fermi_onr(onr, N, M)
     spl_type = select_int_type(M)
-    S_sparse = SortedParticleList{N,M,spl_type}
-    S_dense = typeof(BitString{M}(0))
     # Pick smaller address type, but prefer dense.
     # Alway pick dense if it fits into one chunk.
-    sparse_size_64 = ceil(Int, sizeof(S_sparse) / 8)
-    dense_size_64 = ceil(Int, sizeof(S_dense) / 8)
-    if num_chunks(S_dense) == 1 || dense_size_64 ≤ sparse_size_64
-        S = S_dense
+
+    # Compute the size of container in words
+    sparse_sizeof = ceil(Int, N * sizeof(spl_type) / 8)
+    dense_sizeof = ceil(Int, M / 64)
+    if dense_sizeof == 1 || dense_sizeof ≤ sparse_sizeof
+        S = typeof(BitString{M}(0))
     else
-        S = S_sparse
+        S = SortedParticleList{N,M,spl_type}
     end
-    return FermiFS{N,M,S}(from_fermi_onr(S, SVector{M,Int}(onr)))
+    return FermiFS{N,M,S}(from_fermi_onr(S, onr))
 end
 function FermiFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)
