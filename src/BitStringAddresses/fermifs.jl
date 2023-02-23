@@ -78,16 +78,16 @@ end
 function FermiFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) where {N,M}
     @boundscheck check_fermi_onr(onr, N)
     spl_type = select_int_type(M)
-    S_sparse = SortedParticleList{N,M,spl_type}
-    S_dense = typeof(BitString{M}(0))
     # Pick smaller address type, but prefer dense.
     # Alway pick dense if it fits into one chunk.
-    sparse_size_64 = ceil(Int, sizeof(S_sparse) / 8)
-    dense_size_64 = ceil(Int, sizeof(S_dense) / 8)
-    if num_chunks(S_dense) == 1 || dense_size_64 ≤ sparse_size_64
-        S = S_dense
+
+    # Compute the size of container in words
+    sparse_sizeof = ceil(Int, N * sizeof(spl_type) / 8)
+    dense_sizeof = ceil(Int, M / 64)
+    if dense_sizeof == 1 || dense_sizeof ≤ sparse_sizeof
+        S = typeof(BitString{M}(0))
     else
-        S = S_sparse
+        S = SortedParticleList{N,M,spl_type}
     end
     return FermiFS{N,M,S}(from_fermi_onr(S, onr))
 end
