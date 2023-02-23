@@ -35,11 +35,9 @@ iteration on them is disabled by default. Iteration must be explicitly performed
 similar functions when performing reductions, as that will make the operations compatible
 with MPI.
 
-In addition, Rimu defines the following functions.
+In addition, Rimu defines the following function.
 
 ```@docs
-zero!
-add!
 walkernumber
 ```
 
@@ -58,10 +56,14 @@ Norm1ProjectorPPop
 ```@docs
 Rimu.DictVectors.InitiatorRule
 Rimu.DictVectors.InitiatorValue
-Rimu.DictVectors.value
+Rimu.DictVectors.initiator_valtype
+Rimu.DictVectors.to_initiator_value
+Rimu.DictVectors.from_initiator_value
 Rimu.DictVectors.Initiator
 Rimu.DictVectors.SimpleInitiator
 Rimu.DictVectors.CoherentInitiator
+Rimu.DictVectors.NonInitiator
+Rimu.DictVectors.NonInitiatorValue
 ```
 
 ## Index
