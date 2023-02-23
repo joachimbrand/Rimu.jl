@@ -11,10 +11,12 @@ for matrix-free linear algebra with [KrylovKit](https://github.com/Jutho/KrylovK
 Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec) and
 [`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
 
-They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in `FCIQMC`.
-
-To iterate over an `AbstractDVec`, use `keys`, `pairs`, or `values`. When possible, use
-reduction functions such as `sum` or `mapreduce`.
+They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in
+`FCIQMC`. Looking up an element that is not stored in the `AbstractDVec` should return a
+zero, and setting a value to zero should remove it from the vector. To iterate over an
+`AbstractDVec`, use `keys`, `pairs`, or `values`. When possible, use reduction functions
+such as `sum` or `mapreduce` as those are compatible with MPI via [`MPIData`](@ref
+Main.RMPI).
 
 # Interface
 
