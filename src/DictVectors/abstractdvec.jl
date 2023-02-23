@@ -199,7 +199,7 @@ LinearAlgebra.normalize!(v::AbstractDVec, p::Real=2) = scale!(v, inv(norm(v, p))
 LinearAlgebra.normalize(v::AbstractDVec, p::Real=2) = normalize!(copy(v), p)
 
 """
-    walkernumber(w)
+    walkernumber(v)
 
 Compute the number of walkers in `w`. It is used for updating the shift. Overload this
 function for modifying population control.
