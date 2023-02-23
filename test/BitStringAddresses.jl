@@ -162,7 +162,7 @@ end
     two_full = BoseFS{136,136,typeof(bs)}(bs)
 
     @test_throws ArgumentError BoseFS{2,3}((1, 2, 3))
-    @test_throws DimensionMismatch BoseFS{6,2}([1, 2, 3])
+    @test_throws ArgumentError BoseFS{6,2}([1, 2, 3])
 
     @testset "constructors" begin
         small_dense = BoseFS(ones(Int, 32))
