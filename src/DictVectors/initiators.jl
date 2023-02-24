@@ -2,7 +2,7 @@
     abstract type AbstractInitiatorValue{V}
 
 A value equipped with additional information that enables a variation of the initiator
-approximation.
+approximation. To be used with [`InitiatorDVec`](@ref) and [`InitiatorRule`](@ref)s. 
 
 Must define:
 * `Base.zero`, `Base.:+`, `Base.:-`, `Base.:*`
@@ -79,6 +79,7 @@ Concrete implementations:
 * [`CoherentInitiator`](@ref)
 * [`NonInitiator`](@ref)
 
+`InitiatorRule`s define how to store and retrieve data from associated [`AbstractInitiatorValue`](@ref)s.
 When defining a new `InitiatorRule`, also define the following:
 
 * [`initiator_valtype`](@ref)
@@ -91,7 +92,7 @@ abstract type InitiatorRule end
 """
     initiator_valtype(rule::InitiatorRule, T)
 
-Return the `[`AbstractInitiatorValue{T}`](@ref) that is employed by the `rule`.
+Return the [`AbstractInitiatorValue{T}`](@ref) that is employed by the `rule`.
 """
 initiator_valtype
 

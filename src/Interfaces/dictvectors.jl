@@ -30,7 +30,7 @@ addition:
 * [`deposit!`](@ref)
 
 A default implementation for the
-[VectorInterfaces.jl](https://github.com/Jutho/VectorInterface.jl) interface is provided
+[VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl) interface is provided
 through the above functions.
 
 See also [`DictVectors`](@ref Main.DictVectors), [`Interfaces`](@ref).

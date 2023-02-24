@@ -4,7 +4,10 @@
 Dictionary-based vector-like data structure for use with [`lomc!`](@ref Main.lomc!) and
 [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl). See [`AbstractDVec`](@ref).
 Functionally identical to [`DVec`](@ref), but contains [`InitiatorValue`](@ref)s internally
-in order to facilitate initiator methods. How the initiators are handled is controlled by
+in order to facilitate initiator methods. Initiator methods for controlling the Monte Carlo
+sign problem were first introduced in 
+[J. Chem. Phys. 132, 041103 (2010)](https://doi.org/10.1063/1.3302277).
+How the initiators are handled is controlled by specifying an [`InitiatorRule`](@ref) with 
 the `initiator` keyword argument (see below).
 
 ## Constructors

@@ -201,7 +201,7 @@ LinearAlgebra.normalize(v::AbstractDVec, p::Real=2) = normalize!(copy(v), p)
 """
     walkernumber(v)
 
-Compute the number of walkers in `w`. It is used for updating the shift. Overload this
+Compute the number of walkers in `v`. It is used for updating the shift. Overload this
 function for modifying population control.
 
 In most cases `walkernumber(w)` is identical to `norm(w,1)`. For `AbstractDVec`s with
