@@ -158,7 +158,7 @@ using Logging
     @testset "Dead population" begin
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=20)
-        dv = DVec(add => 1; style=IsStochasticInteger())
+        dv = DVec(add => 10; style=IsStochasticInteger())
 
         # Only population is dead.
         params = RunTillLastStep(shift = 0.0)
