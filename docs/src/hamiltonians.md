@@ -36,6 +36,10 @@ Hamiltonians.BasisSetRep
 sparse
 Matrix
 ```
+If only the basis is required and not the matrix representation it is more efficient to use
+```@docs
+Hamiltonians.build_basis
+```
 
 ## Model Hamiltonians
 
