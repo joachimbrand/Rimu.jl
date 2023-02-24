@@ -54,14 +54,7 @@ function DVec(args...; kwargs...)
     storage = Dict(args...)
     return DVec(storage; kwargs...)
 end
-# In this constructor, the style matches the dict's valtype.
-function DVec(
-    dict::AbstractDict{K,V}; style::StochasticStyle{V}=default_style(V), capacity=0
-) where {K,V}
-    capacity > 0 && sizehint!(dict, capacity)
-    return DVec(dict, style)
-end
-# In this constructor, the dict has to be converted to the appropriate valtype.
+
 function DVec(
     dict::Dict{K}; style::StochasticStyle{V}=default_style(valtype(dict)), capacity=0
 ) where {K,V}
