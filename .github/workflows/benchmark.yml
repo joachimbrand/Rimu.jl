@@ -20,7 +20,7 @@ jobs:
       - name: generate benchmark result
         id: generate-result-markdown
         run: |
-          body=$(julia -e '
+          body=$(julia -tauto -e '
           using BenchmarkCI
           let
               judgement = BenchmarkCI._loadjudge(BenchmarkCI.DEFAULT_WORKSPACE)

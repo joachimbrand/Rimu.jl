@@ -1,37 +1,37 @@
 """
     AbstractDVec{K,V}
 
-Abstract type for data structures that behave similar to sparse vectors, but are indexed
-by an arbitrary type `V` (could be non-integers) similarly to dictionaries. `AbstractDVec`s
-are  designed to work well with [`lomc!`](@ref Main.lomc!) and
-[KrylovKit](https://github.com/Jutho/KrylovKit.jl).
+Abstract data type for vector-like data structures with sparse storage. While conceptually
+`AbstractDVec`s represent elements of a vector space over a scalar type `V`, they are
+indexed by an arbitrary type `K` (could be non-integers) similar to dictionaries. They
+support the interface from [VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl)
+and are designed to work well for quantum Monte Carlo with [`lomc!`](@ref Main.lomc!) and
+for matrix-free linear algebra with [KrylovKit](https://github.com/Jutho/KrylovKit.jl).
 
-Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec)
-and [`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
+Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec) and
+[`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
 
-`AbstractDvec`s lie somewhere between `AbstractDict`s and sparse `AbstractVector`s, while
-being subtyped to neither.
-Generally they behave
-like a dictionary, while supportting various linear algebra functionality. Indexing with a
-value not stored in the dictionary returns `zero(V)`. Setting a stored value to 0 or below
-`eps(V::AbstractFloat)` removes the value from the dictionary. Their `length` signals the
-number of stored elements, not the size of the vector space.
-
-They have a [`StochasticStyle`](@ref) which selects the spawning algorithm in `FCIQMC`.
-
-To iterate over an `AbstractDVec`, use `keys`, `pairs`, or `values`.
+`AbstractDVec`s have a [`StochasticStyle`](@ref) which selects the spawning algorithm in
+`FCIQMC`. Looking up an element that is not stored in the `AbstractDVec` should return a
+zero, and setting a value to zero should remove it from the vector. To iterate over an
+`AbstractDVec`, use `keys`, `pairs`, or `values`. When possible, use reduction functions
+such as `sum` or `mapreduce`.
 
 # Interface
 
 The interface is similar to the `AbstractDict` interface, but with the changed behaviour as
 noted above.  Implement what would be needed for the `AbstractDict` interface (`pairs`,
-`keys`, `values`, `setindex!`, `getindex`, `delete!`, `length`, `haskey`, `empty!`,
-`isempty`) and, in addition:
+`keys`, `values`, `setindex!`, `getindex`, `delete!`, `length`, `empty`, `empty!`) and, in
+addition:
 
 * [`StochasticStyle`](@ref)
 * [`storage`](@ref) returns an `AbstractDict` storing the raw data with possibly
   different `valtype` than `V`.
 * [`deposit!`](@ref)
+
+A default implementation for the
+[VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl) interface is provided
+through the above functions.
 
 See also [`DictVectors`](@ref Main.DictVectors), [`Interfaces`](@ref).
 """
@@ -48,13 +48,7 @@ function deposit!(w, add, val, _)
     w[add] += convert(valtype(w), val)
 end
 
-"""
-    zero!(v)
-
-Replace `v` by a zero vector as an inplace operation. For `AbstractDVec` types it means
-removing all non-zero elements. For `AbstractArrays`, it sets all of the values to zero.
-"""
-zero!(v::AbstractVector{T}) where {T} = v .= zero(T)
+@deprecate zero! zerovector!
 
 """
     localpart(dv) -> AbstractDVec
@@ -117,12 +111,13 @@ function fciqmc_step!(working_memory, target, source, ham, shift, dτ)
     v = localpart(source)
     @assert working_memory ≢ v "`w` and `v` must not be the same object"
     @assert localpart(target) ≢ v "`pv` and `v` must not be the same object"
-    zero!(working_memory)
+    zerovector!(working_memory)
 
     stat_names, stats = step_stats(v)
     for (add, val) in pairs(v)
         stats += fciqmc_col!(working_memory, ham, add, val, shift, dτ)
     end
+
     # Now, working_memory holds the new values - they need to be moved into the target.
     target, working_memory, stats = sort_into_targets!(target, working_memory, stats)
 

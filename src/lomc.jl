@@ -33,8 +33,7 @@ function ReplicaState(h, v, wm, params, id="")
     if isnothing(wm)
         wm = similar(v)
     end
-    pv = similar(v)
-    zero!(localpart(pv))
+    pv = zerovector(v)
     return ReplicaState(h, v, pv, wm, walkernumber(v), params, id)
 end
 

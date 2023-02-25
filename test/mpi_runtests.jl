@@ -36,6 +36,8 @@ function correct_ranks(md)
     end
 end
 
+mpi_allprintln("hello")
+
 # Ignore all printing on ranks other than root.
 if mpi_rank() != mpi_root
     redirect_stderr(devnull)

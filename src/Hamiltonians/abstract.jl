@@ -76,6 +76,11 @@ end
 dimension(h::AbstractHamiltonian) = dimension(Int, h)
 dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
 
+Base.isreal(h::AbstractHamiltonian) = eltype(h) <: Real
+LinearAlgebra.isdiag(h::AbstractHamiltonian) = LOStructure(h) ≡ IsDiagonal()
+LinearAlgebra.ishermitian(h::AbstractHamiltonian) = LOStructure(h) ≡ IsHermitian()
+LinearAlgebra.issymmetric(h::AbstractHamiltonian) = ishermitian(h) && isreal(h)
+
 BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(starting_address(h)))
 
 """
@@ -425,7 +430,7 @@ using SparseArrays: AbstractSparseMatrixCSC, getcolptr, rowvals, nonzeros
 # special case for sparse matrices; avoids most allocations, testing is free
 function fix_approx_hermitian!(A::AbstractSparseMatrixCSC; test_approx_symmetry=false, kwargs...)
     passed = isapprox_enforce_hermitian!(A; kwargs...)
-    if test_approx_symmetry && !passed 
+    if test_approx_symmetry && !passed
         throw(ArgumentError("Matrix is not approximately hermitian."))
     end
     return A
@@ -539,7 +544,6 @@ starting_address(bsr::BasisSetRep) = bsr.basis[1]
 dimension(bsr::BasisSetRep) = dimension(Int, bsr)
 dimension(::Type{T}, bsr::BasisSetRep) where {T} = T(length(bsr.basis))
 
-
 """
     sparse(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
     sparse(bsr::BasisSetRep)
@@ -567,6 +571,37 @@ function Base.Matrix(h::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
     return Matrix(BasisSetRep(h, args...; sizelim, kwargs...))
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
+
+function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
+    # calculate the matrix element when only two bitstring addresses are given
+    # this is NOT used for the QMC algorithm and is currenlty not used either
+    # for building the matrix for conventional diagonalisation.
+    # Only used for verifying matrix.
+    # This will be slow and inefficient. Avoid using for larger Hamiltonians!
+    address1 == address2 && return diagonal_element(ham, address1) # diagonal
+    for (add,val) in offdiagonals(ham, address2) # off-diag column as iterator
+        add == address1 && return val # found address1
+    end
+    return zero(T) # address1 not found
+end
+
+LinearAlgebra.adjoint(op::AbstractHamiltonian) = adjoint(LOStructure(op), op)
+
+"""
+    adjoint(::LOStructure, op::AbstractHamiltonian)
+
+Represent the adjoint of an [`AbstractHamiltonian`](@ref). Extend this method to define
+custom adjoints.
+"""
+function LinearAlgebra.adjoint(::S, op) where {S<:LOStructure}
+    error(
+        "`adjoint()` not defined for `AbstractHamiltonian`s with `LOStructure` `$(S)`. ",
+        " Is your Hamiltonian hermitian?"
+    )
+end
+
+LinearAlgebra.adjoint(::IsHermitian, op) = op # adjoint is known
+LinearAlgebra.adjoint(::IsDiagonal, op) = op
 
 """
     TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
@@ -606,6 +641,7 @@ function TransformUndoer(k::AbstractHamiltonian, op)
     throw(ArgumentError("Unsupported transformation: $k"))
 end
 TransformUndoer(k::AbstractHamiltonian) = TransformUndoer(k::AbstractHamiltonian, nothing)
+
 # common methods
 starting_address(s::TransformUndoer) = starting_address(s.transform)
 dimension(::Type{T}, s::TransformUndoer) where {T} = dimension(T, s.transform)

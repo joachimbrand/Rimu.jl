@@ -33,8 +33,10 @@ Follow the links for the definitions of the interfaces!
 """
 module Interfaces
 
-using LinearAlgebra
-using StaticArrays
+using Reexport
+
+@reexport using LinearAlgebra
+@reexport using VectorInterface
 
 import OrderedCollections: freeze
 

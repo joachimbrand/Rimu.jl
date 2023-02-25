@@ -35,14 +35,14 @@ include("helpers.jl") # non MPI-dependent helper functions
 
 include("Interfaces/Interfaces.jl")
 @reexport using .Interfaces
-include("StochasticStyles/StochasticStyles.jl")
-@reexport using .StochasticStyles
-include("DictVectors/DictVectors.jl")
-@reexport using .DictVectors
 include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("Hamiltonians/Hamiltonians.jl")
 @reexport using .Hamiltonians
+include("StochasticStyles/StochasticStyles.jl")
+@reexport using .StochasticStyles
+include("DictVectors/DictVectors.jl")
+@reexport using .DictVectors
 include("RimuIO.jl")
 @reexport using .RimuIO
 include("StatsTools/StatsTools.jl")
@@ -58,7 +58,7 @@ export ReplicaStrategy, NoStats, AllOverlaps
 export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneliness, Timer,
     SingleParticleDensity, single_particle_density
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
-export threadedWorkingMemory, localpart, walkernumber
+export localpart, walkernumber
 export smart_logger, default_logger
 
 function __init__()
@@ -73,7 +73,6 @@ include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
-include("strategies_and_params/threadingstrategy.jl")
 include("strategies_and_params/deprecated.jl")
 
 include("apply_memory_noise.jl")

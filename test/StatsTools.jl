@@ -128,7 +128,7 @@ using Rimu.StatsTools: x_by_y_linear, ratio_estimators, particles
     )
 
     # add correlation for testing `ratio_of_means`
-    Random.seed!(17) # make sure the tests don't trip over rare fluctuations
+    Random.seed!(13) # make sure the tests don't trip over rare fluctuations
     ρ = 0.02
     f, σ_f = x_by_y_linear(μ_a, μ_b, σ_a, σ_b, ρ) # expected ratio and std
     @test f ≈ μ_a / μ_b

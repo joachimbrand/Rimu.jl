@@ -5,7 +5,7 @@
 function Base.show(io::IO, dvec::AbstractDVec)
     summary(io, dvec)
     limit, _ = displaysize()
-    for (i, p) in enumerate(pairs(dvec))
+    for (i, p) in enumerate(pairs(localpart(dvec)))
         if length(dvec) > i > limit - 4
             print(io, "\n  ⋮   => ⋮")
             break
@@ -27,6 +27,7 @@ Base.valtype(::Type{<:AbstractDVec{<:Any,V}}) where {V} = V
 Base.valtype(dv::AbstractDVec) = valtype(typeof(dv))
 Base.eltype(::Type{<:AbstractDVec{K,V}}) where {K,V} = Pair{K,V}
 Base.eltype(dv::AbstractDVec) = eltype(typeof(dv))
+VectorInterface.scalartype(::Type{<:AbstractDVec{<:Any,V}}) where {V} = V
 
 Base.isreal(v::AbstractDVec) = valtype(v)<:Real
 Base.ndims(::AbstractDVec) = 1
@@ -34,9 +35,10 @@ Base.ndims(::AbstractDVec) = 1
 ###
 ### copy*, zero*
 ###
-zero!(v::AbstractDVec) = empty!(v)
-
-Base.zero(dv::AbstractDVec) = empty(dv)
+Base.zero(v::AbstractDVec) = empty(v)
+VectorInterface.zerovector(v::AbstractDVec, ::Type{T}) where {T<:Number} = similar(v, T)
+VectorInterface.zerovector!(v::AbstractDVec) = empty!(v)
+VectorInterface.zerovector!!(v::AbstractDVec) = zerovector!(v)
 
 function Base.similar(dvec::AbstractDVec, args...; kwargs...)
     return sizehint!(empty(dvec, args...; kwargs...), length(dvec))
@@ -56,260 +58,212 @@ end
 Base.copy(v::AbstractDVec) = copyto!(empty(v), v)
 
 ###
-### Linear algebra
+### Higher level functions and linear algebra
 ###
-function Base.sum(f, x::AbstractDVec)
-    return sum(f, values(x))
-end
-
-function LinearAlgebra.norm(x::AbstractDVec, p::Real=2)
-    if p === 1
-        return float(sum(abs, values(x)))
-    elseif p === 2
-        return sqrt(sum(abs2, values(x)))
-    elseif p === Inf
-        return float(mapreduce(abs, max, values(x), init=real(zero(valtype(x)))))
-    else
-        error("$p-norm of $(typeof(x)) is not implemented.")
-    end
-end
-
-@inline function LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α)
-    empty!(w)
-    sizehint!(w, length(v))
-    for (key, val) in pairs(v)
-        w[key] = val * α
-    end
-    return w
-end
-
-# copying multiplication with scalar
-function Base.:*(α::T, x::AbstractDVec{<:Any,V}) where {T,V}
-    return mul!(similar(x, promote_type(T, V)), x, α)
-end
-Base.:*(x::AbstractDVec, α) = α * x
-
-"""
-    add!(x::AbstractDVec,y::AbstactDVec)
-
-Inplace add `x+y` and store result in `x`.
-"""
-@inline function add!(x::AbstractDVec{K}, y::AbstractDVec{K}) where {K}
-    for (k, v) in pairs(y)
-        x[k] += v
-    end
-    return x
-end
-add!(x::AbstractVector, y) = x .+= values(y)
-
-@inline function LinearAlgebra.axpy!(α, x::AbstractDVec, y::AbstractDVec)
-    for (k, v) in pairs(x)
-        y[k] += α * v
-    end
-    return y
-end
-
-function LinearAlgebra.rmul!(x::AbstractDVec, α)
-    for (k, v) in pairs(x)
-        x[k] = v * α
-    end
-    return x
-end
-
-# BLAS-like function: y = α*x + β*y
-function LinearAlgebra.axpby!(α, x::AbstractDVec, β, y::AbstractDVec)
-    rmul!(y, β) # multiply every non-zero element
-    axpy!(α, x, y)
-    return y
-end
-
-function LinearAlgebra.dot(x::AbstractDVec, y::AbstractDVec)
-    # For mixed value types
-    result = zero(promote_type(valtype(x), valtype(y)))
-    if length(x) < length(y) # try to save time by looking for the smaller vec
-        for (key, val) in pairs(x)
-            result += conj(val) * y[key]
-        end
-    else
-        for (key, val) in pairs(y)
-            result += conj(x[key]) * val
-        end
-    end
-    return result # the type is promote_type(T1,T2) - could be complex!
-end
-# For MPI version see mpi_helpers.jl
-
-Base.isequal(x::AbstractDVec{K1}, y::AbstractDVec{K2}) where {K1,K2} = false
-function Base.isequal(x::AbstractDVec{K}, y::AbstractDVec{K}) where {K}
-    x === y && return true
-    length(x) != length(y) && return false
-    for (k, v) in pairs(x)
-        !isequal(y[k], v) && return false
+Base.isequal(v::AbstractDVec{K1}, w::AbstractDVec{K2}) where {K1,K2} = false
+function Base.isequal(v::AbstractDVec{K}, w::AbstractDVec{K}) where {K}
+    v === w && return true
+    length(v) != length(w) && return false
+    all(pairs(v)) do (key, val)
+        isequal(w[key], val)
     end
     return true
 end
 
-Base.:(==)(x::AbstractDVec, y::AbstractDVec) = isequal(x, y)
+Base.:(==)(v::AbstractDVec, w::AbstractDVec) = isequal(v, w)
 
-# Define this type union for local (non-MPI) data
-const DVecOrVec = Union{AbstractDVec,AbstractVector}
-
-"""
-Abstract supertype for projectors to be used in in lieu of DVecs or Vectors in `dot`
-products. Implemented subtypes:
-
-- [`UniformProjector`](@ref)
-- [`NormProjector`](@ref)
-- [`Norm2Projector`](@ref)
-- [`Norm1ProjectorPPop`](@ref)
-
-See also [`PostStepStrategy`](@ref Main.PostStepStrategy) for use of projectors in [`lomc!`](@ref Main.lomc!).
-
-## Interface
-
-Define a method for `LinearAlgebra.dot(projector, v)`.
-"""
-abstract type AbstractProjector end
-
-"""
-    UniformProjector() <: AbstractProjector
-Represents a vector with all elements 1. To be used with [`dot()`](@ref).
-Minimizes memory allocations.
-
-```julia
-UniformProjector()⋅v == sum(v)
-dot(UniformProjector(), LO, v) == sum(LO*v)
-```
-
-See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
-"""
-struct UniformProjector <: AbstractProjector end
-
-LinearAlgebra.dot(::UniformProjector, y::DVecOrVec) = sum(values(y))
-# a specialised fast and non-allocating method for
-# `dot(::UniformProjector, A::AbstractHamiltonian, y)` is defined in `Hamiltonians.jl`
-Base.getindex(::UniformProjector, add) = 1
-
-"""
-    NormProjector() <: AbstractProjector
-Results in computing the one-norm when used in `dot()`. E.g.
-```julia
-dot(NormProjector(),x)
--> norm(x,1)
-```
-`NormProjector()` thus represents the vector `sign.(x)`.
-
-See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
-"""
-struct NormProjector <: AbstractProjector end
-
-LinearAlgebra.dot(::NormProjector, y::DVecOrVec) = norm(y, 1)
-
-"""
-    Norm2Projector() <: AbstractProjector
-Results in computing the two-norm when used in `dot()`. E.g.
-```julia
-dot(NormProjector(),x)
--> norm(x,2) # with type Float64
-```
-
-See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
-"""
-struct Norm2Projector <: AbstractProjector end
-
-LinearAlgebra.dot(::Norm2Projector, y::DVecOrVec) = norm(y, 2)
-# NOTE that this returns a `Float64` opposite to the convention for
-# dot to return the promote_type of the arguments.
-
-"""
-    Norm1ProjectorPPop() <: AbstractProjector
-Results in computing the one-norm per population when used in `dot()`. E.g.
-```julia
-dot(Norm1ProjectorPPop(),x)
--> norm(real.(x),1) + im*norm(imag.(x),1)
-```
-
-See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
-"""
-struct Norm1ProjectorPPop <: AbstractProjector end
-
-function LinearAlgebra.dot(::Norm1ProjectorPPop, y::DVecOrVec)
-    T = float(valtype(y))
-    if T <: Complex
-        return T(sum(values(y)) do p
-            abs(real(p)) + im*abs(imag(p))
-        end)
+function Base.isapprox(v::AbstractDVec, w::AbstractDVec; kwargs...)
+    # Length may be different, but vectors still approximately the same when `atol` is used.
+    left = all(pairs(w)) do (key, val)
+        isapprox(v[key], val; kwargs...)
+    end
+    if left
+        return all(pairs(v)) do (key, val)
+            isapprox(w[key], val; kwargs...)
+        end
     else
-        return dot(NormProjector(), y)
+        return false
     end
 end
 
-# NOTE that this returns a `Float64` opposite to the convention for
-# dot to return the promote_type of the arguments.
-# NOTE: This operation should work for `MPIData` and is MPI synchronizing
-
-"""
-    PopsProjector() <: AbstractProjector
-Results in computing the projection of one population on the other
-when used in `dot()`. E.g.
-```julia
-dot(PopsProjector(),x)
--> real(x) ⋅ imag(x)
-```
-
-See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
-"""
-struct PopsProjector <: AbstractProjector end
-
-function LinearAlgebra.dot(::PopsProjector, y::DVecOrVec)
-    T = float(real(valtype(y)))
-    return T(sum(values(y)) do p
-        real(p) * imag(p)
-    end)
+function Base.sum(f, v::AbstractDVec)
+    return sum(f, values(v))
 end
 
-"""
-    walkernumber(w)
+function VectorInterface.scale!(w::AbstractDVec, v::AbstractDVec, α::Number)
+    zerovector!(w)
+    sizehint!(w, length(v))
+    if !iszero(α)
+        for (key, val) in pairs(v)
+            w[key] = α * val
+        end
+    end
+    return w
+end
 
-Compute the number of walkers in `w`. It is used for updating the shift. Overload this
+function VectorInterface.scale!(v::AbstractDVec, α::Number)
+    if iszero(α)
+        zerovector!(v)
+    elseif α ≠ one(α)
+        for (key, val) in pairs(v)
+            v[key] = α * val
+        end
+    end
+    return v
+end
+
+function VectorInterface.scale(v::AbstractDVec, α::Number)
+    T = promote_type(typeof(α), scalartype(v))
+    result = zerovector(v, T)
+    scale!(result, v, α)
+    return result
+end
+VectorInterface.scale!!(v::AbstractDVec, α::Number) = scale!(v, α)
+
+LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α) = scale!(w, v, α)
+LinearAlgebra.lmul!(α, v::AbstractDVec) = scale!(v, α)
+LinearAlgebra.rmul!(v::AbstractDVec, α) = scale!(v, α)
+
+Base.:*(α, x::AbstractDVec) = scale(x, α)
+Base.:*(x::AbstractDVec, α) = α * x
+
+@inline function VectorInterface.add!(
+    w::AbstractDVec{K}, v::AbstractDVec{K}, α::Number=true, β::Number=true
+) where {K}
+    if β ≠ one(β)
+        scale!(w, β)
+    end
+    for (key, val) in pairs(v)
+        w[key] += α * val
+    end
+    return w
+end
+
+function VectorInterface.add(
+    w::AbstractDVec{K}, v::AbstractDVec{K}, α::Number=true, β::Number=true
+) where {K}
+    T = promote_type(scalartype(v), scalartype(w), typeof(α), typeof(β))
+    result = scale(w, T(β))
+    return add!(result, v, α)
+end
+
+function VectorInterface.add!!(
+    v::AbstractDVec, w::AbstractDVec, α::Number=true, β::Number=true
+)
+    add!(v, w, α, β)
+end
+
+Base.:+(v::AbstractDVec, w::AbstractDVec) = add(v, w)
+Base.:-(v::AbstractDVec, w::AbstractDVec) = add(v, w, -one(scalartype(w)))
+
+# BLAS-like function: y = α*x + y
+@inline function LinearAlgebra.axpy!(α, x::AbstractDVec, y::AbstractDVec)
+    return add!(y, x, α)
+end
+# BLAS-like function: y = α*x + β*y
+function LinearAlgebra.axpby!(α, x::AbstractDVec, β, y::AbstractDVec)
+    return add!(y, x, α, β)
+end
+
+function VectorInterface.inner(v::AbstractDVec, w::AbstractDVec)
+    # try to save time by looking for the smaller vec
+    if isempty(v) || isempty(w)
+        return zero(promote_type(valtype(v), valtype(w)))
+    elseif length(v) < length(w)
+        return sum(pairs(v)) do (key, val)
+            conj(val) * w[key]
+        end
+    else
+        return sum(pairs(w)) do (key, val)
+            conj(v[key]) * val
+        end
+    end
+end
+
+LinearAlgebra.dot(v::AbstractDVec, w::AbstractDVec) = inner(v, w)
+
+function LinearAlgebra.norm(v::AbstractDVec, p::Real=2)
+    T = float(promote_type(valtype(v), typeof(p)))
+    if p === 1
+        return sum(abs, values(v); init=zero(T))
+    elseif p === 2
+        return sqrt(sum(abs2, values(v); init=zero(T)))
+    elseif p === Inf
+        return mapreduce(abs, max, values(v), init=real(zero(T)))
+    else
+        error("$p-norm of $(typeof(v)) is not implemented.")
+    end
+end
+
+LinearAlgebra.normalize!(v::AbstractDVec, p::Real=2) = scale!(v, inv(norm(v, p)))
+LinearAlgebra.normalize(v::AbstractDVec, p::Real=2) = normalize!(copy(v), p)
+
+"""
+    walkernumber(v)
+
+Compute the number of walkers in `v`. It is used for updating the shift. Overload this
 function for modifying population control.
 
-In most cases `walkernumber(w)` is identical to `norm(w,1)`. For `AbstractDVec`s with
+In most cases `walkernumber(v)` is identical to `norm(v, 1)`. For `AbstractDVec`s with
 complex coefficients it reports the one norm separately for the real and the imaginary part
 as a `ComplexF64`. See [`Norm1ProjectorPPop`](@ref).
 """
-walkernumber(w) = walkernumber(StochasticStyle(w), w)
+walkernumber(v) = walkernumber(StochasticStyle(v), v)
 # use StochasticStyle trait for dispatch
-walkernumber(::StochasticStyle, w) = dot(Norm1ProjectorPPop(), w)
+walkernumber(::StochasticStyle, v) = dot(Norm1ProjectorPPop(), v)
 # complex walkers as two populations
 # the following default is fast and generic enough to be good for real walkers and
 
-"""
-    FrozenDVec
-
-See: [`freeze`](@ref).
-"""
-struct FrozenDVec{K,V}
-    pairs::Vector{Pair{K,V}}
+###
+### Vector-operator functions
+###
+function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec)
+    empty!(w)
+    for (key, val) in pairs(v)
+        w[key] += diagonal_element(h, key) * val
+        for (add, elem) in offdiagonals(h, key)
+            w[add] += elem * val
+        end
+    end
+    return w
 end
-Base.keytype(::FrozenDVec{K}) where {K} = K
-Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
-Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}
-Base.pairs(fd::FrozenDVec) = fd.pairs
 
-freeze(dv) = FrozenDVec(collect(pairs(dv)))
+function Base.:*(h::AbstractHamiltonian, v::AbstractDVec)
+    return mul!(zerovector(v, promote_type(eltype(h), valtype(v))), h, v)
+end
 
-freeze(p::AbstractProjector) = p
+"""
+    dot(w, op::AbstractHamiltonian, v)
 
-function LinearAlgebra.dot(fd::FrozenDVec, dv::AbstractDVec)
-    result = zero(promote_type(valtype(fd), valtype(dv)))
-    for (k, v) in pairs(fd)
-        result += dv[k] ⋅ v
+Evaluate `w⋅op(v)` minimizing memory allocations.
+"""
+function LinearAlgebra.dot(w::AbstractDVec, op::AbstractHamiltonian, v::AbstractDVec)
+    return dot(LOStructure(op), w, op, v)
+end
+function LinearAlgebra.dot(::AdjointUnknown, w, op::AbstractHamiltonian, v)
+    return dot_from_right(w, op, v)
+end
+function LinearAlgebra.dot(::LOStructure, w, op::AbstractHamiltonian, v)
+    if length(w) < length(v)
+        return conj(dot_from_right(v, op', w)) # turn args around to execute faster
+    else
+        return dot_from_right(w, op, v) # original order
+    end
+end
+
+"""
+    dot_from_right(w, op::AbstractHamiltonian, v)
+
+Internal function evaluates the 3-argument `dot()` function in order from right
+to left.
+"""
+function dot_from_right(w, op, v::AbstractDVec)
+    result = zero(promote_type(valtype(w), eltype(op), valtype(v)))
+    for (key, val) in pairs(v)
+        result += conj(w[key]) * diagonal_element(op, key) * val
+        for (add, elem) in offdiagonals(op, key)
+            result += conj(w[add]) * elem * val
+        end
     end
     return result
 end
