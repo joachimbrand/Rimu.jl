@@ -62,11 +62,11 @@ include("projectors.jl")
 include("initiators.jl")
 include("communicators.jl")
 
+include("dvec.jl")
+include("initiatordvec.jl")
+
 include("pdvec.jl")
 include("pdworkingmemory.jl")
 include("propagators.jl")
-
-include("dvec.jl")
-include("initiatordvec.jl")
 
 end # module
