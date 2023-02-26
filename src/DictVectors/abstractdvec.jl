@@ -64,10 +64,9 @@ Base.isequal(v::AbstractDVec{K1}, w::AbstractDVec{K2}) where {K1,K2} = false
 function Base.isequal(v::AbstractDVec{K}, w::AbstractDVec{K}) where {K}
     v === w && return true
     length(v) != length(w) && return false
-    all(pairs(v)) do (key, val)
-        isequal(w[key], val)
+    return all(pairs(v)) do (key, val)
+        w[key] == val
     end
-    return true
 end
 
 Base.:(==)(v::AbstractDVec, w::AbstractDVec) = isequal(v, w)
