@@ -32,6 +32,10 @@ function test_dvec_interface(type; kwargs...)
                 v = type(1 => 1.1, 2 => 2.0; kwargs...)
                 w = type(1 => 1.0, 2 => 2.0, 3 => 1e-9; kwargs...)
 
+                @test u ≠ v
+                @test v ≠ w
+                @test w ≠ u
+
                 @test !isapprox(u, v; rtol=0.09)
                 @test isapprox(u, v; rtol=0.1)
                 @test !isapprox(v, u; rtol=0.09)
@@ -117,7 +121,9 @@ function test_dvec_interface(type; kwargs...)
                 @test scale(u, 3.5) == 3.5u == v
                 @test scale!!(copy(u), 3.5) == scale!(copy(u), 3.5) == v
                 @test scale!(zerovector(u), u, 3.5) == v
-                @test lmul!(2, copy(u)) == rmul!(copy(u), 2) == mul!(copy(u), u, 2) == v
+                @test lmul!(3.5, copy(u)) == v
+                @test rmul!(copy(u), 3.5) == v
+                @test mul!(copy(u), u, 3.5) == v
                 @test u == type(1 => 1.0 + im, 2 => -2.0im)
                 @test isempty(0 * u)
                 @test isempty(scale(u, 0))
@@ -138,11 +144,11 @@ function test_dvec_interface(type; kwargs...)
                 @test add!(copy(u), v) == w
                 @test axpy!(1, u, copy(v)) == w
 
-                x = type(13 => -7, 45 => -90; kwargs...)
+                x = type(13 => 7, 45 => 90; kwargs...)
                 @test add(v, u, 2, -7) == 2u - 7v == x
                 @test axpby!(2, u, -7, copy(v)) == x
 
-                @test u + type(12 => -3.5 + im; kwargs...) == type(45 => 10, 12 => -im)
+                @test u + type(12 => -3.5 + im; kwargs...) == type(45 => 10, 12 => im)
             end
             @testset "inner" begin
                 u = type(zip(1:4, [1, 1.5, im, -im]); kwargs...)
