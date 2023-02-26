@@ -1,6 +1,6 @@
 using Rimu
 using Test
-using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, NoInitiator
+using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, NonInitiator
 using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement
 using Rimu.StochasticStyles: ThresholdCompression
 using Rimu.StatsTools
@@ -566,7 +566,7 @@ end
         )
         dv_ni = InitiatorDVec(
             add => 1;
-            initiator=NoInitiator(),
+            initiator=NonInitiator(),
             style=IsDynamicSemistochastic(),
         )
 

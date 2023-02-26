@@ -114,6 +114,8 @@ function test_dvec_interface(type; kwargs...)
                 @test scalartype(zerovector(u, Int)) ≡ Int
                 @test scalartype(empty(u, Int)) ≡ Int
                 @test eltype(similar(u, Float64, Int)) ≡ Pair{Float64,Int}
+                @test eltype(similar(u, String)) ≡ Pair{Int,String}
+                @test eltype(similar(u, Float64, String)) ≡ Pair{Float64,String}
             end
             @testset "scale(!)" begin
                 u = type(1 => 1.0 + im, 2 => -2.0im; kwargs...)
@@ -197,8 +199,9 @@ function test_dvec_interface(type; kwargs...)
 
                 u = type(Dict(ps); kwargs...)
 
-                @test reduce(+, values(u); init=1) == sum(vs) + 1
-                @test reduce(+, keys(u); init=-1) == sum(ks) - 1
+                @test reduce(+, values(u); init=0) == sum(vs)
+                @test reduce(*, keys(u)) == prod(ks)
+                @test mapreduce(x -> x[1], +, pairs(u)) == sum(ks)
 
                 @test mapreduce(x -> x + 1.1, +, values(u)) ≈ sum(x -> x + 1.1, vs)
                 @test mapreduce(abs2, *, keys(u)) == prod(abs2, ks)
@@ -208,6 +211,9 @@ function test_dvec_interface(type; kwargs...)
                 @test minimum(abs2, values(u)) == minimum(abs2, vs)
                 @test maximum(x -> x + 1.1, keys(u)) ≈ maximum(x -> x + 1.1, ks)
                 @test prod(p -> p[1] - p[2], pairs(u)) == prod(p -> p[1] - p[2], ps)
+
+                v = type{Int,Int}(; kwargs...)
+                @test mapreduce(x -> x + 1, +, keys(v); init=0) == 0
             end
             @testset "all, any" begin
                 ks = ['a', 'b', 'c', 'd', 'e', 'f']

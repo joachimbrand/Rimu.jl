@@ -205,8 +205,8 @@ function PDVec{K,V}(
     return PDVec(segments, style, irule, comm)
 end
 function PDVec(pairs; kwargs...)
-    K = typeof(first(pairs)[1])
-    V = typeof(first(pairs)[2])
+    K = eltype(first.(pairs))
+    V = eltype(last.(pairs))
     t = PDVec{K,V}(; kwargs...)
     for (k, v) in pairs
         t[k] = v
@@ -366,18 +366,20 @@ function Base.empty(
 ) where {K,V}
     return PDVec{K,V}(; style, initiator, communicator)
 end
+function Base.empty(t::PDVec{K,V}, ::Type{V}; kwargs...) where {K,V}
+    return empty(t; kwargs...)
+end
 function Base.empty(t::PDVec{K}, ::Type{V}; kwargs...) where {K,V}
     return PDVec{K,V}(; kwargs...)
 end
 function Base.empty(t::PDVec, ::Type{K}, ::Type{V}; kwargs...) where {K,V}
     return PDVec{K,V}(; kwargs...)
 end
-Base.similar(t::PDVec, args...; kwargs...) = empty(t, args...; kwargs...)
-
 function Base.empty!(t::PDVec)
     Folds.foreach(empty!, t.segments, )
     return t
 end
+Base.similar(t::PDVec, args...; kwargs...) = empty(t, args...; kwargs...)
 
 function Base.sizehint!(t::PDVec, n)
     n_per_segment = cld(n, length(t.segments))
@@ -479,18 +481,20 @@ function Base.iterate(t::PDVecIterator, (segment_id, state))
 end
 
 """
-    mapreduce(f, op, keys(::PDVec); kwargs...)
-    mapreduce(f, op, values(::PDVec); kwargs...)
-    mapreduce(f, op, pairs(::PDVec); kwargs...)
+    mapreduce(f, op, keys(::PDVec); init)
+    mapreduce(f, op, values(::PDVec); init)
+    mapreduce(f, op, pairs(::PDVec); init)
 
 Perform a parallel reduction operation on [`PDVec`](@ref)s. MPI-compatible. Is used in the
 definition of various functions from Base such as `reduce`, `sum`, `prod`, etc.
+
+`init`, if provided, must be a neutral element for `op`.
 """
 function Base.mapreduce(f, op, t::PDVecIterator; kwargs...)
     result = Folds.mapreduce(
         op, Iterators.filter(!isempty, t.vector.segments); kwargs...
     ) do segment
-        mapreduce(f, op, t.selector(segment); kwargs...)
+        mapreduce(f, op, t.selector(segment))
     end
     return merge_remote_reductions(t.vector.communicator, op, result)
 end
@@ -567,15 +571,7 @@ end
 ###
 ### High-level linear algebra functions
 ###
-function LinearAlgebra.rmul!(t::PDVec, α::Number)
-    if iszero(α)
-        empty!(t)
-    else
-        map!(Base.Fix2(*, α), values(t))
-    end
-    return t
-end
-function LinearAlgebra.lmul!(α::Number, t::PDVec)
+function VectorInterface.scale!(t::PDVec, α::Number)
     if iszero(α)
         empty!(t)
     else
@@ -583,14 +579,14 @@ function LinearAlgebra.lmul!(α::Number, t::PDVec)
     end
     return t
 end
-function LinearAlgebra.mul!(dst::PDVec, src::PDVec, α::Number)
+function VectorInterface.scale!(dst::PDVec, src::PDVec, α::Number)
     return map!(Base.Fix1(*, α), dst, values(src))
 end
 
 function dict_add!(d::Dict, s, α=true, β=true)
     if iszero(β)
         empty!(d)
-    else
+    elseif β ≠ one(β)
         map!(Base.Fix1(*, β), values(d))
     end
     for (key, s_value) in s
@@ -613,10 +609,10 @@ function VectorInterface.add!(dst::PDVec, src::PDVec, α::Number=true, β::Numbe
     return dst
 end
 
-function LinearAlgebra.dot(l::PDVec, r::PDVec)
+function VectorInterface.inner(l::PDVec, r::PDVec)
     check_compatibility(l, r)
     if l === r
-        return sum(abs2, values(l))
+        return sum(abs2, values(l); init=zero(scalartype(l)))
     else
         T = promote_type(valtype(l), valtype(r))
         l_segs = l.segments
@@ -629,21 +625,21 @@ function LinearAlgebra.dot(l::PDVec, r::PDVec)
         return merge_remote_reductions(r.communicator, +, res)
     end
 end
-function LinearAlgebra.dot(fd::FrozenDVec, p::PDVec)
+function VectorInterface.inner(fd::FrozenDVec, p::PDVec)
     res = zero(promote_type(valtype(fd), valtype(p)))
     for (k, v) in pairs(fd)
         res += conj(p[k]) * v
     end
     return merge_remote_reductions(p.communicator, +, res)
 end
-function LinearAlgebra.dot(l::AbstractDVec, r::PDVec)
+function VectorInterface.inner(l::AbstractDVec, r::PDVec)
     res = sum(pairs(r)) do (k, v)
         conj(l[k]) * v
     end
     return res
 end
-LinearAlgebra.dot(p::PDVec, fd::FrozenDVec) = conj(dot(fd, p))
-LinearAlgebra.dot(l::PDVec, r::AbstractDVec) = conj(dot(r, l))
+VectorInterface.inner(p::PDVec, fd::FrozenDVec) = conj(dot(fd, p))
+VectorInterface.inner(l::PDVec, r::AbstractDVec) = conj(dot(r, l))
 
 function Base.real(v::PDVec)
     dst = similar(v, real(valtype(v)))
