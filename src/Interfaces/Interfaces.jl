@@ -38,7 +38,6 @@ Follow the links for the definitions of the interfaces!
 module Interfaces
 
 using Reexport
-using StaticArrays
 
 @reexport using LinearAlgebra
 @reexport using VectorInterface

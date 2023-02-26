@@ -6,6 +6,7 @@ module BitStringAddresses
 
 using LinearAlgebra
 using StaticArrays
+using SparseArrays
 using Setfield
 using Parameters
 

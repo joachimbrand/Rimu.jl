@@ -59,6 +59,9 @@ function Base.show(io::IO, md::MPIData)
     end
 end
 
+function VectorInterface.zerovector(md::MPIData)
+    return MPIData(zerovector(md.data), md.comm, md.root, md.s)
+end
 function Base.similar(md::MPIData)
     return MPIData(similar(md.data), md.comm, md.root, md.s)
 end

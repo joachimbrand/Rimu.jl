@@ -20,18 +20,18 @@ using ..Interfaces
 using ..Hamiltonians
 using ..StochasticStyles
 
-# TODO: ordering
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
     move_and_compress!,
     working_memory, fciqmc_step!, sort_into_targets!
 
 export deposit!, storage, walkernumber, propagate!, dot_from_right
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory
+
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 
 
 # The idea is to do linear algebra with data structures that are not
-# subtyped to AbstractVector, much in the spirit of KrylovKit.jl.
+# subtyped to AbstractVector, much in the spirit of VectorInterfaces.jl and KrylovKit.jl.
 # In particular we provide concrete data structures with the aim of being
 # suitable for use with KrylovKit. From the manual:
 
@@ -62,11 +62,11 @@ include("projectors.jl")
 include("initiators.jl")
 include("communicators.jl")
 
-include("dvec.jl")
-include("initiatordvec.jl")
-
 include("pdvec.jl")
 include("pdworkingmemory.jl")
 include("propagators.jl")
+
+include("dvec.jl")
+include("initiatordvec.jl")
 
 end # module

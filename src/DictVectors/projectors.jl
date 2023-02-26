@@ -18,8 +18,9 @@ Define a method for `LinearAlgebra.dot(projector, v)`.
 """
 abstract type AbstractProjector end
 
-LinearAlgebra.dot(p::AbstractProjector, v) = VectorInterface.inner(p, v)
-VectorInterface.inner(v, p::AbstractProjector) = conj(inner(p, v))
+LinearAlgebra.dot(p::AbstractProjector, v::DVecOrVec) = VectorInterface.inner(p, v)
+LinearAlgebra.dot(v::DVecOrVec, p::AbstractProjector) = VectorInterface.inner(v, p)
+VectorInterface.inner(v::DVecOrVec, p::AbstractProjector) = conj(inner(p, v))
 
 """
     UniformProjector() <: AbstractProjector
@@ -149,9 +150,8 @@ freeze(dv) = FrozenDVec(collect(pairs(localpart(dv))))
 freeze(p::AbstractProjector) = p
 
 function VectorInterface.inner(fd::FrozenDVec, dv::AbstractDVec)
-    result = zero(promote_type(valtype(fd), valtype(dv)))
-    for (k, v) in pairs(fd)
-        result += dv[k] ⋅ v
+    T = promote_type(valtype(fd), valtype(dv))
+    return sum(pairs(fd); init=zero(T)) do (k, v)
+        dv[k] ⋅ v
     end
-    return result
 end

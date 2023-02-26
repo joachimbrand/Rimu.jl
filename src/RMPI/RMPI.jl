@@ -12,6 +12,7 @@ using Rimu
 using LinearAlgebra
 using Random
 using StaticArrays
+using VectorInterface
 
 import Rimu: sort_into_targets!
 import ..DictVectors: mpi_rank, mpi_comm, mpi_size

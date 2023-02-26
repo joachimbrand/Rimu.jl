@@ -44,7 +44,6 @@ using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 using FFTW
 using Setfield
 
-using ..StochasticStyles
 using ..BitStringAddresses
 
 using ..Interfaces
@@ -54,7 +53,7 @@ import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starti
 export AbstractHamiltonian
 # export TwoComponentHamiltonian
 export dimension, rayleigh_quotient, momentum
-export BasisSetRep
+export BasisSetRep, build_basis
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace

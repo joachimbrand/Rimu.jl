@@ -11,6 +11,7 @@ using Test
     @test vector == [2, 2, 3]
     @test storage(vector) ≡ vector
     @test localpart(vector) ≡ vector
+
     zerovector!(vector)
     @test vector == [0, 0, 0]
 

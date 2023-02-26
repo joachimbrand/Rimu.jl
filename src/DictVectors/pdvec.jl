@@ -28,7 +28,7 @@ the vector.
 * `style = `[`default_style`](@ref)`(V)`: A [`StochasticStyle`](@ref) that is used to select
   the spawning strategy in the FCIQMC algorithm.
 
-* `initiator = `[`NoInitiator`](@ref)`()`: An [`InitiatorRule`](@ref), used in FCIQMC to
+* `initiator = `[`NonInitiator`](@ref)`()`: An [`InitiatorRule`](@ref), used in FCIQMC to
   remove the sign problem.
 
 * `communicator`: A [`Communicator`](@ref) that controls how operations are performed when
@@ -176,7 +176,7 @@ function PDVec{K,V}(
     segments = ntuple(_ -> Dict{K,W}(), Threads.nthreads())
 
     if initiator == false
-        irule = NoInitiator()
+        irule = NonInitiator()
     elseif initiator == true
         initiator_threshold = initiator_threshold == 0 ? 1 : initiator_threshold
         irule = Initiator(initiator_threshold)
@@ -242,7 +242,7 @@ function Base.summary(io::IO, t::PDVec)
         comm = t.communicator
     end
     print(io, "style = ", t.style)
-    if t.initiator ≠ NoInitiator()
+    if t.initiator ≠ NonInitiator()
         print(io, ", initiator=", t.initiator)
     end
     if comm ≠ NotDistributed()
@@ -588,9 +588,14 @@ function LinearAlgebra.mul!(dst::PDVec, src::PDVec, α::Number)
 end
 
 function dict_add!(d::Dict, s, α=true, β=true)
+    if iszero(β)
+        empty!(d)
+    else
+        map!(Base.Fix1(*, β), values(d))
+    end
     for (key, s_value) in s
         d_value = get(d, key, zero(valtype(d)))
-        new_value = β * d_value + α * s_value
+        new_value = d_value + α * s_value
         if iszero(new_value)
             delete!(d, key)
         else

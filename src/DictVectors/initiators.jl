@@ -2,7 +2,8 @@
     abstract type AbstractInitiatorValue{V}
 
 A value equipped with additional information that enables a variation of the initiator
-approximation.
+approximation. To be used with [`PDVec`](@ref), [`InitiatorDVec`](@ref) and
+[`InitiatorRule`](@ref)s.
 
 Must define:
 * `Base.zero`, `Base.:+`, `Base.:-`, `Base.:*`
@@ -47,7 +48,7 @@ Base.zero(::Type{InitiatorValue{V}}) where {V} = InitiatorValue{V}()
 """
     NonInitiatorValue{V}
 
-Value that does not contain any additional information - used with [`NoInitiator`](@ref),
+Value that does not contain any additional information - used with [`NonInitiator`](@ref),
 the default initiator rule for [`PDVec`](@ref).
 """
 struct NonInitiatorValue{V} <: AbstractInitiatorValue{V}
@@ -80,6 +81,7 @@ Concrete implementations:
 * [`CoherentInitiator`](@ref)
 * [`NonInitiator`](@ref)
 
+`InitiatorRule`s define how to store and retrieve data from associated [`AbstractInitiatorValue`](@ref)s.
 When defining a new `InitiatorRule`, also define the following:
 
 * [`initiator_valtype`](@ref)
@@ -92,7 +94,7 @@ abstract type InitiatorRule end
 """
     initiator_valtype(rule::InitiatorRule, T)
 
-Return the `[`AbstractInitiatorValue{T}`](@ref) that is employed by the `rule`.
+Return the [`AbstractInitiatorValue{T}`](@ref) that is employed by the `rule`.
 """
 initiator_valtype
 
@@ -206,19 +208,20 @@ function to_initiator_value(rule::CoherentInitiator, add, val, parent)
 end
 
 """
-    NoInitiator{V} <: InitiatorRule{V}
+    NonInitiator{V} <: InitiatorRule{V}
 
-Default initiator rule for [`PDVec`](@ref), that disables the approximation.
+Initiator rule that disables the approximation. This is the default setting for
+[`PDVec`](@ref).
 
 See [`InitiatorRule`](@ref).
 """
-struct NoInitiator <: InitiatorRule end
-initiator_valtype(::NoInitiator, ::Type{V}) where {V} = NonInitiatorValue{V}
+struct NonInitiator <: InitiatorRule end
+initiator_valtype(::NonInitiator, ::Type{V}) where {V} = NonInitiatorValue{V}
 
-function to_initiator_value(::NoInitiator, _, val, _)
+function to_initiator_value(::NonInitiator, _, val, _)
     return NonInitiatorValue(val)
 end
 
-function from_initiator_value(::NoInitiator, v::NonInitiatorValue)
+function from_initiator_value(::NonInitiator, v::NonInitiatorValue)
     return v.value
 end
