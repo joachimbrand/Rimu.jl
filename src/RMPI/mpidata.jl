@@ -118,9 +118,11 @@ MPI syncronizing.
 """
 function LinearAlgebra.norm(md::MPIData, p::Real=2)
     if p === 2
-        return sqrt(sum(abs2, values(md)))
+        return sqrt(mapreduce(abs2, +, values(md)))
+        # return sqrt(sum(abs2, values(md)))
     elseif p === 1
-        return float(sum(abs, values(md)))
+        return float(mapreduce(abs, +, values(md)))
+        # return float(sum(abs, values(md)))
     elseif p === Inf
         return float(mapreduce(abs, max, values(md); init=real(zero(valtype(md)))))
     else
