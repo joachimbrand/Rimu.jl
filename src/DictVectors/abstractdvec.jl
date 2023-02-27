@@ -38,7 +38,15 @@ Base.ndims(::AbstractDVec) = 1
 Base.zero(v::AbstractDVec) = empty(v)
 VectorInterface.zerovector(v::AbstractDVec, ::Type{T}) where {T<:Number} = similar(v, T)
 VectorInterface.zerovector!(v::AbstractDVec) = empty!(v)
-VectorInterface.zerovector!!(v::AbstractDVec) = zerovector!(v)
+VectorInterface.zerovector!!(v::AbstractDVec) = zerovector!(v, T)
+
+function VectorInterface.zerovector!!(v::AbstractDVec, ::Type{T}) where {T<:Number}
+    if scalartype(v) ≡ T
+        return zerovector!(v)
+    else
+        return zerovector(v, T)
+    end
+end
 
 function Base.similar(dvec::AbstractDVec, args...; kwargs...)
     return sizehint!(empty(dvec, args...; kwargs...), length(dvec))
@@ -117,7 +125,14 @@ function VectorInterface.scale(v::AbstractDVec, α::Number)
     scale!(result, v, α)
     return result
 end
-VectorInterface.scale!!(v::AbstractDVec, α::Number) = scale!(v, α)
+function VectorInterface.scale!!(v::AbstractDVec, α::T) where {T<:Number}
+    U = scalartype(v)
+    if promote_type(U, T) == U
+        return scale!(v, α)
+    else
+        return scale(v, α)
+    end
+end
 
 LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α) = scale!(w, v, α)
 LinearAlgebra.lmul!(α, v::AbstractDVec) = scale!(v, α)
@@ -145,9 +160,14 @@ function VectorInterface.add(
 end
 
 function VectorInterface.add!!(
-    v::AbstractDVec, w::AbstractDVec, α::Number=true, β::Number=true
-)
-    return add!(v, w, α, β)
+    v::AbstractDVec{K}, w::AbstractDVec{K}, α::Number=true, β::Number=true
+) where {K}
+    T = promote_type(scalartype(v), scalartype(w), typeof(α), typeof(β))
+    if T ≡ scalartype(v)
+        return add!(v, w, α, β)
+    else
+        return add(v, w, α, β)
+    end
 end
 
 Base.:+(v::AbstractDVec, w::AbstractDVec) = add(v, w)

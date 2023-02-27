@@ -116,6 +116,10 @@ function test_dvec_interface(type; kwargs...)
                 @test eltype(similar(u, Float64, Int)) ≡ Pair{Float64,Int}
                 @test eltype(similar(u, String)) ≡ Pair{Int,String}
                 @test eltype(similar(u, Float64, String)) ≡ Pair{Float64,String}
+
+                v = type(1 => 1; kwargs...)
+                @test zerovector!!(v, Int) ≡ v
+                @test zerovector!!(v, Float64) ≢ v
             end
             @testset "scale(!)" begin
                 u = type(1 => 1.0 + im, 2 => -2.0im; kwargs...)
@@ -137,6 +141,8 @@ function test_dvec_interface(type; kwargs...)
 
                 w = type(1 => 1; kwargs...)
                 @test scale(w, 1 + im) == (1 + im) * w == type(1 => 1 + im)
+                @test scale!!(w, 1 + im) ≢ w
+                @test scale!!(w, 1) ≡ w
             end
             @testset "add(!)" begin
                 u = type(45 => 10.0, 12 => 3.5; kwargs...)
@@ -152,6 +158,11 @@ function test_dvec_interface(type; kwargs...)
                 @test axpby!(2, u, -7, copy(v)) == x
 
                 @test u + type(12 => -3.5 + im; kwargs...) == type(45 => 10, 12 => im)
+
+                @test add!!(v, u, 2, -7) ≡ v
+                @test add!!(v, u, 2 + im, -7) ≢ v
+                @test add!!(v, u, 2, -7 - im) ≢ v
+                @test add!!(v, type(1 => im; kwargs...), 2, -7 - im) ≢ v
             end
             @testset "inner" begin
                 u = type(zip(1:4, [1, 1.5, im, -im]); kwargs...)
