@@ -9,8 +9,8 @@ using Rimu.StochasticStyles:
 @testset "Generic Hamiltonian-free functions" begin
     matrix = [1 2 3; 4 5 6; 7 8 9]
     @test diagonal_element(matrix, 3) == 9
-    @test offdiagonals(matrix, 1) == [2 => 4, 3 => 7]
-    @test offdiagonals(matrix, 2) == [1 => 2, 3 => 8]
+    @test offdiagonals(matrix, 1) == [(2, 4), (3, 7)]
+    @test offdiagonals(matrix, 2) == [(1, 2), (3, 8)]
 
     add, prob, val = random_offdiagonal(matrix, 1)
     @test add in (2, 3)
@@ -31,49 +31,47 @@ using Rimu.StochasticStyles:
 
     w = [1.0, 2.0, 3.0]
 
-    @test fciqmc_col!(w, matrix, 1, 2, 0.1, 0.2) == (1, )
-    @test w[1] == 1.0 + (1 + 0.2 * (0.1 - matrix[1, 1])) * 2
-    @test w[2] == 2.0 - 0.2 * matrix[2, 1] * 2
-    @test w[3] == 3.0 - 0.2 * matrix[3, 1] * 2
+    @test apply_column!(w, matrix, 1, 2) == (1, )
+    @test w[1] == 1.0 + 2 * matrix[1, 1]
+    @test w[2] == 2.0 + 2 * matrix[2, 1]
+    @test w[3] == 3.0 + 2 * matrix[3, 1]
 end
 
 @testset "projected_deposit!" begin
     @testset "Integer" begin
         for _ in 1:20
             dv = DVec(:a => 1)
-            @test projected_deposit!(dv, :a, 0.5, :a => 1, 0) isa Int
+            @test projected_deposit!(dv, :a, 0.5, :a => 1, 0) in (0, 1)
             @test dv[:a] == 1 || dv[:a] == 2
 
-            @test projected_deposit!(dv, :b, -5.5, :a => 1, 0) isa Int
+            @test projected_deposit!(dv, :b, -5.5, :a => 1, 0) in (-5, -6)
             @test dv[:b] == -5 || dv[:b] == -6
 
             for i in 1:13
-                @test projected_deposit!(dv, :c, 1, :a => 1, 0) isa Int
+                @test projected_deposit!(dv, :c, 1.0, :a => 1, 0) == 1
             end
             @test dv[:c] == 13
         end
     end
 
     @testset "Exact" begin
-        for _ in 1:20
-            dv = DVec(:a => 1.0)
-            @test projected_deposit!(dv, :a, -1, :a => 1.0, 0) isa Float64
-            @test isempty(dv)
+        dv = DVec(:a => 1.0)
+        @test projected_deposit!(dv, :a, -1, :a => 1.0, 0) ≡ -1.0
+        @test isempty(dv)
 
-            @test projected_deposit!(dv, :a, 1e-9, :a => 1.0, 0) isa Float64
-            @test projected_deposit!(dv, :b, -1 - 1e-9, :a => 1.0, 0) isa Float64
-            @test dv[:a] == 1e-9
-            @test dv[:b] == -1 - 1e-9
-        end
+        @test projected_deposit!(dv, :a, 1e-9, :a => 1.0, 0) ≡ 1e-9
+        @test projected_deposit!(dv, :b, -1 - 1e-9, :a => 1.0, 0) ≡ -1 - 1e-9
+        @test dv[:a] == 1e-9
+        @test dv[:b] == -1 - 1e-9
     end
 
     @testset "Projected" begin
         for _ in 1:20
             dv = DVec(:a => 1.0)
-            @test projected_deposit!(dv, :a, 0.5, :a => 1.0, 1.0) isa Float64
-            @test projected_deposit!(dv, :b, -0.5, :a => 1.0, 1.0) isa Float64
-            @test projected_deposit!(dv, :c, 1.1, :a => 1.0, 1.0) isa Float64
-            @test projected_deposit!(dv, :d, 0.1, :a => 1.0, 0.685) isa Float64
+            @test projected_deposit!(dv, :a, 0.5, :a => 1.0, 1.0) in (0, 1)
+            @test projected_deposit!(dv, :b, -0.5, :a => 1.0, 1.0) in (-1, 0)
+            @test projected_deposit!(dv, :c, 1.1, :a => 1.0, 1.0) == 1.1
+            @test projected_deposit!(dv, :d, 0.1, :a => 1.0, 0.685) in (0, 0.685)
             @test dv[:a] == 1.0 || dv[:a] == 2.0
             @test dv[:b] == 0.0 || dv[:b] == -1.0
             @test dv[:c] == 1.1
@@ -86,80 +84,90 @@ end
     add = BoseFS((1,1,1))
     H = HubbardReal1D(add)
     @testset "Integer" begin
-        # nothing happens - one annihilation
-        dv = DVec(add => -1)
-        @test diagonal_step!(dv, H, add, 1, 1e-5, 0, 0) == (0, 0, 0)
+        # Single death
+        dv = DVec(add => 0)
+        @test diagonal_step!(dv, H, add, 1, 0) == (0, 1, 0)
         @test dv[add] == 0
 
         # clones
         for _ in 1:20
             dv = DVec(add => 0)
-            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 0)
+            T = Rimu.FCIQMCTransitionOperator(H, 10, 0.5)
+            st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1, 0)
             @test st[1] == 4 || st[1] == 5
-            @test dv[BoseFS((2,0,1))] == 5 || dv[BoseFS((2,0,1))] == 6
+            @test dv[BoseFS((2,0,1))] == st[1] + 1 # original value + clones
         end
         # deaths
         for _ in 1:20
-            dv = DVec(add => 0)
-            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 0)
+            dv = DVec(BoseFS((2,0,1)) => 0)
+            T = Rimu.FCIQMCTransitionOperator(H, -1.0, 0.125)
+            st = diagonal_step!(dv, T, BoseFS((2,0,1)), 2, 0)
             @test st[2] == 0 || st[2] == 1
-            @test dv[BoseFS((2,0,1))] == 0 || dv[BoseFS((2,0,1))] == 1
+            @test dv[BoseFS((2,0,1))] == 2 - st[2] # original value - deaths
         end
         # zombies
         for _ in 1:20
-            dv = DVec(add => 0)
-            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 0)
+            dv = DVec(BoseFS((2,0,1)) => 0)
+            T = Rimu.FCIQMCTransitionOperator(H, -10, 0.5)
+            st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1, 0)
             @test st[2] == 1
             @test st[3] == 4 || st[3] == 5
-            @test dv[BoseFS((2,0,1))] == -4 || dv[BoseFS((2,0,1))] == -5
+            @test dv[BoseFS((2,0,1))] == 1 - st[2] - st[3] # original value - death - zombie
         end
     end
     @testset "Exact" begin
         # nothing happens - one annihilation
         dv = DVec(add => -1.0)
-        @test diagonal_step!(dv, H, add, 1, 1e-5, 0, 0) == (0, 0, 0)
+        T = Rimu.FCIQMCTransitionOperator(H, 0, 1)
+        @test diagonal_step!(dv, T, add, 1.0, 0) == (0, 0, 0)
         @test dv[add] == 0
         # clones
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 0)
-        @test st[1] == 4.5
-        @test dv[BoseFS((2,0,1))] == 5.5
+        T = Rimu.FCIQMCTransitionOperator(H, 10, 1)
+        st = diagonal_step!(dv, T, BoseFS((2,0,1)), 2.5, 0)
+        @test st[1] == 22.5
+        @test dv[BoseFS((2,0,1))] == 25.0
         # deaths
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 0)
+        T = Rimu.FCIQMCTransitionOperator(H, -0.5, 0.5)
+        st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1.0, 0)
         @test st[2] == 0.75
         @test dv[BoseFS((2,0,1))] == 0.25
         # zombies
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 0)
+        T = Rimu.FCIQMCTransitionOperator(H, -10, 0.5)
+        st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1.0, 0)
         @test st[2] == 1
         @test st[3] == 4.5
         @test dv[BoseFS((2,0,1))] == -4.5
     end
     @testset "Projected" begin
-        # nothing happens - but may be projected anyway
+        # nothing happens but may be projected anyway resulting in either a clone or a death
         for _ in 1:20
             dv = DVec(add => 0.0)
-            st = diagonal_step!(dv, H, add, 1, 1e-5, 0, 1.5)
-            @test st[2] == 1.0 || st[2] == 0.5
-            @test dv[add] == 0.0 || dv[add] == 1.5
+            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1.0, 1.5) # diagonal element is 1
+            @test st[1] == 0.5 || st[2] == 1
+            @test dv[BoseFS((2,0,1))] == 1 + st[1] - st[2]
         end
 
-        # clones
+        # clones - above projection threshold
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, 10, 1)
+        T = Rimu.FCIQMCTransitionOperator(H, 10, 0.5)
+        st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1, 1)
         @test st[1] == 4.5
         @test dv[BoseFS((2,0,1))] == 5.5
-        # deaths
+        # deaths - below threshold
         for _ in 1:20
             dv = DVec(add => 0.0)
-            st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -0.5, 1)
+            T = Rimu.FCIQMCTransitionOperator(H, -0.5, 0.5)
+            st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1.0, 1)
             @test st[2] == 0.0 || st[2] == 1.0
-            @test dv[BoseFS((2,0,1))] == 0.0 || dv[BoseFS((2,0,1))] == 1.0
+            @test dv[BoseFS((2,0,1))] == 1 - st[2]
         end
         # zombies
         dv = DVec(add => 0.0)
-        st = diagonal_step!(dv, H, BoseFS((2,0,1)), 1, 0.5, -10, 1)
+        T = Rimu.FCIQMCTransitionOperator(H, -10, 0.5)
+        st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1, 1)
         @test st[2] == 1
         @test st[3] == 4.5
         @test dv[BoseFS((2,0,1))] == -4.5
@@ -193,16 +201,16 @@ end
 
         for _ in 1:10000
             val = rand() * num_offdiagonals(H, add) * 1.2
-            spawn!(Exact(), exact, H, add, val, 1e-5)
-            spawn!(WithReplacement(), vanilla, H, add, val, 1e-5)
-            spawn!(WithReplacement(0.0, 2.0), strong, H, add, val, 1e-5)
-            spawn!(SingleSpawn(), single, H, add, val, 1e-5)
-            spawn!(dss_r, semi_rep, H, add, val, 1e-5)
-            spawn!(dss_w, semi_wo, H, add, val, 1e-5)
-            spawn!(dss_b, semi_bern, H, add, val, 1e-5)
-            spawn!(dss_ws, semi_wo_strong, H, add, val, 1e-5)
-            spawn!(dss_bs, semi_bern_strong, H, add, val, 1e-5)
-            spawn!(dss_s, semi_single, H, add, val, 1e-5)
+            spawn!(Exact(), exact, H, add, val)
+            spawn!(WithReplacement(), vanilla, H, add, val)
+            spawn!(WithReplacement(0.0, 2.0), strong, H, add, val)
+            spawn!(SingleSpawn(), single, H, add, val)
+            spawn!(dss_r, semi_rep, H, add, val)
+            spawn!(dss_w, semi_wo, H, add, val)
+            spawn!(dss_b, semi_bern, H, add, val)
+            spawn!(dss_ws, semi_wo_strong, H, add, val)
+            spawn!(dss_bs, semi_bern_strong, H, add, val)
+            spawn!(dss_s, semi_single, H, add, val)
         end
 
         for k in keys(exact)
@@ -219,11 +227,12 @@ end
     end
 end
 
-@testset "Compression does not change 1-norm on average." begin
+@testset "Compression does not change the vector on average." begin
     add = BoseFS((0,0,0,10,0,0,0))
     H = HubbardMom1D(add)
     dv = DVec(add => 1.0, style=IsDeterministic())
     lomc!(H, dv)
+    normalize!(dv)
 
     for compression in (
         StochasticStyles.ThresholdCompression(),
@@ -231,10 +240,13 @@ end
     )
         target = similar(dv)
         for _ in 1:1000
-            compressed = StochasticStyles.compress!(compression, copy(dv))
+            compressed = copy(dv)
+            StochasticStyles.compress!(compression, compressed)
             add!(target, compressed)
         end
-        @test walkernumber(target * (1/1000)) ≈ walkernumber(dv) rtol=0.1
+        scale!(target, 1/1000)
+        @test walkernumber(target) ≈ walkernumber(dv) rtol=0.1
+        @test dot(target, dv) ≈ 1 rtol=0.1
     end
 end
 
@@ -244,8 +256,8 @@ end
     val = rand() * num_offdiagonals(H, add) * 1.2
     exact = DVec(add => 1.0)
     ds_exact = DVec(add => 1.0)
-    spawn!(Exact(), exact, H, add, val, 1e-5)
-    spawn!(dss_e, ds_exact, H, add, val, 1e-5)
+    spawn!(Exact(), exact, H, add, val)
+    spawn!(dss_e, ds_exact, H, add, val)
     @test keys(exact) == keys(ds_exact)
     for k in keys(exact)
         @test exact[k] ≈ ds_exact[k]

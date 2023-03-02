@@ -11,6 +11,7 @@ end
 ThresholdCompression() = ThresholdCompression(1)
 
 function compress!(t::ThresholdCompression, v)
+    len_before = length(v)
     w = localpart(v)
     for (add, val) in pairs(w)
         prob = abs(val) / t.threshold
@@ -19,5 +20,5 @@ function compress!(t::ThresholdCompression, v)
             w[add] = val
         end
     end
-    return v
+    return (:len_before,), (len_before,)
 end

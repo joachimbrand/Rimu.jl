@@ -10,97 +10,97 @@ Returns the value deposited.
     return projected_deposit!(valtype(w), w, add, val, parent, threshold)
 end
 # Non-integer
-@inline function projected_deposit!(::Type{T}, w, add, value, parent, thresh) where {T}
-    # ensure type stability.
-    threshold = T(thresh)
+@inline function projected_deposit!(
+    ::Type{T}, w, add, value, parent, threshold
+) where {T<:Real}
+    thresh = T(threshold)
     val = T(value)
-
     absval = abs(val)
-    if absval < threshold
-        if rand() < abs(val) / threshold
-            val = sign(val) * threshold
+    if absval < thresh
+        if rand() < absval / thresh
+            val = sign(val) * thresh
         else
-            val = zero(val)
+            val = zero(T)
         end
     end
     if !iszero(val)
         deposit!(w, add, val, parent)
     end
 
-    return abs(val)
+    return val
 end
 # Round to integer
-@inline function projected_deposit!(::Type{T}, w, add, val, parent, _) where {T<:Integer}
-    intval = T(sign(val)) * floor(T, abs(val) + rand())
-    if !iszero(intval)
-        deposit!(w, add, intval, parent)
+@inline function projected_deposit!(
+    ::Type{T}, w, add, val, parent, threshold=0
+) where {T<:Integer}
+    if !iszero(threshold)
+        throw(ArgumentError("Thresholding not supported for integer spawns"))
     end
-    return abs(intval)
+
+    new_val = T(sign(val)) * floor(T, abs(val) + rand())
+    if !iszero(new_val)
+        deposit!(w, add, new_val, parent)
+    end
+    return new_val
 end
 # Complex/Int
 @inline function projected_deposit!(
-    ::Type{T}, w, add, val, parent, _
+    ::Type{T}, w, add, val, parent, threshold=0
 ) where {I<:Integer,T<:Complex{I}}
-    r_val, i_val = reim(val)
-
-    r_intval = I(sign(r_val)) * floor(I, abs(r_val) + rand())
-    i_intval = I(sign(i_val)) * floor(I, abs(i_val) + rand())
-    intval = r_intval + im * i_intval
-
-    if !iszero(intval)
-        deposit!(w, add, intval, parent)
+    if !iszero(threshold)
+        throw(ArgumentError("Thresholding not supported for integer spawns"))
     end
-    return abs(r_intval) + im * abs(i_intval)
+
+    val_re, val_im = reim(val)
+
+    new_val_re = I(sign(val_re)) * floor(I, abs(val_re) + rand())
+    new_val_im = I(sign(val_im)) * floor(I, abs(val_im) + rand())
+    new_val = new_val_re + im * new_val_im
+
+    if !iszero(new_val)
+        deposit!(w, add, new_val, parent)
+    end
+    return new_val_re + im * new_val_im
 end
 
 """
-    diagonal_step!(w, ham, add, val, dτ, shift, threshold=0) -> (clones, deaths, zombies)
+    diagonal_step!(w, op, add, val, threshold=0) -> (clones, deaths, zombies)
 
 Perform diagonal step on a walker `add => val`. Optional argument `threshold` sets the
 projection threshold. If `eltype(w)` is an `Integer`, the `val` is rounded to the nearest
 integer stochastically.
 """
-@inline function diagonal_step!(w, ham, add, val, dτ, shift, threshold=0)
-    pd = dτ * (diagonal_element(ham, add) - shift)
-    new_val = (1 - pd) * val
+@inline function diagonal_step!(w, op, add, val, threshold=0)
+    new_val = diagonal_element(op, add) * val
     res = projected_deposit!(w, add, new_val, add => val, threshold)
-
-    return clones_deaths_zombies(pd, res, val)
+    return clones_deaths_zombies(res, typeof(res)(val))
 end
 
-@inline function clones_deaths_zombies(pd::Real, res::Real, val::Real)
-    clones = deaths = zombies = zero(res)
-    if pd < 0
+@inline function clones_deaths_zombies(res::T, val::T) where {T<:Real}
+    clones = deaths = zombies = zero(T)
+    if res > val
+        # walker number increased
         clones = abs(res - val)
-    elseif pd < 1
-        deaths = abs(res - val)
-    else
+    elseif sign(res) ≠ sign(val)
+        # walker number decreased so much that sign changed
         deaths = abs(val)
         zombies = abs(res)
+    else
+        # walker number decreased, but not too much
+        deaths = abs(res - val)
     end
     return (clones, deaths, zombies)
 end
-@inline function clones_deaths_zombies(pd::Complex, res::Complex, val::Complex)
-    clones = deaths = zombies = zero(res)
-    pd_re, pd_im = reim(pd)
+@inline function clones_deaths_zombies(res::Complex, val::Complex)
     res_re, res_im = reim(res)
     val_re, val_im = reim(val)
-    if pd_re < 0
-        clones += abs(res_re - val_re)
-    elseif pd_re < 1
-        deaths += abs(res_re - val_re)
-    else
-        deaths += abs(val_re)
-        zombies += abs(res_re)
-    end
-    if pd_im < 0
-        clones += abs(res_im - val_im) * im
-    elseif pd_im < 1
-        deaths += abs(res_im - val_im) * im
-    else
-        deaths += abs(val_im) * im
-        zombies += abs(res_im) * im
-    end
+
+    clones_re, deaths_re, zombies_re = clones_deaths_zombies(res_re, val_re)
+    clones_im, deaths_im, zombies_im = clones_deaths_zombies(res_im, val_im)
+    clones = clones_re + im * clones_im
+    deaths = deaths_re + im * deaths_im
+    zombies = zombies_re + im * zombies_im
+
     return (clones, deaths, zombies)
 end
 
@@ -115,8 +115,8 @@ The following concrete implementations are provided:
 
 * [`Exact`](@ref): Perform exact spawns. Used by [`IsDeterministic`](@ref).
 
-* [`WithReplacement`](@ref): The default stochastic spawning strategy. Spawns are chosen with
-  replacement.
+* [`WithReplacement`](@ref): The default stochastic spawning strategy. Spawns are chosen
+  with replacement.
 
 * [`DynamicSemistochastic`](@ref): Behave like [`Exact`](@ref) when the number of spawns
   performed is high, and like a different substrategy otherwise. Used by
@@ -132,7 +132,6 @@ The following concrete implementations are provided:
 * [`Bernoulli`](@ref): Each spawn is attempted with a fixed probability. Only to be used as
   a substrategy of [`DynamicSemistochastic`](@ref).
 
-
 ## Interface
 
 In order to implement a new `SpawningStrategy`, define a method for [`spawn!`](@ref).
@@ -140,18 +139,18 @@ In order to implement a new `SpawningStrategy`, define a method for [`spawn!`](@
 abstract type SpawningStrategy end
 
 """
-    spawn!(s::SpawningStrategy, w, ham::AbstractHamiltonian, add, val, dτ)
-    spawn!(s::SpawningStrategy, w, offdiags::AbstractOffdiagonals, add, val, dτ)
+    spawn!(s::SpawningStrategy, w, op::AbstractHamiltonian, add, val)
+    spawn!(s::SpawningStrategy, w, offdiags::AbstractOffdiagonals, add, val)
 
-Perform stochastic spawns to `w` from address `add` with `val` walkers. `dτ` is a factor
-multiplied to every spawns, while `val` also controls the number of spawns performed.
+Perform stochastic spawns to `w` from address `add` with `val` walkers. `val` controls
+the number of spawns performed.
 
 This function should be overloaded in the second form, with `offdiags` as an argument.
 
 See [`SpawningStrategy`](@ref).
 """
-@inline function spawn!(s::SpawningStrategy, w, ham, add, val, dτ)
-    return spawn!(s, w, offdiagonals(ham, add), add, val, dτ)
+@inline function spawn!(s::SpawningStrategy, w, op, add, val)
+    return spawn!(s, w, offdiagonals(op, add), add, val)
 end
 
 """
@@ -163,22 +162,20 @@ Perform an exact spawning step.
 
 * `threshold` sets the projection threshold. If set to zero, no projection is performed.
 
-[`spawn!`](@ref) with this strategy returns the number of spawns.
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
+number of spawns.
 """
 struct Exact{T} <: SpawningStrategy
     threshold::T
 end
 Exact() = Exact(0.0)
 
-@inline function spawn!(s::Exact, w, offdiags::AbstractVector, add, val, dτ)
+@inline function spawn!(s::Exact, w, offdiags::AbstractVector, add, val)
     T = valtype(w)
-    spawns = zero(valtype(w))
-    factor = -dτ * val
-    for (new_add, mat_elem) in offdiags
-        spw = projected_deposit!(
-            w, new_add, factor * mat_elem, add => val, s.threshold
-        )
-        spawns += spw
+    spawns = sum(offdiags) do (new_add, mat_elem)
+        abs(projected_deposit!(
+            w, new_add, val * mat_elem, add => val, s.threshold
+        ))
     end
     return (length(offdiags), spawns)
 end
@@ -192,8 +189,8 @@ Perform a single spawn. Useful as a building block for other stochastic styles.
 
 * `threshold` sets the projection threshold. If set to zero, no projection is performed.
 
-[`spawn!`](@ref) with this strategy returns the number of spawns.
-
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts to (always 1)
+and the number of spawns.
 """
 struct SingleSpawn{T} <: SpawningStrategy
     threshold::T
@@ -201,15 +198,14 @@ struct SingleSpawn{T} <: SpawningStrategy
 end
 SingleSpawn(threshold=0.0) = SingleSpawn(threshold, zero(threshold))
 
-@inline function spawn!(s::SingleSpawn, w, offdiags::AbstractVector, add, val, dτ)
+@inline function spawn!(s::SingleSpawn, w, offdiags::AbstractVector, add, val)
     if iszero(val)
-        z = zero(valtype(w))
-        return (z, z)
+        return (1, zero(valtype(w)))
     else
         new_add, prob, mat_elem = random_offdiagonal(offdiags)
-        new_val = -val * mat_elem * dτ / prob
-        spw = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
-        return 1, spw
+        new_val = val * mat_elem / prob
+        spawns = abs(projected_deposit!(w, new_add, new_val, add => val, s.threshold))
+        return (1, spawns)
     end
 end
 
@@ -225,28 +221,27 @@ default spawning strategy for most of the [`StochasticStyle`](@ref)s.
 * `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
   spawns will be performed.
 
-[`spawn!`](@ref) with this strategy returns the number of spawns.
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
+number of spawns.
 """
 struct WithReplacement{T} <: SpawningStrategy
     threshold::T
     strength::T
 end
-function WithReplacement(threshold=0.0, strength=one(threshold))
+function WithReplacement(threshold=0, strength=one(threshold))
     t, s = promote(threshold, strength)
-    return WithReplacement{typeof(t)}(t, s)
+    return WithReplacement(t, s)
 end
 
-@inline function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val, dτ)
+@inline function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val)
     spawns = zero(valtype(w))
     num_attempts = max(floor(Int, abs(val) * s.strength), 1)
     magnitude = val / num_attempts
-    factor = magnitude * dτ
 
     for _ in 1:num_attempts
         new_add, prob, mat_elem = random_offdiagonal(offdiags)
-        new_val = -mat_elem * factor / prob
-        spw = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
-        spawns += spw
+        new_val = mat_elem * magnitude / prob
+        spawns += abs(projected_deposit!(w, new_add, new_val, add => val, s.threshold))
     end
     return (num_attempts, spawns)
 end
@@ -268,23 +263,24 @@ used as a substrategy of [`DynamicSemistochastic`](@ref).
 * `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
   spawns will be performed.
 
-[`spawn!`](@ref) with this strategy returns the number of spawns.
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
+number of spawns.
 """
 struct WithoutReplacement{T} <: SpawningStrategy
     threshold::T
     strength::T
 end
-function WithoutReplacement(threshold=0.0, strength=one(threshold))
+function WithoutReplacement(threshold=0, strength=one(threshold))
     t, s = promote(threshold, strength)
-    return WithoutReplacement{typeof(t)}(t, s)
+    return WithoutReplacement(t, s)
 end
 
-@inline function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, dτ)
+@inline function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val)
     spawns = zero(valtype(w))
     num_attempts = max(floor(Int, abs(val) * s.strength), 1)
 
     if abs(num_attempts) ≤ 1
-        spawn!(SingleSpawn(s.threshold), w, offdiags, add, val, dτ)
+        spawn!(SingleSpawn(s.threshold), w, offdiags, add, val)
     else
         magnitude = val / num_attempts
 
@@ -293,9 +289,8 @@ end
 
         for i in sample(1:num_offdiags, num_attempts; replace=false)
             new_add, mat_elem = offdiags[i]
-            new_val = -mat_elem * magnitude / prob * dτ
-            spw = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
-            spawns += spw
+            new_val = mat_elem * magnitude / prob
+            spawns += abs(projected_deposit!(w, new_add, new_val, add => val, s.threshold))
         end
     end
     return (num_attempts, spawns)
@@ -319,19 +314,20 @@ used as a substrategy of [`DynamicSemistochastic`](@ref).
 * `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
   spawns will be performed on average.
 
-[`spawn!`](@ref) with this strategy returns the number of spawns.
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
+number of spawns.
 """
 struct Bernoulli{T} <: SpawningStrategy
     threshold::T
     strength::T
 end
 
-function Bernoulli(threshold=0.0, strength=one(threshold))
+function Bernoulli(threshold=0, strength=one(threshold))
     t, s = promote(threshold, strength)
     return Bernoulli{typeof(t)}(t, s)
 end
 
-@inline function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val, dτ)
+@inline function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val)
     spawns = zero(valtype(w))
     # General case.
     num_offdiags = length(offdiags)
@@ -340,15 +336,13 @@ end
     for i in 1:num_offdiags
         if rand() > prob
             new_add, mat_elem = offdiags[i]
-            new_val = -mat_elem / prob * dτ * val
-            spw = projected_deposit!(w, new_add, new_val, add => val, s.threshold)
-            spawns += spw
+            new_val = mat_elem / prob * val
+            spawns += abs(projected_deposit!(w, new_add, new_val, add => val, s.threshold))
             num_attempts += 1
         end
     end
     return (num_attempts, spawns)
 end
-
 
 """
     DynamicSemistochastic(; strat, rel_threshold, abs_threshold) <: SpawningStrategy
@@ -374,8 +368,8 @@ described below.
 See e.g. [`WithoutReplacement`](@ref) for a description of the `strat.threshold` and
 `strat.strength` parameters.
 
-[`spawn!`](@ref) with this strategy returns the numbers of exact and inexact spawns, and the
-number of spawns.
+[`spawn!`](@ref) with this strategy returns the numbers of exact and inexact spawns, the
+number of spawn attempts to and the number of spawns.
 """
 Base.@kwdef struct DynamicSemistochastic{T,S<:SpawningStrategy} <: SpawningStrategy
     strat::S = WithReplacement()
@@ -383,7 +377,7 @@ Base.@kwdef struct DynamicSemistochastic{T,S<:SpawningStrategy} <: SpawningStrat
     abs_threshold::T = Inf
 end
 
-@inline function spawn!(s::DynamicSemistochastic, w, offdiags::AbstractVector, add, val, dτ)
+@inline function spawn!(s::DynamicSemistochastic, w, offdiags::AbstractVector, add, val)
     # assumes that s.strat.strength and s.strat.threshold are defined
     # special-case substrategies that don't fit the pattern!
     thresh = min(s.abs_threshold, length(offdiags))
@@ -391,12 +385,12 @@ end
     if amount ≥ thresh
         # Exact multiplication.
         attempts, spawns = spawn!(
-            Exact(s.strat.threshold), w, offdiags, add, val, dτ
+            Exact(s.strat.threshold), w, offdiags, add, val
         )
         return (1, 0, attempts, spawns)
     else
         # Regular spawns.
-        attempts, spawns = spawn!(s.strat, w, offdiags, add, val, dτ)
+        attempts, spawns = spawn!(s.strat, w, offdiags, add, val)
         return (0, 1, attempts, spawns)
     end
 end

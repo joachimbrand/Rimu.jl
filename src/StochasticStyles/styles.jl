@@ -18,11 +18,9 @@ function step_stats(::IsStochasticInteger{T}) where {T}
         MultiScalar(0, z, z, z, z),
     )
 end
-function fciqmc_col!(
-    ::IsStochasticInteger, w, ham, add, num::Real, shift, dτ
-)
-    clones, deaths, zombies = diagonal_step!(w, ham, add, num, dτ, shift, 0)
-    attempts, spawns = spawn!(WithReplacement(), w, ham, add, num, dτ)
+function apply_column!(::IsStochasticInteger, w, op, add, val::Real)
+    clones, deaths, zombies = diagonal_step!(w, op, add, val)
+    attempts, spawns = spawn!(WithReplacement(), w, op, add, val)
     return (attempts, spawns, deaths, clones, zombies)
 end
 
@@ -49,17 +47,17 @@ function step_stats(::IsStochastic2Pop{T}) where {T}
         MultiScalar(z, z, z, z)
     )
 end
-function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
-    offdiags = offdiagonals(ham, add)
+function apply_column!(::IsStochastic2Pop, w, op, add, val)
+    offdiags = offdiagonals(op, add)
     spawns = deaths = clones = zombies = 0 + 0im
     # off-diagonal real.
-    s, a = spawn!(WithReplacement(), w, offdiags, add, real(val), dτ)
+    s, a = spawn!(WithReplacement(), w, offdiags, add, real(val))
     spawns += s
-    # off-diagonal complex: complex dτ ensures spawning to the correct population.
-    s, a = spawn!(WithReplacement(), w, offdiags, add, imag(val), dτ * im)
+    # off-diagonal complex.
+    s, a = spawn!(WithReplacement(), w, offdiags, add, im * imag(val))
     spawns += s
 
-    clones, deaths, zombies = diagonal_step!(w, ham, add, val, dτ, shift, 0)
+    clones, deaths, zombies = diagonal_step!(w, op, add, val)
 
     return (spawns, deaths, clones, zombies)
 end
@@ -94,17 +92,13 @@ end
 function step_stats(::IsDeterministic)
     return (:exact_steps,), MultiScalar(0,)
 end
-function fciqmc_col!(::IsDeterministic, w, ham::AbstractMatrix, add, num, shift, dτ)
-    for i in axes(ham, 1) # iterate through off-diagonal rows of `ham`
-        i == add && continue
-        deposit!(w, i, -dτ * ham[i, add] * num, add => num)
-    end
-    deposit!(w, add, (1 + dτ * (shift - ham[add, add])) * num, add => num) # diagonal
+function apply_column!(::IsDeterministic, w, op::AbstractMatrix, add, val)
+    w .+= op[:, add] .* val
     return (1,)
 end
-function fciqmc_col!(::IsDeterministic, w, ham, add, val, shift, dτ)
-    diagonal_step!(w, ham, add, val, dτ, shift)
-    spawn!(Exact(), w, ham, add, val, dτ)
+function apply_column!(::IsDeterministic, w, op, add, val)
+    diagonal_step!(w, op, add, val)
+    spawn!(Exact(), w, op, add, val)
     return (1,)
 end
 
@@ -127,9 +121,9 @@ IsStochasticWithThreshold{T}(t=1.0) where {T} = IsStochasticWithThreshold{T}(T(t
 function step_stats(::IsStochasticWithThreshold{T}) where {T}
     return ((:spawn_attempts, :spawns), MultiScalar(0, zero(T)))
 end
-function fciqmc_col!(s::IsStochasticWithThreshold, w, ham, add, val, shift, dτ)
-    diagonal_step!(w, ham, add, val, dτ, shift)
-    attempts, spawns = spawn!(WithReplacement(s.threshold), w, ham, add, val, dτ)
+function apply_column!(s::IsStochasticWithThreshold, w, op, add, val)
+    diagonal_step!(w, op, add, val, s.threshold)
+    attempts, spawns = spawn!(WithReplacement(s.threshold), w, op, add, val)
     return (attempts, spawns)
 end
 
@@ -211,9 +205,9 @@ function step_stats(::IsDynamicSemistochastic{T}) where {T}
         MultiScalar(0, 0, 0, z),
     )
 end
-function fciqmc_col!(s::IsDynamicSemistochastic, w, ham, add, val, shift, dτ)
-    diagonal_step!(w, ham, add, val, dτ, shift, s.proj_threshold)
-    exact, inexact, attempts, spawns = spawn!(s.spawning, w, ham, add, val, dτ)
+function apply_column!(s::IsDynamicSemistochastic, w, op, add, val)
+    diagonal_step!(w, op, add, val, s.proj_threshold)
+    exact, inexact, attempts, spawns = spawn!(s.spawning, w, op, add, val)
     return (exact, inexact, attempts, spawns)
 end
 

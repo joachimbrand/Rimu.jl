@@ -28,7 +28,7 @@ using ..Rimu: MultiScalar, localpart
 using ..Interfaces
 import ..Interfaces:
     deposit!, diagonal_element, offdiagonals, random_offdiagonal, default_style,
-    fciqmc_col!, step_stats, update_dvec!, compress!
+    apply_column!, step_stats, compress!
 export
     StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
     IsDynamicSemistochastic, StyleUnknown, Exact, WithReplacement, DynamicSemistochastic,

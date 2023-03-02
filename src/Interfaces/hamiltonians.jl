@@ -164,7 +164,7 @@ julia> h = offdiagonals(H, addr)
 ```
 """
 function offdiagonals(m::AbstractMatrix, i)
-    pairs = map(=>, axes(m, 1), view(m, :, i))
+    pairs = collect(zip(axes(m, 1), view(m, :, i)))
     return filter!(pairs) do ((k, v))
         k ≠ i && v ≠ 0
     end
