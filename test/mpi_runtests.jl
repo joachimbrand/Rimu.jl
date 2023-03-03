@@ -71,7 +71,7 @@ end
             end
             @testset "Single component $type" begin
                 for i in 1:N_REPEATS
-                    add = BoseFS((0,0,10,0,0))
+                    add = BoseFS((0, 0, 10, 0, 0))
                     H = HubbardMom1D(add)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
@@ -98,7 +98,7 @@ end
                         @test sum(values(v)) ≈ sum(values(dv))
                         f((k, v)) = (k == add) + v > 0
                         @test mapreduce(f, |, pairs(v); init=true) ==
-                            mapreduce(f, |, pairs(dv); init=true)
+                              mapreduce(f, |, pairs(dv); init=true)
                     end
 
                     @testset "Operations" begin
@@ -127,7 +127,7 @@ end
             end
             @testset "Two-component $type" begin
                 for i in 1:N_REPEATS
-                    add = BoseFS2C((0,0,10,0,0), (0,0,2,0,0))
+                    add = BoseFS2C((0, 0, 10, 0, 0), (0, 0, 2, 0, 0))
                     H = BoseHubbardMom1D2C(add)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
@@ -225,7 +225,7 @@ end
             (RMPI.mpi_one_sided, (; capacity=1000)),
         )
             @testset "Regular with $setup and post-steps" begin
-                H = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
+                H = HubbardReal1D(BoseFS((1, 1, 1, 1, 1, 1, 1)); u=6.0)
                 dv = MPIData(
                     DVec(starting_address(H) => 3; style=IsDynamicSemistochastic());
                     setup,
@@ -253,7 +253,7 @@ end
                 @test all(0 .≤ df.loneliness .≤ 1)
             end
             @testset "Initiator with $setup" begin
-                H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)
+                H = HubbardMom1D(BoseFS((0, 0, 0, 7, 0, 0, 0)); u=6.0)
                 dv = MPIData(
                     InitiatorDVec(starting_address(H) => 3);
                     setup,
@@ -295,7 +295,8 @@ end
 
     # Make sure all ranks came this far.
     @testset "Finish" begin
-        @test MPI.Allreduce(true, &, mpi_comm())
+        @test MPI.Allreduce(0x01, &, mpi_comm()) == 0x01 # 0x01 for true
+        # @test MPI.Allreduce(true, &, mpi_comm())
     end
 end
 
