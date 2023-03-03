@@ -87,9 +87,17 @@ end
 
 function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
     # single threaded MPI version
-    mpi_combine_walkers!(dtarget,w) # combine walkers from different MPI ranks
-    res_stats = (MPI.Allreduce(stat, +, dtarget.comm) for stat in stats)
-    # res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
+    mpi_combine_walkers!(dtarget, w) # combine walkers from different MPI ranks
+    @static if Sys.ARCH ∈ (:aarch64, :ppc64le, :powerpc64le) ||
+            startswith(lowercase(String(Sys.ARCH)), "arm")
+        # Reductions of a custom type (`MultiScalar`) are not possible with MPI.jl on
+        # non-intel architectures at the moment
+        # see https://github.com/JuliaParallel/MPI.jl/issues/404
+        res_stats = (MPI.Allreduce(stat, +, dtarget.comm) for stat in stats)
+    else
+        # this should be more efficient if it is allowed
+        res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
+    end
     return dtarget, w, res_stats
 end
 
