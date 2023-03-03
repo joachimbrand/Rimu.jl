@@ -52,14 +52,10 @@ end
     @testset "Iteration and reductions" begin
         @test sort(collect(localpart(values(dv1)))) == 1:4
 
-        @test mapreduce(first, +, pairs(dv1)) == 10
-        # @test sum(first, pairs(dv1)) == 10
-        @test mapreduce(last, +, pairs(dv1)) == 10
-        # @test sum(last, pairs(dv1)) == 10
-        @test reduce(*, keys(dv1)) == 24
-        # @test prod(keys(dv1)) == 24
-        @test reduce(+, values(dv2)) == 0
-        # @test sum(values(dv2)) == 0
+        @test sum(first, pairs(dv1)) == 10
+        @test sum(last, pairs(dv1)) == 10
+        @test prod(keys(dv1)) == 24
+        @test sum(values(dv2)) == 0
     end
     @testset "Errors" begin
         @test_throws ErrorException [p for p in pairs(dv1)]

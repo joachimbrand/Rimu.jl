@@ -95,6 +95,20 @@ function Base.mapreduce(f, op, it::MPIDataIterator; kwargs...)
     return MPI.Allreduce(res, op, it.data.comm)
 end
 
+# Special case for `sum`, which uses a custom (type-widening) reduction operator `add_sum`.
+# Replacing it by `+` is necessary for non-Intel architectures due to a limitation of
+# MPI.jl. On Intel processors, it might be more perfomant.
+# see https://github.com/JuliaParallel/MPI.jl/issues/404
+function Base.mapreduce(f, ::typeof(Base.add_sum), it::MPIDataIterator; kwargs...)
+    res = mapreduce(f, +, it.iter; kwargs...)
+    return MPI.Allreduce(res, +, it.data.comm)
+end
+
+function Base.mapreduce(f, ::typeof(Base.mul_prod), it::MPIDataIterator; kwargs...)
+    res = mapreduce(f, *, it.iter; kwargs...)
+    return MPI.Allreduce(res, *, it.data.comm)
+end
+
 Base.IteratorSize(::MPIDataIterator) = Base.SizeUnknown()
 Base.pairs(data::MPIData) = MPIDataIterator(pairs(localpart(data)), data)
 Base.keys(data::MPIData) = MPIDataIterator(keys(localpart(data)), data)
@@ -118,11 +132,9 @@ MPI syncronizing.
 """
 function LinearAlgebra.norm(md::MPIData, p::Real=2)
     if p === 2
-        return sqrt(mapreduce(abs2, +, values(md)))
-        # return sqrt(sum(abs2, values(md)))
+        return sqrt(sum(abs2, values(md)))
     elseif p === 1
-        return float(mapreduce(abs, +, values(md)))
-        # return float(sum(abs, values(md)))
+        return float(sum(abs, values(md)))
     elseif p === Inf
         return float(mapreduce(abs, max, values(md); init=real(zero(valtype(md)))))
     else
