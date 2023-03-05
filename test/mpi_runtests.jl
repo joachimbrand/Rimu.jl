@@ -295,7 +295,8 @@ end
 
     # Make sure all ranks came this far.
     @testset "Finish" begin
-        @test MPI.Allreduce(0x01, &, mpi_comm()) == 0x01 # 0x01 for true
+        # MPI.jl currently doesn't properly map logical operators (MPI v0.20.8)
+        @test MPI.Allreduce(true, MPI.LAND, mpi_comm())
         # @test MPI.Allreduce(true, &, mpi_comm())
     end
 end
