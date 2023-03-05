@@ -92,8 +92,6 @@ end
 
 function Base.mapreduce(f, op, it::MPIDataIterator; kwargs...)
     res = mapreduce(f, op, it.iter; kwargs...)
-    # println("typeof(op): ",typeof(op))
-    # println("typeof(res): ",typeof(res))
     T = typeof(res)
     if T <: Bool # MPI.jl does not support Bool reductions
         res = convert(UInt8, res)
@@ -110,6 +108,7 @@ function Base.mapreduce(f, op::typeof(Base.add_sum), it::MPIDataIterator; kwargs
     return MPI.Allreduce(res, +, it.data.comm)
 end
 
+# Special case for `prod`, which uses a custom (type-widening) reduction operator `mul_prod`
 function Base.mapreduce(f, op::typeof(Base.mul_prod), it::MPIDataIterator; kwargs...)
     res = mapreduce(f, op, it.iter; kwargs...)
     return MPI.Allreduce(res, *, it.data.comm)
@@ -373,11 +372,4 @@ function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, ::Val{B}) 
 
     num_reports = (N * (N - 1) ÷ 2) * (B + length(operators))
     return Tuple(SVector{num_reports,String}(names)), Tuple(SVector{num_reports,T}(values))
-end
-
-# This is a hack to get MultiScalar reductions to work on Apple Silicon.
-# It is taking a detour via Vector.
-function MPI.Allreduce(ms::Rimu.MultiScalar{T}, op, comm::MPI.Comm) where {T<:Tuple}
-    result_vector = MPI.Allreduce([ms...], op, comm)
-    return Rimu.MultiScalar(T(result_vector))
 end
