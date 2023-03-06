@@ -1,14 +1,15 @@
 using Rimu
-using Rimu.Interfaces: fciqmc_step!
+using Rimu.Interfaces: apply_operator!
 using Test
 
 """
-    fciqmc_step_wrap!(r::ReplicaState)
+    apply_operator_wrap!(r::ReplicaState)
 
 Returning the vectors is tracked as an allocation. This wrapper takes care of that.
 """
-function fciqmc_step_wrap!(r)
-    fciqmc_step!(r.wm, r.pv, r.v, r.hamiltonian, r.params.shift, r.params.dτ)
+function apply_operator_wrap!(r)
+    transition = Rimu.FCIQMCTransitionOperator(r.hamiltonian, r.params.shift, r.params.dτ)
+    apply_operator!(r.wm, r.pv, r.v, transition)
     return nothing
 end
 
@@ -106,13 +107,13 @@ end
                     p = r.params
 
                     # Warmup for step!
-                    fciqmc_step_wrap!(r)
-                    fciqmc_step_wrap!(r)
-                    fciqmc_step_wrap!(r)
-                    fciqmc_step_wrap!(r)
-                    fciqmc_step_wrap!(r)
+                    apply_operator_wrap!(r)
+                    apply_operator_wrap!(r)
+                    apply_operator_wrap!(r)
+                    apply_operator_wrap!(r)
+                    apply_operator_wrap!(r)
 
-                    allocs_step = @allocated fciqmc_step_wrap!(r)
+                    allocs_step = @allocated apply_operator_wrap!(r)
                     @test allocs_step ≤ 512
 
                     dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
