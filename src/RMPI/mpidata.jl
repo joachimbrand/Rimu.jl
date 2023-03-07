@@ -93,8 +93,12 @@ end
 function Base.mapreduce(f, op, it::MPIDataIterator; kwargs...)
     res = mapreduce(f, op, it.iter; kwargs...)
     T = typeof(res)
-    if T <: Bool # MPI.jl does not support Bool reductions
+    if T <: Bool # MPI.jl does not currently support Bool reductions on ARM
+        #TODO remove when https://github.com/JuliaParallel/MPI.jl/pull/719
+        # is merged and released
         res = convert(UInt8, res)
+    elseif T <: Rimu.MultiScalar # MPI.jl does not support MultiScalar reductions on ARM
+        res = [res...]
     end
     return T(MPI.Allreduce(res, op, it.data.comm))
 end

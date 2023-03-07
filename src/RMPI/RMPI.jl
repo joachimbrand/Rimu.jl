@@ -31,7 +31,6 @@ const mpi_registry = Dict{Int,Any}()
 abstract type DistributeStrategy end
 
 include("mpidata.jl")
-include("multiscalar.jl")
 include("helpers.jl")
 include("noexchange.jl")
 include("pointtopoint.jl")
