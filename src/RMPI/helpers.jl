@@ -87,7 +87,7 @@ end
 
 function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
     # single threaded MPI version
-    mpi_combine_walkers!(dtarget,w) # combine walkers from different MPI ranks
+    mpi_combine_walkers!(dtarget, w) # combine walkers from different MPI ranks
     res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
     return dtarget, w, res_stats
 end
