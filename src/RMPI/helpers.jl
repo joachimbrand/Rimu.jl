@@ -85,15 +85,10 @@ function mpi_combine_walkers!(dtarget::MPIData, source::AbstractDVec)
     mpi_combine_walkers!(ltarget, storage(source), strategy)
 end
 
-function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats::T) where {T}
+function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
     # single threaded MPI version
     mpi_combine_walkers!(dtarget, w) # combine walkers from different MPI ranks
-    if T<:Vector
-        res_stats = MPI.Allreduce(stats, +, dtarget.comm)
-    else
-        # temporarily convert to Vector for native MPI reduction
-        res_stats = T(MPI.Allreduce([stats...], +, dtarget.comm))
-    end
+    res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
     return dtarget, w, res_stats
 end
 

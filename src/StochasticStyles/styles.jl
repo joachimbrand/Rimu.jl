@@ -46,7 +46,7 @@ function step_stats(::IsStochastic2Pop{T}) where {T}
     z = zero(T)
     return (
         (:spawns, :deaths, :clones, :zombies),
-        [z, z, z, z]
+        MultiScalar(z, z, z, z)
     )
 end
 function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
@@ -61,7 +61,7 @@ function fciqmc_col!(::IsStochastic2Pop, w, ham, add, val, shift, dτ)
 
     clones, deaths, zombies = diagonal_step!(w, ham, add, val, dτ, shift, 0)
 
-    return [spawns, deaths, clones, zombies]
+    return (spawns, deaths, clones, zombies)
 end
 
 """

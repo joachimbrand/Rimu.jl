@@ -35,7 +35,6 @@ MultiScalar(args...) = MultiScalar(args)
 MultiScalar(v::SVector) = MultiScalar(Tuple(v))
 MultiScalar(m::MultiScalar) = m
 MultiScalar{T}(m::MultiScalar{T}) where T<:Tuple = m
-MultiScalar{T}(v::Vector) where {T<:Tuple} = MultiScalar{T}(T(v))
 MultiScalar(arg) = MultiScalar((arg,))
 
 Base.getindex(m::MultiScalar, i) = m.tuple[i]
