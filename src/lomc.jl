@@ -1,5 +1,5 @@
 """
-    FCIQMCTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
+    FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
 
 The transition operator used in FCIQMC.
 ```math
@@ -7,30 +7,34 @@ The transition operator used in FCIQMC.
 ```
 where ``H`` is the `hamiltonian` and ``S`` is the `shift`.
 """
-struct FCIQMCTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
+struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
     hamiltonian::H
     shift::S
     dτ::Float64
 
-    function FCIQMCTransitionOperator(hamiltonian::H, shift::S, dτ) where {H,S}
+    function FirstOrderTransitionOperator(hamiltonian::H, shift::S, dτ) where {H,S}
         T = eltype(hamiltonian)
         return new{T,S,H}(hamiltonian, shift, Float64(dτ))
     end
 end
 
-function Hamiltonians.diagonal_element(t::FCIQMCTransitionOperator, add)
+function Hamiltonians.diagonal_element(t::FirstOrderTransitionOperator, add)
     diag = diagonal_element(t.hamiltonian, add)
     return 1 - t.dτ * (diag - t.shift)
 end
 
-struct FCIQMCOffdiagonals{A,V,O<:AbstractVector{Tuple{A,V}}} <: AbstractVector{Tuple{A,V}}
+struct FirstOrderOffdiagonals{
+    A,V,O<:AbstractVector{Tuple{A,V}}
+} <: AbstractVector{Tuple{A,V}}
     dτ::Float64
     offdiagonals::O
 end
-Hamiltonians.offdiagonals(t::FCIQMCTransitionOperator, add) = FCIQMCOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
-Base.size(o::FCIQMCOffdiagonals) = size(o.offdiagonals)
+function Hamiltonians.offdiagonals(t::FirstOrderTransitionOperator, add)
+    return FCIQMCOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
+end
+Base.size(o::FirstOrderOffdiagonals) = size(o.offdiagonals)
 
-function Base.getindex(o::FCIQMCOffdiagonals, i)
+function Base.getindex(o::FirstOrderOffdiagonals, i)
     add, val = o.offdiagonals[i]
     return add, -val * o.dτ
 end
@@ -373,7 +377,7 @@ function advance!(report, state::QMCState, replica::ReplicaState)
 
     ### PROPAGATOR ACTS
     ### FROM HERE
-    transition_op = FCIQMCTransitionOperator(hamiltonian, shift, dτ)
+    transition_op = FirstOrderTransitionOperator(hamiltonian, shift, dτ)
 
     # Step
     step_stat_names, step_stat_values, wm, pv = apply_operator!(wm, pv, v, transition_op)
