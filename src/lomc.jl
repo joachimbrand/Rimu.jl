@@ -30,7 +30,7 @@ struct FirstOrderOffdiagonals{
     offdiagonals::O
 end
 function Hamiltonians.offdiagonals(t::FirstOrderTransitionOperator, add)
-    return FCIQMCOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
+    return FirstOrderOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
 end
 Base.size(o::FirstOrderOffdiagonals) = size(o.offdiagonals)
 

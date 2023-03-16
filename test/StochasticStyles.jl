@@ -92,7 +92,7 @@ end
         # clones
         for _ in 1:20
             dv = DVec(add => 0)
-            T = Rimu.FCIQMCTransitionOperator(H, 10, 0.5)
+            T = Rimu.FirstOrderTransitionOperator(H, 10, 0.5)
             st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1, 0)
             @test st[1] == 4 || st[1] == 5
             @test dv[BoseFS((2,0,1))] == st[1] + 1 # original value + clones
@@ -100,7 +100,7 @@ end
         # deaths
         for _ in 1:20
             dv = DVec(BoseFS((2,0,1)) => 0)
-            T = Rimu.FCIQMCTransitionOperator(H, -1.0, 0.125)
+            T = Rimu.FirstOrderTransitionOperator(H, -1.0, 0.125)
             st = diagonal_step!(dv, T, BoseFS((2,0,1)), 2, 0)
             @test st[2] == 0 || st[2] == 1
             @test dv[BoseFS((2,0,1))] == 2 - st[2] # original value - deaths
@@ -108,7 +108,7 @@ end
         # zombies
         for _ in 1:20
             dv = DVec(BoseFS((2,0,1)) => 0)
-            T = Rimu.FCIQMCTransitionOperator(H, -10, 0.5)
+            T = Rimu.FirstOrderTransitionOperator(H, -10, 0.5)
             st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1, 0)
             @test st[2] == 1
             @test st[3] == 4 || st[3] == 5
@@ -118,24 +118,24 @@ end
     @testset "Exact" begin
         # nothing happens - one annihilation
         dv = DVec(add => -1.0)
-        T = Rimu.FCIQMCTransitionOperator(H, 0, 1)
+        T = Rimu.FirstOrderTransitionOperator(H, 0, 1)
         @test diagonal_step!(dv, T, add, 1.0, 0) == (0, 0, 0)
         @test dv[add] == 0
         # clones
         dv = DVec(add => 0.0)
-        T = Rimu.FCIQMCTransitionOperator(H, 10, 1)
+        T = Rimu.FirstOrderTransitionOperator(H, 10, 1)
         st = diagonal_step!(dv, T, BoseFS((2,0,1)), 2.5, 0)
         @test st[1] == 22.5
         @test dv[BoseFS((2,0,1))] == 25.0
         # deaths
         dv = DVec(add => 0.0)
-        T = Rimu.FCIQMCTransitionOperator(H, -0.5, 0.5)
+        T = Rimu.FirstOrderTransitionOperator(H, -0.5, 0.5)
         st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1.0, 0)
         @test st[2] == 0.75
         @test dv[BoseFS((2,0,1))] == 0.25
         # zombies
         dv = DVec(add => 0.0)
-        T = Rimu.FCIQMCTransitionOperator(H, -10, 0.5)
+        T = Rimu.FirstOrderTransitionOperator(H, -10, 0.5)
         st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1.0, 0)
         @test st[2] == 1
         @test st[3] == 4.5
@@ -152,21 +152,21 @@ end
 
         # clones - above projection threshold
         dv = DVec(add => 0.0)
-        T = Rimu.FCIQMCTransitionOperator(H, 10, 0.5)
+        T = Rimu.FirstOrderTransitionOperator(H, 10, 0.5)
         st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1, 1)
         @test st[1] == 4.5
         @test dv[BoseFS((2,0,1))] == 5.5
         # deaths - below threshold
         for _ in 1:20
             dv = DVec(add => 0.0)
-            T = Rimu.FCIQMCTransitionOperator(H, -0.5, 0.5)
+            T = Rimu.FirstOrderTransitionOperator(H, -0.5, 0.5)
             st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1.0, 1)
             @test st[2] == 0.0 || st[2] == 1.0
             @test dv[BoseFS((2,0,1))] == 1 - st[2]
         end
         # zombies
         dv = DVec(add => 0.0)
-        T = Rimu.FCIQMCTransitionOperator(H, -10, 0.5)
+        T = Rimu.FirstOrderTransitionOperator(H, -10, 0.5)
         st = diagonal_step!(dv, T, BoseFS((2,0,1)), 1, 1)
         @test st[2] == 1
         @test st[3] == 4.5
@@ -178,8 +178,8 @@ end
     dss_r = DynamicSemistochastic(WithReplacement(), 1.0, Inf)
     dss_w = DynamicSemistochastic(WithoutReplacement(), 1.0, Inf)
     dss_b = DynamicSemistochastic(Bernoulli(), 1.0, Inf)
-    dss_ws = DynamicSemistochastic(WithoutReplacement(0, 1.1), 1.0, Inf)
-    dss_bs = DynamicSemistochastic(Bernoulli(0, 1.5), 1.0, Inf)
+    dss_ws = DynamicSemistochastic(WithoutReplacement(0), 1.0, Inf)
+    dss_bs = DynamicSemistochastic(Bernoulli(0), 1.0, Inf)
     dss_s = DynamicSemistochastic(SingleSpawn(), 1.0, Inf)
 
     # The expected value for all spawning strategies should be the same. This tests makes
@@ -203,13 +203,13 @@ end
             val = rand() * num_offdiagonals(H, add) * 1.2
             spawn!(Exact(), exact, H, add, val)
             spawn!(WithReplacement(), vanilla, H, add, val)
-            spawn!(WithReplacement(0.0, 2.0), strong, H, add, val)
+            spawn!(WithReplacement(0.0), strong, H, add, val, 2.0)
             spawn!(SingleSpawn(), single, H, add, val)
             spawn!(dss_r, semi_rep, H, add, val)
             spawn!(dss_w, semi_wo, H, add, val)
             spawn!(dss_b, semi_bern, H, add, val)
-            spawn!(dss_ws, semi_wo_strong, H, add, val)
-            spawn!(dss_bs, semi_bern_strong, H, add, val)
+            spawn!(dss_ws, semi_wo_strong, H, add, val, 1.1)
+            spawn!(dss_bs, semi_bern_strong, H, add, val, 1.5)
             spawn!(dss_s, semi_single, H, add, val)
         end
 

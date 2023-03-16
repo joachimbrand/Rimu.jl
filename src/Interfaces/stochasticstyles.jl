@@ -113,7 +113,7 @@ length. These will be reported as columns in the `DataFrame` returned by [`lomc!
 step_stats(v) = step_stats(StochasticStyle(v))
 
 """
-    apply_column!(v, H, i, x) -> stats::Tuple
+    apply_column!(v, H, i, x, boost=1) -> stats::Tuple
 
 Apply the `i`-th column of the operator `H` according to the [`StochasticStyle`](@ref) of
 `v`:
@@ -124,7 +124,9 @@ v \\gets v + \\hat{H}_{:,i} x.
 
 This is used to perform the spawning step in FCIQMC and to implement operator-vector
 multiplications. Mutates `v` and reports spawning statistics.
+
+The `boost` argument multiplicatively increases the number of spawns to be performed.
 """
-function apply_column!(v, ham, add, val)
-    return apply_column!(StochasticStyle(v), v, ham, add, val)
+function apply_column!(v, ham, add, val, boost=1)
+    return apply_column!(StochasticStyle(v), v, ham, add, val, boost)
 end

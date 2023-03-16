@@ -18,9 +18,9 @@ function step_stats(::IsStochasticInteger{T}) where {T}
         MultiScalar(0, z, z, z, z),
     )
 end
-function apply_column!(::IsStochasticInteger, w, op, add, val::Real)
+function apply_column!(::IsStochasticInteger, w, op, add, val::Real, boost=1)
     clones, deaths, zombies = diagonal_step!(w, op, add, val)
-    attempts, spawns = spawn!(WithReplacement(), w, op, add, val)
+    attempts, spawns = spawn!(WithReplacement(), w, op, add, val, boost)
     return (attempts, spawns, deaths, clones, zombies)
 end
 
@@ -47,14 +47,14 @@ function step_stats(::IsStochastic2Pop{T}) where {T}
         MultiScalar(z, z, z, z)
     )
 end
-function apply_column!(::IsStochastic2Pop, w, op, add, val)
+function apply_column!(::IsStochastic2Pop, w, op, add, val, boost=1)
     offdiags = offdiagonals(op, add)
     spawns = deaths = clones = zombies = 0 + 0im
     # off-diagonal real.
-    s, a = spawn!(WithReplacement(), w, offdiags, add, real(val))
+    s, a = spawn!(WithReplacement(), w, offdiags, add, real(val), boost)
     spawns += s
     # off-diagonal complex.
-    s, a = spawn!(WithReplacement(), w, offdiags, add, im * imag(val))
+    s, a = spawn!(WithReplacement(), w, offdiags, add, im * imag(val), boost)
     spawns += s
 
     clones, deaths, zombies = diagonal_step!(w, op, add, val)
@@ -92,11 +92,11 @@ end
 function step_stats(::IsDeterministic)
     return (:exact_steps,), MultiScalar(0,)
 end
-function apply_column!(::IsDeterministic, w, op::AbstractMatrix, add, val)
+function apply_column!(::IsDeterministic, w, op::AbstractMatrix, add, val, boost=1)
     w .+= op[:, add] .* val
     return (1,)
 end
-function apply_column!(::IsDeterministic, w, op, add, val)
+function apply_column!(::IsDeterministic, w, op, add, val, boost=1)
     diagonal_step!(w, op, add, val)
     spawn!(Exact(), w, op, add, val)
     return (1,)
@@ -121,9 +121,9 @@ IsStochasticWithThreshold{T}(t=1.0) where {T} = IsStochasticWithThreshold{T}(T(t
 function step_stats(::IsStochasticWithThreshold{T}) where {T}
     return ((:spawn_attempts, :spawns), MultiScalar(0, zero(T)))
 end
-function apply_column!(s::IsStochasticWithThreshold, w, op, add, val)
+function apply_column!(s::IsStochasticWithThreshold, w, op, add, val, boost=1)
     diagonal_step!(w, op, add, val, s.threshold)
-    attempts, spawns = spawn!(WithReplacement(s.threshold), w, op, add, val)
+    attempts, spawns = spawn!(WithReplacement(s.threshold), w, op, add, val, boost)
     return (attempts, spawns)
 end
 
@@ -205,9 +205,9 @@ function step_stats(::IsDynamicSemistochastic{T}) where {T}
         MultiScalar(0, 0, 0, z),
     )
 end
-function apply_column!(s::IsDynamicSemistochastic, w, op, add, val)
+function apply_column!(s::IsDynamicSemistochastic, w, op, add, val, boost=1)
     diagonal_step!(w, op, add, val, s.proj_threshold)
-    exact, inexact, attempts, spawns = spawn!(s.spawning, w, op, add, val)
+    exact, inexact, attempts, spawns = spawn!(s.spawning, w, op, add, val, boost)
     return (exact, inexact, attempts, spawns)
 end
 

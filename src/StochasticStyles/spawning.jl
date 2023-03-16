@@ -139,18 +139,18 @@ In order to implement a new `SpawningStrategy`, define a method for [`spawn!`](@
 abstract type SpawningStrategy end
 
 """
-    spawn!(s::SpawningStrategy, w, op::AbstractHamiltonian, add, val)
-    spawn!(s::SpawningStrategy, w, offdiags::AbstractOffdiagonals, add, val)
+    spawn!(s::SpawningStrategy, w, op::AbstractHamiltonian, add, val, boost)
+    spawn!(s::SpawningStrategy, w, offdiags::AbstractOffdiagonals, add, val, boost)
 
-Perform stochastic spawns to `w` from address `add` with `val` walkers. `val` controls
-the number of spawns performed.
+Perform stochastic spawns to `w` from address `add` with `val` walkers. `val * boost`
+controls the number of spawns performed.
 
 This function should be overloaded in the second form, with `offdiags` as an argument.
 
 See [`SpawningStrategy`](@ref).
 """
-@inline function spawn!(s::SpawningStrategy, w, op, add, val)
-    return spawn!(s, w, offdiagonals(op, add), add, val)
+@inline function spawn!(s::SpawningStrategy, w, op, add, val, boost=1)
+    return spawn!(s, w, offdiagonals(op, add), add, val, boost)
 end
 
 """
@@ -167,10 +167,11 @@ number of spawns.
 """
 struct Exact{T} <: SpawningStrategy
     threshold::T
-end
-Exact() = Exact(0.0)
 
-@inline function spawn!(s::Exact, w, offdiags::AbstractVector, add, val)
+    Exact(threshold::T=0.0) where {T} = new{T}(threshold)
+end
+
+@inline function spawn!(s::Exact, w, offdiags::AbstractVector, add, val, boost=1)
     T = valtype(w)
     spawns = sum(offdiags) do (new_add, mat_elem)
         abs(projected_deposit!(
@@ -194,11 +195,11 @@ and the number of spawns.
 """
 struct SingleSpawn{T} <: SpawningStrategy
     threshold::T
-    strength::T
-end
-SingleSpawn(threshold=0.0) = SingleSpawn(threshold, zero(threshold))
 
-@inline function spawn!(s::SingleSpawn, w, offdiags::AbstractVector, add, val)
+    SingleSpawn(threshold::T=0.0) where {T} = new{T}(threshold)
+end
+
+@inline function spawn!(s::SingleSpawn, w, offdiags::AbstractVector, add, val, boost=1)
     if iszero(val)
         return (1, zero(valtype(w)))
     else
@@ -210,7 +211,7 @@ SingleSpawn(threshold=0.0) = SingleSpawn(threshold, zero(threshold))
 end
 
 """
-    WithReplacement(threshold=0.0, strength=1.0) <: SpawningStrategy
+    WithReplacement(threshold=0.0) <: SpawningStrategy
 
 [`SpawningStrategy`](@ref) where spawn targets are sampled with replacement. This is the
 default spawning strategy for most of the [`StochasticStyle`](@ref)s.
@@ -218,24 +219,19 @@ default spawning strategy for most of the [`StochasticStyle`](@ref)s.
 ## Parameters
 
 * `threshold` sets the projection threshold. If set to zero, no projection is performed.
-* `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
-  spawns will be performed.
 
 [`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
 number of spawns.
 """
 struct WithReplacement{T} <: SpawningStrategy
     threshold::T
-    strength::T
-end
-function WithReplacement(threshold=0, strength=one(threshold))
-    t, s = promote(threshold, strength)
-    return WithReplacement(t, s)
+
+    WithReplacement(threshold::T=0) where {T} = new{T}(threshold)
 end
 
-@inline function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val)
+@inline function spawn!(s::WithReplacement, w, offdiags::AbstractVector, add, val, boost=1)
     spawns = zero(valtype(w))
-    num_attempts = max(floor(Int, abs(val) * s.strength), 1)
+    num_attempts = max(floor(Int, abs(val) * boost), 1)
     magnitude = val / num_attempts
 
     for _ in 1:num_attempts
@@ -247,7 +243,7 @@ end
 end
 
 """
-    WithoutReplacement(threshold=0.0, strength=1.0) <: SpawningStrategy
+    WithoutReplacement(threshold=0.0) <: SpawningStrategy
 
 [`SpawningStrategy`](@ref) where spawn targets are sampled without replacement. This
 strategy needs to allocate a temporary array during spawning, which makes it significantly
@@ -260,24 +256,19 @@ used as a substrategy of [`DynamicSemistochastic`](@ref).
 ## Parameters
 
 * `threshold` sets the projection threshold. If set to zero, no projection is performed.
-* `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
-  spawns will be performed.
 
 [`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
 number of spawns.
 """
 struct WithoutReplacement{T} <: SpawningStrategy
     threshold::T
-    strength::T
-end
-function WithoutReplacement(threshold=0, strength=one(threshold))
-    t, s = promote(threshold, strength)
-    return WithoutReplacement(t, s)
+
+    WithoutReplacement(threshold::T=0.0) where {T} = new{T}(threshold)
 end
 
-@inline function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val)
+@inline function spawn!(s::WithoutReplacement, w, offdiags::AbstractVector, add, val, boost=1)
     spawns = zero(valtype(w))
-    num_attempts = max(floor(Int, abs(val) * s.strength), 1)
+    num_attempts = max(floor(Int, abs(val) * boost), 1)
 
     if abs(num_attempts) ≤ 1
         spawn!(SingleSpawn(s.threshold), w, offdiags, add, val)
@@ -297,7 +288,7 @@ end
 end
 
 """
-    Bernoulli(threshold=0.0, strength=1.0) <: SpawningStrategy
+    Bernoulli(threshold=0.0) <: SpawningStrategy
 
 Perform Bernoulli sampling. A spawn is attempted on each offdiagonal element with a
 probability that results in an expected number of spawns equal to the number of walkers on
@@ -311,27 +302,21 @@ used as a substrategy of [`DynamicSemistochastic`](@ref).
 ## Parameters
 
 * `threshold` sets the projection threshold.
-* `strength` sets the number of spawns to perform, e.g. if `val=5` and `strength=2`, 10
-  spawns will be performed on average.
 
 [`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
 number of spawns.
 """
 struct Bernoulli{T} <: SpawningStrategy
     threshold::T
-    strength::T
+
+    Bernoulli(threshold::T=0.0) where {T} = new{T}(threshold)
 end
 
-function Bernoulli(threshold=0, strength=one(threshold))
-    t, s = promote(threshold, strength)
-    return Bernoulli{typeof(t)}(t, s)
-end
-
-@inline function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val)
+@inline function spawn!(s::Bernoulli, w, offdiags::AbstractVector, add, val, boost=1)
     spawns = zero(valtype(w))
     # General case.
     num_offdiags = length(offdiags)
-    prob = abs(val) * s.strength / num_offdiags
+    prob = abs(val) * boost / num_offdiags
     num_attempts = 0
     for i in 1:num_offdiags
         if rand() > prob
@@ -359,14 +344,13 @@ described below.
 
 * `rel_threshold = 1.0`: When deciding on whether to perform an exact spawn, this value is
   multiplied to the number of walkers. Should be set to 1 or more for best performance. This
-  threshold is affected by `strat.strength`.
+  threshold is affected by the `boost` argument to [`spawn!`](@ref).
 
 * `abs_threshold = Inf`: When deciding on whether to perform an exact spawn,
-  `min(abs_threshold, num_offdiagonals)` is used. This threshold is affected by
-  `strat.strength`.
+  `min(abs_threshold, num_offdiagonals)` is used. This threshold is not affected by
+  the `boost` argument to [`spawn!`](@ref).
 
-See e.g. [`WithoutReplacement`](@ref) for a description of the `strat.threshold` and
-`strat.strength` parameters.
+See e.g. [`WithoutReplacement`](@ref) for a description of the `strat.threshold` parameter.
 
 [`spawn!`](@ref) with this strategy returns the numbers of exact and inexact spawns, the
 number of spawn attempts to and the number of spawns.
@@ -377,20 +361,18 @@ Base.@kwdef struct DynamicSemistochastic{T,S<:SpawningStrategy} <: SpawningStrat
     abs_threshold::T = Inf
 end
 
-@inline function spawn!(s::DynamicSemistochastic, w, offdiags::AbstractVector, add, val)
-    # assumes that s.strat.strength and s.strat.threshold are defined
-    # special-case substrategies that don't fit the pattern!
+@inline function spawn!(s::DynamicSemistochastic, w, offdiags::AbstractVector, add, val, boost)
+    # assumes that s.strat.threshold is defined
+    # special-case substrategies that don't fit the pattern?
     thresh = min(s.abs_threshold, length(offdiags))
-    amount = s.strat.strength * abs(val) * s.rel_threshold
+    amount = boost * abs(val) * s.rel_threshold
     if amount ≥ thresh
         # Exact multiplication.
-        attempts, spawns = spawn!(
-            Exact(s.strat.threshold), w, offdiags, add, val
-        )
+        attempts, spawns = spawn!(Exact(s.strat.threshold), w, offdiags, add, val)
         return (1, 0, attempts, spawns)
     else
         # Regular spawns.
-        attempts, spawns = spawn!(s.strat, w, offdiags, add, val)
+        attempts, spawns = spawn!(s.strat, w, offdiags, add, val, boost)
         return (0, 1, attempts, spawns)
     end
 end
