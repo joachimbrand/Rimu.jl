@@ -155,9 +155,9 @@ configurations.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 The default estimates for `nnzs` is `dimension(ham)`.
 
-Setting a custom `col_hint` may improve performance for cases where `num_offdiagonals` is 
-not a good estimate of the actual number of nonzero offdiagonal elements in each column. 
-Defaults to `num_offdiagonals(ham, address)`.
+Setting a custom value `col_hint` for the estimated number of nonzero 
+off-diagonal matrix elements in each matrix column may improve performance.
+The default value for `col_hint` is `num_offdiagonals(ham, address)`.
 
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
