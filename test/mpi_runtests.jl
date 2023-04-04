@@ -76,7 +76,7 @@ end
             end
             @testset "Single component $type" begin
                 for i in 1:N_REPEATS
-                    add = BoseFS((0,0,10,0,0))
+                    add = BoseFS((0, 0, 10, 0, 0))
                     H = HubbardMom1D(add)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
@@ -103,7 +103,7 @@ end
                         @test sum(values(v)) ≈ sum(values(dv))
                         f((k, v)) = (k == add) + v > 0
                         @test mapreduce(f, |, pairs(v); init=true) ==
-                            mapreduce(f, |, pairs(dv); init=true)
+                              mapreduce(f, |, pairs(dv); init=true)
                     end
 
                     @testset "Operations" begin
@@ -132,7 +132,7 @@ end
             end
             @testset "Two-component $type" begin
                 for i in 1:N_REPEATS
-                    add = BoseFS2C((0,0,10,0,0), (0,0,2,0,0))
+                    add = BoseFS2C((0, 0, 10, 0, 0), (0, 0, 2, 0, 0))
                     H = BoseHubbardMom1D2C(add)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
@@ -355,6 +355,7 @@ end
                 @test all(0 .≤ df.loneliness .≤ 1)
             end
             @testset "Initiator with $setup" begin
+<<<<<<< HEAD
                 H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)
                 add = starting_address(H)
 
@@ -363,6 +364,14 @@ end
                 else
                     dv = MPIData(InitiatorDVec(add => 3); setup, kwargs...)
                 end
+=======
+                H = HubbardMom1D(BoseFS((0, 0, 0, 7, 0, 0, 0)); u=6.0)
+                dv = MPIData(
+                    InitiatorDVec(starting_address(H) => 3);
+                    setup,
+                    kwargs...
+                )
+>>>>>>> develop
                 s_strat = DoubleLogUpdate(targetwalkers=100)
                 df = lomc!(H, dv; laststep=5000, s_strat).df
 
@@ -452,7 +461,9 @@ end
 
     # Make sure all ranks came this far.
     @testset "Finish" begin
-        @test MPI.Allreduce(true, &, mpi_comm())
+        # MPI.jl currently doesn't properly map logical operators (MPI v0.20.8)
+        @test MPI.Allreduce(true, MPI.LAND, mpi_comm())
+        # @test MPI.Allreduce(true, &, mpi_comm())
     end
 end
 

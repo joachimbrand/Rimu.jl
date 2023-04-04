@@ -145,7 +145,7 @@ momentum
 
 """
     sm, basis = build_sparse_matrix_from_LO(
-        ham, address=starting_address(ham); cutoff, filter=nothing, nnzs, sort=false, kwargs...
+        ham, address=starting_address(ham); cutoff, filter=nothing, nnzs, col_hint, sort=false, kwargs...
     )
 
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
@@ -154,6 +154,10 @@ configurations.
 
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 The default estimates for `nnzs` is `dimension(ham)`.
+
+Setting a custom value `col_hint` for the estimated number of nonzero 
+off-diagonal matrix elements in each matrix column may improve performance.
+The default value for `col_hint` is `num_offdiagonals(ham, address)`.
 
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
@@ -169,7 +173,7 @@ function build_sparse_matrix_from_LO(
     ham, address=starting_address(ham);
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    nnzs=dimension(ham),
+    nnzs=dimension(ham), col_hint=num_offdiagonals(ham, address),
     sort=false, kwargs...,
 )
     if !isnothing(filter) && !filter(address)
@@ -182,7 +186,7 @@ function build_sparse_matrix_from_LO(
     adds = [address]          # Queue of addresses. Also returned as the basis.
     dict = Dict(address => 1) # Mapping from addresses to indices
     col = Dict{Int,T}()       # Temporary column storage
-    sizehint!(col, num_offdiagonals(ham, address))
+    sizehint!(col, col_hint)
 
     is = Int[] # row indices
     js = Int[] # column indice
@@ -309,6 +313,10 @@ overflow. Set `sizelim = Inf` in order to disable this behaviour.
 
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 The default estimates for `nnzs` is `dimension(ham)`.
+
+Setting a custom value `col_hint` for the estimated number of nonzero 
+off-diagonal matrix elements in each matrix column may improve performance.
+The default value for `col_hint` is `num_offdiagonals(ham, address)`.
 
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are

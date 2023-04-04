@@ -92,7 +92,26 @@ end
 
 function Base.mapreduce(f, op, it::MPIDataIterator; kwargs...)
     res = mapreduce(f, op, it.iter; kwargs...)
-    return MPI.Allreduce(res, op, it.data.comm)
+    T = typeof(res)
+    if T <: Bool # MPI.jl does not support Bool reductions
+        res = convert(UInt8, res)
+    end
+    return T(MPI.Allreduce(res, op, it.data.comm))
+end
+
+# Special case for `sum`, which uses a custom (type-widening) reduction operator `add_sum`.
+# Replacing it by `+` is necessary for non-Intel architectures due to a limitation of
+# MPI.jl. On Intel processors, it might be more perfomant.
+# see https://github.com/JuliaParallel/MPI.jl/issues/404
+function Base.mapreduce(f, op::typeof(Base.add_sum), it::MPIDataIterator; kwargs...)
+    res = mapreduce(f, op, it.iter; kwargs...)
+    return MPI.Allreduce(res, +, it.data.comm)
+end
+
+# Special case for `prod`, which uses a custom (type-widening) reduction operator `mul_prod`
+function Base.mapreduce(f, op::typeof(Base.mul_prod), it::MPIDataIterator; kwargs...)
+    res = mapreduce(f, op, it.iter; kwargs...)
+    return MPI.Allreduce(res, *, it.data.comm)
 end
 
 Base.IteratorSize(::MPIDataIterator) = Base.SizeUnknown()
