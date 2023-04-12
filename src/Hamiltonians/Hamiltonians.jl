@@ -43,6 +43,7 @@ module Hamiltonians
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 using FFTW
 using Setfield
+using SpecialFunctions, HypergeometricFunctions, Combinatorics, TupleTools
 
 using ..BitStringAddresses
 
@@ -74,6 +75,9 @@ export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 
+export HOCartesian, HOCartesianSeparable, AMzProjectionHO
+export get_all_blocks, fock_to_cart, occupied_modes_list
+
 include("abstract.jl")
 include("offdiagonals.jl")
 include("geometry.jl")
@@ -102,5 +106,11 @@ include("Transcorrelated1D.jl")
 include("correlation_functions.jl")
 include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
+
+include("HOCartesian.jl")
+include("HOCartesianSeparable.jl")
+include("vertices.jl")
+include("ho-cart-tools.jl")
+include("angular_momentum.jl")
 
 end
