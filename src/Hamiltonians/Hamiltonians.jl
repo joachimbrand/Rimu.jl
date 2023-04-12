@@ -43,7 +43,7 @@ module Hamiltonians
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 using FFTW
 using Setfield
-using SpecialFunctions, HypergeometricFunctions, Combinatorics, TupleTools
+using SpecialFunctions, HypergeometricFunctions, Combinatorics, TupleTools, DataFrames
 
 using ..BitStringAddresses
 

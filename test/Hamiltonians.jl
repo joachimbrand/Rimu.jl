@@ -166,8 +166,77 @@ end
         TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
         Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
         momentum(HubbardMom1D(BoseFS((0,5,0)))),
+
+        # HOCartesian(BoseFS((2,0,0,0))),   # offdiagonals not consistent with interface
+        HOCartesianSeparable(BoseFS((2,0,0,0))),
     )
         test_hamiltonian_interface(H)
+    end
+end
+
+@testset "Harmonic oscillator in Cartesian basis" begin
+    @testset "HOCartesian" begin
+        # argument checks
+        # @test_logs (:warn,) HOCartesian(BoseFS(12, 1=>1); S = (3,4))
+        @test_throws ArgumentError HOCartesian(BoseFS(4, 1=>1); S = (5,))
+
+        N = 2
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesian(addr; S)
+        
+        block_df = get_all_blocks(H, max_energy = N*D/2 + M)
+        @test length(block_df[:,:block_E0]) == 9
+        @test block_df[:,:block_E0] == float([2,3,4,5,6,3,4,5,6])
+        @test block_df[:,:block_size] == [1,1,4,5,11,1,2,5,8]
+
+        # interaction matrix elements
+        @test count(H.vtable .== 0) == 312
+        @test sum(H.vtable) ≈ 11.220010295489221
+    end
+
+    @testset "HOCartesianSeparable" begin
+        # argument checks
+        # @test_logs (:warn,) HOCartesianSeparable(BoseFS(12, 1=>1); S = (3,4))
+        @test_throws ArgumentError HOCartesianSeparable(BoseFS(4, 1=>1); S = (5,))
+
+        N = 2
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesianSeparable(addr; S)
+
+        block_df = get_all_blocks(H, max_energy = N*D/2 + M)
+        @test length(block_df[:,:block_E0]) == 15
+        @test block_df[:,:block_E0] == float([2,3,4,5,6,3,4,5,6,4,5,6,5,6,6])
+        @test block_df[:,:block_size] == [1,1,2,2,3,1,2,3,4,2,3,5,2,4,3]
+
+        # interaction matrix elements
+        @test count(H.vtable .== 0) == 70
+        @test sum(H.vtable) ≈ 3.3630246382916664
+    end
+
+    @testset "find blocks" begin
+        N = 2
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesian(addr; S)
+        block_df_vert = get_all_blocks(H, max_energy = N*D/2 + M, method = :vertices)
+        block_df_comb = get_all_blocks(H, max_energy = N*D/2 + M, method = :comb)
+
+        # different methods find the same blocks but with different key addresses
+        @test block_df_vert[!,[:block_E0,:block_size]] == block_df_comb[!,[:block_E0,:block_size]]
+
+    end
+
+    @testset "Angular momentum" begin
+        S = (4,4)
+        Lz = AMzProjectionHO(S)
     end
 end
 
@@ -1246,3 +1315,4 @@ end
     @test LOStructure(Stoquastic(tc_ham)) == AdjointUnknown()
     @test LOStructure(Stoquastic(G2RealCorrelator(2))) == IsDiagonal()
 end
+
