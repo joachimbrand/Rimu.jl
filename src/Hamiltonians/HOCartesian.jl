@@ -377,6 +377,7 @@ function Base.iterate(off::HOCartOffdiagonals, iter_state = (1,1,1))
     aspect = off.ham.aspect
     addr = off.addr
     pairs = off.pairs
+    length(off.pairs) == 0 && return nothing
     pair_index, modes, end_of_loop = loop_over_particles(S, aspect, pairs, iter_state)
 
     # end of iteration
