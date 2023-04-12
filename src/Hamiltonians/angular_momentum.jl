@@ -1,8 +1,9 @@
 """
     AMzProjectionHO(S, z_dim = 3) <: AbstractHamiltonian
 
-Implement angular momentum operators for application to Cartesian harmonic oscillator basis.
-Projection onto `z`-axis:
+Implement angular momentum operators for application to Cartesian harmonic oscillator basis,
+see [`HOCartesian`](@ref) and [`HOCartesianSeparable`](@ref).
+Projection of angular momentum onto `z`-axis:
     ``\\hat{L}_z = i \\hbar \\left( a_x a_y^\\dag - a_y a_x^\\dag \\right)``
 
 Returns ``\\hat{L}_z/ i \\hbar``. Argument `S` is a tuple defining the range of Cartesian 

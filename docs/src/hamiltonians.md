@@ -66,6 +66,8 @@ HubbardMom1DEP
 ```@docs
 MatrixHamiltonian
 Transcorrelated1D
+HOCartesian
+HOCartesianSeparable
 ```
 
 ### Convenience functions
@@ -98,6 +100,7 @@ G2MomCorrelator
 G2RealCorrelator
 DensityMatrixDiagonal
 Momentum
+AMzProjection
 ```
 
 ## Hamiltonians interface
@@ -149,6 +152,15 @@ LadderBoundaries
 num_neighbours
 num_dimensions
 neighbour_site
+```
+
+## Harmonic Oscillator
+Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesian`](@ref) 
+and [`HOCartesianSeparable`](@ref).
+```@docs
+get_all_blocks
+fock_to_cart
+occupied_modes_list
 ```
 
 ## Index
