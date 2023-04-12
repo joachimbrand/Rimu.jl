@@ -309,13 +309,12 @@ struct HOCartOffdiagonals{
     addr::A
     pairs::P
     length::Int
-    debug::Bool
 end
 
-function offdiagonals(h::HOCartesian, addr::BoseFS; debug = false)
+function offdiagonals(h::HOCartesian, addr::BoseFS)
     num = num_offdiagonals(h, addr)
     pairs = OccupiedPairsMap(addr)
-    return HOCartOffdiagonals(h, addr, pairs, num, debug)
+    return HOCartOffdiagonals(h, addr, pairs, num)
 end
 
 # This is the dumb way to loop through valid states.
@@ -402,18 +401,6 @@ function Base.iterate(off::HOCartOffdiagonals, iter_state = (1,1,1))
         # account for j ≤ i and l ≤ k 
         val *= (1 + (i ≠ j)) * (1 + (k ≠ l)) * off.ham.u
     end
-
-    # off.debug && println((occupied_modes_list(new_add), val, (n_i, n_j), modes, iter_state, new_iter_state))
-    off.debug && println((; 
-    pi = pair_index,
-    pair = (p_i.mode, p_j.mode),
-    modes, 
-    oml = occupied_modes_list(new_add), 
-    cart = fock_to_cart(new_add, S), 
-    it_1 = iter_state, 
-    it_2 = new_iter_state,
-    v = val
-    ))
 
     return (new_add, val), new_iter_state
 end
