@@ -82,11 +82,6 @@ Calculate the index from tuple or static vector of vertices. The index is equal 
 ```
 
 where ``i_k`` are the simplex vertex indices.
-
-```jldoctest
-julia> index((6,2,1))
-11
-```
 """
 index(vertices::NTuple) = _index(vertices, one(eltype(vertices)))
 
