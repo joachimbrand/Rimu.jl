@@ -287,6 +287,17 @@ end
         @test isempty(setdiff(Lz_vals, -2.0:2.0))
         @test isempty(setdiff(Lz_vals, Lx_vals))
     end
+
+    @testset "HO utilities" begin
+        S = (4,4)
+        @test_throws ArgumentError fock_to_cart(BoseFS(1, 1 => 1), S)
+        modes = (5, 5, 16)
+        addr = BoseFS(prod(S), modes .=> 1)
+        @test fock_to_cart(addr, S) == ((0, 1), (0, 1),(3, 3))
+        @test fock_to_cart(addr, S; zero_index=false) == ((1, 2), (1, 2), (4, 4))
+
+        @test occupied_modes_list(addr) == modes
+    end
 end
 
 @testset "Hubbard models with [t|u] = 0" begin

@@ -166,16 +166,15 @@ end
 
 """
     fock_to_cart(addr, S; zero_index = true)
-    fock_to_cart(basis, S; zero_index = true)
 
-Convert a Fock state address `addr` or `Vector` of addresses `basis` to Cartesian 
+Convert a Fock state address `addr` to Cartesian 
 harmonic oscillator basis indices ``n_x,n_y,\\ldots``. These indices are bounded 
 by `S` which is a tuple of the maximum number of states in each dimension. By default
 the groundstate in each dimension is indexed by `0`, but this can be changed by setting 
 `zero_index = false`.
 """
 function fock_to_cart(addr::SingleComponentFockAddress, S; zero_index = true)
-    prod(S) == num_modes(addr) || throw("Specified cartesian states are incompatible with address")
+    prod(S) == num_modes(addr) || throw(ArgumentError("Specified cartesian states are incompatible with address"))
     states = CartesianIndices(S)
 
     cart = vcat(map(
@@ -184,19 +183,15 @@ function fock_to_cart(addr::SingleComponentFockAddress, S; zero_index = true)
 
     return Tuple(cart)
 end
-fock_to_cart(basis::Vector{<:SingleComponentFockAddress}, S; zero_index = true) = map(addr -> fock_to_cart(addr, S), basis; zero_index)
 
 """
-    occupied_modes_list(addr)    
-    occupied_modes_list(basis)
+    occupied_modes_list(addr)
 
-Output a `Tuple` of all occupied modes in `addr`. Can be applied to a vector 
-of addresses. Multiply occupied modes are listed as duplicates so the length 
-of the output is always the number of particles. This is a compact form of 
-[`onr`](@ref).
+Output a `Tuple` of all occupied modes in `addr`. Multiply occupied modes 
+are listed as duplicates so the length of the output is always the number 
+of particles. This is a compact form of [`onr`](@ref).
 """
 @inline function occupied_modes_list(a::SingleComponentFockAddress{N}) where {N}
     oml = [p.mode for p in OccupiedModeMap(a) for _ in 1:p.occnum]
     return Tuple(oml)
 end
-occupied_modes_list(basis::Vector{<:SingleComponentFockAddress}) = map(addr -> occupied_modes_list(addr), basis)
