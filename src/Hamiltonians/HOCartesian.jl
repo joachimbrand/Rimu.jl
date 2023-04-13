@@ -148,27 +148,28 @@ The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and a
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 Matrix elements ``V_{ijkl}`` are for a contact interaction calculated in this basis using 
 first-order perturbation theory. All states with the same noninteracting energy are connected
-by this interactions.
+by this interaction.
 
 # Arguments
 
 * `addr`: the starting address, defines number of particles and total number of modes.
 * `S`: Tuple of the number of levels in each dimension, including the groundstate. The 
-allowed couplings between states is defined by the aspect ratio of `S .- 1`. Defaults 
-to a 1D spectrum with number of levels matching modes of `addr`. Will be sorted to make the 
-first dimension the largest.
+    allowed couplings between states is defined by the aspect ratio of `S .- 1`. Defaults 
+    to a 1D spectrum with number of levels matching modes of `addr`. Will be sorted to make 
+    the first dimension the largest.
 * `η`: Define a custom aspect ratio for the trapping potential strengths, instead of deriving
-from `S .- 1`. This will only affect the single particle energy scale and not the interactions. 
-The values are always scaled relative to the first dimension, which sets the energy scale of 
-the system, ``\\hbar\\omega_x``.
+    from `S .- 1`. This will only affect the single particle energy scale and not the 
+    interactions. The values are always scaled relative to the first dimension, which sets 
+    the energy scale of the system, ``\\hbar\\omega_x``.
 * `g`: the (isotropic) interparticle interaction parameter. The value of `g` is assumed 
-to be in trap units.
+    to be in trap units.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
-ignored. Useful if only energy shifts due to interactions are required.
+    ignored. Useful if only energy shifts due to interactions are required.
 
 See also [`HOCartesianSeparable`](@ref).
 
-# Warning: `num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building 
+# Warning: 
+`num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building 
 a matrix (use option `col_hint` with [`BasisSetRep`](@ref)) or using QMC methods.
 """
 struct HOCartesian{

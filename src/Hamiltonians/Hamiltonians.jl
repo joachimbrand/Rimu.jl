@@ -21,6 +21,8 @@ Momentum space Hubbard models
 Other
 - [`MatrixHamiltonian`](@ref)
 - [`Transcorrelated1D`](@ref)
+- [`HOCartesian`](@ref)
+- [`HOCartesianSeparable`](@ref)
 
 ## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)
@@ -34,6 +36,7 @@ Other
 - [`G2RealCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
 - [`Momentum`](@ref)
+- [`AMzProjectionHO`](@ref)
 
 ## [Interface for working with Hamiltonians](#Hamiltonians-interface)
 - [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)

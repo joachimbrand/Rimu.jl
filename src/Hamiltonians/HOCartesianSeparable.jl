@@ -89,15 +89,15 @@ same energy in each dimension. That is, matrix elements
 
 * `addr`: the starting address, defines number of particles and total number of modes.
 * `S`: Tuple of the number of levels in each dimension, including the groundstate. Defaults 
-to a 1D spectrum with number of levels matching modes of `addr`. Will be sorted to make the 
-first dimension the largest.
+    to a 1D spectrum with number of levels matching modes of `addr`. Will be sorted to 
+    make the first dimension the largest.
 * `η`: Define a custom aspect ratio for the trapping potential strengths, instead of deriving
-from `S .- 1`. The values are always scaled relative to the first dimension, which sets 
-the energy scale of the system, ``\\hbar\\omega_x``.
+    from `S .- 1`. The values are always scaled relative to the first dimension, which sets 
+    the energy scale of the system, ``\\hbar\\omega_x``.
 * `g`: the (isotropic) interparticle interaction parameter. The value of `g` is assumed 
-to be in trap units.
+    to be in trap units.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
-ignored. Useful if only energy shifts due to interactions are required.
+    ignored. Useful if only energy shifts due to interactions are required.
 
 See also [`HOCartesian`](@ref).
 """

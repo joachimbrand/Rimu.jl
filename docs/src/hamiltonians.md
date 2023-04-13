@@ -100,7 +100,7 @@ G2MomCorrelator
 G2RealCorrelator
 DensityMatrixDiagonal
 Momentum
-AMzProjection
+AMzProjectionHO
 ```
 
 ## Hamiltonians interface
