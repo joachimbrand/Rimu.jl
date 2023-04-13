@@ -3,6 +3,7 @@ using LinearAlgebra
 using Random
 using Rimu
 using Test
+using DataFrames
 
 function exact_energy(ham)
     dv = DVec(starting_address(ham) => 1.0)
@@ -175,7 +176,6 @@ end
 end
 
 @testset "Harmonic oscillator in Cartesian basis" begin
-    using DataFrames
     @testset "HOCartesian" begin
         # argument checks
         # @test_logs (:warn,) HOCartesian(BoseFS(12, 1=>1); S = (3,4))
@@ -196,6 +196,19 @@ end
         # interaction matrix elements
         @test count(H.vtable .== 0) == 312
         @test sum(H.vtable) ≈ 11.220010295489221
+
+        # aspect ratio
+        S = (4,2,2)
+        addr = BoseFS(prod(S), 1 => 1)
+        H = HOCartesian(addr; S)
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,3.0,3.0)
+        H = HOCartesian(addr; S, η = (1,2,3))
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,2.0,3.0)
+        H = HOCartesian(addr; S, η = 2)
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,2.0,2.0)
     end
 
     @testset "HOCartesianSeparable" begin
@@ -218,6 +231,16 @@ end
         # interaction matrix elements
         @test count(H.vtable .== 0) == 70
         @test sum(H.vtable) ≈ 3.3630246382916664
+
+        # aspect ratio
+        S = (4,2,2)
+        addr = BoseFS(prod(S), 1 => 1)
+        H = HOCartesianSeparable(addr; S)
+        @test H.aspect1 == (1.0,3.0,3.0)
+        H = HOCartesianSeparable(addr; S, η = (1,2,3))
+        @test H.aspect1 == (1.0,2.0,3.0)
+        H = HOCartesianSeparable(addr; S, η = 2)
+        @test H.aspect1 == (1.0,2.0,2.0)        
     end
 
     @testset "find blocks" begin

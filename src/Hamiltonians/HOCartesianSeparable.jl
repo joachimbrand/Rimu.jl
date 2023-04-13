@@ -127,9 +127,9 @@ function HOCartesianSeparable(
     if isnothing(η)
         aspect1 = float.(box_to_aspect(S))
     elseif length(η) == D
-        aspect1 = ntuple(i -> η[i] / η[1], Val(D))
-    elseif η == 1.0
-        aspect1 = ntuple(i -> 1.0, Val(D))
+        aspect1 = Tuple(η ./ η[1])
+    elseif length(η) == 1 && isreal(η)
+        aspect1 = ntuple(i -> (i == 1 ? 1.0 : η), D)
     else
         throw(ArgumentError("Invalid aspect ratio parameter η."))
     end

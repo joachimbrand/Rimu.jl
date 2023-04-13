@@ -195,7 +195,7 @@ function HOCartesian(
     )
     # x dimension defines the energy scale, and should be the smallest frequency i.e. largest spatial dimension
     D = length(S)
-    S_sort = tuple(sort(collect(S); rev=true)...)
+    S_sort = tuple(sort(collect(S); rev = true)...)
     S == S_sort || @warn("dimensions have been reordered")
     
     P = prod(S)
@@ -208,12 +208,10 @@ function HOCartesian(
 
     if isnothing(η)
         aspect1 = float.(aspect)
-    elseif all(η .== 1)
-        aspect1 = ntuple(_ -> 1, D)
     elseif length(η) == D
-        aspect1 = S == S_sort ? η : η[sortperm(collect(S); rev=true)]
-    elseif length(η) == 1 && isreal(η)
-        aspect1 = ntuple(i -> (i == 1 ? 1.0 : η), Val(D))
+        aspect1 = S == S_sort ? η : η[sortperm(collect(S); rev = true)]
+    elseif length(η) == 1 && isreal(η) && η ≥ 1
+        aspect1 = ntuple(d -> (d == 1 ? 1.0 : η), D)
     else
         throw(ArgumentError("Invalid aspect ratio parameter η."))
     end
