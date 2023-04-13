@@ -1,5 +1,5 @@
 """
-    AMzProjectionHO(S, z_dim = 3) <: AbstractHamiltonian
+    AMzProjectionHO(S; z_dim = 3) <: AbstractHamiltonian
 
 Implement angular momentum operators for application to Cartesian harmonic oscillator basis,
 see [`HOCartesian`](@ref) and [`HOCartesianSeparable`](@ref).
@@ -16,7 +16,7 @@ struct AMzProjectionHO{D} <: AbstractHamiltonian{Float64}
     xyz::NTuple{3,Int64}
 end
 
-function AMzProjectionHO(S, z_dim = 3)
+function AMzProjectionHO(S; z_dim = 3)
     D = length(S)
     D < 2 && throw(ArgumentError("number of dimensions should be at least 2"))
     if D == 3 && z_dim ≠ 3

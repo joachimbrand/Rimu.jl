@@ -6,7 +6,15 @@
         method = :vertices,
         kwargs...) -> df
 
-Find all distinct blocks of `h`. Returns a `DataFrame`. 
+Find all distinct blocks of `h`. Returns a `DataFrame` with columns 
+* `block_id`: index of block in order found
+* `block_E0`: noninteracting energy of all elements in the block
+* `block_size`: number of elements in the block
+* `addr`: first address that generates the block with e.g. [`build_basis`](@ref)
+* `indices`: tuple of mode indices that allow recreation of the generating address 
+    `addr`; in this case use e.g. `BoseFS(M; indices .=> 1)` This is useful when 
+    the `DataFrame` is loaded from file since [`Arrow.jl`](@ref) converts custom
+    types to `NamedTuple`s.
 
 Keyword arguments:
 * `target_energy`: only blocks with this noninteracting energy are found
@@ -28,7 +36,7 @@ function get_all_blocks(h::Union{HOCartesian{D},HOCartesianSeparable{D}};
     N = num_particles(add0)
     E0 = N * sum(h.aspect1) / 2  # starting address may not be ground state
     if !isnothing(target_energy) && target_energy - E0 > minimum(h.S .* h.aspect1) - 1
-        @warn "target energy higher than single particle basis size; not all blocks may be found."
+        @warn "target energy higher than single particle basis size, not all blocks may be found."
     end
     if !isnothing(max_energy) && max_energy < E0
         @warn "maximum requested energy lower than groundstate, not all blocks may be found."
@@ -37,19 +45,28 @@ function get_all_blocks(h::Union{HOCartesian{D},HOCartesianSeparable{D}};
         @warn "maximum requested energy lower than target energy, not all blocks may be found."
     end
 
+    if h isa HOCartesian
+        M = h.S[1] - 1
+        if (isnothing(max_energy) && isnothing(target_energy)) ||
+            (!isnothing(max_energy) && max_energy > E0 + M) ||
+            (!isnothing(target_energy) && target_energy > E0 + M)
+            throw(ArgumentError("requested energy range not accessible by given Hamiltonian"))
+        end
+    end
+
     if method == :vertices
         df = get_all_blocks_vertices(h; target_energy, max_energy, max_blocks, kwargs...)
     elseif method == :comb
         df = get_all_blocks_comb(h; target_energy, max_energy, max_blocks, kwargs...)
     else
-        @error "invalid method."
+        throw(ArgumentError("invalid method."))
     end
 
     # consistency check
-    if isnothing(max_blocks) && isnothing(target_energy) && isnothing(max_energy) && sum(df[!,:block_size]) ≠ dimension(h)
-        @warn "not all blocks were found"
-    end
-    return df
+    # if isnothing(max_blocks) && isnothing(target_energy) && isnothing(max_energy) && sum(df[!,:block_size]) ≠ dimension(h)
+    #     @warn "not all blocks were found"
+    # end
+    # return df
 end
 
 function get_all_blocks_vertices(h; 

@@ -175,6 +175,7 @@ end
 end
 
 @testset "Harmonic oscillator in Cartesian basis" begin
+    using DataFrames
     @testset "HOCartesian" begin
         # argument checks
         # @test_logs (:warn,) HOCartesian(BoseFS(12, 1=>1); S = (3,4))
@@ -225,18 +226,66 @@ end
         M = 4
         S = ntuple(_ -> M + 1, D)
         addr = BoseFS(prod(S), 1 => N)
-        H = HOCartesian(addr; S)
-        block_df_vert = get_all_blocks(H, max_energy = N*D/2 + M, method = :vertices)
-        block_df_comb = get_all_blocks(H, max_energy = N*D/2 + M, method = :comb)
+        H = HOCartesianSeparable(addr; S)
+        block_df_vert = get_all_blocks(H; max_energy = N*D/2 + M, method = :vertices)
+        block_df_comb = get_all_blocks(H; max_energy = N*D/2 + M, method = :comb)
 
         # different methods find the same blocks but with different key addresses
-        @test block_df_vert[!,[:block_E0,:block_size]] == block_df_comb[!,[:block_E0,:block_size]]
+        vert_blocks = block_df_vert[!,[:block_E0,:block_size]]
+        comb_blocks = block_df_comb[!,[:block_E0,:block_size]]
+        @test vert_blocks == comb_blocks
 
+        @test nrow(get_all_blocks(H, max_blocks = 5)) == 5
+        @test nrow(get_all_blocks(H, max_blocks = 5, method = :comb)) == 5
+
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; target_energy = 100)
+        ) == 0
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; max_energy = 1)
+        ) == 0
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; max_energy = 3, target_energy = 4)
+        ) == 0
+
+        df = get_all_blocks(H; save_to_file = "test_block_df.arrow")
+        df_file = load_df("test_block_df.arrow")
+        @test df[!,[1,2,3,5]] == df_file[!,[1,2,3,5]]
+        
+        # HOCartesian requires a valid energy restriction 
+        @test_throws ArgumentError get_all_blocks(HOCartesian(addr; S))
     end
 
     @testset "Angular momentum" begin
-        S = (4,4)
+        @test_throws ArgumentError AMzProjectionHO((2,))
+        @test_throws ArgumentError AMzProjectionHO((1,2,3))
+
+        N = 3
+        D = 3
+        M = 2
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)  # dummy state to build Hamiltonian
+        H = HOCartesian(addr; S, interaction_only = false)
+        max_energy = N*D/2 + M
+        block_df = get_all_blocks(H; max_energy)
+
+        basis = BoseFS[]
+        for r in eachrow(subset(block_df, :block_E0 => x -> x .== max_energy))
+            push!(basis, BasisSetRep(H, r.addr; sizelim = Inf, nnzs = r.block_size).basis...)
+        end
+        dvs = map(b -> DVec(b=>1.0), basis)
+
         Lz = AMzProjectionHO(S)
+        Lx = AMzProjectionHO(S; z_dim=1)
+        
+        Lz_mat = [dot(v, Lz, w) for v in dvs, w in dvs]
+        Lx_mat = [dot(v, Lx, w) for v in dvs, w in dvs]
+
+        Lz_vals = round.(imag(eigen(Lz_mat).values), digits=8)
+        Lx_vals = round.(imag(eigen(Lx_mat).values), digits=8)
+
+        @test isempty(setdiff(Lz_vals, -2.0:2.0))
+        @test isempty(setdiff(Lz_vals, Lx_vals))
     end
 end
 
