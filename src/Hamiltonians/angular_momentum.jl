@@ -1,15 +1,16 @@
 """
     AMzProjectionHO(S; z_dim = 3) <: AbstractHamiltonian
 
-Implement angular momentum operators for application to Cartesian harmonic oscillator basis,
+Angular momentum operator for application to Cartesian harmonic oscillator basis,
 see [`HOCartesian`](@ref) and [`HOCartesianSeparable`](@ref).
-Projection of angular momentum onto `z`-axis:
-    ``\\hat{L}_z = i \\hbar \\left( a_x a_y^\\dag - a_y a_x^\\dag \\right)``
-
-Returns ``\\hat{L}_z/ i \\hbar``. Argument `S` is a tuple defining the range of Cartesian 
-modes in each dimension. 
-If `S` indicates a 3D system the `z` dimension can be changed by setting `z_dim`; `S` should be 
-be isotropic in the remaining `x`-`y` plane, i.e. must have `S[x_dim]==S[y_dim]`.
+Computes projection of angular momentum onto `z`-axis without ``i\\hbar`` prefactor:
+```math
+\\frac{\\hat{L}_z}{i\\hbar} = \\left( a_x a_y^\\dag - a_y a_x^\\dag \\right)
+```
+Argument `S` is a tuple defining the range of Cartesian modes in each dimension. 
+If `S` indicates a 3D system the `z` dimension can be changed by setting `z_dim`; 
+`S` should be be isotropic in the remaining `x`-`y` plane, i.e. must have 
+`S[x_dim] == S[y_dim]`.
 """
 struct AMzProjectionHO{D} <: AbstractHamiltonian{Float64}
     S::NTuple{D,Int64}
