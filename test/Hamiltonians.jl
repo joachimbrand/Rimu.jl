@@ -291,12 +291,20 @@ end
     @testset "HO utilities" begin
         S = (4,4)
         @test_throws ArgumentError fock_to_cart(BoseFS(1, 1 => 1), S)
-        modes = (5, 5, 16)
+        modes = [5, 5, 16]
         addr = BoseFS(prod(S), modes .=> 1)
-        @test fock_to_cart(addr, S) == ((0, 1), (0, 1),(3, 3))
-        @test fock_to_cart(addr, S; zero_index=false) == ((1, 2), (1, 2), (4, 4))
+        @test fock_to_cart(addr, S) == [(0, 1), (0, 1), (3, 3)]
+        @test fock_to_cart(addr, S; zero_index = false) == [(1, 2), (1, 2), (4, 4)]
 
         @test occupied_modes_list(addr) == modes
+
+        null_addr = BoseFS(prod(S),)
+        @test isempty(fock_to_cart(null_addr, S))
+        @test isempty(occupied_modes_list(null_addr))
+
+        modes = [1,5,16]
+        fermi = FermiFS(prod(S), modes .=> 1)
+        @test occupied_modes_list(fermi) == findall(!iszero, onr(fermi))
     end
 end
 
