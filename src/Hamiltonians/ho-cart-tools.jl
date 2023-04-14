@@ -15,6 +15,7 @@ Find all distinct blocks of `h`. Returns a `DataFrame` with columns
     `addr`; in this case use e.g. `BoseFS(M; indices .=> 1)` This is useful when 
     the `DataFrame` is loaded from file since [`Arrow.jl`](@ref) converts custom
     types to `NamedTuple`s.
+* `t_basis`: time to generate the basis for each block
 
 Keyword arguments:
 * `target_energy`: only blocks with this noninteracting energy are found
@@ -103,12 +104,12 @@ function get_all_blocks_vertices(h;
         end
 
         # new block found
-        block_id += 1        
-        block_basis = build_basis(h, addr)
+        block_id += 1
+        t_basis = @elapsed block_basis = build_basis(h, addr)
         for b in block_basis
             push!(known_basis, b)
         end
-        push!(df, (; block_id, block_E0, block_size = length(block_basis), addr, indices = t))
+        push!(df, (; block_id, block_E0, block_size = length(block_basis), addr, indices = t, t_basis))
         !isnothing(save_to_file) && save_df(save_to_file, df)
         if !isnothing(max_blocks) && block_id ≥ max_blocks
             break
@@ -150,12 +151,12 @@ function get_all_blocks_comb(h;
         end
 
         # new block found
-        block_id += 1        
-        block_basis = build_basis(h, addr)
+        block_id += 1
+        t_basis = @elapsed block_basis = build_basis(h, addr)
         for b in block_basis
             push!(known_basis, b)
         end
-        push!(df, (; block_id, block_E0, block_size = length(block_basis), addr, indices = tuple(t...)))
+        push!(df, (; block_id, block_E0, block_size = length(block_basis), addr, indices = tuple(t...), t_basis))
         !isnothing(save_to_file) && save_df(save_to_file, df)
         if !isnothing(max_blocks) && block_id ≥ max_blocks
             break
