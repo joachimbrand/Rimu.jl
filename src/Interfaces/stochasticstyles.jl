@@ -69,7 +69,7 @@ returns a relevant subtype. The default is [`NoCompression`](@ref).
 ## Interface
 
 When defining a new `CompressionStrategy`, subtype it as `MyCompressionStrategy <:
-CompressionStrategy` and define a method for
+CompressionStrategy` and define these methods:
 
 * [`compress!(s::MyCompressionStrategy, v)`](@ref compress!)
 * [`compress!(s::MyCompressionStrategy, w, v)`](@ref compress!)
@@ -113,19 +113,20 @@ length. These will be reported as columns in the `DataFrame` returned by [`lomc!
 step_stats(v) = step_stats(StochasticStyle(v))
 
 """
-    apply_column!(v, H, i, x, boost=1) -> stats::Tuple
+    apply_column!(v, O, i, x, boost=1) -> stats::Tuple
 
-Apply the `i`-th column of the operator `H` according to the [`StochasticStyle`](@ref) of
+Apply the `i`-th column of the operator `O` according to the [`StochasticStyle`](@ref) of
 `v`:
 
 ```math
-v \\gets v + \\hat{H}_{:,i} x.
+v \\gets v + \\hat{O}_{:,i} x.
 ```
 
 This is used to perform the spawning step in FCIQMC and to implement operator-vector
 multiplications. Mutates `v` and reports spawning statistics.
 
-The `boost` argument multiplicatively increases the number of spawns to be performed.
+The `boost` argument multiplicatively increases the number of spawns to be performed without
+affecting the expectation value of the procedure.
 """
 function apply_column!(v, ham, add, val, boost=1)
     return apply_column!(StochasticStyle(v), v, ham, add, val, boost)

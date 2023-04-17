@@ -162,7 +162,7 @@ Perform an exact spawning step.
 
 * `threshold` sets the projection threshold. If set to zero, no projection is performed.
 
-[`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts and the
 number of spawns.
 """
 struct Exact{T} <: SpawningStrategy
@@ -190,7 +190,7 @@ Perform a single spawn. Useful as a building block for other stochastic styles.
 
 * `threshold` sets the projection threshold. If set to zero, no projection is performed.
 
-[`spawn!`](@ref) with this strategy returns the number of spawn attempts to (always 1)
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts (always 1)
 and the number of spawns.
 """
 struct SingleSpawn{T} <: SpawningStrategy
@@ -220,7 +220,7 @@ default spawning strategy for most of the [`StochasticStyle`](@ref)s.
 
 * `threshold` sets the projection threshold. If set to zero, no projection is performed.
 
-[`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts and the
 number of spawns.
 """
 struct WithReplacement{T} <: SpawningStrategy
@@ -257,7 +257,7 @@ used as a substrategy of [`DynamicSemistochastic`](@ref).
 
 * `threshold` sets the projection threshold. If set to zero, no projection is performed.
 
-[`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts and the
 number of spawns.
 """
 struct WithoutReplacement{T} <: SpawningStrategy
@@ -303,7 +303,7 @@ used as a substrategy of [`DynamicSemistochastic`](@ref).
 
 * `threshold` sets the projection threshold.
 
-[`spawn!`](@ref) with this strategy returns the number of spawn attempts to and the
+[`spawn!`](@ref) with this strategy returns the number of spawn attempts and the
 number of spawns.
 """
 struct Bernoulli{T} <: SpawningStrategy
@@ -353,7 +353,7 @@ described below.
 See e.g. [`WithoutReplacement`](@ref) for a description of the `strat.threshold` parameter.
 
 [`spawn!`](@ref) with this strategy returns the numbers of exact and inexact spawns, the
-number of spawn attempts to and the number of spawns.
+number of spawn attempts and the number of spawns.
 """
 Base.@kwdef struct DynamicSemistochastic{T,S<:SpawningStrategy} <: SpawningStrategy
     strat::S = WithReplacement()
