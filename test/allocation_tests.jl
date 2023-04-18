@@ -8,7 +8,9 @@ using Test
 Returning the vectors is tracked as an allocation. This wrapper takes care of that.
 """
 function apply_operator_wrap!(r)
-    transition = Rimu.FCIQMCTransitionOperator(r.hamiltonian, r.params.shift, r.params.dτ)
+    transition = Rimu.FirstOrderTransitionOperator(
+        r.hamiltonian, r.params.shift, r.params.dτ
+    )
     apply_operator!(r.wm, r.pv, r.v, transition)
     return nothing
 end
@@ -73,34 +75,36 @@ end
         Transcorrelated1D(CompositeFS(f1, f1)),
         Transcorrelated1D(CompositeFS(f2, f2)),
         Transcorrelated1D(CompositeFS(f3, f3)),
-    )
-        add = starting_address(H)
+        )
+        addr = starting_address(H)
         for dv_type in (DVec, InitiatorDVec)
             for style in (
                 IsDeterministic(),
                 IsStochasticInteger(),
                 IsStochasticWithThreshold(),
                 IsDynamicSemistochastic(),
-            )
+                )
                 hamname = string(
-                    nameof(typeof(H)), "(", num_modes(add), ")/", nameof(typeof(style))
+                    nameof(typeof(H)), "(", num_modes(addr), ")/", nameof(typeof(style))
                 )
                 @testset "Allocations for $(hamname)" begin
-                    dτ = if num_modes(add) == 10
+                    dτ = if num_modes(addr) == 10
                         1e-4
-                    elseif num_modes(add) == 50
+                    elseif num_modes(addr) == 50
                         1e-5
                     else
                         1e-6
                     end
 
-                    dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
+                    dv = dv_type(addr => 1.0, style=IsDynamicSemistochastic())
                     sizehint!(dv, 500_000)
 
                     # Warmup for lomc!
-                   params = RunTillLastStep(shift=float(diagonal_element(H, add)), dτ=dτ)
                     _, st = lomc!(
-                        H, dv; params, maxlength=10_000, laststep=1
+                        H, dv;
+                        params=RunTillLastStep(;shift=float(diagonal_element(H, addr)), dτ),
+                        maxlength=10_000,
+                        laststep=1,
                     )
 
                     r = only(st.replicas)
@@ -116,7 +120,7 @@ end
                     allocs_step = @allocated apply_operator_wrap!(r)
                     @test allocs_step ≤ 512
 
-                    dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
+                    dv = dv_type(addr => 1.0, style=IsDynamicSemistochastic())
                     allocs_full = @allocated lomc!(
                         H, dv; dτ, laststep=200, maxlength=10_000
                     )
