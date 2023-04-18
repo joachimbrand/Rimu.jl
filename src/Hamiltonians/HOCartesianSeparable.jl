@@ -164,15 +164,6 @@ end
 
 LOStructure(::Type{<:HOCartesianSeparable}) = IsHermitian()
 
-# Base.getproperty(h::HOCartesianSeparable, s::Symbol) = getproperty(h, Val(s))
-# Base.getproperty(h::HOCartesianSeparable, ::Val{:ks}) = getfield(h, :ks)
-# Base.getproperty(h::HOCartesianSeparable, ::Val{:kes}) = getfield(h, :kes)
-# Base.getproperty(h::HOCartesianSeparable, ::Val{:addr}) = getfield(h, :addr)
-# Base.getproperty(h::HOCartesianSeparable, ::Val{:vtable}) = getfield(h, :vtable)
-# Base.getproperty(h::HOCartesianSeparable{<:Any,<:Any,<:Any,<:Any,U}, ::Val{:u}) where {U} = U
-# Base.getproperty(h::HOCartesianSeparable{<:Any,<:Any,<:Any,W}, ::Val{:w}) where {W} = W
-# Base.getproperty(h::HOCartesianSeparable{<:Any,D}, ::Val{:dim}) where {D} = D
-
 
 ### DIAGONAL ELEMENTS ###
 function energy_transfer_diagonal(h::HOCartesianSeparable{D}, omm::BoseOccupiedModeMap) where {D}

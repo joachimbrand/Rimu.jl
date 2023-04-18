@@ -56,18 +56,12 @@ function get_all_blocks(h::Union{HOCartesian{D},HOCartesianSeparable{D}};
     end
 
     if method == :vertices
-        df = get_all_blocks_vertices(h; target_energy, max_energy, max_blocks, kwargs...)
+        return get_all_blocks_vertices(h; target_energy, max_energy, max_blocks, kwargs...)
     elseif method == :comb
-        df = get_all_blocks_comb(h; target_energy, max_energy, max_blocks, kwargs...)
+        return get_all_blocks_comb(h; target_energy, max_energy, max_blocks, kwargs...)
     else
         throw(ArgumentError("invalid method."))
     end
-
-    # consistency check
-    # if isnothing(max_blocks) && isnothing(target_energy) && isnothing(max_energy) && sum(df[!,:block_size]) ≠ dimension(h)
-    #     @warn "not all blocks were found"
-    # end
-    # return df
 end
 
 function get_all_blocks_vertices(h; 

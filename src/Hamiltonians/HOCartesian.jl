@@ -43,8 +43,6 @@ function largest_two_point_interval(i, j, v::Int, w::Int)
     left_edge, right_edge = two_point_interval_bounds(i, j, v, w)
     return ceil(Int, left_edge):floor(Int, right_edge)
 end
-# largest_two_point_interval(i::Int, j::Rational, v, w) = largest_two_point_interval(i//1, j, v, w)   # are these necessary?
-# largest_two_point_interval(i::Rational, j::Int, v, w) = largest_two_point_interval(i, j//1, v, w)
 largest_two_point_interval(i, j, w) = largest_two_point_interval(i, j, 1, w)
 
 function two_point_interval_bounds(i, j, v, w)
@@ -168,9 +166,9 @@ by this interaction.
 
 See also [`HOCartesianSeparable`](@ref).
 
-# Warning: 
-`num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building 
-a matrix (use option `col_hint` with [`BasisSetRep`](@ref)) or using QMC methods.
+!!! warning
+    `num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building 
+    a matrix (use option `col_hint` with [`BasisSetRep`](@ref)) or using QMC methods.
 """
 struct HOCartesian{
     D,  # number of dimensions
@@ -220,7 +218,6 @@ function HOCartesian(
         energies = zeros(P)
     else
         states = CartesianIndices(S)    # 1-indexed
-        # energies = map(x -> dot(aspect, Tuple(x) .- 1/2), states)
         energies = reshape(map(x -> dot(aspect1, Tuple(x) .- 1/2), states), P)
     end
 
@@ -242,15 +239,6 @@ function starting_address(h::HOCartesian)
 end
 
 LOStructure(::Type{<:HOCartesian}) = IsHermitian()
-
-# Base.getproperty(h::HOCartesian, s::Symbol) = getproperty(h, Val(s))
-# Base.getproperty(h::HOCartesian, ::Val{:ks}) = getfield(h, :ks)
-# Base.getproperty(h::HOCartesian, ::Val{:kes}) = getfield(h, :kes)
-# Base.getproperty(h::HOCartesian, ::Val{:addr}) = getfield(h, :addr)
-# Base.getproperty(h::HOCartesian, ::Val{:vtable}) = getfield(h, :vtable)
-# Base.getproperty(h::HOCartesian{<:Any,<:Any,<:Any,<:Any,U}, ::Val{:u}) where {U} = U
-# Base.getproperty(h::HOCartesian{<:Any,<:Any,<:Any,W}, ::Val{:w}) where {W} = W
-# Base.getproperty(h::HOCartesian{<:Any,D}, ::Val{:dim}) where {D} = D
 
 
 ### DIAGONAL ELEMENTS ###
