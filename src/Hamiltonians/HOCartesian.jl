@@ -291,8 +291,7 @@ end
 
 ### OFFDIAGONAL ELEMENTS ###
 
-# crude upper bound
-# num_offdiagonals(h::HOCartesian, addr::BoseFS) = num_particles(addr) * prod(h.S)
+# crude definition for minimal consistency with interface
 num_offdiagonals(h::HOCartesian, addr::BoseFS) = dimension(h) - 1
 
 """
@@ -307,14 +306,20 @@ struct HOCartOffdiagonals{
     ham::H
     addr::A
     pairs::P
-    length::Int
 end
 
 function offdiagonals(h::HOCartesian, addr::BoseFS)
-    num = num_offdiagonals(h, addr)
     pairs = OccupiedPairsMap(addr)
-    return HOCartOffdiagonals(h, addr, pairs, num)
+    return HOCartOffdiagonals(h, addr, pairs)
 end
+
+Base.IteratorSize(::HOCartOffdiagonals) = Base.SizeUnknown()
+Base.eltype(::HOCartOffdiagonals{A,T}) where {A,T} = Tuple{A,T}
+
+const HOCartOffdiagonalsError = ErrorException("Number of offdiagonals is not well known. Only basic iteration is supported.")
+Base.getindex(::HOCartOffdiagonals, i) = throw(HOCartOffdiagonalsError)
+Base.size(::HOCartOffdiagonals) = throw(HOCartOffdiagonalsError)
+Base.length(::HOCartOffdiagonals) = throw(HOCartOffdiagonalsError)
 
 # This is the dumb way to loop through valid states.
 # It should take arguments that define where to begin so that the loop can be restarted later 
@@ -403,15 +408,3 @@ function Base.iterate(off::HOCartOffdiagonals, iter_state = (1,1,1))
 
     return (new_add, val), new_iter_state
 end
-
-Base.IteratorSize(::HOCartOffdiagonals) = Base.SizeUnknown()
-Base.eltype(::HOCartOffdiagonals{A,T}) where {A,T} = Tuple{A,T}
-
-# function Base.getindex(s::HOCartOffdiagonals{A,T}, i)::Tuple{A,T} where {A,T}
-#     @boundscheck begin
-#         1 ≤ i ≤ s.length || throw(BoundsError(s, i))
-#     end
-#     new_address, matrix_element = get_offdiagonal(s.ham, s.addr, i, s.map)
-#     return (new_address, matrix_element)
-# end
-# Base.size(s::HOCartOffdiagonals) = (s.length,)
