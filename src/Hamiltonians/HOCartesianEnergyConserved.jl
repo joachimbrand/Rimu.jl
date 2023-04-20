@@ -133,7 +133,7 @@ function Base.getindex(opm::OccupiedPairsMap, i)
 end
 
 """
-    HOCartesian(addr; S, η, g = 1.0, interaction_only = false)
+    HOCartesianEnergyConserved(addr; S, η, g = 1.0, interaction_only = false)
 
 Implements a harmonic oscillator in Cartesian basis with contact interactions.
 ```math
@@ -164,13 +164,14 @@ by this interaction.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
     ignored. Useful if only energy shifts due to interactions are required.
 
-See also [`HOCartesianSeparable`](@ref).
+See also [`HOCartesianEnergyConservedPerDim`](@ref).
 
 !!! warning
     `num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building 
-    a matrix (use option `col_hint` with [`BasisSetRep`](@ref)) or using QMC methods.
+    a matrix or using QMC methods. Use [`get_all_blocks`](@ref) first then pass option
+    `col_hint = block_size` to [`BasisSetRep`](@ref) to safely build the matrix.
 """
-struct HOCartesian{
+struct HOCartesianEnergyConserved{
     D,  # number of dimensions
     A<:BoseFS,
     T
@@ -184,7 +185,7 @@ struct HOCartesian{
     u::Float64
 end
 
-function HOCartesian(
+function HOCartesianEnergyConserved(
         addr::BoseFS; 
         S = (num_modes(addr),),
         η = nothing, 
@@ -227,22 +228,22 @@ function HOCartesian(
     r = 0:max_level
     vmat = [four_oscillator_integral_general(i, j, k, l; max_level) for i in r, j in r, k in r, l in r]
 
-    return HOCartesian{D,typeof(addr),eltype(aspect)}(addr, S_sort, aspect, aspect1, energies, vmat, u)
+    return HOCartesianEnergyConserved{D,typeof(addr),eltype(aspect)}(addr, S_sort, aspect, aspect1, energies, vmat, u)
 end
 
-function Base.show(io::IO, h::HOCartesian)
-    print(io, "HOCartesian($(h.addr); S=$(h.S), η=$(h.aspect1), u=$(h.u))")
+function Base.show(io::IO, h::HOCartesianEnergyConserved)
+    print(io, "HOCartesianEnergyConserved($(h.addr); S=$(h.S), η=$(h.aspect1), u=$(h.u))")
 end
 
-function starting_address(h::HOCartesian)
+function starting_address(h::HOCartesianEnergyConserved)
     return h.addr
 end
 
-LOStructure(::Type{<:HOCartesian}) = IsHermitian()
+LOStructure(::Type{<:HOCartesianEnergyConserved}) = IsHermitian()
 
 
 ### DIAGONAL ELEMENTS ###
-function energy_transfer_diagonal(h::HOCartesian{D}, omm::BoseOccupiedModeMap) where {D}
+function energy_transfer_diagonal(h::HOCartesianEnergyConserved{D}, omm::BoseOccupiedModeMap) where {D}
     result = 0.0
     states = CartesianIndices(h.S)    # 1-indexed
     
@@ -264,15 +265,15 @@ function energy_transfer_diagonal(h::HOCartesian{D}, omm::BoseOccupiedModeMap) w
     return result * h.u
 end
 
-noninteracting_energy(h::HOCartesian, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
-@inline function noninteracting_energy(h::HOCartesian, addr::BoseFS)
+noninteracting_energy(h::HOCartesianEnergyConserved, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
+@inline function noninteracting_energy(h::HOCartesianEnergyConserved, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     return noninteracting_energy(h, omm)
 end
 # fast method for finding blocks
-noninteracting_energy(h::HOCartesian, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
+noninteracting_energy(h::HOCartesianEnergyConserved, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
 
-@inline function diagonal_element(h::HOCartesian, addr::BoseFS)
+@inline function diagonal_element(h::HOCartesianEnergyConserved, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     return noninteracting_energy(h, omm) + energy_transfer_diagonal(h, omm)
 end
@@ -280,7 +281,7 @@ end
 ### OFFDIAGONAL ELEMENTS ###
 
 # crude definition for minimal consistency with interface
-num_offdiagonals(h::HOCartesian, addr::BoseFS) = dimension(h) - 1
+num_offdiagonals(h::HOCartesianEnergyConserved, addr::BoseFS) = dimension(h) - 1
 
 """
     HOCartOffdiagonals
@@ -296,7 +297,7 @@ struct HOCartOffdiagonals{
     pairs::P
 end
 
-function offdiagonals(h::HOCartesian, addr::BoseFS)
+function offdiagonals(h::HOCartesianEnergyConserved, addr::BoseFS)
     pairs = OccupiedPairsMap(addr)
     return HOCartOffdiagonals(h, addr, pairs)
 end
@@ -330,7 +331,7 @@ function loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
     return 0, 0     # fail case
 end
 
-function loop_over_particles(S, aspect, pairs, start)
+function loop_over_pairs(S, aspect, pairs, start)
     pair_index, k_start, l_start = start
 
     p_i, p_j = pairs[pair_index]
@@ -343,7 +344,7 @@ function loop_over_particles(S, aspect, pairs, start)
         Emin, Emax, Etot = find_Ebounds(mode_i, mode_j, S, aspect)      # this could be saved in the iteration state
 
         mode_k, mode_l = loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
-        mode_k > 0 && mode_l > 0 && break   # no valid move found
+        mode_k > 0 && mode_l > 0 && break   # valid move found
 
         # move to next pair of particles
         if pair_index ≥ length(pairs)
@@ -369,7 +370,7 @@ function Base.iterate(off::HOCartOffdiagonals, iter_state = (1,1,1))
     addr = off.addr
     pairs = off.pairs
     length(off.pairs) == 0 && return nothing
-    pair_index, modes, end_of_loop = loop_over_particles(S, aspect, pairs, iter_state)
+    pair_index, modes, end_of_loop = loop_over_pairs(S, aspect, pairs, iter_state)
 
     # end of iteration
     end_of_loop && return nothing

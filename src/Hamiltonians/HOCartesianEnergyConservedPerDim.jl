@@ -69,9 +69,9 @@ function find_chosen_pair_moves(omm::OccupiedModeMap, c, S::Tuple)
 end
 
 """
-    HOCartesianSeparable(addr; S, η, g = 1.0, interaction_only = false)
+    HOCartesianEnergyConservedPerDim(addr; S, η, g = 1.0, interaction_only = false)
 
-Implements a harmonic oscillator in Cartesian basis with separable contact interactions.
+Implements a harmonic oscillator in Cartesian basis with contact interactions 
 ```math
 \\hat{H} = \\sum_{i} ϵ_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l
 ```
@@ -81,9 +81,12 @@ single particle energies are ``\\epsilon_i = (i_x + 1/2) + \\eta_y (i_y + 1/2) +
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
-Separable contact interactions means that the interaction only connects basis states with the 
-same energy in each dimension. That is, matrix elements 
-``V_{ijkl} \\propto \\delta_{i_x+j_x}^{k_x+l_x} \\times \\delta_{i_y+j_y}^{k_y+l_y} \\ldots`` 
+Energy conservation per dimension means that the interaction only connects basis states with the 
+same (non-interacting) energy in each dimension. That is, matrix elements are
+```math
+    V_{ijkl} \\propto \\delta_{i_x+j_x}^{k_x+l_x} \\times \\delta_{i_y+j_y}^{k_y+l_y} \\ldots
+```
+See [`HOCartesianEnergyConserved`](@ref) for a model that conserves total energy.
 
 # Arguments
 
@@ -99,9 +102,9 @@ same energy in each dimension. That is, matrix elements
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
     ignored. Useful if only energy shifts due to interactions are required.
 
-See also [`HOCartesian`](@ref).
+
 """
-struct HOCartesianSeparable{
+struct HOCartesianEnergyConservedPerDim{
     D,  # number of dimensions
     A<:BoseFS
 } <: AbstractHamiltonian{Float64}
@@ -113,7 +116,7 @@ struct HOCartesianSeparable{
     u::Float64
 end
 
-function HOCartesianSeparable(
+function HOCartesianEnergyConservedPerDim(
         addr::BoseFS; 
         S = (num_modes(addr),),
         η = nothing, 
@@ -151,22 +154,22 @@ function HOCartesianSeparable(
                     for i in bigrange, j in bigrange, n in bigrange],
                     M,M,M)
 
-    return HOCartesianSeparable{D,typeof(addr)}(addr, S, aspect1, energies, vmat, u)
+    return HOCartesianEnergyConservedPerDim{D,typeof(addr)}(addr, S, aspect1, energies, vmat, u)
 end
 
-function Base.show(io::IO, h::HOCartesianSeparable)
-    print(io, "HOCartesianSeparable($(h.addr); S=$(h.S), η=$(h.aspect1), u=$(h.u))")
+function Base.show(io::IO, h::HOCartesianEnergyConservedPerDim)
+    print(io, "HOCartesianEnergyConservedPerDim($(h.addr); S=$(h.S), η=$(h.aspect1), u=$(h.u))")
 end
 
-function starting_address(h::HOCartesianSeparable)
+function starting_address(h::HOCartesianEnergyConservedPerDim)
     return h.addr
 end
 
-LOStructure(::Type{<:HOCartesianSeparable}) = IsHermitian()
+LOStructure(::Type{<:HOCartesianEnergyConservedPerDim}) = IsHermitian()
 
 
 ### DIAGONAL ELEMENTS ###
-function energy_transfer_diagonal(h::HOCartesianSeparable{D}, omm::BoseOccupiedModeMap) where {D}
+function energy_transfer_diagonal(h::HOCartesianEnergyConservedPerDim{D}, omm::BoseOccupiedModeMap) where {D}
     result = 0.0
     states = CartesianIndices(h.S)    # 1-indexed
     
@@ -188,15 +191,15 @@ function energy_transfer_diagonal(h::HOCartesianSeparable{D}, omm::BoseOccupiedM
     return result * h.u
 end
 
-noninteracting_energy(h::HOCartesianSeparable, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
-@inline function noninteracting_energy(h::HOCartesianSeparable, addr::BoseFS)
+noninteracting_energy(h::HOCartesianEnergyConservedPerDim, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
+@inline function noninteracting_energy(h::HOCartesianEnergyConservedPerDim, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     return noninteracting_energy(h, omm)
 end
 # fast method for finding blocks
-noninteracting_energy(h::HOCartesianSeparable, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
+noninteracting_energy(h::HOCartesianEnergyConservedPerDim, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
 
-@inline function diagonal_element(h::HOCartesianSeparable, addr::BoseFS)
+@inline function diagonal_element(h::HOCartesianEnergyConservedPerDim, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     return noninteracting_energy(h, omm) + energy_transfer_diagonal(h, omm)
 end
@@ -205,7 +208,7 @@ end
 
 # includes swap moves and trivial moves
 # To-Do: optimise these out for FCIQMC
-function num_offdiagonals(h::HOCartesianSeparable, addr::BoseFS)
+function num_offdiagonals(h::HOCartesianEnergyConservedPerDim, addr::BoseFS)
     S = h.S
     omm = OccupiedModeMap(addr)
     noffs = 0
@@ -262,7 +265,7 @@ function energy_transfer_offdiagonal(
 end
 
 function get_offdiagonal(
-        h::HOCartesianSeparable{D,A}, 
+        h::HOCartesianEnergyConservedPerDim{D,A}, 
         addr::A, 
         chosen::Int, 
         omm::BoseOccupiedModeMap = OccupiedModeMap(addr)
@@ -309,7 +312,7 @@ struct HOCartSeparableOffdiagonals{
     map::O
 end
 
-function offdiagonals(h::HOCartesianSeparable, addr::BoseFS)
+function offdiagonals(h::HOCartesianEnergyConservedPerDim, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     num = num_offdiagonals(h, addr)
     return HOCartSeparableOffdiagonals(h, addr, num, omm)

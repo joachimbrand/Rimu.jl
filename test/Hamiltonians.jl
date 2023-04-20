@@ -168,25 +168,25 @@ end
         Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
         momentum(HubbardMom1D(BoseFS((0,5,0)))),
 
-        # HOCartesian(BoseFS((2,0,0,0))),   # offdiagonals not consistent with interface
-        HOCartesianSeparable(BoseFS((2,0,0,0))),
+        # HOCartesianEnergyConserved(BoseFS((2,0,0,0))),   # offdiagonals not consistent with interface
+        HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
     )
         test_hamiltonian_interface(H)
     end
 end
 
 @testset "Harmonic oscillator in Cartesian basis" begin
-    @testset "HOCartesian" begin
+    @testset "HOCartesianEnergyConserved" begin
         # argument checks
-        # @test_logs (:warn,) HOCartesian(BoseFS(12, 1=>1); S = (3,4))
-        @test_throws ArgumentError HOCartesian(BoseFS(4, 1=>1); S = (5,))
+        # @test_logs (:warn,) HOCartesianEnergyConserved(BoseFS(12, 1=>1); S = (3,4))
+        @test_throws ArgumentError HOCartesianEnergyConserved(BoseFS(4, 1=>1); S = (5,))
 
         N = 2
         D = 2
         M = 4
         S = ntuple(_ -> M + 1, D)
         addr = BoseFS(prod(S), 1 => N)
-        H = HOCartesian(addr; S)
+        H = HOCartesianEnergyConserved(addr; S)
         
         block_df = get_all_blocks(H, max_energy = N*D/2 + M)
         @test length(block_df[:,:block_E0]) == 9
@@ -200,28 +200,28 @@ end
         # aspect ratio
         S = (4,2,2)
         addr = BoseFS(prod(S), 1 => 1)
-        H = HOCartesian(addr; S)
+        H = HOCartesianEnergyConserved(addr; S)
         @test H.aspect == (1,3,3)
         @test H.aspect1 == (1.0,3.0,3.0)
-        H = HOCartesian(addr; S, η = (1,2,3))
+        H = HOCartesianEnergyConserved(addr; S, η = (1,2,3))
         @test H.aspect == (1,3,3)
         @test H.aspect1 == (1.0,2.0,3.0)
-        H = HOCartesian(addr; S, η = 2)
+        H = HOCartesianEnergyConserved(addr; S, η = 2)
         @test H.aspect == (1,3,3)
         @test H.aspect1 == (1.0,2.0,2.0)
     end
 
-    @testset "HOCartesianSeparable" begin
+    @testset "HOCartesianEnergyConservedPerDim" begin
         # argument checks
-        # @test_logs (:warn,) HOCartesianSeparable(BoseFS(12, 1=>1); S = (3,4))
-        @test_throws ArgumentError HOCartesianSeparable(BoseFS(4, 1=>1); S = (5,))
+        # @test_logs (:warn,) HOCartesianEnergyConservedPerDim(BoseFS(12, 1=>1); S = (3,4))
+        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (5,))
 
         N = 2
         D = 2
         M = 4
         S = ntuple(_ -> M + 1, D)
         addr = BoseFS(prod(S), 1 => N)
-        H = HOCartesianSeparable(addr; S)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
 
         block_df = get_all_blocks(H, max_energy = N*D/2 + M)
         @test length(block_df[:,:block_E0]) == 15
@@ -235,11 +235,11 @@ end
         # aspect ratio
         S = (4,2,2)
         addr = BoseFS(prod(S), 1 => 1)
-        H = HOCartesianSeparable(addr; S)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
         @test H.aspect1 == (1.0,3.0,3.0)
-        H = HOCartesianSeparable(addr; S, η = (1,2,3))
+        H = HOCartesianEnergyConservedPerDim(addr; S, η = (1,2,3))
         @test H.aspect1 == (1.0,2.0,3.0)
-        H = HOCartesianSeparable(addr; S, η = 2)
+        H = HOCartesianEnergyConservedPerDim(addr; S, η = 2)
         @test H.aspect1 == (1.0,2.0,2.0)        
     end
 
@@ -249,7 +249,7 @@ end
         M = 4
         S = ntuple(_ -> M + 1, D)
         addr = BoseFS(prod(S), 1 => N)
-        H = HOCartesianSeparable(addr; S)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
         block_df_vert = get_all_blocks(H; max_energy = N*D/2 + M, method = :vertices)
         block_df_comb = get_all_blocks(H; max_energy = N*D/2 + M, method = :comb)
 
@@ -275,20 +275,20 @@ end
         df_file = load_df("test_block_df.arrow")
         @test df[!,[1,2,3,5]] == df_file[!,[1,2,3,5]]
         
-        # HOCartesian requires a valid energy restriction 
-        @test_throws ArgumentError get_all_blocks(HOCartesian(addr; S))
+        # HOCartesianEnergyConserved requires a valid energy restriction 
+        @test_throws ArgumentError get_all_blocks(HOCartesianEnergyConserved(addr; S))
     end
 
     @testset "Angular momentum" begin
-        @test_throws ArgumentError AMzProjectionHO((2,))
-        @test_throws ArgumentError AMzProjectionHO((1,2,3))
+        @test_throws ArgumentError AxialAngularMomentumHO((2,))
+        @test_throws ArgumentError AxialAngularMomentumHO((1,2,3))
 
         N = 3
         D = 3
         M = 2
         S = ntuple(_ -> M + 1, D)
         addr = BoseFS(prod(S), 1 => N)  # dummy state to build Hamiltonian
-        H = HOCartesian(addr; S, interaction_only = false)
+        H = HOCartesianEnergyConserved(addr; S, interaction_only = false)
         max_energy = N*D/2 + M
         block_df = get_all_blocks(H; max_energy)
 
@@ -298,8 +298,8 @@ end
         end
         dvs = map(b -> DVec(b=>1.0), basis)
 
-        Lz = AMzProjectionHO(S)
-        Lx = AMzProjectionHO(S; z_dim=1)
+        Lz = AxialAngularMomentumHO(S)
+        Lx = AxialAngularMomentumHO(S; z_dim=1)
         
         Lz_mat = [dot(v, Lz, w) for v in dvs, w in dvs]
         Lx_mat = [dot(v, Lx, w) for v in dvs, w in dvs]

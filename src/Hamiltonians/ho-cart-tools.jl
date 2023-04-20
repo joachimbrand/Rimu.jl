@@ -1,5 +1,5 @@
 """
-    get_all_blocks(h::Union{HOCartesian{D},HOCartesianSeparable{D}}; 
+    get_all_blocks(h::Union{HOCartesianEnergyConserved{D},HOCartesianEnergyConservedPerDim{D}}; 
         target_energy = nothing, 
         max_energy = nothing, 
         max_blocks = nothing, 
@@ -25,7 +25,7 @@ Keyword arguments:
 * `save_to_file=nothing`: if set then the `DataFrame` recording blocks is saved after each new block is found
 * additional `kwargs`: passed to `isapprox` for comparing block energies. Useful for anisotropic traps
 """
-function get_all_blocks(h::Union{HOCartesian{D},HOCartesianSeparable{D}}; 
+function get_all_blocks(h::Union{HOCartesianEnergyConserved{D},HOCartesianEnergyConservedPerDim{D}}; 
         target_energy = nothing, 
         max_energy = nothing, 
         max_blocks = nothing, 
@@ -46,7 +46,7 @@ function get_all_blocks(h::Union{HOCartesian{D},HOCartesianSeparable{D}};
         @warn "maximum requested energy lower than target energy, not all blocks may be found."
     end
 
-    if h isa HOCartesian
+    if h isa HOCartesianEnergyConserved
         M = h.S[1] - 1
         if (isnothing(max_energy) && isnothing(target_energy)) ||
             (!isnothing(max_energy) && max_energy > E0 + M) ||

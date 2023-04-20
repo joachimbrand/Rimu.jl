@@ -1,8 +1,8 @@
 """
-    AMzProjectionHO(S; z_dim = 3) <: AbstractHamiltonian
+    AxialAngularMomentumHO(S; z_dim = 3) <: AbstractHamiltonian
 
 Angular momentum operator for application to Cartesian harmonic oscillator basis,
-see [`HOCartesian`](@ref) and [`HOCartesianSeparable`](@ref).
+see [`HOCartesianEnergyConserved`](@ref) and [`HOCartesianEnergyConservedPerDim`](@ref).
 Computes projection of angular momentum onto `z`-axis without ``i\\hbar`` prefactor:
 ```math
 \\frac{\\hat{L}_z}{i\\hbar} = \\left( a_x a_y^\\dag - a_y a_x^\\dag \\right)
@@ -12,12 +12,12 @@ If `S` indicates a 3D system the `z` dimension can be changed by setting `z_dim`
 `S` should be be isotropic in the remaining `x`-`y` plane, i.e. must have 
 `S[x_dim] == S[y_dim]`.
 """
-struct AMzProjectionHO{D} <: AbstractHamiltonian{Float64}
+struct AxialAngularMomentumHO{D} <: AbstractHamiltonian{Float64}
     S::NTuple{D,Int64}
     xyz::NTuple{3,Int64}
 end
 
-function AMzProjectionHO(S; z_dim = 3)
+function AxialAngularMomentumHO(S; z_dim = 3)
     D = length(S)
     D < 2 && throw(ArgumentError("number of dimensions should be at least 2"))
     if D == 3 && z_dim ≠ 3
@@ -32,21 +32,21 @@ function AMzProjectionHO(S; z_dim = 3)
         x_dim, y_dim = (1, 2)
     end
     S[x_dim] == S[y_dim] || throw(ArgumentError("angular momentum only defined for isotropic system"))
-    return AMzProjectionHO{D}(S, (x_dim, y_dim, z_dim))
+    return AxialAngularMomentumHO{D}(S, (x_dim, y_dim, z_dim))
 end
 
-function Base.show(io::IO, ::AMzProjectionHO{D}) where {D}
-    print(io, "AMzProjectionHO($D)")
+function Base.show(io::IO, ::AxialAngularMomentumHO{D}) where {D}
+    print(io, "AxialAngularMomentumHO($D)")
 end
 
-LOStructure(::Type{<:AMzProjectionHO}) = IsDiagonal()
+LOStructure(::Type{<:AxialAngularMomentumHO}) = IsDiagonal()
 
-diagonal_element(L::AMzProjectionHO, addr::SingleComponentFockAddress) = 0.0
+diagonal_element(L::AxialAngularMomentumHO, addr::SingleComponentFockAddress) = 0.0
 
-num_offdiagonals(::AMzProjectionHO, addr::SingleComponentFockAddress) = 2 * num_occupied_modes(addr)
+num_offdiagonals(::AxialAngularMomentumHO, addr::SingleComponentFockAddress) = 2 * num_occupied_modes(addr)
 
 
-function get_offdiagonal(L::AMzProjectionHO{D}, addr::SingleComponentFockAddress, chosen::Int; debug=false) where {D}
+function get_offdiagonal(L::AxialAngularMomentumHO{D}, addr::SingleComponentFockAddress, chosen::Int; debug=false) where {D}
     S = L.S
     states = CartesianIndices(S)
     omm = OccupiedModeMap(addr)
@@ -87,4 +87,4 @@ function get_offdiagonal(L::AMzProjectionHO{D}, addr::SingleComponentFockAddress
 end
 
 # not needed:
-# starting_address(::AMzProjectionHO)
+# starting_address(::AxialAngularMomentumHO)

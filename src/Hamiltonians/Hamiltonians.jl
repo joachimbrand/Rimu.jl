@@ -36,7 +36,7 @@ Other
 - [`G2RealCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
 - [`Momentum`](@ref)
-- [`AMzProjectionHO`](@ref)
+- [`AxialAngularMomentumHO`](@ref)
 
 ## [Interface for working with Hamiltonians](#Hamiltonians-interface)
 - [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)
@@ -78,7 +78,7 @@ export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 
-export HOCartesian, HOCartesianSeparable, AMzProjectionHO
+export HOCartesianEnergyConserved, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
 export get_all_blocks, fock_to_cart, occupied_modes_list
 
 include("abstract.jl")
@@ -110,8 +110,8 @@ include("correlation_functions.jl")
 include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
 
-include("HOCartesian.jl")
-include("HOCartesianSeparable.jl")
+include("HOCartesianEnergyConserved.jl")
+include("HOCartesianEnergyConservedPerDim.jl")
 include("vertices.jl")
 include("ho-cart-tools.jl")
 include("angular_momentum.jl")
