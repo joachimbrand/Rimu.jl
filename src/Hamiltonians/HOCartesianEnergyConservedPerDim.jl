@@ -2,8 +2,13 @@
 """
     four_oscillator_integral_1D(i, j, k, l; max_level = typemax(Int))
 
-Integral of four one-dimensional harmonic oscillator functions assuming 
-``i+j == k+l``. State indices `i,j,k,l` start at `0` for the groundstate.
+Integral of four one-dimensional harmonic oscillator functions, 
+```math
+    \\mathcal{I}(i,j,k,l) = \\int_{-\\infty}^\\infty dx \\, 
+    \\phi_a(x) \\phi_b(x) \\phi_c(x) \\phi_d(x)
+```
+assuming ``i+j == k+l``. State indices `i,j,k,l` start at `0` for the groundstate.
+Closed form taken from [Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606).
 """
 function four_oscillator_integral_1D(i, j, k, l; max_level = typemax(Int))
     !all(0 .≤ (i,j,k,l) .≤ max_level) && return 0.0
@@ -75,18 +80,30 @@ Implements a harmonic oscillator in Cartesian basis with contact interactions
 ```math
 \\hat{H} = \\sum_{i} ϵ_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l
 ```
-Indices ``i, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
+with the adiitional restriction that the interactions only couple states with the same
+energy in each dimension separately. See [`HOCartesianEnergyConserved`](@ref) for a model that 
+conserves total energy.
+
+Indices ``\\mathbf{i}, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
 The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` so that 
-single particle energies are ``\\epsilon_i = (i_x + 1/2) + \\eta_y (i_y + 1/2) + \\ldots``.
+single particle energies are ``\\epsilon_\\mathbf{i} = (i_x + 1/2) + \\eta_y (i_y + 1/2) + \\ldots``.
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
-Energy conservation per dimension means that the interaction only connects basis states with the 
-same (non-interacting) energy in each dimension. That is, matrix elements are
+Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this basis using 
+first-order degenerate perturbation theory.
 ```math
-    V_{ijkl} \\propto \\delta_{i_x+j_x}^{k_x+l_x} \\times \\delta_{i_y+j_y}^{k_y+l_y} \\ldots
+    V_{\\mathbf{ijkl}} = \\prod_{d \\elem x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d) 
+    \\delta_{i_d+j_d}^{k_d+l_d},
 ```
-See [`HOCartesianEnergyConserved`](@ref) for a model that conserves total energy.
+where the ``\\delta`` function indicates that the noninteracting energy is conserved along each
+dimension.
+The integral
+```math
+\\mathcal{I}(a,b,c,d) = \\int dx \\, \\phi_a(x) \\phi_b(x) \\phi_c(x) \\phi_d(x),
+```
+is of four one dimensional harmonic oscillator basis functions with the restriction 
+that energy is conserved in each dimension, see [`four_oscillator_integral_1D`](@ref).
 
 # Arguments
 

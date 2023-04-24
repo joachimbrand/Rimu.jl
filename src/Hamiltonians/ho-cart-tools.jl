@@ -13,7 +13,7 @@ Find all distinct blocks of `h`. Returns a `DataFrame` with columns
 * `addr`: first address that generates the block with e.g. [`build_basis`](@ref)
 * `indices`: tuple of mode indices that allow recreation of the generating address 
     `addr`; in this case use e.g. `BoseFS(M; indices .=> 1)` This is useful when 
-    the `DataFrame` is loaded from file since [`Arrow.jl`](@ref) converts custom
+    the `DataFrame` is loaded from file since `Arrow.jl` converts custom
     types to `NamedTuple`s.
 * `t_basis`: time to generate the basis for each block
 

@@ -1,8 +1,16 @@
 """
     four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
 
-Integral of four one-dimensional harmonic oscillator functions, following Titchmarsh (1948).
-State indices `i,j,k,l` start at `0` for the groundstate.
+Integral of four one-dimensional harmonic oscillator functions, 
+```math
+    \\mathcal{I}(i,j,k,l) = \\int_{-\\infty}^\\infty dx \\, 
+    \\phi_a(x) \\phi_b(x) \\phi_c(x) \\phi_d(x)
+```
+Indices `i,j,k,l` start at `0` for the groundstate.
+
+This integral has a closed form in terms of the hypergeometric ``_{3}F_2`` function, 
+and is non-zero unless ``a+b+c+d`` is odd. See e.g. 
+[Titchmarsh 1948](https://doi.org/10.1112/jlms/s1-23.1.15).
 """
 function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
     all(0 .≤ (i, j, k, l) .≤ max_level) || return 0.0
@@ -34,12 +42,12 @@ amount leaves both within `v:w`.
 `i` and `j` may be `Rational`s, but `v` and `w` must be `Integer`s.
 """
 function largest_two_point_interval(i::Int, j::Int, v::Int, w::Int)
-    i in v:w && j in v:w || throw("interval out of bounds: i=$i, j=$j, v=$v, w=$w")
+    i in v:w && j in v:w || throw(ArgumentError("interval out of bounds: i=$i, j=$j, v=$v, w=$w"))
     left_edge, right_edge = two_point_interval_bounds(i, j, v, w)
     return left_edge:right_edge
 end
 function largest_two_point_interval(i, j, v::Int, w::Int)
-    v ≤ i ≤ w && v ≤ j ≤ w || throw("interval out of bounds: i=$i, j=$j, v=$v, w=$w")
+    v ≤ i ≤ w && v ≤ j ≤ w || throw(ArgumentError("interval out of bounds: i=$i, j=$j, v=$v, w=$w"))
     left_edge, right_edge = two_point_interval_bounds(i, j, v, w)
     return ceil(Int, left_edge):floor(Int, right_edge)
 end
@@ -139,14 +147,26 @@ Implements a harmonic oscillator in Cartesian basis with contact interactions.
 ```math
 \\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l
 ```
-Indices ``i, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
+Indices ``\\mathbf{i}, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
 The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` so that 
-single particle energies are ``\\epsilon_i = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots``.
+single particle energies are ``\\epsilon_\\mathbf{i} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots``.
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
-Matrix elements ``V_{ijkl}`` are for a contact interaction calculated in this basis using 
-first-order perturbation theory. All states with the same noninteracting energy are connected
-by this interaction.
+
+Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this basis using 
+first-order degenerate perturbation theory.
+```math
+    V_{\\mathbf{ijkl}} = \\delta_{\\mathbf{i} + \\mathbf{j}}^{\\mathbf{k} + \\mathbf{l}} 
+    \\prod_{d \\elem x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d),
+```
+where the ``\\delta`` function indicates that the *total* noninteracting energy is conserved
+meaning all states with the same noninteracting energy are connected by this interaction.
+The integral
+```math
+    \\mathcal{I}(a,b,c,d) = \\int dx \\, \\phi_a(x) \\phi_b(x) \\phi_c(x) \\phi_d(x),
+```
+is of four one dimensional harmonic oscillator basis functions, implemented in
+[`four_oscillator_integral_general`](@ref).
 
 # Arguments
 
@@ -305,6 +325,8 @@ end
 Base.IteratorSize(::HOCartOffdiagonals) = Base.SizeUnknown()
 Base.eltype(::HOCartOffdiagonals{A,T}) where {A,T} = Tuple{A,T}
 
+# custom error message for the rest of the standard iteration interface
+# and also getindex in case that is used
 const HOCartOffdiagonalsError = ErrorException("Number of offdiagonals is not well known. Only basic iteration is supported.")
 Base.getindex(::HOCartOffdiagonals, i) = throw(HOCartOffdiagonalsError)
 Base.size(::HOCartOffdiagonals) = throw(HOCartOffdiagonalsError)

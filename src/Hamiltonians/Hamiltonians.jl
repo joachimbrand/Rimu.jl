@@ -21,8 +21,8 @@ Momentum space Hubbard models
 Other
 - [`MatrixHamiltonian`](@ref)
 - [`Transcorrelated1D`](@ref)
-- [`HOCartesian`](@ref)
-- [`HOCartesianSeparable`](@ref)
+- [`HOCartesianEnergyConserved`](@ref)
+- [`HOCartesianEnergyConservedPerDim`](@ref)
 
 ## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)
