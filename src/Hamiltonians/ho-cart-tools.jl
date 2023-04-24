@@ -182,16 +182,3 @@ function fock_to_cart(
 
     return SVector{N,NTuple{D,Int}}(cart)
 end
-
-"""
-    occupied_modes_list(addr)
-
-Output a `Tuple` of all occupied modes in `addr`. Multiply-occupied modes 
-are listed as duplicates so the length of the output is always the number 
-of particles. This is a compact form of [`onr`](@ref) when number of particles
-is less than the umber of modes.
-"""
-@inline function occupied_modes_list(a::SingleComponentFockAddress{N}) where {N}
-    oml = [p.mode for p in OccupiedModeMap(a) for _ in 1:p.occnum]
-    return SVector{N,Int}(oml)
-end

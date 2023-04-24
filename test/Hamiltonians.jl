@@ -319,15 +319,11 @@ end
         @test fock_to_cart(addr, S) == [(0, 1), (0, 1), (3, 3)]
         @test fock_to_cart(addr, S; zero_index = false) == [(1, 2), (1, 2), (4, 4)]
 
-        @test occupied_modes_list(addr) == modes
-
         null_addr = BoseFS(prod(S),)
         @test isempty(fock_to_cart(null_addr, S))
-        @test isempty(occupied_modes_list(null_addr))
 
         modes = [1,5,16]
         fermi = FermiFS(prod(S), modes .=> 1)
-        @test occupied_modes_list(fermi) == findall(!iszero, onr(fermi))
     end
 end
 

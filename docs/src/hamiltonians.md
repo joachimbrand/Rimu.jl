@@ -160,7 +160,6 @@ and [`HOCartesianEnergyConservedPerDim`](@ref).
 ```@docs
 get_all_blocks
 fock_to_cart
-occupied_modes_list
 ```
 Underlying integrals for the interaction matrix elements are implemented in the following unexported functions
 ```@docs
