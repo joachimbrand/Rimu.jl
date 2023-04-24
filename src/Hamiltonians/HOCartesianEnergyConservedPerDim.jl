@@ -5,10 +5,11 @@
 Integral of four one-dimensional harmonic oscillator functions, 
 ```math
     \\mathcal{I}(i,j,k,l) = \\int_{-\\infty}^\\infty dx \\, 
-    \\phi_a(x) \\phi_b(x) \\phi_c(x) \\phi_d(x)
+    \\phi_i(x) \\phi_j(x) \\phi_k(x) \\phi_l(x)
 ```
-assuming ``i+j == k+l``. State indices `i,j,k,l` start at `0` for the groundstate.
+assuming ``i+j = k+l``. State indices `i,j,k,l` start at `0` for the groundstate.
 Closed form taken from [Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606).
+Used in [`HOCartesianEnergyConservedPerDim`](@ref).
 """
 function four_oscillator_integral_1D(i, j, k, l; max_level = typemax(Int))
     !all(0 .≤ (i,j,k,l) .≤ max_level) && return 0.0
@@ -86,24 +87,24 @@ conserves total energy.
 
 Indices ``\\mathbf{i}, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
 The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` so that 
-single particle energies are ``\\epsilon_\\mathbf{i} = (i_x + 1/2) + \\eta_y (i_y + 1/2) + \\ldots``.
+single particle energies are 
+```math
+    \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots``.
+```
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
 Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this basis using 
 first-order degenerate perturbation theory.
 ```math
-    V_{\\mathbf{ijkl}} = \\prod_{d \\elem x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d) 
-    \\delta_{i_d+j_d}^{k_d+l_d},
+    V_{\\mathbf{ijkl}} = \\prod_{d \\in x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d) 
+        \\delta_{i_d + j_d}^{k_d + l_d},
 ```
-where the ``\\delta`` function indicates that the noninteracting energy is conserved along each
+where the ``\\delta``-function indicates that the noninteracting energy is conserved along each
 dimension.
-The integral
-```math
-\\mathcal{I}(a,b,c,d) = \\int dx \\, \\phi_a(x) \\phi_b(x) \\phi_c(x) \\phi_d(x),
-```
-is of four one dimensional harmonic oscillator basis functions with the restriction 
-that energy is conserved in each dimension, see [`four_oscillator_integral_1D`](@ref).
+The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
+basis functions with the restriction that energy is conserved in each dimension, 
+see [`four_oscillator_integral_1D`](@ref).
 
 # Arguments
 

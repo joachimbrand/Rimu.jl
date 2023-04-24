@@ -4,13 +4,14 @@
 Integral of four one-dimensional harmonic oscillator functions, 
 ```math
     \\mathcal{I}(i,j,k,l) = \\int_{-\\infty}^\\infty dx \\, 
-    \\phi_a(x) \\phi_b(x) \\phi_c(x) \\phi_d(x)
+    \\phi_i(x) \\phi_j(x) \\phi_k(x) \\phi_l(x)
 ```
 Indices `i,j,k,l` start at `0` for the groundstate.
 
 This integral has a closed form in terms of the hypergeometric ``_{3}F_2`` function, 
-and is non-zero unless ``a+b+c+d`` is odd. See e.g. 
+and is non-zero unless ``i+j+k+l`` is odd. See e.g. 
 [Titchmarsh 1948](https://doi.org/10.1112/jlms/s1-23.1.15).
+Used in [`HOCartesianEnergyConserved`](@ref).
 """
 function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
     all(0 .≤ (i, j, k, l) .≤ max_level) || return 0.0
@@ -149,7 +150,10 @@ Implements a harmonic oscillator in Cartesian basis with contact interactions.
 ```
 Indices ``\\mathbf{i}, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
 The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` so that 
-single particle energies are ``\\epsilon_\\mathbf{i} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots``.
+single particle energies are 
+```math
+    \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots``.
+```
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
@@ -157,16 +161,12 @@ Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated 
 first-order degenerate perturbation theory.
 ```math
     V_{\\mathbf{ijkl}} = \\delta_{\\mathbf{i} + \\mathbf{j}}^{\\mathbf{k} + \\mathbf{l}} 
-    \\prod_{d \\elem x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d),
+        \\prod_{d \\in x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d),
 ```
 where the ``\\delta`` function indicates that the *total* noninteracting energy is conserved
 meaning all states with the same noninteracting energy are connected by this interaction.
-The integral
-```math
-    \\mathcal{I}(a,b,c,d) = \\int dx \\, \\phi_a(x) \\phi_b(x) \\phi_c(x) \\phi_d(x),
-```
-is of four one dimensional harmonic oscillator basis functions, implemented in
-[`four_oscillator_integral_general`](@ref).
+The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
+basis functions, implemented in [`four_oscillator_integral_general`](@ref).
 
 # Arguments
 
