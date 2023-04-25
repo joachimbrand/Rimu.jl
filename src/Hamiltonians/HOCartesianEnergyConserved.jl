@@ -144,7 +144,7 @@ end
 """
     HOCartesianEnergyConserved(addr; S, η, g = 1.0, interaction_only = false)
 
-Implements a harmonic oscillator in Cartesian basis with contact interactions.
+Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions.
 ```math
 \\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l
 ```

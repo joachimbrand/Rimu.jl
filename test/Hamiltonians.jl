@@ -36,13 +36,15 @@ function test_hamiltonian_interface(H)
                 @test norm(diagonal_element(H, addr)) ≥ 0
             end
         end
-        @testset "hopping" begin
-            h = offdiagonals(H, addr)
-            @test eltype(h) == Tuple{typeof(addr), eltype(H)}
-            @test length(h) == num_offdiagonals(H, addr)
-            for i in 1:length(h)
-                @test h[i] == get_offdiagonal(H, addr, i)
-                @test h[i] isa eltype(h)
+        if !(H isa HOCartesianEnergyConserved)  # offdiagonals not consistent with interface
+            @testset "hopping" begin
+                h = offdiagonals(H, addr)
+                @test eltype(h) == Tuple{typeof(addr), eltype(H)}
+                @test length(h) == num_offdiagonals(H, addr)
+                for i in 1:length(h)
+                    @test h[i] == get_offdiagonal(H, addr, i)
+                    @test h[i] isa eltype(h)
+                end
             end
         end
         @testset "LOStructure" begin
@@ -168,7 +170,7 @@ end
         Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
         momentum(HubbardMom1D(BoseFS((0,5,0)))),
 
-        # HOCartesianEnergyConserved(BoseFS((2,0,0,0))),   # offdiagonals not consistent with interface
+        HOCartesianEnergyConserved(BoseFS((2,0,0,0))),
         HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
     )
         test_hamiltonian_interface(H)
@@ -180,22 +182,39 @@ end
         # argument checks
         # @test_logs (:warn,) HOCartesianEnergyConserved(BoseFS(12, 1=>1); S = (3,4))
         @test_throws ArgumentError HOCartesianEnergyConserved(BoseFS(4, 1=>1); S = (5,))
+        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (4,), η = (2,3))
 
-        N = 2
+        N = 3
         D = 2
         M = 4
         S = ntuple(_ -> M + 1, D)
         addr = BoseFS(prod(S), 1 => N)
         H = HOCartesianEnergyConserved(addr; S)
-        
-        block_df = get_all_blocks(H, max_energy = N*D/2 + M)
+        E0 = Hamiltonians.noninteracting_energy(H, addr)
+        @test N*D/2 == E0
+
+        block_df = get_all_blocks(H, max_energy = E0 + M)
         @test length(block_df[:,:block_E0]) == 9
-        @test block_df[:,:block_E0] == float([2,3,4,5,6,3,4,5,6])
-        @test block_df[:,:block_size] == [1,1,4,5,11,1,2,5,8]
+        @test Int.(block_df[:,:block_E0]) == [3,4,5,6,7,4,5,6,7]
+        @test block_df[:,:block_size] == [1,1,4,7,16,1,2,7,12]
 
         # interaction matrix elements
         @test count(H.vtable .== 0) == 312
         @test sum(H.vtable) ≈ 11.220010295489221
+
+        # offdiagonals interface
+        @test num_offdiagonals(H, addr) == dimension(H) - 1
+
+        h = offdiagonals(H, addr)        
+        @test Base.eltype(h) == Tuple{typeof(addr),eltype(H)}
+        @test Base.IteratorSize(h) == Base.SizeUnknown()
+        @test_throws ErrorException getindex(h,1)
+        @test_throws ErrorException size(h)
+        @test_throws ErrorException length(h)
+
+        next_state = (1,1,2)
+        @test iterate(h) == ((addr,0.0), next_state)
+        @test isnothing(iterate(h, next_state))
 
         # aspect ratio
         S = (4,2,2)
@@ -215,18 +234,21 @@ end
         # argument checks
         # @test_logs (:warn,) HOCartesianEnergyConservedPerDim(BoseFS(12, 1=>1); S = (3,4))
         @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (5,))
+        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (4,), η = (2,3))
 
-        N = 2
+        N = 3
         D = 2
         M = 4
         S = ntuple(_ -> M + 1, D)
         addr = BoseFS(prod(S), 1 => N)
         H = HOCartesianEnergyConservedPerDim(addr; S)
+        E0 = Hamiltonians.noninteracting_energy(H, addr)
+        @test N*D/2 == E0
 
-        block_df = get_all_blocks(H, max_energy = N*D/2 + M)
+        block_df = get_all_blocks(H, max_energy = E0 + M)
         @test length(block_df[:,:block_E0]) == 15
-        @test block_df[:,:block_E0] == float([2,3,4,5,6,3,4,5,6,4,5,6,5,6,6])
-        @test block_df[:,:block_size] == [1,1,2,2,3,1,2,3,4,2,3,5,2,4,3]
+        @test Int.(block_df[:,:block_E0]) == [3,4,5,6,7,4,5,6,7,5,6,7,6,7,7]
+        @test block_df[:,:block_size] == [1,1,2,3,4,1,2,4,6,2,4,8,3,6,4]
 
         # interaction matrix elements
         @test count(H.vtable .== 0) == 70
@@ -241,6 +263,42 @@ end
         @test H.aspect1 == (1.0,2.0,3.0)
         H = HOCartesianEnergyConservedPerDim(addr; S, η = 2)
         @test H.aspect1 == (1.0,2.0,2.0)        
+    end
+
+    @testset "Angular momentum" begin
+        @test_throws ArgumentError AxialAngularMomentumHO((2,))
+        @test_throws ArgumentError AxialAngularMomentumHO((1,2,3))
+
+        N = 3
+        D = 3
+        M = 2
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)  # dummy state to build Hamiltonian
+        H = HOCartesianEnergyConserved(addr; S, interaction_only = false)
+        max_energy = N*D/2 + M
+        block_df = get_all_blocks(H; max_energy)
+
+        basis = BoseFS[]
+        for r in eachrow(subset(block_df, :block_E0 => x -> x .== max_energy))
+            push!(basis, BasisSetRep(H, r.addr; sizelim = Inf, nnzs = r.block_size).basis...)
+        end
+        dvs = map(b -> DVec(b=>1.0), basis)
+
+        Lz = AxialAngularMomentumHO(S)
+        Lx = AxialAngularMomentumHO(S; z_dim=1)
+        Ly = AxialAngularMomentumHO(S; z_dim=2)
+        
+        Lz_mat = [dot(v, Lz, w) for v in dvs, w in dvs]
+        Lx_mat = [dot(v, Lx, w) for v in dvs, w in dvs]
+        Ly_mat = [dot(v, Ly, w) for v in dvs, w in dvs]
+
+        Lz_vals = round.(imag(eigen(Lz_mat).values), digits=8)
+        Lx_vals = round.(imag(eigen(Lx_mat).values), digits=8)
+        Ly_vals = round.(imag(eigen(Ly_mat).values), digits=8)
+
+        @test isempty(setdiff(Lz_vals, -2.0:2.0))
+        @test isempty(setdiff(Lz_vals, Lx_vals))
+        @test isempty(setdiff(Lz_vals, Ly_vals))
     end
 
     @testset "find blocks" begin
@@ -279,37 +337,22 @@ end
         @test_throws ArgumentError get_all_blocks(HOCartesianEnergyConserved(addr; S))
     end
 
-    @testset "Angular momentum" begin
-        @test_throws ArgumentError AxialAngularMomentumHO((2,))
-        @test_throws ArgumentError AxialAngularMomentumHO((1,2,3))
-
-        N = 3
-        D = 3
-        M = 2
-        S = ntuple(_ -> M + 1, D)
-        addr = BoseFS(prod(S), 1 => N)  # dummy state to build Hamiltonian
-        H = HOCartesianEnergyConserved(addr; S, interaction_only = false)
-        max_energy = N*D/2 + M
-        block_df = get_all_blocks(H; max_energy)
-
-        basis = BoseFS[]
-        for r in eachrow(subset(block_df, :block_E0 => x -> x .== max_energy))
-            push!(basis, BasisSetRep(H, r.addr; sizelim = Inf, nnzs = r.block_size).basis...)
+    @testset "vertices" begin
+        n = 3
+        for k in 0:n
+            @test Hamiltonians._binomial(n, Val(k)) == Base.binomial(n, k)
         end
-        dvs = map(b -> DVec(b=>1.0), basis)
 
-        Lz = AxialAngularMomentumHO(S)
-        Lx = AxialAngularMomentumHO(S; z_dim=1)
-        
-        Lz_mat = [dot(v, Lz, w) for v in dvs, w in dvs]
-        Lx_mat = [dot(v, Lx, w) for v in dvs, w in dvs]
+        @test_throws OverflowError Hamiltonians._first_vertex(n, Val(0))
+        @test Hamiltonians._first_vertex(n, Val(1), 0, 0) == n
 
-        Lz_vals = round.(imag(eigen(Lz_mat).values), digits=8)
-        Lx_vals = round.(imag(eigen(Lx_mat).values), digits=8)
+        @test Hamiltonians.vertices(1, Val(3)) == (3,2,1)
+        @test Hamiltonians.vertices(10, Val(3)) == (5,4,3)
+        @test Hamiltonians.vertices(n, Val(1)) == (n,)
 
-        @test isempty(setdiff(Lz_vals, -2.0:2.0))
-        @test isempty(setdiff(Lz_vals, Lx_vals))
-    end
+        @test Hamiltonians.index((3,2,1)) == 1
+        @test Hamiltonians.index((5,4,3)) == 10
+    end    
 
     @testset "HO utilities" begin
         S = (4,4)
