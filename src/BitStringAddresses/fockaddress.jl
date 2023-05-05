@@ -671,7 +671,7 @@ can be given to `excitation`
 julia> addr = BoseFS((10, 0, 0, 0, 2, 0, 1))
 BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
 
-julia> pairs = OccupiedModeMap(addr)
+julia> pairs = OccupiedPairsMap(addr)
 5-element OccupiedPairsMap{78, Tuple{BoseFSIndex, BoseFSIndex}}:
  (BoseFSIndex(occnum=10, mode=1, offset=0), BoseFSIndex(occnum=10, mode=1, offset=0))
  (BoseFSIndex(occnum=2, mode=5, offset=14), BoseFSIndex(occnum=2, mode=5, offset=14))
