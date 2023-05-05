@@ -320,10 +320,9 @@ function loop_over_pairs(S, aspect, pairs, start)
     mode_j = p_j.mode
     mode_k = k_start
     mode_l = l_start
+    Es = find_Ebounds(mode_i, mode_j, S, aspect)
     while true
-        Emin, Emax, Etot = find_Ebounds(mode_i, mode_j, S, aspect)      # this could be saved in the iteration state
-
-        mode_k, mode_l = loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
+        mode_k, mode_l = loop_over_modes(k_start, l_start, S, aspect, Es...)
         mode_k > 0 && mode_l > 0 && break   # valid move found
 
         # move to next pair of particles
@@ -336,6 +335,7 @@ function loop_over_pairs(S, aspect, pairs, start)
         p_i, p_j = pairs[pair_index]
         mode_i = p_i.mode
         mode_j = p_j.mode
+        Es = find_Ebounds(mode_i, mode_j, S, aspect)
         # start with checking lowest possible states in first dimension (x)
         k_start = 1
         l_start = 1
