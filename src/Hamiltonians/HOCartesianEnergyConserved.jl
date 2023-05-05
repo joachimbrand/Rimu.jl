@@ -100,48 +100,6 @@ function find_Ebounds(i, j, S, aspect)
 end
 
 """
-    OccupiedPairsMap(omm::OccupiedModeMap) <: AbstractVector
-
-Get all pairs of particles in `omm`. Pairs involving multiply-occupied modes 
-are counted once, (including self pairing).
-This is an eager iterator whose elements are a tuple of particle indices.
-
-See [`OccupiedModeMap`](@ref).
-"""
-struct OccupiedPairsMap{N,T} <: AbstractVector{T}
-    pairs::SVector{N,T}
-    length::Int
-end
-
-function OccupiedPairsMap(addr::SingleComponentFockAddress{N}) where {N}
-    omm = OccupiedModeMap(addr)
-    T = eltype(omm)
-    P = N * (N - 1) ÷ 2
-    pairs = MVector{P,Tuple{T,T}}(undef)
-    L = 0
-    for i in eachindex(omm)
-        p_i = omm[i]
-        if p_i.occnum > 1
-            L += 1
-            @inbounds pairs[L] = (p_i, p_i)
-        end
-        for j in 1:i-1
-            p_j = omm[j]
-            L += 1
-            @inbounds pairs[L] = (p_i, p_j)
-        end
-    end
-    
-    return OccupiedPairsMap(SVector(pairs), L)
-end
-
-Base.size(opm::OccupiedPairsMap) = (opm.length,)
-function Base.getindex(opm::OccupiedPairsMap, i)
-    @boundscheck 1 ≤ i ≤ opm.length || throw(BoundsError(opm, i))
-    return opm.pairs[i]
-end
-
-"""
     HOCartesianEnergyConserved(addr; S, η, g = 1.0, interaction_only = false)
 
 Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions.
@@ -404,10 +362,9 @@ function Base.iterate(off::HOCartOffdiagonals, iter_state = (1,1,1))
         return (addr, 0.0), new_iter_state
     end
     # can I make a parity check here?
-    p_i, p_j = pairs[pair_index]
     p_k = find_mode(addr, k)
     p_l = find_mode(addr, l)
-    new_add, val = excitation(addr, (p_l, p_k), (p_j, p_i))
+    new_add, val = excitation(addr, (p_l, p_k), pairs[pair_index])
 
     if val ≠ 0.0
         states = CartesianIndices(S)    # 1-indexed
