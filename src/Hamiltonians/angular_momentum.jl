@@ -2,11 +2,21 @@
     AxialAngularMomentumHO(S; z_dim = 3) <: AbstractHamiltonian
 
 Angular momentum operator for application to Cartesian harmonic oscillator basis,
-see [`HOCartesianEnergyConserved`](@ref) and [`HOCartesianEnergyConservedPerDim`](@ref).
-Computes projection of angular momentum onto `z`-axis without ``i\\hbar`` prefactor:
+see [`HOCartesianEnergyConserved`](@ref) or [`HOCartesianEnergyConservedPerDim`](@ref).
+Represents the projection of angular momentum onto `z`-axis:
 ```math
-\\frac{\\hat{L}_z}{i\\hbar} = \\left( a_x a_y^\\dag - a_y a_x^\\dag \\right)
+\\hat{L}_z = i \\hbar \\sum_{j=1}^N \\left( b_{j_x} b_{j_y}^\\dag - b_{j_y} b_{j_x}^\\dag \\right),
 ```
+where ``b_{j_x}^\\dag`` and ``b_{j_x}`` are raising and lowering (ladder) operators 
+for the ``j^\\text{th}`` particle in a harmonic oscillator in the ``x`` dimension, 
+and simlarly for ``y``. Their action on a ``N`` particle Fock state that represents 
+a many-body harmonic oscillator is e.g.
+```math
+\\sum_{j=1}^N b_{j_x} b_{j_y}^\\dag = \\sum_{n_x=1}^{M_x} \\sum_{n_y=1}^{M_y} a_{n_x-1,n_y+1}^\\dag a_{n_x, n_y}
+```
+where ``a_n^\\dag`` and ``a_n`` are creation and annihilation operators for the 
+``n^\\text{th}`` single-particle mode, indexed by a pair ``n = (n_x, n_y)``.
+
 Argument `S` is a tuple defining the range of Cartesian modes in each dimension. 
 If `S` indicates a 3D system the `z` dimension can be changed by setting `z_dim`; 
 `S` should be be isotropic in the remaining `x`-`y` plane, i.e. must have 
@@ -35,11 +45,13 @@ function AxialAngularMomentumHO(S; z_dim = 3)
     return AxialAngularMomentumHO{D}(S, (x_dim, y_dim, z_dim))
 end
 
-function Base.show(io::IO, ::AxialAngularMomentumHO{D}) where {D}
-    print(io, "AxialAngularMomentumHO($D)")
+function Base.show(io::IO, L::AxialAngularMomentumHO)
+    print(io, "AxialAngularMomentumHO($(L.S); z_dim = $(L.xyz[3]))")
 end
 
-LOStructure(::Type{<:AxialAngularMomentumHO}) = IsDiagonal()
+LOStructure(::Type{<:AxialAngularMomentumHO}) = IsHermitian()
+
+starting_address(L::AxialAngularMomentumHO) = BoseFS(prod(L.S))
 
 diagonal_element(L::AxialAngularMomentumHO, addr::SingleComponentFockAddress) = 0.0
 
@@ -83,8 +95,5 @@ function get_offdiagonal(L::AxialAngularMomentumHO{D}, addr::SingleComponentFock
     new_add, val = excitation(addr, (new,), (omm[chosen_mode],))
     debug && println((chosen_mode, b, n_i, n_k, p, val))
     # return new_add, (p, val, omm[mode].occnum)
-    return new_add, p * val
+    return new_add, p * val * im
 end
-
-# not needed:
-# starting_address(::AxialAngularMomentumHO)
