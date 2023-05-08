@@ -67,296 +67,113 @@ end
 
 using Rimu.Hamiltonians: momentum_transfer_excitation
 
-# @testset "momentum_transfer_excitation" begin
-#     @testset "BoseFS" begin
-#         add1 = BoseFS((0,1,1,0))
-#         add2 = BoseFS((1,0,0,1))
-#         for i in 1:4
-#             ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=true)
-#             @test ex[1] == add2
-#             @test ex[2] == 1
+@testset "momentum_transfer_excitation" begin
+    @testset "BoseFS" begin
+        add1 = BoseFS((0,1,1,0))
+        add2 = BoseFS((1,0,0,1))
+        for i in 1:4
+            ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=true)
+            @test ex[1] == add2
+            @test ex[2] == 1
 
-#             ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=false)
-#             @test ex[1] == add2
-#             @test ex[2] == 1
-#         end
-
-#         add3 = BoseFS((1,1,0,0))
-#         for i in 1:4
-#             ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=true)
-#             @test ex[2] == 1
-
-#             ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=false)
-#             @test ex[2] == 0
-#         end
-
-#         add4 = BoseFS((0,3,0))
-#         add5 = BoseFS((1,1,1))
-#         for i in 1:2
-#             ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=false)
-#             @test ex[1] == add5
-#             @test ex[2] ≈ √6
-
-#             ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=true)
-#             @test ex[1] == add5
-#             @test ex[2] ≈ √6
-#         end
-#     end
-#     @testset "FermiFS" begin
-#         add1 = FermiFS((0,0,1,0))
-#         add2 = FermiFS((0,1,0,0))
-#         occ1 = OccupiedModeMap(add1)
-#         occ2 = OccupiedModeMap(add2)
-#         for i in 1:3
-#             ex = momentum_transfer_excitation(add1, add2, i, occ1, occ2; fold=true)
-#             @test ex[3] == 1
-
-#             ex = momentum_transfer_excitation(add1, add2, i, occ1, occ2; fold=false)
-#             @test ex[3] == 1
-#         end
-
-#         add3 = FermiFS((1,0,0,0))
-#         add4 = FermiFS((0,1,0,0))
-#         occ3 = OccupiedModeMap(add3)
-#         occ4 = OccupiedModeMap(add4)
-#         for i in 1:3
-#             ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=true)
-#             @test ex[3] == 1
-#         end
-#         num_nonzero = 0
-#         for i in 1:3
-#             ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=false)
-#             num_nonzero += ex[3] == 1
-#         end
-#         @test num_nonzero == 1
-#     end
-# end
-
-# @testset "Interface tests" begin
-#     for H in (
-#         HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
-#         HubbardReal1DEP(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0, v_ho=3.0),
-#         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
-#         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
-#         ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
-#         HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
-#         HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
-#         HubbardRealSpace(
-#             CompositeFS(
-#                 FermiFS((1, 1, 1, 1, 1, 0, 0, 0)),
-#                 FermiFS((1, 1, 1, 1, 0, 0, 0, 0)),
-#             ); t=[1, 2], u=[0 3; 3 0]
-#         ),
-
-#         BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
-#         BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))),
-
-#         GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6); g=0.3),
-#         GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3,2,1), (1,2,3)); ua=6); g=0.3),
-#         GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6 + 2im); g=0.3),
-
-#         MatrixHamiltonian([1 2;2 0]),
-#         GutzwillerSampling(MatrixHamiltonian([1.0 2.0;2.0 0.0]); g=0.3),
-
-#         Transcorrelated1D(CompositeFS(FermiFS((0,0,1,1,0)), FermiFS((0,1,1,0,0))); t=2),
-#         Transcorrelated1D(CompositeFS(FermiFS((0,0,1,0)), FermiFS((0,1,1,0))); v=3, v_ho=1),
-
-#         HubbardMom1DEP(BoseFS((0,0,5,0,0))),
-#         HubbardMom1DEP(CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((0,0,1,0,0))), v_ho=5),
-
-#         ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
-#         TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
-#         TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
-#         Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
-#         momentum(HubbardMom1D(BoseFS((0,5,0)))),
-
-#         HOCartesianEnergyConserved(BoseFS((2,0,0,0))),
-#         HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
-#     )
-#         test_hamiltonian_interface(H)
-#     end
-# end
-
-@testset "Harmonic oscillator in Cartesian basis" begin
-    # @testset "HOCartesianEnergyConserved" begin
-    #     # argument checks
-    #     # @test_logs (:warn,) HOCartesianEnergyConserved(BoseFS(12, 1=>1); S = (3,4))
-    #     @test_throws ArgumentError HOCartesianEnergyConserved(BoseFS(4, 1=>1); S = (5,))
-    #     @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (4,), η = (2,3))
-
-    #     N = 3
-    #     D = 2
-    #     M = 4
-    #     S = ntuple(_ -> M + 1, D)
-    #     addr = BoseFS(prod(S), 1 => N)
-    #     H = HOCartesianEnergyConserved(addr; S)
-    #     E0 = Hamiltonians.noninteracting_energy(H, addr)
-    #     @test N*D/2 == E0
-
-    #     block_df = get_all_blocks(H, max_energy = E0 + M)
-    #     @test length(block_df[:,:block_E0]) == 9
-    #     @test Int.(block_df[:,:block_E0]) == [3,4,5,6,7,4,5,6,7]
-    #     @test block_df[:,:block_size] == [1,1,4,7,16,1,2,7,12]
-
-    #     # interaction matrix elements
-    #     @test count(H.vtable .== 0) == 312
-    #     @test sum(H.vtable) ≈ 11.220010295489221
-
-    #     # offdiagonals interface
-    #     @test num_offdiagonals(H, addr) == dimension(H) - 1
-
-    #     h = offdiagonals(H, addr)        
-    #     @test Base.eltype(h) == Tuple{typeof(addr),eltype(H)}
-    #     @test Base.IteratorSize(h) == Base.SizeUnknown()
-    #     @test_throws ErrorException getindex(h,1)
-    #     @test_throws ErrorException size(h)
-    #     @test_throws ErrorException length(h)
-
-    #     next_state = (1,1,2)
-    #     @test iterate(h) == ((addr,0.0), next_state)
-    #     @test isnothing(iterate(h, next_state))
-
-    #     # aspect ratio
-    #     S = (4,2,2)
-    #     addr = BoseFS(prod(S), 1 => 1)
-    #     H = HOCartesianEnergyConserved(addr; S)
-    #     @test H.aspect == (1,3,3)
-    #     @test H.aspect1 == (1.0,3.0,3.0)
-    #     H = HOCartesianEnergyConserved(addr; S, η = (1,2,3))
-    #     @test H.aspect == (1,3,3)
-    #     @test H.aspect1 == (1.0,2.0,3.0)
-    #     H = HOCartesianEnergyConserved(addr; S, η = 2)
-    #     @test H.aspect == (1,3,3)
-    #     @test H.aspect1 == (1.0,2.0,2.0)
-    # end
-
-    # @testset "HOCartesianEnergyConservedPerDim" begin
-    #     # argument checks
-    #     # @test_logs (:warn,) HOCartesianEnergyConservedPerDim(BoseFS(12, 1=>1); S = (3,4))
-    #     @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (5,))
-    #     @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (4,), η = (2,3))
-
-    #     N = 3
-    #     D = 2
-    #     M = 4
-    #     S = ntuple(_ -> M + 1, D)
-    #     addr = BoseFS(prod(S), 1 => N)
-    #     H = HOCartesianEnergyConservedPerDim(addr; S)
-    #     E0 = Hamiltonians.noninteracting_energy(H, addr)
-    #     @test N*D/2 == E0
-
-    #     block_df = get_all_blocks(H, max_energy = E0 + M)
-    #     @test length(block_df[:,:block_E0]) == 15
-    #     @test Int.(block_df[:,:block_E0]) == [3,4,5,6,7,4,5,6,7,5,6,7,6,7,7]
-    #     @test block_df[:,:block_size] == [1,1,2,3,4,1,2,4,6,2,4,8,3,6,4]
-
-    #     # interaction matrix elements
-    #     @test count(H.vtable .== 0) == 70
-    #     @test sum(H.vtable) ≈ 3.3630246382916664
-
-    #     # aspect ratio
-    #     S = (4,2,2)
-    #     addr = BoseFS(prod(S), 1 => 1)
-    #     H = HOCartesianEnergyConservedPerDim(addr; S)
-    #     @test H.aspect1 == (1.0,3.0,3.0)
-    #     H = HOCartesianEnergyConservedPerDim(addr; S, η = (1,2,3))
-    #     @test H.aspect1 == (1.0,2.0,3.0)
-    #     H = HOCartesianEnergyConservedPerDim(addr; S, η = 2)
-    #     @test H.aspect1 == (1.0,2.0,2.0)        
-    # end
-
-    @testset "Angular momentum" begin
-        @test_throws ArgumentError AxialAngularMomentumHO((2,))
-        @test_throws ArgumentError AxialAngularMomentumHO((1,2,3))
-        @test_throws ArgumentError BasisSetRep(AxialAngularMomentumHO((1,2,3)), BoseFS(10, 1 => 1))
-
-        S = (3,3,3)
-        addr = BoseFS(prod(S), 3 => 2)
-
-        Lz = AxialAngularMomentumHO(S)
-        Ly = AxialAngularMomentumHO(S; z_dim=2)
-        Lx = AxialAngularMomentumHO(S; z_dim=1)
-        
-        Lz_mat = Matrix(BasisSetRep(Lz, addr))
-        Ly_mat = Matrix(BasisSetRep(Ly, addr))
-        Lx_mat = Matrix(BasisSetRep(Lx, addr))
-
-        Lz_vals = eigvals(Lz_mat)
-        Ly_vals = eigvals(Ly_mat)
-        Lx_vals = eigvals(Lx_mat)
-
-        expected = [-4, -2, 0, 0, 2, 4]
-        @test Lz_vals ≈ expected
-        @test Ly_vals ≈ expected
-        @test Lx_vals == [0.0]  # initial state is excited purely in x dimension
-    end
-
-    @testset "find blocks" begin
-        N = 2
-        D = 2
-        M = 4
-        S = ntuple(_ -> M + 1, D)
-        addr = BoseFS(prod(S), 1 => N)
-        H = HOCartesianEnergyConservedPerDim(addr; S)
-        block_df_vert = get_all_blocks(H; max_energy = N*D/2 + M, method = :vertices)
-        block_df_comb = get_all_blocks(H; max_energy = N*D/2 + M, method = :comb)
-
-        # different methods find the same blocks but with different key addresses
-        vert_blocks = block_df_vert[!,[:block_E0,:block_size]]
-        comb_blocks = block_df_comb[!,[:block_E0,:block_size]]
-        @test vert_blocks == comb_blocks
-
-        @test nrow(get_all_blocks(H, max_blocks = 5)) == 5
-        @test nrow(get_all_blocks(H, max_blocks = 5, method = :comb)) == 5
-
-        @test nrow(
-            @test_logs (:warn,) get_all_blocks(H; target_energy = 100)
-        ) == 0
-        @test nrow(
-            @test_logs (:warn,) get_all_blocks(H; max_energy = 1)
-        ) == 0
-        @test nrow(
-            @test_logs (:warn,) get_all_blocks(H; max_energy = 3, target_energy = 4)
-        ) == 0
-
-        df = get_all_blocks(H; save_to_file = "test_block_df.arrow")
-        df_file = load_df("test_block_df.arrow")
-        @test df[!,[1,2,3,5]] == df_file[!,[1,2,3,5]]
-        
-        # HOCartesianEnergyConserved requires a valid energy restriction 
-        @test_throws ArgumentError get_all_blocks(HOCartesianEnergyConserved(addr; S))
-    end
-
-    @testset "vertices" begin
-        n = 3
-        for k in 0:n
-            @test Hamiltonians._binomial(n, Val(k)) == Base.binomial(n, k)
+            ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=false)
+            @test ex[1] == add2
+            @test ex[2] == 1
         end
 
-        @test_throws OverflowError Hamiltonians._first_vertex(n, Val(0))
-        @test Hamiltonians._first_vertex(n, Val(1), 0, 0) == n
+        add3 = BoseFS((1,1,0,0))
+        for i in 1:4
+            ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=true)
+            @test ex[2] == 1
 
-        @test Hamiltonians.vertices(1, Val(3)) == (3,2,1)
-        @test Hamiltonians.vertices(10, Val(3)) == (5,4,3)
-        @test Hamiltonians.vertices(n, Val(1)) == (n,)
+            ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=false)
+            @test ex[2] == 0
+        end
 
-        @test Hamiltonians.index((3,2,1)) == 1
-        @test Hamiltonians.index((5,4,3)) == 10
-    end    
+        add4 = BoseFS((0,3,0))
+        add5 = BoseFS((1,1,1))
+        for i in 1:2
+            ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=false)
+            @test ex[1] == add5
+            @test ex[2] ≈ √6
 
-    @testset "HO utilities" begin
-        S = (4,4)
-        @test_throws ArgumentError fock_to_cart(BoseFS(1, 1 => 1), S)
-        modes = [5, 5, 16]
-        addr = BoseFS(prod(S), modes .=> 1)
-        @test fock_to_cart(addr, S) == [(0, 1), (0, 1), (3, 3)]
-        @test fock_to_cart(addr, S; zero_index = false) == [(1, 2), (1, 2), (4, 4)]
+            ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=true)
+            @test ex[1] == add5
+            @test ex[2] ≈ √6
+        end
+    end
+    @testset "FermiFS" begin
+        add1 = FermiFS((0,0,1,0))
+        add2 = FermiFS((0,1,0,0))
+        occ1 = OccupiedModeMap(add1)
+        occ2 = OccupiedModeMap(add2)
+        for i in 1:3
+            ex = momentum_transfer_excitation(add1, add2, i, occ1, occ2; fold=true)
+            @test ex[3] == 1
 
-        null_addr = BoseFS(prod(S),)
-        @test isempty(fock_to_cart(null_addr, S))
+            ex = momentum_transfer_excitation(add1, add2, i, occ1, occ2; fold=false)
+            @test ex[3] == 1
+        end
 
-        modes = [1,5,16]
-        fermi = FermiFS(prod(S), modes .=> 1)
+        add3 = FermiFS((1,0,0,0))
+        add4 = FermiFS((0,1,0,0))
+        occ3 = OccupiedModeMap(add3)
+        occ4 = OccupiedModeMap(add4)
+        for i in 1:3
+            ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=true)
+            @test ex[3] == 1
+        end
+        num_nonzero = 0
+        for i in 1:3
+            ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=false)
+            num_nonzero += ex[3] == 1
+        end
+        @test num_nonzero == 1
+    end
+end
+
+@testset "Interface tests" begin
+    for H in (
+        HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
+        HubbardReal1DEP(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0, v_ho=3.0),
+        HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
+        HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
+        ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
+        HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
+        HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
+        HubbardRealSpace(
+            CompositeFS(
+                FermiFS((1, 1, 1, 1, 1, 0, 0, 0)),
+                FermiFS((1, 1, 1, 1, 0, 0, 0, 0)),
+            ); t=[1, 2], u=[0 3; 3 0]
+        ),
+
+        BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
+        BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))),
+
+        GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6); g=0.3),
+        GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3,2,1), (1,2,3)); ua=6); g=0.3),
+        GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6 + 2im); g=0.3),
+
+        MatrixHamiltonian([1 2;2 0]),
+        GutzwillerSampling(MatrixHamiltonian([1.0 2.0;2.0 0.0]); g=0.3),
+
+        Transcorrelated1D(CompositeFS(FermiFS((0,0,1,1,0)), FermiFS((0,1,1,0,0))); t=2),
+        Transcorrelated1D(CompositeFS(FermiFS((0,0,1,0)), FermiFS((0,1,1,0))); v=3, v_ho=1),
+
+        HubbardMom1DEP(BoseFS((0,0,5,0,0))),
+        HubbardMom1DEP(CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((0,0,1,0,0))), v_ho=5),
+
+        ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
+        TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
+        TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
+        Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
+        momentum(HubbardMom1D(BoseFS((0,5,0)))),
+
+        HOCartesianEnergyConserved(BoseFS((2,0,0,0))),
+        HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
+    )
+        test_hamiltonian_interface(H)
     end
 end
 
@@ -1436,3 +1253,186 @@ end
     @test LOStructure(Stoquastic(G2RealCorrelator(2))) == IsDiagonal()
 end
 
+
+@testset "Harmonic oscillator in Cartesian basis" begin
+    @testset "HOCartesianEnergyConserved" begin
+        # argument checks
+        # @test_logs (:warn,) HOCartesianEnergyConserved(BoseFS(12, 1=>1); S = (3,4))
+        @test_throws ArgumentError HOCartesianEnergyConserved(BoseFS(4, 1=>1); S = (5,))
+        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (4,), η = (2,3))
+
+        N = 3
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesianEnergyConserved(addr; S)
+        E0 = Hamiltonians.noninteracting_energy(H, addr)
+        @test N*D/2 == E0
+
+        block_df = get_all_blocks(H, max_energy = E0 + M)
+        @test length(block_df[:,:block_E0]) == 9
+        @test Int.(block_df[:,:block_E0]) == [3,4,5,6,7,4,5,6,7]
+        @test block_df[:,:block_size] == [1,1,4,7,16,1,2,7,12]
+
+        # interaction matrix elements
+        @test count(H.vtable .== 0) == 312
+        @test sum(H.vtable) ≈ 11.220010295489221
+
+        # offdiagonals interface
+        @test num_offdiagonals(H, addr) == dimension(H) - 1
+
+        h = offdiagonals(H, addr)        
+        @test Base.eltype(h) == Tuple{typeof(addr),eltype(H)}
+        @test Base.IteratorSize(h) == Base.SizeUnknown()
+        @test_throws ErrorException getindex(h,1)
+        @test_throws ErrorException size(h)
+        @test_throws ErrorException length(h)
+
+        next_state = (1,1,2)
+        @test iterate(h) == ((addr,0.0), next_state)
+        @test isnothing(iterate(h, next_state))
+
+        # aspect ratio
+        S = (4,2,2)
+        addr = BoseFS(prod(S), 1 => 1)
+        H = HOCartesianEnergyConserved(addr; S)
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,3.0,3.0)
+        H = HOCartesianEnergyConserved(addr; S, η = (1,2,3))
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,2.0,3.0)
+        H = HOCartesianEnergyConserved(addr; S, η = 2)
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,2.0,2.0)
+    end
+
+    @testset "HOCartesianEnergyConservedPerDim" begin
+        # argument checks
+        # @test_logs (:warn,) HOCartesianEnergyConservedPerDim(BoseFS(12, 1=>1); S = (3,4))
+        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (5,))
+        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (4,), η = (2,3))
+
+        N = 3
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
+        E0 = Hamiltonians.noninteracting_energy(H, addr)
+        @test N*D/2 == E0
+
+        block_df = get_all_blocks(H, max_energy = E0 + M)
+        @test length(block_df[:,:block_E0]) == 15
+        @test Int.(block_df[:,:block_E0]) == [3,4,5,6,7,4,5,6,7,5,6,7,6,7,7]
+        @test block_df[:,:block_size] == [1,1,2,3,4,1,2,4,6,2,4,8,3,6,4]
+
+        # interaction matrix elements
+        @test count(H.vtable .== 0) == 70
+        @test sum(H.vtable) ≈ 3.3630246382916664
+
+        # aspect ratio
+        S = (4,2,2)
+        addr = BoseFS(prod(S), 1 => 1)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
+        @test H.aspect1 == (1.0,3.0,3.0)
+        H = HOCartesianEnergyConservedPerDim(addr; S, η = (1,2,3))
+        @test H.aspect1 == (1.0,2.0,3.0)
+        H = HOCartesianEnergyConservedPerDim(addr; S, η = 2)
+        @test H.aspect1 == (1.0,2.0,2.0)        
+    end
+
+    @testset "Angular momentum" begin
+        @test_throws ArgumentError AxialAngularMomentumHO((2,))
+        @test_throws ArgumentError AxialAngularMomentumHO((1,2,3))
+        @test_throws ArgumentError BasisSetRep(AxialAngularMomentumHO((1,2,3)), BoseFS(10, 1 => 1))
+
+        S = (3,3,3)
+        addr = BoseFS(prod(S), 3 => 2)
+
+        Lz = AxialAngularMomentumHO(S)
+        Ly = AxialAngularMomentumHO(S; z_dim=2)
+        Lx = AxialAngularMomentumHO(S; z_dim=1)
+        
+        Lz_mat = Matrix(BasisSetRep(Lz, addr))
+        Ly_mat = Matrix(BasisSetRep(Ly, addr))
+        Lx_mat = Matrix(BasisSetRep(Lx, addr))
+
+        Lz_vals = eigvals(Lz_mat)
+        Ly_vals = eigvals(Ly_mat)
+        Lx_vals = eigvals(Lx_mat)
+
+        expected = [-4, -2, 0, 0, 2, 4]
+        @test Lz_vals ≈ expected
+        @test Ly_vals ≈ expected
+        @test Lx_vals == [0.0]  # initial state is excited purely in x dimension
+    end
+
+    @testset "find blocks" begin
+        N = 2
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
+        block_df_vert = get_all_blocks(H; max_energy = N*D/2 + M, method = :vertices)
+        block_df_comb = get_all_blocks(H; max_energy = N*D/2 + M, method = :comb)
+
+        # different methods find the same blocks but with different key addresses
+        vert_blocks = block_df_vert[!,[:block_E0,:block_size]]
+        comb_blocks = block_df_comb[!,[:block_E0,:block_size]]
+        @test vert_blocks == comb_blocks
+
+        @test nrow(get_all_blocks(H, max_blocks = 5)) == 5
+        @test nrow(get_all_blocks(H, max_blocks = 5, method = :comb)) == 5
+
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; target_energy = 100)
+        ) == 0
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; max_energy = 1)
+        ) == 0
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; max_energy = 3, target_energy = 4)
+        ) == 0
+
+        df = get_all_blocks(H; save_to_file = "test_block_df.arrow")
+        df_file = load_df("test_block_df.arrow")
+        @test df[!,[1,2,3,5]] == df_file[!,[1,2,3,5]]
+        
+        # HOCartesianEnergyConserved requires a valid energy restriction 
+        @test_throws ArgumentError get_all_blocks(HOCartesianEnergyConserved(addr; S))
+    end
+
+    @testset "vertices" begin
+        n = 3
+        for k in 0:n
+            @test Hamiltonians._binomial(n, Val(k)) == Base.binomial(n, k)
+        end
+
+        @test_throws OverflowError Hamiltonians._first_vertex(n, Val(0))
+        @test Hamiltonians._first_vertex(n, Val(1), 0, 0) == n
+
+        @test Hamiltonians.vertices(1, Val(3)) == (3,2,1)
+        @test Hamiltonians.vertices(10, Val(3)) == (5,4,3)
+        @test Hamiltonians.vertices(n, Val(1)) == (n,)
+
+        @test Hamiltonians.index((3,2,1)) == 1
+        @test Hamiltonians.index((5,4,3)) == 10
+    end    
+
+    @testset "HO utilities" begin
+        S = (4,4)
+        @test_throws ArgumentError fock_to_cart(BoseFS(1, 1 => 1), S)
+        modes = [5, 5, 16]
+        addr = BoseFS(prod(S), modes .=> 1)
+        @test fock_to_cart(addr, S) == [(0, 1), (0, 1), (3, 3)]
+        @test fock_to_cart(addr, S; zero_index = false) == [(1, 2), (1, 2), (4, 4)]
+
+        null_addr = BoseFS(prod(S),)
+        @test isempty(fock_to_cart(null_addr, S))
+
+        modes = [1,5,16]
+        fermi = FermiFS(prod(S), modes .=> 1)
+    end
+end
