@@ -21,8 +21,12 @@ Argument `S` is a tuple defining the range of Cartesian modes in each dimension.
 If `S` indicates a 3D system the `z` dimension can be changed by setting `z_dim`; 
 `S` should be be isotropic in the remaining `x`-`y` plane, i.e. must have 
 `S[x_dim] == S[y_dim]`.
+
+Note: This operator does not have a meaningful [`starting_address`](@ref), but will work with
+[`BasisSetRep`](@ref)`(L, addr)` if an appropriate `addr` is supplied, that is, if
+`prod(S) == num_modes(addr)`.
 """
-struct AxialAngularMomentumHO{D} <: AbstractHamiltonian{Float64}
+struct AxialAngularMomentumHO{D} <: AbstractHamiltonian{ComplexF64}
     S::NTuple{D,Int64}
     xyz::NTuple{3,Int64}
 end
@@ -51,14 +55,17 @@ end
 
 LOStructure(::Type{<:AxialAngularMomentumHO}) = IsHermitian()
 
+# need this to work with `BasisSetRep`
 starting_address(L::AxialAngularMomentumHO) = BoseFS(prod(L.S))
+function check_address_type(L::AxialAngularMomentumHO, addr::A) where A
+    prod(L.S) == num_modes(addr) || throw(ArgumentError("address type mismatch"))
+end
 
 diagonal_element(L::AxialAngularMomentumHO, addr::SingleComponentFockAddress) = 0.0
 
 num_offdiagonals(::AxialAngularMomentumHO, addr::SingleComponentFockAddress) = 2 * num_occupied_modes(addr)
 
-
-function get_offdiagonal(L::AxialAngularMomentumHO{D}, addr::SingleComponentFockAddress, chosen::Int; debug=false) where {D}
+function get_offdiagonal(L::AxialAngularMomentumHO{D}, addr::SingleComponentFockAddress, chosen::Int) where {D}
     S = L.S
     states = CartesianIndices(S)
     omm = OccupiedModeMap(addr)
@@ -93,7 +100,6 @@ function get_offdiagonal(L::AxialAngularMomentumHO{D}, addr::SingleComponentFock
     new = find_mode(addr, mode_k)
 
     new_add, val = excitation(addr, (new,), (omm[chosen_mode],))
-    debug && println((chosen_mode, b, n_i, n_k, p, val))
-    # return new_add, (p, val, omm[mode].occnum)
+    
     return new_add, p * val * im
 end
