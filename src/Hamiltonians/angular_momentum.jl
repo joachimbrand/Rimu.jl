@@ -1,5 +1,5 @@
 """
-    AxialAngularMomentumHO(S; z_dim = 3) <: AbstractHamiltonian
+    AxialAngularMomentumHO(S; z_dim = 3, addr = BoseFS(prod(S))) <: AbstractHamiltonian
 
 Angular momentum operator for application to Cartesian harmonic oscillator basis,
 see [`HOCartesianEnergyConserved`](@ref) or [`HOCartesianEnergyConservedPerDim`](@ref).
@@ -54,7 +54,7 @@ struct AxialAngularMomentumHO{A,D} <: AbstractHamiltonian{ComplexF64}
     xyz::NTuple{3,Int64}
 end
 
-function AxialAngularMomentumHO(addr, S; z_dim = 3)
+function AxialAngularMomentumHO(S; z_dim = 3, addr = BoseFS(prod(S)))
     D = length(S)
     D < 2 && throw(ArgumentError("number of dimensions should be at least 2"))
     if D == 3 && z_dim ≠ 3
