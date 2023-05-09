@@ -33,7 +33,7 @@ in a 2D Cartesian basis
 julia> S = (2,2)
 (2, 2)
 
-julia> Lz = AxialAngularMomentumHO(BoseFS(prod(S)), S)
+julia> Lz = AxialAngularMomentumHO(S)
 AxialAngularMomentumHO(BoseFS{0,4}((0, 0, 0, 0)), (2, 2); z_dim = 3)
 
 julia> v = DVec(BoseFS(prod(S), 2 => 1) => 1.0)
