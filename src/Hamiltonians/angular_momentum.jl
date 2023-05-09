@@ -85,7 +85,7 @@ diagonal_element(L::AxialAngularMomentumHO, addr::SingleComponentFockAddress) = 
 
 num_offdiagonals(::AxialAngularMomentumHO, addr::SingleComponentFockAddress) = 2 * num_occupied_modes(addr)
 
-function get_offdiagonal(L::AxialAngularMomentumHO{D}, addr::SingleComponentFockAddress, chosen::Int) where {D}
+function get_offdiagonal(L::AxialAngularMomentumHO{<:Any,D}, addr::SingleComponentFockAddress, chosen::Int) where {D}
     S = L.S
     states = CartesianIndices(S)
     omm = OccupiedModeMap(addr)
