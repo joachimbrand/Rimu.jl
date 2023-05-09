@@ -5,33 +5,56 @@ Angular momentum operator for application to Cartesian harmonic oscillator basis
 see [`HOCartesianEnergyConserved`](@ref) or [`HOCartesianEnergyConservedPerDim`](@ref).
 Represents the projection of angular momentum onto `z`-axis:
 ```math
-\\hat{L}_z = i \\hbar \\sum_{j=1}^N \\left( b_{j_x} b_{j_y}^\\dag - b_{j_y} b_{j_x}^\\dag \\right),
+\\hat{L}_z = i \\hbar \\sum_{j=1}^N \\left( b_x b_y^\\dag - b_y b_x^\\dag \\right),
 ```
-where ``b_{j_x}^\\dag`` and ``b_{j_x}`` are raising and lowering (ladder) operators 
-for the ``j^\\text{th}`` particle in a harmonic oscillator in the ``x`` dimension, 
-and simlarly for ``y``. Their action on a ``N`` particle Fock state that represents 
-a many-body harmonic oscillator is e.g.
-```math
-\\sum_{j=1}^N b_{j_x} b_{j_y}^\\dag = \\sum_{n_x=1}^{M_x} \\sum_{n_y=1}^{M_y} a_{n_x-1,n_y+1}^\\dag a_{n_x, n_y}
-```
-where ``a_n^\\dag`` and ``a_n`` are creation and annihilation operators for the 
-``n^\\text{th}`` single-particle mode, indexed by a pair ``n = (n_x, n_y)``.
+where ``b_x^\\dag`` and ``b_x`` are raising and lowering (ladder) operators 
+for  a harmonic oscillator in the ``x`` dimension, and simlarly for ``y``. 
 
-Argument `S` is a tuple defining the range of Cartesian modes in each dimension. 
-If `S` indicates a 3D system the `z` dimension can be changed by setting `z_dim`; 
+This is implemented for an ``N`` particle Fock space with creation and annihilation 
+operators as
+```math
+\\frac{1}{\\hbar} \\hat{L}_z = i \\sum_{n_x=1}^{M_x} \\sum_{n_y=1}^{M_y} 
+    \\left( a_{n_x-1,n_y+1}^\\dag - a_{n_x+1,n_y-1}^\\dag \\right) a_{n_x, n_y}.
+```
+in units of ``\\hbar``.
+
+Argument `S` is a tuple defining the range of Cartesian modes in each dimension and
+their mapping to Fock space modes in a `SingleComponentFockAddress`. If `S` indicates 
+a 3D system the `z` dimension can be changed by setting `z_dim`; 
 `S` should be be isotropic in the remaining `x`-`y` plane, i.e. must have 
 `S[x_dim] == S[y_dim]`.
+The starting address `addr` only needs to satisfy `num_modes(addr) == prod(S)`.
 
-Note: This operator does not have a meaningful [`starting_address`](@ref), but will work with
-[`BasisSetRep`](@ref)`(L, addr)` if an appropriate `addr` is supplied, that is, if
-`prod(S) == num_modes(addr)`.
+# Example
+Calculate the overlap of two Fock addresses interpreted as harmonic oscillator states
+in a 2D Cartesian basis
+
+```jldoctest
+julia> S = (2,2)
+(2, 2)
+
+julia> Lz = AxialAngularMomentumHO(BoseFS(prod(S)), S)
+AxialAngularMomentumHO((2, 2); z_dim = 3)
+
+julia> v = DVec(BoseFS(prod(S), 2 => 1) => 1.0)
+DVec{BoseFS{1, 4, BitString{4, 1, UInt8}},Float64} with 1 entry, style = IsDeterministic{Float64}()
+  fs"|0 1 0 0⟩" => 1.0
+
+julia> w = DVec(BoseFS(prod(S), 3 => 1) => 1.0)
+DVec{BoseFS{1, 4, BitString{4, 1, UInt8}},Float64} with 1 entry, style = IsDeterministic{Float64}()
+  fs"|0 0 1 0⟩" => 1.0
+
+julia> dot(w, Lz, v)
+0.0 + 1.0im
+```
 """
-struct AxialAngularMomentumHO{D} <: AbstractHamiltonian{ComplexF64}
+struct AxialAngularMomentumHO{A,D} <: AbstractHamiltonian{ComplexF64}
+    addr::A
     S::NTuple{D,Int64}
     xyz::NTuple{3,Int64}
 end
 
-function AxialAngularMomentumHO(S; z_dim = 3)
+function AxialAngularMomentumHO(addr, S; z_dim = 3)
     D = length(S)
     D < 2 && throw(ArgumentError("number of dimensions should be at least 2"))
     if D == 3 && z_dim ≠ 3
@@ -46,20 +69,17 @@ function AxialAngularMomentumHO(S; z_dim = 3)
         x_dim, y_dim = (1, 2)
     end
     S[x_dim] == S[y_dim] || throw(ArgumentError("angular momentum only defined for isotropic system"))
-    return AxialAngularMomentumHO{D}(S, (x_dim, y_dim, z_dim))
+    prod(S) == num_modes(addr) || throw(ArgumentError("address type mismatch"))
+    return AxialAngularMomentumHO{typeof(addr),D}(addr, S, (x_dim, y_dim, z_dim))
 end
 
 function Base.show(io::IO, L::AxialAngularMomentumHO)
-    print(io, "AxialAngularMomentumHO($(L.S); z_dim = $(L.xyz[3]))")
+    print(io, "AxialAngularMomentumHO($(L.addr), $(L.S); z_dim = $(L.xyz[3]))")
 end
 
 LOStructure(::Type{<:AxialAngularMomentumHO}) = IsHermitian()
 
-# need this to work with `BasisSetRep`
-starting_address(L::AxialAngularMomentumHO) = BoseFS(prod(L.S))
-function check_address_type(L::AxialAngularMomentumHO, addr::A) where A
-    prod(L.S) == num_modes(addr) || throw(ArgumentError("address type mismatch"))
-end
+starting_address(L::AxialAngularMomentumHO) = L.addr
 
 diagonal_element(L::AxialAngularMomentumHO, addr::SingleComponentFockAddress) = 0.0
 

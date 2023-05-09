@@ -10,7 +10,7 @@ Indices `i,j,k,l` start at `0` for the groundstate.
 
 This integral has a closed form in terms of the hypergeometric ``_{3}F_2`` function, 
 and is non-zero unless ``i+j+k+l`` is odd. See e.g. 
-[Titchmarsh 1948](https://doi.org/10.1112/jlms/s1-23.1.15).
+[Titchmarsh (1948)](https://doi.org/10.1112/jlms/s1-23.1.15).
 Used in [`HOCartesianEnergyConserved`](@ref).
 """
 function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
@@ -42,15 +42,15 @@ amount leaves both within `v:w`.
 
 `i` and `j` may be `Rational`s, but `v` and `w` must be `Integer`s.
 """
-function largest_two_point_interval(i::Int, j::Int, v::Int, w::Int)
-    i in v:w && j in v:w || throw(ArgumentError("interval out of bounds: i=$i, j=$j, v=$v, w=$w"))
-    left_edge, right_edge = two_point_interval_bounds(i, j, v, w)
-    return left_edge:right_edge
-end
 function largest_two_point_interval(i, j, v::Int, w::Int)
     v ≤ i ≤ w && v ≤ j ≤ w || throw(ArgumentError("interval out of bounds: i=$i, j=$j, v=$v, w=$w"))
     left_edge, right_edge = two_point_interval_bounds(i, j, v, w)
     return ceil(Int, left_edge):floor(Int, right_edge)
+end
+function largest_two_point_interval(i::Int, j::Int, v::Int, w::Int)
+    i in v:w && j in v:w || throw(ArgumentError("interval out of bounds: i=$i, j=$j, v=$v, w=$w"))
+    left_edge, right_edge = two_point_interval_bounds(i, j, v, w)
+    return left_edge:right_edge
 end
 largest_two_point_interval(i, j, w) = largest_two_point_interval(i, j, 1, w)
 
@@ -69,10 +69,8 @@ function two_point_interval_bounds(i, j, v, w)
     return left_edge, right_edge
 end
 
-# useful conversion of aspect ratio to a factor for getting box size
-aspect_to_box(η::NTuple{N,Int}) where {N} = Int.(lcm(η...) .// η)
-box_to_aspect(S) = (S[1] - 1) ./ (S .- 1)
-box_to_aspect(S::NTuple{N,Int}) where {N} = (S[1] - 1) .// (S .- 1)
+# useful conversion of box to aspect ratios; 
+box_to_aspect(S::NTuple{<:Any,Int}) = (S[1] - 1) .// (S .- 1)
 
 @inline function mode_to_energy(i, S, aspect)
     # aspect = box_to_aspect(S)

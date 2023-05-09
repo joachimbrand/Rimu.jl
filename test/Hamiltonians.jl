@@ -1253,7 +1253,6 @@ end
     @test LOStructure(Stoquastic(G2RealCorrelator(2))) == IsDiagonal()
 end
 
-
 @testset "Harmonic oscillator in Cartesian basis" begin
     @testset "HOCartesianEnergyConserved" begin
         # argument checks
@@ -1269,6 +1268,7 @@ end
         H = HOCartesianEnergyConserved(addr; S)
         E0 = Hamiltonians.noninteracting_energy(H, addr)
         @test N*D/2 == E0
+        @test diagonal_element(H, BoseFS(prod(S), (1,2,3) .=> 1)) ≈ 6.4177817256162255
 
         block_df = get_all_blocks(H, max_energy = E0 + M)
         @test length(block_df[:,:block_E0]) == 9
@@ -1305,6 +1305,13 @@ end
         H = HOCartesianEnergyConserved(addr; S, η = 2)
         @test H.aspect == (1,3,3)
         @test H.aspect1 == (1.0,2.0,2.0)
+
+        S = (4,4)
+        H = HOCartesianEnergyConserved(addr; S)
+        b1 = Hamiltonians.find_Ebounds(3, 2, S, Hamiltonians.box_to_aspect(S))
+        b2 = Hamiltonians.find_Ebounds(3, 2, S, H.aspect)
+        @test b1 == b2
+        @test !(b1 === b2)
     end
 
     @testset "HOCartesianEnergyConservedPerDim" begin
@@ -1343,24 +1350,19 @@ end
     end
 
     @testset "Angular momentum" begin
-        @test_throws ArgumentError AxialAngularMomentumHO((2,))
-        @test_throws ArgumentError AxialAngularMomentumHO((1,2,3))
-        @test_throws ArgumentError BasisSetRep(AxialAngularMomentumHO((1,2,3)), BoseFS(10, 1 => 1))
+        @test_throws ArgumentError AxialAngularMomentumHO(BoseFS(2), (2,))
+        @test_throws ArgumentError AxialAngularMomentumHO(BoseFS(6), (1,2,3))
 
         S = (3,3,3)
         addr = BoseFS(prod(S), 3 => 2)
 
-        Lz = AxialAngularMomentumHO(S)
-        Ly = AxialAngularMomentumHO(S; z_dim=2)
-        Lx = AxialAngularMomentumHO(S; z_dim=1)
+        Lz = AxialAngularMomentumHO(addr, S)
+        Ly = AxialAngularMomentumHO(addr, S; z_dim=2)
+        Lx = AxialAngularMomentumHO(addr, S; z_dim=1)
         
-        Lz_mat = Matrix(BasisSetRep(Lz, addr))
-        Ly_mat = Matrix(BasisSetRep(Ly, addr))
-        Lx_mat = Matrix(BasisSetRep(Lx, addr))
-
-        Lz_vals = eigvals(Lz_mat)
-        Ly_vals = eigvals(Ly_mat)
-        Lx_vals = eigvals(Lx_mat)
+        Lz_vals = eigvals(Matrix(BasisSetRep(Lz)))
+        Ly_vals = eigvals(Matrix(BasisSetRep(Ly)))
+        Lx_vals = eigvals(Matrix(BasisSetRep(Lx)))
 
         expected = [-4, -2, 0, 0, 2, 4]
         @test Lz_vals ≈ expected
@@ -1431,8 +1433,5 @@ end
 
         null_addr = BoseFS(prod(S),)
         @test isempty(fock_to_cart(null_addr, S))
-
-        modes = [1,5,16]
-        fermi = FermiFS(prod(S), modes .=> 1)
     end
 end
