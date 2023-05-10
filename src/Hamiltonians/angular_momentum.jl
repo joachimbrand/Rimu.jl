@@ -34,7 +34,7 @@ julia> S = (2,2)
 (2, 2)
 
 julia> Lz = AxialAngularMomentumHO(S)
-AxialAngularMomentumHO(BoseFS{0,4}((0, 0, 0, 0)), (2, 2); z_dim = 3)
+AxialAngularMomentumHO((2, 2); z_dim = 3, addr = BoseFS{0,4}((0, 0, 0, 0)))
 
 julia> v = DVec(BoseFS(prod(S), 2 => 1) => 1.0)
 DVec{BoseFS{1, 4, BitString{4, 1, UInt8}},Float64} with 1 entry, style = IsDeterministic{Float64}()
