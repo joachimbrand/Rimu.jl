@@ -654,3 +654,66 @@ function sparse_to_onr(M, pairs)
     end
     return onr
 end
+
+"""
+    OccupiedPairsMap(addr::SingleComponentFockAddress) <: AbstractVector
+
+Get a map of all distinct pairs of indices in `addr`. Pairs involving 
+multiply-occupied modes are counted once, (including self-pairing).
+This is useful for cases where identifying pairs of particles for eg. 
+interactions is not well-defined or efficient to do on the fly.
+This is an eager iterator whose elements are a tuple of particle indices that 
+can be given to `excitation`
+
+# Example
+
+```jldoctest
+julia> addr = BoseFS((10, 0, 0, 0, 2, 0, 1))
+BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
+
+julia> pairs = OccupiedPairsMap(addr)
+5-element OccupiedPairsMap{78, Tuple{BoseFSIndex, BoseFSIndex}}:
+ (BoseFSIndex(occnum=10, mode=1, offset=0), BoseFSIndex(occnum=10, mode=1, offset=0))
+ (BoseFSIndex(occnum=2, mode=5, offset=14), BoseFSIndex(occnum=2, mode=5, offset=14))
+ (BoseFSIndex(occnum=2, mode=5, offset=14), BoseFSIndex(occnum=10, mode=1, offset=0))
+ (BoseFSIndex(occnum=1, mode=7, offset=18), BoseFSIndex(occnum=10, mode=1, offset=0))
+ (BoseFSIndex(occnum=1, mode=7, offset=18), BoseFSIndex(occnum=2, mode=5, offset=14))
+
+julia> excitation(addr, pairs[2], pairs[4])
+(BoseFS{13,7}((9, 0, 0, 0, 4, 0, 0)), 10.954451150103322)
+```
+
+See also [`OccupiedModeMap`](@ref).
+"""
+struct OccupiedPairsMap{N,T} <: AbstractVector{T}
+    pairs::SVector{N,T}
+    length::Int
+end
+
+function OccupiedPairsMap(addr::SingleComponentFockAddress{N}) where {N}
+    omm = OccupiedModeMap(addr)
+    T = eltype(omm)
+    P = N * (N - 1) ÷ 2
+    pairs = MVector{P,Tuple{T,T}}(undef)
+    a = 0
+    for i in eachindex(omm)
+        p_i = omm[i]
+        if p_i.occnum > 1
+            a += 1
+            @inbounds pairs[a] = (p_i, p_i)
+        end
+        for j in 1:i-1
+            p_j = omm[j]
+            a += 1
+            @inbounds pairs[a] = (p_i, p_j)
+        end
+    end
+    
+    return OccupiedPairsMap(SVector(pairs), a)
+end
+
+Base.size(opm::OccupiedPairsMap) = (opm.length,)
+function Base.getindex(opm::OccupiedPairsMap, i)
+    @boundscheck 1 ≤ i ≤ opm.length || throw(BoundsError(opm, i))
+    return opm.pairs[i]
+end
