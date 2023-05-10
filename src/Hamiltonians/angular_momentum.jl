@@ -74,7 +74,7 @@ function AxialAngularMomentumHO(S; z_dim = 3, addr = BoseFS(prod(S)))
 end
 
 function Base.show(io::IO, L::AxialAngularMomentumHO)
-    print(io, "AxialAngularMomentumHO($(L.S); z_dim = $(L.xyz[3]), addr = $(L.addr)")
+    print(io, "AxialAngularMomentumHO($(L.S); z_dim = $(L.xyz[3]), addr = $(L.addr))")
 end
 
 LOStructure(::Type{<:AxialAngularMomentumHO}) = IsHermitian()
