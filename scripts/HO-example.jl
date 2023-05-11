@@ -41,7 +41,7 @@ H = HOCartesianEnergyConserved(BoseFS(P, 1 => N); S)
 
 # and then a utility function [`get_all_blocks`](@ref) to find all blocks up
 # to the maximum single-particle energy, which is `M` levels above the groundstate. 
-# (Each level is a jump of ``\\hbar\\omega``.)
+# (Each level is a jump of ``\hbar \omega``.)
 # This works by looping over all 
 # possible states with `N` particles in Cartesian states defined by `S`.
 E0 = N*D/2
@@ -101,7 +101,8 @@ Hint = HOCartesianEnergyConserved(addr1; S, interaction_only = true)
 
 # Finished!
 
-using Test                                        #hide
-@test nrow(block_df) == M*2^(D-1) + 1             #hide
-@test E == E0 + M                                 #hide
-@test Lz_vals ≈ [-3,-3,-1,-1,-1,1,1,1,3,3]        #hide
+using Test                                      #hide
+@test nrow(block_df) == M*2^(D-1) + 1           #hide
+@test E == E0 + M                               #hide
+@test Lz_vals ≈ [-3,-3,-1,-1,-1,1,1,1,3,3]      #hide
+nothing                                         #hide
