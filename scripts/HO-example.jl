@@ -22,13 +22,14 @@ S = ntuple(_ -> M + 1, D)
 P = prod(S)
 
 # The tuple `S` defines a grid of harmonic oscillator states in a Cartesian
-# basis (`P` is the total number), but the underlying addresses are Fock states.
+# basis (`P` is the total number of single-particle states), in this case 
+# ``n_x,n_y=0,1,\ldots,M``.
+# In `Rimu` the ``N``-particle states are still stored as Fock states.
 # Use the utility function [`fock_to_cart`](@ref) to convert a Fock address to 
 # human-readable Cartesian quantum numbers for inspection.
 addr = BoseFS(P, M + 1 => N)
 fock_to_cart(addr, S)
-
-# The output shows that both particles are in single-particle state ``n_x=3, n_y=0``.
+# The output shows that all ``N`` particles are in single-particle state ``n_x=M, n_y=0``.
 
 # The harmonic oscillator Hamiltonian [`HOCartesianEnergyConserved`](@ref) handles 
 # contact interactions with
@@ -45,7 +46,7 @@ H = HOCartesianEnergyConserved(BoseFS(P, 1 => N); S)
 # This works by looping over all 
 # possible states with `N` particles in Cartesian states defined by `S`.
 E0 = N*D/2
-block_df = get_all_blocks(H; max_energy = E0 + M);
+block_df = get_all_blocks(H; max_energy = E0 + M)
 
 # This outputs a list of blocks in `H` indexed by the noninteracting energy
 # of all states in the block, and a single address that can be used to 
@@ -56,12 +57,15 @@ E = block_df[7,:block_E0]
 basis1 = build_basis(H, addr1)
 map(b -> Hamiltonians.noninteracting_energy(H, b), basis1)
 
-# There are ``2^{D-1}`` blocks at each energy level, which are different due to 
-# parity conservation, which is the only other symmetry in the Cartesian harmonic 
-# oscillator. 
+# There are ``2^{D-1}`` blocks at each energy level (except the groundstate), which 
+# are different due to parity conservation, which is the only other symmetry in the 
+# Cartesian harmonic oscillator.
+# The basis of this other block is different 
 addr2 = block_df[4,:addr]
-basis2 = build_basis(H, addr2)
-basis1 == basis2
+basis2 = build_basis(H, addr2);
+basis1 ≠ basis2
+# but its basis elements have the same energy
+map(b -> Hamiltonians.noninteracting_energy(H, b), basis2)
 
 # However, since we have defined an isotropic harmonic oscillator, we
 # should be able to build simultaneous eigenstates of the angular momentum operator
@@ -71,7 +75,7 @@ Lz = AxialAngularMomentumHO(S)
 # ``L_z`` does not conserve parity so we need both blocks. First combine the bases 
 # of each block and convert to `DVecs`
 dvs = map(b -> DVec(b => 1.0), vcat(basis1, basis2));
-# and then compute overlaps
+# and then compute overlaps for the matrix elements of ``L_z``
 Lz_mat = [dot(v, Lz, w) for v in dvs, w in dvs]
 
 # By diagonalising this matrix we obtain states of energy `E` and well-defined angular
