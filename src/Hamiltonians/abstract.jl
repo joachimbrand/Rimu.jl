@@ -2,7 +2,7 @@
     check_address_type(h::AbstractHamiltonian, addr)
 Throw an `ArgumentError` if the type of `addr` is not compatible with `h`.
 """
-function check_address_type(h::AbstractHamiltonian, addr::A) where A
+function check_address_type(h::AbstractHamiltonian, addr::A) where {A}
     typeof(starting_address(h)) == A || throw(ArgumentError("address type mismatch"))
 end
 
@@ -11,70 +11,101 @@ end
 
 BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_address(h))
 
-"""
-    logbinomialapprox(n, k)
+# """
+#     logbinomialapprox(n, k)
 
-Approximate formula for log of binomial coefficient. [Source](https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas)
-"""
-logbinomialapprox(n,k) = (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2π*k)
+# Approximate formula for log of binomial coefficient. [Source](https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas)
+# """
+# logbinomialapprox(n, k) = (n + 0.5) * log((n + 0.5) / (n - k + 0.5)) + k * log((n - k + 0.5) / k) - 0.5 * log(2π * k)
 
 """
-    dimension([::Type{T}], h)
+    dimension(h::AbstractHamiltonian, addr=starting_address(h))
+    dimension(addr::AbstractFockAddress)
 
-Return the estimated dimension of Hilbert space as `T` (defaults to `Int`). If the result
-does not fit into `T`, return `nothing`. If `T<:AbstractFloat`, an approximate value
-computed with the improved Stirling formula may be returned instead.
+Return the estimated dimension of Hilbert space as `BigInt`.
+
+When called on an address, the dimension of the linear space spanned by the address type is
+returned. When called on an `AbstractHamiltonian`, an upper bound on the dimension of
+the matrix representing the Hamiltonian is returned.
 
 # Examples
 
 ```jldoctest
-julia> dimension(HubbardMom1D(BoseFS((1,2,3))))
+julia> dimension(BoseFS((1,2,3))
 28
-julia> dimension(HubbardMom1D(near_uniform(BoseFS{200,100})))
 
+julia> dimension(HubbardReal1D(BoseFS((1,2,3))))
+28
 
-julia> dimension(Float64, HubbardMom1D(near_uniform(BoseFS{200,100})))
-1.3862737677578234e81
-julia> dimension(BigInt, HubbardMom1D(near_uniform(BoseFS{200,100})))
+julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))
 1386083821086188248261127842108801860093488668581216236221011219101585442774669540
+
+julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))|>Float64
+1.3860838210861882e81
 ```
+
+See also [`BasisSetRep`](@doc).
 """
-function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:Integer}
-    return try_binomial(T(N + M - 1), T(N))
+# function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:Integer}
+#     return try_binomial(T(N + M - 1), T(N))
+# end
+
+# function dimension(::Type{T}) where {N, M, T<:BoseFS{N,M}}
+#     return binomial(N + M - 1, N) #binomial(BigInt(N + M - 1), BigInt(N))
+# end
+function dimension(::BoseFS{N,M}) where {N,M}
+    return binomial(BigInt(N + M - 1), BigInt(N))
 end
-function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
-    return approximate_binomial(T(N + M - 1), T(N))
+function dimension(::FermiFS{N,M}) where {N,M}
+    return binomial(BigInt(M), BigInt(N))
 end
-function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:Integer}
-    return try_binomial(T(M), T(N))
+function dimension(b::BoseFS2C)
+    return dimension(b.bsa) * dimension(b.bsb)
 end
-function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:AbstractFloat}
-    return approximate_binomial(T(M), T(N))
-end
-function dimension(::Type{T}, b::BoseFS2C) where {T}
-    return dimension(T, b.bsa) * dimension(T, b.bsb)
-end
-function dimension(::Type{T}, c::CompositeFS) where {T}
-    return prod(x -> dimension(T, x), c.components)
+function dimension(c::CompositeFS)
+    return prod(x -> dimension(x), c.components)
 end
 
-function try_binomial(n::T, k::T) where {T}
-    try
-        return T(binomial(n, k))
-    catch
-        return nothing
-    end
-end
-function approximate_binomial(n::T, k::T) where {T}
-    try
-        T(binomial(Int128(n), Int128(k)))
-    catch
-        T(exp(logbinomialapprox(n, k)))
-    end
-end
 
-dimension(h::AbstractHamiltonian) = dimension(Int, h)
-dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
+# function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
+#     return approximate_binomial(T(N + M - 1), T(N))
+# end
+# function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:Integer}
+#     return try_binomial(T(M), T(N))
+# end
+# function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:AbstractFloat}
+#     return approximate_binomial(T(M), T(N))
+# end
+# function dimension(::Type{T}, b::BoseFS2C) where {T}
+#     return dimension(T, b.bsa) * dimension(T, b.bsb)
+# end
+# function dimension(::Type{T}, c::CompositeFS) where {T}
+#     return prod(x -> dimension(T, x), c.components)
+# end
+# when extending for custom AbstractHamiltonian types, define a three-argument method
+dimension(h::AbstractHamiltonian, addr=starting_address(h)) = dimension(addr)
+
+# for backward compatibility
+function dimension(::Type{T}, h, addr=starting_address(h)) where {T}
+    return T(dimension(h, addr))
+end
+dimension(::Type{T}, addr::AbstractFockAddress) where {T} = T(dimension(addr))
+
+
+# function try_binomial(n::T, k::T) where {T}
+#     try
+#         return T(binomial(n, k))
+#     catch
+#         return nothing
+#     end
+# end
+# function approximate_binomial(n::T, k::T) where {T}
+#     try
+#         T(binomial(Int128(n), Int128(k)))
+#     catch
+#         T(exp(logbinomialapprox(n, k)))
+#     end
+# end
 
 Base.isreal(h::AbstractHamiltonian) = eltype(h) <: Real
 LinearAlgebra.isdiag(h::AbstractHamiltonian) = LOStructure(h) ≡ IsDiagonal()
@@ -90,7 +121,7 @@ BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(st
 \\frac{⟨ v | H | v ⟩}{⟨ v|v ⟩}
 ```
 """
-rayleigh_quotient(lo, v) = dot(v, lo, v)/norm(v)^2
+rayleigh_quotient(lo, v) = dot(v, lo, v) / norm(v)^2
 
 """
     TwoComponentHamiltonian{T} <: AbstractHamiltonian{T}
@@ -155,7 +186,7 @@ configurations.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 The default estimates for `nnzs` is `dimension(ham)`.
 
-Setting a custom value `col_hint` for the estimated number of nonzero 
+Setting a custom value `col_hint` for the estimated number of nonzero
 off-diagonal matrix elements in each matrix column may improve performance.
 The default value for `col_hint` is `num_offdiagonals(ham, address)`.
 
@@ -174,7 +205,7 @@ function build_sparse_matrix_from_LO(
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
     nnzs=dimension(ham), col_hint=num_offdiagonals(ham, address),
-    sort=false, kwargs...,
+    sort=false, kwargs...
 )
     if !isnothing(filter) && !filter(address)
         throw(ArgumentError(string(
@@ -243,18 +274,18 @@ end
 
 """
     basis = build_basis(
-        ham, address=starting_address(ham); 
+        ham, address=starting_address(ham);
         cutoff=nothing, filter=nothing, sort=false, max_size=Inf, kwargs...
     )
 
-Get all basis element of a linear operator `ham` that are reachable (via 
-non-zero matrix elements) from the address `address`, returned as a vector. 
+Get all basis element of a linear operator `ham` that are reachable (via
+non-zero matrix elements) from the address `address`, returned as a vector.
 Does not return the matrix, for that purpose use [`BasisSetRep`](@ref).
 
 Providing an energy cutoff will skip addresses with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. 
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
 A maximum basis size `max_size` can be set which will throw an error if the expected dimension
-of `ham` is larger than `max_size`. This may be useful when memory may be a concern. 
+of `ham` is larger than `max_size`. This may be useful when memory may be a concern.
 These options are disabled by default.
 
 Setting `sort` to `true` will sort the basis. Any additional keyword arguments
@@ -264,9 +295,9 @@ function build_basis(
     ham, address=starting_address(ham);
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    sort=false, 
-    max_size=Inf, 
-    kwargs...,
+    sort=false,
+    max_size=Inf,
+    kwargs...
 )
     check_address_type(ham, address)
     if !isnothing(filter) && !filter(address)
@@ -314,7 +345,7 @@ overflow. Set `sizelim = Inf` in order to disable this behaviour.
 Providing the number `nnzs` of expected calculated matrix elements may improve performance.
 The default estimates for `nnzs` is `dimension(ham)`.
 
-Setting a custom value `col_hint` for the estimated number of nonzero 
+Setting a custom value `col_hint` for the estimated number of nonzero
 off-diagonal matrix elements in each matrix column may improve performance.
 The default value for `col_hint` is `num_offdiagonals(ham, address)`.
 
@@ -428,7 +459,7 @@ function fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
             return A
         end
     end
-    @. A = 1/2*(A + A')
+    @. A = 1 / 2 * (A + A')
     return A
 end
 
@@ -457,7 +488,9 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
     # based on `ishermsym()` from `SparseArrays`; relies on `SparseArrays` internals
     # https://github.com/JuliaSparse/SparseArrays.jl/blob/1bae96dc8f9a8ca8b7879eef4cf71e186598e982/src/sparsematrix.jl#L3793
     m, n = size(A)
-    if m != n; return false ; end
+    if m != n
+        return false
+    end
 
     colptr = getcolptr(A)
     rowval = rowvals(A)
@@ -525,7 +558,7 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
                 # A[i,j] and A[j,i] exists
                 if row2 == col
                     if isapprox(val, conj(nzval[offset]); kwargs...)
-                        val = 1/2 * (val + conj(nzval[offset]))
+                        val = 1 / 2 * (val + conj(nzval[offset]))
                         nzval[p] = val
                         nzval[offset] = conj(val)
                     else
@@ -580,14 +613,14 @@ function Base.Matrix(h::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
-function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
+function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where {T}
     # calculate the matrix element when only two bitstring addresses are given
     # this is NOT used for the QMC algorithm and is currenlty not used either
     # for building the matrix for conventional diagonalisation.
     # Only used for verifying matrix.
     # This will be slow and inefficient. Avoid using for larger Hamiltonians!
     address1 == address2 && return diagonal_element(ham, address1) # diagonal
-    for (add,val) in offdiagonals(ham, address2) # off-diag column as iterator
+    for (add, val) in offdiagonals(ham, address2) # off-diag column as iterator
         add == address1 && return val # found address1
     end
     return zero(T) # address1 not found
