@@ -42,6 +42,7 @@ VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 [compat]
 Arrow = "1.5, 2"
 BSON = "0.3"
+Combinatorics = "1"
 ConsoleProgressMonitor = "0.1"
 DataFrames = "1"
 DataStructures = "0.18"
