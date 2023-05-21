@@ -28,7 +28,7 @@ Methods that need to be implemented:
 Optional methods to implement:
 
 * [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
-* [`dimension(::AbstractHamiltonian)`](@ref Main.Hamiltonians.dimension): defaults to
+* [`dimension(::AbstractHamiltonian, addr)`](@ref Main.Hamiltonians.dimension): defaults to
   dimension of address space
 * [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
