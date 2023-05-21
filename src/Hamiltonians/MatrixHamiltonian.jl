@@ -33,7 +33,7 @@ LinearAlgebra.adjoint(mh::MatrixHamiltonian{<:Any,<:Any,true}) = mh
 
 starting_address(mh::MatrixHamiltonian) = mh.starting_index
 
-dimension(::Type{T}, mh::MatrixHamiltonian) where T = T(size(mh.m,2))
+dimension(mh::MatrixHamiltonian, _) = size(mh.m,2)
 
 num_offdiagonals(mh::MatrixHamiltonian, _) = dimension(mh) - 1
 

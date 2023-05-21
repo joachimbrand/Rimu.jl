@@ -55,7 +55,7 @@ function test_hamiltonian_interface(H)
             end
         end
         @testset "dimension" begin
-            @test dimension(H) isa BigInt
+            @test dimension(H) isa Integer
             @test dimension(Float64, H) isa Float64
             @test dimension(Int, H) == dimension(H)
         end

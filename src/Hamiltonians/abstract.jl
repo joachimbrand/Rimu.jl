@@ -22,7 +22,7 @@ BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_addres
     dimension(h::AbstractHamiltonian, addr=starting_address(h))
     dimension(addr::AbstractFockAddress)
 
-Return the estimated dimension of Hilbert space as `BigInt`.
+Return the estimated dimension of Hilbert space.
 
 When called on an address, the dimension of the linear space spanned by the address type is
 returned. When called on an `AbstractHamiltonian`, an upper bound on the dimension of
@@ -43,16 +43,16 @@ julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))
 julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))|>Float64
 1.3860838210861882e81
 ```
+# Interface
+
+When extending `AbstractHamiltonian`, implement `dimension(h::AbstractHamiltonian, addr)`.
 
 See also [`BasisSetRep`](@doc).
 """
-# function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:Integer}
-#     return try_binomial(T(N + M - 1), T(N))
-# end
+dimension(h::AbstractHamiltonian) = dimension(h, starting_address(h))
+dimension(::AbstractHamiltonian, addr) = dimension(addr)
+# dimension(_) = Inf # fallback
 
-# function dimension(::Type{T}) where {N, M, T<:BoseFS{N,M}}
-#     return binomial(N + M - 1, N) #binomial(BigInt(N + M - 1), BigInt(N))
-# end
 function dimension(::BoseFS{N,M}) where {N,M}
     return binomial(BigInt(N + M - 1), BigInt(N))
 end
@@ -67,23 +67,6 @@ function dimension(c::CompositeFS)
 end
 
 
-# function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
-#     return approximate_binomial(T(N + M - 1), T(N))
-# end
-# function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:Integer}
-#     return try_binomial(T(M), T(N))
-# end
-# function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:AbstractFloat}
-#     return approximate_binomial(T(M), T(N))
-# end
-# function dimension(::Type{T}, b::BoseFS2C) where {T}
-#     return dimension(T, b.bsa) * dimension(T, b.bsb)
-# end
-# function dimension(::Type{T}, c::CompositeFS) where {T}
-#     return prod(x -> dimension(T, x), c.components)
-# end
-# when extending for custom AbstractHamiltonian types, define a three-argument method
-dimension(h::AbstractHamiltonian, addr=starting_address(h)) = dimension(addr)
 
 # for backward compatibility
 function dimension(::Type{T}, h, addr=starting_address(h)) where {T}
@@ -134,12 +117,12 @@ two different species. At least the following fields should be present:
 
 See [`AbstractHamiltonian`](@ref) for a list of methods that need to be defined.
 
-Provides and implementation of [`dimension`](@ref).
+Provides an implementation of [`dimension`](@ref).
 """
 abstract type TwoComponentHamiltonian{T} <: AbstractHamiltonian{T} end
 
-function dimension(::Type{T}, h::TwoComponentHamiltonian) where {T}
-    return dimension(T, h.ha) * dimension(T, h.hb)
+function dimension(h::TwoComponentHamiltonian) where {T}
+    return dimension(h.ha) * dimension(h.hb)
 end
 
 """
@@ -299,9 +282,9 @@ Does not return the matrix, for that purpose use [`BasisSetRep`](@ref).
 
 Providing an energy cutoff will skip addresses with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
-A maximum basis size `max_size` can be set which will throw an error if the expected dimension
-of `ham` is larger than `max_size`. This may be useful when memory may be a concern.
-These options are disabled by default.
+A maximum basis size `max_size` can be set which will throw an error if the expected
+dimension of `ham` is larger than `max_size`. This may be useful when memory may be a
+concern. These options are disabled by default.
 
 Setting `sort` to `true` will sort the basis. Any additional keyword arguments
 are passed on to `Base.sort!`.
@@ -321,7 +304,9 @@ function build_basis(
             "Please pick a different address or a different filter."
         )))
     end
-    dimension(Float64, ham) < max_size || throw(ArgumentError("dimension larger than max_size"))
+    if dimension(ham, address) > max_size
+        throw(ArgumentError("dimension larger than max_size"))
+    end
     adds = [address]        # Queue of addresses. Also returned as the basis.
     known_basis = Set(adds)     # known addresses
 
@@ -425,32 +410,38 @@ end
 #     return BasisSetRep(sm, basis, h)
 # end
 
-function BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
+function BasisSetRep(h::AbstractHamiltonian, addr_or_vec=starting_address(h); kwargs...)
     # In the default case we pass `AdjointUnknown()` in order to skip the
     # symmetrisation of the sparse matrix
-    return _bsr_ensure_symmetry(AdjointUnknown(), h, addr; kwargs...)
+    return _bsr_ensure_symmetry(AdjointUnknown(), h, addr_or_vec; kwargs...)
 end
 # special cases are needed for symmetry wrappers and are defined there
 
 # default, does not enforce symmetries
 function _bsr_ensure_symmetry(
-    ::LOStructure, h::AbstractHamiltonian, addr;
+    ::LOStructure, h::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
-    dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
-    # check_address_type(h, addr)
-    sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
+    single_addr = addr_or_vec isa AbstractArray ? addr_or_vec[1] : addr_or_vec
+    if dimension(h, single_addr) > sizelim
+        throw(ArgumentError("dimension larger than sizelim"))
+    end
+    check_address_type(h, single_addr)
+    sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
     return BasisSetRep(sm, basis, h)
 end
 
 # build the BasisSetRep while enforcing hermitian symmetry
 function _bsr_ensure_symmetry(
-    ::IsHermitian, h::AbstractHamiltonian, addr;
+    ::IsHermitian, h::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
-    dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
-    # check_address_type(h, addr)
-    sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
+    single_addr = addr_or_vec isa AbstractArray ? addr_or_vec[1] : addr_or_vec
+    if dimension(h, single_addr) > sizelim
+        throw(ArgumentError("dimension larger than sizelim"))
+    end
+    check_address_type(h, single_addr)
+    sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
     fix_approx_hermitian!(sm; test_approx_symmetry) # enforce hermitian symmetry after building
     return BasisSetRep(sm, basis, h)
 end
@@ -597,8 +588,7 @@ end
 
 starting_address(bsr::BasisSetRep) = bsr.basis[1]
 
-dimension(bsr::BasisSetRep) = dimension(Int, bsr)
-dimension(::Type{T}, bsr::BasisSetRep) where {T} = T(length(bsr.basis))
+dimension(bsr::BasisSetRep) = length(bsr.basis)
 
 """
     sparse(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
@@ -700,4 +690,4 @@ TransformUndoer(k::AbstractHamiltonian) = TransformUndoer(k::AbstractHamiltonian
 
 # common methods
 starting_address(s::TransformUndoer) = starting_address(s.transform)
-dimension(::Type{T}, s::TransformUndoer) where {T} = dimension(T, s.transform)
+dimension(s::TransformUndoer) = dimension(s.transform)
