@@ -698,6 +698,7 @@ end
     # lomc!() with AbstractMatrix
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
+    @test dim ≤ dimension(Int, starting_address(ham)) == dimension(starting_address(ham))
     bsr = BasisSetRep(ham, starting_address(ham))
     sm, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
@@ -1149,15 +1150,27 @@ end
         @test sparse(bsr) == bsr.sm == sparse(ham)
         addr2 = bsr.basis[2]
         @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+        @test isreal(ham) == (eltype(ham) <: Real)
+        @test isdiag(ham) == (LOStructure(ham) ≡ IsDiagonal())
+        @test ishermitian(ham) == (LOStructure(ham) ≡ IsHermitian())
+        @test issymmetric(ham) == (ishermitian(ham) && isreal(ham))
     end
 
     @testset "filtering" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        mat_orig = Matrix(ham; sort=true)
+        bsr_orig = BasisSetRep(ham; sort=true)
+        mat_orig = Matrix(bsr_orig)
         mat_cut_index = diag(mat_orig) .< 30
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-        mat_cut = Matrix(ham; cutoff=30, sort=true)
+        bsr = BasisSetRep(ham; cutoff=30, sort=true)
+        mat_cut = Matrix(bsr)
         @test mat_cut == mat_cut_manual
+        # pass a basis and generate truncated BasisSetRep
+        bsrt = BasisSetRep(ham, bsr.basis; filter=_ -> false, sort=true)
+        @test bsrt.basis == bsr.basis
+        @test bsr.sm == bsrt.sm
+        # pass addresses and generate reachable basis
+        @test BasisSetRep(ham, bsr.basis, sort=true).basis == bsr_orig.basis
 
         filterfun(fs) = maximum(onr(fs)) < 8
         mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
