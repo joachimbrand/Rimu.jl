@@ -11,13 +11,6 @@ end
 
 BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_address(h))
 
-# """
-#     logbinomialapprox(n, k)
-
-# Approximate formula for log of binomial coefficient. [Source](https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas)
-# """
-# logbinomialapprox(n, k) = (n + 0.5) * log((n + 0.5) / (n - k + 0.5)) + k * log((n - k + 0.5) / k) - 0.5 * log(2π * k)
-
 """
     dimension(h::AbstractHamiltonian, addr=starting_address(h))
     dimension(addr::AbstractFockAddress)
@@ -31,7 +24,7 @@ the matrix representing the Hamiltonian is returned.
 # Examples
 
 ```jldoctest
-julia> dimension(BoseFS((1,2,3))
+julia> dimension(BoseFS((1,2,3)))
 28
 
 julia> dimension(HubbardReal1D(BoseFS((1,2,3))))
@@ -66,29 +59,11 @@ function dimension(c::CompositeFS)
     return prod(x -> dimension(x), c.components)
 end
 
-
-
 # for backward compatibility
 function dimension(::Type{T}, h, addr=starting_address(h)) where {T}
     return T(dimension(h, addr))
 end
 dimension(::Type{T}, addr::AbstractFockAddress) where {T} = T(dimension(addr))
-
-
-# function try_binomial(n::T, k::T) where {T}
-#     try
-#         return T(binomial(n, k))
-#     catch
-#         return nothing
-#     end
-# end
-# function approximate_binomial(n::T, k::T) where {T}
-#     try
-#         T(binomial(Int128(n), Int128(k)))
-#     catch
-#         T(exp(logbinomialapprox(n, k)))
-#     end
-# end
 
 Base.isreal(h::AbstractHamiltonian) = eltype(h) <: Real
 LinearAlgebra.isdiag(h::AbstractHamiltonian) = LOStructure(h) ≡ IsDiagonal()
