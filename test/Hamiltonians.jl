@@ -1153,7 +1153,6 @@ end
 
     @testset "filtering" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
         mat_orig = Matrix(ham; sort=true)
         mat_cut_index = diag(mat_orig) .< 30
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]

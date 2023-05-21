@@ -165,8 +165,8 @@ momentum
     build_sparse_matrix_from_LO(ham, addresses::AbstractVector; kwargs...)
 
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
-starting from `address`. The vector `basis` contains the addresses of basis
-configurations.
+starting from `address`. Instead of a single address, a vector of `addresses` can be passed.
+The vector `basis` contains the addresses of basis configurations.
 
 Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
 estimated number of nonzero off-diagonal matrix elements in each matrix column may improve
@@ -187,33 +187,17 @@ matrices. Any additional keyword arguments are passed on to `Base.sortperm`.
 See [`BasisSetRep`](@ref).
 """
 function build_sparse_matrix_from_LO(
-    ham, address=starting_address(ham);
+    ham, addr_or_vec=starting_address(ham);
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    # nnzs=dimension(ham), col_hint=num_offdiagonals(ham, address),
-    nnzs=0, col_hint=0,
+    nnzs=0, col_hint=0, # sizehints are opt-in
     sort=false, kwargs...
 )
-    if !isnothing(filter) && !filter(address)
-        throw(ArgumentError(string(
-            "Starting address does not pass `filter`. ",
-            "Please pick a different address or a different filter."
-        )))
-    end
-
     # Set up `adds` as queue of addresses. Also returned as the basis.
-    if isnothing(filter) && address isa AbstractVector # truncated basis has been passed
-        adds = [address...] # interpret `address` as a list of addresses in truncated basis
-        filter = _ -> false # don't allow adding new addresses
-    elseif address isa AbstractArray # basis has been passed and may be extended
-        adds = [address...]          # copy because we will modify it
-    else # starting address has been passed
-        adds = [address]
-    end
+    adds = addr_or_vec isa AbstractArray ? [addr_or_vec...] : [addr_or_vec]
 
     T = eltype(ham)
     dict = Dict(add => i for (i, add) in enumerate(adds)) # Map from addresses to indices
-    # dict = Dict(adds[1] => 1) # Mapping from addresses to indices
     col = Dict{Int,T}()       # Temporary column storage
     sizehint!(col, col_hint)
 
@@ -335,23 +319,22 @@ end
         h::AbstractHamiltonian, addr=starting_address(h);
         sizelim=10^6, nnzs, cutoff, filter, sort, kwargs...
     )
+    BasisSetRep(h::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
 
 Eagerly construct the basis set representation of the operator `h` with all addresses
-reachable from `addr`.
+reachable from `addr`. Instead of a single address, a vector of `addresses` can be passed.
 
 An `ArgumentError` is thrown if `dimension(h) > sizelim` in order to prevent memory
 overflow. Set `sizelim = Inf` in order to disable this behaviour.
 
-Providing the number `nnzs` of expected calculated matrix elements may improve performance.
-The default estimates for `nnzs` is `dimension(ham)`.
-
-Setting a custom value `col_hint` for the estimated number of nonzero
-off-diagonal matrix elements in each matrix column may improve performance.
-The default value for `col_hint` is `num_offdiagonals(ham, address)`.
+Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
+estimated number of nonzero off-diagonal matrix elements in each matrix column may improve
+performance.
 
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
-not enabled by default.
+not enabled by default. To generate the matrix truncated to the subspace spanned by the
+`addresses`, use `filter = _ -> false`.
 
 Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
 order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
