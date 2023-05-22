@@ -4,6 +4,14 @@
 # oscillator Hamiltonian is implemented, and how to calculate blocks of energy 
 # eigenstates in the Hamiltonian and angular momentum eigenstates.
 
+# `Rimu` can also handle non-lattice systems. This example looks at 
+# weakly-interacting bosonic particles in a harmonic oscillator external 
+# potential using a basis of (Cartesian product) single-particle 
+# eigenstates of the harmonic oscillator potential. 
+# The Hamiltonian blocks into degenerate non-interacting states that are coupled by a 
+# contact interaction in first order degenerate perturbation theory. This example shows 
+# how to generate these blocks and find the energy and angular momentum eigenstates.
+
 # A runnable script for this example is located
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/HO-example.jl).
 # Run it with `julia HO-example.jl`.
@@ -78,6 +86,10 @@ Lz_mat = [dot(v, Lz, w) for v in dvs, w in dvs]
 
 # By diagonalising this matrix the eigenstate have energy `E` and well-defined angular
 # momentum
+
+# Diagonalise this matrix to obtain the eigenstates of ``L_z``. 
+# The eigenvectors provide the linear combinations of basis states with well-defined 
+# angular momentum, within the subspace of energy ``E``.
 Lz_vals, Lz_vecs = eigen(Lz_mat)
 
 # Finally, consider the effect of interactions by looking at how states 
