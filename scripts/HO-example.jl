@@ -8,7 +8,7 @@
 # weakly-interacting bosonic particles in a harmonic oscillator external 
 # potential using a basis of (Cartesian product) single-particle 
 # eigenstates of the harmonic oscillator potential. 
-# The Hamiltonian blocks into degenerate non-interacting states that are coupled by a 
+# Blocks of degenerate non-interacting states are coupled by a 
 # contact interaction in first order degenerate perturbation theory. This example shows 
 # how to generate these blocks and find the energy and angular momentum eigenstates.
 
