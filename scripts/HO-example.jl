@@ -1,4 +1,4 @@
-# # Example 5: Harmonic oscillator
+# # Example 5: Degenerate perturbation theory in a harmonic oscillator basis
 
 # `Rimu` can also handle non-lattice systems. This example shows how a harmonic 
 # oscillator Hamiltonian is implemented, and how to calculate blocks of energy 
