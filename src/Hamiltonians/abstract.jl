@@ -330,10 +330,14 @@ BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
+
+julia> BasisSetRep(h, bsr.basis[1:2]; filter=_->false) # passing addresses and truncating
+BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
+  0.0  -1.0
+ -1.0   0.0
 ```
 ```julia-repl
- julia> using LinearAlgebra; eigvals(Matrix(bsr))
- 3-element Vector{Float64}:
+ julia> using LinearAlgebra; eigvals(Matrix(bsr)) # eigenvalues
   -2.0
    1.0
    1.0
