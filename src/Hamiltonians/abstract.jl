@@ -584,10 +584,13 @@ function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where {T
     # Only used for verifying matrix.
     # This will be slow and inefficient. Avoid using for larger Hamiltonians!
     address1 == address2 && return diagonal_element(ham, address1) # diagonal
+    res = zero(T)
     for (add, val) in offdiagonals(ham, address2) # off-diag column as iterator
-        add == address1 && return val # found address1
+        if add == address1
+            res += val # found address1
+        end
     end
-    return zero(T) # address1 not found
+    return res
 end
 
 LinearAlgebra.adjoint(op::AbstractHamiltonian) = adjoint(LOStructure(op), op)

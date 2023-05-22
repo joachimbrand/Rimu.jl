@@ -1182,6 +1182,13 @@ end
         @test mat_cut == mat_cut_manual
     end
 
+    @testset "getindex" begin
+        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
+        bsr = BasisSetRep(ham; sort=true)
+        b = bsr.basis
+        @test [ham[i, j] for i in b, j in b] == Matrix(bsr_orig)
+    end
+
     @testset "momentum blocking" begin
         add1 = BoseFS((2,0,0,0))
         add2 = BoseFS((0,1,0,1))
