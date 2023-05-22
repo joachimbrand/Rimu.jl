@@ -1186,7 +1186,7 @@ end
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
         bsr = BasisSetRep(ham; sort=true)
         b = bsr.basis
-        @test [ham[i, j] for i in b, j in b] == Matrix(bsr_orig)
+        @test [ham[i, j] for i in b, j in b] == Matrix(bsr)
     end
 
     @testset "momentum blocking" begin
