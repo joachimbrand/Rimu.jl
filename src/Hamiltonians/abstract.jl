@@ -609,7 +609,9 @@ LinearAlgebra.adjoint(::IsHermitian, op) = op # adjoint is known
 LinearAlgebra.adjoint(::IsDiagonal, op) = op
 
 """
-    TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
+    TransformUndoer{
+        T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}
+    } <: AbstractHamiltonian{T}
 
 Type for creating a new operator for the purpose of calculating overlaps of transformed
 vectors, which are defined by some transformation `transform`. The new operator should
@@ -636,7 +638,9 @@ to represent ``f^{-1} A f^{-1}``.
 * [`GutzwillerSampling`](@ref)
 * [`GuidingVectorSampling`](@ref)
 """
-struct TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
+struct TransformUndoer{
+    T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}
+} <: AbstractHamiltonian{T}
     transform::K
     op::O
 end
@@ -649,4 +653,4 @@ TransformUndoer(k::AbstractHamiltonian) = TransformUndoer(k::AbstractHamiltonian
 
 # common methods
 starting_address(s::TransformUndoer) = starting_address(s.transform)
-dimension(s::TransformUndoer) = dimension(s.transform)
+dimension(s::TransformUndoer, addr) = dimension(s.transform, addr)

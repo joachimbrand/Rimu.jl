@@ -55,7 +55,7 @@ function test_hamiltonian_interface(H)
             end
         end
         @testset "dimension" begin
-            @test dimension(H) isa Integer
+            @test dimension(H) ≥ dimension(H, starting_address(H))
             @test dimension(Float64, H) isa Float64
             @test dimension(Int, H) == dimension(H)
         end
@@ -154,6 +154,9 @@ end
 
         MatrixHamiltonian([1 2;2 0]),
         GutzwillerSampling(MatrixHamiltonian([1.0 2.0;2.0 0.0]); g=0.3),
+        Rimu.Hamiltonians.TransformUndoer(
+            GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3)
+        ),
 
         Transcorrelated1D(CompositeFS(FermiFS((0,0,1,1,0)), FermiFS((0,1,1,0,0))); t=2),
         Transcorrelated1D(CompositeFS(FermiFS((0,0,1,0)), FermiFS((0,1,1,0))); v=3, v_ho=1),
