@@ -105,6 +105,6 @@ Hint = HOCartesianEnergyConserved(addr1; S, interaction_only = true)
 
 using Test                                      #hide
 @test nrow(block_df) == 2*(M-1) + 1             #hide
-@test E == E0 + M - 1                           #hide
+@test E == N + M - 1                           #hide
 @test Lz_vals ≈ [-3,-3,-1,-1,-1,1,1,1,3,3]      #hide
 nothing                                         #hide
