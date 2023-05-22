@@ -1215,6 +1215,8 @@ end
         @test !ishermitian(mat)
         @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
         @test !ishermitian(mat) # still not hermitian
+        fix_approx_hermitian!(mat; test_approx_symmetry=false)
+        @test ishermitian(mat) # now it is hermitian
 
         # sparse matrix
         Random.seed!(17)
