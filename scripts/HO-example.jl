@@ -1,4 +1,4 @@
-# # Example 5: Harmonic oscillator
+# # Example 5: Degenerate perturbation theory in a harmonic oscillator basis
 
 # `Rimu` can also handle non-lattice systems. This example shows how a harmonic 
 # oscillator Hamiltonian is implemented, and how to calculate blocks of energy 
@@ -30,9 +30,10 @@ M = 4
 # basis, in this isotropic case ``n_x,n_y=0,1,\ldots,M-1``.
 S = (M, M)
 
-# In `Rimu` the ``N``-particle states are still stored as Fock states.
+# In `Rimu` the ``N``-particle states are still stored as Fock states
 P = prod(S)
 addr = BoseFS(P, M => N)
+# where the numbering of the modes folds in the two spatial dimensions. 
 # Use the utility function [`fock_to_cart`](@ref) to convert a Fock address to 
 # human-readable Cartesian quantum numbers for inspection.
 fock_to_cart(addr, S)
