@@ -583,7 +583,7 @@ Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
 function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where {T}
     # calculate the matrix element when only two bitstring addresses are given
-    # this is NOT used for the QMC algorithm and is currenlty not used either
+    # this is NOT used for the QMC algorithm and is currently not used either
     # for building the matrix for conventional diagonalisation.
     # Only used for verifying matrix.
     # This will be slow and inefficient. Avoid using for larger Hamiltonians!
