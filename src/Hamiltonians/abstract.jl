@@ -170,7 +170,7 @@ function build_sparse_matrix_from_LO(
     sort=false, kwargs...
 )
     # Set up `adds` as queue of addresses. Also returned as the basis.
-    adds = addr_or_vec isa AbstractArray ? [addr_or_vec...] : [addr_or_vec]
+    adds = addr_or_vec isa Union{AbstractArray,Tuple} ? [addr_or_vec...] : [addr_or_vec]
 
     T = eltype(ham)
     dict = Dict(add => i for (i, add) in enumerate(adds)) # Map from addresses to indices
@@ -385,7 +385,7 @@ function _bsr_ensure_symmetry(
     ::LOStructure, h::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
-    single_addr = addr_or_vec isa AbstractArray ? addr_or_vec[1] : addr_or_vec
+    single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
     if dimension(h, single_addr) > sizelim
         throw(ArgumentError("dimension larger than sizelim"))
     end
@@ -399,7 +399,7 @@ function _bsr_ensure_symmetry(
     ::IsHermitian, h::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
-    single_addr = addr_or_vec isa AbstractArray ? addr_or_vec[1] : addr_or_vec
+    single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
     if dimension(h, single_addr) > sizelim
         throw(ArgumentError("dimension larger than sizelim"))
     end
