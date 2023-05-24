@@ -310,7 +310,7 @@ performance.
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
 not enabled by default. To generate the matrix truncated to the subspace spanned by the
-`addresses`, use `filter = _ -> false`.
+`addresses`, use `filter = Returns(false)`.
 
 Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
 order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
