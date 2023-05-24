@@ -1169,7 +1169,7 @@ end
         mat_cut = Matrix(bsr)
         @test mat_cut == mat_cut_manual
         # pass a basis and generate truncated BasisSetRep
-        bsrt = BasisSetRep(ham, bsr.basis; filter=_ -> false, sort=true)
+        bsrt = BasisSetRep(ham, bsr.basis; filter= Returns(false), sort=true)
         @test bsrt.basis == bsr.basis
         @test bsr.sm == bsrt.sm
         # pass addresses and generate reachable basis
