@@ -93,10 +93,10 @@ working_memory(dv) = similar(localpart(dv))
 Perform a single matrix(/operator)-vector multiplication:
 
 ```math
-v^{(n + 1)} = T v^{(n)} ,
+v^{(n + 1)} = \\hat{T} v^{(n)} ,
 ```
 
-where ``T`` is the `operator`, ``v^{(n+1)}`` is the `target` and ``v^{(n)}`` is the
+where ``\\hat{T}`` is the `operator`, ``v^{(n+1)}`` is the `target` and ``v^{(n)}`` is the
 `source`. The `working_memory` can be used as temporary storage.
 
 The `boost` argument is passed to [apply_column!](@ref) and increases the number of spawns
@@ -113,8 +113,8 @@ function apply_operator!(
     working_memory, target, source, ham, boost=1, compress::Val{C}=Val(true)
 ) where {C}
     v = localpart(source)
-    @assert working_memory ≢ v "`w` and `v` must not be the same object"
-    @assert localpart(target) ≢ v "`pv` and `v` must not be the same object"
+    @assert working_memory ≢ v "`working_memory` and `source` must not have the same local storage"
+    @assert localpart(target) ≢ v "`target` and `source` must not have the same local storage"
     zerovector!(working_memory)
 
     spawn_names, spawn_stats = step_stats(v)
