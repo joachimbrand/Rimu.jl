@@ -82,7 +82,7 @@ freeze(v::AbstractVector) = copy(v)
     working_memory(dv::AbstractDVec)
 
 Create a working memory instance compatible with `dv`. The working memory must be
-compatible with [`sort_into_targets!`](@ref) and [`fciqmc_step!`](@ref).
+compatible with [`sort_into_targets!`](@ref) and [`apply_operator!`](@ref).
 """
 working_memory(dv) = similar(localpart(dv))
 

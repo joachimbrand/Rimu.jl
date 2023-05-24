@@ -41,7 +41,7 @@ using Reexport
 import OrderedCollections: freeze
 
 export
-    StochasticStyle, default_style, StyleUnknown, apply_column!, step_stats, update_dvec!,
+    StochasticStyle, default_style, StyleUnknown, apply_column!, step_stats,
     CompressionStrategy, NoCompression, compress!
 export
     AbstractDVec, deposit!, storage, localpart, freeze, working_memory,
