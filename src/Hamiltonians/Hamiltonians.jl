@@ -48,7 +48,7 @@ using ..BitStringAddresses
 
 using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
-    offdiagonals, random_offdiagonal, LOStructure
+    offdiagonals, random_offdiagonal, LOStructure, allowed_address_type
 
 export AbstractHamiltonian
 # export TwoComponentHamiltonian

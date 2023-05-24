@@ -19,6 +19,7 @@ Follow the links for the definitions of the interfaces!
 * [`random_offdiagonal`](@ref)
 * [`starting_address`](@ref)
 * [`LOStructure`](@ref)
+* [`allowed_address_type`](@ref)
 
 ## working with  [`AbstractDVec`](@ref)s and [`StochasticStyle`](@ref)
 * [`deposit!`](@ref)
@@ -48,7 +49,7 @@ export
     fciqmc_step!, sort_into_targets!
 export
     AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
-    random_offdiagonal, starting_address,
+    random_offdiagonal, starting_address, allowed_address_type,
     LOStructure, IsDiagonal, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
 
 include("stochasticstyles.jl")

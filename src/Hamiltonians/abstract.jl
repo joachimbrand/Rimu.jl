@@ -1,9 +1,15 @@
 """
-    check_address_type(h::AbstractHamiltonian, addr)
-Throw an `ArgumentError` if the type of `addr` is not compatible with `h`.
+    check_address_type(h::AbstractHamiltonian, addr::A) where A
+    check_address_type(h::AbstractHamiltonian, A)
+Throw an `ArgumentError` if the type of `addr`, `A`, is not compatible with `h`.
 """
-function check_address_type(h::AbstractHamiltonian, addr::A) where {A}
-    typeof(starting_address(h)) == A || throw(ArgumentError("address type mismatch"))
+function check_address_type(h::AbstractHamiltonian, ::Type{A}) where {A}
+    B = allowed_address_type(h)
+    A <: B || throw(ArgumentError("address type mismatch: found $A, expected <: $B"))
+end
+check_address_type(h::AbstractHamiltonian, addr) = check_address_type(h, typeof(addr))
+function check_address_type(h::AbstractHamiltonian, v::Union{AbstractArray,Tuple})
+    all(check_address_type(h, typeof(a)) for a in v)
 end
 
 (h::AbstractHamiltonian)(v) = h * v
@@ -97,7 +103,7 @@ Provides an implementation of [`dimension`](@ref).
 """
 abstract type TwoComponentHamiltonian{T} <: AbstractHamiltonian{T} end
 
-function dimension(h::TwoComponentHamiltonian) where {T}
+function dimension(h::TwoComponentHamiltonian)
     return dimension(h.ha) * dimension(h.hb)
 end
 
@@ -386,7 +392,7 @@ function _bsr_ensure_symmetry(
     if dimension(h, single_addr) > sizelim
         throw(ArgumentError("dimension larger than sizelim"))
     end
-    check_address_type(h, single_addr)
+    check_address_type(h, addr_or_vec)
     sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
     return BasisSetRep(sm, basis, h)
 end
@@ -400,7 +406,7 @@ function _bsr_ensure_symmetry(
     if dimension(h, single_addr) > sizelim
         throw(ArgumentError("dimension larger than sizelim"))
     end
-    check_address_type(h, single_addr)
+    check_address_type(h, addr_or_vec)
     sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
     fix_approx_hermitian!(sm; test_approx_symmetry) # enforce hermitian symmetry after building
     return BasisSetRep(sm, basis, h)
