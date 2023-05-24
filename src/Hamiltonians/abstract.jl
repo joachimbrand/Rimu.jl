@@ -15,7 +15,7 @@ BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_addres
     dimension(h::AbstractHamiltonian, addr=starting_address(h))
     dimension(addr::AbstractFockAddress)
 
-Return the estimated dimension of Hilbert space.
+Return the estimated dimension of Hilbert space. May return a `BigInt` number.
 
 When called on an address, the dimension of the linear space spanned by the address type is
 returned. When called on an `AbstractHamiltonian`, an upper bound on the dimension of
