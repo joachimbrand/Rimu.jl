@@ -137,6 +137,7 @@ Hamiltonians.adjoint
 Hamiltonians.dot
 Hamiltonians.AbstractOffdiagonals
 Hamiltonians.Offdiagonals
+Hamiltonians.check_address_type
 ```
 
 ## Geometry

@@ -1,7 +1,9 @@
 """
-    check_address_type(h::AbstractHamiltonian, addr::A) where A
-    check_address_type(h::AbstractHamiltonian, A)
-Throw an `ArgumentError` if the type of `addr`, `A`, is not compatible with `h`.
+    check_address_type(h::AbstractHamiltonian, addr_or_type)
+Throw an `ArgumentError` if `addr_or_type` is not compatible with `h`. Acceptable arguments
+are either an address or an address type, or a tuple or array thereof.
+
+See also [`allowed_address_type`](@ref).
 """
 function check_address_type(h::AbstractHamiltonian, ::Type{A}) where {A}
     B = allowed_address_type(h)
@@ -9,7 +11,7 @@ function check_address_type(h::AbstractHamiltonian, ::Type{A}) where {A}
 end
 check_address_type(h::AbstractHamiltonian, addr) = check_address_type(h, typeof(addr))
 function check_address_type(h::AbstractHamiltonian, v::Union{AbstractArray,Tuple})
-    all(check_address_type(h, typeof(a)) for a in v)
+    all(check_address_type(h, a) for a in v)
 end
 
 (h::AbstractHamiltonian)(v) = h * v
