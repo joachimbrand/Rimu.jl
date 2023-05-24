@@ -150,11 +150,8 @@ performance.
 
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
-not enabled by default.
-
-Instead of a single `address`, a vector of `addresses` can be provided. If no `filter` is
-provided, the matrix will be truncated to the subspace spanned by the `addresses`. For
-generating the matrix with all reachable configurations, use `filter = _ -> true`.
+not enabled by default. To generate the matrix truncated to the subspace spanned by the
+`addresses`, use `filter = Returns(false)`.
 
 Setting `sort` to `true` will sort the `basis` and order the matrix rows and columns
 accordingly. This is useful when the order of the columns matters, e.g. when comparing
@@ -331,7 +328,7 @@ BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
 
-julia> BasisSetRep(h, bsr.basis[1:2]; filter=_->false) # passing addresses and truncating
+julia> BasisSetRep(h, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
 BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
   0.0  -1.0
  -1.0   0.0
