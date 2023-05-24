@@ -113,14 +113,14 @@ length. These will be reported as columns in the `DataFrame` returned by [`lomc!
 step_stats(v) = step_stats(StochasticStyle(v))
 
 """
-    apply_column!(v, O, i, x, boost=1) -> stats::Tuple
+    apply_column!(v, op, addr, num, boost=1) -> stats::Tuple
 
-Apply the `i`-th column of the operator `O` according to the [`StochasticStyle`](@ref) of
-`v`:
+Apply the product of column `addr` of the operator `op` and the scalar `num` to the 
+vector `v` according to the [`StochasticStyle`](@ref) of `v`. By expectation value this 
+should be equivalent to 
 
-```math
-v \\gets v + \\hat{O}_{:,i} x.
-```
+```Julia
+v .+= op[:, add] .* num
 
 This is used to perform the spawning step in FCIQMC and to implement operator-vector
 multiplications. Mutates `v` and reports spawning statistics.

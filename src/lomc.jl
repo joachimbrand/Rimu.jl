@@ -1,11 +1,16 @@
 """
     FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
 
-The transition operator used in FCIQMC.
+First order transition operator 
 ```math
-\\hat{\\mathbf{T} = 1 - dτ(H - S)
+𝐓 = 1 + dτ(S - 𝐇)
 ```
-where ``H`` is the `hamiltonian` and ``S`` is the `shift`.
+where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`. 
+
+``𝐓`` represents the first order expansion of the exponential evolution operator 
+of the imaginary-time Schrödinger equation (Euler step) and repeated application 
+will project out the ground state eigenvector of the `hamiltonian`.  It is the 
+transition operator used in FCIQMC.
 """
 struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
     hamiltonian::H

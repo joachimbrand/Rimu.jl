@@ -27,7 +27,7 @@ See [`excitation`](@ref), [`OccupiedModeMap`](@ref).
     add::BoseFS, chosen, map::OccupiedModeMap; fold=true
 )
     M = num_modes(add)
-    singlies = length(map)
+    singlies = length(map) # number of at least singly occupied modes
 
     double = chosen - singlies * (singlies - 1) * (M - 2)
 
