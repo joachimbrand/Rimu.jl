@@ -99,7 +99,7 @@ v^{(n + 1)} = \\hat{T} v^{(n)} ,
 where ``\\hat{T}`` is the `operator`, ``v^{(n+1)}`` is the `target` and ``v^{(n)}`` is the
 `source`. The `working_memory` can be used as temporary storage.
 
-The `boost` argument is passed to [apply_column!](@ref Main.Rimu.Interfaces.apply_column!) and increases the number of spawns
+The `boost` argument is passed to [`apply_column!`](@ref) and increases the number of spawns
 performed. For the operator to be applied without compressing the vector after, set
 `compress` to `Val(false)`.
 
