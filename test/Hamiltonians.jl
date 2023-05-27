@@ -1251,12 +1251,13 @@ end
         bsr = BasisSetRep(ham)
         basis = build_basis(ham)
         @test basis == bsr.basis
+        @test basis == build_basis(ham, basis) # passing multiple addresses
         # sorting
         basis = build_basis(ham, add; sort = true)
         @test basis == sort!(bsr.basis)
         # filtering
-        @test_throws ArgumentError build_basis(ham, add; max_size = 100)
-        @test_throws ArgumentError build_basis(ham, add; cutoff = -1)
+        @test_throws ArgumentError build_basis(ham, add; sizelim = 100)
+        @test length(build_basis(ham, add; cutoff = -1)) == 1 # no new addresses added
         cutoff = n * (n-1) / 4  # half maximum energy
         bsr = BasisSetRep(ham, add; cutoff)
         basis = build_basis(ham, add; cutoff)

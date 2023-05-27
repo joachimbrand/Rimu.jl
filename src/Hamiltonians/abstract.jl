@@ -5,12 +5,12 @@ are either an address or an address type, or a tuple or array thereof.
 
 See also [`allowed_address_type`](@ref).
 """
-function check_address_type(h::AbstractHamiltonian, ::Type{A}) where {A}
+@inline function check_address_type(h::AbstractHamiltonian, ::Type{A}) where {A}
     B = allowed_address_type(h)
     A <: B || throw(ArgumentError("address type mismatch: found $A, expected <: $B"))
 end
-check_address_type(h::AbstractHamiltonian, addr) = check_address_type(h, typeof(addr))
-function check_address_type(h::AbstractHamiltonian, v::Union{AbstractArray,Tuple})
+@inline check_address_type(h::AbstractHamiltonian, addr) = check_address_type(h, typeof(addr))
+@inline function check_address_type(h::AbstractHamiltonian, v::Union{AbstractArray,Tuple})
     all(check_address_type(h, a) for a in v)
 end
 
@@ -236,43 +236,43 @@ function build_sparse_matrix_from_LO(
 end
 
 """
-    basis = build_basis(
+    build_basis(
         ham, address=starting_address(ham);
-        cutoff=nothing, filter=nothing, sort=false, max_size=Inf, kwargs...
-    )
+        cutoff, filter, sizelim, sort=false, kwargs...
+    ) -> basis
+    build_basis(ham, addresses::AbstractVector; kwargs...)
 
 Get all basis element of a linear operator `ham` that are reachable (via
 non-zero matrix elements) from the address `address`, returned as a vector.
+Instead of a single address, a vector of `addresses` can be passed.
 Does not return the matrix, for that purpose use [`BasisSetRep`](@ref).
 
 Providing an energy cutoff will skip addresses with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
-A maximum basis size `max_size` can be set which will throw an error if the expected
-dimension of `ham` is larger than `max_size`. This may be useful when memory may be a
+Addresses passed as arguments are not filtered.
+A maximum basis size `sizelim` can be set which will throw an error if the expected
+dimension of `ham` is larger than `sizelim`. This may be useful when memory may be a
 concern. These options are disabled by default.
 
 Setting `sort` to `true` will sort the basis. Any additional keyword arguments
 are passed on to `Base.sort!`.
 """
 function build_basis(
-    ham, address=starting_address(ham);
+    ham, addr_or_vec=starting_address(ham);
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
     sort=false,
-    max_size=Inf,
+    max_size=Inf, # retained for backwards compatibility; use sizelim instead
+    sizelim=max_size,
     kwargs...
 )
-    check_address_type(ham, address)
-    if !isnothing(filter) && !filter(address)
-        throw(ArgumentError(string(
-            "Starting address does not pass `filter`. ",
-            "Please pick a different address or a different filter."
-        )))
+    check_address_type(ham, addr_or_vec)
+    single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
+    if dimension(ham, single_addr) > sizelim
+        throw(ArgumentError("dimension larger than sizelim"))
     end
-    if dimension(ham, address) > max_size
-        throw(ArgumentError("dimension larger than max_size"))
-    end
-    adds = [address]        # Queue of addresses. Also returned as the basis.
+    # Set up `adds` as queue of addresses. Also returned as the basis.
+    adds = addr_or_vec isa Union{AbstractArray,Tuple} ? [addr_or_vec...] : [addr_or_vec]
     known_basis = Set(adds)     # known addresses
 
     i = 0
@@ -298,7 +298,7 @@ end
 """
     BasisSetRep(
         h::AbstractHamiltonian, addr=starting_address(h);
-        sizelim=10^6, nnzs, cutoff, filter, sort, kwargs...
+        sizelim=10^6, nnzs, cutoff, filter, sort=false, kwargs...
     )
     BasisSetRep(h::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
 
@@ -313,9 +313,9 @@ estimated number of nonzero off-diagonal matrix elements in each matrix column m
 performance.
 
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
-not enabled by default. To generate the matrix truncated to the subspace spanned by the
-`addresses`, use `filter = Returns(false)`.
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
+Addresses passed as arguments are not filtered. To generate the matrix truncated to the
+subspace spanned by the `addresses`, use `filter = Returns(false)`.
 
 Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
 order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
@@ -367,16 +367,6 @@ struct BasisSetRep{A,SM,H}
     basis::Vector{A}
     h::H
 end
-
-# function BasisSetRep(
-#     h::AbstractHamiltonian, addr=starting_address(h);
-#     sizelim=10^6, kwargs...
-# )
-#     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
-#     check_address_type(h, addr)
-#     sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
-#     return BasisSetRep(sm, basis, h)
-# end
 
 function BasisSetRep(h::AbstractHamiltonian, addr_or_vec=starting_address(h); kwargs...)
     # In the default case we pass `AdjointUnknown()` in order to skip the
