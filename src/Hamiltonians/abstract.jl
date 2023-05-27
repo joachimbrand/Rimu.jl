@@ -5,11 +5,11 @@ are either an address or an address type, or a tuple or array thereof.
 
 See also [`allowed_address_type`](@ref).
 """
-@inline function check_address_type(h::AbstractHamiltonian, ::Type{A}) where {A}
+@inline function check_address_type(h, ::Type{A}) where {A}
     B = allowed_address_type(h)
     A <: B || throw(ArgumentError("address type mismatch: found $A, expected <: $B"))
 end
-@inline check_address_type(h::AbstractHamiltonian, addr) = check_address_type(h, typeof(addr))
+@inline check_address_type(h, addr) = check_address_type(h, typeof(addr))
 @inline function check_address_type(h::AbstractHamiltonian, v::Union{AbstractArray,Tuple})
     all(check_address_type(h, a) for a in v)
 end

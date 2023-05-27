@@ -718,8 +718,8 @@ end
     @test a.shift ≈ c.shift
 
     # MatrixHamiltonian
-    @test_throws AssertionError MatrixHamiltonian([1 2 3; 4 5 6])
-    @test_throws AssertionError MatrixHamiltonian(sm, starting_address = dim+1)
+    @test_throws ArgumentError MatrixHamiltonian([1 2 3; 4 5 6])
+    @test_throws ArgumentError MatrixHamiltonian(sm, starting_address = dim+1)
     # adjoint nonhermitian
     nonhermitian = MatrixHamiltonian([1 2; 4 5])
     @test LOStructure(nonhermitian) == AdjointKnown()

@@ -60,6 +60,7 @@ Return the type of addresses that can be used with Hamiltonian `h`. Part of the
 Overload this function if the Hamiltonian can be used with addresses of different types.
 """
 allowed_address_type(h::AbstractHamiltonian) = typeof(starting_address(h))
+allowed_address_type(::AbstractMatrix) = Integer
 
 """
     diagonal_element(ham, add)
