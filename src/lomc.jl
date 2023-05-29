@@ -1,4 +1,51 @@
 """
+    FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
+
+First order transition operator 
+```math
+𝐓 = 1 + dτ(S - 𝐇)
+```
+where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`. 
+
+``𝐓`` represents the first order expansion of the exponential evolution operator 
+of the imaginary-time Schrödinger equation (Euler step) and repeated application 
+will project out the ground state eigenvector of the `hamiltonian`.  It is the 
+transition operator used in FCIQMC.
+"""
+struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
+    hamiltonian::H
+    shift::S
+    dτ::Float64
+
+    function FirstOrderTransitionOperator(hamiltonian::H, shift::S, dτ) where {H,S}
+        T = eltype(hamiltonian)
+        return new{T,S,H}(hamiltonian, shift, Float64(dτ))
+    end
+end
+
+function Hamiltonians.diagonal_element(t::FirstOrderTransitionOperator, add)
+    diag = diagonal_element(t.hamiltonian, add)
+    return 1 - t.dτ * (diag - t.shift)
+end
+
+struct FirstOrderOffdiagonals{
+    A,V,O<:AbstractVector{Tuple{A,V}}
+} <: AbstractVector{Tuple{A,V}}
+    dτ::Float64
+    offdiagonals::O
+end
+function Hamiltonians.offdiagonals(t::FirstOrderTransitionOperator, add)
+    return FirstOrderOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
+end
+Base.size(o::FirstOrderOffdiagonals) = size(o.offdiagonals)
+
+function Base.getindex(o::FirstOrderOffdiagonals, i)
+    add, val = o.offdiagonals[i]
+    return add, -val * o.dτ
+end
+
+
+"""
     ReplicaState(v, wm, pnorm, params, id)
 
 Struct that holds all information needed for an independent run of the algorithm.
@@ -56,7 +103,6 @@ struct QMCState{
     H,
     N,
     R<:ReplicaState,
-    MS<:MemoryStrategy,
     RS<:ReportingStrategy,
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
@@ -67,7 +113,6 @@ struct QMCState{
     replicas::NTuple{N,R}
     maxlength::Ref{Int}
 
-    m_strat::MS
     r_strat::RS
     s_strat::SS
     τ_strat::TS
@@ -104,7 +149,6 @@ function QMCState(
     r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     threading=nothing,
-    m_strat::MemoryStrategy=NoMemory(),
     replica::ReplicaStrategy=NoStats(),
     post_step=(),
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
@@ -141,7 +185,7 @@ function QMCState(
 
     return QMCState(
         hamiltonian, replicas, Ref(Int(maxlength)),
-        m_strat, r_strat, s_strat, τ_strat, post_step, replica
+        r_strat, s_strat, τ_strat, post_step, replica
     )
 end
 
@@ -225,8 +269,6 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
   [`ReportingStrategy`](@ref)
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step dynamically, see
   [`TimeStepStrategy`](@ref)
-* `m_strat::MemoryStrategy = NoMemory()` - experimental: inject memory noise, see
-  [`MemoryStrategy`](@ref)
 * `wm` - working memory; if set, it controls the use of multithreading and overrides
   `threading`; is mutated
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
@@ -256,10 +298,10 @@ julia> df2, _ = lomc!(state, df1; laststep=200); # Continuation run
 
 
 julia> size(df1)
-(100, 12)
+(100, 11)
 
 julia> size(df2)
-(200, 12)
+(200, 11)
 ```
 """
 function lomc!(ham, v; df=DataFrame(), name="lomc!", kwargs...)
@@ -334,19 +376,19 @@ it should terminate.
 """
 function advance!(report, state::QMCState, replica::ReplicaState)
 
-    @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat = state
+    @unpack hamiltonian, r_strat, s_strat, τ_strat = state
     @unpack v, pv, wm, pnorm, params, id = replica
     @unpack step, shiftMode, shift, dτ = params
     step += 1
 
+    ### PROPAGATOR ACTS
+    ### FROM HERE
+    transition_op = FirstOrderTransitionOperator(hamiltonian, shift, dτ)
+
     # Step
-    step_stat_names, step_stat_values, wm, pv = fciqmc_step!(
-        wm, pv, v, hamiltonian, shift, dτ
-    )
+    step_stat_names, step_stat_values, wm, pv = apply_operator!(wm, pv, v, transition_op)
     # pv was mutated and now contains the new vector.
     v, pv = (pv, v)
-    shift_noise = apply_memory_noise!(v, pv, shift, dτ, pnorm, m_strat)
-    v, update_dvec_stats = update_dvec!(v)
 
     # Stats
     tnorm = walkernumber(v)
@@ -360,6 +402,7 @@ function advance!(report, state::QMCState, replica::ReplicaState)
 
     @pack! params = step, shiftMode, shift, dτ
     @pack! replica = v, pv, wm, pnorm, params
+    ### TO HERE
 
     if step % reporting_interval(state.r_strat) == 0
         # Note: post_step must be called after packing the values.
@@ -371,8 +414,6 @@ function advance!(report, state::QMCState, replica::ReplicaState)
             (dτ, shift, shiftMode, len, norm=tnorm), id,
         )
         report!(r_strat, step, report, step_stat_names, step_stat_values, id)
-        report!(r_strat, step, report, update_dvec_stats, id)
-        report!(r_strat, step, report, (;shift_noise), id)
         report!(state.r_strat, step, report, post_step_stats, id)
     end
 

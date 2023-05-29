@@ -20,7 +20,7 @@ using ..StochasticStyles
 
 # TODO: ordering
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
-    working_memory, fciqmc_step!, sort_into_targets!
+    working_memory, sort_into_targets!
 
 export deposit!, storage, walkernumber, propagate!, dot_from_right
 export DVec, InitiatorDVec

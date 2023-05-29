@@ -28,9 +28,9 @@ Follow the links for the definitions of the interfaces!
 
 ## Functions Rimu.jl uses to do FCIQMC:
 
-* [`fciqmc_col!`](@ref)
+* [`apply_column!`](@ref)
+* [`apply_operator!`](@ref)
 * [`step_stats`](@ref)
-* [`update_dvec!`](@ref)
 """
 module Interfaces
 
@@ -42,11 +42,11 @@ using Reexport
 import OrderedCollections: freeze
 
 export
-    StochasticStyle, default_style, StyleUnknown, fciqmc_col!, step_stats, update_dvec!,
+    StochasticStyle, default_style, StyleUnknown, apply_column!, step_stats,
     CompressionStrategy, NoCompression, compress!
 export
     AbstractDVec, deposit!, storage, localpart, freeze, working_memory,
-    fciqmc_step!, sort_into_targets!
+    apply_operator!, sort_into_targets!
 export
     AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
     random_offdiagonal, starting_address, allowed_address_type,

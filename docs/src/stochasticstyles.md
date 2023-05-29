@@ -19,8 +19,7 @@ Pages = ["styles.jl"]
 ```@docs
 StochasticStyle
 step_stats
-fciqmc_col!
-update_dvec!
+apply_column!
 default_style
 ```
 
