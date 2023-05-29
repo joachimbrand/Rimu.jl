@@ -50,7 +50,6 @@ include("StatsTools/StatsTools.jl")
 
 export lomc!
 export FciqmcRunStrategy, RunTillLastStep
-export MemoryStrategy, NoMemory, DeltaMemory, ShiftMemory
 export ShiftStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers
 export ReportingStrategy, ReportDFAndInfo, ReportToFile
@@ -67,7 +66,6 @@ function __init__()
 end
 
 include("strategies_and_params/fciqmcrunstrategy.jl")
-include("strategies_and_params/memorystrategy.jl")
 include("strategies_and_params/poststepstrategy.jl")
 include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
@@ -75,7 +73,6 @@ include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
 include("strategies_and_params/deprecated.jl")
 
-include("apply_memory_noise.jl")
 include("lomc.jl")                  # top level
 
 include("RMPI/RMPI.jl")

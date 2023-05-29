@@ -14,14 +14,16 @@ Concrete `StochasticStyle`s can be used for the `style` keyword argument of
 When defining a new `StochasticStyle`, subtype it as `MyStyle<:StochasticStyle{T}` where `T`
 is the concrete value type the style is designed to work with.
 
-For it to work with [`lomc!`](@ref Main.lomc!), a `StochasticStyle` must define the following:
+For it to work with [`lomc!`](@ref Main.lomc!), a `StochasticStyle` must define the
+following:
 
-* [`fciqmc_col!(::StochasticStyle, w, H, address, value, shift, dτ)`](@ref)
+* [`apply_column!(::StochasticStyle, w, H, address, value)`](@ref)
 * [`step_stats(::StochasticStyle)`](@ref)
 
 and optionally
-* [`CompressionStrategy(::StochasticStyle)`](@ref) for vector compression after annihilations,
-* [`update_dvec!`](@ref) for arbitrary transformations after the spawning step.
+
+* [`CompressionStrategy(::StochasticStyle)`](@ref) for vector compression after
+  annihilations,
 
 See also [`StochasticStyles`](@ref Main.StochasticStyles), [`Interfaces`](@ref).
 """
@@ -34,8 +36,8 @@ Base.eltype(::Type{<:StochasticStyle{T}}) where {T} = T
 """
     StyleUnknown{T}() <: StochasticStyle
 
-Trait for value types not (currently) compatible with FCIQMC. This style makes it possible to
-construct dict vectors with unsupported `valtype`s.
+Trait for value types not (currently) compatible with FCIQMC. This style makes it possible
+to construct dict vectors with unsupported `valtype`s.
 
 See also [`StochasticStyle`](@ref).
 """
@@ -44,8 +46,8 @@ struct StyleUnknown{T} <: StochasticStyle{T} end
 """
     default_style(::Type)
 
-Pick a [`StochasticStyle`](@ref) based on the value type. Throws an error if no known default
-style is known.
+Pick a [`StochasticStyle`](@ref) based on the value type. Returns [`StyleUnknown`](@ref) if
+no known default style is set.
 """
 default_style(::Type{T}) where T = StyleUnknown{T}()
 
@@ -55,19 +57,22 @@ default_style(::Type{T}) where T = StyleUnknown{T}()
 The `CompressionStrategy` controls how a vector is compressed after a step.
 
 ## Default implementation:
+
 * [`NoCompression`](@ref): no vector compression
 
 ## Usage
-A subtype of `CompressionStrategy` can be passed as a keyword argument to the
-constructors for some [`StochasticStyle`](@ref)s. Calling
-`CompressionStrategy(s::StochasticStyle)` returns a relevant subtype. The
-default is [`NoCompression`](@ref).
+
+A subtype of `CompressionStrategy` can be passed as a keyword argument to the constructors
+for some [`StochasticStyle`](@ref)s. Calling `CompressionStrategy(s::StochasticStyle)`
+returns a relevant subtype. The default is [`NoCompression`](@ref).
 
 ## Interface
-When defining a new `CompressionStrategy`, subtype it as
-`MyCompressionStrategy <: CompressionStrategy` and define
-a method for
+
+When defining a new `CompressionStrategy`, subtype it as `MyCompressionStrategy <:
+CompressionStrategy` and define these methods:
+
 * [`compress!(s::MyCompressionStrategy, v)`](@ref compress!)
+* [`compress!(s::MyCompressionStrategy, w, v)`](@ref compress!)
 """
 abstract type CompressionStrategy end
 
@@ -81,47 +86,22 @@ struct NoCompression <: CompressionStrategy end
 CompressionStrategy(::StochasticStyle) = NoCompression()
 
 """
-    compress!(::CompressionStrategy, v)
+    compress!([::CompressionStrategy,] v) -> ::NTuple{N,::Symbol}, ::NTuple{N}
+    compress!([::CompressionStrategy,] w, v) -> ::NTuple{N,::Symbol}, ::NTuple{N}
 
-Compress the vector `v` and return it.
+Compress the vector `v`. The one-argument version compresses the vector in-place. The
+two-argument vector stores the result in `w`. The [`CompressionStrategy`](@ref) associated
+with the [`StochasticStyle`](@ref) of `v` is used to determine the type of compression.
+
+Returns two tuples, containing the names and values of statistics that are to be reported.
 """
-compress!(::NoCompression, v) = v
+compress!(v) = compress!(CompressionStrategy(StochasticStyle(v)), v)
+compress!(w, v) = compress!(CompressionStrategy(StochasticStyle(v)), w, v)
 
-"""
-    move_and_compress!(::CompressionStrategy, target, source)
-
-Move elements from `source` to `target`, compressing them on the way according to the
-compression strategy. `target` must be a dict-like structure and `source` must be an
-iterator of pairs.
-"""
-function move_and_compress!(::NoCompression, target, source)
-    for (key, val) in source
-        target[key] = val
-    end
-    return target
-end
-
-"""
-    update_dvec!([::StochasticStyle,] dvec) -> dvec, nt
-
-Perform an arbitrary transformation on `dvec` after the spawning step is completed and
-report statistics to the `DataFrame`.
-
-Returns the new `dvec` and a `NamedTuple` `nt` of statistics to be reported.
-
-When extending this function for a custom [`StochasticStyle`](@ref), define a method
-for the two-argument call signature!
-
-The default implementation uses [`CompressionStrategy`](@ref) to compress the vector.
-
-Note: `update_dvec!` may return a new vector.
-"""
-update_dvec!(v) = update_dvec!(StochasticStyle(v), v)
-update_dvec!(s::StochasticStyle, v) = update_dvec!(CompressionStrategy(s), v)
-update_dvec!(::NoCompression, v) = v, NamedTuple()
-function update_dvec!(c::CompressionStrategy, v)
-    len_before = length(v)
-    return compress!(c, v), (; len_before)
+compress!(::NoCompression, v) = (), ()
+function compress!(::NoCompression, w, v)
+    copy!(w, v)
+    return (), ()
 end
 
 """
@@ -133,15 +113,22 @@ length. These will be reported as columns in the `DataFrame` returned by [`lomc!
 step_stats(v) = step_stats(StochasticStyle(v))
 
 """
-    fciqmc_col!(w, ham, add, num, shift, dτ)
-    fciqmc_col!(::StochasticStyle, args...)
+    apply_column!(v, op, addr, num, boost=1) -> stats::Tuple
 
-Spawning and diagonal step of FCIQMC for single column of `ham`. In essence it computes
+Apply the product of column `addr` of the operator `op` and the scalar `num` to the
+vector `v` according to the [`StochasticStyle`](@ref) of `v`. By expectation value this
+should be equivalent to
 
-`w .+= (1 .+ dτ.*(shift .- ham[:,add])).*num`.
+```
+v .+= op[:, add] .* num
+```
 
-The [`StochasticStyle(w)`](@ref), picks the algorithm used.
+This is used to perform the spawning step in FCIQMC and to implement operator-vector
+multiplications. Mutates `v` and reports spawning statistics.
+
+The `boost` argument multiplicatively increases the number of spawns to be performed without
+affecting the expectation value of the procedure.
 """
-function fciqmc_col!(w, ham, add, num, shift, dτ)
-    return fciqmc_col!(StochasticStyle(w), w, ham, add, num, shift, dτ)
+function apply_column!(v, ham, add, val, boost=1)
+    return apply_column!(StochasticStyle(v), v, ham, add, val, boost)
 end

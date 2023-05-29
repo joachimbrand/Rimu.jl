@@ -20,7 +20,7 @@ deposit!
 storage
 freeze
 localpart
-fciqmc_step!
+apply_operator!
 sort_into_targets!
 working_memory
 ```

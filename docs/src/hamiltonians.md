@@ -66,6 +66,8 @@ HubbardMom1DEP
 ```@docs
 MatrixHamiltonian
 Transcorrelated1D
+HOCartesianEnergyConserved
+HOCartesianEnergyConservedPerDim
 ```
 
 ### Convenience functions
@@ -98,6 +100,7 @@ G2MomCorrelator
 G2RealCorrelator
 DensityMatrixDiagonal
 Momentum
+AxialAngularMomentumHO
 ```
 
 ## Hamiltonians interface
@@ -128,6 +131,7 @@ random_offdiagonal
 Hamiltonians.LOStructure
 dimension
 has_adjoint
+allowed_address_type
 ```
 
 This interface relies on unexported functionality, including
@@ -136,6 +140,7 @@ Hamiltonians.adjoint
 Hamiltonians.dot
 Hamiltonians.AbstractOffdiagonals
 Hamiltonians.Offdiagonals
+Hamiltonians.check_address_type
 ```
 
 ## Geometry
@@ -149,6 +154,19 @@ LadderBoundaries
 num_neighbours
 num_dimensions
 neighbour_site
+```
+
+## Harmonic Oscillator
+Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesianEnergyConserved`](@ref) 
+and [`HOCartesianEnergyConservedPerDim`](@ref).
+```@docs
+get_all_blocks
+fock_to_cart
+```
+Underlying integrals for the interaction matrix elements are implemented in the following unexported functions
+```@docs
+Hamiltonians.four_oscillator_integral_general
+Hamiltonians.four_oscillator_integral_1D
 ```
 
 ## Index

@@ -52,6 +52,12 @@ function Base.similar(dvec::AbstractDVec, args...; kwargs...)
     return sizehint!(empty(dvec, args...; kwargs...), length(dvec))
 end
 
+"""
+    copyto!(w, v)
+
+Copy contents of `v` to `w` without emptying `w`. See [`copy!`](@ref) for a version that
+empties `w` first.
+"""
 @inline function Base.copyto!(w::AbstractDVec, v)
     sizehint!(w, length(v))
     for (key, val) in pairs(v)
@@ -59,6 +65,12 @@ end
     end
     return w
 end
+
+"""
+    copy!(w::AbstractDVec, v)
+
+Empty `w` and copy contents of `v` to it. See also [`copyto!`](@ref)
+"""
 @inline function Base.copy!(w::AbstractDVec, v)
     empty!(w)
     return copyto!(w, v)

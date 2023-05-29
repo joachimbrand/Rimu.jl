@@ -21,6 +21,8 @@ Momentum space Hubbard models
 Other
 - [`MatrixHamiltonian`](@ref)
 - [`Transcorrelated1D`](@ref)
+- [`HOCartesianEnergyConserved`](@ref)
+- [`HOCartesianEnergyConservedPerDim`](@ref)
 
 ## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)
@@ -34,6 +36,7 @@ Other
 - [`G2RealCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
 - [`Momentum`](@ref)
+- [`AxialAngularMomentumHO`](@ref)
 
 ## [Interface for working with Hamiltonians](#Hamiltonians-interface)
 - [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)
@@ -43,12 +46,13 @@ module Hamiltonians
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 using FFTW
 using Setfield
+using SpecialFunctions, HypergeometricFunctions, Combinatorics, TupleTools, DataFrames
 
 using ..BitStringAddresses
 
 using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
-    offdiagonals, random_offdiagonal, LOStructure
+    offdiagonals, random_offdiagonal, LOStructure, allowed_address_type
 
 export AbstractHamiltonian
 # export TwoComponentHamiltonian
@@ -73,6 +77,9 @@ export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
+
+export HOCartesianEnergyConserved, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
+export get_all_blocks, fock_to_cart
 
 include("abstract.jl")
 include("offdiagonals.jl")
@@ -102,5 +109,11 @@ include("Transcorrelated1D.jl")
 include("correlation_functions.jl")
 include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
+
+include("HOCartesianEnergyConserved.jl")
+include("HOCartesianEnergyConservedPerDim.jl")
+include("vertices.jl")
+include("ho-cart-tools.jl")
+include("angular_momentum.jl")
 
 end

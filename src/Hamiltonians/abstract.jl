@@ -1,9 +1,17 @@
 """
-    check_address_type(h::AbstractHamiltonian, addr)
-Throw an `ArgumentError` if the type of `addr` is not compatible with `h`.
+    check_address_type(h::AbstractHamiltonian, addr_or_type)
+Throw an `ArgumentError` if `addr_or_type` is not compatible with `h`. Acceptable arguments
+are either an address or an address type, or a tuple or array thereof.
+
+See also [`allowed_address_type`](@ref).
 """
-function check_address_type(h::AbstractHamiltonian, addr::A) where A
-    typeof(starting_address(h)) == A || throw(ArgumentError("address type mismatch"))
+@inline function check_address_type(h, ::Type{A}) where {A}
+    B = allowed_address_type(h)
+    A <: B || throw(ArgumentError("address type mismatch: found $A, expected <: $B"))
+end
+@inline check_address_type(h, addr) = check_address_type(h, typeof(addr))
+@inline function check_address_type(h::AbstractHamiltonian, v::Union{AbstractArray,Tuple})
+    all(check_address_type(h, a) for a in v)
 end
 
 (h::AbstractHamiltonian)(v) = h * v
@@ -12,69 +20,59 @@ end
 BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_address(h))
 
 """
-    logbinomialapprox(n, k)
+    dimension(h::AbstractHamiltonian, addr=starting_address(h))
+    dimension(addr::AbstractFockAddress)
 
-Approximate formula for log of binomial coefficient. [Source](https://en.wikipedia.org/wiki/Binomial_coefficient#Bounds_and_asymptotic_formulas)
-"""
-logbinomialapprox(n,k) = (n+0.5)*log((n+0.5)/(n-k+0.5))+k*log((n-k+0.5)/k) - 0.5*log(2π*k)
+Return the estimated dimension of Hilbert space. May return a `BigInt` number.
 
-"""
-    dimension([::Type{T}], h)
-
-Return the estimated dimension of Hilbert space as `T` (defaults to `Int`). If the result
-does not fit into `T`, return `nothing`. If `T<:AbstractFloat`, an approximate value
-computed with the improved Stirling formula may be returned instead.
+When called on an address, the dimension of the linear space spanned by the address type is
+returned. When called on an `AbstractHamiltonian`, an upper bound on the dimension of
+the matrix representing the Hamiltonian is returned.
 
 # Examples
 
 ```jldoctest
-julia> dimension(HubbardMom1D(BoseFS((1,2,3))))
+julia> dimension(BoseFS((1,2,3)))
 28
-julia> dimension(HubbardMom1D(near_uniform(BoseFS{200,100})))
 
+julia> dimension(HubbardReal1D(BoseFS((1,2,3))))
+28
 
-julia> dimension(Float64, HubbardMom1D(near_uniform(BoseFS{200,100})))
-1.3862737677578234e81
-julia> dimension(BigInt, HubbardMom1D(near_uniform(BoseFS{200,100})))
+julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))
 1386083821086188248261127842108801860093488668581216236221011219101585442774669540
+
+julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))|>Float64
+1.3860838210861882e81
 ```
+# Interface
+
+When extending `AbstractHamiltonian`, define a method for the two-argument form
+`dimension(h::MyNewHamiltonian, addr)`.
+
+See also [`BasisSetRep`](@doc).
 """
-function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:Integer}
-    return try_binomial(T(N + M - 1), T(N))
+dimension(h::AbstractHamiltonian) = dimension(h, starting_address(h))
+dimension(::AbstractHamiltonian, addr) = dimension(addr)
+# dimension(_) = Inf # fallback
+
+function dimension(::BoseFS{N,M}) where {N,M}
+    return binomial(BigInt(N + M - 1), BigInt(N))
 end
-function dimension(::Type{T}, ::BoseFS{N,M}) where {N,M,T<:AbstractFloat}
-    return approximate_binomial(T(N + M - 1), T(N))
+function dimension(::FermiFS{N,M}) where {N,M}
+    return binomial(BigInt(M), BigInt(N))
 end
-function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:Integer}
-    return try_binomial(T(M), T(N))
+function dimension(b::BoseFS2C)
+    return dimension(b.bsa) * dimension(b.bsb)
 end
-function dimension(::Type{T}, f::FermiFS{N,M}) where {N,M,T<:AbstractFloat}
-    return approximate_binomial(T(M), T(N))
-end
-function dimension(::Type{T}, b::BoseFS2C) where {T}
-    return dimension(T, b.bsa) * dimension(T, b.bsb)
-end
-function dimension(::Type{T}, c::CompositeFS) where {T}
-    return prod(x -> dimension(T, x), c.components)
+function dimension(c::CompositeFS)
+    return prod(x -> dimension(x), c.components)
 end
 
-function try_binomial(n::T, k::T) where {T}
-    try
-        return T(binomial(n, k))
-    catch
-        return nothing
-    end
+# for backward compatibility
+function dimension(::Type{T}, h, addr=starting_address(h)) where {T}
+    return T(dimension(h, addr))
 end
-function approximate_binomial(n::T, k::T) where {T}
-    try
-        T(binomial(Int128(n), Int128(k)))
-    catch
-        T(exp(logbinomialapprox(n, k)))
-    end
-end
-
-dimension(h::AbstractHamiltonian) = dimension(Int, h)
-dimension(::Type{T}, h::AbstractHamiltonian) where {T} = dimension(T, starting_address(h))
+dimension(::Type{T}, addr::AbstractFockAddress) where {T} = T(dimension(addr))
 
 Base.isreal(h::AbstractHamiltonian) = eltype(h) <: Real
 LinearAlgebra.isdiag(h::AbstractHamiltonian) = LOStructure(h) ≡ IsDiagonal()
@@ -90,7 +88,7 @@ BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(st
 \\frac{⟨ v | H | v ⟩}{⟨ v|v ⟩}
 ```
 """
-rayleigh_quotient(lo, v) = dot(v, lo, v)/norm(v)^2
+rayleigh_quotient(lo, v) = dot(v, lo, v) / norm(v)^2
 
 """
     TwoComponentHamiltonian{T} <: AbstractHamiltonian{T}
@@ -103,12 +101,12 @@ two different species. At least the following fields should be present:
 
 See [`AbstractHamiltonian`](@ref) for a list of methods that need to be defined.
 
-Provides and implementation of [`dimension`](@ref).
+Provides an implementation of [`dimension`](@ref).
 """
 abstract type TwoComponentHamiltonian{T} <: AbstractHamiltonian{T} end
 
-function dimension(::Type{T}, h::TwoComponentHamiltonian) where {T}
-    return dimension(T, h.ha) * dimension(T, h.hb)
+function dimension(h::TwoComponentHamiltonian)
+    return dimension(h.ha) * dimension(h.hb)
 end
 
 """
@@ -144,47 +142,43 @@ julia> rayleigh_quotient(mom, v) # momentum expectation value for state vector `
 momentum
 
 """
-    sm, basis = build_sparse_matrix_from_LO(
-        ham, address=starting_address(ham); cutoff, filter=nothing, nnzs, col_hint, sort=false, kwargs...
-    )
+    build_sparse_matrix_from_LO(
+        ham, address=starting_address(ham);
+        cutoff, filter=nothing, nnzs, col_hint, sort=false, kwargs...
+    ) -> sm, basis
+    build_sparse_matrix_from_LO(ham, addresses::AbstractVector; kwargs...)
 
 Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
-starting from `address`. The vector `basis` contains the addresses of basis
-configurations.
+starting from `address`. Instead of a single address, a vector of `addresses` can be passed.
+The vector `basis` contains the addresses of basis configurations.
 
-Providing the number `nnzs` of expected calculated matrix elements may improve performance.
-The default estimates for `nnzs` is `dimension(ham)`.
-
-Setting a custom value `col_hint` for the estimated number of nonzero 
-off-diagonal matrix elements in each matrix column may improve performance.
-The default value for `col_hint` is `num_offdiagonals(ham, address)`.
+Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
+estimated number of nonzero off-diagonal matrix elements in each matrix column may improve
+performance.
 
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
-not enabled by default.
+not enabled by default. To generate the matrix truncated to the subspace spanned by the
+`addresses`, use `filter = Returns(false)`.
 
-Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
-order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
-are passed on to `Base.sortperm`.
+Setting `sort` to `true` will sort the `basis` and order the matrix rows and columns
+accordingly. This is useful when the order of the columns matters, e.g. when comparing
+matrices. Any additional keyword arguments are passed on to `Base.sortperm`.
 
 See [`BasisSetRep`](@ref).
 """
 function build_sparse_matrix_from_LO(
-    ham, address=starting_address(ham);
+    ham, addr_or_vec=starting_address(ham);
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    nnzs=dimension(ham), col_hint=num_offdiagonals(ham, address),
-    sort=false, kwargs...,
+    nnzs=0, col_hint=0, # sizehints are opt-in
+    sort=false, kwargs...
 )
-    if !isnothing(filter) && !filter(address)
-        throw(ArgumentError(string(
-            "Starting address does not pass `filter`. ",
-            "Please pick a different address or a different filter."
-        )))
-    end
+    # Set up `adds` as queue of addresses. Also returned as the basis.
+    adds = addr_or_vec isa Union{AbstractArray,Tuple} ? [addr_or_vec...] : [addr_or_vec]
+
     T = eltype(ham)
-    adds = [address]          # Queue of addresses. Also returned as the basis.
-    dict = Dict(address => 1) # Mapping from addresses to indices
+    dict = Dict(add => i for (i, add) in enumerate(adds)) # Map from addresses to indices
     col = Dict{Int,T}()       # Temporary column storage
     sizehint!(col, col_hint)
 
@@ -242,41 +236,43 @@ function build_sparse_matrix_from_LO(
 end
 
 """
-    basis = build_basis(
-        ham, address=starting_address(ham); 
-        cutoff=nothing, filter=nothing, sort=false, max_size=Inf, kwargs...
-    )
+    build_basis(
+        ham, address=starting_address(ham);
+        cutoff, filter, sizelim, sort=false, kwargs...
+    ) -> basis
+    build_basis(ham, addresses::AbstractVector; kwargs...)
 
-Get all basis element of a linear operator `ham` that are reachable (via 
-non-zero matrix elements) from the address `address`, returned as a vector. 
+Get all basis element of a linear operator `ham` that are reachable (via
+non-zero matrix elements) from the address `address`, returned as a vector.
+Instead of a single address, a vector of `addresses` can be passed.
 Does not return the matrix, for that purpose use [`BasisSetRep`](@ref).
 
 Providing an energy cutoff will skip addresses with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. 
-A maximum basis size `max_size` can be set which will throw an error if the expected dimension
-of `ham` is larger than `max_size`. This may be useful when memory may be a concern. 
-These options are disabled by default.
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
+Addresses passed as arguments are not filtered.
+A maximum basis size `sizelim` can be set which will throw an error if the expected
+dimension of `ham` is larger than `sizelim`. This may be useful when memory may be a
+concern. These options are disabled by default.
 
 Setting `sort` to `true` will sort the basis. Any additional keyword arguments
 are passed on to `Base.sort!`.
 """
 function build_basis(
-    ham, address=starting_address(ham);
+    ham, addr_or_vec=starting_address(ham);
     cutoff=nothing,
     filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    sort=false, 
-    max_size=Inf, 
-    kwargs...,
+    sort=false,
+    max_size=Inf, # retained for backwards compatibility; use sizelim instead
+    sizelim=max_size,
+    kwargs...
 )
-    check_address_type(ham, address)
-    if !isnothing(filter) && !filter(address)
-        throw(ArgumentError(string(
-            "Starting address does not pass `filter`. ",
-            "Please pick a different address or a different filter."
-        )))
+    check_address_type(ham, addr_or_vec)
+    single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
+    if dimension(ham, single_addr) > sizelim
+        throw(ArgumentError("dimension larger than sizelim"))
     end
-    dimension(Float64, ham) < max_size || throw(ArgumentError("dimension larger than max_size"))
-    adds = [address]        # Queue of addresses. Also returned as the basis.
+    # Set up `adds` as queue of addresses. Also returned as the basis.
+    adds = addr_or_vec isa Union{AbstractArray,Tuple} ? [addr_or_vec...] : [addr_or_vec]
     known_basis = Set(adds)     # known addresses
 
     i = 0
@@ -302,25 +298,24 @@ end
 """
     BasisSetRep(
         h::AbstractHamiltonian, addr=starting_address(h);
-        sizelim=10^6, nnzs, cutoff, filter, sort, kwargs...
+        sizelim=10^6, nnzs, cutoff, filter, sort=false, kwargs...
     )
+    BasisSetRep(h::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
 
 Eagerly construct the basis set representation of the operator `h` with all addresses
-reachable from `addr`.
+reachable from `addr`. Instead of a single address, a vector of `addresses` can be passed.
 
 An `ArgumentError` is thrown if `dimension(h) > sizelim` in order to prevent memory
 overflow. Set `sizelim = Inf` in order to disable this behaviour.
 
-Providing the number `nnzs` of expected calculated matrix elements may improve performance.
-The default estimates for `nnzs` is `dimension(ham)`.
-
-Setting a custom value `col_hint` for the estimated number of nonzero 
-off-diagonal matrix elements in each matrix column may improve performance.
-The default value for `col_hint` is `num_offdiagonals(ham, address)`.
+Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
+estimated number of nonzero off-diagonal matrix elements in each matrix column may improve
+performance.
 
 Providing an energy cutoff will skip the columns and rows with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
-not enabled by default.
+than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
+Addresses passed as arguments are not filtered. To generate the matrix truncated to the
+subspace spanned by the `addresses`, use `filter = Returns(false)`.
 
 Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
 order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
@@ -340,10 +335,14 @@ BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
+
+julia> BasisSetRep(h, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
+BasisSetRep(HubbardReal1D(BoseFS{1,3}((1, 0, 0)); u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
+  0.0  -1.0
+ -1.0   0.0
 ```
 ```julia-repl
- julia> using LinearAlgebra; eigvals(Matrix(bsr))
- 3-element Vector{Float64}:
+ julia> using LinearAlgebra; eigvals(Matrix(bsr)) # eigenvalues
   -2.0
    1.0
    1.0
@@ -369,42 +368,38 @@ struct BasisSetRep{A,SM,H}
     h::H
 end
 
-# function BasisSetRep(
-#     h::AbstractHamiltonian, addr=starting_address(h);
-#     sizelim=10^6, kwargs...
-# )
-#     dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
-#     check_address_type(h, addr)
-#     sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
-#     return BasisSetRep(sm, basis, h)
-# end
-
-function BasisSetRep(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
+function BasisSetRep(h::AbstractHamiltonian, addr_or_vec=starting_address(h); kwargs...)
     # In the default case we pass `AdjointUnknown()` in order to skip the
     # symmetrisation of the sparse matrix
-    return _bsr_ensure_symmetry(AdjointUnknown(), h, addr; kwargs...)
+    return _bsr_ensure_symmetry(AdjointUnknown(), h, addr_or_vec; kwargs...)
 end
 # special cases are needed for symmetry wrappers and are defined there
 
 # default, does not enforce symmetries
 function _bsr_ensure_symmetry(
-    ::LOStructure, h::AbstractHamiltonian, addr;
+    ::LOStructure, h::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
-    dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
-    check_address_type(h, addr)
-    sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
+    single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
+    if dimension(h, single_addr) > sizelim
+        throw(ArgumentError("dimension larger than sizelim"))
+    end
+    check_address_type(h, addr_or_vec)
+    sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
     return BasisSetRep(sm, basis, h)
 end
 
 # build the BasisSetRep while enforcing hermitian symmetry
 function _bsr_ensure_symmetry(
-    ::IsHermitian, h::AbstractHamiltonian, addr;
+    ::IsHermitian, h::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
-    dimension(Float64, h) < sizelim || throw(ArgumentError("dimension larger than sizelim"))
-    check_address_type(h, addr)
-    sm, basis = build_sparse_matrix_from_LO(h, addr; kwargs...)
+    single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
+    if dimension(h, single_addr) > sizelim
+        throw(ArgumentError("dimension larger than sizelim"))
+    end
+    check_address_type(h, addr_or_vec)
+    sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
     fix_approx_hermitian!(sm; test_approx_symmetry) # enforce hermitian symmetry after building
     return BasisSetRep(sm, basis, h)
 end
@@ -428,7 +423,7 @@ function fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
             return A
         end
     end
-    @. A = 1/2*(A + A')
+    @. A = 1 / 2 * (A + A')
     return A
 end
 
@@ -457,7 +452,9 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
     # based on `ishermsym()` from `SparseArrays`; relies on `SparseArrays` internals
     # https://github.com/JuliaSparse/SparseArrays.jl/blob/1bae96dc8f9a8ca8b7879eef4cf71e186598e982/src/sparsematrix.jl#L3793
     m, n = size(A)
-    if m != n; return false ; end
+    if m != n
+        return false
+    end
 
     colptr = getcolptr(A)
     rowval = rowvals(A)
@@ -525,7 +522,7 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
                 # A[i,j] and A[j,i] exists
                 if row2 == col
                     if isapprox(val, conj(nzval[offset]); kwargs...)
-                        val = 1/2 * (val + conj(nzval[offset]))
+                        val = 1 / 2 * (val + conj(nzval[offset]))
                         nzval[p] = val
                         nzval[offset] = conj(val)
                     else
@@ -549,8 +546,7 @@ end
 
 starting_address(bsr::BasisSetRep) = bsr.basis[1]
 
-dimension(bsr::BasisSetRep) = dimension(Int, bsr)
-dimension(::Type{T}, bsr::BasisSetRep) where {T} = T(length(bsr.basis))
+dimension(bsr::BasisSetRep) = length(bsr.basis)
 
 """
     sparse(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
@@ -580,17 +576,20 @@ function Base.Matrix(h::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
 end
 Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
 
-function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where T
+function Base.getindex(ham::AbstractHamiltonian{T}, address1, address2) where {T}
     # calculate the matrix element when only two bitstring addresses are given
-    # this is NOT used for the QMC algorithm and is currenlty not used either
+    # this is NOT used for the QMC algorithm and is currently not used either
     # for building the matrix for conventional diagonalisation.
     # Only used for verifying matrix.
     # This will be slow and inefficient. Avoid using for larger Hamiltonians!
     address1 == address2 && return diagonal_element(ham, address1) # diagonal
-    for (add,val) in offdiagonals(ham, address2) # off-diag column as iterator
-        add == address1 && return val # found address1
+    res = zero(T)
+    for (add, val) in offdiagonals(ham, address2) # off-diag column as iterator
+        if add == address1
+            res += val # found address1
+        end
     end
-    return zero(T) # address1 not found
+    return res
 end
 
 LinearAlgebra.adjoint(op::AbstractHamiltonian) = adjoint(LOStructure(op), op)
@@ -612,7 +611,9 @@ LinearAlgebra.adjoint(::IsHermitian, op) = op # adjoint is known
 LinearAlgebra.adjoint(::IsDiagonal, op) = op
 
 """
-    TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
+    TransformUndoer{
+        T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}
+    } <: AbstractHamiltonian{T}
 
 Type for creating a new operator for the purpose of calculating overlaps of transformed
 vectors, which are defined by some transformation `transform`. The new operator should
@@ -639,7 +640,9 @@ to represent ``f^{-1} A f^{-1}``.
 * [`GutzwillerSampling`](@ref)
 * [`GuidingVectorSampling`](@ref)
 """
-struct TransformUndoer{T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}} <: AbstractHamiltonian{T}
+struct TransformUndoer{
+    T,K<:AbstractHamiltonian,O<:Union{AbstractHamiltonian,Nothing}
+} <: AbstractHamiltonian{T}
     transform::K
     op::O
 end
@@ -652,4 +655,4 @@ TransformUndoer(k::AbstractHamiltonian) = TransformUndoer(k::AbstractHamiltonian
 
 # common methods
 starting_address(s::TransformUndoer) = starting_address(s.transform)
-dimension(::Type{T}, s::TransformUndoer) where {T} = dimension(T, s.transform)
+dimension(s::TransformUndoer, addr) = dimension(s.transform, addr)

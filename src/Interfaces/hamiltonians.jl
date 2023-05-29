@@ -28,8 +28,10 @@ Methods that need to be implemented:
 Optional methods to implement:
 
 * [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
-* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref Main.Hamiltonians.dimension): defaults to dimension of address
-  space
+* [`dimension(::AbstractHamiltonian, addr)`](@ref Main.Hamiltonians.dimension): defaults to
+  dimension of address space
+* [`allowed_address_type(h::AbstractHamiltonian)`](@ref): defaults to
+  `typeof(starting_address(h))`
 * [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
 Provides:
@@ -49,6 +51,16 @@ See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref).
 abstract type AbstractHamiltonian{T} end
 
 Base.eltype(::AbstractHamiltonian{T}) where {T} = T
+
+"""
+    allowed_address_type(h::AbstractHamiltonian)
+Return the type of addresses that can be used with Hamiltonian `h`. Part of the
+[`AbstractHamiltonian`](@ref) interface. Defaults to `typeof(starting_address(h))`.
+
+Overload this function if the Hamiltonian can be used with addresses of different types.
+"""
+allowed_address_type(h::AbstractHamiltonian) = typeof(starting_address(h))
+allowed_address_type(::AbstractMatrix) = Integer
 
 """
     diagonal_element(ham, add)
@@ -164,7 +176,7 @@ julia> h = offdiagonals(H, addr)
 ```
 """
 function offdiagonals(m::AbstractMatrix, i)
-    pairs = map(=>, axes(m, 1), view(m, :, i))
+    pairs = collect(zip(axes(m, 1), view(m, :, i)))
     return filter!(pairs) do ((k, v))
         k ≠ i && v ≠ 0
     end

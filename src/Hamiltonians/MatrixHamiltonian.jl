@@ -3,11 +3,12 @@
         mat::AbstractMatrix{T};
         starting_address::Int = starting_address(mat)
     ) <: AbstractHamiltonian{T}
-Wrap an abstract matrix `mat` as an [`AbstractHamiltonian`](@ref) object for use with
-regular `Vector`s indexed by integers. Works with stochastic methods of
-[`lomc!()`](@ref). Optionally, a [`starting_address`](@ref) can be provided.
+Wrap an abstract matrix `mat` as an [`AbstractHamiltonian`](@ref) object.
+Works with stochastic methods of [`lomc!()`](@ref) and [`DVec`](@ref).
+Optionally, a valid index can be provided as the [`starting_address`](@ref).
 
 Specialised methods are implemented for sparse matrices of type `AbstractSparseMatrixCSC`.
+One based indexing is required for the matrix `mat`.
 """
 struct MatrixHamiltonian{T,AM,H} <: AbstractHamiltonian{T}
     m::AM
@@ -18,10 +19,11 @@ function MatrixHamiltonian(
     m::AM;
     starting_address=starting_address(m)
 ) where AM <:AbstractMatrix
-    s = length.(axes(m))
-    @assert s[1]==s[2] "Matrix needs to be square, got $s."
+    Base.require_one_based_indexing(m)
+    s = size(m)
+    s[1] == s[2] || throw(ArgumentError("Matrix needs to be square, got $s."))
     i = Int(starting_address)
-    @assert minimum(axes(m, 2)) ≤ i ≤ maximum(axes(m, 2)) "Invalid index $starting_address."
+    1 ≤ i ≤ s[1] || throw(ArgumentError("Invalid `starting_address` $starting_address."))
     MatrixHamiltonian{eltype(m), AM, ishermitian(m)}(m, i)
 end
 
@@ -33,7 +35,7 @@ LinearAlgebra.adjoint(mh::MatrixHamiltonian{<:Any,<:Any,true}) = mh
 
 starting_address(mh::MatrixHamiltonian) = mh.starting_index
 
-dimension(::Type{T}, mh::MatrixHamiltonian) where T = T(size(mh.m,2))
+dimension(mh::MatrixHamiltonian, _) = size(mh.m,2)
 
 num_offdiagonals(mh::MatrixHamiltonian, _) = dimension(mh) - 1
 
