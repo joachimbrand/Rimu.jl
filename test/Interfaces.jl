@@ -30,6 +30,8 @@ using Test
     @test LOStructure(ham) == AdjointKnown()
     @test has_adjoint(ham)
 end
+
+# using lomc! with a matrix is not documented and may be removed in the future
 @testset "lomc! with matrix" begin
     ham = [1 1 2 3 2;
            2 0 2 2 3;

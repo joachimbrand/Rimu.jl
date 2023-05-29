@@ -58,9 +58,12 @@ function test_hamiltonian_interface(H)
             end
         end
         @testset "dimension" begin
-            @test dimension(H) isa Int
+            @test dimension(H) ≥ dimension(H, starting_address(H))
             @test dimension(Float64, H) isa Float64
-            @test dimension(Int, H) === dimension(H)
+            @test dimension(Int, H) == dimension(H)
+        end
+        @testset "allowed_address_type" begin
+            @test addr isa allowed_address_type(H)
         end
     end
 end
@@ -157,6 +160,9 @@ end
 
         MatrixHamiltonian([1 2;2 0]),
         GutzwillerSampling(MatrixHamiltonian([1.0 2.0;2.0 0.0]); g=0.3),
+        Rimu.Hamiltonians.TransformUndoer(
+            GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3)
+        ),
 
         Transcorrelated1D(CompositeFS(FermiFS((0,0,1,1,0)), FermiFS((0,1,1,0,0))); t=2),
         Transcorrelated1D(CompositeFS(FermiFS((0,0,1,0)), FermiFS((0,1,1,0))); v=3, v_ho=1),
@@ -704,6 +710,7 @@ end
     # lomc!() with AbstractMatrix
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
+    @test dim ≤ dimension(Int, starting_address(ham)) == dimension(starting_address(ham))
     bsr = BasisSetRep(ham, starting_address(ham))
     sm, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
@@ -717,8 +724,8 @@ end
     @test a.shift ≈ c.shift
 
     # MatrixHamiltonian
-    @test_throws AssertionError MatrixHamiltonian([1 2 3; 4 5 6])
-    @test_throws AssertionError MatrixHamiltonian(sm, starting_address = dim+1)
+    @test_throws ArgumentError MatrixHamiltonian([1 2 3; 4 5 6])
+    @test_throws ArgumentError MatrixHamiltonian(sm, starting_address = dim+1)
     # adjoint nonhermitian
     nonhermitian = MatrixHamiltonian([1 2; 4 5])
     @test LOStructure(nonhermitian) == AdjointKnown()
@@ -1155,22 +1162,40 @@ end
         @test sparse(bsr) == bsr.sm == sparse(ham)
         addr2 = bsr.basis[2]
         @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+        @test isreal(ham) == (eltype(ham) <: Real)
+        @test isdiag(ham) == (LOStructure(ham) ≡ IsDiagonal())
+        @test ishermitian(ham) == (LOStructure(ham) ≡ IsHermitian())
+        @test issymmetric(ham) == (ishermitian(ham) && isreal(ham))
     end
 
     @testset "filtering" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
-        mat_orig = Matrix(ham; sort=true)
+        bsr_orig = BasisSetRep(ham; sort=true)
+        mat_orig = Matrix(bsr_orig)
         mat_cut_index = diag(mat_orig) .< 30
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-        mat_cut = Matrix(ham; cutoff=30, sort=true)
+        bsr = BasisSetRep(ham; cutoff=30, sort=true)
+        mat_cut = Matrix(bsr)
         @test mat_cut == mat_cut_manual
+        # pass a basis and generate truncated BasisSetRep
+        bsrt = BasisSetRep(ham, bsr.basis; filter= Returns(false), sort=true)
+        @test bsrt.basis == bsr.basis
+        @test bsr.sm == bsrt.sm
+        # pass addresses and generate reachable basis
+        @test BasisSetRep(ham, bsr.basis, sort=true).basis == bsr_orig.basis
 
         filterfun(fs) = maximum(onr(fs)) < 8
         mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
         mat_cut = Matrix(ham; filter=filterfun, sort=true)
         @test mat_cut == mat_cut_manual
+    end
+
+    @testset "getindex" begin
+        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
+        bsr = BasisSetRep(ham; sort=true)
+        b = bsr.basis
+        @test [ham[i, j] for i in b, j in b] == Matrix(bsr)
     end
 
     @testset "momentum blocking" begin
@@ -1199,6 +1224,8 @@ end
         @test !ishermitian(mat)
         @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
         @test !ishermitian(mat) # still not hermitian
+        fix_approx_hermitian!(mat; test_approx_symmetry=false)
+        @test ishermitian(mat) # now it is hermitian
 
         # sparse matrix
         Random.seed!(17)
@@ -1230,12 +1257,13 @@ end
         bsr = BasisSetRep(ham)
         basis = build_basis(ham)
         @test basis == bsr.basis
+        @test basis == build_basis(ham, basis) # passing multiple addresses
         # sorting
         basis = build_basis(ham, add; sort = true)
         @test basis == sort!(bsr.basis)
         # filtering
-        @test_throws ArgumentError build_basis(ham, add; max_size = 100)
-        @test_throws ArgumentError build_basis(ham, add; cutoff = -1)
+        @test_throws ArgumentError build_basis(ham, add; sizelim = 100)
+        @test length(build_basis(ham, add; cutoff = -1)) == 1 # no new addresses added
         cutoff = n * (n-1) / 4  # half maximum energy
         bsr = BasisSetRep(ham, add; cutoff)
         basis = build_basis(ham, add; cutoff)

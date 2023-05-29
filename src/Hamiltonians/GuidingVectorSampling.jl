@@ -45,7 +45,7 @@ julia> get_offdiagonal(G, starting_address(G), 4)
 
 # Observables
 
-To calculate observables, pass the transformed Hamiltonian `G` to 
+To calculate observables, pass the transformed Hamiltonian `G` to
 [`AllOverlaps`](@ref) with keyword argument `transform=G`.
 """
 struct GuidingVectorSampling{A,T,H<:AbstractHamiltonian{T},D,E} <: AbstractHamiltonian{T}
@@ -70,7 +70,7 @@ function LinearAlgebra.adjoint(h::GuidingVectorSampling{A,T,<:Any,D,E}) where {A
     return GuidingVectorSampling{!A,T,typeof(h_adj),D,E}(h_adj, h.vector)
 end
 
-dimension(::Type{T}, h::GuidingVectorSampling) where T = dimension(T, h.hamiltonian)
+dimension(h::GuidingVectorSampling, addr) = dimension(h.hamiltonian, addr)
 
 Base.getproperty(h::GuidingVectorSampling, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::GuidingVectorSampling{<:Any,<:Any,<:Any,<:Any,E}, ::Val{:eps}) where E = E
@@ -135,10 +135,10 @@ Base.size(h::GuidingVectorOffdiagonals) = size(h.offdiagonals)
     TransformUndoer(k::GuidingVectorSampling)
 
 For a guiding vector similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}``
-define the operator ``f^{-1} \\hat{A} f^{-1}``, and special case ``f^{-2}``, in order 
-to calculate observables. Here ``f`` is a diagonal operator whose entries are 
+define the operator ``f^{-1} \\hat{A} f^{-1}``, and special case ``f^{-2}``, in order
+to calculate observables. Here ``f`` is a diagonal operator whose entries are
 the components of the guiding vector, i.e.``f_{ii} = v_i``.
-    
+
 See [`AllOverlaps`](@ref), [`GuidingVectorSampling`](@ref).
 """
 function TransformUndoer(k::GuidingVectorSampling, op::Union{Nothing,AbstractHamiltonian})

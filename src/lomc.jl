@@ -109,6 +109,7 @@ function QMCState(
     post_step=(),
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
 )
+    Hamiltonians.check_address_type(hamiltonian, keytype(v))
     # Set up r_strat and params
     r_strat = refine_r_strat(r_strat)
     if !isnothing(laststep)
