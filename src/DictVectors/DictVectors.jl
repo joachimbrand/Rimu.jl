@@ -8,7 +8,7 @@ See [`Interfaces`](@ref).
 """
 module DictVectors
 
-using Folds, FoldsThreads
+using Folds
 using LinearAlgebra
 using Random
 using SplittablesBase
