@@ -35,14 +35,3 @@ function compress!(t::ThresholdCompression, w, v)
     _threshold_compress!(t, w_local, v_local)
     return (:len_before,), (len_before,)
 end
-function move_and_compress!(t::ThresholdCompression, target, source)
-    for (key, val) in source
-        prob = abs(val) / t.threshold
-        if prob < 1 && prob > rand()
-            target[key] = t.threshold * sign(val)
-        elseif prob ≥ 1
-            target[key] = val
-        end
-    end
-    return target
-end

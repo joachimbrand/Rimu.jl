@@ -67,7 +67,7 @@ end
 working_memory(f::FCIQMCPropagator) = f.working_memory
 
 function spawn_column!(column, f::FCIQMCPropagator, k, v)
-    return fciqmc_col!(
+    return perform_spawns!(
         f.working_memory.style, column, f.hamiltonian, k, v, f.shift, f.dτ
     )
 end
@@ -99,7 +99,7 @@ working_memory(o::OperatorMulPropagator) = o.working_memory
 
 function spawn_column!(column, o::OperatorMulPropagator, k, v)
     T = eltype(o.operator)
-    return fciqmc_col!(
+    return perform_spawns!(
         o.working_memory.style, column, o.operator, k, v, one(T), -one(T)
     )
 end

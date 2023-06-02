@@ -202,7 +202,7 @@ function move_and_compress!(dst::PDVec, src::PDWorkingMemory)
     compression = CompressionStrategy(StochasticStyle(src))
     Folds.foreach(dst.segments, local_segments(src)) do dst_seg, src_seg
         empty!(dst_seg)
-        move_and_compress!(
+        compress!(
             compression, dst_seg,
             (k => from_initiator_value(src.initiator, v) for (k, v) in pairs(src_seg)),
         )
