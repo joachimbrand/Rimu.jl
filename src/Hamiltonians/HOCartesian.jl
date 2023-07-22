@@ -1,0 +1,166 @@
+"""
+    HOCartesian(addr; g = 1.0) <: AbstractHamiltonian
+
+Hamiltonian for particles interacting with contact interactions with a harmonic
+oscillator external potential. The underlying single-particle basis states are the
+eigenstates of the external potential. `g` is the value of the bare interaction strength.
+"""
+struct HOCartesian{A,T} <: AbstractHamiltonian{T}
+    addr::A
+    g::T
+    energies::Vector{Float64}   # noninteracting single particle energies
+end
+function HOCartesian(addr; g=1.0)
+    g = float(g)
+    addr isa BoseFS || throw(ArgumentError("Only `BoseFS` is currently supported."))
+    energies = [0.5 + i for i in 0:(num_modes(addr)-1)]
+    return HOCartesian(addr, g, energies)
+end
+
+starting_address(h::HOCartesian) = h.addr
+
+"""
+    num_even_parity_excitations(addr::BoseFS{<:Any,M}[, pairs]) where {M}
+
+Return the number of possible even parity excitations.
+"""
+function num_even_parity_excitations(addr)
+    return num_even_parity_excitations(addr, OccupiedPairsMap(addr))
+end
+function num_even_parity_excitations(addr::BoseFS{<:Any,M}, pairs) where {M}
+    count = 0
+    even_pairs = num_even_pairs(addr)
+    odd_pairs = M * (M + 1) ÷ 2 - even_pairs
+    for (i, j) in pairs
+        count += ifelse(iseven((i.mode - 1) * (j.mode - 1)), even_pairs, odd_pairs)
+    end
+    return count
+end
+# function num_even_parity_excitations(od::HOCartesianOffdiagonals)
+#     num = 0
+#     for i in 1:od.num_pairs
+#         @inbounds num += od.even_parity_pairs[i]
+#     end
+#     return num
+# end
+
+"""
+    even_parity_excitations(addr::BoseFS, pairs)
+
+Return the number of pairs `i, j` for particle creation for each
+of the particle destructions in `pairs` `k, l` such that the two-particle excitation
+``a^\\dag_i a^\\dag_j a_l a_k`` has even parity.
+"""
+function even_parity_excitations(addr::BoseFS{<:Any,M}, pairs) where {M}
+    even_pairs = num_even_pairs(addr)
+    odd_pairs = M * (M + 1) ÷ 2 - even_pairs
+    possible_excitations = map(pairs) do (i,j)
+        ifelse(iseven((i.mode - 1) * (j.mode - 1)), even_pairs, odd_pairs)
+    end
+    return possible_excitations
+end
+
+"""
+    num_even_pairs(::BoseFS{<:Any,M}) where {M}
+
+Return the number of even parity pairs `(i,j)` of bosons where `0 ≤ i ≤ j < M`
+"""
+@inline function num_even_pairs(::BoseFS{<:Any,M}) where {M}
+    return num_even_pairs(M)
+end
+@inline function num_even_pairs(m)
+    count = 0
+    for i = 0:(m-1), j = i:(m-1)
+        count += iseven(i + j)
+    end
+    return count
+end
+
+import Rimu.Interfaces: num_offdiagonals
+
+num_offdiagonals(::HOCartesian, addr) = num_even_parity_excitations(addr)
+
+get_offdiagonal(h::HOCartesian, addr::BoseFS, chosen) = offdiagonals(h, addr)[chosen]
+
+offdiagonals(h::HOCartesian, addr) = HOCartesianOffdiagonals(h, addr)
+
+"""
+    HOCartesianOffdiagonals(h::HOCartesian, addr) <: AbstractOffdiagonals
+
+Iterator over new address and matrix element for reachable off-diagonal matrix elements of
+`HOCartesian` operator `h` from address `addr`.
+"""
+struct HOCartesianOffdiagonals{A,T,H<:HOCartesian{A,T},P,E} <: AbstractOffdiagonals{A,T}
+    ham::H
+    addr::A
+    num_pairs::Int # number of `occupied_pairs` and `even_parity_pairs`
+    occupied_pairs::P # overfilled StaticVector
+    even_parity_pairs::E # overfilled StaticVector
+    length::Int
+end
+function HOCartesianOffdiagonals(h::HOCartesian, addr)
+    o_pairs = OccupiedPairsMap(addr)
+    num_pairs = length(o_pairs)
+    e_pairs = even_parity_excitations(addr, o_pairs.pairs)
+    num = 0 # compute number of even parity pairs
+    for i in 1:num_pairs
+        @inbounds num += e_pairs[i]
+    end
+    return HOCartesianOffdiagonals(h, addr, num_pairs, o_pairs.pairs, e_pairs, num)
+end
+Base.size(od::HOCartesianOffdiagonals) = (od.length,)
+
+function _get_excitation_indices(od::HOCartesianOffdiagonals, i)
+    pair_index = 1
+    while i > od.even_parity_pairs[pair_index]
+        i -= od.even_parity_pairs[pair_index]
+        pair_index += 1
+    end
+    # now i is the index of the excitation within the pair
+    # and pair_index is the index of the pair
+    # we need to find the excitation
+    kk, ll = od.occupied_pairs[pair_index]
+    m = num_modes(od.addr)
+    count = 0
+    for k = 0:(m-1), l = k:(m-1)
+        if iseven(k + l)
+            # (k, l) == (kk.mode - 1, ll.mode - 1) && continue # skip diagonal excitation
+            count += 1
+            if count == i # found the excitation
+                ii, jj = find_mode(od.addr, (k+1, l+1)) # mode count is 1-based
+                return ii, jj, od.occupied_pairs[pair_index]...
+            end
+        end
+    end
+    throw(ArgumentError("should not reach here: pair_index = $pair_index, i = $i"))
+end
+
+function Base.getindex(od::HOCartesianOffdiagonals, i::Integer)
+    @boundscheck 1 ≤ i ≤ od.length || throw(BoundsError(od, i))
+    ii, jj, kk, ll = _get_excitation_indices(od, i)
+    # return (ii, jj), (kk, ll)
+    naddr, α = excitation(od.addr, (ii, jj), (kk, ll))
+    α = ifelse((ii.mode, jj.mode) == (kk.mode, ll.mode), 0.0, α) # diagonal excitation
+    α *= od.ham.g * four_oscillator_integral_general(ii.mode, jj.mode, kk.mode, ll.mode)
+    return naddr, α
+end
+
+@inline function noninteracting_energy(h::HOCartesian, omm::BoseOccupiedModeMap)
+    return dot(h.energies, omm)
+end
+
+@inline function diagonal_element(h::HOCartesian, addr::BoseFS)
+    omm = OccupiedModeMap(addr)
+    return noninteracting_energy(h, omm) + diagonal_interactions(h, addr)
+end
+
+@inline function diagonal_interactions(h::HOCartesian, addr)
+    pairs = OccupiedPairsMap(addr)
+    energy = sum(pairs) do (ii, jj)
+        four_oscillator_integral_general(ii.mode, jj.mode, ii.mode, jj.mode) *
+            ii.occnum * ifelse(ii.mode == jj.mode, ii.occnum - 1, jj.occnum * 2)
+    end
+    return h.g * energy
+end
+
+# TODO: write tests
