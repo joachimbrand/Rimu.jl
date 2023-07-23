@@ -205,7 +205,7 @@ julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
 BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
 
 julia> mb = OccupiedModeMap(b)
-3-element OccupiedModeMap{7, BoseFSIndex}:
+3-element OccupiedModeMap{7, BoseFSIndex, BoseFS{13, 7, BitString{19, 1, UInt32}}}:
  BoseFSIndex(occnum=10, mode=1, offset=0)
  BoseFSIndex(occnum=2, mode=5, offset=14)
  BoseFSIndex(occnum=1, mode=7, offset=18)
@@ -214,7 +214,7 @@ julia> f = FermiFS((1,1,1,1,0,0,1,0,0))
 FermiFS{5,9}((1, 1, 1, 1, 0, 0, 1, 0, 0))
 
 julia> mf = OccupiedModeMap(f)
-5-element OccupiedModeMap{5, FermiFSIndex}:
+5-element OccupiedModeMap{5, FermiFSIndex, FermiFS{5, 9, BitString{9, 1, UInt16}}}:
  FermiFSIndex(occnum=1, mode=1, offset=0)
  FermiFSIndex(occnum=1, mode=2, offset=1)
  FermiFSIndex(occnum=1, mode=3, offset=2)
@@ -230,10 +230,13 @@ julia> dot(mf, mb)
 julia> dot(mf, 1:20)
 17
 ```
+[`num_modes`](@ref) and [`num_particles`](@ref) are defined for `OccupiedModeMap` as well,
+and return the number of modes and particles of the underlying address, respectively.
+
 See also [`dot`](@ref Main.Hamiltonians.dot), [`SingleComponentFockAddress`](@ref).
 """
-struct OccupiedModeMap{N,T} <: AbstractVector{T}
-    indices::SVector{N,T} # N = min(N, M)
+struct OccupiedModeMap{S,T,A} <: AbstractVector{T} # `A` is type of address
+    indices::SVector{S,T} # S = min(N, M)
     length::Int
 end
 
@@ -241,13 +244,14 @@ function OccupiedModeMap(add::SingleComponentFockAddress{N,M}) where {N,M}
     modes = occupied_modes(add)
     T = eltype(modes)
     # There are at most N occupied modes. This could be also @generated for cases where N ≫ M
-    indices = MVector{min(N,M),T}(undef)
+    S = min(N, M) # size of storage
+    indices = MVector{S,T}(undef)
     i = 0
     for index in modes
         i += 1
         @inbounds indices[i] = index
     end
-    return OccupiedModeMap(SVector(indices), i)
+    return OccupiedModeMap{S,T,typeof(add)}(SVector(indices), i)
 end
 
 Base.size(om::OccupiedModeMap) = (om.length,)
@@ -255,6 +259,8 @@ function Base.getindex(om::OccupiedModeMap, i)
     @boundscheck 1 ≤ i ≤ om.length || throw(BoundsError(om, i))
     return om.indices[i]
 end
+num_modes(::OccupiedModeMap{<:Any,<:Any,A}) where A = num_modes(A)
+num_particles(::OccupiedModeMap{<:Any,<:Any,A}) where {A} = num_particles(A)
 
 """
     abstract type OccupiedModeIterator
@@ -276,7 +282,7 @@ julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
 BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
 
 julia> mb = OccupiedModeMap(b)
-3-element OccupiedModeMap{7, BoseFSIndex}:
+3-element OccupiedModeMap{7, BoseFSIndex, BoseFS{13, 7, BitString{19, 1, UInt32}}}:
  BoseFSIndex(occnum=10, mode=1, offset=0)
  BoseFSIndex(occnum=2, mode=5, offset=14)
  BoseFSIndex(occnum=1, mode=7, offset=18)
@@ -658,11 +664,11 @@ end
 """
     OccupiedPairsMap(addr::SingleComponentFockAddress) <: AbstractVector
 
-Get a map of all distinct pairs of indices in `addr`. Pairs involving 
+Get a map of all distinct pairs of indices in `addr`. Pairs involving
 multiply-occupied modes are counted once, (including self-pairing).
-This is useful for cases where identifying pairs of particles for eg. 
+This is useful for cases where identifying pairs of particles for eg.
 interactions is not well-defined or efficient to do on the fly.
-This is an eager iterator whose elements are a tuple of particle indices that 
+This is an eager iterator whose elements are a tuple of particle indices that
 can be given to `excitation`
 
 # Example
@@ -708,7 +714,7 @@ function OccupiedPairsMap(addr::SingleComponentFockAddress{N}) where {N}
             @inbounds pairs[a] = (p_i, p_j)
         end
     end
-    
+
     return OccupiedPairsMap(SVector(pairs), a)
 end
 
