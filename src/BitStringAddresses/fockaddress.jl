@@ -240,7 +240,7 @@ struct OccupiedModeMap{S,T,A} <: AbstractVector{T} # `A` is type of address
     length::Int
 end
 
-function OccupiedModeMap(add::SingleComponentFockAddress{N,M}) where {N,M}
+@inline function OccupiedModeMap(add::SingleComponentFockAddress{N,M}) where {N,M}
     modes = occupied_modes(add)
     T = eltype(modes)
     # There are at most N occupied modes. This could be also @generated for cases where N ≫ M
@@ -663,6 +663,7 @@ end
 
 """
     OccupiedPairsMap(addr::SingleComponentFockAddress) <: AbstractVector
+    OccupiedPairsMap(omm::OccupiedModeMap)
 
 Get a map of all distinct pairs of indices in `addr`. Pairs involving
 multiply-occupied modes are counted once, (including self-pairing).
@@ -696,8 +697,13 @@ struct OccupiedPairsMap{N,T} <: AbstractVector{T}
     length::Int
 end
 
-function OccupiedPairsMap(addr::SingleComponentFockAddress{N}) where {N}
+@inline function OccupiedPairsMap(addr::SingleComponentFockAddress)
     omm = OccupiedModeMap(addr)
+    return OccupiedPairsMap(omm)
+end
+
+@inline function OccupiedPairsMap(omm::OccupiedModeMap)
+    N = num_particles(omm)
     T = eltype(omm)
     P = N * (N - 1) ÷ 2
     pairs = MVector{P,Tuple{T,T}}(undef)
