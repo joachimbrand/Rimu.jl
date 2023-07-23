@@ -29,20 +29,13 @@ function num_even_parity_excitations(addr)
 end
 function num_even_parity_excitations(addr::BoseFS{<:Any,M}, pairs) where {M}
     count = 0
-    even_pairs = num_even_pairs(addr)
+    even_pairs = num_even_pairs(M)
     odd_pairs = M * (M + 1) ÷ 2 - even_pairs
     for (i, j) in pairs
         count += ifelse(iseven((i.mode - 1) * (j.mode - 1)), even_pairs, odd_pairs)
     end
     return count
 end
-# function num_even_parity_excitations(od::HOCartesianOffdiagonals)
-#     num = 0
-#     for i in 1:od.num_pairs
-#         @inbounds num += od.even_parity_pairs[i]
-#     end
-#     return num
-# end
 
 """
     even_parity_excitations(addr::BoseFS, pairs)
@@ -51,8 +44,8 @@ Return the number of pairs `i, j` for particle creation for each
 of the particle destructions in `pairs` `k, l` such that the two-particle excitation
 ``a^\\dag_i a^\\dag_j a_l a_k`` has even parity.
 """
-function even_parity_excitations(addr::BoseFS{<:Any,M}, pairs) where {M}
-    even_pairs = num_even_pairs(addr)
+@inline function even_parity_excitations(addr::BoseFS{<:Any,M}, pairs) where {M}
+    even_pairs = num_even_pairs(M)
     odd_pairs = M * (M + 1) ÷ 2 - even_pairs
     possible_excitations = map(pairs) do (i,j)
         ifelse(iseven((i.mode - 1) * (j.mode - 1)), even_pairs, odd_pairs)
@@ -61,14 +54,12 @@ function even_parity_excitations(addr::BoseFS{<:Any,M}, pairs) where {M}
 end
 
 """
-    num_even_pairs(::BoseFS{<:Any,M}) where {M}
+    num_even_pairs(m)
 
-Return the number of even parity pairs `(i,j)` of bosons where `0 ≤ i ≤ j < M`
+Return the number of even parity pairs `(i,j)` of bosons in `m` modes, where
+`0 ≤ i ≤ j < m`.
 """
-@inline function num_even_pairs(::BoseFS{<:Any,M}) where {M}
-    return num_even_pairs(M)
-end
-@inline function num_even_pairs(m)
+@inline function num_even_pairs(m::Integer)
     count = 0
     for i = 0:(m-1), j = i:(m-1)
         count += iseven(i + j)
@@ -151,11 +142,11 @@ end
 
 @inline function diagonal_element(h::HOCartesian, addr::BoseFS)
     omm = OccupiedModeMap(addr)
-    return noninteracting_energy(h, omm) + diagonal_interactions(h, addr)
+    return noninteracting_energy(h, omm) + diagonal_interactions(h, omm)
 end
 
-@inline function diagonal_interactions(h::HOCartesian, addr)
-    pairs = OccupiedPairsMap(addr)
+@inline function diagonal_interactions(h::HOCartesian, omm::BoseOccupiedModeMap)
+    pairs = OccupiedPairsMap(omm)
     energy = sum(pairs) do (ii, jj)
         four_oscillator_integral_general(ii.mode, jj.mode, ii.mode, jj.mode) *
             ii.occnum * ifelse(ii.mode == jj.mode, ii.occnum - 1, jj.occnum * 2)
