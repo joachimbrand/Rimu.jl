@@ -100,21 +100,21 @@ end
 """
     HOCartesianEnergyConserved(addr; S, η, g = 1.0, interaction_only = false)
 
-Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions.
+Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
 ```math
-\\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l
+\\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l.
 ```
-Indices ``\\mathbf{i}, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
-The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` so that 
-single particle energies are 
+For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, mathbf{j}, \\ldots`` 
+are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
+so that single particle energies are 
 ```math
-    \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots``.
+    \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots.
 ```
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
-Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this basis using 
-first-order degenerate perturbation theory.
+Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this 
+basis using first-order degenerate perturbation theory.
 ```math
     V_{\\mathbf{ijkl}} = \\delta_{\\mathbf{i} + \\mathbf{j}}^{\\mathbf{k} + \\mathbf{l}} 
         \\prod_{d \\in x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d),
@@ -198,7 +198,8 @@ function HOCartesianEnergyConserved(
         energies = reshape(map(x -> dot(aspect1, Tuple(x) .- 1/2), states), P)
     end
 
-    u = sqrt(prod(aspect1)) * g / 2
+    # the aspect ratio appears from a change of variable when calculating the interaction integrals
+    u = g / (2 * sqrt(prod(aspect1)))
 
     max_level = S_sort[1] - 1
     r = 0:max_level
@@ -208,8 +209,13 @@ function HOCartesianEnergyConserved(
 end
 
 function Base.show(io::IO, h::HOCartesianEnergyConserved)
-    print(io, "HOCartesianEnergyConserved($(h.addr); S=$(h.S), η=$(h.aspect1), u=$(h.u))")
+    flag = iszero(h.energies)
+    # invert the scaling of u parameter
+    g = h.u * 2 * sqrt(prod(h.aspect1))
+    print(io, "HOCartesianEnergyConserved($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
 end
+
+Base.:(==)(H::HOCartesianEnergyConserved, G::HOCartesianEnergyConserved) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
 
 function starting_address(h::HOCartesianEnergyConserved)
     return h.addr

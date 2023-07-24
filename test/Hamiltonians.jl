@@ -1364,7 +1364,7 @@ end
 
         # interaction matrix elements
         @test count(H.vtable .== 0) == 70
-        @test sum(H.vtable) ≈ 3.3630246382916664
+        @test sum(H.vtable) ≈ 2 * 3.3630246382916664
 
         # aspect ratio
         S = (4,2,2)
