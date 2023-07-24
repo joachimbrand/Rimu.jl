@@ -462,6 +462,8 @@ end
 end
 
 @testset "BoseFSIndex and FermiFSIndex" begin
+    ii = BoseFSIndex(2, 3, 5)
+    @test eval(Meta.parse(repr(ii))) === ii
     @test BoseFSIndex(2, 1, 0) == BoseFSIndex(occnum=2, mode=1, offset=0)
     @test BoseFSIndex(2, 1, 0) === BoseFSIndex(occnum=2, mode=1, offset=0)
     @test BoseFSIndex(2, 1, 0) != BoseFSIndex(2, 2, 0)
@@ -471,6 +473,8 @@ end
     @test BoseFSIndex(1, 1, 0) != FermiFSIndex(1, 1, 0)
     @test FermiFSIndex(1, 1, 0) != BoseFSIndex(1, 1, 0)
 
+    jj = FermiFSIndex(0, 3, 3)
+    @test eval(Meta.parse(repr(jj))) === jj
     @test FermiFSIndex(1, 1, 0) == FermiFSIndex(occnum=1, mode=1, offset=0)
     @test FermiFSIndex(1, 1, 0) === FermiFSIndex(occnum=1, mode=1, offset=0)
     @test FermiFSIndex(1, 1, 0) != FermiFSIndex(1, 2, 0)
