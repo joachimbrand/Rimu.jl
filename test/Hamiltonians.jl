@@ -1340,6 +1340,8 @@ end
         b2 = Hamiltonians.find_Ebounds(3, 2, S, H.aspect)
         @test b1 == b2
         @test !(b1 === b2)
+
+        @test eval(Meta.parse(repr(H))) == H
     end
 
     @testset "HOCartesianEnergyConservedPerDim" begin
@@ -1374,7 +1376,9 @@ end
         H = HOCartesianEnergyConservedPerDim(addr; S, η = (1,2,3))
         @test H.aspect1 == (1.0,2.0,3.0)
         H = HOCartesianEnergyConservedPerDim(addr; S, η = 2)
-        @test H.aspect1 == (1.0,2.0,2.0)        
+        @test H.aspect1 == (1.0,2.0,2.0)
+
+        @test eval(Meta.parse(repr(H))) == H
     end
 
     @testset "Angular momentum" begin
