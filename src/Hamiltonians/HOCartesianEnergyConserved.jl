@@ -102,9 +102,12 @@ end
 
 Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
 ```math
-\\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l.
+\\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l ,
 ```
-For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, mathbf{j}, \\ldots`` 
+with the additional restriction that the interactions only couple states with the same
+non-interacting energy. See [`HOCartesianEnergyConservedPerDim`](@ref) for a model 
+that conserves energy separately per spatial dimension.
+For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots``
 are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
 so that single particle energies are 
 ```math
