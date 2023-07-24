@@ -443,6 +443,9 @@ Struct used for indexing and performing [`excitation`](@ref)s on a [`BoseFS`](@r
  the address is represented by a bitstring, and the position in the list when it is
  represented by `SortedParticleList`.
 
+ Comparison with `==` only compares the mode. Use `===` for full comparison.
+
+ See also [`FermiFSIndex`](@ref).
 """
 struct BoseFSIndex<:FieldVector{3,Int}
     occnum::Int
@@ -450,11 +453,17 @@ struct BoseFSIndex<:FieldVector{3,Int}
     offset::Int
 end
 
+# to allow pasting the output of `show`
+BoseFSIndex(; occnum, mode, offset) = BoseFSIndex(occnum, mode, offset)
+
 function Base.show(io::IO, i::BoseFSIndex)
     @unpack occnum, mode, offset = i
     print(io, "BoseFSIndex(occnum=$occnum, mode=$mode, offset=$offset)")
 end
 Base.show(io::IO, ::MIME"text/plain", i::BoseFSIndex) = show(io, i)
+
+# make `==` comparison faster
+Base.:(==)(i1::BoseFSIndex, i2::BoseFSIndex) = i1.mode == i2.mode
 
 """
     BoseOccupiedModes{C,S<:BoseFS}
@@ -558,6 +567,9 @@ Struct used for indexing and performing [`excitation`](@ref)s on a [`FermiFS`](@
 * `offset`: the position of the mode in the address. This is `mode - 1` when the address is
   represented by a bitstring, and the position in the list when using `SortedParticleList`.
 
+Comparison with `==` only compares the mode. Use `===` for full comparison.
+
+See also [`BoseFSIndex`](@ref).
 """
 struct FermiFSIndex<:FieldVector{3,Int}
     occnum::Int
@@ -565,11 +577,19 @@ struct FermiFSIndex<:FieldVector{3,Int}
     offset::Int
 end
 
+# to allow pasting the output of `show`
+FermiFSIndex(; occnum, mode, offset) = FermiFSIndex(occnum, mode, offset)
+
 function Base.show(io::IO, i::FermiFSIndex)
     @unpack occnum, mode, offset = i
     print(io, "FermiFSIndex(occnum=$occnum, mode=$mode, offset=$offset)")
 end
 Base.show(io::IO, ::MIME"text/plain", i::FermiFSIndex) = show(io, i)
+
+# make `==` comparison faster
+Base.:(==)(i1::FermiFSIndex, i2::FermiFSIndex) = i1.mode == i2.mode
+Base.:(==)(::FermiFSIndex, ::BoseFSIndex) = false # different types cannot be equal
+Base.:(==)(::BoseFSIndex, ::FermiFSIndex) = false
 
 """
     FermiOccupiedModes{N,S<:BitString}

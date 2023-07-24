@@ -460,3 +460,20 @@ end
             CompositeFS(BoseFS((1,2)), BoseFS((3,1)))
     end
 end
+
+@testset "BoseFSIndex and FermiFSIndex" begin
+    @test BoseFSIndex(2, 1, 0) == BoseFSIndex(occnum=2, mode=1, offset=0)
+    @test BoseFSIndex(2, 1, 0) === BoseFSIndex(occnum=2, mode=1, offset=0)
+    @test BoseFSIndex(2, 1, 0) != BoseFSIndex(2, 2, 0)
+    @test BoseFSIndex(2, 1, 0) == BoseFSIndex(3, 1, 0) # only compares mode
+    @test BoseFSIndex(2, 1, 0) !== BoseFSIndex(3, 1, 0) # compares all fields
+
+    @test BoseFSIndex(1, 1, 0) != FermiFSIndex(1, 1, 0)
+    @test FermiFSIndex(1, 1, 0) != BoseFSIndex(1, 1, 0)
+
+    @test FermiFSIndex(1, 1, 0) == FermiFSIndex(occnum=1, mode=1, offset=0)
+    @test FermiFSIndex(1, 1, 0) === FermiFSIndex(occnum=1, mode=1, offset=0)
+    @test FermiFSIndex(1, 1, 0) != FermiFSIndex(1, 2, 0)
+    @test FermiFSIndex(1, 1, 0) == FermiFSIndex(0, 1, 0) # only compares mode
+    @test FermiFSIndex(1, 1, 0) !== FermiFSIndex(0, 1, 0) # compares all fields
+end
