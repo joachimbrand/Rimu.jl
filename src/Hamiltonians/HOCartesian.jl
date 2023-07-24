@@ -151,9 +151,10 @@ end
     pairs = OccupiedPairsMap(omm)
     energy = sum(pairs) do (ii, jj)
         four_oscillator_integral_general(ii.mode, jj.mode, ii.mode, jj.mode) *
-            ii.occnum * ifelse(ii.mode == jj.mode, ii.occnum - 1, jj.occnum * 2)
+            # account for ii ≤ jj
+            ii.occnum * ifelse(ii == jj, ii.occnum - 1, jj.occnum * 4)
     end
-    return h.g * energy
+    return h.g/2 * energy
 end
 
 # TODO: write tests
