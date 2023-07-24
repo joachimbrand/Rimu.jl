@@ -78,7 +78,7 @@ export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 
-export HOCartesian
+export HOCartesian, HOCartesianBasis
 export HOCartesianEnergyConserved, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
 export get_all_blocks, fock_to_cart
 
@@ -112,6 +112,7 @@ include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
 
 include("HOCartesian.jl")
+include("HOCartesianBasis.jl")
 include("HOCartesianEnergyConserved.jl")
 include("HOCartesianEnergyConservedPerDim.jl")
 include("vertices.jl")

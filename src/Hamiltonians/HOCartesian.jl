@@ -44,7 +44,10 @@ Return the number of pairs `i, j` for particle creation for each
 of the particle destructions in `pairs` `k, l` such that the two-particle excitation
 ``a^\\dag_i a^\\dag_j a_l a_k`` has even parity.
 """
-@inline function even_parity_excitations(addr::BoseFS{<:Any,M}, pairs) where {M}
+@inline function even_parity_excitations(::BoseFS{<:Any,M}, pairs) where {M}
+    return even_parity_excitations(M, pairs)
+end
+@inline function even_parity_excitations(M, pairs)
     even_pairs = num_even_pairs(M)
     odd_pairs = M * (M + 1) ÷ 2 - even_pairs
     possible_excitations = map(pairs) do (i,j)
