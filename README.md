@@ -38,7 +38,7 @@ Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
 
 `Rimu` is a registered package and can be installed with the package manager.
 Hit the `]` key at the Julia REPL to get into `Pkg` mode and type
-```julia-repl
+```
 pkg> add Rimu
 ```
 Alternatively, use
