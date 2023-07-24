@@ -18,7 +18,7 @@ function four_oscillator_integral_1D(i, j, k, l; max_level = typemax(Int))
     p = sqrt(gamma(k + 1) * gamma(l + 1)) / sqrt(2 * gamma(i + 1) * gamma(j + 1)) / pi^2
     s = sum(gamma(t + 1/2) * gamma(i - t + 1/2) * gamma(j - t + 1/2) / (gamma(t + 1) * gamma(k - t + 1) * gamma(l - t + 1)) for t in 0 : min_kl)
     
-    return p * s / 2
+    return p * s
 end
 
 """
@@ -79,17 +79,17 @@ end
 
 Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
 ```math
-\\hat{H} = \\sum_{i} ϵ_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l
+\\hat{H} = \\sum_{i} ϵ_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l,
 ```
-with the adiitional restriction that the interactions only couple states with the same
+with the additional restriction that the interactions only couple states with the same
 energy in each dimension separately. See [`HOCartesianEnergyConserved`](@ref) for a model that 
 conserves total energy.
 
-Indices ``\\mathbf{i}, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
-The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` so that 
-single particle energies are 
+For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots`` 
+are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
+so that single particle energies are 
 ```math
-    \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots``.
+    \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots.
 ```
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
@@ -162,7 +162,8 @@ function HOCartesianEnergyConservedPerDim(
         energies = reshape(map(x -> dot(aspect1, Tuple(x) .- 1/2), states), P)
     end
 
-    u = sqrt(prod(aspect1)) * g / 2
+    # the aspect ratio appears from a change of variable when calculating the interaction integrals
+    u = g / (2 * sqrt(prod(aspect1)))
 
     M = maximum(S)
     bigrange = 0:M-1
@@ -176,8 +177,13 @@ function HOCartesianEnergyConservedPerDim(
 end
 
 function Base.show(io::IO, h::HOCartesianEnergyConservedPerDim)
-    print(io, "HOCartesianEnergyConservedPerDim($(h.addr); S=$(h.S), η=$(h.aspect1), u=$(h.u))")
+    flag = iszero(h.energies)
+    # invert the scaling of u parameter
+    g = h.u * 2 * sqrt(prod(h.aspect1))
+    print(io, "HOCartesianEnergyConservedPerDim($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
 end
+
+Base.:(==)(H::HOCartesianEnergyConservedPerDim, G::HOCartesianEnergyConservedPerDim) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
 
 function starting_address(h::HOCartesianEnergyConservedPerDim)
     return h.addr
