@@ -101,7 +101,8 @@ function HOCartesianOffdiagonals(h::HOCartesian, addr)
 end
 Base.size(od::HOCartesianOffdiagonals) = (od.length,)
 
-function _get_excitation_indices(od::HOCartesianOffdiagonals, i)
+# jump directly to the relevant excitation, returning four `(BoseFS/FermiFS)Index` objects
+function _get_excitation_indices(od::HOCartesianOffdiagonals, i::Integer)
     pair_index = 1
     while i > od.even_parity_pairs[pair_index]
         i -= od.even_parity_pairs[pair_index]
@@ -130,10 +131,11 @@ function Base.getindex(od::HOCartesianOffdiagonals, i::Integer)
     @boundscheck 1 ≤ i ≤ od.length || throw(BoundsError(od, i))
     ii, jj, kk, ll = _get_excitation_indices(od, i)
     # return (ii, jj), (kk, ll)
-    naddr, α = excitation(od.addr, (ii, jj), (kk, ll))
-    α = ifelse((ii.mode, jj.mode) == (kk.mode, ll.mode), 0.0, α) # diagonal excitation
-    α *= od.ham.g * four_oscillator_integral_general(ii.mode, jj.mode, kk.mode, ll.mode)
-    return naddr, α
+    naddr, val = excitation(od.addr, (ii, jj), (kk, ll))
+    val *= (1 + (ii ≠ jj)) * (1 + (kk ≠ ll)) # account for jj ≤ ii and ll ≤ kk
+    val *= (ii, jj) != (kk, ll) # return zero if excitation is diagonal
+    val *= od.ham.g/2 * four_oscillator_integral_general(ii.mode, jj.mode, kk.mode, ll.mode)
+    return naddr, val
 end
 
 @inline function noninteracting_energy(h::HOCartesian, omm::BoseOccupiedModeMap)
