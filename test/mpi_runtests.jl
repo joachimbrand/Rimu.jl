@@ -355,7 +355,6 @@ end
                 @test all(0 .≤ df.loneliness .≤ 1)
             end
             @testset "Initiator with $setup" begin
-<<<<<<< HEAD
                 H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)
                 add = starting_address(H)
 
@@ -364,14 +363,6 @@ end
                 else
                     dv = MPIData(InitiatorDVec(add => 3); setup, kwargs...)
                 end
-=======
-                H = HubbardMom1D(BoseFS((0, 0, 0, 7, 0, 0, 0)); u=6.0)
-                dv = MPIData(
-                    InitiatorDVec(starting_address(H) => 3);
-                    setup,
-                    kwargs...
-                )
->>>>>>> develop
                 s_strat = DoubleLogUpdate(targetwalkers=100)
                 df = lomc!(H, dv; laststep=5000, s_strat).df
 
