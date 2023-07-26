@@ -100,7 +100,9 @@ compress!(w, v) = compress!(CompressionStrategy(StochasticStyle(v)), w, v)
 
 compress!(::NoCompression, v) = (), ()
 function compress!(::NoCompression, w, v)
-    copy!(w, v)
+    for (add, val) in pairs(v)
+        w[add] = val
+    end
     return (), ()
 end
 

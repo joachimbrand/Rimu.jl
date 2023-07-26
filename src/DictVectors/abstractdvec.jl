@@ -38,7 +38,7 @@ Base.ndims(::AbstractDVec) = 1
 Base.zero(v::AbstractDVec) = empty(v)
 VectorInterface.zerovector(v::AbstractDVec, ::Type{T}) where {T<:Number} = similar(v, T)
 VectorInterface.zerovector!(v::AbstractDVec) = empty!(v)
-VectorInterface.zerovector!!(v::AbstractDVec) = zerovector!(v, T)
+VectorInterface.zerovector!!(v::AbstractDVec{<:Any,T}) where {T<:Number} = zerovector!!(v, T)
 
 function VectorInterface.zerovector!!(v::AbstractDVec, ::Type{T}) where {T<:Number}
     if scalartype(v) ≡ T

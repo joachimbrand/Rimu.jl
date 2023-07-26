@@ -4,16 +4,17 @@
 A column in [`PDWorkingMemory`](@ref). Supports [`deposit!`](@ref) and
 [`StochasticStyle`](@ref) and acts as a target for spawning.
 """
-struct PDWorkingMemoryColumn{K,V,W<:AbstractInitiatorValue{V},I<:InitiatorRule,N}
+struct PDWorkingMemoryColumn{K,V,W<:AbstractInitiatorValue{V},I<:InitiatorRule,S,N}
     segments::NTuple{N,Dict{K,W}}
     initiator::I
+    style::S
 end
 function PDWorkingMemoryColumn(t::PDVec{K,V}) where {K,V}
     n = total_num_segments(t.communicator, num_segments(t))
     W = initiator_valtype(t.initiator, V)
 
     segments = ntuple(_ -> Dict{K,W}(), n)
-    return PDWorkingMemoryColumn(segments, t.initiator)
+    return PDWorkingMemoryColumn(segments, t.initiator, t.style)
 end
 
 function deposit!(c::PDWorkingMemoryColumn{K,V,W}, k::K, val, parent) where {K,V,W}
@@ -39,8 +40,9 @@ Base.empty!(c::PDWorkingMemoryColumn) = foreach(empty!, c.segments)
 Base.keytype(::PDWorkingMemoryColumn{K}) where {K} = K
 Base.valtype(::PDWorkingMemoryColumn{<:Any,V}) where {V} = V
 Base.eltype(::PDWorkingMemoryColumn{K,V}) where {K,V} = Pair{K,V}
-num_segments(c::PDWorkingMemoryColumn{<:Any,<:Any,<:Any,<:Any,N}) where {N} = N
+num_segments(c::PDWorkingMemoryColumn{<:Any,<:Any,<:Any,<:Any,<:Any,N}) where {N} = N
 segment_type(::Type{<:PDWorkingMemoryColumn{K,<:Any,W}}) where {K,W} = Dict{K,W}
+StochasticStyle(c::PDWorkingMemoryColumn) = c.style
 
 """
     PDWorkingMemory(t::PDVec)
@@ -63,7 +65,7 @@ materialized in the first column of the working memory on all ranks.
 struct PDWorkingMemory{
     K,V,W<:AbstractInitiatorValue{V},S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,N
 }
-    columns::Vector{PDWorkingMemoryColumn{K,V,W,I,N}}
+    columns::Vector{PDWorkingMemoryColumn{K,V,W,I,S,N}}
     style::S
     initiator::I
     communicator::C
@@ -147,22 +149,22 @@ function Base.getindex(it::MainSegmentIterator, index)
 end
 
 """
-    perform_spawns!(w::PDWorkingMemory, t::PDVec, prop)
+    perform_spawns!(w::PDWorkingMemory, t::PDVec, ham, boost)
 
-Perform spawns from `t` to `w` as required by [`Propagator`](@ref) `prop`.
+Perform spawns from `t` through `ham` to `w`.
 """
-function perform_spawns!(w::PDWorkingMemory, t::PDVec, prop)
+function perform_spawns!(w::PDWorkingMemory, t::PDVec, ham, boost)
     if num_columns(w) ≠ num_segments(t)
         error("working memory incompatible with vector")
     end
-    _, stats = step_stats(w.style)
+    stat_names, stats = step_stats(w.style)
     stats = Folds.sum(zip(w.columns, t.segments)) do (column, segment)
         empty!(column)
         sum(segment; init=stats) do (k, v)
-            spawn_column!(column, prop, k, v)
+            apply_column!(column, ham, k, v, boost)
         end
     end::typeof(stats)
-    return stats
+    return stat_names, stats
 end
 
 """
@@ -202,9 +204,11 @@ function move_and_compress!(dst::PDVec, src::PDWorkingMemory)
     compression = CompressionStrategy(StochasticStyle(src))
     Folds.foreach(dst.segments, local_segments(src)) do dst_seg, src_seg
         empty!(dst_seg)
+        # TODO: this does not collect the correct stats
+        # it's also messy as calling pairs on the generator seems to do the correct thing
         compress!(
             compression, dst_seg,
-            (k => from_initiator_value(src.initiator, v) for (k, v) in pairs(src_seg)),
+            (from_initiator_value(src.initiator, v) for (k, v) in pairs(src_seg)),
         )
     end
     return dst
@@ -229,17 +233,15 @@ end
 
 working_memory(t::PDVec) = PDWorkingMemory(t)
 
-function fciqmc_step!(wm::PDWorkingMemory, target::PDVec, source::PDVec, ham, shift, dτ)
-    stat_names, _ = step_stats(StochasticStyle(source))
-    prop = DictVectors.FCIQMCPropagator(ham, shift, dτ, wm)
-    stats = propagate!(target, prop, source)
-    return stat_names, stats, wm, target
-end
+function Interfaces.apply_operator!(
+    working_memory::PDWorkingMemory, target::PDVec, source::PDVec, ham,
+    boost=1, compress::Val{C}=Val(true)
+) where {C}
 
-# TODO: this is a hack. When we revamp propagators, this can be changed.
-function StochasticStyles.compress!(::StochasticStyles.ThresholdCompression, t::PDVec)
-    return t
-end
-function StochasticStyles.compress!(::Interfaces.NoCompression, t::PDVec)
-    return t
+    stat_names, stats = perform_spawns!(working_memory, source, ham, boost)
+    collect_local!(working_memory)
+    synchronize_remote!(working_memory)
+    target = move_and_compress!(target, working_memory)
+
+    return stat_names, stats, working_memory, target
 end

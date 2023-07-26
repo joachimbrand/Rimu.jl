@@ -23,7 +23,7 @@ using ..StochasticStyles
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
     working_memory, sort_into_targets!
 
-export deposit!, storage, walkernumber, propagate!, dot_from_right
+export deposit!, storage, walkernumber, dot_from_right
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory
 
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
@@ -66,6 +66,6 @@ include("initiatordvec.jl")
 
 include("pdvec.jl")
 include("pdworkingmemory.jl")
-include("propagators.jl")
+#include("propagators.jl")
 
 end # module
