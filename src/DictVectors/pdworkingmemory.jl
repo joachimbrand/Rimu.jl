@@ -9,12 +9,12 @@ struct PDWorkingMemoryColumn{K,V,W<:AbstractInitiatorValue{V},I<:InitiatorRule,S
     initiator::I
     style::S
 end
-function PDWorkingMemoryColumn(t::PDVec{K,V}) where {K,V}
+function PDWorkingMemoryColumn(t::PDVec{K,V}, style=t.style) where {K,V}
     n = total_num_segments(t.communicator, num_segments(t))
     W = initiator_valtype(t.initiator, V)
 
     segments = ntuple(_ -> Dict{K,W}(), n)
-    return PDWorkingMemoryColumn(segments, t.initiator, t.style)
+    return PDWorkingMemoryColumn(segments, t.initiator, style)
 end
 
 function deposit!(c::PDWorkingMemoryColumn{K,V,W}, k::K, val, parent) where {K,V,W}
@@ -75,7 +75,7 @@ function PDWorkingMemory(t::PDVec{K,V,S,D,I}; style=t.style) where {K,V,S,D,I}
         throw(ArgumentError("Incompatible style $style given to `PDWorkingMemory`"))
     end
     nrows = total_num_segments(t.communicator, num_segments(t))
-    columns = [PDWorkingMemoryColumn(t) for _ in 1:num_segments(t)]
+    columns = [PDWorkingMemoryColumn(t, style) for _ in 1:num_segments(t)]
 
     W = initiator_valtype(t.initiator, V)
     return PDWorkingMemory(columns, style, t.initiator, t.communicator)
