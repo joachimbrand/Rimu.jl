@@ -273,7 +273,7 @@ function synchronize_remote!(ptp::PointToPoint, w)
     # Receive and insert from each rank. The order is first come first serve.
     for _ in 1:ptp.mpi_size - 1
         mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
-        Folds.foreach(add!, local_segments(w), ptp.recv_buffer)
+        Folds.foreach(dict_add!, local_segments(w), ptp.recv_buffer)
     end
 end
 
