@@ -583,6 +583,11 @@ function VectorInterface.scale!(dst::PDVec, src::PDVec, α::Number)
     return map!(Base.Fix1(*, α), dst, values(src))
 end
 
+"""
+    dict_add!(d::Dict, s, α=true, β=true)
+
+Internal function similar to `add!`, but on `Dict`s. `s` can be any iterator of pairs.
+"""
 function dict_add!(d::Dict, s, α=true, β=true)
     if iszero(β)
         empty!(d)
