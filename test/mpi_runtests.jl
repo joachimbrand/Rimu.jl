@@ -224,16 +224,12 @@ end
         dv = DVec(add => 1.0)
         pv = PDVec(add => 1.0)
 
-        res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
-        res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
-
-        prop = Rimu.DictVectors.OperatorMulPropagator(ham, pv)
-        res_prop = eigsolve(prop, pv, 1, :SR; issymmetric=true)
+        res_dv = eigsolve(ham, dv, 1, :SR)
+        res_pv = eigsolve(ham, pv, 1, :SR)
 
         @test res_dv[1][1] ≈ res_pv[1][1]
-        @test res_dv[1][1] ≈ res_prop[1][1]
 
-        dv = res_dv[2][1]
+        dv = copy(res_dv[2][1])
         pv = copy(res_pv[2][1])
         @test norm(pv) ≈ 1
         @test length(pv) == length(dv)

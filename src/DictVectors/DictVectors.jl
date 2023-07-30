@@ -66,6 +66,5 @@ include("initiatordvec.jl")
 
 include("pdvec.jl")
 include("pdworkingmemory.jl")
-#include("propagators.jl")
 
 end # module

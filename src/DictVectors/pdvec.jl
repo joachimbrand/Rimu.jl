@@ -113,13 +113,10 @@ use [`localpart`](@ref) when explicit iteration is required.
 
 ## Use with KrylovKit
 
-`PDVec` can be used with [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl) to find
-the eigenpairs of an operator in a matrix-free manner. For best performance, wrap the
-operator in `DictVectors.OperatorMulPropagator` first (see example below).
-
-Performing the `eigsolve` this way allow it to be run in a threaded and distributed manner.
-Using multiple MPI ranks with this method does not distribute the memory load effectively,
-but does result in significant speedups.
+`PDVec` is compatible with `eigsolve` from
+[KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl). When used, the diagonalisation is
+performed in a threaded and distributed manner. Using multiple MPI ranks with this method
+does not distribute the memory load effectively, but does result in significant speedups.
 
 ### Example
 
@@ -132,9 +129,7 @@ julia> op = HubbardMom1D(add; u=6.0);
 
 julia> pv = PDVec(add => 1.0);
 
-julia> propagator = DictVectors.OperatorMulPropagator(op, pv);
-
-julia> results = eigsolve(propagator, pv, 4, :SR; issymmetric=true);
+julia> results = eigsolve(op, pv, 4, :SR);
 
 julia> results[1][1:4]
 4-element Vector{Float64}:
