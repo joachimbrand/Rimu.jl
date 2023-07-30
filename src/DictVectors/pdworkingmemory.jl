@@ -148,6 +148,16 @@ function Base.getindex(it::MainSegmentIterator, index)
     return it.working_memory.columns[1].segments[row_index]
 end
 
+# Internal function to ensure type stability in `perform_spawns!`
+function _spawn_column!(ham, column, segment, boost)
+    empty!(column)
+    _, stats = step_stats(column.style)
+    for (k, v) in segment
+        stats += apply_column!(column, ham, k, v, boost)
+    end
+    return stats
+end
+
 """
     perform_spawns!(w::PDWorkingMemory, t::PDVec, ham, boost)
 
@@ -157,13 +167,10 @@ function perform_spawns!(w::PDWorkingMemory, t::PDVec, ham, boost)
     if num_columns(w) ≠ num_segments(t)
         error("working memory incompatible with vector")
     end
-    stat_names, stats = step_stats(w.style)
+    stat_names, init_stats = step_stats(w.style)
     stats = Folds.sum(zip(w.columns, t.segments)) do (column, segment)
-        empty!(column)
-        sum(segment; init=stats) do (k, v)
-            apply_column!(column, ham, k, v, boost)
-        end
-    end::typeof(stats)
+        _spawn_column!(ham, column, segment, boost)
+    end ::typeof(init_stats)
     return stat_names, stats
 end
 
