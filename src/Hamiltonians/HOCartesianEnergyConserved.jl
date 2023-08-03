@@ -153,6 +153,7 @@ See also [`HOCartesianEnergyConservedPerDim`](@ref).
 struct HOCartesianEnergyConserved{
     D,  # number of dimensions
     A<:BoseFS,
+    B,    # block_by_level flag
     T
 } <: AbstractHamiltonian{Float64}
     addr::A
@@ -169,7 +170,8 @@ function HOCartesianEnergyConserved(
         S = (num_modes(addr),),
         η = nothing, 
         g = 1.0,
-        interaction_only = false
+        interaction_only = false,
+        block_by_level = true
     )
     # x dimension defines the energy scale, and should be the smallest frequency i.e. largest spatial dimension
     D = length(S)
@@ -208,7 +210,7 @@ function HOCartesianEnergyConserved(
     r = 0:max_level
     vmat = [four_oscillator_integral_general(i, j, k, l; max_level) for i in r, j in r, k in r, l in r]
 
-    return HOCartesianEnergyConserved{D,typeof(addr),eltype(aspect)}(addr, S_sort, aspect, aspect1, energies, vmat, u)
+    return HOCartesianEnergyConserved{D,typeof(addr),block_by_level,eltype(aspect)}(addr, S_sort, aspect, aspect1, energies, vmat, u)
 end
 
 function Base.show(io::IO, h::HOCartesianEnergyConserved)
@@ -271,20 +273,20 @@ num_offdiagonals(h::HOCartesianEnergyConserved, addr::BoseFS) = dimension(h) - 1
 """
     HOCartOffdiagonals
 
-Specialized [`AbstractOffdiagonals`](@ref) iterates over valid offdiagonal moves that
+Specialized [`AbstractOffdiagonals`](@ref) that iterates over valid offdiagonal moves that
 are connected by the interaction matrix.
 """
 struct HOCartOffdiagonals{
-    A<:BoseFS,T,H<:AbstractHamiltonian{T},P<:OccupiedPairsMap
+    B,A<:BoseFS,T,H<:AbstractHamiltonian{T},P<:OccupiedPairsMap
 }# <: AbstractOffdiagonals{A,T}
     ham::H
     addr::A
     pairs::P
 end
 
-function offdiagonals(h::HOCartesianEnergyConserved, addr::BoseFS)
+function offdiagonals(h::HOCartesianEnergyConserved{<:Any,A,B}, addr::BoseFS) where {A,B}
     pairs = OccupiedPairsMap(addr)
-    return HOCartOffdiagonals(h, addr, pairs)
+    return HOCartOffdiagonals{B,A,Float64,typeof(h),typeof(pairs)}(h, addr, pairs)
 end
 
 Base.IteratorSize(::HOCartOffdiagonals) = Base.SizeUnknown()
@@ -318,7 +320,19 @@ function loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
     return 0, 0     # fail case
 end
 
-function loop_over_pairs(S, aspect, pairs, start)
+# no energy conservation
+function loop_over_modes(k_start, l_start, S)
+    P = prod(S)
+    k, l = k_start, l_start
+    if l_start > P  # cycle k loop (l is iterated elsewhere)
+        k = k + 1
+        l = 1
+    end
+    k > P && return 0, 0    # end of loop
+    return k, l
+end
+
+function loop_over_pairs(S, aspect, pairs, start, block_by_level)
     pair_index, k_start, l_start = start
 
     p_i, p_j = pairs[pair_index]
@@ -327,9 +341,15 @@ function loop_over_pairs(S, aspect, pairs, start)
     mode_j = p_j.mode
     mode_k = k_start
     mode_l = l_start
-    Es = find_Ebounds(mode_i, mode_j, S, aspect)
+    if block_by_level
+        Es = find_Ebounds(mode_i, mode_j, S, aspect)
+    end
     while true
-        mode_k, mode_l = loop_over_modes(k_start, l_start, S, aspect, Es...)
+        mode_k, mode_l = if block_by_level
+            loop_over_modes(k_start, l_start, S, aspect, Es...)
+        else
+            loop_over_modes(k_start, l_start, S)
+        end
         mode_k > 0 && mode_l > 0 && break   # valid move found
 
         # move to next pair of particles
@@ -342,7 +362,9 @@ function loop_over_pairs(S, aspect, pairs, start)
         p_i, p_j = pairs[pair_index]
         mode_i = p_i.mode
         mode_j = p_j.mode
-        Es = find_Ebounds(mode_i, mode_j, S, aspect)
+        if block_by_level
+            Es = find_Ebounds(mode_i, mode_j, S, aspect)
+        end
         # start with checking lowest possible states in first dimension (x)
         k_start = 1
         l_start = 1
@@ -351,13 +373,13 @@ function loop_over_pairs(S, aspect, pairs, start)
     return pair_index, (mode_i, mode_j, mode_k, mode_l), false
 end
 
-function Base.iterate(off::HOCartOffdiagonals, iter_state = (1,1,1))
+function Base.iterate(off::HOCartOffdiagonals{B}, iter_state = (1,1,1)) where {B}
     S = off.ham.S
     aspect = off.ham.aspect
     addr = off.addr
     pairs = off.pairs
     length(off.pairs) == 0 && return nothing
-    pair_index, modes, end_of_loop = loop_over_pairs(S, aspect, pairs, iter_state)
+    pair_index, modes, end_of_loop = loop_over_pairs(S, aspect, pairs, iter_state, B)
 
     # end of iteration
     end_of_loop && return nothing
