@@ -746,3 +746,39 @@ function LinearAlgebra.dot(t::PDVec, ops::Tuple, source::PDVec, w=nothing)
         dot_from_right(target, op, source)
     end
 end
+
+"""
+    FrozenPDVec
+
+Parallel version of [`FrozenDVec`]. See: [`freeze`](@ref), [`PDVec`](@ref).
+"""
+struct FrozenPDVec{K,V,N} <: AbstractProjector
+    segments::NTuple{N,Vector{Pair{K,V}}}
+end
+Base.keytype(::FrozenPDVec{K}) where {K} = K
+Base.valtype(::FrozenPDVec{<:Any,V}) where {V} = V
+Base.eltype(::FrozenPDVec{K,V}) where {K,V} = Pair{K,V}
+Base.pairs(fd::FrozenPDVec) = Iterators.flatten(fd.segments)
+
+function freeze(dv::PDVec{K,V,N}) where {K,V,N}
+    return FrozenPDVec{K,V,N}(map(collect, dv.segments))
+end
+
+function VectorInterface.inner(fd::FrozenPDVec, dv::AbstractDVec)
+    T = promote_type(valtype(fd), valtype(dv))
+    return Folds.sum(fd.segments) do segment
+        sum(segment; init=zero(T)) do (k, v)
+            dv[k] ⋅ v
+        end
+    end
+end
+
+function VectorInterface.inner(fd::FrozenPDVec, dv::PDVec)
+    T = promote_type(valtype(fd), valtype(dv))
+    res = Folds.sum(zip(fd.segments, dv.segments); init=zero(T)) do (l_seg, r_seg)
+        sum(l_seg; init=zero(T)) do (k, v)
+           T(conj(v) * get(r_seg, k, zero(valtype(r_seg))))
+        end
+    end::T
+    return merge_remote_reductions(dv.communicator, +, res)
+end
