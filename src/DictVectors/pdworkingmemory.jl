@@ -168,7 +168,7 @@ function perform_spawns!(w::PDWorkingMemory, t::PDVec, ham, boost)
         error("working memory incompatible with vector")
     end
     stat_names, init_stats = step_stats(w.style)
-    stats = Folds.sum(zip(w.columns, t.segments)) do (column, segment)
+    stats = Folds.sum(zip(w.columns, t.segments); init=init_stats) do (column, segment)
         _spawn_column!(ham, column, segment, boost)
     end ::typeof(init_stats)
     return stat_names, stats
