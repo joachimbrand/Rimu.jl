@@ -303,13 +303,21 @@ Base.length(::HOCartOffdiagonals) = throw(HOCartOffdiagonalsError)
 # It should take arguments that define where to begin so that the loop can be restarted later 
 # Better way would 'jump ahead' when a mode index goes outside the valid energy range.
 # For that I would need dummy indices and probably while loops
-function loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
+function loop_over_modes(k_start, l_start, S, aspect, parity_in, Emin, Emax, Etot)
     P = prod(S)
     for k in k_start:P
         E_k = mode_to_energy(k, S, aspect)
         Emin ≤ E_k ≤ Emax || continue
-        l1 = k == k_start ? l_start : 1  # second loop should only restart in the middle until the first loop iterates
-        for l in l1:k
+        # second loop should only restart in the middle until the first loop iterates
+        if k == k_start
+            l1 = l_start
+        elseif iseven(k + parity_in)    # and preserve parity
+            l1 = 2
+        else
+            l1 = 1
+        end
+        
+        for l in l1:2:k
             E_l = mode_to_energy(l, S, aspect)
             Emin ≤ E_l ≤ Emax || continue
             if E_l + E_k == Etot
@@ -321,12 +329,12 @@ function loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
 end
 
 # no energy conservation
-function loop_over_modes(k_start, l_start, S)
+function loop_over_modes(k_start, l_start, S, parity_in)
     P = prod(S)
     k, l = k_start, l_start
-    if l_start > P  # cycle k loop (l is iterated elsewhere)
+    if l_start > k  # cycle k loop (l is iterated elsewhere)
         k = k + 1
-        l = 1
+        l = isodd(k + parity_in) ? 1 : 2
     end
     k > P && return 0, 0    # end of loop
     return k, l
@@ -339,6 +347,7 @@ function loop_over_pairs(S, aspect, pairs, start, block_by_level)
 
     mode_i = p_i.mode
     mode_j = p_j.mode
+    parity_in = mod(mode_i + mode_j, 2)
     mode_k = k_start
     mode_l = l_start
     if block_by_level
@@ -346,9 +355,9 @@ function loop_over_pairs(S, aspect, pairs, start, block_by_level)
     end
     while true
         mode_k, mode_l = if block_by_level
-            loop_over_modes(k_start, l_start, S, aspect, Es...)
+            loop_over_modes(k_start, l_start, S, aspect, parity_in, Es...)
         else
-            loop_over_modes(k_start, l_start, S)
+            loop_over_modes(k_start, l_start, S, parity_in)
         end
         mode_k > 0 && mode_l > 0 && break   # valid move found
 
@@ -385,7 +394,8 @@ function Base.iterate(off::HOCartOffdiagonals{B}, iter_state = (1,1,1)) where {B
     end_of_loop && return nothing
 
     i, j, k, l = modes
-    new_iter_state = (pair_index, k, l + 1)  # if l + 1 is out of bounds then `loop_over_states` can handle it
+    # increment by 2 to preserve parity
+    new_iter_state = (pair_index, k, l + 2)  # if l + 2 is out of bounds then `loop_over_states` can handle it
     # check for swap and self moves but do not discard
     if (k,l) == (i,j) || (k,l) == (j,i)
         return (addr, 0.0), new_iter_state
