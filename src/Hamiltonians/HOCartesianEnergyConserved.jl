@@ -369,6 +369,8 @@ function loop_over_pairs(S, aspect, pairs, start, block_by_level)
         mode_j = p_j.mode
         if block_by_level
             Es = find_Ebounds(mode_i, mode_j, S, aspect)
+        else 
+            parity_ij = mod(mode_i + mode_j, 2)
         end
         # start with checking lowest possible states in first dimension (x)
         k_start = 1
