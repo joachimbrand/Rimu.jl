@@ -1,25 +1,3 @@
-# TO-DO: optimise if large arguments are used
-"""
-    four_oscillator_integral_1D(i, j, k, l; max_level = typemax(Int))
-
-Integral of four one-dimensional harmonic oscillator functions, 
-```math
-    \\mathcal{I}(i,j,k,l) = \\int_{-\\infty}^\\infty dx \\, 
-    \\phi_i(x) \\phi_j(x) \\phi_k(x) \\phi_l(x)
-```
-assuming ``i+j = k+l``. State indices `i,j,k,l` start at `0` for the groundstate.
-Closed form taken from [Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606).
-Used in [`HOCartesianEnergyConservedPerDim`](@ref).
-"""
-function four_oscillator_integral_1D(i, j, k, l; max_level = typemax(Int))
-    !all(0 .≤ (i,j,k,l) .≤ max_level) && return 0.0
-    min_kl = min(k, l)
-    # SpecialFunctions.gamma(x) is faster than factorial(big(x))
-    p = sqrt(gamma(k + 1) * gamma(l + 1)) / sqrt(2 * gamma(i + 1) * gamma(j + 1)) / pi^2
-    s = sum(gamma(t + 1/2) * gamma(i - t + 1/2) * gamma(j - t + 1/2) / (gamma(t + 1) * gamma(k - t + 1) * gamma(l - t + 1)) for t in 0 : min_kl)
-    
-    return p * s
-end
 
 """
     largest_two_point_box(i, j, dims::Tuple) -> ranges
@@ -103,8 +81,8 @@ first-order degenerate perturbation theory.
 where the ``\\delta``-function indicates that the noninteracting energy is conserved along each
 dimension.
 The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
-basis functions with the restriction that energy is conserved in each dimension, 
-see [`four_oscillator_integral_1D`](@ref).
+basis functions, see [`four_oscillator_integral_1D`](@ref), with the additional restriction 
+that energy is conserved in each dimension.
 
 # Arguments
 
@@ -169,7 +147,7 @@ function HOCartesianEnergyConservedPerDim(
     bigrange = 0:M-1
     # case n = M is the same as n = 0
     vmat = reshape(
-                [four_oscillator_integral_1D(i-n, j+n, j, i; max_level = M-1) 
+                [four_oscillator_integral_general(i-n, j+n, j, i; max_level = M-1) 
                     for i in bigrange, j in bigrange, n in bigrange],
                     M,M,M)
 

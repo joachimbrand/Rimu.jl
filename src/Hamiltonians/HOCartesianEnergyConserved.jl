@@ -11,7 +11,10 @@ Indices `i,j,k,l` start at `0` for the groundstate.
 This integral has a closed form in terms of the hypergeometric ``_{3}F_2`` function, 
 and is non-zero unless ``i+j+k+l`` is odd. See e.g. 
 [Titchmarsh (1948)](https://doi.org/10.1112/jlms/s1-23.1.15).
-Used in [`HOCartesianEnergyConserved`](@ref).
+This is a generalisation of the closed form in 
+[Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606), which is is the special 
+case where ``i+j == k+l``, but is numerically unstable for large arguments.
+Used in [`HOCartesianEnergyConserved`](@ref) and [`HOCartesianEnergyConservedPerDim`](@ref).
 """
 function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
     all(0 .≤ (i, j, k, l) .≤ max_level) || return 0.0
