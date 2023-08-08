@@ -320,13 +320,13 @@ function loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
     return 0, 0     # fail case
 end
 
-# no energy conservation
-function loop_over_modes(k_start, l_start, S)
+# block_by_level = false
+function loop_over_modes(k_start, l_start, S, parity_in)
     P = prod(S)
     k, l = k_start, l_start
-    if l_start > P  # cycle k loop (l is iterated elsewhere)
+    if l_start > k  # cycle k loop (l is iterated elsewhere)
         k = k + 1
-        l = 1
+        l = isodd(k + parity_in) ? 1 : 2    # preserve parity
     end
     k > P && return 0, 0    # end of loop
     return k, l
@@ -343,12 +343,14 @@ function loop_over_pairs(S, aspect, pairs, start, block_by_level)
     mode_l = l_start
     if block_by_level
         Es = find_Ebounds(mode_i, mode_j, S, aspect)
+    else 
+        parity_ij = mod(mode_i + mode_j, 2)
     end
     while true
         mode_k, mode_l = if block_by_level
             loop_over_modes(k_start, l_start, S, aspect, Es...)
         else
-            loop_over_modes(k_start, l_start, S)
+            loop_over_modes(k_start, l_start, S, parity_ij)
         end
         mode_k > 0 && mode_l > 0 && break   # valid move found
 
@@ -385,12 +387,13 @@ function Base.iterate(off::HOCartOffdiagonals{B}, iter_state = (1,1,1)) where {B
     end_of_loop && return nothing
 
     i, j, k, l = modes
-    new_iter_state = (pair_index, k, l + 1)  # if l + 1 is out of bounds then `loop_over_states` can handle it
+    # increment by 2 to preserve parity
+    new_iter_state = (pair_index, k, l + 2)  # if l + 2 is out of bounds then `loop_over_states` can handle it
     # check for swap and self moves but do not discard
     if (k,l) == (i,j) || (k,l) == (j,i)
         return (addr, 0.0), new_iter_state
     end
-    # can I make a parity check here?
+
     p_k = find_mode(addr, k)
     p_l = find_mode(addr, l)
     new_add, val = excitation(addr, (p_l, p_k), pairs[pair_index])
