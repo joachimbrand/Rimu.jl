@@ -159,13 +159,16 @@ struct PDVec{
     communicator::C
 end
 
-function PDVec{K,V}(
+function PDVec{K,V}(args...; kwargs...) where {K,V,N}
+    return PDVec{K,V,Threads.nthreads()}(args...; kwargs...)
+end
+function PDVec{K,V,N}(
     ; style=default_style(V),
     initiator_threshold=0, initiator=initiator_threshold > 0,
     communicator=nothing,
-) where {K,V}
+) where {K,V,N}
     W = eltype(style)
-    segments = ntuple(_ -> Dict{K,W}(), Threads.nthreads())
+    segments = ntuple(_ -> Dict{K,W}(), Val(N))
 
     if initiator == false
         irule = NonInitiator()
@@ -356,18 +359,18 @@ end
 ### empty(!), similar, copy, etc.
 ###
 function Base.empty(
-    t::PDVec{K,V}; style=t.style, initiator=t.initiator, communicator=t.communicator,
-) where {K,V}
-    return PDVec{K,V}(; style, initiator, communicator)
+    t::PDVec{K,V,N}; style=t.style, initiator=t.initiator, communicator=t.communicator,
+) where {K,V,N}
+    return PDVec{K,V,N}(; style, initiator, communicator)
 end
 function Base.empty(t::PDVec{K,V}, ::Type{V}; kwargs...) where {K,V}
     return empty(t; kwargs...)
 end
-function Base.empty(t::PDVec{K}, ::Type{V}; kwargs...) where {K,V}
-    return PDVec{K,V}(; kwargs...)
+function Base.empty(t::PDVec{K,<:Any,N}, ::Type{V}; kwargs...) where {K,V,N}
+    return PDVec{K,V,N}(; kwargs...)
 end
-function Base.empty(t::PDVec, ::Type{K}, ::Type{V}; kwargs...) where {K,V}
-    return PDVec{K,V}(; kwargs...)
+function Base.empty(t::PDVec{<:Any,<:Any,N}, ::Type{K}, ::Type{V}; kwargs...) where {K,V,N}
+    return PDVec{K,V,N}(; kwargs...)
 end
 function Base.empty!(t::PDVec)
     Folds.foreach(empty!, t.segments, )
@@ -484,8 +487,10 @@ definition of various functions from Base such as `reduce`, `sum`, `prod`, etc.
 
 `init`, if provided, must be a neutral element for `op`.
 """
-function Base.mapreduce(f, op, t::PDVecIterator; kwargs...)
-    result = Folds.mapreduce(
+function Base.mapreduce(f::F, op::O, t::PDVecIterator; kwargs...) where {F,O}
+    x = first(t)
+    T = typeof(op(f(x), f(x)))
+    result::T = Folds.mapreduce(
         op, Iterators.filter(!isempty, t.vector.segments); kwargs...
     ) do segment
         mapreduce(f, op, t.selector(segment))
@@ -502,7 +507,7 @@ Determine whether `predicate` returns `true` for all elements of iterator on
 [`PDVec`](@ref). Parallel MPI-compatible.
 """
 function Base.all(f, t::PDVecIterator)
-    result = Folds.all(t.vector.segments) do segment
+    result::Bool = Folds.all(t.vector.segments) do segment
         all(f, t.selector(segment))
     end
     return merge_remote_reductions(t.vector.communicator, &, result)
@@ -517,7 +522,7 @@ Determine whether `predicate` returns `true` for any element in iterator on
 [`PDVec`](@ref). Parallel and MPI-compatible.
 """
 function Base.any(f, t::PDVecIterator)
-    result = Folds.any(t.vector.segments) do segment
+    result::Bool = Folds.any(t.vector.segments) do segment
         any(f, t.selector(segment))
     end
     return merge_remote_reductions(t.vector.communicator, |, result)

@@ -20,7 +20,7 @@ function OperatorMultiplier(hamiltonian, vector::PDVec)
 end
 
 function (o::OperatorMultiplier)(v)
-    result = scale(v, 1.0)
+    result = zerovector(v)
     return mul!(result, o.hamiltonian, v, o.working_memory)
 end
 
