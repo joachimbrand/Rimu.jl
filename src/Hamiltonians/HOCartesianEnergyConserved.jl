@@ -303,13 +303,21 @@ Base.length(::HOCartOffdiagonals) = throw(HOCartOffdiagonalsError)
 # It should take arguments that define where to begin so that the loop can be restarted later 
 # Better way would 'jump ahead' when a mode index goes outside the valid energy range.
 # For that I would need dummy indices and probably while loops
-function loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
+function loop_over_modes(k_start, l_start, S, aspect, parity_in, Emin, Emax, Etot)
     P = prod(S)
     for k in k_start:P
         E_k = mode_to_energy(k, S, aspect)
         Emin ≤ E_k ≤ Emax || continue
-        l1 = k == k_start ? l_start : 1  # second loop should only restart in the middle until the first loop iterates
-        for l in l1:k
+        # second loop should only restart in the middle until the first loop iterates
+        if k == k_start
+            l1 = l_start
+        elseif iseven(k + parity_in)    # and preserve parity
+            l1 = 2
+        else
+            l1 = 1
+        end
+        
+        for l in l1:2:k
             E_l = mode_to_energy(l, S, aspect)
             Emin ≤ E_l ≤ Emax || continue
             if E_l + E_k == Etot
@@ -348,7 +356,7 @@ function loop_over_pairs(S, aspect, pairs, start, block_by_level)
     end
     while true
         mode_k, mode_l = if block_by_level
-            loop_over_modes(k_start, l_start, S, aspect, Es...)
+            loop_over_modes(k_start, l_start, S, aspect, parity_in, Es...)
         else
             loop_over_modes(k_start, l_start, S, parity_ij)
         end
