@@ -79,6 +79,7 @@ export num_neighbours, neighbour_site, num_dimensions
 export sparse # from SparseArrays
 
 export HOCartesianEnergyConserved, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
+export HOCartesian2BodyRelative
 export get_all_blocks, fock_to_cart
 
 include("abstract.jl")
@@ -112,6 +113,7 @@ include("Momentum.jl")
 
 include("HOCartesianEnergyConserved.jl")
 include("HOCartesianEnergyConservedPerDim.jl")
+include("HOCartesian2BodyRelative.jl")
 include("vertices.jl")
 include("ho-cart-tools.jl")
 include("angular_momentum.jl")
