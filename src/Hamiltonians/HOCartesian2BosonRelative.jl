@@ -102,8 +102,8 @@ function ho_2brel_interaction(S, u, table, omm_i::OccupiedModeMap, omm_j::Occupi
     result = 0.0
     # there should only be one particle but the loop is kept for consistency
     for p_i in omm_i, p_j in omm_j
-        mode_i, occ_i = p_i
-        mode_j, occ_j = p_j
+        occ_i, mode_i = p_i
+        occ_j, mode_j = p_j
         ho_indices = (Tuple(states[mode_i])..., Tuple(states[mode_j])...) .- 1
         if all(iseven.(ho_indices))
             doubly_evens = count(iseven.(ho_indices .÷ 2))
