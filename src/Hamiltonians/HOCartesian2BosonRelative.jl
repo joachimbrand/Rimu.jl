@@ -68,7 +68,7 @@ Matrix elements ``V_{\\mathbf{ij}}`` are for a contact interaction calculated in
 
 # Arguments
 
-* `addr`: **not used** the starting address is required for the [`Hamiltonians`](@ref) interface,
+* `addr`: The starting address is required for the [`Hamiltonians`](@ref) interface,
     but is overwritten for this Hamiltonians. A warning will be issued if the input address has the wrong
     number of particles (1) or modes (`prod(S)`). This warning can be disabled with keyword
     argument `warn_address = false`.
