@@ -1,86 +1,3 @@
-# Counting HO modes
-# slow but accurate method
-function count_ho_modes_loop(S, aspect)
-    P = prod(S)
-    Emax = S[1]
-    @assert Emax == maximum(S)  
-    return count(
-        map(1:P) do k
-            E_k = mode_to_energy(k, S, aspect)
-            E_k ≤ Emax
-        end
-    )
-end
-
-"""
-    points_in_triangle(a, b)
-
-    Given orthogonal side lengths `a` and `b` of a right triangle, returns 
-    ``I+B`` where ``I`` is number of interior points and ``B`` is number 
-    of points on the boundary.
-
-    Pick's theorem:
-    ```math
-        A = I + B/2 - 1
-    ```
-    for a polygon with integer vertices and area ``A``.    
-"""
-function points_in_triangle(a, b)
-    # double to ensure integer arithmetic
-    double_area = a*b
-    boundary = a + b + gcd(a, b)
-    interior = (double_area + 2 - boundary) ÷ 2
-
-    return interior + boundary
-end
-
-# faster methods - dispatch on dimension
-count_ho_modes(S::NTuple{1,Int}, aspect) = S[1]
-
-function count_ho_modes(S::NTuple{2,Int}, aspect)
-    Mx, My = S
-    ηy = aspect[2]
-    My_upper = ceil(Int, Mx / ηy)
-
-    return points_in_triangle(Mx, My_upper)
-end
-
-function count_ho_modes(S::NTuple{3,Int}, aspect)
-    Mx, My, Mz = S .- 1
-    ηy, ηz = aspect[2:3]
-    
-    result = 0
-    for k in 0 : Mz
-        Mx_upper = ceil(Int, Mx - k * ηz)
-        My_upper = ceil(Int, Mx_upper / ηy)
-        result += points_in_triangle(Mx_upper, My_upper)
-    end
-    return result
-end
-
-"""
-    find_ho_mode(S, aspect, j, mode_in)
-
-Loop over modes in grid defined by `S` and `aspect` until `j`th valid
-mode is found. Skips over `mode_in`, which is the diagonal move
-"""
-function find_ho_mode(S, aspect, j, mode_in)
-    P = prod(S)
-    Emax = S[1]
-    mode_j = 0
-    for k in 1:P
-        # skip self move
-        k == mode_in && continue
-        E_j = mode_to_energy(k, S, aspect)
-        if E_j ≤ Emax 
-            mode_j += 1
-        end
-        mode_j == j && return k
-    end
-    return 0     # fail case
-end
-
-
 """
     log_abs_oscillator_zero(n)
 
@@ -96,11 +13,24 @@ function log_abs_oscillator_zero(n)
     return result
 end
 
-# interaction
-function ho_2brel_interaction(S, u, table, omm_i::OccupiedModeMap, omm_j::OccupiedModeMap)
+"""
+    ho_2brel_interaction(S, table, omm_i::OccupiedModeMap, omm_j::OccupiedModeMap)
+
+Returns the product of two one-dimensional harmonic oscillator functions 
+evaluated at the origin, 
+```math
+    v_{ij} = \\phi_i(0) \\phi_j(0)
+```
+Indices `i,j` start at `0` for the groundstate, must be even, and are bounded by
+the entries of `S` which defines the Cartesian HO modes.
+The values ``\\phi_i(0)`` are precomputed by [`HOCartesian2BosonRelative`](@ref) 
+and passed in as the vector `table`.
+The result is summed over all occupied modes in `omm_i` and `omm_j`.
+"""
+function ho_2brel_interaction(S, table, omm_i::OccupiedModeMap, omm_j::OccupiedModeMap)
     states = CartesianIndices(S)
     result = 0.0
-    # there should only be one particle but the loop is kept for consistency
+    # there should only be one particle but the sum is kept for consistency
     for p_i in omm_i, p_j in omm_j
         occ_i, mode_i = p_i
         occ_j, mode_j = p_j
@@ -111,7 +41,7 @@ function ho_2brel_interaction(S, u, table, omm_i::OccupiedModeMap, omm_j::Occupi
             result += sign * exp(sum(table[k÷2 + 1] for k in ho_indices)) * occ_i * occ_j
         end
     end
-    return result * u
+    return result
 end
 
 """
@@ -138,15 +68,17 @@ Matrix elements ``V_{\\mathbf{ij}}`` are for a contact interaction calculated in
 
 # Arguments
 
-* `addr`: the starting address, defines number of particles and total number of modes.
+* `addr`: **not used** the starting address is required for the [`Hamiltonians`](@ref) interface,
+    but is overwritten for this Hamiltonians. A warning will be issued if the input address has the wrong
+    number of particles (1) or modes (`prod(S)`). This warning can be disabled with keyword
+    argument `warn_address = false`.
 * `S`: Tuple of the number of levels in each dimension, including the groundstate. The first 
     dimension should be the largest and sets the energy scale of the system, ``\\hbar\\omega_x``.
     The aspect ratios are determined from the other elements of `S`.
     Defaults to a 1D spectrum with number of levels matching modes of `addr`.
 * `Sx`, `ηs`: Alternatively, provide the number of modes (including the groundstate) in the 
-    first dimension `Sx` and `D-1` aspect ratios for the other dimensions `ηs`. The elements 
-    of `ηs` should be at least 1 and can be `Float`s or `Rational`s. Providing `Sx` and `ηs` 
-    will redefine `S = (Sx, Sy,...)`.
+    first dimension `Sx` and `D-1` aspect ratios for the other dimensions `ηs = (η_y,...)`. The elements 
+    of `ηs` should be at least `1.0`. Providing `Sx` and `ηs` will redefine `S = (Sx, Sy,...)`.
 * `g`: the (isotropic) interparticle interaction parameter. The value of `g` is assumed 
     to be in trap units.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
@@ -159,19 +91,19 @@ struct HOCartesian2BosonRelative{
     addr::A
     S::NTuple{D,Int64}
     aspect::NTuple{D,Float64}
-    num_offs::Int
-    energies::Vector{Float64} # noninteracting single particle energies
     vtable::Vector{Float64}  # interaction coefficients
-    u::Float64
+    g::Float64
+    interaction_only::Bool
 end
 
 function HOCartesian2BosonRelative(
-        addr::BoseFS; # ignored for this Hamiltonian
+        addr; # ignored for this Hamiltonian
         S = (num_modes(addr),),
         Sx = nothing,
         ηs = nothing, 
         g = 1.0,
-        interaction_only = false
+        interaction_only = false,
+        warn_address = true
     )
     if isnothing(ηs) && isnothing(Sx)
         S[1] ≠ maximum(S) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
@@ -187,74 +119,75 @@ function HOCartesian2BosonRelative(
     P = prod(S)
 
     # address type is fixed so it is overwritten here to ensure it works
+    warn_address && !(addr isa BoseFS{1,P}) && @warn "Input address is being overwritten"
     addr = BoseFS(P, 1 => 1)
-    # all addresses couple
-    num_offs = count_ho_modes_loop(S, aspect) - 1
-
-    if interaction_only
-        energies = zeros(P)
-    else
-        states = CartesianIndices(S)    # 1-indexed
-        energies = reshape(map(x -> dot(aspect, Tuple(x) .- 1/2), states), P)
-    end
-
-    # the aspect ratio appears from a change of variable when calculating the interaction integrals
-    # this interaction is a one-body term
-    u = g / sqrt(prod(aspect))
 
     M = maximum(S) - 1
     v_vec = [log_abs_oscillator_zero(i) for i in 0:2:M]
 
-    return HOCartesian2BosonRelative{D,typeof(addr)}(addr, S, aspect, num_offs, energies, v_vec, u)
+    return HOCartesian2BosonRelative{D,typeof(addr)}(addr, S, aspect, v_vec, g, interaction_only)
 end
 
-function Base.show(io::IO, h::HOCartesian2BosonRelative)
-    flag = iszero(h.energies)
-    # invert the scaling of u parameter
-    g = h.u * sqrt(prod(h.aspect))
-    print(io, "HOCartesian2BosonRelative($(h.addr); Sx=$(h.S[1]), η=$(h.aspect), g=$g, interaction_only=$flag)")
+function Base.show(io::IO, H::HOCartesian2BosonRelative)
+    if length(H.S) == 1
+        print(io, "HOCartesian2BosonRelative($(H.addr); S=$(H.S), g=$(H.g), interaction_only=$(H.interaction_only))")
+    else
+        print(io, "HOCartesian2BosonRelative($(H.addr); Sx=$(H.S[1]), ηs=$(H.aspect[2:end]), g=$(H.g), interaction_only=$(H.interaction_only))")
+    end
 end
 
 Base.:(==)(H::HOCartesian2BosonRelative, G::HOCartesian2BosonRelative) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
 
-starting_address(h::HOCartesian2BosonRelative) = h.addr
+starting_address(H::HOCartesian2BosonRelative) = H.addr
 
 LOStructure(::Type{<:HOCartesian2BosonRelative}) = IsHermitian()
 
 ### DIAGONAL ELEMENTS ###
-noninteracting_energy(h::HOCartesian2BosonRelative, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
-@inline function noninteracting_energy(h::HOCartesian2BosonRelative, addr)
-    omm = OccupiedModeMap(addr)
-    return noninteracting_energy(h, omm)
+@inline function noninteracting_energy(S, aspect, omm::BoseOccupiedModeMap)
+    states = CartesianIndices(S)
+    return sum(omm) do p
+        indices = Tuple(states[p.mode]) .- 1
+        dot(indices, aspect) + sum(aspect)/2
+    end
 end
-# fast method for finding blocks
-noninteracting_energy(h::HOCartesian2BosonRelative, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
+noninteracting_energy(H::HOCartesian2BosonRelative, addr) = noninteracting_energy(H.S, H.aspect, OccupiedModeMap(addr))
 
-@inline function diagonal_element(h::HOCartesian2BosonRelative, addr)
+@inline function diagonal_element(H::HOCartesian2BosonRelative, addr)
     omm = OccupiedModeMap(addr)
-    return noninteracting_energy(h, omm) + ho_2brel_interaction(h.S, h.u, h.vtable, omm, omm)
+    u = H.g / sqrt(sum(H.aspect))
+    result = u * ho_2brel_interaction(H.S, H.vtable, omm, omm)
+    if !H.interaction_only
+        result += noninteracting_energy(H, addr)
+    end
+    return result
 end
 
 ### OFFDIAGONAL ELEMENTS ###
-num_offdiagonals(h::HOCartesian2BosonRelative, addr) = h.num_offs
+# all addresses couple
+num_offdiagonals(H::HOCartesian2BosonRelative, addr) = prod(H.S) - 1
 
 function get_offdiagonal(
-        h::HOCartesian2BosonRelative, 
+        H::HOCartesian2BosonRelative, 
         addr, 
         chosen::Int, 
         omm::OccupiedModeMap = OccupiedModeMap(addr)
     )
-    p_i = omm[1]
-    mode_j = find_ho_mode(h.S, h.aspect, chosen, p_i.mode)
-    # no move found:
-    mode_j == 0 && return addr, 0.0
+    P = prod(H.S)
+    chosen ≥ P - 1 && return addr, 0.0
 
-    p_j = find_mode(addr, mode_j)
+    # skip self-move
+    p_i = omm[1]
+    if chosen ≥ p_i.mode
+        chosen += 2     # conserve parity
+    end
+
+    p_j = find_mode(addr, chosen)
     new_addr, val = excitation(addr, (p_j,), (p_i,))
 
-    interaction = ho_2brel_interaction(h.S, h.u, h.vtable, omm, OccupiedModeMap(new_addr))
+    u = H.g / sqrt(sum(H.aspect))
+    interaction = ho_2brel_interaction(H.S, H.vtable, omm, OccupiedModeMap(new_addr))
 
-    return new_addr, val * interaction
+    return new_addr, val * interaction * u
 end
 
 ###
@@ -262,7 +195,6 @@ end
 ###
 """
     HOCart2bRelOffdiagonals
-
 """
 struct HOCart2bRelOffdiagonals{
     A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
@@ -273,10 +205,10 @@ struct HOCart2bRelOffdiagonals{
     map::O
 end
 
-function offdiagonals(h::HOCartesian2BosonRelative, addr)
+function offdiagonals(H::HOCartesian2BosonRelative, addr)
     omm = OccupiedModeMap(addr)
-    num = num_offdiagonals(h, addr)
-    return HOCart2bRelOffdiagonals(h, addr, num, omm)
+    num = num_offdiagonals(H, addr)
+    return HOCart2bRelOffdiagonals(H, addr, num, omm)
 end
 
 function Base.getindex(s::HOCart2bRelOffdiagonals{A,T}, i)::Tuple{A,T} where {A,T}
