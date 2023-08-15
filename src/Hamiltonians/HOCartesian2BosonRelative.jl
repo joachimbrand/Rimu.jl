@@ -156,7 +156,7 @@ noninteracting_energy(H::HOCartesian2BosonRelative, addr) = noninteracting_energ
 
 @inline function diagonal_element(H::HOCartesian2BosonRelative, addr)
     omm = OccupiedModeMap(addr)
-    u = H.g / sqrt(sum(H.aspect))
+    u = H.g / sqrt(prod(H.aspect))
     result = u * ho_2brel_interaction(H.S, H.vtable, omm, omm)
     if !H.interaction_only
         result += noninteracting_energy(H, addr)
@@ -186,7 +186,7 @@ function get_offdiagonal(
     p_j = find_mode(addr, chosen)
     new_addr, val = excitation(addr, (p_j,), (p_i,))
 
-    u = H.g / sqrt(sum(H.aspect))
+    u = H.g / sqrt(prod(H.aspect))
     interaction = ho_2brel_interaction(H.S, H.vtable, omm, OccupiedModeMap(new_addr))
 
     return new_addr, val * interaction * u
