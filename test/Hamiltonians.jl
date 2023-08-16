@@ -178,6 +178,7 @@ end
 
         HOCartesianEnergyConserved(BoseFS((2,0,0,0))),
         HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
+        HOCartesian2BosonRelative(BoseFS((1,0,0,0)))
     )
         test_hamiltonian_interface(H)
     end
@@ -1377,6 +1378,29 @@ end
         @test H.aspect1 == (1.0,2.0,3.0)
         H = HOCartesianEnergyConservedPerDim(addr; S, η = 2)
         @test H.aspect1 == (1.0,2.0,2.0)
+
+        @test eval(Meta.parse(repr(H))) == H
+    end
+
+    @testset "HOCartesian2BosonRelative" begin
+        # argument checks
+        @test_throws ArgumentError HOCartesian2BosonRelative(BoseFS(2, 1=>1); S = (1,2))
+        @test_throws ArgumentError HOCartesian2BosonRelative(BoseFS(2, 1=>1); Sx = 1, ηs = (0.5,))
+        @test_logs (:warn,) HOCartesian2BosonRelative(BoseFS(10, 1=>1); Sx = 1, ηs = (1,))
+
+        # overwrite address
+        H = HOCartesian2BosonRelative(BoseFS((1,2,3,4)); warn_address = false)
+        @test starting_address(H) == BoseFS(4, 1 => 1)
+
+        M = 4
+        ηs = (1,2)
+        addr = BoseFS(1, 1 => 1)    # dummy address
+        H = HOCartesian2BosonRelative(addr; Sx, ηs, warn_address = false)
+        @test prod(H.S) == 18
+        @test H.aspect == (1.0, float.(ηs)...)
+
+        # interaction matrix elements
+        @test sum(H.vtable) ≈ -1.695535631172886
 
         @test eval(Meta.parse(repr(H))) == H
     end
