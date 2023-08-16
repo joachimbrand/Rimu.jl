@@ -111,7 +111,7 @@ function HOCartesian2BosonRelative(
         warn_address = true
     )
     if isnothing(ηs) && isnothing(Sx)
-        S[1] ≠ maximum(S) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
+        S[1] ≠ maximum(S) && throw(ArgumentError("First dimension must have the most states"))
         aspect = float.(box_to_aspect(S))
         D = length(S)
     else
