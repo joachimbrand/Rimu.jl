@@ -3,7 +3,7 @@
 
     Compute the logarithm of the absolute value of the ``n^\\mathrm{th}`` 1D 
     harmonic oscillator function evaluated at the origin. The overall sign is
-    determined when the matrix element is evaluated.
+    determined when the matrix element is evaluated in [`ho_2brel_interaction`](@ref).
 """
 function log_abs_oscillator_zero(n)
     isodd(n) && return -Inf, 1.0
@@ -48,9 +48,10 @@ end
     HOCartesian2BosonRelative(addr; S, Sx, ηs, g = 1.0, interaction_only = false)
 
 Implements the relative Hamiltonian of two bosons in a harmonic oscillator in Cartesian basis 
-with contact interactions 
+with contact interactions, equivalent to a single particle with a delta-function at the centre
+of the trap and (bare) interaction strength `g`,
 ```math
-\\hat{H} = \\sum_\\mathbf{i} ϵ_\\mathbf{i} + g\\sum_\\mathbf{ij} V_\\mathbf{ij} a^†_\\mathbf{i} a_\\mathbf{i},
+\\hat{H}_\\mathrm{rel} = \\sum_\\mathbf{i} ϵ_\\mathbf{i} + g\\sum_\\mathbf{ij} V_\\mathbf{ij} a^†_\\mathbf{i} a_\\mathbf{i}.
 ```
 For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots`` 
 are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
@@ -65,6 +66,8 @@ Matrix elements ``V_{\\mathbf{ij}}`` are for a contact interaction calculated in
 ```math
     V_{\\mathbf{ij}} = \\prod_{d \\in x, y,\\ldots} \\psi_{i_d}(0) \\psi_{j_d}(0).
 ```
+Only even parity states feel this interaction, so all ``i_d`` are even. Note that the matrix 
+representation of this Hamiltonian is completely dense in the even-parity subspace.
 
 # Arguments
 
@@ -79,7 +82,7 @@ Matrix elements ``V_{\\mathbf{ij}}`` are for a contact interaction calculated in
 * `Sx`, `ηs`: Alternatively, provide the number of modes (including the groundstate) in the 
     first dimension `Sx` and `D-1` aspect ratios for the other dimensions `ηs = (η_y,...)`. The elements 
     of `ηs` should be at least `1.0`. Providing `Sx` and `ηs` will redefine `S = (Sx, Sy,...)`.
-* `g`: the (isotropic) interparticle interaction parameter. The value of `g` is assumed 
+* `g`: the (bare) isotropic interparticle interaction parameter. The value of `g` is assumed 
     to be in trap units.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
     ignored. Useful if only energy shifts due to interactions are required.
@@ -197,6 +200,8 @@ end
 ###
 """
     HOCart2bRelOffdiagonals
+
+Specialized [`AbstractOffdiagonals`](@ref) for [`HOCartesian2BosonRelative`](@ref).
 """
 struct HOCart2bRelOffdiagonals{
     A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap

@@ -81,7 +81,7 @@ first-order degenerate perturbation theory.
 where the ``\\delta``-function indicates that the noninteracting energy is conserved along each
 dimension.
 The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
-basis functions, see [`four_oscillator_integral_1D`](@ref), with the additional restriction 
+basis functions, see [`four_oscillator_integral_general`](@ref), with the additional restriction 
 that energy is conserved in each dimension.
 
 # Arguments
@@ -302,8 +302,7 @@ end
 """
     HOCartSeparableOffdiagonals
 
-Specialized [`AbstractOffdiagonals`](@ref) that keeps track of singly and doubly occupied
-sites in current address.
+Specialized [`AbstractOffdiagonals`](@ref) for [`HOCartesianEnergyConservedPerDim`](@ref).
 """
 struct HOCartSeparableOffdiagonals{
     A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
