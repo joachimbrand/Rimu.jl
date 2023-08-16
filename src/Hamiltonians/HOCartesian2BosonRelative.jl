@@ -109,7 +109,7 @@ function HOCartesian2BosonRelative(
     )
     if isnothing(ηs) && isnothing(Sx)
         S[1] ≠ maximum(S) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
-        aspect = float(box_to_aspect(S))
+        aspect = float.(box_to_aspect(S))
         D = length(S)
     else
         any(ηs .< 1.0) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
