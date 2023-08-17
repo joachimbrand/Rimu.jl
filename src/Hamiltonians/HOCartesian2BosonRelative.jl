@@ -47,9 +47,9 @@ end
 """
     HOCartesian2BosonRelative(addr; S, Sx, ηs, g = 1.0, interaction_only = false)
 
-Implements the relative Hamiltonian of two bosons in a harmonic oscillator in Cartesian basis 
-with contact interactions, equivalent to a single particle with a delta-function at the centre
-of the trap and (bare) interaction strength `g`,
+Implements a single particle in an arbitrary harmonic trap with a delta-function 
+at the centre, equivalent to the relative Hamiltonian of two bosons in a harmonic 
+oscillator with contact interaction (bare) interaction strength `g`,
 ```math
 \\hat{H}_\\mathrm{rel} = \\sum_\\mathbf{i} ϵ_\\mathbf{i} + g\\sum_\\mathbf{ij} V_\\mathbf{ij} a^†_\\mathbf{i} a_\\mathbf{i}.
 ```
@@ -72,16 +72,17 @@ representation of this Hamiltonian is completely dense in the even-parity subspa
 # Arguments
 
 * `addr`: The starting address is required for the [`Hamiltonians`](@ref) interface,
-    but is overwritten for this Hamiltonians. A warning will be issued if the input address has the wrong
-    number of particles (1) or modes (`prod(S)`). This warning can be disabled with keyword
-    argument `warn_address = false`.
+    but is overwritten for this Hamiltonians. A warning will be issued if the input address 
+    has the wrong number of particles (1) or modes (`prod(S)`). This warning can be disabled 
+    with keyword argument `warn_address = false`.
 * `S`: Tuple of the number of levels in each dimension, including the groundstate. The first 
     dimension should be the largest and sets the energy scale of the system, ``\\hbar\\omega_x``.
     The aspect ratios are determined from the other elements of `S`.
     Defaults to a 1D spectrum with number of levels matching modes of `addr`.
 * `Sx`, `ηs`: Alternatively, provide the number of modes (including the groundstate) in the 
-    first dimension `Sx` and `D-1` aspect ratios for the other dimensions `ηs = (η_y,...)`. The elements 
-    of `ηs` should be at least `1.0`. Providing `Sx` and `ηs` will redefine `S = (Sx, Sy,...)`.
+    first dimension `Sx` and `D-1` aspect ratios for the other dimensions `ηs = (η_y, ...)`. 
+    The elements of `ηs` should be at least `1.0`. Providing `Sx` and `ηs` will redefine 
+    `S = (Sx, Sy, ...)`.
 * `g`: the (bare) isotropic interparticle interaction parameter. The value of `g` is assumed 
     to be in trap units.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
@@ -102,7 +103,7 @@ struct HOCartesian2BosonRelative{
 end
 
 function HOCartesian2BosonRelative(
-        addr; # ignored for this Hamiltonian
+        addr; # ignored for this Hamiltonian if no other arguments are provided
         S = (num_modes(addr),),
         Sx = nothing,
         ηs = nothing, 

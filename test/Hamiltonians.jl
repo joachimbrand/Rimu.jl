@@ -1392,15 +1392,16 @@ end
         H = HOCartesian2BosonRelative(BoseFS((1,2,3,4)); warn_address = false)
         @test starting_address(H) == BoseFS(4, 1 => 1)
 
-        M = 4
-        ηs = (1,2)
+        M = 10
+        ηs = (1,)
         addr = BoseFS(1, 1 => 1)    # dummy address
-        H = HOCartesian2BosonRelative(addr; Sx, ηs, warn_address = false)
-        @test prod(H.S) == 18
+        H = HOCartesian2BosonRelative(addr; Sx = M + 1, ηs, warn_address = false)
+        @test prod(H.S) == floor(Int, prod(M .÷ (1,ηs...) .+ 1))   # 121
         @test H.aspect == (1.0, float.(ηs)...)
 
         # interaction matrix elements
-        @test sum(H.vtable) ≈ -1.695535631172886
+        @test length(H.vtable) == M÷2 + 1     # 6
+        @test sum(H.vtable) ≈ -4.485020910721893
 
         @test eval(Meta.parse(repr(H))) == H
     end
