@@ -23,6 +23,7 @@ Other
 - [`Transcorrelated1D`](@ref)
 - [`HOCartesianEnergyConserved`](@ref)
 - [`HOCartesianEnergyConservedPerDim`](@ref)
+- [`HOCartesian2BosonRelative`](@ref)
 
 ## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)
