@@ -18,12 +18,14 @@ Momentum space Hubbard models
 - [`BoseHubbardMom1D2C`](@ref)
 - [`HubbardMom1DEP`](@ref)
 
-Other
-- [`MatrixHamiltonian`](@ref)
-- [`Transcorrelated1D`](@ref)
+Harmonic oscillator models
 - [`HOCartesianEnergyConserved`](@ref)
 - [`HOCartesianEnergyConservedPerDim`](@ref)
 - [`HOCartesian2BosonRelative`](@ref)
+
+Other
+- [`MatrixHamiltonian`](@ref)
+- [`Transcorrelated1D`](@ref)
 
 ## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)

@@ -1,9 +1,9 @@
 """
     log_abs_oscillator_zero(n)
 
-    Compute the logarithm of the absolute value of the ``n^\\mathrm{th}`` 1D 
-    harmonic oscillator function evaluated at the origin. The overall sign is
-    determined when the matrix element is evaluated in [`ho_2brel_interaction`](@ref).
+Compute the logarithm of the absolute value of the ``n^\\mathrm{th}`` 1D 
+harmonic oscillator function evaluated at the origin. The overall sign is
+determined when the matrix element is evaluated in [`ho_2brel_interaction`](@ref).
 """
 function log_abs_oscillator_zero(n)
     isodd(n) && return -Inf, 1.0
