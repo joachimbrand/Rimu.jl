@@ -1,25 +1,3 @@
-# TO-DO: optimise if large arguments are used
-"""
-    four_oscillator_integral_1D(i, j, k, l; max_level = typemax(Int))
-
-Integral of four one-dimensional harmonic oscillator functions, 
-```math
-    \\mathcal{I}(i,j,k,l) = \\int_{-\\infty}^\\infty dx \\, 
-    \\phi_i(x) \\phi_j(x) \\phi_k(x) \\phi_l(x)
-```
-assuming ``i+j = k+l``. State indices `i,j,k,l` start at `0` for the groundstate.
-Closed form taken from [Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606).
-Used in [`HOCartesianEnergyConservedPerDim`](@ref).
-"""
-function four_oscillator_integral_1D(i, j, k, l; max_level = typemax(Int))
-    !all(0 .≤ (i,j,k,l) .≤ max_level) && return 0.0
-    min_kl = min(k, l)
-    # SpecialFunctions.gamma(x) is faster than factorial(big(x))
-    p = sqrt(gamma(k + 1) * gamma(l + 1)) / sqrt(2 * gamma(i + 1) * gamma(j + 1)) / pi^2
-    s = sum(gamma(t + 1/2) * gamma(i - t + 1/2) * gamma(j - t + 1/2) / (gamma(t + 1) * gamma(k - t + 1) * gamma(l - t + 1)) for t in 0 : min_kl)
-    
-    return p * s / 2
-end
 
 """
     largest_two_point_box(i, j, dims::Tuple) -> ranges
@@ -79,17 +57,17 @@ end
 
 Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
 ```math
-\\hat{H} = \\sum_{i} ϵ_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l
+\\hat{H} = \\sum_{i} ϵ_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l,
 ```
-with the adiitional restriction that the interactions only couple states with the same
+with the additional restriction that the interactions only couple states with the same
 energy in each dimension separately. See [`HOCartesianEnergyConserved`](@ref) for a model that 
 conserves total energy.
 
-Indices ``\\mathbf{i}, \\ldots`` are ``D``-tuples for a ``D``-dimensional harmonic oscillator. 
-The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` so that 
-single particle energies are 
+For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots`` 
+are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
+so that single particle energies are 
 ```math
-    \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots``.
+    \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots.
 ```
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
@@ -103,8 +81,8 @@ first-order degenerate perturbation theory.
 where the ``\\delta``-function indicates that the noninteracting energy is conserved along each
 dimension.
 The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
-basis functions with the restriction that energy is conserved in each dimension, 
-see [`four_oscillator_integral_1D`](@ref).
+basis functions, see [`four_oscillator_integral_1D`](@ref), with the additional restriction 
+that energy is conserved in each dimension.
 
 # Arguments
 
@@ -162,13 +140,14 @@ function HOCartesianEnergyConservedPerDim(
         energies = reshape(map(x -> dot(aspect1, Tuple(x) .- 1/2), states), P)
     end
 
-    u = sqrt(prod(aspect1)) * g / 2
+    # the aspect ratio appears from a change of variable when calculating the interaction integrals
+    u = g / (2 * sqrt(prod(aspect1)))
 
     M = maximum(S)
     bigrange = 0:M-1
     # case n = M is the same as n = 0
     vmat = reshape(
-                [four_oscillator_integral_1D(i-n, j+n, j, i; max_level = M-1) 
+                [four_oscillator_integral_general(i-n, j+n, j, i; max_level = M-1) 
                     for i in bigrange, j in bigrange, n in bigrange],
                     M,M,M)
 
@@ -176,8 +155,13 @@ function HOCartesianEnergyConservedPerDim(
 end
 
 function Base.show(io::IO, h::HOCartesianEnergyConservedPerDim)
-    print(io, "HOCartesianEnergyConservedPerDim($(h.addr); S=$(h.S), η=$(h.aspect1), u=$(h.u))")
+    flag = iszero(h.energies)
+    # invert the scaling of u parameter
+    g = h.u * 2 * sqrt(prod(h.aspect1))
+    print(io, "HOCartesianEnergyConservedPerDim($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
 end
+
+Base.:(==)(H::HOCartesianEnergyConservedPerDim, G::HOCartesianEnergyConservedPerDim) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
 
 function starting_address(h::HOCartesianEnergyConservedPerDim)
     return h.addr
