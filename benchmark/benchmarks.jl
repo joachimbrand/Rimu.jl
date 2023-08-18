@@ -1,42 +1,85 @@
 using Rimu
+using KrylovKit
 using BenchmarkTools
 
 const SUITE = @benchmarkset "Rimu" begin
-    @case "(10, 20) Mom space with projected energy and initiator" begin
-        add = BoseFS(ntuple(i -> ifelse(i == 10, 10, 0), 20))
-        ham = HubbardMom1D(add, u=6.0)
-        dv = InitiatorDVec(add => 1.0; style=IsDynamicSemistochastic())
-        post_step = ProjectedEnergy(ham, dv)
-        s_strat = DoubleLogUpdate(targetwalkers=20_000)
+    @benchmarkset "Exact" begin
+        @benchmarkset "Diagonalization" begin
+            @case "2D Hubbard" begin
+                M = 16
+                addr = FermiFS2C(M, 1 => 1, 2 => 1, 1 => -1, 2 => -1)
+                ham = HubbardRealSpace(addr; geometry=PeriodicBoundaries(4, 4))
+                dv = DVec(addr => 1.0)
+                eigsolve(ham, dv, 1, :SR; issymmetric=true, tol=1e-9)
+            end seconds=30
 
-        lomc!(ham, dv; s_strat, post_step, dτ=1e-4, laststep=4000)
-    end seconds=150
-    @case "(4+1, 11) 2C Mom space with G2Correlators" begin
-        add = BoseFS2C(ntuple(i -> ifelse(i == 5, 4, 0), 11), ntuple(==(5), 11))
-        ham = BoseHubbardMom1D2C(add, v=0.1)
-        dv = DVec(add => 1.0f0; style=IsDynamicSemistochastic{Float32}())
-        s_strat = DoubleLogUpdate(targetwalkers=10_000)
-        replica = AllOverlaps(2, ntuple(i -> G2Correlator(i - 1), 7))
+            @case "Bose-Hubbard in momentum space" begin
+                M = N = 10
+                addr = BoseFS(M, M ÷ 2 => N)
+                ham = HubbardMom1D(addr; u=6.0)
+                dv = DVec(addr => 1.0)
+                eigsolve(ham, dv, 1, :SR; issymmetric=true, tol=1e-9)
+            end seconds=40
+        end
 
-        lomc!(ham, dv; s_strat, replica, laststep=2000)
-    end seconds=150
-    @case "(50, 50) Real space" begin
-        add = near_uniform(BoseFS{50,50})
-        ham = HubbardReal1D(add, u=6.0)
-        dv = DVec(add => 1.0; style=IsDynamicSemistochastic())
-        s_strat = DoubleLogUpdate(targetwalkers=50_000)
+        @benchmarkset "Multiplication" begin
+            @case "Momentum space" begin
+                # dimension is 189225
+                M = 20
+                addr = BoseFS(M, M÷2 => 10)
+                ham = HubbardMom1D(addr; u=6.0)
+                dv1 = DVec(addr => 1.0)
+                dv2 = zerovector(dv1)
+                mul!(dv2, ham, dv1)
+                mul!(dv1, ham, dv2)
+                mul!(dv2, ham, dv1)
+                mul!(dv1, ham, dv2)
+                mul!(dv2, ham, dv1)
+            end seconds=10
 
-        lomc!(ham, dv; s_strat, dτ=1e-4, laststep=2000)
-    end seconds=150
-    @case "(5+3, 12) Real space fermions in a 4×3 lattice with initiator" begin
-        add = CompositeFS(
-            near_uniform(FermiFS{5,12}),
-            near_uniform(FermiFS{3,12}),
-        )
-        ham = HubbardRealSpace(add, geometry=PeriodicBoundaries(4, 3))
-        dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic())
-        s_strat = DoubleLogUpdate(targetwalkers=10_000)
+            @case "Transcorrelated" begin
+                # dimension is 189225
+                M = 30
+                addr = FermiFS2C(M, M÷2-1 => 1, M => 1, M÷2 => -1, M÷2+1 => -1)
+                ham = Transcorrelated1D(addr)
+                dv1 = DVec(addr => 1.0)
+                dv2 = zerovector(dv1)
+                mul!(dv2, ham, dv1)
+                mul!(dv1, ham, dv2)
+                mul!(dv2, ham, dv1)
+                mul!(dv1, ham, dv2)
+            end seconds=10
+        end
+    end
 
-        lomc!(ham, dv; s_strat, laststep=15_000, dτ=1e-2)
-    end seconds=150
+    @benchmarkset "FCIQMC" begin
+        @case "(10, 20) Mom space with projected energy and initiator" begin
+            addr = BoseFS(20, 10 => 10)
+            ham = HubbardMom1D(addr, u=1.0)
+            dv = InitiatorDVec(addr => 1.0; style=IsDynamicSemistochastic())
+            post_step = ProjectedEnergy(ham, dv)
+            s_strat = DoubleLogUpdate(targetwalkers=20_000)
+
+            lomc!(ham, dv; s_strat, post_step, dτ=1e-4, laststep=2000)
+        end seconds=150
+
+        @case "(4+1, 11) 2C Mom space with G2Correlators" begin
+            addr = BoseFS2C(ntuple(i -> ifelse(i == 5, 4, 0), 11), ntuple(==(5), 11))
+            ham = BoseHubbardMom1D2C(addr, v=0.1)
+            dv = DVec(addr => 1.0f0; style=IsDynamicSemistochastic{Float32}())
+            s_strat = DoubleLogUpdate(targetwalkers=10_000)
+            replica = AllOverlaps(2, ntuple(i -> G2Correlator(i - 1), 7))
+
+            lomc!(ham, dv; s_strat, replica, laststep=1000)
+        end seconds=150
+
+        @case "(50, 50) Real space" begin
+            addr = near_uniform(BoseFS{50,50})
+            ham = HubbardReal1D(addr, u=6.0)
+            dv = DVec(addr => 1.0; style=IsDynamicSemistochastic())
+            s_strat = DoubleLogUpdate(targetwalkers=50_000)
+
+            lomc!(ham, dv; s_strat, dτ=1e-4, laststep=1000)
+        end seconds=150
+    end
 end
