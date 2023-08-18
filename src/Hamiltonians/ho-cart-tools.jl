@@ -24,6 +24,9 @@ Keyword arguments:
 * `method`: Choose between `:vertices` and `:comb` for method of enumerating tuples of quantum numbers
 * `save_to_file=nothing`: if set then the `DataFrame` recording blocks is saved after each new block is found
 * additional `kwargs`: passed to `isapprox` for comparing block energies. Useful for anisotropic traps
+
+If using option `block_by_level = false` in [`HOCartesianEnergyConserved`](@ref), it is better to use
+[`parity_block_seed_addresses`](@ref) instead.
 """
 function get_all_blocks(h::Union{HOCartesianEnergyConserved{D},HOCartesianEnergyConservedPerDim{D}}; 
         target_energy = nothing, 
@@ -181,4 +184,30 @@ function fock_to_cart(
         OccupiedModeMap(addr))...)
 
     return SVector{N,NTuple{D,Int}}(cart)
+end
+
+"""
+    parity_block_seed_addresses(H::HOCartesianEnergyConserved{D})
+
+Get a vector of addresses that each have different parity with respect to 
+the trap geometry defined by the Hamiltonian `H`. The result will have `2^D`
+addresses for a `D`-dimensional trap.
+
+This is designed for [`HOCartesianEnergyConserved`](@ref) with option
+`block_by_level = false`. In this case it is better to use [`BasisSetRep`](@ref) 
+with these seed addresses (and a filter) rather than [`get_all_blocks`](@ref).
+"""
+function parity_block_seed_addresses(H::HOCartesianEnergyConserved{D,A}) where {D,A}
+    P = prod(H.S)
+    N = num_particles(H.addr)
+    breakpoints = accumulate(*, (1, H.S[1:end-1]...))
+    seeds = A[]
+    for c in with_replacement_combinations([0,1], D), p in multiset_permutations(c, D)
+        index = 1 + dot(p, breakpoints)
+        push!(seeds,
+            BoseFS(P, index => 1, 1 => N-1)
+        )
+    end
+    
+    return seeds
 end
