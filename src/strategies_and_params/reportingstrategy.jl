@@ -221,7 +221,7 @@ mutable struct ReportToFile{C} <: ReportingStrategy
     save_if::Bool
     return_df::Bool
     io::IO
-    compress::C # Arrow.ZstdCompressor, Arrow.LZ4FrameCompressor or nothing
+    compress::C # Symbol, Arrow.ZstdCompressor, Arrow.LZ4FrameCompressor or nothing
     writer::Union{Arrow.Writer, Nothing}
 end
 
@@ -234,15 +234,8 @@ function ReportToFile(;
     io = stdout,
     compress = :zstd,
 )
-    # Note: This code uses undocumented internal features of Arrow.jl to initialise the
-    # compressor codecs and might break upon updates.
-    # A safer (but slower) way would be to pass the symbols :zstd or :lz4 to `Arrow.write`.
     if !(compress isa Union{Nothing, Arrow.ZstdCompressor, Arrow.LZ4FrameCompressor})
-        if compress == :zstd
-            compress = Arrow.zstd_compressor()[]
-        elseif compress == :lz4
-            compress = Arrow.lz4_frame_compressor()[]
-        else
+        if !(compress == :zstd || compress == :lz4)
             throw(ArgumentError("compress must be nothing, :zstd or :lz4"))
         end
     end
