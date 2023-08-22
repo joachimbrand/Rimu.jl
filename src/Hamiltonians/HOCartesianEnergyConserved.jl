@@ -101,15 +101,12 @@ function find_Ebounds(i, j, S, aspect)
 end
 
 """
-    HOCartesianEnergyConserved(addr; S, η, g = 1.0, interaction_only = false)
+    HOCartesianEnergyConserved(addr; S, η, g = 1.0, interaction_only = false, block_by_level = true)
 
 Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
 ```math
-\\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l ,
+\\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l.
 ```
-with the additional restriction that the interactions only couple states with the same
-non-interacting energy. See [`HOCartesianEnergyConservedPerDim`](@ref) for a model 
-that conserves energy separately per spatial dimension.
 For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots``
 are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
 so that single particle energies are 
@@ -119,14 +116,24 @@ so that single particle energies are
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
-Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this 
-basis using first-order degenerate perturbation theory.
+with the additional restriction that the interactions only couple states with the same
+non-interacting energy. 
+
+By default the offdiagonal elements due to the interactions are consistent with first-order 
+degenerate perturbation theory
 ```math
-    V_{\\mathbf{ijkl}} = \\delta_{\\mathbf{i} + \\mathbf{j}}^{\\mathbf{k} + \\mathbf{l}} 
+    V_{\\mathbf{ijkl}} = \\delta_{\\epsilon_\\mathbf{i} + \\epsilon_\\mathbf{j}}
+        ^{\\epsilon_\\mathbf{k} + \\epsilon_\\mathbf{l}} 
         \\prod_{d \\in x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d),
 ```
 where the ``\\delta`` function indicates that the *total* noninteracting energy is conserved
-meaning all states with the same noninteracting energy are connected by this interaction.
+meaning all states with the same noninteracting energy are connected by this interaction and 
+the Hamiltonian blocks according to noninteracting energy levels.
+Setting `block_by_level = false` will disable this restriction and allow coupling between 
+basis states of any noninteracting energy level, leading to many more offdiagonals and 
+fewer but larger blocks (the blocks are still distinguished by parity of basis states).
+Alternatively, see [`HOCartesianEnergyConservedPerDim`](@ref) for a model with the stronger 
+restriction that conserves energy separately per spatial dimension.
 The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
 basis functions, implemented in [`four_oscillator_integral_general`](@ref).
 
@@ -145,8 +152,8 @@ basis functions, implemented in [`four_oscillator_integral_general`](@ref).
     to be in trap units.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
     ignored. Useful if only energy shifts due to interactions are required.
-
-See also [`HOCartesianEnergyConservedPerDim`](@ref).
+* `block_by_level`: if set to false will allow the interactions to couple all states without 
+    comparing their noninteracting energy.
 
 !!! warning
     `num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building 
