@@ -105,7 +105,8 @@ end
 
 Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
 ```math
-\\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l.
+\\hat{H} = \\sum_{i} \\epsilon_\\mathbf{i} n_\\mathbf{i} + \\frac{g}{2}\\sum_\\mathbf{ijkl} 
+    V_\\mathbf{ijkl} a^†_\\mathbf{i} a^†_\\mathbf{j} a_\\mathbf{k} a_\\mathbf{l}.
 ```
 For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots``
 are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
@@ -115,9 +116,6 @@ so that single particle energies are
 ```
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
-
-with the additional restriction that the interactions only couple states with the same
-non-interacting energy. 
 
 By default the offdiagonal elements due to the interactions are consistent with first-order 
 degenerate perturbation theory
@@ -148,7 +146,7 @@ basis functions, implemented in [`four_oscillator_integral_general`](@ref).
     from `S .- 1`. This will only affect the single particle energy scale and not the 
     interactions. The values are always scaled relative to the first dimension, which sets 
     the energy scale of the system, ``\\hbar\\omega_x``.
-* `g`: the (isotropic) interparticle interaction parameter. The value of `g` is assumed 
+* `g`: the (isotropic) bare interaction parameter. The value of `g` is assumed 
     to be in trap units.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
     ignored. Useful if only energy shifts due to interactions are required.
