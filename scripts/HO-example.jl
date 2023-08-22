@@ -36,14 +36,14 @@ addr = BoseFS(P, M => N)
 fock_to_cart(addr, S)
 # The output shows that all ``N`` particles are in single-particle state ``n_x=M-1, n_y=0``.
 
-# The harmonic oscillator Hamiltonian [`HOCartesianEnergyConserved`](@ref) handles 
+# The harmonic oscillator Hamiltonian [`HOCartesianContactInteractions`](@ref) handles 
 # contact interactions with
 # first-order perturbation theory, so the matrix representation will block
 # according to the non-interacting energy of the basis states. The first task is 
 # to find all blocks of basis states with the same energy. The strength of the 
 # interaction is not relevant at this point, just that it is non-zero.
 # Use a dummy groundstate address to build the Hamiltonian 
-H = HOCartesianEnergyConserved(BoseFS(P, 1 => N); S)
+H = HOCartesianContactInteractions(BoseFS(P, 1 => N); S)
 # and then a utility function [`get_all_blocks`](@ref) to find all blocks. The blocks 
 # are found by looping over all possible states with `N` particles in Cartesian states 
 # defined by `S`. Note that this will only work for total energy 
@@ -93,14 +93,14 @@ Lz_vals, Lz_vecs = eigen(Lz_mat)
 # Finally, consider the effect of interactions by looking at how states 
 # in a single block are perturbed. Only the energy shift due to the interaction is 
 # relevant so now rebuild the Hamiltonian without the non-interacting energy
-Hint = HOCartesianEnergyConserved(addr1; S, interaction_only = true)
+Hint = HOCartesianContactInteractions(addr1; S, interaction_only = true)
 ΔE = eigvals(Matrix(Hint, addr1))
 
 # Two eigenstates in this block are unaffected by the interaction and three have a 
 # non-zero energy shift.
 
 # The default strength of the interaction is `g = 1.0`. Other interactions strengths
-# can be obtained by using keyword argument `g` in `HOCartesianEnergyConserved` or by
+# can be obtained by using keyword argument `g` in `HOCartesianContactInteractions` or by
 # rescaling `ΔE` since the interactions are handled with first-order perturbation theory.
 
 # `Rimu` also contains [`HOCartesianEnergyConservedPerDim`](@ref) which is a similar 
