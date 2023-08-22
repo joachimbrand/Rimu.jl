@@ -1310,16 +1310,22 @@ end
         # offdiagonals interface
         @test num_offdiagonals(H, addr) == dimension(H) - 1
 
-        h = offdiagonals(H, addr)        
+        h = offdiagonals(H, addr)
         @test Base.eltype(h) == Tuple{typeof(addr),eltype(H)}
         @test Base.IteratorSize(h) == Base.SizeUnknown()
         @test_throws ErrorException getindex(h,1)
         @test_throws ErrorException size(h)
         @test_throws ErrorException length(h)
 
-        next_state = (1,1,2)
+        next_state = (1,1,3)
         @test iterate(h) == ((addr,0.0), next_state)
         @test isnothing(iterate(h, next_state))
+
+        # block_by_level = false
+        H = HOCartesianEnergyConserved(addr; S, block_by_level = false)
+        all_offs = collect(offdiagonals(H, addr))
+        @test length(all_offs) == 169
+        @test sum(o -> o[2], all_offs) ≈ 0.3151984121740107
 
         # aspect ratio
         S = (4,2,2)
@@ -1436,6 +1442,11 @@ end
         
         # HOCartesianEnergyConserved requires a valid energy restriction 
         @test_throws ArgumentError get_all_blocks(HOCartesianEnergyConserved(addr; S))
+
+        # block_by_level = false
+        H = HOCartesianEnergyConserved(addr; S, block_by_level = false)
+        df = get_all_blocks(H)
+        @test nrow(df) == 2^D
     end
 
     @testset "vertices" begin

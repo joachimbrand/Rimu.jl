@@ -280,7 +280,7 @@ Specialized [`AbstractOffdiagonals`](@ref) that iterates over valid offdiagonal 
 are connected by the interaction matrix.
 """
 struct HOCartOffdiagonals{
-    B,A<:BoseFS,T,H<:AbstractHamiltonian{T},P<:OccupiedPairsMap
+    A<:BoseFS,T,B,H<:AbstractHamiltonian{T},P<:OccupiedPairsMap
 }# <: AbstractOffdiagonals{A,T}
     ham::H
     addr::A
@@ -289,7 +289,7 @@ end
 
 function offdiagonals(h::HOCartesianEnergyConserved{<:Any,A,B}, addr::BoseFS) where {A,B}
     pairs = OccupiedPairsMap(addr)
-    return HOCartOffdiagonals{B,A,Float64,typeof(h),typeof(pairs)}(h, addr, pairs)
+    return HOCartOffdiagonals{A,Float64,B,typeof(h),typeof(pairs)}(h, addr, pairs)
 end
 
 Base.IteratorSize(::HOCartOffdiagonals) = Base.SizeUnknown()
@@ -380,7 +380,7 @@ function loop_over_pairs(S, aspect, pairs, start, block_by_level)
     return pair_index, (mode_i, mode_j, mode_k, mode_l), false
 end
 
-function Base.iterate(off::HOCartOffdiagonals{B}, iter_state = (1,1,1)) where {B}
+function Base.iterate(off::HOCartOffdiagonals{<:Any,<:Any,B}, iter_state = (1,1,1)) where {B}
     S = off.ham.S
     aspect = off.ham.aspect
     addr = off.addr
