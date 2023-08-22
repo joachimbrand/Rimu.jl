@@ -14,7 +14,7 @@ and is non-zero unless ``i+j+k+l`` is odd. See e.g.
 This is a generalisation of the closed form in 
 [Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606), which is is the special 
 case where ``i+j == k+l``, but is numerically unstable for large arguments.
-Used in [`HOCartesianEnergyConserved`](@ref) and [`HOCartesianEnergyConservedPerDim`](@ref).
+Used in [`HOCartesianContactInteractions`](@ref) and [`HOCartesianEnergyConservedPerDim`](@ref).
 """
 function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
     all(0 .≤ (i, j, k, l) .≤ max_level) || return 0.0
@@ -101,7 +101,7 @@ function find_Ebounds(i, j, S, aspect)
 end
 
 """
-    HOCartesianEnergyConserved(addr; S, η, g = 1.0, interaction_only = false, block_by_level = true)
+    HOCartesianContactInteractions(addr; S, η, g = 1.0, interaction_only = false, block_by_level = true)
 
 Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
 ```math
@@ -160,7 +160,7 @@ basis functions, implemented in [`four_oscillator_integral_general`](@ref).
     a matrix or using QMC methods. Use [`get_all_blocks`](@ref) first then pass option
     `col_hint = block_size` to [`BasisSetRep`](@ref) to safely build the matrix.
 """
-struct HOCartesianEnergyConserved{
+struct HOCartesianContactInteractions{
     D,  # number of dimensions
     A<:BoseFS,
     B,    # block_by_level flag
@@ -175,7 +175,7 @@ struct HOCartesianEnergyConserved{
     u::Float64
 end
 
-function HOCartesianEnergyConserved(
+function HOCartesianContactInteractions(
         addr::BoseFS; 
         S = (num_modes(addr),),
         η = nothing, 
@@ -220,27 +220,27 @@ function HOCartesianEnergyConserved(
     r = 0:max_level
     vmat = [four_oscillator_integral_general(i, j, k, l; max_level) for i in r, j in r, k in r, l in r]
 
-    return HOCartesianEnergyConserved{D,typeof(addr),block_by_level,eltype(aspect)}(addr, S_sort, aspect, aspect1, energies, vmat, u)
+    return HOCartesianContactInteractions{D,typeof(addr),block_by_level,eltype(aspect)}(addr, S_sort, aspect, aspect1, energies, vmat, u)
 end
 
-function Base.show(io::IO, h::HOCartesianEnergyConserved)
+function Base.show(io::IO, h::HOCartesianContactInteractions)
     flag = iszero(h.energies)
     # invert the scaling of u parameter
     g = h.u * 2 * sqrt(prod(h.aspect1))
-    print(io, "HOCartesianEnergyConserved($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
+    print(io, "HOCartesianContactInteractions($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
 end
 
-Base.:(==)(H::HOCartesianEnergyConserved, G::HOCartesianEnergyConserved) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
+Base.:(==)(H::HOCartesianContactInteractions, G::HOCartesianContactInteractions) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
 
-function starting_address(h::HOCartesianEnergyConserved)
+function starting_address(h::HOCartesianContactInteractions)
     return h.addr
 end
 
-LOStructure(::Type{<:HOCartesianEnergyConserved}) = IsHermitian()
+LOStructure(::Type{<:HOCartesianContactInteractions}) = IsHermitian()
 
 
 ### DIAGONAL ELEMENTS ###
-function energy_transfer_diagonal(h::HOCartesianEnergyConserved{D}, omm::BoseOccupiedModeMap) where {D}
+function energy_transfer_diagonal(h::HOCartesianContactInteractions{D}, omm::BoseOccupiedModeMap) where {D}
     result = 0.0
     states = CartesianIndices(h.S)    # 1-indexed
     
@@ -262,15 +262,15 @@ function energy_transfer_diagonal(h::HOCartesianEnergyConserved{D}, omm::BoseOcc
     return result * h.u
 end
 
-noninteracting_energy(h::HOCartesianEnergyConserved, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
-@inline function noninteracting_energy(h::HOCartesianEnergyConserved, addr::BoseFS)
+noninteracting_energy(h::HOCartesianContactInteractions, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
+@inline function noninteracting_energy(h::HOCartesianContactInteractions, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     return noninteracting_energy(h, omm)
 end
 # fast method for finding blocks
-noninteracting_energy(h::HOCartesianEnergyConserved, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
+noninteracting_energy(h::HOCartesianContactInteractions, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
 
-@inline function diagonal_element(h::HOCartesianEnergyConserved, addr::BoseFS)
+@inline function diagonal_element(h::HOCartesianContactInteractions, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     return noninteracting_energy(h, omm) + energy_transfer_diagonal(h, omm)
 end
@@ -278,7 +278,7 @@ end
 ### OFFDIAGONAL ELEMENTS ###
 
 # crude definition for minimal consistency with interface
-num_offdiagonals(h::HOCartesianEnergyConserved, addr::BoseFS) = dimension(h) - 1
+num_offdiagonals(h::HOCartesianContactInteractions, addr::BoseFS) = dimension(h) - 1
 
 """
     HOCartOffdiagonals
@@ -294,7 +294,7 @@ struct HOCartOffdiagonals{
     pairs::P
 end
 
-function offdiagonals(h::HOCartesianEnergyConserved{<:Any,A,B}, addr::BoseFS) where {A,B}
+function offdiagonals(h::HOCartesianContactInteractions{<:Any,A,B}, addr::BoseFS) where {A,B}
     pairs = OccupiedPairsMap(addr)
     return HOCartOffdiagonals{A,Float64,B,typeof(h),typeof(pairs)}(h, addr, pairs)
 end

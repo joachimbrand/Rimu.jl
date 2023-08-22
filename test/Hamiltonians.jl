@@ -36,7 +36,7 @@ function test_hamiltonian_interface(H)
                 @test norm(diagonal_element(H, addr)) ≥ 0
             end
         end
-        if !(H isa HOCartesianEnergyConserved)  # offdiagonals not consistent with interface
+        if !(H isa HOCartesianContactInteractions)  # offdiagonals not consistent with interface
             @testset "hopping" begin
                 h = offdiagonals(H, addr)
                 @test eltype(h) == Tuple{typeof(addr), eltype(H)}
@@ -176,7 +176,7 @@ end
         Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
         momentum(HubbardMom1D(BoseFS((0,5,0)))),
 
-        HOCartesianEnergyConserved(BoseFS((2,0,0,0))),
+        HOCartesianContactInteractions(BoseFS((2,0,0,0))),
         HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
     )
         test_hamiltonian_interface(H)
@@ -1282,18 +1282,17 @@ end
 end
 
 @testset "Harmonic oscillator in Cartesian basis" begin
-    @testset "HOCartesianEnergyConserved" begin
+    @testset "HOCartesianContactInteractions" begin
         # argument checks
-        # @test_logs (:warn,) HOCartesianEnergyConserved(BoseFS(12, 1=>1); S = (3,4))
-        @test_throws ArgumentError HOCartesianEnergyConserved(BoseFS(4, 1=>1); S = (5,))
-        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (4,), η = (2,3))
+        @test_throws ArgumentError HOCartesianContactInteractions(BoseFS(4, 1=>1); S = (5,))
+        @test_throws ArgumentError HOCartesianContactInteractions(BoseFS(4, 1=>1); S = (4,), η = (2,3))
 
         N = 3
         D = 2
         M = 4
         S = ntuple(_ -> M + 1, D)
         addr = BoseFS(prod(S), 1 => N)
-        H = HOCartesianEnergyConserved(addr; S)
+        H = HOCartesianContactInteractions(addr; S)
         E0 = Hamiltonians.noninteracting_energy(H, addr)
         @test N*D/2 == E0
         @test diagonal_element(H, BoseFS(prod(S), (1,2,3) .=> 1)) ≈ 6.4177817256162255
@@ -1322,7 +1321,7 @@ end
         @test isnothing(iterate(h, next_state))
 
         # block_by_level = false
-        H = HOCartesianEnergyConserved(addr; S, block_by_level = false)
+        H = HOCartesianContactInteractions(addr; S, block_by_level = false)
         all_offs = collect(offdiagonals(H, addr))
         @test length(all_offs) == 169
         @test sum(o -> o[2], all_offs) ≈ 0.3151984121740107
@@ -1330,18 +1329,18 @@ end
         # aspect ratio
         S = (4,2,2)
         addr = BoseFS(prod(S), 1 => 1)
-        H = HOCartesianEnergyConserved(addr; S)
+        H = HOCartesianContactInteractions(addr; S)
         @test H.aspect == (1,3,3)
         @test H.aspect1 == (1.0,3.0,3.0)
-        H = HOCartesianEnergyConserved(addr; S, η = (1,2,3))
+        H = HOCartesianContactInteractions(addr; S, η = (1,2,3))
         @test H.aspect == (1,3,3)
         @test H.aspect1 == (1.0,2.0,3.0)
-        H = HOCartesianEnergyConserved(addr; S, η = 2)
+        H = HOCartesianContactInteractions(addr; S, η = 2)
         @test H.aspect == (1,3,3)
         @test H.aspect1 == (1.0,2.0,2.0)
 
         S = (4,4)
-        H = HOCartesianEnergyConserved(addr; S)
+        H = HOCartesianContactInteractions(addr; S)
         b1 = Hamiltonians.find_Ebounds(3, 2, S, Hamiltonians.box_to_aspect(S))
         b2 = Hamiltonians.find_Ebounds(3, 2, S, H.aspect)
         @test b1 == b2
@@ -1440,11 +1439,11 @@ end
         df_file = load_df("test_block_df.arrow")
         @test df[!,[1,2,3,5]] == df_file[!,[1,2,3,5]]
         
-        # HOCartesianEnergyConserved requires a valid energy restriction 
-        @test_throws ArgumentError get_all_blocks(HOCartesianEnergyConserved(addr; S))
+        # HOCartesianContactInteractions requires a valid energy restriction 
+        @test_throws ArgumentError get_all_blocks(HOCartesianContactInteractions(addr; S))
 
         # block_by_level = false
-        H = HOCartesianEnergyConserved(addr; S, block_by_level = false)
+        H = HOCartesianContactInteractions(addr; S, block_by_level = false)
         df = get_all_blocks(H)
         @test nrow(df) == 2^D
     end

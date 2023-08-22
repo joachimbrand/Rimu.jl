@@ -1,5 +1,5 @@
 """
-    get_all_blocks(h::Union{HOCartesianEnergyConserved,HOCartesianEnergyConservedPerDim}; 
+    get_all_blocks(h::Union{HOCartesianContactInteractions,HOCartesianEnergyConservedPerDim}; 
         target_energy = nothing, 
         max_energy = nothing, 
         max_blocks = nothing, 
@@ -34,7 +34,7 @@ the blocks are not generated; `t_basis` will be zero, and `block_size` will be a
 estimate. Pass the seed addresses to [`BasisSetRep`](@ref) with an appropriate `filter` 
 to generate the blocks.
 """
-function get_all_blocks(h::Union{HOCartesianEnergyConserved{D,<:Any,B},HOCartesianEnergyConservedPerDim{D}}; 
+function get_all_blocks(h::Union{HOCartesianContactInteractions{D,<:Any,B},HOCartesianEnergyConservedPerDim{D}}; 
         target_energy = nothing, 
         max_energy = nothing, 
         max_blocks = nothing, 
@@ -55,7 +55,7 @@ function get_all_blocks(h::Union{HOCartesianEnergyConserved{D,<:Any,B},HOCartesi
         @warn "maximum requested energy lower than target energy, not all blocks may be found."
     end
 
-    if h isa HOCartesianEnergyConserved
+    if h isa HOCartesianContactInteractions
         # if block_by_level = false
         !B && return get_all_blocks_parity(h)
 
@@ -172,7 +172,7 @@ function get_all_blocks_comb(h;
 end
 
 # specialised version if `block_by_level = false`
-function get_all_blocks_parity(h::HOCartesianEnergyConserved{D,A,B}) where {D,A,B}
+function get_all_blocks_parity(h::HOCartesianContactInteractions{D,A,B}) where {D,A,B}
     # check if H blocks by level
     B && throw(ArgumentError("use `get_all_blocks` instead"))
     # N = num_particles(A)
@@ -212,14 +212,14 @@ function fock_to_cart(
 end
 
 """
-    parity_block_seed_addresses(h::HOCartesianEnergyConserved{D})
+    parity_block_seed_addresses(h::HOCartesianContactInteractions{D})
 
 Get a vector of addresses that each have different parity with respect to 
 the trap geometry defined by the Hamiltonian `H`. The result will have `2^D`
 `BoseFS` addresses for a `D`-dimensional trap. This is useful for 
-[`HOCartesianEnergyConserved`](@ref) with option `block_by_level = false`.
+[`HOCartesianContactInteractions`](@ref) with option `block_by_level = false`.
 """
-function parity_block_seed_addresses(h::HOCartesianEnergyConserved{D,A}) where {D,A}
+function parity_block_seed_addresses(h::HOCartesianContactInteractions{D,A}) where {D,A}
     P = prod(h.S)
     N = num_particles(h.addr)
     breakpoints = accumulate(*, (1, h.S[1:end-1]...))
