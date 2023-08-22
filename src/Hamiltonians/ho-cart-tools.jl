@@ -172,12 +172,10 @@ function get_all_blocks_comb(h;
 end
 
 # specialised version if `block_by_level = false`
-function get_all_blocks_parity(h::HOCartesianContactInteractions{D,A,B}) where {D,A,B}
+function get_all_blocks_parity(h::HOCartesianContactInteractions{D,<:Any,B}) where {D,B}
     # check if H blocks by level
     B && throw(ArgumentError("use `get_all_blocks` instead"))
-    # N = num_particles(A)
-    # bs_estimate = binomial(prod(H.S) ÷ 2^(D-1) + N - 1, N) ÷ 2^D
-    bs_estimate = prod(h.S) #÷ 2^D
+    bs_estimate = prod(h.S)     # rough upper bound assuming `BasisSetRep` will filter by energy cutoff
     df = DataFrame()
     for (block_id, addr) in enumerate(parity_block_seed_addresses(h))
         t = vcat(map(p -> [p.mode for _ in 1:p.occnum], OccupiedModeMap(addr))...)
