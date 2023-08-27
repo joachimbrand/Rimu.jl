@@ -29,7 +29,7 @@ Save dataframe in Arrow format.
 
 Keyword arguments are passed on to
 [`Arrow.write`](https://arrow.apache.org/julia/dev/reference/#Arrow.write). Compression is
-enabled by default for large `DataFrame`s.
+enabled by default for large `DataFrame`s (over 10,000 rows).
 
 See also [`RimuIO.load_df`](@ref).
 """
