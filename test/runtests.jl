@@ -88,6 +88,17 @@ end
         @test df == df2
 
         rm(file)
+
+        # test compression
+        r = 10_005
+        df2 = DataFrame(a = collect(1:r), b = rand(1:30,r))
+        RimuIO.save_df(file, df2)
+        compressed = filesize(file)
+        rm(file)
+        RimuIO.save_df(file, df2, compress=nothing)
+        uncompressed = filesize(file)
+        rm(file)
+        @test compressed < uncompressed
     end
     @testset "save_dvec, load_dvec" begin
         # BSON is currently broken on 1.8
