@@ -88,7 +88,7 @@ representation of this Hamiltonian is completely dense in the even-parity subspa
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
     ignored. Useful if only energy shifts due to interactions are required.
 
-See also [`HOCartesianEnergyConserved`](@ref) and[`HOCartesianEnergyConservedPerDim`](@ref).
+See also [`HOCartesianContactInteractions`](@ref) and[`HOCartesianEnergyConservedPerDim`](@ref).
 """
 struct HOCartesian2BosonRelative{
     D,  # number of dimensions

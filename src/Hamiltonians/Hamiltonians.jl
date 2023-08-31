@@ -81,7 +81,8 @@ export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 
-export HOCartesianEnergyConserved, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
+export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
+export HOCartesian2BosonRelative
 export get_all_blocks, fock_to_cart
 
 include("abstract.jl")
