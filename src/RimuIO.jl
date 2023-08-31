@@ -24,14 +24,28 @@ ArrowTypes.toarrow(a::Complex) = (a.re, a.im)
 ArrowTypes.fromarrow(::Type{Complex{T}}, t::Tuple{T,T}) where {T} = Complex{T}(t...)
 
 """
-    RimuIO.save_df(filename, df::DataFrame)
+    RimuIO.save_df(filename, df::DataFrame; kwargs...)
 Save dataframe in Arrow format.
+
+Keyword arguments are passed on to
+[`Arrow.write`](https://arrow.apache.org/julia/dev/reference/#Arrow.write). Compression is
+enabled by default for large `DataFrame`s (over 10,000 rows).
+
+See also [`RimuIO.load_df`](@ref).
 """
-save_df(filename, df::DataFrame) = Arrow.write(filename, df)
+function save_df(
+    filename, df::DataFrame;
+    compress = size(df)[1]>10_000 ? :zstd : nothing,
+    kwargs...
+)
+    Arrow.write(filename, df; compress, kwargs...)
+end
 
 """
     RimuIO.load_df(filename) -> DataFrame
 Load Arrow file into dataframe.
+
+See also [`RimuIO.save_df`](@ref).
 """
 load_df(filename) = DataFrame(Arrow.Table(filename))
 
