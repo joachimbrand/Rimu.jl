@@ -1,7 +1,9 @@
 using KrylovKit
 using LinearAlgebra
+using Random
 using Rimu
 using Test
+using DataFrames
 
 function exact_energy(ham)
     dv = DVec(starting_address(ham) => 1.0)
@@ -34,13 +36,15 @@ function test_hamiltonian_interface(H)
                 @test norm(diagonal_element(H, addr)) ≥ 0
             end
         end
-        @testset "hopping" begin
-            h = offdiagonals(H, addr)
-            @test eltype(h) == Tuple{typeof(addr), eltype(H)}
-            @test length(h) == num_offdiagonals(H, addr)
-            for i in 1:length(h)
-                @test h[i] == get_offdiagonal(H, addr, i)
-                @test h[i] isa eltype(h)
+        if !(H isa HOCartesianContactInteractions)  # offdiagonals not consistent with interface
+            @testset "hopping" begin
+                h = offdiagonals(H, addr)
+                @test eltype(h) == Tuple{typeof(addr), eltype(H)}
+                @test length(h) == num_offdiagonals(H, addr)
+                for i in 1:length(h)
+                    @test h[i] == get_offdiagonal(H, addr, i)
+                    @test h[i] isa eltype(h)
+                end
             end
         end
         @testset "LOStructure" begin
@@ -54,10 +58,80 @@ function test_hamiltonian_interface(H)
             end
         end
         @testset "dimension" begin
-            @test dimension(H) isa Int
+            @test dimension(H) ≥ dimension(H, starting_address(H))
             @test dimension(Float64, H) isa Float64
-            @test dimension(Int, H) === dimension(H)
+            @test dimension(Int, H) == dimension(H)
         end
+        @testset "allowed_address_type" begin
+            @test addr isa allowed_address_type(H)
+        end
+    end
+end
+
+using Rimu.Hamiltonians: momentum_transfer_excitation
+
+@testset "momentum_transfer_excitation" begin
+    @testset "BoseFS" begin
+        add1 = BoseFS((0,1,1,0))
+        add2 = BoseFS((1,0,0,1))
+        for i in 1:4
+            ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=true)
+            @test ex[1] == add2
+            @test ex[2] == 1
+
+            ex = momentum_transfer_excitation(add1, i, OccupiedModeMap(add1); fold=false)
+            @test ex[1] == add2
+            @test ex[2] == 1
+        end
+
+        add3 = BoseFS((1,1,0,0))
+        for i in 1:4
+            ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=true)
+            @test ex[2] == 1
+
+            ex = momentum_transfer_excitation(add3, i, OccupiedModeMap(add3); fold=false)
+            @test ex[2] == 0
+        end
+
+        add4 = BoseFS((0,3,0))
+        add5 = BoseFS((1,1,1))
+        for i in 1:2
+            ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=false)
+            @test ex[1] == add5
+            @test ex[2] ≈ √6
+
+            ex = momentum_transfer_excitation(add4, i, OccupiedModeMap(add4); fold=true)
+            @test ex[1] == add5
+            @test ex[2] ≈ √6
+        end
+    end
+    @testset "FermiFS" begin
+        add1 = FermiFS((0,0,1,0))
+        add2 = FermiFS((0,1,0,0))
+        occ1 = OccupiedModeMap(add1)
+        occ2 = OccupiedModeMap(add2)
+        for i in 1:3
+            ex = momentum_transfer_excitation(add1, add2, i, occ1, occ2; fold=true)
+            @test ex[3] == 1
+
+            ex = momentum_transfer_excitation(add1, add2, i, occ1, occ2; fold=false)
+            @test ex[3] == 1
+        end
+
+        add3 = FermiFS((1,0,0,0))
+        add4 = FermiFS((0,1,0,0))
+        occ3 = OccupiedModeMap(add3)
+        occ4 = OccupiedModeMap(add4)
+        for i in 1:3
+            ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=true)
+            @test ex[3] == 1
+        end
+        num_nonzero = 0
+        for i in 1:3
+            ex = momentum_transfer_excitation(add3, add4, i, occ3, occ4; fold=false)
+            num_nonzero += ex[3] == 1
+        end
+        @test num_nonzero == 1
     end
 end
 
@@ -84,8 +158,11 @@ end
         GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3,2,1), (1,2,3)); ua=6); g=0.3),
         GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6 + 2im); g=0.3),
 
-        MatrixHamiltonian([1 2;2 0]),
+        MatrixHamiltonian(Float64[1 2;2 0]),
         GutzwillerSampling(MatrixHamiltonian([1.0 2.0;2.0 0.0]); g=0.3),
+        Rimu.Hamiltonians.TransformUndoer(
+            GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3)
+        ),
 
         Transcorrelated1D(CompositeFS(FermiFS((0,0,1,1,0)), FermiFS((0,1,1,0,0))); t=2),
         Transcorrelated1D(CompositeFS(FermiFS((0,0,1,0)), FermiFS((0,1,1,0))); v=3, v_ho=1),
@@ -98,6 +175,9 @@ end
         TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
         Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
         momentum(HubbardMom1D(BoseFS((0,5,0)))),
+
+        HOCartesianContactInteractions(BoseFS((2,0,0,0))),
+        HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
     )
         test_hamiltonian_interface(H)
     end
@@ -182,6 +262,7 @@ end
 @testset "HubbardRealSpace" begin
     @testset "Constructor" begin
         bose = BoseFS((1, 2, 3, 4, 5, 6))
+        @test_throws MethodError HubbardRealSpace(BoseFS{10,10})
         @test_throws ArgumentError HubbardRealSpace(bose; geometry=PeriodicBoundaries(3,3))
         @test_throws ArgumentError HubbardRealSpace(
             bose; geometry=PeriodicBoundaries(3,2), t=[1, 2],
@@ -196,6 +277,10 @@ end
         )
         @test_throws ArgumentError HubbardRealSpace(
             comp; geometry=PeriodicBoundaries(3,2), t=[1, 2], u=[2 2; 2 2; 2 2],
+        )
+
+        @test_throws ArgumentError HubbardRealSpace(
+            comp; geometry=PeriodicBoundaries(3,2), v=[1 1; 1 1; 1 1],
         )
 
         @test_throws ArgumentError HubbardRealSpace(BoseFS2C((1,2,3), (3,2,1)))
@@ -325,7 +410,29 @@ end
         )
         @test exact_energy(H4) < -9
     end
+    @testset "1D trap" begin
+        H1 = HubbardReal1DEP(BoseFS((1,2,3,4)); u=2, t=3, v_ho=4)
+        H2 = HubbardRealSpace(BoseFS((1,2,3,4)); u=[2], t=[3], v=[4])
 
+        @test exact_energy(H1) ≈ exact_energy(H2)
+
+        # composite
+        add3 = CompositeFS(
+            BoseFS((1, 1, 1, 0, 0, 0)),
+            BoseFS((1, 0, 0, 0, 0, 0)),
+        )
+        H3 = HubbardRealSpace(add3, v=[1,4], u=[2 3; 3 0])
+
+        add4 = CompositeFS(
+            BoseFS((1, 0, 0, 0, 0, 0)),
+            BoseFS((1, 1, 1, 0, 0, 0)),
+        )
+        H4 = HubbardRealSpace(add4, v=[4,1], u=[0 3; 3 2])
+
+        E3 = exact_energy(H3)
+        E4 = exact_energy(H4)
+        @test E3 ≈ E4 rtol=0.0001
+    end
     @testset "2D Fermions" begin
         @testset "2 × 2" begin
             p22 = PeriodicBoundaries(2, 2)
@@ -603,12 +710,13 @@ end
     # lomc!() with AbstractMatrix
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
+    @test dim ≤ dimension(Int, starting_address(ham)) == dimension(starting_address(ham))
     bsr = BasisSetRep(ham, starting_address(ham))
     sm, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
     # run lomc! in deterministic mode with Matrix and Vector
-    a = lomc!(sm, ones(dim); threading=true).df # no actual threading is done, though
-    b = lomc!(sm, ones(dim); threading=false).df
+    a = lomc!(sm, ones(dim)).df
+    b = lomc!(sm, ones(dim)).df
     @test a.shift ≈ b.shift
     # run lomc! in deterministic mode with Hamiltonian and DVec
     v = DVec(k=>1.0 for k in basis; style=IsDeterministic()) # corresponds to `ones(dim)`
@@ -616,8 +724,8 @@ end
     @test a.shift ≈ c.shift
 
     # MatrixHamiltonian
-    @test_throws AssertionError MatrixHamiltonian([1 2 3; 4 5 6])
-    @test_throws AssertionError MatrixHamiltonian(sm, starting_address = dim+1)
+    @test_throws ArgumentError MatrixHamiltonian([1 2 3; 4 5 6])
+    @test_throws ArgumentError MatrixHamiltonian(sm, starting_address = dim+1)
     # adjoint nonhermitian
     nonhermitian = MatrixHamiltonian([1 2; 4 5])
     @test LOStructure(nonhermitian) == AdjointKnown()
@@ -637,7 +745,7 @@ end
     d = lomc!(mh, ones(dim)).df
     @test d.shift ≈ a.shift
     # integer walkernumber triggers IsStochasticInteger algorithm
-    seedCRNG!(13)
+    Random.seed!(15)
     e = lomc!(mh, ones(Int,dim)).df
     @test ≈(e.shift[end], a.shift[end], atol=0.3)
     # wrap full matrix as MatrixHamiltonian
@@ -696,27 +804,38 @@ end
 end
 
 @testset "G2RealCorrelator" begin
+    m = 6
+    n1 = 4
+    n2 = m
+    add1 = BoseFS((n1,0,0,0,0,0))
+    add2 = near_uniform(BoseFS{n2,m})
+
     # localised state
-    n = m = 6
-    add = BoseFS((0,0,n,0,0,0))
-    @test num_offdiagonals(G2RealCorrelator(1), add) == 0
-    v = DVec(add => 1)
-    @test dot(v, G2RealCorrelator(0), v) == n*(n-1)/m
-    @test dot(v, G2RealCorrelator(m), v) == n*(n-1)/m
-    for d in 1:m-1
-        @test dot(v, G2RealCorrelator(d), v) == 0.
-    end
+    @test diagonal_element(G2RealCorrelator(0), add1) == n1 * (n1 - 1) / m
+    @test diagonal_element(G2RealCorrelator(1), add1) == 0.
 
     # constant density state
-    add = near_uniform(BoseFS{n,m})
-    @test num_offdiagonals(G2RealCorrelator(1), add) == 0
-    v = DVec(add => 1)
-    @test dot(v, G2RealCorrelator(0), v) == 0.
-    @test dot(v, G2RealCorrelator(m), v) == 0.
-    for d in 1:m-1
-        @test dot(v, G2RealCorrelator(d), v) == 1.
-    end
+    @test diagonal_element(G2RealCorrelator(0), add2) == (n2/m) * ((n2/m) - 1)
+    @test diagonal_element(G2RealCorrelator(1), add2) == (n2/m)^2
 
+    # local-local
+    comp = CompositeFS(add1,add1)
+    @test diagonal_element(G2RealCorrelator(0), comp) == 2n1 * (2n1 - 1) / m
+    @test diagonal_element(G2RealCorrelator(1), comp) == 0.
+
+    # local-uniform (assuming unit filling)
+    comp = CompositeFS(add1,add2)
+    @test diagonal_element(G2RealCorrelator(0), comp) == (n1 + 1) * n1 / m
+    @test diagonal_element(G2RealCorrelator(1), comp) == (2 * (n1 + 1) + (m - 2)) / m
+
+    # uniform-uniform
+    comp = CompositeFS(add2,add2)
+    @test diagonal_element(G2RealCorrelator(0), comp) == (2n2 / m) * (2 * (n2 / m) - 1)
+    @test diagonal_element(G2RealCorrelator(1), comp) == (2n2 / m)^2
+
+    # offdiagonals
+    @test num_offdiagonals(G2RealCorrelator(0), add1) == 0
+    @test num_offdiagonals(G2RealCorrelator(0), comp) == 0
 end
 
 @testset "Momentum" begin
@@ -934,6 +1053,8 @@ end
         odd_m = Matrix(odd)
 
         @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "2-particle HubbardMom1DEP" begin
         ham = HubbardMom1DEP(BoseFS((0,0,1,1,0)))
@@ -967,6 +1088,8 @@ end
 
         @test size(ham_m, 1) == size(even_m, 1) + size(odd_m, 1)
         @test sort(real.(vcat(eigvals(even_m), eigvals(odd_m)))) ≈ real.(eigvals(ham_m))
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "Even Hamiltonian" begin
         # This Hamiltonian only has even addresses.
@@ -977,6 +1100,7 @@ end
         even_m = Matrix(even_b)
 
         @test ham_m == even_m
+        @test issymmetric(even_m)
     end
 end
 
@@ -987,6 +1111,7 @@ end
         TimeReversalSymmetry(HubbardRealSpace(CompositeFS(FermiFS((1, 1)),BoseFS((2,1)))))
     end
     @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)));odd=true)
+    @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(1,0,1)); u=2+3im))
 
     @testset "HubbardMom1D" begin
         ham = HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))
@@ -998,6 +1123,8 @@ end
         odd_m = Matrix(odd)
 
         @test sort(vcat(eigvals(even_m), eigvals(odd_m))) ≈ eigvals(ham_m)
+        @test issymmetric(even_m)
+        @test issymmetric(odd_m)
     end
     @testset "2-particle BoseHubbardMom1D2C" begin
         ham = BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))
@@ -1010,9 +1137,9 @@ end
         @test starting_address(even) == time_reverse(starting_address(ham))
         @test h_eigs ≈ p_eigs
 
-        @test ishermitian(Matrix(odd))
-        @test ishermitian(Matrix(even)) == false
-        @test LOStructure(odd) isa AdjointUnknown
+        @test issymmetric(Matrix(odd))
+        @test issymmetric(Matrix(even))
+        @test LOStructure(odd) isa IsHermitian
     end
 
 end
@@ -1035,22 +1162,40 @@ end
         @test sparse(bsr) == bsr.sm == sparse(ham)
         addr2 = bsr.basis[2]
         @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
+        @test isreal(ham) == (eltype(ham) <: Real)
+        @test isdiag(ham) == (LOStructure(ham) ≡ IsDiagonal())
+        @test ishermitian(ham) == (LOStructure(ham) ≡ IsHermitian())
+        @test issymmetric(ham) == (ishermitian(ham) && isreal(ham))
     end
 
     @testset "filtering" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        @test_throws ArgumentError BasisSetRep(ham; cutoff=19) # starting address cut off
-        mat_orig = Matrix(ham; sort=true)
+        bsr_orig = BasisSetRep(ham; sort=true)
+        mat_orig = Matrix(bsr_orig)
         mat_cut_index = diag(mat_orig) .< 30
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-        mat_cut = Matrix(ham; cutoff=30, sort=true)
+        bsr = BasisSetRep(ham; cutoff=30, sort=true)
+        mat_cut = Matrix(bsr)
         @test mat_cut == mat_cut_manual
+        # pass a basis and generate truncated BasisSetRep
+        bsrt = BasisSetRep(ham, bsr.basis; filter= Returns(false), sort=true)
+        @test bsrt.basis == bsr.basis
+        @test bsr.sm == bsrt.sm
+        # pass addresses and generate reachable basis
+        @test BasisSetRep(ham, bsr.basis, sort=true).basis == bsr_orig.basis
 
         filterfun(fs) = maximum(onr(fs)) < 8
         mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
         mat_cut = Matrix(ham; filter=filterfun, sort=true)
         @test mat_cut == mat_cut_manual
+    end
+
+    @testset "getindex" begin
+        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
+        bsr = BasisSetRep(ham; sort=true)
+        b = bsr.basis
+        @test [ham[i, j] for i in b, j in b] == Matrix(bsr)
     end
 
     @testset "momentum blocking" begin
@@ -1068,6 +1213,62 @@ end
         @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
         @test Matrix(ham, add1) ≠ Matrix(ham, add2)
     end
+
+    using Rimu.Hamiltonians: fix_approx_hermitian!, isapprox_enforce_hermitian!
+    using Rimu.Hamiltonians: build_sparse_matrix_from_LO
+    using Random
+    @testset "fix_approx_hermitian!" begin
+        # generic `Matrix`
+        Random.seed!(17)
+        mat = rand(5,5)
+        @test !ishermitian(mat)
+        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
+        @test !ishermitian(mat) # still not hermitian
+        fix_approx_hermitian!(mat; test_approx_symmetry=false)
+        @test ishermitian(mat) # now it is hermitian
+
+        # sparse matrix
+        Random.seed!(17)
+        mat = sparse(rand(5,5))
+        @test !ishermitian(mat)
+        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
+        @test !ishermitian(mat) # still not hermitian
+
+        # subtle symmetry violation due to `ParitySymmetry` wrapper
+        ham = HubbardMom1D(BoseFS((1, 0, 1, 2, 0)))
+        even = ParitySymmetry(ham; odd=false)
+        odd = ParitySymmetry(ham; even=false)
+
+        even_sm, _ = build_sparse_matrix_from_LO(even)
+        even_m = Matrix(even) # symmetrised version via BasisSetRep
+
+        @test !issymmetric(even_sm) # not symmetric due to floating point errors
+        @test issymmetric(even_m) # because it was passed through `fix_approx_hermitian!`
+        @test even_sm ≈ even_m # still approximately the same!
+    end
+
+    @testset "basis-only" begin
+        m = 5
+        n = 5
+        add = near_uniform(BoseFS{n,m})
+        ham = HubbardReal1D(add)
+        @test_throws ArgumentError build_basis(ham, BoseFS((1,2,3))) # wrong address type
+        # same basis as BSR
+        bsr = BasisSetRep(ham)
+        basis = build_basis(ham)
+        @test basis == bsr.basis
+        @test basis == build_basis(ham, basis) # passing multiple addresses
+        # sorting
+        basis = build_basis(ham, add; sort = true)
+        @test basis == sort!(bsr.basis)
+        # filtering
+        @test_throws ArgumentError build_basis(ham, add; sizelim = 100)
+        @test length(build_basis(ham, add; cutoff = -1)) == 1 # no new addresses added
+        cutoff = n * (n-1) / 4  # half maximum energy
+        bsr = BasisSetRep(ham, add; cutoff)
+        basis = build_basis(ham, add; cutoff)
+        @test basis == bsr.basis
+    end
 end
 
 @testset "Stoquastic" begin
@@ -1078,4 +1279,201 @@ end
     tc_ham = Transcorrelated1D(FermiFS2C((1,1,0),(1,0,1)))
     @test LOStructure(Stoquastic(tc_ham)) == AdjointUnknown()
     @test LOStructure(Stoquastic(G2RealCorrelator(2))) == IsDiagonal()
+end
+
+@testset "Harmonic oscillator in Cartesian basis" begin
+    @testset "HOCartesianContactInteractions" begin
+        # argument checks
+        @test_throws ArgumentError HOCartesianContactInteractions(BoseFS(4, 1=>1); S = (5,))
+        @test_throws ArgumentError HOCartesianContactInteractions(BoseFS(4, 1=>1); S = (4,), η = (2,3))
+
+        N = 3
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesianContactInteractions(addr; S)
+        E0 = Hamiltonians.noninteracting_energy(H, addr)
+        @test N*D/2 == E0
+        @test diagonal_element(H, BoseFS(prod(S), (1,2,3) .=> 1)) ≈ 6.4177817256162255
+
+        block_df = get_all_blocks(H, max_energy = E0 + M)
+        @test length(block_df[:,:block_E0]) == 9
+        @test Int.(block_df[:,:block_E0]) == [3,4,5,6,7,4,5,6,7]
+        @test block_df[:,:block_size] == [1,1,4,7,16,1,2,7,12]
+
+        # interaction matrix elements
+        @test count(H.vtable .== 0) == 312
+        @test sum(H.vtable) ≈ 11.220010295489221
+
+        # offdiagonals interface
+        @test num_offdiagonals(H, addr) == dimension(H) - 1
+
+        h = offdiagonals(H, addr)
+        @test Base.eltype(h) == Tuple{typeof(addr),eltype(H)}
+        @test Base.IteratorSize(h) == Base.SizeUnknown()
+        @test_throws ErrorException getindex(h,1)
+        @test_throws ErrorException size(h)
+        @test_throws ErrorException length(h)
+
+        next_state = (1,1,3)
+        @test iterate(h) == ((addr,0.0), next_state)
+        @test isnothing(iterate(h, next_state))
+
+        # block_by_level = false
+        H = HOCartesianContactInteractions(addr; S, block_by_level = false)
+        all_offs = collect(offdiagonals(H, addr))
+        @test length(all_offs) == 169
+        @test sum(o -> o[2], all_offs) ≈ 0.3151984121740107
+
+        # aspect ratio
+        S = (4,2,2)
+        addr = BoseFS(prod(S), 1 => 1)
+        H = HOCartesianContactInteractions(addr; S)
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,3.0,3.0)
+        H = HOCartesianContactInteractions(addr; S, η = (1,2,3))
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,2.0,3.0)
+        H = HOCartesianContactInteractions(addr; S, η = 2)
+        @test H.aspect == (1,3,3)
+        @test H.aspect1 == (1.0,2.0,2.0)
+
+        S = (4,4)
+        H = HOCartesianContactInteractions(addr; S)
+        b1 = Hamiltonians.find_Ebounds(3, 2, S, Hamiltonians.box_to_aspect(S))
+        b2 = Hamiltonians.find_Ebounds(3, 2, S, H.aspect)
+        @test b1 == b2
+        @test !(b1 === b2)
+
+        @test eval(Meta.parse(repr(H))) == H
+    end
+
+    @testset "HOCartesianEnergyConservedPerDim" begin
+        # argument checks
+        # @test_logs (:warn,) HOCartesianEnergyConservedPerDim(BoseFS(12, 1=>1); S = (3,4))
+        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (5,))
+        @test_throws ArgumentError HOCartesianEnergyConservedPerDim(BoseFS(4, 1=>1); S = (4,), η = (2,3))
+
+        N = 3
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
+        E0 = Hamiltonians.noninteracting_energy(H, addr)
+        @test N*D/2 == E0
+
+        block_df = get_all_blocks(H, max_energy = E0 + M)
+        @test length(block_df[:,:block_E0]) == 15
+        @test Int.(block_df[:,:block_E0]) == [3,4,5,6,7,4,5,6,7,5,6,7,6,7,7]
+        @test block_df[:,:block_size] == [1,1,2,3,4,1,2,4,6,2,4,8,3,6,4]
+
+        # interaction matrix elements
+        @test count(H.vtable .== 0) == 70
+        @test sum(H.vtable) ≈ 2 * 3.3630246382916664
+
+        # aspect ratio
+        S = (4,2,2)
+        addr = BoseFS(prod(S), 1 => 1)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
+        @test H.aspect1 == (1.0,3.0,3.0)
+        H = HOCartesianEnergyConservedPerDim(addr; S, η = (1,2,3))
+        @test H.aspect1 == (1.0,2.0,3.0)
+        H = HOCartesianEnergyConservedPerDim(addr; S, η = 2)
+        @test H.aspect1 == (1.0,2.0,2.0)
+
+        @test eval(Meta.parse(repr(H))) == H
+    end
+
+    @testset "Angular momentum" begin
+        @test_throws ArgumentError AxialAngularMomentumHO((2,); addr = BoseFS(2))
+        @test_throws ArgumentError AxialAngularMomentumHO((1,2,3); addr = BoseFS(6))
+
+        S = (3,3,3)
+        addr = BoseFS(prod(S), 3 => 2)
+
+        Lz = AxialAngularMomentumHO(S; addr)
+        Ly = AxialAngularMomentumHO(S; z_dim=2, addr)
+        Lx = AxialAngularMomentumHO(S; z_dim=1, addr)
+        
+        Lz_vals = eigvals(Matrix(BasisSetRep(Lz)))
+        Ly_vals = eigvals(Matrix(BasisSetRep(Ly)))
+        Lx_vals = eigvals(Matrix(BasisSetRep(Lx)))
+
+        expected = [-4, -2, 0, 0, 2, 4]
+        @test Lz_vals ≈ expected
+        @test Ly_vals ≈ expected
+        @test Lx_vals == [0.0]  # initial state is excited purely in x dimension
+    end
+
+    @testset "find blocks" begin
+        N = 2
+        D = 2
+        M = 4
+        S = ntuple(_ -> M + 1, D)
+        addr = BoseFS(prod(S), 1 => N)
+        H = HOCartesianEnergyConservedPerDim(addr; S)
+        block_df_vert = get_all_blocks(H; max_energy = N*D/2 + M, method = :vertices)
+        block_df_comb = get_all_blocks(H; max_energy = N*D/2 + M, method = :comb)
+
+        # different methods find the same blocks but with different key addresses
+        vert_blocks = block_df_vert[!,[:block_E0,:block_size]]
+        comb_blocks = block_df_comb[!,[:block_E0,:block_size]]
+        @test vert_blocks == comb_blocks
+
+        @test nrow(get_all_blocks(H, max_blocks = 5)) == 5
+        @test nrow(get_all_blocks(H, max_blocks = 5, method = :comb)) == 5
+
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; target_energy = 100)
+        ) == 0
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; max_energy = 1)
+        ) == 0
+        @test nrow(
+            @test_logs (:warn,) get_all_blocks(H; max_energy = 3, target_energy = 4)
+        ) == 0
+
+        df = get_all_blocks(H; save_to_file = "test_block_df.arrow")
+        df_file = load_df("test_block_df.arrow")
+        @test df[!,[1,2,3,5]] == df_file[!,[1,2,3,5]]
+        
+        # HOCartesianContactInteractions requires a valid energy restriction 
+        @test_throws ArgumentError get_all_blocks(HOCartesianContactInteractions(addr; S))
+
+        # block_by_level = false
+        H = HOCartesianContactInteractions(addr; S, block_by_level = false)
+        df = get_all_blocks(H)
+        @test nrow(df) == 2^D
+    end
+
+    @testset "vertices" begin
+        n = 3
+        for k in 0:n
+            @test Hamiltonians._binomial(n, Val(k)) == Base.binomial(n, k)
+        end
+
+        @test_throws OverflowError Hamiltonians._first_vertex(n, Val(0))
+        @test Hamiltonians._first_vertex(n, Val(1), 0, 0) == n
+
+        @test Hamiltonians.vertices(1, Val(3)) == (3,2,1)
+        @test Hamiltonians.vertices(10, Val(3)) == (5,4,3)
+        @test Hamiltonians.vertices(n, Val(1)) == (n,)
+
+        @test Hamiltonians.index((3,2,1)) == 1
+        @test Hamiltonians.index((5,4,3)) == 10
+    end    
+
+    @testset "HO utilities" begin
+        S = (4,4)
+        @test_throws ArgumentError fock_to_cart(BoseFS(1, 1 => 1), S)
+        modes = [5, 5, 16]
+        addr = BoseFS(prod(S), modes .=> 1)
+        @test fock_to_cart(addr, S) == [(0, 1), (0, 1), (3, 3)]
+        @test fock_to_cart(addr, S; zero_index = false) == [(1, 2), (1, 2), (4, 4)]
+
+        null_addr = BoseFS(prod(S),)
+        @test isempty(fock_to_cart(null_addr, S))
+    end
 end

@@ -4,29 +4,20 @@ using Rimu.RMPI
 using Rimu.RMPI: sort_and_count!
 using Test
 
-@testset "RNG independence" begin
-    m = n = 6
-    add = near_uniform(BoseFS{n,m})
-    svec = DVec(add => 2)
-    dv = MPIData(svec)
-    @test ConsistentRNG.check_crng_independence(dv) ==
-        mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)
-end
-
 @testset "DistributeStrategies" begin
     # `DistributeStrategy`s
-    ham = HubbardReal1D(BoseFS((1,2,3)))
+    ham = HubbardReal1D(BoseFS((1, 2, 3)))
     for setup in [RMPI.mpi_no_exchange, RMPI.mpi_all_to_all, RMPI.mpi_point_to_point]
-        dv = DVec(starting_address(ham)=>10; style=IsDynamicSemistochastic())
+        dv = DVec(starting_address(ham) => 10; style=IsDynamicSemistochastic())
         v = MPIData(dv; setup)
         df, state = lomc!(ham,v)
-        @test size(df) == (100, 12)
+        @test size(df) == (100, 11)
     end
     # need to do mpi_one_sided separately
     dv = DVec(starting_address(ham)=>10; style=IsDynamicSemistochastic())
     v = RMPI.mpi_one_sided(dv; capacity = 1000)
     df, state = lomc!(ham,v)
-    @test size(df) == (100, 12)
+    @test size(df) == (100, 11)
 end
 
 @testset "sort_and_count!" begin
@@ -38,13 +29,13 @@ end
                 counts = zeros(Int, k)
                 displs = zeros(Int, k)
 
-                RMPI.sort_and_count!(counts, displs, vals, ordfun.(vals), (0, k-1))
+                RMPI.sort_and_count!(counts, displs, vals, ordfun.(vals), (0, k - 1))
                 @test issorted(vals, by=ordfun)
                 @test sum(counts) == l
 
-                for i in 0:(k - 1)
-                    c = counts[i + 1]
-                    d = displs[i + 1]
+                for i in 0:(k-1)
+                    c = counts[i+1]
+                    d = displs[i+1]
                     r = (1:c) .+ d
                     ords = ordfun.(vals)
                     @test all(ords[r] .== i)
@@ -88,7 +79,7 @@ end
     @testset "dot" begin
         @test dot(dv1, dv2) == 0
         @test dot(dv1, dv1) == dot(localpart(dv1), dv1)
-        rand_ham = MatrixHamiltonian(rand(ComplexF64, 4,4))
+        rand_ham = MatrixHamiltonian(rand(ComplexF64, 4, 4))
         ldv1 = localpart(dv1)
         @test norm(dot(dv1, rand_ham, dv1)) ≈ norm(dot(ldv1, rand_ham, ldv1))
     end

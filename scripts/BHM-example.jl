@@ -3,7 +3,7 @@
 # This is an example calculation finding the ground state of
 # a 1D Bose-Hubbard chain with 6 particles in 6 lattice sites.
 
-# A runnable script for this example is located 
+# A runnable script for this example is located
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example.jl).
 # Run it with `julia BHM-example.jl`.
 
@@ -11,6 +11,7 @@
 # `Rimu` for FCIQMC calculation;
 
 using Rimu
+using Random
 
 # Now we define the physical problem:
 # Setting the number of lattice sites `m = 6`;
@@ -47,7 +48,7 @@ reporting_interval = 1
 # Putting one of walkers into the initial address `aIni`
 svec = DVec(aIni => 1)
 # Let's plant a seed for the random number generator to get consistent result:
-seedCRNG!(17)
+Random.seed!(17)
 
 # Now let's setup all the FCIQMC strategies.
 
@@ -79,8 +80,7 @@ df, state = lomc!(Ĥ,svec;
             r_strat,
             τ_strat,
             post_step,
-            threading = false, # only for reproducible runs
-)
+);
 
 # Here is how to save the output data stored in `df` into a `.arrow` file,
 # which can be read in later:
@@ -105,4 +105,9 @@ println("Energy from $steps_measure steps with $targetwalkers walkers:
          Shift: $(se.mean) ± $(se.err);
          Projected Energy: $(v.val) ± ($(v.val_l), $(v.val_u))")
 
-# Finished !
+# Finished!
+
+using Test                                      #hide
+@test isfile("fciqmcdata.arrow")                #hide
+@test se.mean ≈ -4.0215 rtol=0.1                #hide
+rm("fciqmcdata.arrow", force=true)              #hide

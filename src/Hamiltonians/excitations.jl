@@ -27,8 +27,7 @@ See [`excitation`](@ref), [`OccupiedModeMap`](@ref).
     add::BoseFS, chosen, map::OccupiedModeMap; fold=true
 )
     M = num_modes(add)
-    singlies = length(map)
-    doublies = count(i -> i.occnum ≥ 2, map)
+    singlies = length(map) # number of at least singly occupied modes
 
     double = chosen - singlies * (singlies - 1) * (M - 2)
 
@@ -55,19 +54,26 @@ See [`excitation`](@ref), [`OccupiedModeMap`](@ref).
             f_hole = fst
             s_hole = snd + 1 # as we are counting through all singlies
         end
-        src_indices = getindex.(Ref(map), (f_hole, s_hole))
-        f_mode, s_mode = src_indices[1].mode, src_indices[2].mode
+        src_indices = (map[f_hole], map[s_hole])
+        f_mode = src_indices[1].mode
+        s_mode = src_indices[2].mode
         if mom_change ≥ s_mode - f_mode
             mom_change += 1 # to avoid putting particles back into the holes
         end
     end
     # For higher dimensions, replace mod1 here with some geometry.
-    src_modes = getproperty.(src_indices, :mode)
-    dst_modes = src_modes .+ (mom_change, -mom_change)
+    src_modes = (src_indices[1].mode, src_indices[2].mode)
+    dst_modes = (src_modes[1] + mom_change, src_modes[2] - mom_change)
     if fold
-        dst_modes = mod1.(dst_modes, M)
-    elseif !all(1 .≤ dst_modes .≤ M)
-        return add, 0.0, src_modes..., -mom_change
+        dst_modes = (mod1(dst_modes[1], M), mod1(dst_modes[2], M))
+    elseif !(1 ≤ dst_modes[1] ≤ M && 1 ≤ dst_modes[2] ≤ M)
+        # Using a positive momentum change would have folded, so we try to use its negative
+        # equivalent.
+        mom_change = mom_change - M
+        dst_modes = (src_modes[1] + mom_change, src_modes[2] - mom_change)
+        if !(1 ≤ dst_modes[1] ≤ M && 1 ≤ dst_modes[2] ≤ M)
+            return add, 0.0, src_modes..., -mom_change
+        end
     end
     dst_indices = find_mode(add, dst_modes)
     return excitation(add, dst_indices, src_indices)..., src_modes..., -mom_change
@@ -195,7 +201,7 @@ function transcorrelated_three_body_excitation(add_a, add_b, i, map_a, map_b)
         return add_a, add_b, 0.0, k,l
     end
     p_k_index, q_l_index = find_mode(add_a, (p_k, q_l))
-    s_kl_index = find_mode(add_a, s_kl)
+    s_kl_index = find_mode(add_b, s_kl)
     new_add_a, val1 = excitation(add_a, (p_k_index, q_l_index), (q_index, p_index))
     new_add_b, val2 = excitation(add_b, (s_kl_index,), (s_index,))
 

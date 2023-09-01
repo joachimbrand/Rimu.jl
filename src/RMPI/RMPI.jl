@@ -10,21 +10,19 @@ module RMPI
 import MPI
 using Rimu
 using LinearAlgebra
-using Rimu.ConsistentRNG
 using Random
 using StaticArrays
+using VectorInterface
 
-import Rimu: sort_into_targets!
+import ..Interfaces: sort_into_targets!
 
 export MPIData
 export mpi_rank, is_mpi_root, @mpi_root, mpi_barrier
-export mpi_comm, mpi_root, mpi_size, mpi_seed_CRNGs!, mpi_allprintln
+export mpi_comm, mpi_root, mpi_size, mpi_seed!, mpi_allprintln
 
 function __init__()
     # Initialise the MPI library once at runtime.
     MPI.Initialized() || MPI.Init()
-    # make sure that MPI ranks have independent random numbers
-    mpi_seed_CRNGs!()
 end
 
 const mpi_registry = Dict{Int,Any}()
@@ -33,6 +31,7 @@ const mpi_registry = Dict{Int,Any}()
 abstract type DistributeStrategy end
 
 include("mpidata.jl")
+include("multiscalar.jl")
 include("helpers.jl")
 include("noexchange.jl")
 include("pointtopoint.jl")

@@ -85,73 +85,23 @@ function mpi_combine_walkers!(dtarget::MPIData, source::AbstractDVec)
     mpi_combine_walkers!(ltarget, storage(source), strategy)
 end
 
-# This function is just a wrapper that makes allreduce treat a SVector as a scalar
-function Rimu.sort_into_targets!(dtarget::MPIData, ws::NTuple{NT,W}, statss) where {NT,W}
-    # multi-threaded MPI version
-    # should only ever run on thread 1
-    @assert Threads.threadid() == 1 "`sort_into_targets!()` is running on `threadid()` == $(Threads.threadid()) instead of 1!"
-    lwm = ws[1]
-    for i in 2:NT # combine new walkers generated from different threads
-        add!(lwm, ws[i])
-    end
-    mpi_combine_walkers!(dtarget,lwm) # combine walkers from different MPI ranks
-    stats = Rimu.combine_stats(statss) # combine stats from all threads
-    res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
-    return dtarget, ws, res_stats
-end
-function Rimu.sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
+function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
     # single threaded MPI version
-    mpi_combine_walkers!(dtarget,w) # combine walkers from different MPI ranks
+    mpi_combine_walkers!(dtarget, w) # combine walkers from different MPI ranks
     res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
     return dtarget, w, res_stats
 end
 
 """
-    ConsistentRNG.sync_cRandn(md::MPIData)
-Generate one random number with [`cRandn()`](@ref) in a synchronous way such
-that all MPI ranks have the same random number.
-The argument is ignored unless it is of type `MPIData`, in which case a random
-number from the root rank is broadcasted to all MPI ranks. MPI syncronizing.
-"""
-function ConsistentRNG.sync_cRandn(md::MPIData)
-    MPI.bcast(cRandn(), md.root, md.comm)
-end
-
-"""
-    ConsistentRNGs.check_crng_independence(dv::MPIData)
-Does a sanity check to detect dependence of random number generators across
-all MPI ranks. Returns the size of the combined RNG state,
-i.e. `mpi_size()*Threads.nthreads()*fieldcount(ConsistentRNG.CRNG)`.
-MPI syncronizing.
-"""
-ConsistentRNG.check_crng_independence(dv::MPIData) = _check_crng_independence(dv.comm)
-
-function _check_crng_independence(comm::MPI.Comm) # MPI syncronizing
-    # get vector of threaded RNGs on this rank
-    crngs = ConsistentRNG.CRNGs[]
-    # extract the numbers that make up the state of the RNGs and package into
-    # an MPI-suitable buffer
-    statebuffer = [getfield(rng,i) for rng in crngs for i in 1:fieldcount(typeof(rng))]
-    # gather from all ranks
-    combined_statebuffer = MPI.Allgather(statebuffer, comm)  # MPI syncronizing
-    # check independence
-    @mpi_root @assert union(combined_statebuffer) == combined_statebuffer "Dependency in parallel rngs detected"
-
-    @assert length(ConsistentRNG.CRNGs[]) == Threads.nthreads() "Number of CNRGs should be equal to nthreads()"
-    return length(combined_statebuffer)
-end
-
-"""
-    mpi_seed_CRNGs!(seed = rand(Random.RandomDevice(), UInt))
+    mpi_seed!(seed = rand(Random.RandomDevice(), UInt))
 Re-seed the random number generators in an MPI-safe way. If seed is provided,
-the random numbers from [`cRand()`](@ref) will follow a deterministic sequence.
+the random numbers from `rand` will follow a deterministic sequence.
 
 Independence of the random number generators on different MPI ranks is achieved
 by adding `hash(mpi_rank())` to `seed`.
 """
-function mpi_seed_CRNGs!(seed = rand(Random.RandomDevice(), UInt))
-    rngs = seedCRNG!(seed + hash(mpi_rank()))
-    _check_crng_independence(mpi_comm())
+function mpi_seed!(seed = rand(Random.RandomDevice(), UInt))
+    rngs = Random.seed!(seed + hash(mpi_rank()))
     return rngs
 end
 
@@ -160,6 +110,7 @@ end
 Print a message to `stdout` from each rank separately, in order. MPI synchronizing.
 """
 function mpi_allprintln(args...)
+    mpi_barrier()
     for i in 0:(mpi_size() - 1)
         if mpi_rank() == i
             println("[ rank ", lpad(i, length(string(mpi_size() - 1))), ": ", args...)

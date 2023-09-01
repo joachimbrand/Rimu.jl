@@ -5,12 +5,12 @@
     AbstractHamiltonian{T}
 
 Supertype that provides an interface for linear operators over a linear space with scalar
-type `T` that are suitable for FCIQMC (with [`lomc!`](@ref Main.lomc!)). Indexing is done 
-with addresses (typically not integers) from an address space that may be large (and will 
+type `T` that are suitable for FCIQMC (with [`lomc!`](@ref Main.lomc!)). Indexing is done
+with addresses (typically not integers) from an address space that may be large (and will
 not need to be completely generated).
 
 `AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) from the
-module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress) 
+module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress)
 from the module `BitStringAddresses`. The type works well with the external package
 [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
 
@@ -28,8 +28,10 @@ Methods that need to be implemented:
 Optional methods to implement:
 
 * [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
-* [`dimension(::Type{T}, ::AbstractHamiltonian)`](@ref Main.Hamiltonians.dimension): defaults to dimension of address
-  space
+* [`dimension(::AbstractHamiltonian, addr)`](@ref Main.Hamiltonians.dimension): defaults to
+  dimension of address space
+* [`allowed_address_type(h::AbstractHamiltonian)`](@ref): defaults to
+  `typeof(starting_address(h))`
 * [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
 Provides:
@@ -49,6 +51,16 @@ See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref).
 abstract type AbstractHamiltonian{T} end
 
 Base.eltype(::AbstractHamiltonian{T}) where {T} = T
+
+"""
+    allowed_address_type(h::AbstractHamiltonian)
+Return the type of addresses that can be used with Hamiltonian `h`. Part of the
+[`AbstractHamiltonian`](@ref) interface. Defaults to `typeof(starting_address(h))`.
+
+Overload this function if the Hamiltonian can be used with addresses of different types.
+"""
+allowed_address_type(h::AbstractHamiltonian) = typeof(starting_address(h))
+allowed_address_type(::AbstractMatrix) = Integer
 
 """
     diagonal_element(ham, add)
@@ -155,16 +167,16 @@ julia> H = HubbardReal1D(addr);
 
 julia> h = offdiagonals(H, addr)
 6-element Rimu.Hamiltonians.Offdiagonals{BoseFS{6, 3, BitString{8, 1, UInt8}}, Float64, HubbardReal1D{Float64, BoseFS{6, 3, BitString{8, 1, UInt8}}, 1.0, 1.0}}:
- (BoseFS{6,3}((2, 3, 1)), -3.0)
- (BoseFS{6,3}((2, 2, 2)), -2.449489742783178)
- (BoseFS{6,3}((3, 1, 2)), -2.0)
- (BoseFS{6,3}((4, 1, 1)), -2.8284271247461903)
- (BoseFS{6,3}((4, 2, 0)), -2.0)
- (BoseFS{6,3}((3, 3, 0)), -1.7320508075688772)
+ (fs"|2 3 1⟩", -3.0)
+ (fs"|2 2 2⟩", -2.449489742783178)
+ (fs"|3 1 2⟩", -2.0)
+ (fs"|4 1 1⟩", -2.8284271247461903)
+ (fs"|4 2 0⟩", -2.0)
+ (fs"|3 3 0⟩", -1.7320508075688772)
 ```
 """
 function offdiagonals(m::AbstractMatrix, i)
-    pairs = map(=>, axes(m, 1), view(m, :, i))
+    pairs = collect(zip(axes(m, 1), view(m, :, i)))
     return filter!(pairs) do ((k, v))
         k ≠ i && v ≠ 0
     end
@@ -181,7 +193,7 @@ by `ham`. Alternatively, pass as argument an iterator over the accessible matrix
 """
 function random_offdiagonal(offdiagonals::AbstractVector)
     nl = length(offdiagonals) # check how many sites we could get_offdiagonal to
-    chosen = cRand(1:nl) # choose one of them
+    chosen = rand(1:nl) # choose one of them
     naddress, melem = offdiagonals[chosen]
     return naddress, 1.0/nl, melem
 end

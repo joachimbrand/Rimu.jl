@@ -8,7 +8,6 @@ using Test
 
 using Rimu.RMPI
 using Rimu.StatsTools
-using Rimu.ConsistentRNG
 using Rimu.RMPI: targetrank, mpi_synchronize!
 
 const N_REPEATS = 5
@@ -36,6 +35,8 @@ function correct_ranks(md)
         targetrank(k, mpi_size()) == mpi_rank()
     end
 end
+
+mpi_allprintln("hello")
 
 # Ignore all printing on ranks other than root.
 if mpi_rank() != mpi_root
@@ -70,7 +71,7 @@ end
             end
             @testset "Single component $type" begin
                 for i in 1:N_REPEATS
-                    add = BoseFS((0,0,10,0,0))
+                    add = BoseFS((0, 0, 10, 0, 0))
                     H = HubbardMom1D(add)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
@@ -97,7 +98,7 @@ end
                         @test sum(values(v)) ≈ sum(values(dv))
                         f((k, v)) = (k == add) + v > 0
                         @test mapreduce(f, |, pairs(v); init=true) ==
-                            mapreduce(f, |, pairs(dv); init=true)
+                              mapreduce(f, |, pairs(dv); init=true)
                     end
 
                     @testset "Operations" begin
@@ -126,7 +127,7 @@ end
             end
             @testset "Two-component $type" begin
                 for i in 1:N_REPEATS
-                    add = BoseFS2C((0,0,10,0,0), (0,0,2,0,0))
+                    add = BoseFS2C((0, 0, 10, 0, 0), (0, 0, 2, 0, 0))
                     H = BoseHubbardMom1D2C(add)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
@@ -145,8 +146,8 @@ end
 
                         @test dot(v, H, w) ≈ dot(v, H, dw)
                         @test dot(w, H, v) ≈ dot(w, H, dv)
-                        G1 = G2Correlator(1)
-                        G3 = G2Correlator(3)
+                        G1 = G2MomCorrelator(1)
+                        G3 = G2MomCorrelator(3)
                         @test dot(v, G1, w) ≈ dot(v, G1, dw)
                         @test dot(w, G3, v) ≈ dot(w, G3, dv)
                         @test dot(w, G3, v) ≈ dot(dw, G3, v)
@@ -185,27 +186,38 @@ end
                     (; setup=RMPI.mpi_one_sided, capacity=10_000),
                     (; setup=RMPI.mpi_all_to_all),
                 )) do kw
-                    Random.seed!(2021 * hash(mpi_rank()) * i)
-                    source = DVec([BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10_000])
+                    mpi_seed!(i)
+                    source = DVec(
+                        [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10_000]
+                    )
                     target = MPIData(similar(source); kw...)
                     RMPI.mpi_combine_walkers!(target, source)
+                    #@test norm(source) ≈ norm(target)
                     return target
                 end
 
                 for v in sorted
                     @test correct_ranks(v)
                 end
-                @test localpart(sorted[1]) == localpart(sorted[2])
-                @test localpart(sorted[2]) == localpart(sorted[3])
+
+                ptp_pairs = sort(collect(pairs(localpart(sorted[1]))))
+                os_pairs = sort(collect(pairs(localpart(sorted[3]))))
+                ata_pairs = sort(collect(pairs(localpart(sorted[2]))))
+
+                @test first.(ptp_pairs) == first.(os_pairs)
+                @test first.(ata_pairs) == first.(os_pairs)
+
+                @test last.(ptp_pairs) ≈ last.(os_pairs)
+                @test last.(ata_pairs) ≈ last.(os_pairs)
             end
         end
     end
 
     @testset "Ground state energy estimates" begin
         # H1 = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
-        # E0 = eigsolve(H1, DVec(starting_address(H1) => 1.0), 1, :SR; issymmetric=true)[1][1]
-        E0 = -4.6285244934941305
-        mpi_seed_CRNGs!(1000_000_000)
+        # E0 = eigvals(Matrix(H1))[1]
+        E0 = -4.628524493494574
+        mpi_seed!(1000_000_000)
 
         for (setup, kwargs) in (
             (RMPI.mpi_point_to_point, (;)),
@@ -213,7 +225,7 @@ end
             (RMPI.mpi_one_sided, (; capacity=1000)),
         )
             @testset "Regular with $setup and post-steps" begin
-                H = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
+                H = HubbardReal1D(BoseFS((1, 1, 1, 1, 1, 1, 1)); u=6.0)
                 dv = MPIData(
                     DVec(starting_address(H) => 3; style=IsDynamicSemistochastic());
                     setup,
@@ -241,7 +253,7 @@ end
                 @test all(0 .≤ df.loneliness .≤ 1)
             end
             @testset "Initiator with $setup" begin
-                H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)
+                H = HubbardMom1D(BoseFS((0, 0, 0, 7, 0, 0, 0)); u=6.0)
                 dv = MPIData(
                     InitiatorDVec(starting_address(H) => 3);
                     setup,
@@ -258,27 +270,34 @@ end
     end
 
     @testset "Same seed gives same results" begin
-        # Note: all_to_all will give different results here, as it sorts slightly differently.
-        # The entries in the vectors are the same (tested above), but they appear in a
-        # different order.
-        add = BoseFS2C((1, 1, 1, 1, 1), (1, 0, 0, 0, 0))
-        H = BoseHubbardReal1D2C(add; v=2)
-        dv = DVec(add => 1)
+        for kwargs in (
+            (; setup=RMPI.mpi_point_to_point),
+            (; setup=RMPI.mpi_one_sided, capacity=10_000),
+            (; setup=RMPI.mpi_all_to_all),
+        )
+            # The entries in the vectors are the same (tested above), but they appear in a
+            # different order.
+            add = BoseFS2C((1, 1, 1, 1, 1), (1, 0, 0, 0, 0))
+            H = BoseHubbardReal1D2C(add; v=2)
+            dv = DVec(add => 1)
 
-        dv_ptp = MPIData(copy(dv); setup=RMPI.mpi_point_to_point)
-        mpi_seed_CRNGs!(17)
-        df_ptp = lomc!(H, dv_ptp).df
+            dv_1 = MPIData(copy(dv); kwargs...)
+            mpi_seed!(17)
+            df_1 = lomc!(H, dv_1).df
 
-        dv_os = MPIData(copy(dv); setup=RMPI.mpi_one_sided, capacity=1000)
-        mpi_seed_CRNGs!(17)
-        df_os = lomc!(H, dv_os).df
+            dv_2 = MPIData(copy(dv); kwargs...)
+            mpi_seed!(17)
+            df_2 = lomc!(H, dv_2).df
 
-        @test df_ptp == df_os
+            @test df_1 == df_2
+        end
     end
 
     # Make sure all ranks came this far.
     @testset "Finish" begin
-        @test MPI.Allreduce(true, &, mpi_comm())
+        # MPI.jl currently doesn't properly map logical operators (MPI v0.20.8)
+        @test MPI.Allreduce(true, MPI.LAND, mpi_comm())
+        # @test MPI.Allreduce(true, &, mpi_comm())
     end
 end
 

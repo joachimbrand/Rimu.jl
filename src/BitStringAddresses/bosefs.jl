@@ -1,112 +1,122 @@
 """
     BoseFS{N,M,S} <: SingleComponentFockAddress
 
-Address type that represents a Fock state of `N` spinless bosons in `M` modes
-by wrapping a bitstring of type `S <: BitString`.
+Address type that represents a Fock state of `N` spinless bosons in `M` modes by wrapping a
+[`BitString`](@ref), or a [`SortedParticleList`](@ref). Which is wrapped is chosen
+automatically based on the properties of the address.
 
 # Constructors
 
-* `BoseFS{N,M}(bs::BitString)`: Unsafe constructor. Does not check whether the number of
+* `BoseFS{[N,M]}(onr)`: Create `BoseFS{N,M}` from [`onr`](@ref) representation. This is
+  efficient if `N` and `M` are provided, and `onr` is a statically-sized collection, such as
+  a `Tuple` or `SVector`.
+
+* `BoseFS{[N,M]}([M, ]pairs...)`: Provide the number of modes `M` and `mode =>
+  occupation_number` pairs. If `M` is provided as a type parameter, it should not be
+  provided as the first argument.  Useful for creating sparse addresses. `pairs` can be
+  multiple arguments or an iterator of pairs.
+
+* `BoseFS{N,M,S}(bs::S)`: Unsafe constructor. Does not check whether the number of
   particles in `bs` is equal to `N`.
 
-* `BoseFS(::BitString)`: Automatically determine `N` and `M`. This constructor is not type
-  stable!
+* [`@fs_str`](@ref): addresses are sometimes printed in a compact manner. This
+  representation can also be used as a constructor. See the last example below.
 
-* `BoseFS{[N,M,S]}(onr)`: Create `BoseFS{N,M}` from [`onr`](@ref) representation. This is
-  efficient as long as at least `N` is provided.
+# Examples
 
-See also: [`SingleComponentFockAddress`](@ref), [`FermiFS`](@ref), [`BitString`](@ref).
+```jldoctest
+julia> BoseFS{6,5}((0, 1, 2, 3, 0))
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> BoseFS([abs(i - 3) ≤ 1 ? i - 1 : 0 for i in 1:5])
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> BoseFS(5, 2 => 1, 3 => 2, 4 => 3)
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> BoseFS{6,5}(i => i - 1 for i in 2:4)
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> fs"|0 1 2 3 0⟩"
+BoseFS{6,5}((0, 1, 2, 3, 0))
+
+julia> fs"|b 5: 2 3 3 4 4 4⟩"
+BoseFS{6,5}((0, 1, 2, 3, 0))
+```
+
+See also: [`SingleComponentFockAddress`](@ref), [`FermiFS`](@ref), [`CompositeFS`](@ref),
+[`FermiFS2C`](@ref).
 """
-struct BoseFS{N,M,S<:BitString} <: SingleComponentFockAddress{N,M}
+struct BoseFS{N,M,S} <: SingleComponentFockAddress{N,M}
     bs::S
 end
 
-function BoseFS{N,M}(bs::BitString{B}) where {N,M,B}
-    # Check for consistency between parameter, but NOT for the correct number of bits.
-    N + M - 1 == B || throw(ArgumentError("type parameter mismatch"))
-    return BoseFS{N,M,typeof(bs)}(bs)
-end
-
-function BoseFS(bs::BitString{B}) where B
-    N = count_ones(bs)
-    M = B - N + 1
-    return BoseFS{N,M}(bs)
-end
-
-@inline function BoseFS{N,M,S}(
-    onr::Union{SVector{M},NTuple{M}}
-) where {N,M,S<:BitString{<:Any,1}}
-    @boundscheck sum(onr) == N || error("invalid ONR")
-    T = chunk_type(S)
-    result = zero(T)
-    for i in M:-1:1
-        curr_occnum = T(onr[i])
-        result <<= curr_occnum + T(1)
-        result |= one(T) << curr_occnum - T(1)
-    end
-    return BoseFS{N,M,S}(S(SVector(result)))
-end
-
-@inline function BoseFS{N,M,S}(onr::Union{SVector{M},NTuple{M}}) where {N,M,S<:BitString}
-    @boundscheck sum(onr) == N || error("invalid ONR")
-    K = num_chunks(S)
-    result = zeros(MVector{K,UInt64})
-    offset = 0
-    bits_left = chunk_bits(S, K)
-    i = 1
-    j = K
-    while true
-        # Write number to result
-        curr_occnum = onr[i]
-        while curr_occnum > 0
-            x = min(curr_occnum, bits_left)
-            mask = (one(UInt64) << x - 1) << offset
-            @inbounds result[j] |= mask
-            bits_left -= x
-            offset += x
-            curr_occnum -= x
-
-            if bits_left == 0
-                j -= 1
-                offset = 0
-                bits_left = chunk_bits(S, j)
-            end
+@inline function BoseFS{N,M,S}(onr::Union{SVector{M},MVector{M},NTuple{M}}) where {N,M,S}
+    @boundscheck begin
+        sum(onr) == N || throw(ArgumentError(
+            "invalid ONR: $N particles expected, $(sum(onr)) given"
+        ))
+        if S <: BitString
+            B = num_bits(S)
+            M + N - 1 == B || throw(ArgumentError(
+                "invalid ONR: $B-bit BitString does not fit $N particles in $M modes"
+            ))
+        elseif S <: SortedParticleList
+            N == num_particles(S) && M == num_modes(S) || throw(ArgumentError(
+                "invalid ONR: $S does not fit $N particles in $M modes"
+            ))
         end
-        offset += 1
-        bits_left -= 1
-
-        if bits_left == 0
-            j -= 1
-            offset = 0
-            bits_left = chunk_bits(S, j)
-        end
-        i += 1
-        i > M && break
     end
-    return BoseFS{N,M}(S(SVector(result)))
+    return BoseFS{N,M,S}(from_bose_onr(S, onr))
 end
-function BoseFS{N,M}(onr::Union{AbstractVector,Tuple}) where {N,M}
-    S = typeof(BitString{N + M - 1}(0))
-    return BoseFS{N,M,S}(SVector{M}(onr))
+function BoseFS{N,M}(onr::Union{AbstractArray{<:Integer},NTuple{M,<:Integer}}) where {N,M}
+    @boundscheck begin
+        sum(onr) == N || throw(ArgumentError(
+            "invalid ONR: $N particles expected, $(sum(onr)) given"
+        ))
+        length(onr) == M || throw(ArgumentError(
+            "invalid ONR: $M modes expected, $(length(onr)) given"
+        ))
+    end
+    spl_type = select_int_type(M)
+
+    # Pick smaller address type, but prefer sparse.
+    # Alway pick dense if it fits into one chunk.
+
+    # Compute the size of container in words
+    sparse_sizeof = ceil(Int, N * sizeof(spl_type) / 8)
+    dense_sizeof = ceil(Int, (N + M - 1) / 64)
+    if dense_sizeof == 1 || dense_sizeof < sparse_sizeof
+        S = typeof(BitString{M + N - 1}(0))
+    else
+        S = SortedParticleList{N,M,spl_type}
+    end
+    return BoseFS{N,M,S}(from_bose_onr(S, onr))
 end
-function BoseFS{N}(onr::Union{SVector{M},NTuple{M}}) where {N,M}
-    return BoseFS{N,M}(onr)
-end
-function BoseFS(onr::Union{AbstractVector,Tuple})
+function BoseFS(onr::Union{AbstractArray,Tuple})
     M = length(onr)
     N = sum(onr)
     return BoseFS{N,M}(onr)
 end
 
-function print_address(io::IO, b::BoseFS{N,M}) where {N,M}
-    if get(io, :compact, false)
+BoseFS(M::Integer, pairs::Pair...) = BoseFS(M, pairs)
+BoseFS(M::Integer, pairs) = BoseFS(sparse_to_onr(M, pairs))
+BoseFS{N,M}(pairs::Pair...) where {N,M} = BoseFS{N,M}(pairs)
+BoseFS{N,M}(pairs) where {N,M} = BoseFS{N,M}(sparse_to_onr(M, pairs))
+
+function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}
+    if compact && b.bs isa SortedParticleList
+        print(io, "|b ", M, ": ", join(Int.(b.bs.storage), ' '), "⟩")
+    elseif compact
         print(io, "|", join(onr(b), ' '), "⟩")
+    elseif b.bs isa SortedParticleList
+        print(io, "BoseFS{$N,$M}(", onr_sparse_string(onr(b)), ")")
     else
         print(io, "BoseFS{$N,$M}(", tuple(onr(b)...), ")")
     end
 end
 
-Base.bitstring(b::BoseFS) = bitstring(b.bs)
+Base.bitstring(b::BoseFS) = bitstring(b.bs) # TODO rename?
 
 Base.isless(a::BoseFS, b::BoseFS) = isless(a.bs, b.bs)
 Base.hash(bba::BoseFS,  h::UInt) = hash(bba.bs, h)
@@ -131,19 +141,18 @@ function near_uniform_onr(::Val{N}, ::Val{M}) where {N, M}
 end
 
 """
-    near_uniform(BoseFS{N,M})
-    near_uniform(BoseFS{N,M,S}) -> bfs::BoseFS{N,M,S}
+    near_uniform(BoseFS{N,M}) -> BoseFS{N,M}
 
 Create bosonic Fock state with near uniform occupation number of `M` modes with
-a total of `N` particles. Specifying the bit address type `S` is optional.
+a total of `N` particles.
 
 # Examples
 ```jldoctest
-julia> near_uniform(BoseFS{7,5,BitString{14}})
-BoseFS{7,5}((2, 2, 1, 1, 1))
-
 julia> near_uniform(BoseFS{7,5})
 BoseFS{7,5}((2, 2, 1, 1, 1))
+
+julia> near_uniform(FermiFS{3,5})
+FermiFS{3,5}((1, 1, 1, 0, 0))
 ```
 """
 function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
@@ -151,228 +160,27 @@ function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
 end
 near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
 
-@deprecate nearUniform near_uniform
-
 """
     onr(bs)
 
 Compute and return the occupation number representation of the bit string
 address `bs` as an `SVector{M,Int32}`, where `M` is the number of modes.
 """
-onr(bba::BoseFS) = SVector(m_onr(bba))
-
-"""
-    m_onr(bs)
-
-Compute and return the occupation number representation of the bit string
-address `bs` as an `MVector{M,Int32}`, where `M` is the number of modes.
-"""
-@inline m_onr(bba::BoseFS) = m_onr(Val(num_chunks(bba.bs)), bba)
-
-# Version specialized for single-chunk addresses.
-@inline function m_onr(::Val{1}, bba::BoseFS{N,M}) where {N,M}
-    result = zeros(MVector{M,Int32})
-    address = bba.bs
-    for mode in 1:M
-        bosons = Int32(trailing_ones(address))
-        @inbounds result[mode] = bosons
-        address >>>= (bosons + 1) % UInt
-        iszero(address) && break
-    end
-    return result
-end
-
-# Version specialized for multi-chunk addresses. This is quite a bit faster for large
-# addresses.
-@inline function m_onr(::Val{K}, bba::BoseFS{N,M}) where {K,N,M}
-    B = num_bits(bba.bs)
-    result = zeros(MVector{M,Int32})
-    address = bba.bs
-    mode = 1
-    i = K
-    while true
-        chunk = chunks(address)[i]
-        bits_left = chunk_bits(address, i)
-        while !iszero(chunk)
-            bosons = trailing_ones(chunk)
-            @inbounds result[mode] += unsafe_trunc(Int32, bosons)
-            chunk >>>= bosons % UInt
-            empty_modes = trailing_zeros(chunk)
-            mode += empty_modes
-            chunk >>>= empty_modes % UInt
-            bits_left -= bosons + empty_modes
-        end
-        i == 1 && break
-        i -= 1
-        mode += bits_left
-    end
-    return result
-end
+onr(b::BoseFS{<:Any,M}) where {M} = to_bose_onr(b.bs, Val(M))
 
 function Base.reverse(b::BoseFS)
-    return typeof(b)(bitreverse(b.bs))
+    return typeof(b)(reverse(b.bs))
 end
 
-function num_occupied_modes(b::BoseFS{<:Any,<:Any,S}) where S
-    return num_occupied_modes(Val(num_chunks(S)), b)
-end
 # For vacuum state
 function num_occupied_modes(b::BoseFS{0})
     return 0
 end
-
-@inline function num_occupied_modes(::Val{1}, b::BoseFS)
-    chunk = b.bs.chunks[1]
-    result = 0
-    while true
-        chunk >>= (trailing_zeros(chunk) % UInt)
-        chunk >>= (trailing_ones(chunk) % UInt)
-        result += 1
-        iszero(chunk) && break
-    end
-    return result
+function num_occupied_modes(b::BoseFS)
+    return bose_num_occupied_modes(b.bs)
 end
-
-@inline function num_occupied_modes(_, b::BoseFS)
-    # This version is faster than using the occupied_mode iterator
-    address = b.bs
-    result = 0
-    K = num_chunks(address)
-    last_mask = UInt64(1) << 63 # = 0b100000...
-    prev_top_bit = false
-    # This loop compiles away for address<:BSAdd*
-    for i in K:-1:1
-        chunk = chunks(address)[i]
-        # This part handles modes that span across chunk boundaries.
-        # If the previous top bit and the current bottom bit are both 1, we have to subtract
-        # 1 from the result or the mode will be counted twice.
-        result -= (chunk & prev_top_bit) % Int
-        prev_top_bit = (chunk & last_mask) > 0
-        while !iszero(chunk)
-            chunk >>>= trailing_zeros(chunk)
-            chunk >>>= trailing_ones(chunk)
-            result += 1
-        end
-    end
-    return result
-end
-
-
-"""
-    BoseFSIndex
-
-Struct used for indexing and performing [`excitation`](@ref)s on a [`BoseFS`](@ref).
-
-## Fields:
-
-* `occnum`: the occupation number.
-* `mode`: the index of the mode.
-* `offset`: the bit offset of the mode.
-"""
-struct BoseFSIndex<:FieldVector{3,Int}
-    occnum::Int
-    mode::Int
-    offset::Int
-end
-
-function Base.show(io::IO, i::BoseFSIndex)
-    @unpack occnum, mode, offset = i
-    print(io, "BoseFSIndex(occnum=$occnum, mode=$mode, offset=$offset)")
-end
-Base.show(io::IO, ::MIME"text/plain", i::BoseFSIndex) = show(io, i)
-
-"""
-    BoseOccupiedModes{C,S<:BoseFS}
-Iterator for occupied modes. `C` is the number of chunks. See [`occupied_modes`](@ref).
-"""
-struct BoseOccupiedModes{C,S<:BoseFS}
-    address::S
-end
-
-function occupied_modes(b::BoseFS{<:Any,<:Any,S}) where {S}
-    return BoseOccupiedModes{num_chunks(S),typeof(b)}(b)
-end
-
-function is_occupied(::BoseFS, i::BoseFSIndex)
-    return i.occnum > 0
-end
-
-Base.length(o::BoseOccupiedModes) = num_occupied_modes(o.address)
-Base.eltype(::BoseOccupiedModes) = BoseFSIndex
-
-# Single chunk versions are simpler.
-@inline function Base.iterate(osi::BoseOccupiedModes{1})
-    chunk = osi.address.bs.chunks[1]
-    empty_modes = trailing_zeros(chunk)
-    return iterate(
-        osi, (chunk >> (empty_modes % UInt), empty_modes, 1 + empty_modes)
-    )
-end
-@inline function Base.iterate(osi::BoseOccupiedModes{1}, (chunk, bit, mode))
-    if iszero(chunk)
-        return nothing
-    else
-        bosons = trailing_ones(chunk)
-        chunk >>>= (bosons % UInt)
-        empty_modes = trailing_zeros(chunk)
-        chunk >>>= (empty_modes % UInt)
-        next_bit = bit + bosons + empty_modes
-        next_mode = mode + empty_modes
-        return BoseFSIndex(bosons, mode, bit), (chunk, next_bit, next_mode)
-    end
-end
-
-# Multi-chunk version
-@inline function Base.iterate(osi::BoseOccupiedModes)
-    bitstring = osi.address.bs
-    i = num_chunks(bitstring)
-    chunk = chunks(bitstring)[i]
-    bits_left = chunk_bits(bitstring, i)
-    mode = 1
-    return iterate(osi, (i, chunk, bits_left, mode))
-end
-@inline function Base.iterate(osi::BoseOccupiedModes, (i, chunk, bits_left, mode))
-    i < 1 && return nothing
-    bitstring = osi.address.bs
-    S = typeof(bitstring)
-    bit_position = 0
-
-    # Remove and count trailing zeros.
-    empty_modes = min(trailing_zeros(chunk), bits_left)
-    chunk >>>= empty_modes % UInt
-    bits_left -= empty_modes
-    mode += empty_modes
-    while bits_left < 1
-        i -= 1
-        i < 1 && return nothing
-        @inbounds chunk = chunks(bitstring)[i]
-        bits_left = chunk_bits(S, i)
-        empty_modes = min(bits_left, trailing_zeros(chunk))
-        mode += empty_modes
-        bits_left -= empty_modes
-        chunk >>>= empty_modes % UInt
-    end
-
-    bit_position = chunk_bits(S, i) - bits_left + 64 * (num_chunks(bitstring) - i)
-
-    # Remove and count trailing ones.
-    result = 0
-    bosons = trailing_ones(chunk)
-    bits_left -= bosons
-    chunk >>>= bosons % UInt
-    result += bosons
-    while bits_left < 1
-        i -= 1
-        i < 1 && break
-        @inbounds chunk = chunks(bitstring)[i]
-        bits_left = chunk_bits(S, i)
-
-        bosons = trailing_ones(chunk)
-        bits_left -= bosons
-        result += bosons
-        chunk >>>= bosons % UInt
-    end
-    return BoseFSIndex(result, mode, bit_position), (i, chunk, bits_left, mode)
+function occupied_modes(b::BoseFS{N,M,S}) where {N,M,S}
+    return BoseOccupiedModes{N,M,S}(b.bs)
 end
 
 function find_mode(b::BoseFS, index)
@@ -447,70 +255,133 @@ function find_occupied_mode(b::BoseFS, index::Integer, n=1)
     return BoseFSIndex(0, 0, 0)
 end
 
-function _move_particle(b::BoseFS, from, to)
-    if to == from
-        return b
-    elseif to < from
-        return typeof(b)(partial_left_shift(b.bs, to, from))
-    else
-        return typeof(b)(partial_right_shift(b.bs, from, to - 1))
+function excitation(b::B, creations, destructions) where {B<:BoseFS}
+    new_bs, val = bose_excitation(b.bs, creations, destructions)
+    return B(new_bs), val
+end
+
+"""
+    new_address, product = hopnextneighbour(add, chosen)
+
+Compute the new address of a hopping event for the Bose-Hubbard model. Returns the new
+address and the square root of product of occupation numbers of the involved modes.
+
+The off-diagonals are indexed as follows:
+
+* `(chosen + 1) ÷ 2` selects the hopping site.
+* Even `chosen` indicates a hop to the left.
+* Odd `chosen` indicates a hop to the right.
+* Boundary conditions are periodic.
+
+# Example
+
+```jldoctest
+julia> using Rimu.Hamiltonians: hopnextneighbour
+
+julia> hopnextneighbour(BoseFS((1, 0, 1)), 3)
+(BoseFS{2,3}((2, 0, 0)), 1.4142135623730951)
+julia> hopnextneighbour(BoseFS((1, 0, 1)), 4)
+(BoseFS{2,3}((1, 1, 0)), 1.0)
+```
+"""
+function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
+    address = b.bs
+    T = chunk_type(address)
+    site = (chosen + 1) >>> 0x1
+    if isodd(chosen) # Hopping to the right
+        next = 0
+        curr = 0
+        offset = 0
+        sc = 0
+        reached_end = false
+        for (i, (num, sn, bit)) in enumerate(occupied_modes(b))
+            next = num * (sn == sc + 1) # only set next to > 0 if sites are neighbours
+            reached_end = i == site + 1
+            reached_end && break
+            curr = num
+            offset = bit + num
+            sc = sn
+        end
+        if sc == M
+            new_address = (address << 0x1) | A(T(1))
+            prod = curr * (trailing_ones(address) + 1) # mul occupation num of first obital
+        else
+            next *= reached_end
+            new_address = address ⊻ A(T(3)) << ((offset - 1) % T)
+            prod = curr * (next + 1)
+        end
+    else # Hopping to the left
+        if site == 1 && isodd(address)
+            # For leftmost site, we shift the whole address circularly by one bit.
+            new_address = (address >>> 0x1) | A(T(1)) << ((N + M - 2) % T)
+            prod = trailing_ones(address) * leading_ones(new_address)
+        else
+            prev = 0
+            curr = 0
+            offset = 0
+            sp = 0
+            for (i, (num, sc, bit)) in enumerate(occupied_modes(b))
+                prev = curr * (sc == sp + 1) # only set prev to > 0 if sites are neighbours
+                curr = num
+                offset = bit
+                i == site && break
+                sp = sc
+            end
+            new_address = address ⊻ A(T(3)) << ((offset - 1) % T)
+            prod = curr * (prev + 1)
+        end
     end
+    return BoseFS{N,M,A}(new_address), √prod
+end
+function hopnextneighbour(b::BoseFS, i)
+    src = find_occupied_mode(b, (i + 1) >>> 0x1)
+    dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
+
+    new_b, val = excitation(b, (dst,), (src,))
+    return new_b, val
 end
 
-###
-### Multiple excitation stuff
-###
-# Fix offsets that changed after performing a move.
-@inline function _fix_offset(pair, index::BoseFSIndex)
-    fst, snd = pair[1], pair[2]
-    if fst.offset < snd.offset
-        return @set index.offset += fst.offset < index.offset ≤ snd.offset
-    else
-        return @set index.offset -= fst.offset > index.offset > snd.offset
+"""
+    bose_hubbard_interaction(address)
+
+Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction (without the
+*U* prefactor.)
+
+# Example
+
+```jldoctest
+julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((2,1,1,0)))
+2
+julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((3,0,1,0)))
+6
+```
+"""
+function bose_hubbard_interaction(b::BoseFS{<:Any,<:Any,A}) where {A<:BitString}
+    return bose_hubbard_interaction(Val(num_chunks(A)), b)
+end
+function bose_hubbard_interaction(b::BoseFS)
+    return bose_hubbard_interaction(nothing, b)
+end
+
+@inline function bose_hubbard_interaction(_, b::BoseFS)
+    result = 0
+    for (n, _, _) in occupied_modes(b)
+        result += n * (n - 1)
     end
-end
-_fix_offset(pair) = Base.Fix1(_fix_offset, pair)
-
-# Move multiple particles. This does not care about values, so it performs moves in an
-# arbitrary order (from left to right in pairs).
-@inline function _move_particles(b::BoseFS, (c,)::NTuple{1}, (d,)::NTuple{1})
-    return _move_particle(b, d.offset, c.offset)
-end
-@inline function _move_particles(b::BoseFS, (c, cs...), (d, ds...))
-    b = _move_particle(b, d.offset, c.offset)
-    fix = _fix_offset(c => d)
-    b = _move_particles(b, map(fix, cs), map(fix, ds))
-    return b
+    return result
 end
 
-# Apply destruction operator to BoseFSIndex.
-@inline _destroy(d, index) = @set index.occnum -= (d.mode == index.mode)
-@inline _destroy(d) = Base.Fix1(_destroy, d)
-# Apply creation operator to BoseFSIndex.
-@inline _create(c, index) = @set index.occnum += (c.mode == index.mode)
-@inline _create(c) = Base.Fix1(_create, c)
-
-# Compute the value of an excitation. Starts by applying all destruction operators, and
-# then applying all creation operators. The operators must be given in reverse order.
-# Will return 0 if move is illegal.
-@inline _compute_value(::Tuple{}, ::Tuple{}) = 1
-@inline function _compute_value((c, cs...), ::Tuple{})
-    return _compute_value(map(_create(c), cs), ()) * (c.occnum + 1)
-end
-@inline function _compute_value(creations, (d, ds...))
-    return _compute_value(map(_destroy(d), creations), map(_destroy(d), ds)) * d.occnum
-end
-
-function excitation(b::BoseFS, creations::NTuple{N}, destructions::NTuple{N}) where N
-    # We start by computing the value. This is where the check if the move is even legal
-    # is done.
-    creations_rev = reverse(creations)
-    value = _compute_value(creations_rev, reverse(destructions))
-    if iszero(value)
-        return b, 0.0
-    else
-        # Now that we know the value and that the move is legal, we can apply the moves
-        # without worrying about doing something weird.
-        return _move_particles(b, creations_rev, destructions), √value
+@inline function bose_hubbard_interaction(::Val{1}, b::BoseFS)
+    # currently this ammounts to counting occupation numbers of modes
+    chunk = chunks(b.bs)[1]
+    matrixelementint = 0
+    while !iszero(chunk)
+        chunk >>>= (trailing_zeros(chunk) % UInt) # proceed to next occupied mode
+        bosonnumber = trailing_ones(chunk) # count how many bosons inside
+        # surpsingly it is faster to not check whether this is nonzero and do the
+        # following operations anyway
+        chunk >>>= (bosonnumber % UInt) # remove the counted mode
+        matrixelementint += bosonnumber * (bosonnumber - 1)
     end
+    return matrixelementint
 end

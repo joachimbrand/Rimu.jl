@@ -1,33 +1,37 @@
 using Rimu
 using Test
 using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator
-using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement, IsExplosive
-using Rimu.StochasticStyles: DoubleOrNothing, ThresholdCompression
+using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement
+using Rimu.StochasticStyles: ThresholdCompression
 using Rimu.StatsTools
-using Rimu.ConsistentRNG: seedCRNG!
 using Rimu.RMPI
+using Random
 using KrylovKit
 using Suppressor
 using Statistics
 using Logging
 
 @testset "lomc!/QMCState" begin
-    @testset "Setting laststep" begin
+    @testset "Setting laststep + working memory" begin
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=0.1)
         dv = DVec(add => 1; style=IsStochasticInteger())
 
-        df, state = lomc!(H, copy(dv); laststep=100)
-        @test size(df, 1) == 100
-        @test state.replicas[1].params.step == 100
+        # test passing working memory
+        v = copy(dv)
+        wm = copy(dv)
+        df, state = lomc!(H, v; wm, laststep=9)
+        @test state.replicas[1].wm === wm # after number of steps divisible by 3
+        @test state.replicas[1].v === v
+        @test state.replicas[1].pv !== v && state.replicas[1].pv !== wm
 
-        df, state = lomc!(H, copy(dv); laststep=200)
-        @test size(df, 1) == 200
-        @test state.replicas[1].params.step == 200
+        state.laststep = 10
+        df = lomc!(state, df).df
+        @test state.replicas[1].v === wm
+        @test state.replicas[1].pv === v
 
-        df, state = lomc!(H, copy(dv); laststep=13)
-        @test size(df, 1) == 13
-        @test state.replicas[1].params.step == 13
+        @test size(df, 1) == 10
+        @test state.replicas[1].params.step == 10
 
         state.laststep = 100
         df = lomc!(state, df).df
@@ -64,7 +68,7 @@ using Logging
     @testset "Replicas" begin
         add = near_uniform(BoseFS{5,15})
         H = HubbardReal1D(add)
-        G = GutzwillerSampling(H, g=1)   
+        G = GutzwillerSampling(H, g=1)
         dv = DVec(add => 1, style=IsDynamicSemistochastic())
 
         @testset "NoStats" begin
@@ -154,7 +158,7 @@ using Logging
     @testset "Dead population" begin
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=20)
-        dv = DVec(add => 1; style=IsStochasticInteger())
+        dv = DVec(add => 10; style=IsStochasticInteger())
 
         # Only population is dead.
         params = RunTillLastStep(shift = 0.0)
@@ -247,7 +251,7 @@ using Logging
         H = HubbardMom1D(add; u=6.0)
         dv = DVec(add => 1; style=IsDynamicSemistochastic())
 
-        seedCRNG!(1336)
+        Random.seed!(1336)
 
         df = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4).df
         @test all(df.len[1:end-1] .≤ 10)
@@ -273,7 +277,7 @@ using Logging
         dv = DVec(add => 1.0, style=IsDeterministic())
 
         # Run lomc!, then change laststep and continue.
-        df, state = lomc!(H, copy(dv); threading=false)
+        df, state = lomc!(H, copy(dv))
         state.laststep = 200
         df1 = lomc!(state, df).df
 
@@ -307,31 +311,37 @@ using Logging
             rm("test-report-1.arrow"; force=true)
             rm("test-report-2.arrow"; force=true)
             rm("test-report-3.arrow"; force=true)
+            rm("test-report-nc.arrow"; force=true)
+            rm("test-report-lz4.arrow"; force=true)
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, save_if=false)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test !isfile("test-report.arrow")
+            @test Rimu._isopen(r_strat) == false
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
             df1 = RimuIO.load_df("test-report.arrow")
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
             df2 = RimuIO.load_df("test-report-1.arrow")
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, return_df=true)
             df3 = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
             df4 = RimuIO.load_df("test-report-2.arrow")
 
             @test df1.shift ≈ df2.shift
             @test df2.norm ≈ df3.norm
             @test df3 == df4
 
-            # ReportToFile with skipping interval  
+            # ReportToFile with skipping interval
             df5 = df1[10:10:100,:]
             r_strat = ReportToFile(filename="test-report.arrow", reporting_interval=10, io=devnull, chunk_size=10)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
@@ -341,11 +351,39 @@ using Logging
             @test df6.shift ≈ df5.shift
             @test df6.norm ≈ df5.norm
 
+            # ReportToFile with compression
+            @test_throws ArgumentError ReportToFile(compress=false)
+
+            r_strat = ReportToFile(
+                filename="test-report-nc.arrow", io=devnull, return_df=true,
+                compress=nothing
+            )
+            df7 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
+            @test df7 == RimuIO.load_df("test-report-nc.arrow")
+
+
+            r_strat = ReportToFile(
+                filename="test-report-lz4.arrow", io=devnull, return_df=true,
+                compress=:lz4
+            )
+            df8 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
+            @test df8 == RimuIO.load_df("test-report-lz4.arrow")
+
+            @test filesize("test-report-lz4.arrow") < filesize("test-report-nc.arrow")
+            @test filesize("test-report.arrow") < filesize("test-report-lz4.arrow")
+            # The default compression `:zstd` produces the smallest files.
+
             # Clean up.
             rm("test-report.arrow"; force=true)
             rm("test-report-1.arrow"; force=true)
             rm("test-report-2.arrow"; force=true)
             rm("test-report-3.arrow"; force=true)
+            rm("test-report-nc.arrow"; force=true)
+            rm("test-report-lz4.arrow"; force=true)
         end
     end
 
@@ -355,7 +393,7 @@ using Logging
         dv = DVec(add => 1)
 
         @testset "Projector, ProjectedEnergy" begin
-            ConsistentRNG.seedCRNG!(1337)
+            Random.seed!(1337)
 
             post_step = (
                 Projector(p1=NormProjector()),
@@ -377,7 +415,7 @@ using Logging
         end
 
         @testset "SignCoherence" begin
-            ConsistentRNG.seedCRNG!(1337)
+            Random.seed!(1337)
 
             ref = eigsolve(H, dv, 1, :SR; issymmetric=true)[2][1]
             post_step = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
@@ -392,7 +430,7 @@ using Logging
         end
 
         @testset "WalkerLoneliness" begin
-            ConsistentRNG.seedCRNG!(1337)
+            Random.seed!(1337)
 
             post_step = WalkerLoneliness()
             df, _ = lomc!(H, copy(dv); post_step)
@@ -434,76 +472,6 @@ using Logging
             end
         end
     end
-
-    # only test threading if more than one thread is available
-    Threads.nthreads() > 1 && @testset "Threading" begin
-        add = BoseFS((0,0,0,0,10,0,0,0,0,0))
-        H = HubbardMom1D(add)
-        s_strat = DoubleLogUpdate(targetwalkers=10_000)
-        laststep = 1000
-        for dv in (DVec(add => 1), InitiatorDVec(add => 1), MPIData(DVec(add => 1)))
-            @test_throws ArgumentError lomc!(H; threading=:something, laststep, s_strat)
-
-            df1, s1 = lomc!(
-                H, deepcopy(dv); threading=:auto, laststep, s_strat
-            )
-            df2, s2 = lomc!(
-                H, deepcopy(dv); threading=true, laststep, s_strat
-            )
-            df3, s3 = lomc!(
-                H, deepcopy(dv); threading=false, laststep, s_strat
-            )
-            df4, s4 = lomc!(
-                H, deepcopy(dv); threading=Rimu.NoThreading(), laststep, s_strat
-            )
-            df5, s5 = lomc!(
-                H, deepcopy(dv); threading=Rimu.ThreadsThreading(), laststep, s_strat
-            )
-            df6, s6 = lomc!(
-                H, deepcopy(dv); threading=Rimu.SplittablesThreading(), laststep, s_strat
-            )
-            df7, s7 = lomc!(
-                H, deepcopy(dv); threading=Rimu.ThreadsXSumThreading(), laststep, s_strat
-            )
-            df8, s8 = lomc!(
-                H, deepcopy(dv); threading=Rimu.ThreadsXForeachThreading(), laststep, s_strat
-            )
-
-            @test s1.threading == Rimu.SplittablesThreading()
-            @test s2.threading == Rimu.SplittablesThreading()
-            @test s3.threading == Rimu.NoThreading()
-
-            # Check that working memory was selected correctly.
-            N = Threads.nthreads()
-            D = typeof(localpart(dv))
-            @test s1.replicas[1].w isa NTuple{N,D}
-            @test s2.replicas[1].w isa NTuple{N,D}
-            @test s3.replicas[1].w isa D
-            @test s4.replicas[1].w isa D
-            @test s5.replicas[1].w isa NTuple{N,D}
-            @test s6.replicas[1].w isa NTuple{N,D}
-            @test s7.replicas[1].w isa NTuple{N,D}
-            @test s8.replicas[1].w isa NTuple{N,D}
-
-            # Check energies.
-            E1, _ = mean_and_se(df1.shift[900:end])
-            E2, _ = mean_and_se(df2.shift[900:end])
-            E3, _ = mean_and_se(df3.shift[900:end])
-            E4, _ = mean_and_se(df4.shift[900:end])
-            E5, _ = mean_and_se(df5.shift[900:end])
-            E6, _ = mean_and_se(df6.shift[900:end])
-            E7, _ = mean_and_se(df7.shift[900:end])
-            E8, _ = mean_and_se(df8.shift[900:end])
-
-            @test E1 ≈ E2 rtol=0.1
-            @test E2 ≈ E3 rtol=0.1
-            @test E3 ≈ E4 rtol=0.1
-            @test E4 ≈ E5 rtol=0.1
-            @test E5 ≈ E6 rtol=0.1
-            @test E6 ≈ E7 rtol=0.1
-            @test E7 ≈ E8 rtol=0.1
-        end
-    end
 end
 
 @testset "Ground state energy estimates" begin
@@ -537,16 +505,14 @@ end
         H = HubbardReal1D(add)
         E0 = -8.280991746582686
 
-        seedCRNG!(1234)
+        Random.seed!(1234)
         dv_st = DVec(add => 1; style=IsStochasticInteger())
         dv_th = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
         dv_cx = DVec(add => 1 + im; style=IsStochastic2Pop())
         dv_dy = DVec(add => 1; style=IsDynamicSemistochastic())
         dv_de = DVec(add => 1; style=IsDeterministic())
         dv_dp = DVec(add => 1; style=IsDeterministic(ThresholdCompression()))
-        dv_ex = DVec(add => 1; style=IsExplosive())
 
-        dv_dn = DVec(add => 10; style=IsDynamicSemistochastic(compression=DoubleOrNothing()))
         dv_nr = DVec(add => 1; style=IsDynamicSemistochastic(spawning=WithoutReplacement()))
         dv_br = DVec(add => 1; style=IsDynamicSemistochastic(spawning=Bernoulli()))
 
@@ -558,24 +524,19 @@ end
         df_dy = lomc!(H, dv_dy; s_strat, laststep=2500).df
         df_de = lomc!(H, dv_de; s_strat, laststep=2500).df
         df_dp = lomc!(H, dv_dp; s_strat, laststep=2500).df
-        df_ex = lomc!(H, dv_ex; s_strat, laststep=2500).df
 
-        df_dn = lomc!(H, dv_dn; s_strat, laststep=2500).df
         df_nr = lomc!(H, dv_nr; s_strat, laststep=2500).df
         df_br = lomc!(H, dv_br; s_strat, laststep=2500).df
 
-        @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_st)
-        @test ("spawns", "deaths", "clones", "zombies", "annihilations") ⊆ names(df_cx)
+        @test ("spawns", "deaths", "clones", "zombies") ⊆ names(df_st)
+        @test ("spawns", "deaths", "clones", "zombies") ⊆ names(df_cx)
         @test "spawns" ∈ names(df_th)
         @test ("exact_steps", "inexact_steps", "spawns") ⊆ names(df_dy)
         @test "exact_steps" ∈ names(df_de)
 
-        @test ("explosions", "ticks", "normal_steps",
-               "explosive_spawns", "normal_spawns") ⊆ names(df_ex)
         @test ("exact_steps", "len_before") ⊆ names(df_dp)
         @test ("exact_steps", "len_before") ⊆ names(df_br)
         @test ("exact_steps", "len_before") ⊆ names(df_nr)
-        @test ("exact_steps", "len_before") ⊆ names(df_dn)
         @test "len_before" ∉ names(df_st)
         @test "len_before" ∉ names(df_th)
         @test "len_before" ∉ names(df_cx)
@@ -587,16 +548,14 @@ end
         E_dy, σ_dy = mean_and_se(df_dy.shift[500:end])
         E_de, σ_de = mean_and_se(df_de.shift[500:end])
         E_dp, σ_dp = mean_and_se(df_dp.shift[500:end])
-        E_ex, σ_ex = mean_and_se(df_dp.shift[500:end])
 
-        E_dn, σ_dn = mean_and_se(df_dn.shift[500:end])
         E_nr, σ_nr = mean_and_se(df_nr.shift[500:end])
         E_br, σ_br = mean_and_se(df_br.shift[500:end])
 
         # Stochastic noise depends on the method. Sampling without replacement makes a
         # small difference and is not consistently lower, so is not included here. A similar
         # thing happens with deterministic with compression and explosive spawns.
-        @test σ_st > σ_th > σ_dn > σ_dy > σ_de
+        @test σ_st > σ_th > σ_dy
         # All estimates are fairly good.
         @test E_st ≈ E0 atol=3σ_st
         @test E_th ≈ E0 atol=3σ_th
@@ -604,9 +563,7 @@ end
         @test E_dy ≈ E0 atol=3σ_dy
         @test E_de ≈ E0 atol=3σ_de
         @test E_dp ≈ E0 atol=3σ_dp
-        @test E_ex ≈ E0 atol=3σ_ex
         @test E_nr ≈ E0 atol=3σ_nr
-        @test E_dn ≈ E0 atol=3σ_dn
 
         # For some reason, Bernoulli requires more walkers
         @test_broken E_br ≈ E0 atol=3σ_br
@@ -635,7 +592,7 @@ end
         )
 
         @testset "Energies below the plateau & initiator bias" begin
-            seedCRNG!(8008)
+            Random.seed!(8008)
 
             H = HubbardMom1D(add; u=4.0)
             E0 = -9.251592973178997
@@ -667,7 +624,7 @@ end
         end
 
         @testset "Energies above the plateau" begin
-            seedCRNG!(1337)
+            Random.seed!(1337)
 
             H = HubbardMom1D(add)
             E0 = -16.36048582876015

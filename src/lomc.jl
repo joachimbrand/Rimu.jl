@@ -1,5 +1,52 @@
 """
-    ReplicaState(v, w, pnorm, params, id)
+    FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
+
+First order transition operator 
+```math
+𝐓 = 1 + dτ(S - 𝐇)
+```
+where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`. 
+
+``𝐓`` represents the first order expansion of the exponential evolution operator 
+of the imaginary-time Schrödinger equation (Euler step) and repeated application 
+will project out the ground state eigenvector of the `hamiltonian`.  It is the 
+transition operator used in FCIQMC.
+"""
+struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
+    hamiltonian::H
+    shift::S
+    dτ::Float64
+
+    function FirstOrderTransitionOperator(hamiltonian::H, shift::S, dτ) where {H,S}
+        T = eltype(hamiltonian)
+        return new{T,S,H}(hamiltonian, shift, Float64(dτ))
+    end
+end
+
+function Hamiltonians.diagonal_element(t::FirstOrderTransitionOperator, add)
+    diag = diagonal_element(t.hamiltonian, add)
+    return 1 - t.dτ * (diag - t.shift)
+end
+
+struct FirstOrderOffdiagonals{
+    A,V,O<:AbstractVector{Tuple{A,V}}
+} <: AbstractVector{Tuple{A,V}}
+    dτ::Float64
+    offdiagonals::O
+end
+function Hamiltonians.offdiagonals(t::FirstOrderTransitionOperator, add)
+    return FirstOrderOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
+end
+Base.size(o::FirstOrderOffdiagonals) = size(o.offdiagonals)
+
+function Base.getindex(o::FirstOrderOffdiagonals, i)
+    add, val = o.offdiagonals[i]
+    return add, -val * o.dτ
+end
+
+
+"""
+    ReplicaState(v, wm, pnorm, params, id)
 
 Struct that holds all information needed for an independent run of the algorithm.
 
@@ -9,35 +56,39 @@ Can be advanced a step forward with [`advance!`](@ref).
 
 * `hamiltonian`: the model Hamiltonian.
 * `v`: vector.
-* `w`: working memory.
+* `pv`: vector from the previous step.
+* `wm`: working memory.
 * `pnorm`: previous walker number (see [`walkernumber`](@ref)).
 * `params`: the [`FciqmcRunStrategy`](@ref).
-* `id`: appended to reported columns.
+* `id`: string ID appended to reported column names.
 
 See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
 [`lomc!`](@ref).
 """
 mutable struct ReplicaState{H,T,V,W,R<:FciqmcRunStrategy{T}}
+    # Future TODO: rename these fields, add interface for accessing them.
     hamiltonian::H
     v::V       # vector
-    w::W       # working memory. Maybe working memories could be shared among replicas?
+    pv::V      # previous vector.
+    wm::W      # working memory. Maybe working memories could be shared among replicas?
     pnorm::T   # previous walker number - used to control the shift
     params::R  # params: step, laststep, dτ...
     id::String # id is appended to column names
 end
 
-function ReplicaState(h, v, w, params, id="")
-    if isnothing(w)
-        w = similar(v)
+function ReplicaState(h, v, wm, params, id="")
+    if isnothing(wm)
+        wm = similar(v)
     end
-    return ReplicaState(h, v, w, walkernumber(v), params, id)
+    pv = zerovector(v)
+    return ReplicaState(h, v, pv, wm, walkernumber(v), params, id)
 end
 
 function Base.show(io::IO, r::ReplicaState)
     print(
         io,
         "ReplicaState(v: ", length(r.v), "-element ", nameof(typeof(r.v)),
-        ", w: ", length(r.w), "-element ", nameof(typeof(r.w)), ")"
+        ", wm: ", length(r.wm), "-element ", nameof(typeof(r.wm)), ")"
     )
 end
 
@@ -52,11 +103,9 @@ struct QMCState{
     H,
     N,
     R<:ReplicaState,
-    MS<:MemoryStrategy,
     RS<:ReportingStrategy,
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
-    TH<:ThreadingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
 }
@@ -64,11 +113,9 @@ struct QMCState{
     replicas::NTuple{N,R}
     maxlength::Ref{Int}
 
-    m_strat::MS
     r_strat::RS
     s_strat::SS
     τ_strat::TS
-    threading::TH
     post_step::PS
     replica::RRS
 end
@@ -101,12 +148,12 @@ function QMCState(
     s_strat::ShiftStrategy=DoubleLogUpdate(),
     r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
-    threading=:auto,
-    m_strat::MemoryStrategy=NoMemory(),
+    threading=nothing,
     replica::ReplicaStrategy=NoStats(),
     post_step=(),
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
 )
+    Hamiltonians.check_address_type(hamiltonian, keytype(v))
     # Set up r_strat and params
     r_strat = refine_r_strat(r_strat)
     if !isnothing(laststep)
@@ -116,9 +163,10 @@ function QMCState(
         params.dτ = dτ
     end
 
-    # Set up threading
-    threading = select_threading_strategy(threading, _n_walkers(v, s_strat))
-    wm = working_memory(threading, v)
+    if threading ≠ nothing
+        @warn "Threading has been removed. Ignoring `threading=$threading`."
+    end
+    wm = isnothing(wm) ? working_memory(v) : wm
 
     # Set up post_step
     if !(post_step isa Tuple)
@@ -137,7 +185,7 @@ function QMCState(
 
     return QMCState(
         hamiltonian, replicas, Ref(Int(maxlength)),
-        m_strat, r_strat, s_strat, τ_strat, threading, post_step, replica
+        r_strat, s_strat, τ_strat, post_step, replica
     )
 end
 
@@ -207,7 +255,7 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
   diagonal_element(ham, starting_address(ham)))` -
   basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
 * `laststep` - can be used to override information otherwise contained in `params`
-* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 100, ζ = 0.08, ξ = ζ^2/4)` -
+* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4)` -
   how to update the `shift`, see [`ShiftStrategy`](@ref)
 * `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
   reached, `lomc!` will abort
@@ -221,13 +269,6 @@ and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
   [`ReportingStrategy`](@ref)
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step dynamically, see
   [`TimeStepStrategy`](@ref)
-* `m_strat::MemoryStrategy = NoMemory()` - experimental: inject memory noise, see
-  [`MemoryStrategy`](@ref)
-* `threading = :auto` - can be used to control the use of multithreading (overridden by
-  `wm`)
-  * `:auto` - use multithreading if `s_strat.targetwalkers ≥ 500`
-  * `true` - use multithreading if available (set shell variable `JULIA_NUM_THREADS`!)
-  * `false` - run on single thread
 * `wm` - working memory; if set, it controls the use of multithreading and overrides
   `threading`; is mutated
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
@@ -257,10 +298,10 @@ julia> df2, _ = lomc!(state, df1; laststep=200); # Continuation run
 
 
 julia> size(df1)
-(100, 13)
+(100, 11)
 
 julia> size(df2)
-(200, 13)
+(200, 11)
 ```
 """
 function lomc!(ham, v; df=DataFrame(), name="lomc!", kwargs...)
@@ -281,12 +322,11 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
     # Sanity checks.
     step, laststep = state.step, state.laststep
     for replica in state.replicas
-        ConsistentRNG.check_crng_independence(replica.v)
         @assert replica.params.step == step
         @assert replica.params.laststep == laststep
     end
     check_transform(state.replica, state.hamiltonian)
-            
+
     # main loop
     initial_step = step
     update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
@@ -334,21 +374,21 @@ involved. Steps, stats, and computed quantities are written to the `report`.
 Returns `true` if the step was successful and calculation should proceed, `false` when
 it should terminate.
 """
-function advance!(
-    report, state::QMCState, replica::ReplicaState{T}
-) where {T}
-    @unpack hamiltonian, m_strat, r_strat, s_strat, τ_strat, threading = state
-    @unpack v, w, pnorm, params, id = replica
+function advance!(report, state::QMCState, replica::ReplicaState)
+
+    @unpack hamiltonian, r_strat, s_strat, τ_strat = state
+    @unpack v, pv, wm, pnorm, params, id = replica
     @unpack step, shiftMode, shift, dτ = params
     step += 1
 
+    ### PROPAGATOR ACTS
+    ### FROM HERE
+    transition_op = FirstOrderTransitionOperator(hamiltonian, shift, dτ)
+
     # Step
-    step_stat_names, raw_step_stats = fciqmc_step!(
-        threading, w, hamiltonian, v, shift, dτ
-    )
-    shift_noise = apply_memory_noise!(w, v, shift, dτ, pnorm, m_strat)
-    v, w, step_stat_values = sort_into_targets!(v, w, raw_step_stats)
-    v, update_dvec_stats = update_dvec!(v)
+    step_stat_names, step_stat_values, wm, pv = apply_operator!(wm, pv, v, transition_op)
+    # pv was mutated and now contains the new vector.
+    v, pv = (pv, v)
 
     # Stats
     tnorm = walkernumber(v)
@@ -356,12 +396,13 @@ function advance!(
 
     # Updates
     shift, shiftMode, pnorm, proceed = update_shift(
-        s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, w
+        s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, pv
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
 
     @pack! params = step, shiftMode, shift, dτ
-    @pack! replica = v, w, pnorm, params
+    @pack! replica = v, pv, wm, pnorm, params
+    ### TO HERE
 
     if step % reporting_interval(state.r_strat) == 0
         # Note: post_step must be called after packing the values.
@@ -373,8 +414,6 @@ function advance!(
             (dτ, shift, shiftMode, len, norm=tnorm), id,
         )
         report!(r_strat, step, report, step_stat_names, step_stat_values, id)
-        report!(r_strat, step, report, update_dvec_stats, id)
-        report!(r_strat, step, report, (;shift_noise), id)
         report!(state.r_strat, step, report, post_step_stats, id)
     end
 

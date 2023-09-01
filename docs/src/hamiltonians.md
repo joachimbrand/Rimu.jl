@@ -36,6 +36,10 @@ Hamiltonians.BasisSetRep
 sparse
 Matrix
 ```
+If only the basis is required and not the matrix representation it is more efficient to use
+```@docs
+Hamiltonians.build_basis
+```
 
 ## Model Hamiltonians
 
@@ -56,6 +60,12 @@ ExtendedHubbardReal1D
 HubbardMom1D
 BoseHubbardMom1D2C
 HubbardMom1DEP
+```
+
+### Harmonic oscillator models
+```@docs
+HOCartesianContactInteractions
+HOCartesianEnergyConservedPerDim
 ```
 
 ### Other
@@ -94,6 +104,7 @@ G2MomCorrelator
 G2RealCorrelator
 DensityMatrixDiagonal
 Momentum
+AxialAngularMomentumHO
 ```
 
 ## Hamiltonians interface
@@ -124,6 +135,7 @@ random_offdiagonal
 Hamiltonians.LOStructure
 dimension
 has_adjoint
+allowed_address_type
 ```
 
 This interface relies on unexported functionality, including
@@ -132,6 +144,7 @@ Hamiltonians.adjoint
 Hamiltonians.dot
 Hamiltonians.AbstractOffdiagonals
 Hamiltonians.Offdiagonals
+Hamiltonians.check_address_type
 ```
 
 ## Geometry
@@ -143,7 +156,21 @@ PeriodicBoundaries
 HardwallBoundaries
 LadderBoundaries
 num_neighbours
+num_dimensions
 neighbour_site
+```
+
+## Harmonic Oscillator
+Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesianContactInteractions`](@ref) 
+and [`HOCartesianEnergyConservedPerDim`](@ref).
+```@docs
+get_all_blocks
+fock_to_cart
+parity_block_seed_addresses
+```
+Underlying integrals for the interaction matrix elements are implemented in the following unexported functions
+```@docs
+Hamiltonians.four_oscillator_integral_general
 ```
 
 ## Index

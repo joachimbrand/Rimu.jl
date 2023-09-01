@@ -11,27 +11,27 @@ using Test
     @test vector == [2, 2, 3]
     @test storage(vector) ≡ vector
     @test localpart(vector) ≡ vector
-    zero!(vector)
-    @test vector == [0, 0, 0]
 
     ham = [1 0 0; 2 3 0; 5 6 0]
-    @test offdiagonals(ham, 1) == [2 => 2, 3 => 5]
-    @test offdiagonals(ham, 2) == [3 => 6]
+    @test offdiagonals(ham, 1) == [(2, 2), (3, 5)]
+    @test offdiagonals(ham, 2) == [(3, 6)]
     @test offdiagonals(ham, 3) == []
 
     @test num_offdiagonals(ham, 1) == 2
     @test num_offdiagonals(ham, 2) == 1
     @test num_offdiagonals(ham, 3) == 0
 
-    @test get_offdiagonal(ham, 1, 1) == (2 => 2)
-    @test get_offdiagonal(ham, 1, 2) == (3 => 5)
-    @test get_offdiagonal(ham, 2, 1) == (3 => 6)
+    @test get_offdiagonal(ham, 1, 1) == (2, 2)
+    @test get_offdiagonal(ham, 1, 2) == (3, 5)
+    @test get_offdiagonal(ham, 2, 1) == (3, 6)
 
     @test starting_address(ham) == 3
 
     @test LOStructure(ham) == AdjointKnown()
     @test has_adjoint(ham)
 end
+
+# using lomc! with a matrix is not documented and may be removed in the future
 @testset "lomc! with matrix" begin
     ham = [1 1 2 3 2;
            2 0 2 2 3;

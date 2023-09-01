@@ -18,6 +18,10 @@ Momentum space Hubbard models
 - [`BoseHubbardMom1D2C`](@ref)
 - [`HubbardMom1DEP`](@ref)
 
+Harmonic oscillator models
+- [`HOCartesianContactInteractions`](@ref)
+- [`HOCartesianEnergyConservedPerDim`](@ref)
+
 Other
 - [`MatrixHamiltonian`](@ref)
 - [`Transcorrelated1D`](@ref)
@@ -34,6 +38,7 @@ Other
 - [`G2RealCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
 - [`Momentum`](@ref)
+- [`AxialAngularMomentumHO`](@ref)
 
 ## [Interface for working with Hamiltonians](#Hamiltonians-interface)
 - [`AbstractHamiltonian`](@ref): defined in the module [`Interfaces`](@ref)
@@ -43,20 +48,18 @@ module Hamiltonians
 using Parameters, StaticArrays, LinearAlgebra, SparseArrays
 using FFTW
 using Setfield
+using SpecialFunctions, HypergeometricFunctions, Combinatorics, TupleTools, DataFrames
 
-using ..StochasticStyles
-using ..DictVectors
 using ..BitStringAddresses
-using ..ConsistentRNG
 
 using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
-    offdiagonals, random_offdiagonal, LOStructure
+    offdiagonals, random_offdiagonal, LOStructure, allowed_address_type
 
 export AbstractHamiltonian
 # export TwoComponentHamiltonian
 export dimension, rayleigh_quotient, momentum
-export BasisSetRep
+export BasisSetRep, build_basis
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
@@ -73,13 +76,15 @@ export hubbard_dispersion, continuum_dispersion
 export G2MomCorrelator, G2RealCorrelator, DensityMatrixDiagonal, Momentum
 
 export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
-export num_neighbours, neighbour_site
+export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 
+export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
+export get_all_blocks, fock_to_cart, parity_block_seed_addresses
+
 include("abstract.jl")
 include("offdiagonals.jl")
-include("operations.jl")
 include("geometry.jl")
 include("excitations.jl")
 
@@ -106,5 +111,11 @@ include("Transcorrelated1D.jl")
 include("correlation_functions.jl")
 include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
+
+include("HOCartesianContactInteractions.jl")
+include("HOCartesianEnergyConservedPerDim.jl")
+include("vertices.jl")
+include("ho-cart-tools.jl")
+include("angular_momentum.jl")
 
 end

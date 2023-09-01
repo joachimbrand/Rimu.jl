@@ -59,6 +59,13 @@ function Base.show(io::IO, md::MPIData)
     end
 end
 
+function VectorInterface.zerovector(md::MPIData)
+    return MPIData(zerovector(md.data), md.comm, md.root, md.s)
+end
+function Base.similar(md::MPIData)
+    return MPIData(similar(md.data), md.comm, md.root, md.s)
+end
+
 ###
 ### Iterators
 ###
@@ -85,7 +92,26 @@ end
 
 function Base.mapreduce(f, op, it::MPIDataIterator; kwargs...)
     res = mapreduce(f, op, it.iter; kwargs...)
-    return MPI.Allreduce(res, op, it.data.comm)
+    T = typeof(res)
+    if T <: Bool # MPI.jl does not support Bool reductions
+        res = convert(UInt8, res)
+    end
+    return T(MPI.Allreduce(res, op, it.data.comm))
+end
+
+# Special case for `sum`, which uses a custom (type-widening) reduction operator `add_sum`.
+# Replacing it by `+` is necessary for non-Intel architectures due to a limitation of
+# MPI.jl. On Intel processors, it might be more perfomant.
+# see https://github.com/JuliaParallel/MPI.jl/issues/404
+function Base.mapreduce(f, op::typeof(Base.add_sum), it::MPIDataIterator; kwargs...)
+    res = mapreduce(f, op, it.iter; kwargs...)
+    return MPI.Allreduce(res, +, it.data.comm)
+end
+
+# Special case for `prod`, which uses a custom (type-widening) reduction operator `mul_prod`
+function Base.mapreduce(f, op::typeof(Base.mul_prod), it::MPIDataIterator; kwargs...)
+    res = mapreduce(f, op, it.iter; kwargs...)
+    return MPI.Allreduce(res, *, it.data.comm)
 end
 
 Base.IteratorSize(::MPIDataIterator) = Base.SizeUnknown()
@@ -163,8 +189,9 @@ function mpi_communicate_buffers!(target, buffers, comm)
     datatype = MPI.Datatype(eltype(target))
     # Receive from lower ranks.
     for id in 0:(myrank - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
-        MPI.Recv!(recbuf, id, 0, comm)
+        count = MPI.Get_count(MPI.Probe(comm, MPI.Status; source=id, tag=0), datatype)
+        resize!(recbuf, count)
+        MPI.Recv!(recbuf, comm; source=id, tag=0)
         for (add, value) in recbuf
             target[add] += value
         end
@@ -172,12 +199,13 @@ function mpi_communicate_buffers!(target, buffers, comm)
     # Perform sends.
     for id in 0:(mpi_size(comm) - 1)
         id == myrank && continue
-        MPI.Send(buffers[id + 1], id, 0, comm)
+        MPI.Send(buffers[id + 1], comm; dest=id, tag=0)
     end
     # Receive from higher ranks.
     for id in (myrank + 1):(mpi_size(comm) - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
-        MPI.Recv!(recbuf, id, 0, comm)
+        count = MPI.Get_count(MPI.Probe(comm, MPI.Status; source=id, tag=0), datatype)
+        resize!(recbuf, count)
+        MPI.Recv!(recbuf, comm; source=id, tag=0)
         for (add, value) in recbuf
             target[add] += value
         end
@@ -262,8 +290,9 @@ function copy_to_local!(target, md::MPIData)
 
     # Receive from lower ranks.
     for id in 0:(myrank - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
-        MPI.Recv!(recbuf, id, 0, comm)
+        count = MPI.Get_count(MPI.Probe(comm, MPI.Status; source=id, tag=0), datatype)
+        resize!(recbuf, count)
+        MPI.Recv!(recbuf, comm; source=id, tag=0)
         for (add, value) in recbuf
             target[add] += value
         end
@@ -271,12 +300,13 @@ function copy_to_local!(target, md::MPIData)
     # Perform sends.
     for id in 0:(mpi_size(comm) - 1)
         id == myrank && continue
-        MPI.Send(sendbuf, id, 0, comm)
+        MPI.Send(sendbuf, comm; dest=id, tag=0)
     end
     # Receive from higher ranks.
     for id in (myrank + 1):(mpi_size(comm) - 1)
-        resize!(recbuf, MPI.Get_count(MPI.Probe(id, 0, comm), datatype))
-        MPI.Recv!(recbuf, id, 0, comm)
+        count = MPI.Get_count(MPI.Probe(comm, MPI.Status; source=id, tag=0), datatype)
+        resize!(recbuf, count)
+        MPI.Recv!(recbuf, comm; source=id, tag=0)
         for (add, value) in recbuf
             target[add] += value
         end
@@ -340,6 +370,6 @@ function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, ::Val{B}) 
         get_overlaps_nondiagonal!(names, values, operators, vecs, Val(B))
     end
 
-    num_reports = (N * (N - 1) ÷ 2) * (B + length(operators)) 
+    num_reports = (N * (N - 1) ÷ 2) * (B + length(operators))
     return Tuple(SVector{num_reports,String}(names)), Tuple(SVector{num_reports,T}(values))
 end

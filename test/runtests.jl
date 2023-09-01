@@ -23,25 +23,8 @@ using Rimu.StatsTools, Rimu.RimuIO
     include("Interfaces.jl")
 end
 
-@safetestset "StatsTools" begin
-    include("StatsTools.jl")
-end
-
 @safetestset "BitStringAddresses" begin
     include("BitStringAddresses.jl")
-end
-
-using Rimu.ConsistentRNG
-@testset "ConsistentRNG" begin
-    seedCRNG!(127) # uses `RandomNumbers.Xorshifts.Xoshiro256StarStar()`
-    @test cRand(UInt128) == 0x50f0f296b239b257a8c2ac2f11d6d2cb
-
-    @test rand(ConsistentRNG.CRNGs[][1],UInt128) == 0xba97314c00e092e448993a2bef41d28d
-    # Only looks at first element of the `NTuple`. This should be reproducible
-    # regardless of `numthreads()`.
-    @test rand(trng(),UInt16) == 0x4e65
-    @test rand(newChildRNG(),UInt16) == 0x03aa
-    @test ConsistentRNG.check_crng_independence(0) == Threads.nthreads()
 end
 
 @safetestset "StochasticStyles" begin
@@ -60,85 +43,8 @@ end
     include("lomc.jl")
 end
 
-@testset "MemoryStrategy" begin
-    # Define the initial Fock state with n particles and m modes
-    n = m = 9
-    add = near_uniform(BoseFS{n,m})
-    H = HubbardReal1D(add; u = 6.0, t = 1.0)
-    dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
-    s_strat = DoubleLogUpdate(targetwalkers=100)
-
-    @testset "NoMemory" begin
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=NoMemory(), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2698 atol=1
-    end
-
-    @testset "DeltaMemory" begin
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=DeltaMemory(1), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2698 atol=1
-
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=DeltaMemory(10), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2005 atol=1
-    end
-
-    @testset "DeltaMemory2" begin
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(1), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2698 atol=1
-
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=Rimu.DeltaMemory2(10), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 1848 atol=1
-    end
-
-    @testset "ShiftMemory" begin
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=ShiftMemory(1), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2698 atol=1
-
-        seedCRNG!(12345)
-        df = lomc!(
-            H, copy(dv);
-            laststep=100, s_strat, m_strat=ShiftMemory(10), maxlength=2*dimension(H)
-        ).df
-        @test sum(df[:,:norm]) ≈ 2811 atol=1
-    end
-end
-
-@testset "IsDeterministic with Vector" begin
-    ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
-    dim = dimension(ham)
-    sm, basis = Rimu.Hamiltonians.build_sparse_matrix_from_LO(ham, starting_address(ham))
-    @test dim == length(basis)
-    # run lomc! in deterministic mode with Matrix and Vector
-    a = lomc!(sm, ones(dim); threading=true).df # no actual threading is done, though
-    b = lomc!(sm, ones(dim); threading=false).df
-    @test a.shift ≈ b.shift
-    # run lomc! in deterministic mode with Hamiltonian and DVec
-    v = DVec(k=>1.0 for k in basis) # corresponds to `ones(dim)`
-    c = lomc!(ham, v).df
-    @test a.shift ≈ c.shift
+@safetestset "StatsTools" begin
+    include("StatsTools.jl")
 end
 
 @testset "helpers" begin
@@ -148,22 +54,26 @@ end
         dvc = DVec(:a => 2-5im)
         @test StochasticStyle(dvc) isa StochasticStyles.IsStochastic2Pop
         @test walkernumber(dvc) == 2.0 + 5.0im
-        Rimu.purge_negative_walkers!(dvc)
-        @test walkernumber(dvc) == 2.0 + 0.0im
         dvi= DVec(:a=>Complex{Int32}(2-5im))
         @test StochasticStyle(dvi) isa StochasticStyles.IsStochastic2Pop
-        dvr = DVec(i => cRandn() for i in 1:100; capacity = 100)
+        dvr = DVec(i => randn() for i in 1:100; capacity = 100)
         @test walkernumber(dvr) ≈ norm(dvr,1)
     end
     @testset "MultiScalar" begin
         a = Rimu.MultiScalar(1, 1.0, SVector(1))
+        @test a[1] ≡ 1
+        @test a[2] ≡ 1.0
+        @test a[3] ≡ SVector(1)
+        @test length(a) == 3
+        @test collect(a) == [1, 1.0, SVector(1)]
         b = Rimu.MultiScalar(SVector(2, 3.0, SVector(4)))
-        c = Rimu.MultiScalar((3, 4.0, SVector(5)))
-        @test a + b == c
+        for op in (+, min, max)
+            c = op(a, b)
+            @test op(a[1], b[1]) == c[1]
+            @test op(a[2], b[2]) == c[2]
+            @test op(a[2], b[2]) == c[2]
+        end
         @test_throws MethodError a + Rimu.MultiScalar(1, 1, 1)
-
-        @test Rimu.combine_stats(a) == a
-        @test Rimu.combine_stats([a, b]) == c
     end
 end
 
@@ -178,6 +88,17 @@ end
         @test df == df2
 
         rm(file)
+
+        # test compression
+        r = 10_005
+        df2 = DataFrame(a = collect(1:r), b = rand(1:30,r))
+        RimuIO.save_df(file, df2)
+        compressed = filesize(file)
+        rm(file)
+        RimuIO.save_df(file, df2, compress=nothing)
+        uncompressed = filesize(file)
+        rm(file)
+        @test compressed < uncompressed
     end
     @testset "save_dvec, load_dvec" begin
         # BSON is currently broken on 1.8
@@ -258,6 +179,7 @@ end
 @safetestset "KrylovKit" begin
     include("KrylovKit.jl")
 end
+
 @safetestset "RMPI" begin
     include("RMPI.jl")
 end
@@ -280,32 +202,8 @@ end
     @test default_logger() isa Logging.ConsoleLogger
 end
 
-@safetestset "Examples" begin
-    include("examples.jl")
-end
-
 @safetestset "doctests" begin
     include("doctests.jl")
 end
 
-# Note: This test is only for local testing, as MPI is tested separately on CI
-@testset "MPI" begin
-    # read name of mpi executable from environment variable if defined
-    # necessary for allow-run-as root workaround for Pipelines
-    mpiexec = haskey(ENV, "JULIA_MPIEXEC") ? ENV["JULIA_MPIEXEC"] : "mpirun"
-    is_local = !haskey(ENV, "CI")
-
-    juliaexec = Base.julia_cmd()
-
-    if is_local
-        mpi_test_filename = isfile("mpi_runtests.jl") ?  "mpi_runtests.jl" : "test/mpi_runtests.jl"
-        if isfile(mpi_test_filename)
-            rr = run(`$mpiexec -np 2 $juliaexec -t 1 $mpi_test_filename`)
-            @test rr.exitcode == 0
-        else
-            @warn "Could not find mpi_runtests.jl. Not testing MPI."
-        end
-    else
-        @info "not testing MPI on CI"
-    end
-end
+# Note: Running Rimu with several MPI ranks is tested seperately on GitHub CI and not here.

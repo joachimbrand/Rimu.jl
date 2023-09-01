@@ -19,6 +19,7 @@ Follow the links for the definitions of the interfaces!
 * [`random_offdiagonal`](@ref)
 * [`starting_address`](@ref)
 * [`LOStructure`](@ref)
+* [`allowed_address_type`](@ref)
 
 ## working with  [`AbstractDVec`](@ref)s and [`StochasticStyle`](@ref)
 * [`deposit!`](@ref)
@@ -27,26 +28,28 @@ Follow the links for the definitions of the interfaces!
 
 ## Functions Rimu.jl uses to do FCIQMC:
 
-* [`fciqmc_col!`](@ref)
+* [`apply_column!`](@ref)
+* [`apply_operator!`](@ref)
 * [`step_stats`](@ref)
-* [`update_dvec!`](@ref)
 """
 module Interfaces
 
-using LinearAlgebra
-using StaticArrays
+using Reexport
 
-using ..ConsistentRNG
+@reexport using LinearAlgebra
+@reexport using VectorInterface
+
 import OrderedCollections: freeze
 
 export
-    StochasticStyle, default_style, StyleUnknown, fciqmc_col!, step_stats, update_dvec!,
+    StochasticStyle, default_style, StyleUnknown, apply_column!, step_stats,
     CompressionStrategy, NoCompression, compress!
 export
-    AbstractDVec, deposit!, storage, localpart, freeze
+    AbstractDVec, deposit!, storage, localpart, freeze, working_memory,
+    apply_operator!, sort_into_targets!
 export
     AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
-    random_offdiagonal, starting_address,
+    random_offdiagonal, starting_address, allowed_address_type,
     LOStructure, IsDiagonal, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
 
 include("stochasticstyles.jl")

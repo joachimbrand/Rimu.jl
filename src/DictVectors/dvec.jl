@@ -54,14 +54,7 @@ function DVec(args...; kwargs...)
     storage = Dict(args...)
     return DVec(storage; kwargs...)
 end
-# In this constructor, the style matches the dict's valtype.
-function DVec(
-    dict::AbstractDict{K,V}; style::StochasticStyle{V}=default_style(V), capacity=0
-) where {K,V}
-    capacity > 0 && sizehint!(dict, capacity)
-    return DVec(dict, style)
-end
-# In this constructor, the dict has to be converted to the appropriate valtype.
+
 function DVec(
     dict::Dict{K}; style::StochasticStyle{V}=default_style(valtype(dict)), capacity=0
 ) where {K,V}
@@ -73,7 +66,7 @@ function DVec{K,V}(; style::StochasticStyle=default_style(V), capacity=0) where 
     return DVec(Dict{K,V}(); style, capacity)
 end
 # From another DVec
-function DVec(dv::AbstractDVec{K,V}, style=StochasticStyle(dv), capacity=0) where {K,V}
+function DVec(dv::AbstractDVec{K,V}; style=StochasticStyle(dv), capacity=0) where {K,V}
     dvec = DVec{K,V}(; style, capacity=max(capacity, length(dv)))
     return copyto!(dvec, dv)
 end
@@ -81,8 +74,11 @@ end
 function Base.empty(dvec::DVec{K,V}) where {K,V}
     return DVec{K,V}(; style=StochasticStyle(dvec))
 end
-function Base.empty(dvec::DVec{K}, ::Type{V}) where {K,V}
-    return DVec{K,V}()
+function Base.empty(dvec::DVec{K,V}, ::Type{V}) where {K,V}
+    return empty(dvec)
+end
+function Base.empty(dvec::DVec{K,V}, ::Type{W}) where {K,V,W}
+    return DVec{K,W}()
 end
 function Base.empty(dvec::DVec, ::Type{K}, ::Type{V}) where {K,V}
     return DVec{K,V}()
@@ -117,8 +113,12 @@ end
 
 Base.pairs(dvec::DVec) = dvec.storage
 
-function LinearAlgebra.rmul!(dvec::DVec, α::Number)
-    rmul!(dvec.storage.vals, α)
+function VectorInterface.scale!(dvec::DVec, α::Number)
+    if iszero(α)
+        zerovector!(dvec)
+    else
+        scale!(dvec.storage.vals, α)
+    end
     return dvec
 end
 

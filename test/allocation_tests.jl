@@ -1,6 +1,19 @@
 using Rimu
-using Rimu: fciqmc_step!
+using Rimu.Interfaces: apply_operator!
 using Test
+
+"""
+    apply_operator_wrap!(r::ReplicaState)
+
+Returning the vectors is tracked as an allocation. This wrapper takes care of that.
+"""
+function apply_operator_wrap!(r)
+    transition = Rimu.FirstOrderTransitionOperator(
+        r.hamiltonian, r.params.shift, r.params.dτ
+    )
+    apply_operator!(r.wm, r.pv, r.v, transition)
+    return nothing
+end
 
 @testset "Allocations" begin
     # The purpose of these tests is to find type instabilities that might appear as the
@@ -62,52 +75,54 @@ using Test
         Transcorrelated1D(CompositeFS(f1, f1)),
         Transcorrelated1D(CompositeFS(f2, f2)),
         Transcorrelated1D(CompositeFS(f3, f3)),
-    )
-        add = starting_address(H)
+        )
+        addr = starting_address(H)
         for dv_type in (DVec, InitiatorDVec)
             for style in (
                 IsDeterministic(),
                 IsStochasticInteger(),
                 IsStochasticWithThreshold(),
                 IsDynamicSemistochastic(),
-            )
+                )
                 hamname = string(
-                    nameof(typeof(H)), "(", num_modes(add), ")/", nameof(typeof(style))
+                    nameof(typeof(H)), "(", num_modes(addr), ")/", nameof(typeof(style))
                 )
                 @testset "Allocations for $(hamname)" begin
-                    dτ = if num_modes(add) == 10
+                    dτ = if num_modes(addr) == 10
                         1e-4
-                    elseif num_modes(add) == 50
+                    elseif num_modes(addr) == 50
                         1e-5
                     else
                         1e-6
                     end
 
-                    dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
+                    dv = dv_type(addr => 1.0, style=IsDynamicSemistochastic())
                     sizehint!(dv, 500_000)
 
                     # Warmup for lomc!
-                   params = RunTillLastStep(shift=float(diagonal_element(H, add)), dτ=dτ)
                     _, st = lomc!(
-                        H, dv; params, threading=false, maxlength=10_000, laststep=1
+                        H, dv;
+                        params=RunTillLastStep(;shift=float(diagonal_element(H, addr)), dτ),
+                        maxlength=10_000,
+                        laststep=1,
                     )
 
                     r = only(st.replicas)
                     p = r.params
-                    t = Rimu.NoThreading()
 
                     # Warmup for step!
-                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
-                    fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
+                    apply_operator_wrap!(r)
+                    apply_operator_wrap!(r)
+                    apply_operator_wrap!(r)
+                    apply_operator_wrap!(r)
+                    apply_operator_wrap!(r)
 
-                    allocs_step = @allocated fciqmc_step!(t, r.w, H, r.v, p.shift, dτ)
+                    allocs_step = @allocated apply_operator_wrap!(r)
                     @test allocs_step ≤ 512
 
-                    dv = dv_type(add => 1.0, style=IsDynamicSemistochastic())
+                    dv = dv_type(addr => 1.0, style=IsDynamicSemistochastic())
                     allocs_full = @allocated lomc!(
-                        H, dv; dτ, laststep=200, threading=false, maxlength=10_000
+                        H, dv; dτ, laststep=200, maxlength=10_000
                     )
                     @test allocs_full ≤ 1e8 # 100MiB
 

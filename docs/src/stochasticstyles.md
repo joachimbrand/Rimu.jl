@@ -19,13 +19,17 @@ Pages = ["styles.jl"]
 ```@docs
 StochasticStyle
 step_stats
-fciqmc_col!
-update_dvec!
+apply_column!
+default_style
+```
+
+## Compression strategies
+
+```@docs
 CompressionStrategy
 NoCompression
 StochasticStyles.ThresholdCompression
 compress!
-default_style
 ```
 
 ## Spawning strategies and convenience functions
