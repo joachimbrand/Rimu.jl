@@ -170,7 +170,7 @@ g = Tuple(G2Correlator.(0:m))
 # Carry over information from the previous stage and set up a new `QMCState`:
 new_state = Rimu.QMCState(
     state.hamiltonian, state.replicas, Ref(Int(state.maxlength)),
-    state.m_strat, r_strat, state.s_strat, state.τ_strat, state.threading, state.post_step, AllOverlaps(2, g)
+    r_strat, state.s_strat, state.τ_strat, state.post_step, AllOverlaps(2, g)
     )
 # The final stage 
 el3 = @elapsed df2, state2 = lomc!(new_state; laststep = (steps_equilibrate+steps_warmup+steps_final))
