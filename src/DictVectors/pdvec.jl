@@ -488,9 +488,7 @@ definition of various functions from Base such as `reduce`, `sum`, `prod`, etc.
 `init`, if provided, must be a neutral element for `op`.
 """
 function Base.mapreduce(f::F, op::O, t::PDVecIterator; kwargs...) where {F,O}
-    x = first(t)
-    T = typeof(op(f(x), f(x)))
-    result::T = Folds.mapreduce(
+    result = Folds.mapreduce(
         op, Iterators.filter(!isempty, t.vector.segments); kwargs...
     ) do segment
         mapreduce(f, op, t.selector(segment))
