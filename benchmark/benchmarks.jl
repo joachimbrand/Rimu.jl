@@ -58,9 +58,9 @@ const SUITE = @benchmarkset "Rimu" begin
             ham = HubbardMom1D(addr, u=1.0)
             dv = InitiatorDVec(addr => 1.0; style=IsDynamicSemistochastic())
             post_step = ProjectedEnergy(ham, dv)
-            s_strat = DoubleLogUpdate(targetwalkers=20_000)
+            s_strat = DoubleLogUpdate(targetwalkers=40_000)
 
-            lomc!(ham, dv; s_strat, post_step, dτ=1e-4, laststep=2000)
+            lomc!(ham, dv; s_strat, post_step, dτ=1e-4, laststep=8000)
         end seconds=150
 
         @case "(4+1, 11) 2C Mom space with G2Correlators" begin
@@ -70,7 +70,7 @@ const SUITE = @benchmarkset "Rimu" begin
             s_strat = DoubleLogUpdate(targetwalkers=10_000)
             replica = AllOverlaps(2, ntuple(i -> G2Correlator(i - 1), 7))
 
-            lomc!(ham, dv; s_strat, replica, laststep=1000)
+            lomc!(ham, dv; s_strat, replica, laststep=2000)
         end seconds=150
 
         @case "(50, 50) Real space" begin
