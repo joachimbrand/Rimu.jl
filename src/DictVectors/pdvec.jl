@@ -23,6 +23,8 @@ automatically distributed as well. As such it is not recommended to iterate over
 `keys`, or `values` directly unless explicitly performing them on the [`localpart`](@ref) of
 the vector.
 
+See also: [`AbstractDVec`](@ref), [`DVec`](@ref), [`InitiatorDVec`](@ref).
+
 ## Keyword arguments
 
 * `style = `[`default_style`](@ref)`(V)`: A [`StochasticStyle`](@ref) that is used to select

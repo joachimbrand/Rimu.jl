@@ -10,6 +10,8 @@ sign problem were first introduced in
 How the initiators are handled is controlled by specifying an [`InitiatorRule`](@ref) with
 the `initiator` keyword argument (see below).
 
+See also: [`AbstractDVec`](@ref), [`DVec`](@ref), [`PDVec`](@ref).
+
 ## Constructors
 
 * `InitiatorDVec(dict::AbstractDict[; style, initiator, capacity])`: create an

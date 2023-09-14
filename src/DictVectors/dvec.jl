@@ -7,7 +7,7 @@ supports various linear algebra operations such as `norm` and `dot`. It has a
 [`StochasticStyle`](@ref) that is used to select an appropriate spawning strategy in the
 FCIQMC algorithm.
 
-See also: [`AbstractDVec`](@ref).
+See also: [`AbstractDVec`](@ref), [`InitiatorDVec`](@ref), [`PDVec`](@ref).
 
 ## Constructors
 
