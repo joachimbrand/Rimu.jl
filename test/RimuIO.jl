@@ -58,6 +58,8 @@ end
 end
 @testset "Addresses" begin
     for addr in (
+        BitString{10}(0b1100110011),
+        SortedParticleList((1, 0, 1, 0, 0, 2, 3)),
         near_uniform(BoseFS{10, 10}),
         BoseFS(101, 5 => 10),
         FermiFS((1,1,1,0,0,0)),
