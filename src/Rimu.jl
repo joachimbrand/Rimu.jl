@@ -43,7 +43,7 @@ include("StochasticStyles/StochasticStyles.jl")
 @reexport using .StochasticStyles
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
-include("RimuIO.jl")
+include("RimuIO/RimuIO.jl")
 @reexport using .RimuIO
 include("StatsTools/StatsTools.jl")
 @reexport using .StatsTools

@@ -11,17 +11,16 @@ module RimuIO
 
 using ..DictVectors
 using ..Interfaces
+using ..BitStringAddresses
 
-using Arrow, DataFrames, BSON
+using Arrow
+using DataFrames
+using BSON
+using StaticArrays
 
 export save_df, load_df, save_dvec, load_dvec
 
-const COMPLEX = Symbol("JuliaLang.Complex")
-ArrowTypes.arrowname(::Type{<:Complex}) = COMPLEX
-ArrowTypes.ArrowType(::Type{Complex{T}}) where {T} = Tuple{T,T}
-ArrowTypes.JuliaType(::Val{COMPLEX}, ::Type{Tuple{T,T}}) where {T} = Complex{T}
-ArrowTypes.toarrow(a::Complex) = (a.re, a.im)
-ArrowTypes.fromarrow(::Type{Complex{T}}, t::Tuple{T,T}) where {T} = Complex{T}(t...)
+include("arrowtypes.jl")
 
 """
     RimuIO.save_df(filename, df::DataFrame; kwargs...)
