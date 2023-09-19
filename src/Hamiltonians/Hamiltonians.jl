@@ -71,7 +71,7 @@ export Stoquastic
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
 
-export G2MomCorrelator, G2RealCorrelator, DensityMatrixDiagonal, Momentum
+export G2MomCorrelator, G2RealCorrelator, SuperfluidCorrelator, DensityMatrixDiagonal, Momentum
 
 export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export num_neighbours, neighbour_site, num_dimensions

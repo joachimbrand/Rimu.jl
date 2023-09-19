@@ -236,3 +236,33 @@ function get_offdiagonal(
     gd = exp(-im*g.d*Δp*2π/M)*gamma
     return new_add, ComplexF64(gd/M)
 end
+
+"""
+    SuperfluidCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+
+"""
+struct SuperfluidCorrelator{D} <: AbstractHamiltonian{Float64}
+end
+
+SuperfluidCorrelator(d::Int) = SuperfluidCorrelator{d}()
+
+function Base.show(io::IO, ::SuperfluidCorrelator{D}) where {D}
+    print(io, "SuperfluidCorrelator($D)")
+end
+
+function num_offdiagonals(::SuperfluidCorrelator, add::SingleComponentFockAddress)
+    return num_occupied_modes(add)
+end
+
+function get_offdiagonal(::SuperfluidCorrelator{D}, add::SingleComponentFockAddress, chosen) where {D}
+    src = find_occupied_mode(add, chosen)
+    dst = find_mode(add, mod1(src.mode + D, num_modes(add)))
+    return excitation(add, (dst,), (src,))
+end
+
+function diagonal_element(::SuperfluidCorrelator{0}, add::SingleComponentFockAddress)
+    return num_particles(add) / num_modes(add)
+end
+function diagonal_element(::SuperfluidCorrelator{D}, add::SingleComponentFockAddress) where {D}
+    return 0.0
+end
