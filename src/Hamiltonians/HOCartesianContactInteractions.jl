@@ -14,7 +14,7 @@ and is non-zero unless ``i+j+k+l`` is odd. See e.g.
 This is a generalisation of the closed form in 
 [Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606), which is is the special 
 case where ``i+j == k+l``, but is numerically unstable for large arguments.
-Used in [`HOCartesianEnergyConserved`](@ref) and [`HOCartesianEnergyConservedPerDim`](@ref).
+Used in [`HOCartesianContactInteractions`](@ref) and [`HOCartesianEnergyConservedPerDim`](@ref).
 """
 function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
     all(0 .≤ (i, j, k, l) .≤ max_level) || return 0.0
@@ -101,15 +101,13 @@ function find_Ebounds(i, j, S, aspect)
 end
 
 """
-    HOCartesianEnergyConserved(addr; S, η, g = 1.0, interaction_only = false)
+    HOCartesianContactInteractions(addr; S, η, g = 1.0, interaction_only = false, block_by_level = true)
 
 Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
 ```math
-\\hat{H} = \\sum_{i} \\epsilon_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l ,
+\\hat{H} = \\sum_{i} \\epsilon_\\mathbf{i} n_\\mathbf{i} + \\frac{g}{2}\\sum_\\mathbf{ijkl} 
+    V_\\mathbf{ijkl} a^†_\\mathbf{i} a^†_\\mathbf{j} a_\\mathbf{k} a_\\mathbf{l}.
 ```
-with the additional restriction that the interactions only couple states with the same
-non-interacting energy. See [`HOCartesianEnergyConservedPerDim`](@ref) for a model 
-that conserves energy separately per spatial dimension.
 For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots``
 are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
 so that single particle energies are 
@@ -119,14 +117,21 @@ so that single particle energies are
 The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
-Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this 
-basis using first-order degenerate perturbation theory.
+By default the offdiagonal elements due to the interactions are consistent with first-order 
+degenerate perturbation theory
 ```math
-    V_{\\mathbf{ijkl}} = \\delta_{\\mathbf{i} + \\mathbf{j}}^{\\mathbf{k} + \\mathbf{l}} 
+    V_{\\mathbf{ijkl}} = \\delta_{\\epsilon_\\mathbf{i} + \\epsilon_\\mathbf{j}}
+        ^{\\epsilon_\\mathbf{k} + \\epsilon_\\mathbf{l}} 
         \\prod_{d \\in x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d),
 ```
 where the ``\\delta`` function indicates that the *total* noninteracting energy is conserved
-meaning all states with the same noninteracting energy are connected by this interaction.
+meaning all states with the same noninteracting energy are connected by this interaction and 
+the Hamiltonian blocks according to noninteracting energy levels.
+Setting `block_by_level = false` will disable this restriction and allow coupling between 
+basis states of any noninteracting energy level, leading to many more offdiagonals and 
+fewer but larger blocks (the blocks are still distinguished by parity of basis states).
+Alternatively, see [`HOCartesianEnergyConservedPerDim`](@ref) for a model with the stronger 
+restriction that conserves energy separately per spatial dimension.
 The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
 basis functions, implemented in [`four_oscillator_integral_general`](@ref).
 
@@ -141,21 +146,22 @@ basis functions, implemented in [`four_oscillator_integral_general`](@ref).
     from `S .- 1`. This will only affect the single particle energy scale and not the 
     interactions. The values are always scaled relative to the first dimension, which sets 
     the energy scale of the system, ``\\hbar\\omega_x``.
-* `g`: the (isotropic) interparticle interaction parameter. The value of `g` is assumed 
+* `g`: the (isotropic) bare interaction parameter. The value of `g` is assumed 
     to be in trap units.
 * `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
     ignored. Useful if only energy shifts due to interactions are required.
-
-See also [`HOCartesianEnergyConservedPerDim`](@ref).
+* `block_by_level`: if set to false will allow the interactions to couple all states without 
+    comparing their noninteracting energy.
 
 !!! warning
     `num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building 
     a matrix or using QMC methods. Use [`get_all_blocks`](@ref) first then pass option
     `col_hint = block_size` to [`BasisSetRep`](@ref) to safely build the matrix.
 """
-struct HOCartesianEnergyConserved{
+struct HOCartesianContactInteractions{
     D,  # number of dimensions
     A<:BoseFS,
+    B,    # block_by_level flag
     T
 } <: AbstractHamiltonian{Float64}
     addr::A
@@ -167,12 +173,13 @@ struct HOCartesianEnergyConserved{
     u::Float64
 end
 
-function HOCartesianEnergyConserved(
+function HOCartesianContactInteractions(
         addr::BoseFS; 
         S = (num_modes(addr),),
         η = nothing, 
         g = 1.0,
-        interaction_only = false
+        interaction_only = false,
+        block_by_level = true
     )
     # x dimension defines the energy scale, and should be the smallest frequency i.e. largest spatial dimension
     D = length(S)
@@ -211,27 +218,27 @@ function HOCartesianEnergyConserved(
     r = 0:max_level
     vmat = [four_oscillator_integral_general(i, j, k, l; max_level) for i in r, j in r, k in r, l in r]
 
-    return HOCartesianEnergyConserved{D,typeof(addr),eltype(aspect)}(addr, S_sort, aspect, aspect1, energies, vmat, u)
+    return HOCartesianContactInteractions{D,typeof(addr),block_by_level,eltype(aspect)}(addr, S_sort, aspect, aspect1, energies, vmat, u)
 end
 
-function Base.show(io::IO, h::HOCartesianEnergyConserved)
+function Base.show(io::IO, h::HOCartesianContactInteractions)
     flag = iszero(h.energies)
     # invert the scaling of u parameter
     g = h.u * 2 * sqrt(prod(h.aspect1))
-    print(io, "HOCartesianEnergyConserved($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
+    print(io, "HOCartesianContactInteractions($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
 end
 
-Base.:(==)(H::HOCartesianEnergyConserved, G::HOCartesianEnergyConserved) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
+Base.:(==)(H::HOCartesianContactInteractions, G::HOCartesianContactInteractions) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
 
-function starting_address(h::HOCartesianEnergyConserved)
+function starting_address(h::HOCartesianContactInteractions)
     return h.addr
 end
 
-LOStructure(::Type{<:HOCartesianEnergyConserved}) = IsHermitian()
+LOStructure(::Type{<:HOCartesianContactInteractions}) = IsHermitian()
 
 
 ### DIAGONAL ELEMENTS ###
-function energy_transfer_diagonal(h::HOCartesianEnergyConserved{D}, omm::BoseOccupiedModeMap) where {D}
+function energy_transfer_diagonal(h::HOCartesianContactInteractions{D}, omm::BoseOccupiedModeMap) where {D}
     result = 0.0
     states = CartesianIndices(h.S)    # 1-indexed
     
@@ -253,15 +260,15 @@ function energy_transfer_diagonal(h::HOCartesianEnergyConserved{D}, omm::BoseOcc
     return result * h.u
 end
 
-noninteracting_energy(h::HOCartesianEnergyConserved, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
-@inline function noninteracting_energy(h::HOCartesianEnergyConserved, addr::BoseFS)
+noninteracting_energy(h::HOCartesianContactInteractions, omm::BoseOccupiedModeMap) = dot(h.energies, omm)
+@inline function noninteracting_energy(h::HOCartesianContactInteractions, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     return noninteracting_energy(h, omm)
 end
 # fast method for finding blocks
-noninteracting_energy(h::HOCartesianEnergyConserved, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
+noninteracting_energy(h::HOCartesianContactInteractions, t::Union{Vector{Int64},NTuple{N,Int64}}) where {N} = sum(h.energies[j] for j in t)
 
-@inline function diagonal_element(h::HOCartesianEnergyConserved, addr::BoseFS)
+@inline function diagonal_element(h::HOCartesianContactInteractions, addr::BoseFS)
     omm = OccupiedModeMap(addr)
     return noninteracting_energy(h, omm) + energy_transfer_diagonal(h, omm)
 end
@@ -269,25 +276,25 @@ end
 ### OFFDIAGONAL ELEMENTS ###
 
 # crude definition for minimal consistency with interface
-num_offdiagonals(h::HOCartesianEnergyConserved, addr::BoseFS) = dimension(h) - 1
+num_offdiagonals(h::HOCartesianContactInteractions, addr::BoseFS) = dimension(h) - 1
 
 """
     HOCartOffdiagonals
 
-Specialized [`AbstractOffdiagonals`](@ref) iterates over valid offdiagonal moves that
+Specialized [`AbstractOffdiagonals`](@ref) that iterates over valid offdiagonal moves that
 are connected by the interaction matrix.
 """
 struct HOCartOffdiagonals{
-    A<:BoseFS,T,H<:AbstractHamiltonian{T},P<:OccupiedPairsMap
+    A<:BoseFS,T,B,H<:AbstractHamiltonian{T},P<:OccupiedPairsMap
 }# <: AbstractOffdiagonals{A,T}
     ham::H
     addr::A
     pairs::P
 end
 
-function offdiagonals(h::HOCartesianEnergyConserved, addr::BoseFS)
+function offdiagonals(h::HOCartesianContactInteractions{<:Any,A,B}, addr::BoseFS) where {A,B}
     pairs = OccupiedPairsMap(addr)
-    return HOCartOffdiagonals(h, addr, pairs)
+    return HOCartOffdiagonals{A,Float64,B,typeof(h),typeof(pairs)}(h, addr, pairs)
 end
 
 Base.IteratorSize(::HOCartOffdiagonals) = Base.SizeUnknown()
@@ -321,7 +328,19 @@ function loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
     return 0, 0     # fail case
 end
 
-function loop_over_pairs(S, aspect, pairs, start)
+# block_by_level = false
+function loop_over_modes(k_start, l_start, S, parity_in)
+    P = prod(S)
+    k, l = k_start, l_start
+    if l_start > k  # cycle k loop (l is iterated elsewhere)
+        k = k + 1
+        l = isodd(k + parity_in) ? 1 : 2    # preserve parity
+    end
+    k > P && return 0, 0    # end of loop
+    return k, l
+end
+
+function loop_over_pairs(S, aspect, pairs, start, block_by_level)
     pair_index, k_start, l_start = start
 
     p_i, p_j = pairs[pair_index]
@@ -330,9 +349,17 @@ function loop_over_pairs(S, aspect, pairs, start)
     mode_j = p_j.mode
     mode_k = k_start
     mode_l = l_start
-    Es = find_Ebounds(mode_i, mode_j, S, aspect)
+    if block_by_level
+        Es = find_Ebounds(mode_i, mode_j, S, aspect)
+    else 
+        parity_ij = mod(mode_i + mode_j, 2)
+    end
     while true
-        mode_k, mode_l = loop_over_modes(k_start, l_start, S, aspect, Es...)
+        mode_k, mode_l = if block_by_level
+            loop_over_modes(k_start, l_start, S, aspect, Es...)
+        else
+            loop_over_modes(k_start, l_start, S, parity_ij)
+        end
         mode_k > 0 && mode_l > 0 && break   # valid move found
 
         # move to next pair of particles
@@ -345,7 +372,11 @@ function loop_over_pairs(S, aspect, pairs, start)
         p_i, p_j = pairs[pair_index]
         mode_i = p_i.mode
         mode_j = p_j.mode
-        Es = find_Ebounds(mode_i, mode_j, S, aspect)
+        if block_by_level
+            Es = find_Ebounds(mode_i, mode_j, S, aspect)
+        else 
+            parity_ij = mod(mode_i + mode_j, 2)
+        end
         # start with checking lowest possible states in first dimension (x)
         k_start = 1
         l_start = 1
@@ -354,24 +385,25 @@ function loop_over_pairs(S, aspect, pairs, start)
     return pair_index, (mode_i, mode_j, mode_k, mode_l), false
 end
 
-function Base.iterate(off::HOCartOffdiagonals, iter_state = (1,1,1))
+function Base.iterate(off::HOCartOffdiagonals{<:Any,<:Any,B}, iter_state = (1,1,1)) where {B}
     S = off.ham.S
     aspect = off.ham.aspect
     addr = off.addr
     pairs = off.pairs
     length(off.pairs) == 0 && return nothing
-    pair_index, modes, end_of_loop = loop_over_pairs(S, aspect, pairs, iter_state)
+    pair_index, modes, end_of_loop = loop_over_pairs(S, aspect, pairs, iter_state, B)
 
     # end of iteration
     end_of_loop && return nothing
 
     i, j, k, l = modes
-    new_iter_state = (pair_index, k, l + 1)  # if l + 1 is out of bounds then `loop_over_states` can handle it
+    # increment by 2 to preserve parity
+    new_iter_state = (pair_index, k, l + 2)  # if l + 2 is out of bounds then `loop_over_states` can handle it
     # check for swap and self moves but do not discard
     if (k,l) == (i,j) || (k,l) == (j,i)
         return (addr, 0.0), new_iter_state
     end
-    # can I make a parity check here?
+
     p_k = find_mode(addr, k)
     p_l = find_mode(addr, l)
     new_add, val = excitation(addr, (p_l, p_k), pairs[pair_index])

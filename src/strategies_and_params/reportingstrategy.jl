@@ -189,31 +189,71 @@ end
 """
     ReportToFile(; kwargs...) <: ReportingStrategy
 
-Reporting strategy that writes the report directly to a file. Useful when dealing with long
+[`ReportingStrategy`](@ref) that writes the report directly to a file in the
+[`Arrow`](https://arrow.apache.org/julia/dev/) format. Useful when dealing with long
 jobs or large numbers of replicas, when the report can incur a significant memory cost.
+
+The arrow file can be read back in with [`load_df(filename)`](@ref) or
+`using Arrow; Arrow.Table(filename)`.
 
 # Keyword arguments
 
-* `filename`: the file to report to. If the file already exists, a new file is created.
-* `reporting_interval`: interval between simulation steps that are reported to a `DataFrame`.
+* `filename = "out.arrow"`: the file to report to. If the file already exists, a new file is
+  created.
+* `reporting_interval = 1`: interval between simulation steps that are reported.
 * `chunk_size = 1000`: the size of each chunk that is written to the file. A `DataFrame` of
   this size is collected in memory and written to disk. When saving, an info message is also
   printed to `io`.
-* `save_if = `[`is_mpi_root()`](@ref Rimu.RMPI.is_mpi_root): if this value is true, save the report, otherwise
-  ignore it.
+* `save_if = `[`is_mpi_root()`](@ref Rimu.RMPI.is_mpi_root): if this value is true, save the
+  report, otherwise ignore it.
 * `return_df = false`: if this value is true, read the file and return the data frame at the
   end of computation. Otherwise, an empty `DataFrame` is returned.
 * `io = stdout`: The `IO` to print messages to. Set to `devnull` if you don't want to see
   messages printed out.
+* `compress = :zstd`: compression algorithm to use. Can be `:zstd`, `:lz4` or `nothing`.
+
+See also [`load_df`](@ref) and [`save_df`](@ref).
 """
-@with_kw struct ReportToFile <: ReportingStrategy
+mutable struct ReportToFile{C} <: ReportingStrategy
     filename::String
-    reporting_interval::Int = 1
-    chunk_size::Int = 1000
-    save_if::Bool = RMPI.is_mpi_root()
-    return_df::Bool = false
-    io::IO = stdout
+    reporting_interval::Int
+    chunk_size::Int
+    save_if::Bool
+    return_df::Bool
+    io::IO
+    compress::C # Symbol, Arrow.ZstdCompressor, Arrow.LZ4FrameCompressor or nothing
+    writer::Union{Arrow.Writer, Nothing}
 end
+
+function ReportToFile(;
+    filename = "out.arrow",
+    reporting_interval = 1,
+    chunk_size = 1000,
+    save_if = RMPI.is_mpi_root(),
+    return_df = false,
+    io = stdout,
+    compress = :zstd,
+)
+    if !(compress isa Union{Nothing, Arrow.ZstdCompressor, Arrow.LZ4FrameCompressor})
+        if !(compress == :zstd || compress == :lz4)
+            throw(ArgumentError("compress must be nothing, :zstd or :lz4"))
+        end
+    end
+    return ReportToFile(
+        filename,
+        reporting_interval,
+        chunk_size,
+        save_if,
+        return_df,
+        io,
+        compress,
+        nothing
+    )
+end
+
+# helper function to check if the writer is open
+_isopen(s::ReportToFile) = !isnothing(s.writer) && !s.writer.isclosed
+
 function refine_r_strat(s::ReportToFile)
     if s.save_if
         # If filename exists, add -1 to the end of it. If that exists as well,
@@ -230,7 +270,7 @@ function refine_r_strat(s::ReportToFile)
         end
         if s.filename ≠ new_filename
             println(s.io, "File `$(s.filename)` exists.")
-            s = @set s.filename = new_filename
+            s.filename = new_filename
         end
         println(s.io, "Saving report to `$(s.filename)`.")
     end
@@ -246,24 +286,26 @@ function report_after_step(s::ReportToFile, step, report, state)
         # Report some stats:
         print_stats(s.io, step, state)
 
-        if isfile(s.filename)
-            Arrow.append(s.filename, report.data)
-        else
-            Arrow.write(s.filename, report.data; file=false)
+        if !_isopen(s)
+            # If the writer is closed or absent, we need to create a new one
+            s.writer = open(Arrow.Writer, s.filename; compress=s.compress)
         end
+        Arrow.write(s.writer, report.data)
         empty!(report)
     end
 end
+# We rely on this function to be called to close the writer.
 function finalize_report!(s::ReportToFile, report)
     if s.save_if
         println(s.io, "Finalizing.")
         if !isempty(report)
-            if isfile(s.filename)
-                Arrow.append(s.filename, report.data)
-            else
-                Arrow.write(s.filename, report.data; file=false)
+            if !_isopen(s)
+                # If the writer is closed or absent, we need to create a new one
+                s.writer = open(Arrow.Writer, s.filename; compress=s.compress)
             end
+            Arrow.write(s.writer, report.data)
         end
+        close(s.writer) # close the writer
         if s.return_df
             return DataFrame(Arrow.Table(s.filename))
         end

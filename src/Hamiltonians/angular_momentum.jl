@@ -2,7 +2,7 @@
     AxialAngularMomentumHO(S; z_dim = 3, addr = BoseFS(prod(S))) <: AbstractHamiltonian
 
 Angular momentum operator for application to Cartesian harmonic oscillator basis,
-see [`HOCartesianEnergyConserved`](@ref) or [`HOCartesianEnergyConservedPerDim`](@ref).
+see [`HOCartesianContactInteractions`](@ref) or [`HOCartesianEnergyConservedPerDim`](@ref).
 Represents the projection of angular momentum onto `z`-axis:
 ```math
 \\hat{L}_z = i \\hbar \\sum_{j=1}^N \\left( b_x b_y^\\dag - b_y b_x^\\dag \\right),

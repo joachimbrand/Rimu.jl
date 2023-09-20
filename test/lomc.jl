@@ -319,24 +319,30 @@ using Logging
             rm("test-report-1.arrow"; force=true)
             rm("test-report-2.arrow"; force=true)
             rm("test-report-3.arrow"; force=true)
+            rm("test-report-nc.arrow"; force=true)
+            rm("test-report-lz4.arrow"; force=true)
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, save_if=false)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test !isfile("test-report.arrow")
+            @test Rimu._isopen(r_strat) == false
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
             df1 = RimuIO.load_df("test-report.arrow")
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
             df2 = RimuIO.load_df("test-report-1.arrow")
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, return_df=true)
             df3 = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
             df4 = RimuIO.load_df("test-report-2.arrow")
 
             @test df1.shift ≈ df2.shift
@@ -353,11 +359,39 @@ using Logging
             @test df6.shift ≈ df5.shift
             @test df6.norm ≈ df5.norm
 
+            # ReportToFile with compression
+            @test_throws ArgumentError ReportToFile(compress=false)
+
+            r_strat = ReportToFile(
+                filename="test-report-nc.arrow", io=devnull, return_df=true,
+                compress=nothing
+            )
+            df7 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
+            @test df7 == RimuIO.load_df("test-report-nc.arrow")
+
+
+            r_strat = ReportToFile(
+                filename="test-report-lz4.arrow", io=devnull, return_df=true,
+                compress=:lz4
+            )
+            df8 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            @test isempty(df)
+            @test Rimu._isopen(r_strat) == false
+            @test df8 == RimuIO.load_df("test-report-lz4.arrow")
+
+            @test filesize("test-report-lz4.arrow") < filesize("test-report-nc.arrow")
+            @test filesize("test-report.arrow") < filesize("test-report-lz4.arrow")
+            # The default compression `:zstd` produces the smallest files.
+
             # Clean up.
             rm("test-report.arrow"; force=true)
             rm("test-report-1.arrow"; force=true)
             rm("test-report-2.arrow"; force=true)
             rm("test-report-3.arrow"; force=true)
+            rm("test-report-nc.arrow"; force=true)
+            rm("test-report-lz4.arrow"; force=true)
         end
     end
 

@@ -49,7 +49,7 @@ julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))|>Float64
 When extending `AbstractHamiltonian`, define a method for the two-argument form
 `dimension(h::MyNewHamiltonian, addr)`.
 
-See also [`BasisSetRep`](@doc).
+See also [`BasisSetRep`](@ref).
 """
 dimension(h::AbstractHamiltonian) = dimension(h, starting_address(h))
 dimension(::AbstractHamiltonian, addr) = dimension(addr)

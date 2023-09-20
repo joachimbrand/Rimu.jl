@@ -60,7 +60,7 @@ Implements a bosonic harmonic oscillator in Cartesian basis with contact interac
 \\hat{H} = \\sum_{i} ϵ_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l,
 ```
 with the additional restriction that the interactions only couple states with the same
-energy in each dimension separately. See [`HOCartesianEnergyConserved`](@ref) for a model that 
+energy in each dimension separately. See [`HOCartesianContactInteractions`](@ref) for a model that 
 conserves total energy.
 
 For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots`` 
@@ -81,7 +81,7 @@ first-order degenerate perturbation theory.
 where the ``\\delta``-function indicates that the noninteracting energy is conserved along each
 dimension.
 The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
-basis functions, see [`four_oscillator_integral_1D`](@ref), with the additional restriction 
+basis functions, see [`four_oscillator_integral_general`](@ref), with the additional restriction 
 that energy is conserved in each dimension.
 
 # Arguments
