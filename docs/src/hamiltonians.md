@@ -66,7 +66,7 @@ HubbardMom1DEP
 ```@docs
 HOCartesianContactInteractions
 HOCartesianEnergyConservedPerDim
-HOCartesian2BosonRelative
+HOCartesianCentralImpurity
 ```
 
 ### Other

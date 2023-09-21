@@ -178,7 +178,7 @@ end
 
         HOCartesianContactInteractions(BoseFS((2,0,0,0))),
         HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
-        HOCartesian2BosonRelative(BoseFS((1,0,0,0)))
+        HOCartesianCentralImpurity(BoseFS((1,0,0,0)))
     )
         test_hamiltonian_interface(H)
     end
@@ -1387,20 +1387,20 @@ end
         @test eval(Meta.parse(repr(H))) == H
     end
 
-    @testset "HOCartesian2BosonRelative" begin
+    @testset "HOCartesianCentralImpurity" begin
         # argument checks
-        @test_throws ArgumentError HOCartesian2BosonRelative(BoseFS(2, 1=>1); S = (1,2))
-        @test_throws ArgumentError HOCartesian2BosonRelative(BoseFS(2, 1=>1); Sx = 1, ηs = (0.5,))
-        @test_logs (:warn,) HOCartesian2BosonRelative(BoseFS(10, 1=>1); Sx = 1, ηs = (1,))
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(2, 1=>1); S = (1,2))
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(2, 1=>1); Sx = 1, ηs = (0.5,))
+        @test_logs (:warn,) HOCartesianCentralImpurity(BoseFS(10, 1=>1); Sx = 1, ηs = (1,))
 
         # overwrite address
-        H = HOCartesian2BosonRelative(BoseFS((1,2,3,4)); warn_address = false)
+        H = HOCartesianCentralImpurity(BoseFS((1,2,3,4)); warn_address = false)
         @test starting_address(H) == BoseFS(4, 1 => 1)
 
         M = 10
         ηs = (1,)
         addr = BoseFS(1, 1 => 1)    # dummy address
-        H = HOCartesian2BosonRelative(addr; Sx = M + 1, ηs, warn_address = false)
+        H = HOCartesianCentralImpurity(addr; Sx = M + 1, ηs, warn_address = false)
         @test prod(H.S) == floor(Int, prod(M .÷ (1,ηs...) .+ 1))   # 121
         @test H.aspect == (1.0, float.(ηs)...)
 
