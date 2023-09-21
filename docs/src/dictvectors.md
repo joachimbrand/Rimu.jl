@@ -41,6 +41,7 @@ In addition, Rimu defines the following function.
 
 ```@docs
 walkernumber
+dot_from_right
 ```
 
 ## Projectors
