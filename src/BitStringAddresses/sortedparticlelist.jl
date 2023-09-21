@@ -44,6 +44,15 @@ function SortedParticleList{N,M}() where {N,M}
     T = select_int_type(M)
     return SortedParticleList{N,M,T}(ones(SVector{N,T}))
 end
+function SortedParticleList(onr)
+    N = sum(onr)
+    M = length(onr)
+    T = select_int_type(M)
+    eltype(onr) <: Integer || throw(ArgumentError("the onr can only contain integers"))
+    any(≥(0), onr) || throw(ArgumentError("all elements of the onr should be positive"))
+
+    return from_onr(SortedParticleList{N,M,T}, onr)
+end
 function from_onr(::Type{S}, onr) where {N,M,T,S<:SortedParticleList{N,M,T}}
     spl = zeros(MVector{N,T})
     curr = 1
