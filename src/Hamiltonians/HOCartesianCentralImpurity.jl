@@ -24,8 +24,9 @@ evaluated at the origin,
 which is only non-zero for even-parity states.
 Mode indices `i,j` map to ``D``-dimensional tuples of harmonic oscillator 
 indices ``\\mathbf{n}_i``. `S` defines the bounds of the Cartesian HO modes.
-The values ``\\phi_i(0)`` should be precomputed by [`HOCartesianCentralImpurity`](@ref) 
-and passed in as the vector `vals`.
+The values ``\\phi_i(0)`` are calculated with [`log_abs_oscillator_zero`](@ref) 
+and should be precomputed by [`HOCartesianCentralImpurity`](@ref) and passed 
+in as the vector `vals`.
 """
 function ho_delta_potential(S, i, j; 
     vals = [log_abs_oscillator_zero(k) for k in 0:2:(maximum(S)-1)]
