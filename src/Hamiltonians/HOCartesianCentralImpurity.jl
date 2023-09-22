@@ -14,37 +14,31 @@ function log_abs_oscillator_zero(n)
 end
 
 """
-    ho_delta_potential(S, omm_i::OccupiedModeMap, omm_j::OccupiedModeMap; vals)
+    ho_delta_potential(S, i, j; vals)
 
-Returns the product of two one-dimensional harmonic oscillator functions 
+Returns the product of two harmonic oscillator functions 
 evaluated at the origin, 
 ```math
-    v_{ij} = \\phi_i(0) \\phi_j(0)
+    v_{ij} = \\phi_\\mathbf{n}_i(0) \\phi_\\mathbf{n}_j(0)
 ```
-Indices `i,j` start at `0` for the groundstate, must be even, and are bounded by
-the entries of `S` which defines the Cartesian HO modes.
-The values ``\\phi_i(0)`` are precomputed by [`HOCartesianCentralImpurity`](@ref) 
+which is only non-zero for even-parity states.
+Mode indices `i,j` map to ``D``-dimensional tuples of harmonic oscillator 
+indices ``\\mathbf{n}_i``. `S` defines the bounds of the Cartesian HO modes.
+The values ``\\phi_i(0)`` should be precomputed by [`HOCartesianCentralImpurity`](@ref) 
 and passed in as the vector `vals`.
-The result is summed over all occupied modes in `omm_i` and `omm_j`.
 """
-function ho_delta_potential(S, 
-    omm_i::OccupiedModeMap, 
-    omm_j::OccupiedModeMap; 
-    vals = [log_abs_oscillator_zero(i) for i in 0:2:(maximum(S)-1)]
+function ho_delta_potential(S, i, j; 
+    vals = [log_abs_oscillator_zero(k) for k in 0:2:(maximum(S)-1)]
     )
     states = CartesianIndices(S)
-    result = 0.0
-    for p_i in omm_i, p_j in omm_j
-        occ_i, mode_i = p_i
-        occ_j, mode_j = p_j
-        ho_indices = (Tuple(states[mode_i])..., Tuple(states[mode_j])...) .- 1
-        if all(iseven.(ho_indices))
-            doubly_evens = count(iseven.(ho_indices .÷ 2))
-            sign = (-1)^doubly_evens
-            result += sign * exp(sum(vals[k÷2 + 1] for k in ho_indices)) * occ_i * occ_j
-        end
+    ho_indices = (Tuple(states[i])..., Tuple(states[j])...) .- 1
+    if all(iseven.(ho_indices))
+        doubly_evens = count(iseven.(ho_indices .÷ 2))
+        sign = (-1)^doubly_evens
+        return sign * exp(sum(vals[k÷2 + 1] for k in ho_indices))
+    else
+        return 0.0
     end
-    return result
 end
 
 """
@@ -75,16 +69,13 @@ representation of this Hamiltonian is completely dense in the even-parity subspa
 # Arguments
 
 * `addr`: the starting address, defines number of particles and total number of modes.
-* `S`: Tuple of the number of levels in each dimension, including the groundstate. The first 
-    dimension should be the largest and sets the energy scale of the system, ``\\hbar\\omega_x``.
-    The aspect ratios are determined from the other elements of `S`.
-    Defaults to a 1D spectrum with number of levels matching modes of `addr`.
-* `M`, `ηs`: Alternatively, provide the maximum mode number in the 
-    first dimension `Mx` and `D-1` aspect ratios for the other dimensions `ηs = (η_y, ...)`. 
-    The elements of `ηs` should be at least `1.0`. Providing `Mx` and `ηs` will redefine 
-    `S = (M + 1, M/η_y + 1, ...)`.
-* `g`: the strength of the delta impurity in (``x``-dimension) trap units.
-* `impurity_only`: if set to `true` then the trap energy terms are ignored. Useful if 
+* `M=num_modes(addr) - 1`: the maximum harmonic oscillator index number in the ``x``-dimension.
+    Must be even. Index number for the harmonic oscillator groundstate is `0`.
+* `ηs=()`: a tuple of aspect ratios for the remaining dimensions `(η_y, ...)`. Should be empty 
+    for a 1D trap or contain values greater than `1.0`. The maximum index 
+    in other dimensions will be the largest even number less than `M/η_y`.
+* `g=1.0`: the strength of the delta impurity in (``x``-dimension) trap units.
+* `impurity_only=false`: if set to `true` then the trap energy terms are ignored. Useful if 
     only energy shifts due to the impurity are required.
 
 See also [`HOCartesianContactInteractions`](@ref) and[`HOCartesianEnergyConservedPerDim`](@ref).
@@ -103,24 +94,18 @@ end
 
 function HOCartesianCentralImpurity(
         addr::SingleComponentFockAddress; 
-        S = (num_modes(addr),),
-        M = nothing,
-        ηs = nothing, 
+        M::Int = num_modes(addr) - 1,
+        ηs = (), 
         g = 1.0,
         impurity_only = false
     )
-    if isnothing(ηs) && isnothing(Sx)
-        M = S[1] - 1
-        M + 1 ≠ maximum(S) && throw(ArgumentError("First dimension must have the most states"))
-        aspect = float.(box_to_aspect(S))
-        D = length(S)        
-    else
-        any(ηs .< 1.0) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
-        D = length(ηs) + 1
-        Srest = map(x -> floor(Int, M / x + 1), ηs)
-        S = (M + 1, Srest...)
-        aspect = (1.0, float.(ηs)...)
-    end
+    iseven(M) || throw(ArgumentError("M must be even"))
+    any(ηs .< 1.0) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
+    D = length(ηs) + 1
+    Srest = map(x -> 2floor(Int, M÷2 / x) + 1, ηs)
+    S = (M + 1, Srest...)
+    aspect = (1.0, float.(ηs)...)
+    
     num_modes(addr) == prod(S) || throw(ArgumentError("number of modes does not match starting address"))
 
     v_vec = [log_abs_oscillator_zero(i) for i in 0:2:M]
@@ -129,11 +114,7 @@ function HOCartesianCentralImpurity(
 end
 
 function Base.show(io::IO, H::HOCartesianCentralImpurity)
-    if length(H.S) == 1
-        print(io, "HOCartesianCentralImpurity($(H.addr); S=$(H.S), g=$(H.g), impurity_only=$(H.impurity_only))")
-    else
-        print(io, "HOCartesianCentralImpurity($(H.addr); M=$(H.S[1]-1), ηs=$(H.aspect[2:end]), g=$(H.g), impurity_only=$(H.impurity_only))")
-    end
+    print(io, "HOCartesianCentralImpurity($(H.addr); M=$(H.S[1]-1), ηs=$(H.aspect[2:end]), g=$(H.g), impurity_only=$(H.impurity_only))")
 end
 
 Base.:(==)(H::HOCartesianCentralImpurity, G::HOCartesianCentralImpurity) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
@@ -155,7 +136,7 @@ noninteracting_energy(H::HOCartesianCentralImpurity, addr) = noninteracting_ener
 @inline function diagonal_element(H::HOCartesianCentralImpurity, addr)
     omm = OccupiedModeMap(addr)
     u = H.g / sqrt(prod(H.aspect))
-    result = u * ho_delta_potential(H.S, omm, omm; vals = H.vtable)
+    result = u * sum(p -> ho_delta_potential(H.S, p.mode, p.mode; vals = H.vtable), omm)
     if !H.impurity_only
         result += noninteracting_energy(H, addr)
     end
@@ -163,62 +144,51 @@ noninteracting_energy(H::HOCartesianCentralImpurity, addr) = noninteracting_ener
 end
 
 ### OFFDIAGONAL ELEMENTS ###
-# all addresses couple
-num_offdiagonals(H::HOCartesianCentralImpurity, addr) = prod(H.S) - 1
-
-function get_offdiagonal(
-        H::HOCartesianCentralImpurity, 
-        addr, 
-        chosen::Int, 
-        omm::OccupiedModeMap = OccupiedModeMap(addr)
-    )
-    P = prod(H.S)
-    chosen ≥ P - 1 && return addr, 0.0
-
-    # skip self-move
-    p_i = omm[1]
-    if chosen ≥ p_i.mode
-        chosen += 2     # conserve parity
-    end
-
-    p_j = find_mode(addr, chosen)
-    new_addr, val = excitation(addr, (p_j,), (p_i,))
-
-    u = H.g / sqrt(prod(H.aspect))
-    impurity = ho_delta_potential(H.S, omm, OccupiedModeMap(new_addr); vals = H.vtable)
-
-    return new_addr, val * impurity * u
-end
+get_offdiagonal(H::HOCartesianCentralImpurity, addr, i) = offdiagonals(H, addr)[i]
+num_offdiagonals(H::HOCartesianCentralImpurity, addr) = (num_modes(addr) - 1) * length(occupied_modes(addr))
 
 ###
 ### offdiagonals
 ###
 """
-    HOCart2bRelOffdiagonals
+    HOCartImpurityOffdiagonals
 
 Specialized [`AbstractOffdiagonals`](@ref) for [`HOCartesianCentralImpurity`](@ref).
 """
-struct HOCart2bRelOffdiagonals{
-    A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
-} <: AbstractOffdiagonals{A,T}
-    hamiltonian::H
+struct HOCartImpurityOffdiagonals{
+    A<:BoseFS,O<:OccupiedModeMap,H<:HOCartesianCentralImpurity
+} <: AbstractOffdiagonals{A,Float64}
+    ham::H
     address::A
-    length::Int
-    map::O
+    omm::O
+    u::Float64
+    length::Int    
 end
 
-function offdiagonals(H::HOCartesianCentralImpurity, addr)
+function offdiagonals(H::HOCartesianCentralImpurity, addr::SingleComponentFockAddress)
     omm = OccupiedModeMap(addr)
-    num = num_offdiagonals(H, addr)
-    return HOCart2bRelOffdiagonals(H, addr, num, omm)
+    num_offs = num_offdiagonals(H, addr)
+    u = H.g / sqrt(prod(H.aspect))
+    return HOCartImpurityOffdiagonals(H, addr, omm, u, num_offs)
 end
 
-function Base.getindex(s::HOCart2bRelOffdiagonals{A,T}, i)::Tuple{A,T} where {A,T}
-    @boundscheck begin
-        1 ≤ i ≤ s.length || throw(BoundsError(s, i))
-    end
-    new_address, matrix_element = get_offdiagonal(s.hamiltonian, s.address, i, s.map)
-    return (new_address, matrix_element)
+function Base.getindex(offs::HOCartImpurityOffdiagonals, chosen)
+    addr = offs.address
+    omm = offs.omm
+    S = offs.ham.S
+    vals = offs.ham.vtable    
+    u = offs.u
+
+    P = num_modes(addr)
+    i, j = fldmod1(chosen, P - 1)
+    index_i = omm[i]
+    j += j ≥ index_i.mode   # skip self move
+    index_j = find_mode(addr, j)
+    new_addr, val = excitation(addr, (index_j,), (index_i,))
+
+    impurity = ho_delta_potential(S, index_i.mode, index_j.mode; vals)
+
+    return new_addr, val * impurity * u
 end
 
-Base.size(s::HOCart2bRelOffdiagonals) = (s.length,)
+Base.size(s::HOCartImpurityOffdiagonals) = (s.length,)
