@@ -78,6 +78,11 @@ representation of this Hamiltonian is completely dense in the even-parity subspa
 * `impurity_only=false`: if set to `true` then the trap energy terms are ignored. Useful if 
     only energy shifts due to the impurity are required.
 
+!!! warning
+        Due to use of `SpecialFunctions` with large arguments the matrix representation of 
+        this Hamiltonian may not be strictly symmetric, but is approximately symmetric within
+        machine precision.
+
 See also [`HOCartesianContactInteractions`](@ref) and[`HOCartesianEnergyConservedPerDim`](@ref).
 """
 struct HOCartesianCentralImpurity{
