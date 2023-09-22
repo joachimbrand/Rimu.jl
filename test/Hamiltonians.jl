@@ -178,7 +178,7 @@ end
 
         HOCartesianContactInteractions(BoseFS((2,0,0,0))),
         HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
-        HOCartesianCentralImpurity(BoseFS((1,0,0,0)))
+        HOCartesianCentralImpurity(BoseFS((1,0,0,0,0)))
     )
         test_hamiltonian_interface(H)
     end
@@ -1389,24 +1389,25 @@ end
 
     @testset "HOCartesianCentralImpurity" begin
         # argument checks
-        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(2, 1=>1); S = (1,2))
-        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(2, 1=>1); Sx = 1, ηs = (0.5,))
-        @test_logs (:warn,) HOCartesianCentralImpurity(BoseFS(10, 1=>1); Sx = 1, ηs = (1,))
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); M = 1)
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); M = 2)
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); M = 4, ηs = (0.5,))
 
-        # overwrite address
-        H = HOCartesianCentralImpurity(BoseFS((1,2,3,4)); warn_address = false)
-        @test starting_address(H) == BoseFS(4, 1 => 1)
-
-        M = 10
-        ηs = (1,)
-        addr = BoseFS(1, 1 => 1)    # dummy address
-        H = HOCartesianCentralImpurity(addr; Sx = M + 1, ηs, warn_address = false)
-        @test prod(H.S) == floor(Int, prod(M .÷ (1,ηs...) .+ 1))   # 121
+        N = 1
+        M = 8
+        ηs = (2,)
+        P = prod(x -> M÷x + 1, (1,ηs...))
+        addr = BoseFS(P, 1 => N)
+        H = HOCartesianCentralImpurity(addr; M, ηs)
         @test H.aspect == (1.0, float.(ηs)...)
 
         # interaction matrix elements
-        @test length(H.vtable) == M÷2 + 1     # 6
-        @test sum(H.vtable) ≈ -4.485020910721893
+        @test length(H.vtable) == M÷2 + 1     # 5
+        @test sum(H.vtable) ≈ -3.497817080215528
+
+        bsr = BasisSetRep(H; sizelim=Inf)
+        @test dimension(bsr) == 15  # dimension(bsr) < dimension(H)
+        @test sum(bsr.sm) ≈ 142.6393438659114
 
         @test eval(Meta.parse(repr(H))) == H
     end
