@@ -16,14 +16,14 @@ end
 """
     ho_delta_potential(S, i, j; vals)
 
-Returns the product of two harmonic oscillator functions 
-evaluated at the origin, 
+Returns the matrix element of a delta potential at the centre of a trap, i.e.
+the  product of two harmonic oscillator functions evaluated at the origin, 
 ```math
-    v_{ij} = \\phi_\\mathbf{n}_i(0) \\phi_\\mathbf{n}_j(0)
+    v_{ij} = \\phi_{\\mathbf{n}_i}(0) \\phi_{\\mathbf{n}_j}(0)
 ```
-which is only non-zero for even-parity states.
-Mode indices `i,j` map to ``D``-dimensional tuples of harmonic oscillator 
-indices ``\\mathbf{n}_i``. `S` defines the bounds of the Cartesian HO modes.
+which is only non-zero for even-parity states. The `i`th single particle state 
+corresponds to a ``D``-tuple of harmonic oscillator indices ``\\mathbf{n}_i``. 
+`S` defines the bounds of Cartesian harmonic oscillator indices for each dimension.
 The values ``\\phi_i(0)`` are calculated with [`log_abs_oscillator_zero`](@ref) 
 and should be precomputed by [`HOCartesianCentralImpurity`](@ref) and passed 
 in as the vector `vals`.
@@ -70,12 +70,12 @@ representation of this Hamiltonian is completely dense in the even-parity subspa
 # Arguments
 
 * `addr`: the starting address, defines number of particles and total number of modes.
-* `M=num_modes(addr) - 1`: the maximum harmonic oscillator index number in the ``x``-dimension.
+* `max_nx = num_modes(addr) - 1`: the maximum harmonic oscillator index number in the ``x``-dimension.
     Must be even. Index number for the harmonic oscillator groundstate is `0`.
-* `ηs=()`: a tuple of aspect ratios for the remaining dimensions `(η_y, ...)`. Should be empty 
+* `ηs = ()`: a tuple of aspect ratios for the remaining dimensions `(η_y, ...)`. Should be empty 
     for a 1D trap or contain values greater than `1.0`. The maximum index 
     in other dimensions will be the largest even number less than `M/η_y`.
-* `g=1.0`: the strength of the delta impurity in (``x``-dimension) trap units.
+* `g = 1.0`: the strength of the delta impurity in (``x``-dimension) trap units.
 * `impurity_only=false`: if set to `true` then the trap energy terms are ignored. Useful if 
     only energy shifts due to the impurity are required.
 
@@ -100,21 +100,21 @@ end
 
 function HOCartesianCentralImpurity(
         addr::SingleComponentFockAddress; 
-        M::Int = num_modes(addr) - 1,
+        max_nx::Int = num_modes(addr) - 1,
         ηs = (), 
         g = 1.0,
         impurity_only = false
     )
-    iseven(M) || throw(ArgumentError("M must be even"))
+    iseven(max_nx) || throw(ArgumentError("max_nx must be even"))
     any(ηs .< 1.0) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
     D = length(ηs) + 1
     Srest = map(x -> 2floor(Int, M÷2 / x) + 1, ηs)
-    S = (M + 1, Srest...)
+    S = (max_nx + 1, Srest...)
     aspect = (1.0, float.(ηs)...)
     
     num_modes(addr) == prod(S) || throw(ArgumentError("number of modes does not match starting address"))
 
-    v_vec = [log_abs_oscillator_zero(i) for i in 0:2:M]
+    v_vec = [log_abs_oscillator_zero(i) for i in 0:2:max_nx]
 
     return HOCartesianCentralImpurity{D,typeof(addr)}(addr, S, aspect, v_vec, g, impurity_only)
 end
