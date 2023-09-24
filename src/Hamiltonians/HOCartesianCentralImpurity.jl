@@ -109,7 +109,7 @@ function HOCartesianCentralImpurity(
     iseven(max_nx) || throw(ArgumentError("max_nx must be even"))
     any(ηs .< 1.0) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
     D = length(ηs) + 1
-    Srest = map(x -> 2floor(Int, M÷2 / x) + 1, ηs)
+    Srest = map(x -> 2floor(Int, max_nx÷2 / x) + 1, ηs)
     S = (max_nx + 1, Srest...)
     aspect = (1.0, float.(ηs)...)
     
@@ -121,7 +121,7 @@ function HOCartesianCentralImpurity(
 end
 
 function Base.show(io::IO, H::HOCartesianCentralImpurity)
-    print(io, "HOCartesianCentralImpurity($(H.addr); M=$(H.S[1]-1), ηs=$(H.aspect[2:end]), g=$(H.g), impurity_only=$(H.impurity_only))")
+    print(io, "HOCartesianCentralImpurity($(H.addr); max_nx=$(H.S[1]-1), ηs=$(H.aspect[2:end]), g=$(H.g), impurity_only=$(H.impurity_only))")
 end
 
 Base.:(==)(H::HOCartesianCentralImpurity, G::HOCartesianCentralImpurity) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
