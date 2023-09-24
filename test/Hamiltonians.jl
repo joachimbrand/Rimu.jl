@@ -1389,16 +1389,16 @@ end
 
     @testset "HOCartesianCentralImpurity" begin
         # argument checks
-        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); M = 1)
-        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); M = 2)
-        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); M = 4, ηs = (0.5,))
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); max_nx = 1)
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); max_nx = 2)
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); max_nx = 4, ηs = (0.5,))
 
         N = 1
         M = 8
         ηs = (2,)
         P = prod(x -> M÷x + 1, (1,ηs...))
         addr = BoseFS(P, 1 => N)
-        H = HOCartesianCentralImpurity(addr; M, ηs)
+        H = HOCartesianCentralImpurity(addr; max_nx = M, ηs)
         @test H.aspect == (1.0, float.(ηs)...)
 
         # interaction matrix elements
