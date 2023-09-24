@@ -14,7 +14,7 @@ function log_abs_oscillator_zero(n)
 end
 
 """
-    ho_delta_potential(S, i, j; vals)
+    ho_delta_potential(S, i, j; [vals])
 
 Returns the product of two harmonic oscillator functions 
 evaluated at the origin, 
@@ -65,7 +65,8 @@ Matrix elements ``V_{\\mathbf{ij}}`` are for a delta function potential calculat
     V_{\\mathbf{ij}} = \\prod_{d \\in x, y,\\ldots} \\psi_{i_d}(0) \\psi_{j_d}(0).
 ```
 Only even parity states feel this impurity, so all ``i_d`` are even. Note that the matrix 
-representation of this Hamiltonian is completely dense in the even-parity subspace.
+representation of this Hamiltonian for a single particle is completely dense in the even-parity 
+subspace.
 
 # Arguments
 
