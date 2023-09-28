@@ -1401,6 +1401,9 @@ end
         H = HOCartesianCentralImpurity(addr; max_nx = M, ηs)
         @test H.aspect == (1.0, float.(ηs)...)
 
+        G = HOCartesianCentralImpurity(addr; S = H.S, ηs)
+        @test G == H
+
         # interaction matrix elements
         @test length(H.vtable) == M÷2 + 1     # 5
         @test sum(H.vtable) ≈ -3.497817080215528

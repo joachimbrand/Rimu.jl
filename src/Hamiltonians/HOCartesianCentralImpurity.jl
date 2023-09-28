@@ -76,6 +76,8 @@ subspace.
 * `ηs = ()`: a tuple of aspect ratios for the remaining dimensions `(η_y, ...)`. Should be empty 
     for a 1D trap or contain values greater than `1.0`. The maximum index 
     in other dimensions will be the largest even number less than `M/η_y`.
+* `S = nothing`: Instead of `max_nx`, manually set the number of levels in each dimension, 
+    including the groundstate. Must be a `Tuple` of `Int`s.
 * `g = 1.0`: the strength of the delta impurity in (``x``-dimension) trap units.
 * `impurity_only=false`: if set to `true` then the trap energy terms are ignored. Useful if 
     only energy shifts due to the impurity are required.
@@ -102,20 +104,25 @@ end
 function HOCartesianCentralImpurity(
         addr::SingleComponentFockAddress; 
         max_nx::Int = num_modes(addr) - 1,
+        S = nothing,
         ηs = (), 
         g = 1.0,
         impurity_only = false
     )
-    iseven(max_nx) || throw(ArgumentError("max_nx must be even"))
     any(ηs .< 1.0) && throw(ArgumentError("Aspect ratios must be greater than 1.0"))
-    D = length(ηs) + 1
-    Srest = map(x -> 2floor(Int, max_nx÷2 / x) + 1, ηs)
-    S = (max_nx + 1, Srest...)
+    if isnothing(S)
+        iseven(max_nx) || throw(ArgumentError("max_nx must be even"))
+        D = length(ηs) + 1
+        Srest = map(x -> 2floor(Int, max_nx÷2 / x) + 1, ηs)
+        S = (max_nx + 1, Srest...)
+    else
+        D = length(S)
+    end
     aspect = (1.0, float.(ηs)...)
     
     num_modes(addr) == prod(S) || throw(ArgumentError("number of modes does not match starting address"))
 
-    v_vec = [log_abs_oscillator_zero(i) for i in 0:2:max_nx]
+    v_vec = [log_abs_oscillator_zero(i) for i in 0:2:S[1]-1]
 
     return HOCartesianCentralImpurity{D,typeof(addr)}(addr, S, aspect, v_vec, g, impurity_only)
 end
