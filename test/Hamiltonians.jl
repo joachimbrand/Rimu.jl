@@ -178,6 +178,7 @@ end
 
         HOCartesianContactInteractions(BoseFS((2,0,0,0))),
         HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
+        HOCartesianCentralImpurity(BoseFS((1,0,0,0,0)))
     )
         test_hamiltonian_interface(H)
     end
@@ -1382,6 +1383,34 @@ end
         @test H.aspect1 == (1.0,2.0,3.0)
         H = HOCartesianEnergyConservedPerDim(addr; S, η = 2)
         @test H.aspect1 == (1.0,2.0,2.0)
+
+        @test eval(Meta.parse(repr(H))) == H
+    end
+
+    @testset "HOCartesianCentralImpurity" begin
+        # argument checks
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); max_nx = 1)
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); max_nx = 2)
+        @test_throws ArgumentError HOCartesianCentralImpurity(BoseFS(4, 1=>1); max_nx = 4, ηs = (0.5,))
+
+        N = 1
+        M = 8
+        ηs = (2,)
+        P = prod(x -> M÷x + 1, (1,ηs...))
+        addr = BoseFS(P, 1 => N)
+        H = HOCartesianCentralImpurity(addr; max_nx = M, ηs)
+        @test H.aspect == (1.0, float.(ηs)...)
+
+        G = HOCartesianCentralImpurity(addr; S = H.S, ηs)
+        @test G == H
+
+        # interaction matrix elements
+        @test length(H.vtable) == M÷2 + 1     # 5
+        @test sum(H.vtable) ≈ -3.497817080215528
+
+        bsr = BasisSetRep(H; sizelim=Inf)
+        @test dimension(bsr) == 15  # dimension(bsr) < dimension(H)
+        @test sum(bsr.sm) ≈ 142.6393438659114
 
         @test eval(Meta.parse(repr(H))) == H
     end

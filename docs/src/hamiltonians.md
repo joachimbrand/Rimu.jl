@@ -66,6 +66,7 @@ HubbardMom1DEP
 ```@docs
 HOCartesianContactInteractions
 HOCartesianEnergyConservedPerDim
+HOCartesianCentralImpurity
 ```
 
 ### Other
@@ -166,11 +167,12 @@ and [`HOCartesianEnergyConservedPerDim`](@ref).
 ```@docs
 get_all_blocks
 fock_to_cart
-parity_block_seed_addresses
 ```
 Underlying integrals for the interaction matrix elements are implemented in the following unexported functions
 ```@docs
 Hamiltonians.four_oscillator_integral_general
+Hamiltonians.ho_delta_potential
+Hamiltonians.log_abs_oscillator_zero
 ```
 
 ## Index

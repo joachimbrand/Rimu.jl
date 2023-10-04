@@ -21,6 +21,7 @@ Momentum space Hubbard models
 Harmonic oscillator models
 - [`HOCartesianContactInteractions`](@ref)
 - [`HOCartesianEnergyConservedPerDim`](@ref)
+- [`HOCartesianCentralImpurity`](@ref)
 
 Other
 - [`MatrixHamiltonian`](@ref)
@@ -80,8 +81,9 @@ export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 
-export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
-export get_all_blocks, fock_to_cart, parity_block_seed_addresses
+export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, HOCartesianCentralImpurity 
+export AxialAngularMomentumHO
+export get_all_blocks, fock_to_cart
 
 include("abstract.jl")
 include("offdiagonals.jl")
@@ -114,6 +116,7 @@ include("Momentum.jl")
 
 include("HOCartesianContactInteractions.jl")
 include("HOCartesianEnergyConservedPerDim.jl")
+include("HOCartesianCentralImpurity.jl")
 include("vertices.jl")
 include("ho-cart-tools.jl")
 include("angular_momentum.jl")
