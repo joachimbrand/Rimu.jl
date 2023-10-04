@@ -24,9 +24,11 @@ the  product of two harmonic oscillator functions evaluated at the origin,
 which is only non-zero for even-parity states. The `i`th single particle state 
 corresponds to a ``D``-tuple of harmonic oscillator indices ``\\mathbf{n}_i``. 
 `S` defines the bounds of Cartesian harmonic oscillator indices for each dimension.
-The values ``\\phi_i(0)`` are calculated with [`log_abs_oscillator_zero`](@ref) 
-and should be precomputed by [`HOCartesianCentralImpurity`](@ref) and passed 
-in as the vector `vals`.
+The optional keyword argument `vals` allows passing pre-computed values of 
+``\\phi_i(0)`` to speed-up the calculation. The values can be calculated with 
+[`log_abs_oscillator_zero`](@ref).
+
+See also [`HOCartesianCentralImpurity`](@ref).
 """
 function ho_delta_potential(S, i, j; 
     vals = [log_abs_oscillator_zero(k) for k in 0:2:(maximum(S)-1)]
