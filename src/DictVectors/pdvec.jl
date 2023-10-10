@@ -161,7 +161,7 @@ struct PDVec{
     communicator::C
 end
 
-function PDVec{K,V}(args...; kwargs...) where {K,V,N}
+function PDVec{K,V}(args...; kwargs...) where {K,V}
     return PDVec{K,V,Threads.nthreads()}(args...; kwargs...)
 end
 function PDVec{K,V,N}(
