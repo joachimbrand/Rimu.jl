@@ -10,13 +10,16 @@ struct ThresholdCompression{T} <: CompressionStrategy
 end
 ThresholdCompression() = ThresholdCompression(1)
 
+_set_value!(w, key, val) = w[key] = val
+_set_value!(w::Dict, key, val) = val ≠ 0 ? w[key] = val : delete!(w, key)
+
 function _threshold_compress!(t::ThresholdCompression, w, pairs)
     for (add, val) in pairs
         prob = abs(val) / t.threshold
         if prob < 1 # projection is only necessary if abs(val) < s.threshold
             val = ifelse(prob > rand(), t.threshold * sign(val), zero(val))
         end
-        w[add] = val
+        _set_value!(w, add, val)
     end
 end
 
