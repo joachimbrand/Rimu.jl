@@ -302,8 +302,7 @@ end
 """
     HOCartSeparableOffdiagonals
 
-Specialized [`AbstractOffdiagonals`](@ref) that keeps track of singly and doubly occupied
-sites in current address.
+Specialized [`AbstractOffdiagonals`](@ref) for [`HOCartesianEnergyConservedPerDim`](@ref).
 """
 struct HOCartSeparableOffdiagonals{
     A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap

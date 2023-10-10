@@ -29,10 +29,9 @@ Keyword arguments:
     Useful for anisotropic traps
 
 Note: If `h` was constructed with option `block_by_level = false` then the block seeds 
-`addr` are determined by parity, see [`parity_block_seed_addresses`](@ref). In this case 
-the blocks are not generated; `t_basis` will be zero, and `block_size` will be an 
-estimate. Pass the seed addresses to [`BasisSetRep`](@ref) with an appropriate `filter` 
-to generate the blocks.
+`addr` are determined by parity. In this case the blocks are not generated; `t_basis` 
+will be zero, and `block_size` will be an estimate. Pass the seed addresses to 
+[`BasisSetRep`](@ref) with an appropriate `filter` to generate the blocks.
 """
 function get_all_blocks(h::Union{HOCartesianContactInteractions{D,<:Any,B},HOCartesianEnergyConservedPerDim{D}}; 
         target_energy = nothing, 
@@ -171,6 +170,29 @@ function get_all_blocks_comb(h;
     return df
 end
 
+"""
+    parity_block_seed_addresses(h::HOCartesianContactInteractions{D})
+
+Get a vector of addresses that each have different parity with respect to 
+the trap geometry defined by the Hamiltonian `H`. The result will have `2^D`
+`BoseFS` addresses for a `D`-dimensional trap. This is useful for 
+[`HOCartesianContactInteractions`](@ref) with option `block_by_level = false`.
+"""
+function parity_block_seed_addresses(h::HOCartesianContactInteractions{D,A}) where {D,A}
+    P = prod(h.S)
+    N = num_particles(h.addr)
+    breakpoints = accumulate(*, (1, h.S[1:end-1]...))
+    seeds = A[]
+    for c in with_replacement_combinations([0,1], D), p in multiset_permutations(c, D)
+        index = 1 + dot(p, breakpoints)
+        push!(seeds,
+            BoseFS(P, index => 1, 1 => N-1)
+        )
+    end
+    
+    return seeds
+end
+
 # specialised version if `block_by_level = false`
 function get_all_blocks_parity(h::HOCartesianContactInteractions{D,<:Any,B}) where {D,B}
     # check if H blocks by level
@@ -207,27 +229,4 @@ function fock_to_cart(
         OccupiedModeMap(addr))...)
 
     return SVector{N,NTuple{D,Int}}(cart)
-end
-
-"""
-    parity_block_seed_addresses(h::HOCartesianContactInteractions{D})
-
-Get a vector of addresses that each have different parity with respect to 
-the trap geometry defined by the Hamiltonian `H`. The result will have `2^D`
-`BoseFS` addresses for a `D`-dimensional trap. This is useful for 
-[`HOCartesianContactInteractions`](@ref) with option `block_by_level = false`.
-"""
-function parity_block_seed_addresses(h::HOCartesianContactInteractions{D,A}) where {D,A}
-    P = prod(h.S)
-    N = num_particles(h.addr)
-    breakpoints = accumulate(*, (1, h.S[1:end-1]...))
-    seeds = A[]
-    for c in with_replacement_combinations([0,1], D), p in multiset_permutations(c, D)
-        index = 1 + dot(p, breakpoints)
-        push!(seeds,
-            BoseFS(P, index => 1, 1 => N-1)
-        )
-    end
-    
-    return seeds
 end
