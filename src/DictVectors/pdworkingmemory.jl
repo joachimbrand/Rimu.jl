@@ -222,7 +222,7 @@ function move_and_compress!(dst::PDVec, src::PDWorkingMemory)
 end
 
 """
-    main_column(::WorkingMemory) -> PDVec
+    main_column(::PDWorkingMemory) -> PDVec
 
 Return the "main" column of the working memory wrapped in a [`PDVec`](@ref).
 """

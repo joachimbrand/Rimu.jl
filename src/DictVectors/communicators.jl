@@ -85,17 +85,17 @@ Return the `MPI.Comm` that the communicator operates on.
 mpi_comm
 
 """
-    copy_to_local!([::Communicator,] w::WorkingMemory, t::PDVec) -> PDVec
+    copy_to_local!([::Communicator,] w::PDWorkingMemory, t::PDVec) -> PDVec
 
 Copy pairs in `t` from all ranks and return them as (possibly) new [`PDVec`](@ref), possibly
-using the [`WorkingMemory`](@ref) as temporary storage.
+using the [`PDWorkingMemory`](@ref) as temporary storage.
 """
 copy_to_local!
 
 """
-    synchronize_remote!([::Communicator,] ::WorkingMemory)
+    synchronize_remote!([::Communicator,] ::PDWorkingMemory)
 
-Copy pairs from remote ranks to the local part of the [`WorkingMemory`](@ref).
+Copy pairs from remote ranks to the local part of the [`PDWorkingMemory`](@ref).
 """
 synchronize_remote!
 
@@ -159,7 +159,7 @@ end
 
 Multiple vectors stored in a simple buffer with MPI communication.
 
-See [`replace_collections!`](@ref), [`mpi_send`](@ref), [`mpi_recv!`](@ref).
+See [`replace_collections!`](@ref), [`mpi_send`](@ref), [`mpi_recv_any!`](@ref).
 """
 struct SegmentedBuffer{T} <: AbstractVector{SubArray{T,1,Vector{T},Tuple{UnitRange{Int64}},true}}
     offsets::Vector{Int}

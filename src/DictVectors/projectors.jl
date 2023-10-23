@@ -135,7 +135,8 @@ end
 """
     FrozenDVec
 
-See: [`freeze`](@ref).
+A frozen [`DVec`](@ref)(s) can't be modified or used in the conventional manner, but support
+faster dot products. See: [`freeze`](@ref).
 """
 struct FrozenDVec{K,V} <: AbstractProjector
     pairs::Vector{Pair{K,V}}
