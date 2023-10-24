@@ -10,6 +10,10 @@ end
 """
     abstract type Communicator
 
+Communicators are used to handle MPI communication when using [`PDVec`](@ref)s. Currently,
+two implementations are provided, [`NotDistributed`](@ref), and [`PointToPoint`](@ref). The
+communicator is picked automatically according to the number of MPI ranks available.
+
 When implementing a communicator, use [`local_segments`](@ref) and
 [`remote_segments`](@ref).
 
@@ -25,7 +29,8 @@ When implementing a communicator, use [`local_segments`](@ref) and
 * [`is_distributed`](@ref): defaults to returning `true`.
 * [`merge_remote_reductions`](@ref): defaults to using `MPI.Allreduce`.
 * [`total_num_segments`](@ref): defaults to `n * mpi_size`.
-* [`target_segment`](@ref): defaults to selecting using fastrange to pick the segment.
+* [`target_segment`](@ref): defaults to selecting using
+  [fastrange](https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/)  to pick the segment.
 
 """
 abstract type Communicator end

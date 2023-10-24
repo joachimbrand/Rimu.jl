@@ -8,8 +8,9 @@ support the interface from [VectorInterface.jl](https://github.com/Jutho/VectorI
 and are designed to work well for quantum Monte Carlo with [`lomc!`](@ref Main.lomc!) and
 for matrix-free linear algebra with [KrylovKit](https://github.com/Jutho/KrylovKit.jl).
 
-Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec) and
-[`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
+Concrete implementations are available as [`PDVec`](@ref Main.DictVectors.PDVec),
+[`DVec`](@ref Main.DictVectors.DVec), and [`InitiatorDVec`](@ref
+Main.DictVectors.InitiatorDVec).
 
 `AbstractDVec`s have a [`StochasticStyle`](@ref) which selects the spawning algorithm in
 `FCIQMC`. Looking up an element that is not stored in the `AbstractDVec` should return a
