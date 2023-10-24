@@ -16,15 +16,15 @@ using Rimu.RMPI
 
 # First, we define the Hamiltonian. We want to start from an address with zero momentum.
 
-address = BoseFS((0, 0, 0, 0, 10, 0, 0, 0, 0, 0))
+address = BoseFS(10, 5 => 10)
 
 # We will set the interaction strength `u` to `6`. The hopping strength `t` defaults to `1.0`.
 
 hamiltonian = HubbardMom1D(address; u=6.0)
 
-# Next, we construct the starting vector. We use a `PDVec` to make it MPI distributed. We
-# set the vector's style to [`IsDynamicSemistochastic`](@ref), which improves statistics and
-# reduces the sign problem.
+# Next, we construct the starting vector. We use a `PDVec`, which is automatically MPI
+# distributed if MPI is available. We set the vector's stochastic style to
+# [`IsDynamicSemistochastic`](@ref), which improves statistics and reduces the sign problem.
 
 dvec = PDVec(address => 1.0; style=IsDynamicSemistochastic())
 
@@ -54,6 +54,6 @@ using Test                                          #hide
 @test isfile("result.arrow")                        #hide
 dfr = load_df("result.arrow")                       #hide
 qmcdata = last(dfr, 5000)                           #hide
-(qmcShift,qmcShiftErr) = mean_and_se(qmcdata.shift) #hide
-@test qmcShift ≈ -6.5 atol=0.5                      #hide
+qmc_shift, _ = mean_and_se(qmcdata.shift)           #hide
+@test qmc_shift ≈ -6.5 atol=0.5                     #hide
 rm("result.arrow", force=true)                      #hide

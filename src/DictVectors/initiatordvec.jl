@@ -209,8 +209,7 @@ end
 """
     InitiatorIterator
 
-Iterator over pairs or values of an `InitiatorDVec`. Supports the `SplittablesBase`
-interface.
+Iterator over pairs or values of an `InitiatorDVec`.
 """
 struct InitiatorIterator{T,D,I}
     iter::D
