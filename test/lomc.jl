@@ -550,7 +550,7 @@ end
         @test "len_before" ∉ names(df_cx)
         @test "len_before" ∉ names(df_de)
         @test all(>(0), df_dp.len_before)
-        @test all(df_dp.len_before .≤ df_dp.len)
+        @test all(df_dp.len_before .≥ df_dp.len)
 
         E_st, σ_st = mean_and_se(df_st.shift[500:end])
         E_th, σ_th = mean_and_se(df_th.shift[500:end])
