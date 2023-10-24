@@ -127,7 +127,8 @@ function apply_operator!(
         target, working_memory, spawn_stats
     )
     if C
-        comp_names, comp_stats = compress!(target)
+        comp_names, _ = step_stats(CompressionStrategy(target))
+        comp_stats = compress!(target)
         names = (spawn_names..., comp_names...)
         stats = (spawn_stats..., comp_stats...)
     else

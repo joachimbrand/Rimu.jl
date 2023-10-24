@@ -209,16 +209,15 @@ Move the values in `src` to `dst`, compressing the according to the
 """
 function move_and_compress!(dst::PDVec, src::PDWorkingMemory)
     compression = CompressionStrategy(StochasticStyle(src))
-    Folds.foreach(dst.segments, local_segments(src)) do dst_seg, src_seg
+    stat_names, init = step_stats(compression)
+    stats = Folds.mapreduce(add, dst.segments, local_segments(src); init) do dst_seg, src_seg
         empty!(dst_seg)
-        # TODO: this does not collect the correct stats
-        # it's also messy as calling pairs on the generator seems to do the correct thing
         compress!(
             compression, dst_seg,
             (from_initiator_value(src.initiator, v) for (k, v) in pairs(src_seg)),
         )
     end
-    return dst
+    return dst, stat_names, stats
 end
 
 """
@@ -248,7 +247,10 @@ function Interfaces.apply_operator!(
     stat_names, stats = perform_spawns!(working_memory, source, ham, boost)
     collect_local!(working_memory)
     synchronize_remote!(working_memory)
-    target = move_and_compress!(target, working_memory)
+    target, comp_stat_names, comp_stats = move_and_compress!(target, working_memory)
+
+    stat_names = (stat_names..., comp_stat_names...)
+    stats = (stats..., comp_stats...)
 
     return stat_names, stats, working_memory, target
 end
