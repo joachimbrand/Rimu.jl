@@ -14,6 +14,7 @@ using Base.Cartesian
 
 export AbstractFockAddress, SingleComponentFockAddress, BoseFS, BoseFS2C, FermiFS
 export CompositeFS, FermiFS2C, time_reverse
+export ONRFS
 export BoseFSIndex, FermiFSIndex
 export BitString, SortedParticleList
 export num_particles, num_modes, num_components
@@ -28,5 +29,6 @@ include("sortedparticlelist.jl")
 include("bosefs.jl")
 include("fermifs.jl")
 include("multicomponent.jl")
+include("onrfs.jl")
 
 end
