@@ -60,7 +60,9 @@ total_num_segments(c::Communicator, n) = n * mpi_size(c)
 """
     target_segment(c::Communicator, k, num_segments) -> target, is_local
 
-Return the target segment for a key if it's local key and whether it's local or not.
+This function is used to determine where in the [`PDVec`](@ref) a key should be stored.
+
+If the key is local (stored on the same MPI rank), return its segment index and `true`. If the key is non-local, return any value and `false`.
 """
 function target_segment(c::Communicator, k, num_segments)
     total_segments = num_segments * mpi_size(c)

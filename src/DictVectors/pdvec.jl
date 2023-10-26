@@ -763,7 +763,7 @@ end
 """
     FrozenPDVec
 
-Parallel version of [`FrozenDVec`]. See: [`freeze`](@ref), [`PDVec`](@ref).
+Parallel version of [`FrozenDVec`](@ref). See: [`freeze`](@ref), [`PDVec`](@ref).
 """
 struct FrozenPDVec{K,V,N} <: AbstractProjector
     segments::NTuple{N,Vector{Pair{K,V}}}
