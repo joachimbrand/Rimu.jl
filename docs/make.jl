@@ -50,6 +50,7 @@ makedocs(;
         "Examples" => EXAMPLES_PAIRS[sortperm(EXAMPLES_NUMS)],
         "User documentation" => [
             "StatsTools" => "statstools.md",
+            "Using MPI" => "mpi.md",
         ],
         "Developer documentation" => [
             "Interfaces" => "interfaces.md",
