@@ -195,47 +195,54 @@ function excitation(
 end
 
 """
-    onr_excitation(onrep, fs, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int})
+    onr_excitation(onrep, fs::ONRFS, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int})
 
 Apply the creation and destruction operators to the Fock state defined by the occupation
 number representation `onrep` and `typeof(fs)` and return the new address and the
 prefactor of the resulting state. This type of excitation may change the particle number
 if the address type `typeof(fs)` is not number conserving.
 """
-function onr_excitation(onrep, fs::T, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
-    num_ds = prod(onrep[i] for i in d; init=1.0)
-    iszero(num_ds) && return fs, 0.0
-    onrep_d_applied = destroy_from_onr(onrep, d)
-    onrep_c_applied = create_from_onr(onrep_d_applied, c)
-    num_cs = prod(onrep_c_applied[i] for i in c; init=1.0)
+function onr_excitation(
+    onrep, fs::T, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}
+) where {BITS, T<:ONRFS{BITS}}
+    num_ds, onrep_d_applied = destroy_from_onr(onrep, d)
+    iszero(num_ds) && return fs, 0.0 # annihilation of vacuum
+
+    num_cs, onrep_c_applied = create_from_onr(onrep_d_applied, c)
+    all(x -> x < 1<<BITS, onrep_c_applied) || return fs, 0.0 # illegal address
+
     return T(onrep_c_applied), sqrt(num_cs * num_ds)
 end
 # TODO: optimize and remove allocations
 
 """
-    destroy_from_onr(onr, destructions)
+    destroy_from_onr(onr, destructions) -> factor, new_onr
 
 Apply destruction operators to an occupation number representation `onr`.
 """
 @inline function destroy_from_onr(onr, destructions)
     monr = MVector(onr)
+    factor = 1
     for i in destructions
+        factor *= monr[i]
         monr[i] -= 1
     end
-    return SVector(monr)
+    return factor, SVector(monr)
 end
 
 """
-    create_from_onr(onr, creations)
+    create_from_onr(onr, creations) -> factor, new_onr
 
 Apply creation operators to an occupation number representation `onr`.
 """
 @inline function create_from_onr(onr, creations)
     monr = MVector(onr)
+    factor = 1
     for i in creations
         monr[i] += 1
+        factor *= monr[i]
     end
-    return SVector(monr)
+    return factor, SVector(monr)
 end
 
 """

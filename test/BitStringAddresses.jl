@@ -472,9 +472,13 @@ end
     @test onr(fs) == [1,2,3,0,1,20,3,2,5,0,1]
     @test collect(fs) == onr(fs)
 
-    @test excitation(fs, (), (4,5)) == (fs, 0.0)
-    nfs, amp = excitation(fs, (4,6), ())
+    @test excitation(fs, (), (4,5)) == (fs, 0.0) # annihilation of vacuum
+    @test excitation(fs, (), (6, 6, 5)) == (fs"|1 2 3 0 0 18 3 2 5 0 1⟩{7}", √(20*19*1))
+    nfs, amp = excitation(fs, (4, 6), ())
     @test num_particles(nfs) == num_particles(fs) + 2
     @test amp == √(1 * 21)
     @test onr(nfs) == [1,2,3,1,1,21,3,2,5,0,1]
+
+    fs = ONRFS{3}((1, 7, 0))
+    @test excitation(fs, (2,), ()) == (fs, 0.0) # overflow, illegal address
 end
