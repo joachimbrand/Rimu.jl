@@ -155,7 +155,7 @@ See also [`find_occupied_mode`](@ref),
 occupied_modes
 
 """
-    excitation(a::SingleComponentFockAddress, creations::NTuple{N}, destructions::NTuple{N})
+    excitation(a::SingleComponentFockAddress, creations::NTuple, destructions::NTuple)
 
 Generate an excitation on address `a` by applying `creations` and `destructions`, which are
 tuples of the appropriate address indices (i.e. [`BoseFSIndex`](@ref) for bosons, or
@@ -185,6 +185,58 @@ julia> excitation(f, (i,j), (k,l))
 See [`SingleComponentFockAddress`](@ref).
 """
 excitation
+
+# Non-optimized version generic version that accepts integer creation and destruction
+# indices
+function excitation(
+    fs::SingleComponentFockAddress, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}
+)
+    return onr_excitation(onr(fs), fs, c, d)
+end
+
+"""
+    onr_excitation(onrep, fs, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int})
+
+Apply the creation and destruction operators to the Fock state defined by the occupation
+number representation `onrep` and `typeof(fs)` and return the new address and the
+prefactor of the resulting state. This type of excitation may change the particle number
+if the address type `typeof(fs)` is not number conserving.
+"""
+function onr_excitation(onrep, fs::T, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
+    num_ds = prod(onrep[i] for i in d; init=1.0)
+    iszero(num_ds) && return fs, 0.0
+    onrep_d_applied = destroy_from_onr(onrep, d)
+    onrep_c_applied = create_from_onr(onrep_d_applied, c)
+    num_cs = prod(onrep_c_applied[i] for i in c; init=1.0)
+    return T(onrep_c_applied), sqrt(num_cs * num_ds)
+end
+
+
+"""
+    destroy_from_onr(onr, destructions)
+
+Apply destruction operators to an occupation number representation `onr`.
+"""
+@inline function destroy_from_onr(onr, destructions)
+    monr = MVector(onr)
+    for i in destructions
+        monr[i] -= 1
+    end
+    return SVector(monr)
+end
+
+"""
+    create_from_onr(onr, creations)
+
+Apply creation operators to an occupation number representation `onr`.
+"""
+@inline function create_from_onr(onr, creations)
+    monr = MVector(onr)
+    for i in creations
+        monr[i] += 1
+    end
+    return SVector(monr)
+end
 
 """
     OccupiedModeMap(add) <: AbstractVector
@@ -358,6 +410,13 @@ function parse_address(str)
     if !isnothing(m)
         particles = parse.(Int, filter(!isempty, split(m.captures[2], r" +")))
         return FermiFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
+    end
+    # ONRFS
+    m = match(r"\|([ 0-9]+)⟩{[0-9]}", str)
+    if !isnothing(m)
+        m2 = match(r"{([0-9]+)}", str)
+        BITS = parse(Int, m2.captures[1])
+        return ONRFS{BITS}(Tuple(parse.(Int, split(m.captures[1], r" +"))))
     end
     # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)
@@ -658,11 +717,11 @@ end
 """
     OccupiedPairsMap(addr::SingleComponentFockAddress) <: AbstractVector
 
-Get a map of all distinct pairs of indices in `addr`. Pairs involving 
+Get a map of all distinct pairs of indices in `addr`. Pairs involving
 multiply-occupied modes are counted once, (including self-pairing).
-This is useful for cases where identifying pairs of particles for eg. 
+This is useful for cases where identifying pairs of particles for eg.
 interactions is not well-defined or efficient to do on the fly.
-This is an eager iterator whose elements are a tuple of particle indices that 
+This is an eager iterator whose elements are a tuple of particle indices that
 can be given to `excitation`
 
 # Example
@@ -708,7 +767,7 @@ function OccupiedPairsMap(addr::SingleComponentFockAddress{N}) where {N}
             @inbounds pairs[a] = (p_i, p_j)
         end
     end
-    
+
     return OccupiedPairsMap(SVector(pairs), a)
 end
 
