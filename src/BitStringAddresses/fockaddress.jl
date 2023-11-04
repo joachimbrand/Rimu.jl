@@ -210,7 +210,7 @@ function onr_excitation(onrep, fs::T, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}
     num_cs = prod(onrep_c_applied[i] for i in c; init=1.0)
     return T(onrep_c_applied), sqrt(num_cs * num_ds)
 end
-
+# TODO: optimize and remove allocations
 
 """
     destroy_from_onr(onr, destructions)
@@ -449,7 +449,8 @@ julia> fs"|0 1 2 0⟩" => 1 # Copied from above printout
 BoseFS{3,4}((0, 1, 2, 0)) => 1
 ```
 
-See also [`FermiFS`](@ref), [`BoseFS`](@ref), [`CompositeFS`](@ref), [`FermiFS2C`](@ref).
+See also [`FermiFS`](@ref), [`BoseFS`](@ref), [`CompositeFS`](@ref), [`FermiFS2C`](@ref),
+[`ONRFS`](@ref).
 """
 macro fs_str(str)
     return parse_address(str)

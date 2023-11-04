@@ -5,7 +5,8 @@ Address type that represents a bosonic Fock state with an indeterminate number o
 in `M` modes. Each mode can be occupied by at most ``2^B-1`` particles. The number of
 particles can be obtained by [`num_particles`](@ref) but is runtime information and not part
 of the type, in contrast to [`BoseFS`](@ref). This makes this type suitable for representing
-Fock states with number-nonconcerving Hamiltonians.
+Fock states with number-nonconcerving Hamiltonians. [`excitation`](@ref)s can change the
+particle number and use integer mode indices.
 
 ## Constructors
 
@@ -16,6 +17,28 @@ Fock states with number-nonconcerving Hamiltonians.
     `onr` with `M` modes. The maximum occupation number `max_n` is used to determine the
     number of bits per mode. The number of bits per mode is the smallest integer `B` such
     that `2^B > max_n`.
+* [`@fs_str`](@ref): Addresses are sometimes printed in a compact manner. This
+  representation can also be used as a constructor. See the example below.
+
+## Examples
+
+```jldoctest
+julia> ofs = ONRFS((0, 1, 5, 1, 0), 5)
+ONRFS{3}((0, 1, 5, 1, 0))
+
+julia> ONRFS{3}((0, 1, 5, 1, 0)) == ofs
+true
+
+julia> fs"|0 1 5 1 0⟩{3}" == ofs
+true
+
+julia> num_particles(ofs)
+7
+
+julia> excitation(ofs, (1,2), (3,))
+(ONRFS{3}((1, 2, 4, 1, 0)), 3.1622776601683795)
+```
+See also: [`SingleComponentFockAddress`](@ref), [`BoseFS`](@ref).
 """
 struct ONRFS{BITS,M,S} <: SingleComponentFockAddress{missing,M}
     bs::S
