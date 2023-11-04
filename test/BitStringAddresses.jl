@@ -460,3 +460,21 @@ end
             CompositeFS(BoseFS((1,2)), BoseFS((3,1)))
     end
 end
+
+@testset "ONRFS" begin
+    fs = ONRFS((1,2,3,0,1,20,3,2,5,0,1),100)
+    @test eval(Meta.parse(repr(fs))) == fs
+    @test parse_address(sprint(show, fs; context=:compact => true)) == fs
+
+    @test num_modes(fs) == 11
+    @test num_particles(fs) == 38
+    @test num_occupied_modes(fs) == 9
+    @test onr(fs) == [1,2,3,0,1,20,3,2,5,0,1]
+    @test collect(fs) == onr(fs)
+
+    @test excitation(fs, (), (4,5)) == (fs, 0.0)
+    nfs, amp = excitation(fs, (4,6), ())
+    @test num_particles(nfs) == num_particles(fs) + 2
+    @test amp == √(1 * 21)
+    @test onr(nfs) == [1,2,3,1,1,21,3,2,5,0,1]
+end
