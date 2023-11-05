@@ -229,15 +229,6 @@ end
         @test collect(occupied_modes(middle_empty)) == [[2, 1, 0], [8, 127, 128]]
     end
     @testset "Randomized tests" begin
-        # Note: the random number for these tests will be the same everytime. This is still
-        # an ok way to look for errors.
-        function rand_onr_bose(N, M)
-            result = zeros(MVector{M,Int})
-            for _ in 1:N
-                result[rand(1:M)] += 1
-            end
-            return SVector(result)
-        end
         # Should be exactly the same as onr, but slower.
         function onr2(bose::BoseFS{N,M}) where {N,M}
             result = zeros(MVector{M,Int32})
@@ -270,12 +261,12 @@ end
         for (N, M) in ((16, 16), (3, 32), (64, 32), (200, 200), (200, 20), (20, 200))
             @testset "$N, $M" begin
                 for _ in 1:10
-                    input = rand_onr_bose(N, M)
-                    bose = BoseFS(input)
+                    bose = rand(BoseFS{N, M})
+                    input = onr(bose)
                     @test BoseFS{N,M,typeof(bose.bs)}(bose.bs) === bose
                     @test num_particles(bose) == N
                     @test num_modes(bose) == M
-                    @test onr(bose) == input
+                    @test bose == BoseFS(input)
                     @test num_occupied_modes(bose) == count(!iszero, input)
                     @test bose_hubbard_interaction(bose) == sum(input .* (input .- 1))
 
@@ -349,19 +340,16 @@ end
         end
     end
     @testset "Randomized Tests" begin
-        function rand_onr_fermi(N, M)
-            return SVector{M}(shuffle([ones(Int,N); zeros(Int,M - N)]))
-        end
         for (N, M) in ((15, 16), (10, 29), (32, 60), (180, 200), (10, 200), (1, 20))
             @testset "$N, $M" begin
                 for _ in 1:10
-                    input = rand_onr_fermi(N, M)
-                    fermi = FermiFS(input)
+                    fermi = rand(FermiFS{N, M})
+                    input = onr(fermi)
                     @test FermiFS{N,M,typeof(fermi.bs)}(fermi.bs) === fermi
 
                     @test num_particles(fermi) == N
                     @test num_modes(fermi) == M
-                    @test onr(fermi) == input
+                    @test FermiFS(input) == fermi
 
                     check_single_excitations(fermi, 64)
                     check_double_excitations(fermi, 8)

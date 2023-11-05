@@ -5,6 +5,7 @@ Module with types and methods pertaining to bitstring addresses.
 module BitStringAddresses
 
 using LinearAlgebra
+using Random
 using StaticArrays
 using SparseArrays
 using Setfield

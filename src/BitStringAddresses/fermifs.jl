@@ -154,3 +154,14 @@ function excitation(a::FermiFS{N,M,S}, creations, destructions) where {N,M,S}
     new_bs, value = fermi_excitation(a.bs, creations, destructions)
     return FermiFS{N,M,S}(new_bs), value
 end
+
+function Random.rand(rng::AbstractRNG, ::Random.SamplerType{FermiFS{N,M}}) where {N,M}
+    onr = zeros(MVector{M, Int})
+    left = N
+    @inbounds while left > 0
+        i = rand(rng, 1:M)
+        left -= onr[i] == 0
+        onr[i] = 1
+    end
+    return FermiFS{N,M}(onr)
+end

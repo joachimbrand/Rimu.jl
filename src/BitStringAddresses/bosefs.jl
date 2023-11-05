@@ -385,3 +385,12 @@ end
     end
     return matrixelementint
 end
+
+function Random.rand(rng::AbstractRNG, ::Random.SamplerType{BoseFS{N,M}}) where {N,M}
+    onr = zeros(MVector{M,Int})
+    @inbounds for _ in 1:N
+        onr[rand(rng, 1:M)] += 1
+    end
+
+    return BoseFS{N,M}(onr)
+end

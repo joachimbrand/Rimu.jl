@@ -13,19 +13,6 @@ using Rimu.RMPI: targetrank, mpi_synchronize!
 const N_REPEATS = 5
 
 """
-    rand_onr(N, M)
-
-Generate random ONR with N particles in M sites.
-"""
-function rand_onr(N, M)
-    result = zeros(MVector{M,Int})
-    for _ in 1:N
-        result[rand(1:M)] += 1
-    end
-    return result.data
-end
-
-"""
     correct_ranks(md)
 
 Check if all entries in `md` are located on the correct rank.
@@ -75,13 +62,13 @@ end
                     H = HubbardMom1D(add)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
-                        type, [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
+                        type, [rand(BoseFS{10,5}) => 2 - 4rand() for _ in 1:100]
                     )
                     mpi_synchronize!(dv)
 
                     Random.seed!(1337 * i)
                     w, dw = setup_dv(
-                        type, [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:20]
+                        type, [rand(BoseFS{10,5}) => 2 - 4rand() for _ in 1:20]
                     )
                     mpi_synchronize!(dw)
 
@@ -131,13 +118,15 @@ end
                     H = BoseHubbardMom1D2C(add)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
-                        type, [BoseFS2C(rand_onr(10, 5), rand_onr(2, 5)) => rand() for _ in 1:100]
+                        type, [BoseFS2C(rand(BoseFS{10, 5}), rand(BoseFS{2, 5})) => rand()
+                               for _ in 1:100]
                     )
                     mpi_synchronize!(dv)
 
                     Random.seed!(1337 * i)
                     w, dw = setup_dv(
-                        type, [BoseFS2C(rand_onr(10, 5), rand_onr(2, 5)) => rand() for _ in 1:20]
+                        type, [BoseFS2C(rand(BoseFS{10, 5}), rand(BoseFS{2, 5})) => rand()
+                               for _ in 1:20]
                     )
                     mpi_synchronize!(dw)
 
@@ -188,7 +177,7 @@ end
                 )) do kw
                     mpi_seed!(i)
                     source = DVec(
-                        [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10_000]
+                        [rand(BoseFS{10, 5}) => 2 - 4rand() for _ in 1:10_000]
                     )
                     target = MPIData(similar(source); kw...)
                     RMPI.mpi_combine_walkers!(target, source)
