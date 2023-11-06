@@ -1425,7 +1425,7 @@ end
         Lz = AxialAngularMomentumHO(S; addr)
         Ly = AxialAngularMomentumHO(S; z_dim=2, addr)
         Lx = AxialAngularMomentumHO(S; z_dim=1, addr)
-        
+
         Lz_vals = eigvals(Matrix(BasisSetRep(Lz)))
         Ly_vals = eigvals(Matrix(BasisSetRep(Ly)))
         Lx_vals = eigvals(Matrix(BasisSetRep(Lx)))
@@ -1467,8 +1467,8 @@ end
         df = get_all_blocks(H; save_to_file = "test_block_df.arrow")
         df_file = load_df("test_block_df.arrow")
         @test df[!,[1,2,3,5]] == df_file[!,[1,2,3,5]]
-        
-        # HOCartesianContactInteractions requires a valid energy restriction 
+
+        # HOCartesianContactInteractions requires a valid energy restriction
         @test_throws ArgumentError get_all_blocks(HOCartesianContactInteractions(addr; S))
 
         # block_by_level = false
@@ -1492,7 +1492,7 @@ end
 
         @test Hamiltonians.index((3,2,1)) == 1
         @test Hamiltonians.index((5,4,3)) == 10
-    end    
+    end
 
     @testset "HO utilities" begin
         S = (4,4)
@@ -1505,4 +1505,15 @@ end
         null_addr = BoseFS(prod(S),)
         @test isempty(fock_to_cart(null_addr, S))
     end
+end
+
+@testset "FroehlichPolaron" begin
+    addr = ONRFS((0,0,0,0,1,0,0,0),20)
+    ham = FroehlichPolaron(addr; total_mom=3, alpha=6, num_dimensions=3)
+    @test num_dimensions(ham) == num_dimensions(ham.geometry) == 3
+    @test ham.geometry == PeriodicBoundaries(2, 2, 2)
+    @test eval(Meta.parse(repr(ham))) == ham
+    @test starting_address(ham) == ham.add == addr
+
+    # TODO: test the rest of the interface (add `FroehlichPolaron` to interface tests)
 end

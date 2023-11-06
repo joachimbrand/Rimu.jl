@@ -73,6 +73,7 @@ export TimeReversalSymmetry
 export Stoquastic
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
+export FroehlichPolaron
 
 export G2MomCorrelator, G2RealCorrelator, DensityMatrixDiagonal, Momentum
 
@@ -81,7 +82,7 @@ export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 
-export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, HOCartesianCentralImpurity 
+export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, HOCartesianCentralImpurity
 export AxialAngularMomentumHO
 export get_all_blocks, fock_to_cart
 
@@ -121,4 +122,5 @@ include("vertices.jl")
 include("ho-cart-tools.jl")
 include("angular_momentum.jl")
 
+include("FroehlichPolaron.jl")
 end
