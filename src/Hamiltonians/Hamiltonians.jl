@@ -26,6 +26,7 @@ Harmonic oscillator models
 Other
 - [`MatrixHamiltonian`](@ref)
 - [`Transcorrelated1D`](@ref)
+- [`FroehlichPolaron`](@ref)
 
 ## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)

@@ -10,18 +10,19 @@
 The Froehlich polaron Hamiltonian is given by
 
 ```math
-H = (P̂_f - P)^2 + N̂ + Σₖ νₖ (âₖ^† + â_{-k}) +
+H = (P̂_f - P)^2 + N̂ + Σₖ νₖ (âₖ^† + â_{-k})
 ```
 
 where ``P`` is the total momentum `total_mom`, ``P̂_f = Σ_k k âₖ^† âₖ`` is the momentum
-operator for the bosons, ``N̂  Σ_k âₖ^† âₖ`` is the number operator for the bosons, and
-``νₖ = √α/|k|`` is the coupling strength determined by the coupling parameter `alpha`.
+operator for the bosons, ``N̂ = Σ_k âₖ^† âₖ`` is the number operator for the bosons, and
+``νₖ = \\sqrt{α}/|k|`` is the coupling strength determined by the coupling parameter
+`α == alpha`.
 
 The optional `geometry` argument specifies the geometry of the lattice for ``k``-space and
 should be of the type [`PeriodicBoundaries`](@ref). A simplified way of specifying the
 geometry is to provide the number of dimensions `num_dimensions`. In this case the
-[`num_modes(address)`](@ref) of `address` must be a perfect square for `num_dimensions=2`,
-or a perfect cube for `num_dimensions=3`.
+[`num_modes(address)`](@ref) of `address` must be a square number for `num_dimensions = 2`,
+or a cube number for `num_dimensions = 3`.
 
 The `address` must be of type [`ONRFS`](@ref).
 """
