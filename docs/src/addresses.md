@@ -8,7 +8,7 @@ implementations for Bosonic, Fermionic, and mixed [Fock
 States](https://en.wikipedia.org/wiki/Fock_state).
 
 When implementing a new address type, care must be taken to make them space-efficient and
-stack-allocated - avoid using arrays to represent your addresses at all costs!
+stack-allocated - avoid using (heap-allocated) arrays to represent your addresses at all costs!
 
 ## Fock addresses
 
@@ -19,7 +19,7 @@ straightforward to implement efficient Hamiltonians.
 
 ```@autodocs
 Modules = [BitStringAddresses]
-Pages = ["fockaddress.jl","bosefs.jl","fermifs.jl","multicomponent.jl"]
+Pages = ["fockaddress.jl","bosefs.jl","fermifs.jl","multicomponent.jl","onrfs.jl"]
 Private = false
 ```
 
