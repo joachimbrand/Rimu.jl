@@ -418,7 +418,7 @@ end
     PDVecPairs
 
 Iterators over keys/values/pairs of the [`PDVec`](@ref). Iteration is only supported over
-the `localpart`. Use reduction operations (`reduce`, `mapreduce`, `sum`, ...) if possible
+the [`localpart`](@ref). Use reduction operations (`reduce`, `mapreduce`, `sum`, ...) if possible
 when using them.
 """
 struct PDVecIterator{F,T,V<:PDVec}

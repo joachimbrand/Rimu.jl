@@ -73,21 +73,21 @@ end
 """
     mpi_rank(::Communicator) -> Int
 
-Return the MPI rank of the communicator.
+Return the MPI rank of the [`Communicator`](@ref).
 """
 mpi_rank
 
 """
     mpi_size(::Communicator) -> Int
 
-Return the total number of MPI ranks.
+Return the total number of MPI ranks in the [`Communicator`](@ref).
 """
 mpi_size
 
 """
     mpi_comm(::Communicator) -> MPI.Comm
 
-Return the `MPI.Comm` that the communicator operates on.
+Return the `MPI.Comm` that the [`Communicator`](@ref) operates on.
 """
 mpi_comm
 

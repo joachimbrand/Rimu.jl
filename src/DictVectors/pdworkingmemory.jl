@@ -101,7 +101,7 @@ num_rows(w::PDWorkingMemory) = length(w.columns[1].segments)
 """
     num_columns(w::PDWorkingMemory) -> Int
 
-Number of colums in the working memory. The number of rows is equal to the number of
+Number of columns in the working memory. The number of rows is equal to the number of
 segments in the local rank.
 """
 num_columns(w::PDWorkingMemory) = length(w.columns)
@@ -125,7 +125,9 @@ end
 """
     remote_segments(w::PDWorkingMemory, rank_id)
 
-Iterate over the main segments that belong to rank `rank_id`. Iterates `Dict`s.
+Returns iterator over the main segments that belong to rank `rank_id`. Iterates `Dict`s.
+
+See [`PDWorkingMemory`](@ref).
 """
 function remote_segments(w::PDWorkingMemory, rank)
     return MainSegmentIterator{typeof(w),segment_type(eltype(w.columns))}(w, rank)
@@ -134,7 +136,9 @@ end
 """
     local_segments(w::PDWorkingMemory)
 
-Iterate over the main segments on the current rank. Iterates `Dict`s.
+Returns iterator over the main segments on the current rank. Iterates `Dict`s.
+
+See [`PDWorkingMemory`](@ref).
 """
 function local_segments(w::PDWorkingMemory)
     rank = mpi_rank(w.communicator)
@@ -162,6 +166,8 @@ end
     perform_spawns!(w::PDWorkingMemory, t::PDVec, ham, boost)
 
 Perform spawns from `t` through `ham` to `w`.
+
+See [`PDVec`](@ref) and [`PDWorkingMemory`](@ref).
 """
 function perform_spawns!(w::PDWorkingMemory, t::PDVec, ham, boost)
     if num_columns(w) ≠ num_segments(t)
@@ -179,6 +185,8 @@ end
 
 Collect each row in `w` into its main segment. This step must be performed before using
 [`local_segments`](@ref) or [`remote_segments`](@ref) to move the values elsewhere.
+
+See [`PDWorkingMemory`](@ref).
 """
 function collect_local!(w::PDWorkingMemory)
     ncols = num_columns(w)
@@ -194,6 +202,8 @@ end
 
 Synchronize non-local segments across MPI. Controlled by the [`Communicator`](@ref). This
 can only be perfomed after [`collect_local!`](@ref).
+
+See [`PDWorkingMemory`](@ref).
 """
 function synchronize_remote!(w::PDWorkingMemory)
     synchronize_remote!(w.communicator, w)
@@ -206,6 +216,8 @@ end
 Move the values in `src` to `dst`, compressing the according to the
 [`CompressionStrategy`](@ref) on the way. This step can only be performed after
 [`collect_local!`](@ref) and [`synchronize_remote!`](@ref).
+
+See [`PDWorkingMemory`](@ref).
 """
 function move_and_compress!(dst::PDVec, src::PDWorkingMemory)
     compression = CompressionStrategy(StochasticStyle(src))
@@ -224,6 +236,8 @@ end
     main_column(::PDWorkingMemory) -> PDVec
 
 Return the "main" column of the working memory wrapped in a [`PDVec`](@ref).
+
+See [`PDWorkingMemory`](@ref).
 """
 function main_column(w::PDWorkingMemory{K,V,W,S}) where {K,V,W,S}
     return w.columns[1]
