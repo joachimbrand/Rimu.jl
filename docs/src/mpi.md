@@ -5,6 +5,9 @@ MPI should be fairly straightforward. Generally, [`PDVec`](@ref Main.DictVectors
 work with MPI automatically, as long as MPI is set up correctly and a few common pitfalls
 are avoided.
 
+Rimu includes an unexported module [`RMPI`](@ref), which must be imported to access
+additional MPI-related functionality.
+
 ## Configuring MPI
 
 When running on a cluster, ensure that MPI.jl is using the system binary. See [the MPI.jl
@@ -13,6 +16,7 @@ documentation](https://juliaparallel.org/MPI.jl/latest/configuration/) for more 
 It is always a good idea to start your script with a quick test that ensures the MPI is set up correctly. One way to do this is to open with
 
 ```julia
+using Rimu.RMPI
 mpi_allprintln("hello")
 ```
 
@@ -58,34 +62,19 @@ srun mpi=pmi2 julia --project -tauto script.jl
 Take care to not use reducing functions (such as `length`, `sum`, `norm`, ...) inside
 [`@mpi_root`](@ref Main.Rimu.RMPI.@mpi_root) blocks. Doing so will only initiate the
 distributed reduction on one rank only, which will cause the code to go out of sync and
-freeze.
-
-For example, the following code will cause MPI to freeze:
-
-```julia
-@mpi_root println("vector length is $(length(pdvec))")
-```
-
-To fix it, write it as:
+freeze. As an example, to report the current length of a vector, calculate the length before
+the [`@mpi_root`](@ref Main.Rimu.RMPI.@mpi_root) block:
 
 ```julia
 len = length(pdvec)
 @mpi_root println("vector length is $len")
 ```
 
-## Anonymous functions
+## Threaded operations and reductions
 
-Suppose we want to scale a vector by its length:
+When using functions that take anonymous functions, such as `map(!)`, `sum`, or `mapreduce`, it is important that the anonymous functions passed to then do not perform any MPI-reducing operations (`length`, `norm`, `sum`, etc.). These anonymous functions are executed on multiple threads and initiating MPI communication from multiple threads may cause issues.
 
-```julia
-map!(values(pdvec)) do x
-	x / length(pdvec)
-end
-```
-
-This will cause issues because `length` is a reduction. As `map!` is threaded many
-threads will initiate MPI communication at the same time, which will probably cause a
-crash. The correct way to rewrite this code is as
+As an example, suppose we want to scale a vector by its length by using `map!`. The correct way to write this code is as
 
 ```julia
 len = length(pdvec)
@@ -94,8 +83,9 @@ map!(values(pdvec)) do x
 end
 ```
 
-This will not only save you from a crash, but will also be slightly more efficient as the
-length is only calculated once. In this specific case, an even better option is to use the `scale!` function:
+Similar to the previous example, `len` is calculated first and not within the body of
+`map!`. In this specific case, an even better option is to use the `scale!` function from
+[VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl):
 
 ```julia
 scale!(pdvec, 1 / length(pdvec))

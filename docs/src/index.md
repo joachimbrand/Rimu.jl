@@ -110,10 +110,10 @@ on the same hardware makes use of 4 cores and the main part completes in 1.04
 seconds, a speedup factor of 2.6. This seems reasonable, given that extra work
 needs to be done for communicating between different processes.
 
-Using MPI parallelism with `Rimu` is easy. Enabling MPI for use in [`lomc!()`](@ref)
-is done by wrapping the primary data structures as [`MPIData`](@ref Main.Rimu.RMPI.MPIData). As a consequence, data will
-be stored in a distributed fashion among the MPI ranks and only communicated between ranks when
-necessary. The relevant functionality is provided by the module `Rimu.RMPI`.
+Using MPI parallelism with `Rimu` is easy. Enabling MPI for use in [`lomc!()`](@ref) is
+enabled automatically if [`PDVec`](@ref) is used to store a vector. In that case, data will
+be stored in a distributed fashion among the MPI ranks and only communicated between ranks
+when necessary. Additional MPI-related functionality is provided by the module `Rimu.RMPI`.
 
 ## References
 The code implements the FCIQMC algorithm originally described in
