@@ -5,7 +5,7 @@ MPI should be fairly straightforward. Generally, [`PDVec`](@ref Main.DictVectors
 work with MPI automatically, as long as MPI is set up correctly and a few common pitfalls
 are avoided.
 
-Rimu includes an unexported module [`RMPI`](@ref), which must be imported to access
+Rimu includes an unexported module [`RMPI`](@ref Main.Rimu.RMPI), which must be imported to access
 additional MPI-related functionality.
 
 ## Configuring MPI
