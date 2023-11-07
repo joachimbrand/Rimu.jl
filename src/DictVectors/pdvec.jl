@@ -560,10 +560,10 @@ function Base.map!(f, t::PDVecVals)
             new_val = f(v)
             if !iszero(new_val)
                 segment[k] = new_val
-            else
-                delete!(segment, k)
             end
         end
+        # Filtered separately to prevent messing up the dict while iterating it.
+        filter!((_, v) -> !iszero(v), segment)
     end
     return t
 end
@@ -583,6 +583,65 @@ function Base.map!(f, dst::PDVec, src::PDVecVals)
         end
     end
     return dst
+end
+
+"""
+    map(f, values(::PDVec))
+
+Out-of-place parallel `map` on values of a [`PDVec`](@ref). Returns a new
+[`PDVec`](@ref). Only defined for `values` as efficiently changing keys in a thread-safe and
+distributed way is not possible.
+"""
+function Base.map(f, src::PDVecVals)
+    return map!(f, copy(src.vector), src)
+end
+
+"""
+    filter!(pred, [dst::PDVec, ], keys(::PDVec))
+    filter!(pred, [dst::PDVec, ], values(::PDVec))
+    filter!(pred, [dst::PDVec, ], pairs(::PDVec))
+
+In-place parallel `filter!` on an iterator over a [`PDVec`](@ref). If `dst` is provided,
+results are written there.
+"""
+function Base.filter!(f::F, src::PDVecIterator) where {F}
+    Folds.foreach(src.vector.segments) do segment
+        if src.selector === pairs
+            filter!(f, segment)
+        elseif src.selector === keys
+            filter!((k, _) -> f(k), segment)
+        elseif src.selector === values
+            filter!((_, v) -> f(v), segment)
+        end
+    end
+    return src.vector
+end
+
+function Base.filter!(f::F, dst::PDVec, src::PDVecIterator) where {F}
+    if dst === src.vector
+        return filter!(f, src::PDVecIterator)
+    end
+    Folds.foreach(dst.segments, src.vector.segments) do d, s
+        empty!(d)
+        for ((k, v), x) in zip(s, src.selector(s))
+            if f(x)
+                d[k] = v
+            end
+        end
+    end
+    return dst
+end
+
+"""
+    filter(f, keys(::PDVec))
+    filter(f, values(::PDVec))
+    filter(f, pairs(::PDVec))
+
+Out-of-place parallel `filter` on an iterator over a [`PDVec`](@ref). Returns a new
+[`PDVec`](@ref).
+"""
+function Base.filter(f::F, src::PDVecIterator) where {F}
+    return filter!(f, copy(src.vector), src)
 end
 
 ###

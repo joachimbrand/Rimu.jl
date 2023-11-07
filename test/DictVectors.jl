@@ -348,11 +348,18 @@ using Rimu.DictVectors: num_segments, is_distributed
             @test 0.5 * pv == dv
         end
 
-        @testset "map!" begin
+        @testset "map(!)" begin
             pd1 = PDVec(zip(2:2:12, [1, -1, 2, -2, 3, -3]))
+            pd1_m = map(x -> x + 1, values(pd1))
+            @test length(pd1_m) == 5
+            @test pd1_m[2] == 2
+            @test pd1 ≠ pd1_m
+
             map!(x -> x + 1, values(pd1))
             @test length(pd1) == 5
             @test pd1[2] == 2
+
+            @test pd1_m == pd1
 
             pd2 = similar(pd1)
             map!(x -> x - 2, pd2, values(pd1))
@@ -362,6 +369,21 @@ using Rimu.DictVectors: num_segments, is_distributed
             pd3 = map!(x -> x + 4, pd2, values(pd2))
             @test pd3 === pd2
             @test length(pd2) == 3
+        end
+
+        @testset "filter(!)" begin
+            pd1 = PDVec(zip(1:6, [1, -1, 2, -2, 3, -3]))
+            pd2 = similar(pd1)
+            pd2 = filter!(>(0), pd2, values(pd1))
+            @test all(>(0), values(pd2))
+            @test length(pd2) == 3
+
+            pd3 = filter(x -> x % 2 == 0, keys(pd1))
+            @test all(<(0), values(pd3))
+            @test length(pd3) == 3
+
+            filter!(p -> p[1] - p[2] ≠ 0, pairs(pd1))
+            @test length(p) == 5
         end
 
         @testset "operator dot" begin
