@@ -435,8 +435,26 @@ is_distributed(t::PDVecIterator) = is_distributed(t.vector)
 Base.eltype(t::Type{<:PDVecIterator{<:Any,T}}) where {T} = T
 Base.length(t::PDVecIterator) = length(t.vector)
 
+"""
+    PDVecKeys
+
+Iterator over the keys of a [`PDVec`](@ref). Alias for
+[`PDVecIterator`](@ref)`{typeof(keys)}`.
+"""
 const PDVecKeys{T,V} = PDVecIterator{typeof(keys),T,V}
+"""
+    PDVecVals
+
+Iterator over the values of a [`PDVec`](@ref). Alias for
+[`PDVecIterator`](@ref)`{typeof(values)}`.
+"""
 const PDVecVals{T,V} = PDVecIterator{typeof(values),T,V}
+"""
+    PDVecPairs
+
+Iterator over the pairs of a [`PDVec`](@ref). Alias for
+[`PDVecIterator`](@ref)`{typeof(pairs)}`.
+"""
 const PDVecPairs{T,V} = PDVecIterator{typeof(pairs),T,V}
 
 Base.show(io::IO, t::PDVecKeys) = print(io, "PDVecKeys{", eltype(t), "}(...)")
