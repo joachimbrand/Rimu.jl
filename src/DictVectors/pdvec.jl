@@ -563,7 +563,7 @@ function Base.map!(f, t::PDVecVals)
             end
         end
         # Filtered separately to prevent messing up the dict while iterating it.
-        filter!((_, v) -> !iszero(v), segment)
+        filter!(p -> !iszero(p[2]), segment)
     end
     return t
 end
