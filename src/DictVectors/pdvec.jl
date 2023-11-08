@@ -557,15 +557,12 @@ distributed way is not possible.
 function Base.map!(f, t::PDVecVals)
     Folds.foreach(t.vector.segments) do segment
         for (k, v) in segment
-            new_val = f(v)
-            if !iszero(new_val)
-                segment[k] = new_val
-            end
+            segment[k] = f(v)
         end
         # Filtered separately to prevent messing up the dict while iterating it.
         filter!(p -> !iszero(p[2]), segment)
     end
-    return t
+    return t.vector
 end
 function Base.map!(f, dst::PDVec, src::PDVecVals)
     check_compatibility(dst, src)
