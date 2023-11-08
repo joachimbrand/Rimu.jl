@@ -383,7 +383,7 @@ using Rimu.DictVectors: num_segments, is_distributed
             @test length(pd3) == 3
 
             filter!(p -> p[1] - p[2] ≠ 0, pairs(pd1))
-            @test length(p) == 5
+            @test length(pd1) == 5
         end
 
         @testset "operator dot" begin
