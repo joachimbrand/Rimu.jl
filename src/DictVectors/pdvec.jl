@@ -601,7 +601,7 @@ end
 In-place parallel `filter!` on an iterator over a [`PDVec`](@ref). If `dst` is provided,
 results are written there.
 """
-function Base.filter!(f::F, src::PDVecIterator) where {F}
+function Base.filter!(f, src::PDVecIterator)
     Folds.foreach(src.vector.segments) do segment
         if src.selector === pairs
             filter!(f, segment)
@@ -614,7 +614,7 @@ function Base.filter!(f::F, src::PDVecIterator) where {F}
     return src.vector
 end
 
-function Base.filter!(f::F, dst::PDVec, src::PDVecIterator) where {F}
+function Base.filter!(f, dst::PDVec, src::PDVecIterator)
     if dst === src.vector
         return filter!(f, src::PDVecIterator)
     end
@@ -637,7 +637,7 @@ end
 Out-of-place parallel `filter` on an iterator over a [`PDVec`](@ref). Returns a new
 [`PDVec`](@ref).
 """
-function Base.filter(f::F, src::PDVecIterator) where {F}
+function Base.filter(f, src::PDVecIterator)
     new_src = copy(src.vector)
     return filter!(f, new_src)
 end
