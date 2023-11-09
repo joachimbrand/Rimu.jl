@@ -72,7 +72,7 @@ len = length(pdvec)
 
 ## Threaded operations and reductions
 
-When using functions that take anonymous functions, such as `map(!)`, `sum`, or `mapreduce`, it is important that the anonymous functions passed to then do not perform any MPI-reducing operations (`length`, `norm`, `sum`, etc.). These anonymous functions are executed on multiple threads and initiating MPI communication from multiple threads may cause issues.
+When using functions that take anonymous functions, such as `map(!)`, `sum`, or `mapreduce`, it is important that the anonymous functions passed to them do not perform any MPI-reducing operations (`length`, `norm`, `sum`, etc.). These anonymous functions are executed on multiple threads and initiating MPI communication from multiple threads may cause issues.
 
 As an example, suppose we want to scale a vector by its length by using `map!`. The correct way to write this code is as
 
