@@ -638,7 +638,8 @@ Out-of-place parallel `filter` on an iterator over a [`PDVec`](@ref). Returns a 
 [`PDVec`](@ref).
 """
 function Base.filter(f::F, src::PDVecIterator) where {F}
-    return filter!(f, copy(src.vector), src)
+    new_src = copy(src.vector)
+    return filter!(f, new_src)
 end
 
 ###

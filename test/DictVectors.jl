@@ -388,7 +388,7 @@ using Rimu.DictVectors: num_segments, is_distributed
             filter!(iseven, keys(pd1))
             @test length(pd1) == 3
 
-            filter!(iseven, values(pd1))
+            filter!(iseven, pd1, values(pd1))
             @test length(pd1) == 1
         end
 
