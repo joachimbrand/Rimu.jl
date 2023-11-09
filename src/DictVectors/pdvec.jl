@@ -639,7 +639,7 @@ Out-of-place parallel `filter` on an iterator over a [`PDVec`](@ref). Returns a 
 """
 function Base.filter(f, src::PDVecIterator)
     new_src = copy(src.vector)
-    return filter!(f, new_src)
+    return filter!(f, src.selector(new_src))
 end
 
 ###
