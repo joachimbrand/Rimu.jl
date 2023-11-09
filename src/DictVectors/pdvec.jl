@@ -606,9 +606,9 @@ function Base.filter!(f::F, src::PDVecIterator) where {F}
         if src.selector === pairs
             filter!(f, segment)
         elseif src.selector === keys
-            filter!((k, _) -> f(k), segment)
+            filter!(p -> f(p[1]), segment)
         elseif src.selector === values
-            filter!((_, v) -> f(v), segment)
+            filter!(p -> f(p[2]), segment)
         end
     end
     return src.vector
