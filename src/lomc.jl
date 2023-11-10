@@ -243,11 +243,18 @@ end
 Linear operator Monte Carlo: Perform a projector quantum Monte Carlo simulation for
 determining the lowest eigenvalue of `ham`. `v` can be a single starting vector. The default
 choice is
+
+```julia
+v = PDVec(starting_address(ham) => 10; style=IsStochasticInteger())
+```
+if threading is available or
+
 ```julia
 v = DVec(starting_address(ham) => 10; style=IsStochasticInteger())
 ```
-and triggers the integer walker FCIQMC algorithm. See [`DVec`](@ref) and
-[`StochasticStyle`](@ref).
+
+otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
+[`DVec`](@ref) and [`StochasticStyle`](@ref).
 
 # Keyword arguments, defaults, and precedence:
 
@@ -309,7 +316,11 @@ function lomc!(ham, v; df=DataFrame(), name="lomc!", kwargs...)
     return lomc!(state, df; name)
 end
 function lomc!(ham; style=IsStochasticInteger(), kwargs...)
-    v = DVec(starting_address(ham)=>10; style)
+    if Threads.nthreads() > 1
+        v = PDVec(starting_address(ham) => 10; style)
+    else
+        v = DVec(starting_address(ham) => 10; style)
+    end
     return lomc!(ham, v; kwargs...)
 end
 # For continuation, you can pass a QMCState and a DataFrame

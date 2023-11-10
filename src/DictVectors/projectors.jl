@@ -135,7 +135,8 @@ end
 """
     FrozenDVec
 
-See: [`freeze`](@ref).
+A frozen [`DVec`](@ref)(s) can't be modified or used in the conventional manner, but support
+faster dot products. See: [`freeze`](@ref).
 """
 struct FrozenDVec{K,V} <: AbstractProjector
     pairs::Vector{Pair{K,V}}
@@ -145,7 +146,7 @@ Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
 Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}
 Base.pairs(fd::FrozenDVec) = fd.pairs
 
-freeze(dv) = FrozenDVec(collect(pairs(localpart(dv))))
+freeze(dv::AbstractDVec) = FrozenDVec(collect(pairs(localpart(dv))))
 
 freeze(p::AbstractProjector) = p
 

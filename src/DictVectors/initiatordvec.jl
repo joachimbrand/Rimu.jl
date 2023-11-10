@@ -5,10 +5,12 @@ Dictionary-based vector-like data structure for use with [`lomc!`](@ref Main.lom
 [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl). See [`AbstractDVec`](@ref).
 Functionally identical to [`DVec`](@ref), but contains [`InitiatorValue`](@ref)s internally
 in order to facilitate initiator methods. Initiator methods for controlling the Monte Carlo
-sign problem were first introduced in 
+sign problem were first introduced in
 [J. Chem. Phys. 132, 041103 (2010)](https://doi.org/10.1063/1.3302277).
-How the initiators are handled is controlled by specifying an [`InitiatorRule`](@ref) with 
+How the initiators are handled is controlled by specifying an [`InitiatorRule`](@ref) with
 the `initiator` keyword argument (see below).
+
+See also: [`AbstractDVec`](@ref), [`DVec`](@ref), [`PDVec`](@ref).
 
 ## Constructors
 
@@ -207,8 +209,7 @@ end
 """
     InitiatorIterator
 
-Iterator over pairs or values of an `InitiatorDVec`. Supports the `SplittablesBase`
-interface.
+Iterator over pairs or values of an `InitiatorDVec`.
 """
 struct InitiatorIterator{T,D,I}
     iter::D

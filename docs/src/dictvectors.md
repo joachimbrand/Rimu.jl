@@ -10,6 +10,7 @@ AbstractDVec
 ```@docs
 DVec
 InitiatorDVec
+PDVec
 ```
 
 ## Interface functions
@@ -52,6 +53,8 @@ NormProjector
 Norm2Projector
 UniformProjector
 Norm1ProjectorPPop
+Rimu.DictVectors.FrozenDVec
+Rimu.DictVectors.FrozenPDVec
 ```
 
 ## Initiator rules
@@ -68,6 +71,22 @@ Rimu.DictVectors.SimpleInitiator
 Rimu.DictVectors.CoherentInitiator
 Rimu.DictVectors.NonInitiator
 Rimu.DictVectors.NonInitiatorValue
+```
+
+## `PDVec` internals
+
+### Working memory
+
+```@autodocs
+Modules = [DictVectors]
+Pages = ["pdworkingmemory.jl"]
+```
+
+### Communicators
+
+```@autodocs
+Modules = [DictVectors]
+Pages = ["communicators.jl"]
 ```
 
 ## Index

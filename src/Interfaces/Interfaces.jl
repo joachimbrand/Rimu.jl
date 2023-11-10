@@ -25,6 +25,7 @@ Follow the links for the definitions of the interfaces!
 * [`deposit!`](@ref)
 * [`default_style`](@ref)
 * [`CompressionStrategy`](@ref)
+* The interface from [VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl).
 
 ## Functions Rimu.jl uses to do FCIQMC:
 

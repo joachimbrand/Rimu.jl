@@ -173,7 +173,7 @@ end
 
 @inline function spawn!(s::Exact, w, offdiags::AbstractVector, add, val, boost=1)
     T = valtype(w)
-    spawns = sum(offdiags) do (new_add, mat_elem)
+    spawns = sum(offdiags; init=zero(T)) do (new_add, mat_elem)
         abs(projected_deposit!(
             w, new_add, val * mat_elem, add => val, s.threshold
         ))
