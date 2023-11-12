@@ -398,6 +398,14 @@ using DataFrames
             rm("test-report-nc.arrow"; force=true)
             rm("test-report-lz4.arrow"; force=true)
         end
+        @testset "Report" begin
+            rp = Rimu.Report()
+            Rimu.report!(rp, :b, 4)
+            Rimu.report!(rp, :b, 6)
+            @test sprint(show, rp) == "Report:\n  b => [4, 6]"
+            Rimu.report_metadata!(rp, :a, 1)
+            @test Rimu.report_metadata(rp, "a") == "1"
+        end
     end
 
     @testset "Post step" begin

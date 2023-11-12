@@ -15,10 +15,10 @@ end
 function Base.show(io::IO, report::Report)
     print(io, "Report")
     if !isempty(report.data)
-        print(":")
+        print(io, ":")
         keywidth = maximum(length.(string.(keys(report.data))))
         for (k, v) in report.data
-            print("\n  $(lpad(k, keywidth)) => $v")
+            print(io, "\n  $(lpad(k, keywidth)) => $v")
         end
     end
 end
