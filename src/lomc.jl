@@ -282,7 +282,7 @@ otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
   be passed into `lomc!` that will be pushed into
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
 * `metadata` - metadata to be added to the report `df`. Must be an iterable of
-pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
+  pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
 
 # Return values
 
