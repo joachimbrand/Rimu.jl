@@ -10,6 +10,7 @@ using KrylovKit
 using Suppressor
 using Statistics
 using Logging
+using DataFrames
 
 @testset "lomc!/QMCState" begin
     @testset "Setting laststep + working memory" begin
@@ -306,6 +307,8 @@ using Logging
             r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=devnull, writeinfo=true)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test size(df, 1) == 20
+            @test metadata(df, "Rimu.PACKAGE_VERSION") == string(Rimu.PACKAGE_VERSION)
+            @test_throws ArgumentError lomc!(H, copy(dv); r_strat, metadata=(;dτ=0.001))
 
             out = @capture_out begin
                 r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=stdout, writeinfo=true)
@@ -328,10 +331,12 @@ using Logging
             @test Rimu._isopen(r_strat) == false
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            df = lomc!(H, copy(dv); r_strat, laststep=100, metadata=(;u=6.0)).df
             @test isempty(df)
             @test Rimu._isopen(r_strat) == false
             df1 = RimuIO.load_df("test-report.arrow")
+            @test metadata(df1, "u") == "6.0" # custom metadata is saved
+            @test metadata(df1, "filename") == "test-report.arrow" # filename in metadata
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df

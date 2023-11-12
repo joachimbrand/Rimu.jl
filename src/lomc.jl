@@ -1,15 +1,15 @@
 """
     FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
 
-First order transition operator 
+First order transition operator
 ```math
 𝐓 = 1 + dτ(S - 𝐇)
 ```
-where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`. 
+where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`.
 
-``𝐓`` represents the first order expansion of the exponential evolution operator 
-of the imaginary-time Schrödinger equation (Euler step) and repeated application 
-will project out the ground state eigenvector of the `hamiltonian`.  It is the 
+``𝐓`` represents the first order expansion of the exponential evolution operator
+of the imaginary-time Schrödinger equation (Euler step) and repeated application
+will project out the ground state eigenvector of the `hamiltonian`.  It is the
 transition operator used in FCIQMC.
 """
 struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
@@ -281,6 +281,8 @@ otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
   be passed into `lomc!` that will be pushed into
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
+* `metadata` - metadata to be added to the report `df`. Must be an iterable of
+pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
 
 # Return values
 
@@ -294,26 +296,28 @@ otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
 ```jldoctest
 julia> add = BoseFS((1,2,3));
 
-
 julia> hamiltonian = HubbardReal1D(add);
-
 
 julia> df1, state = lomc!(hamiltonian);
 
-
-julia> df2, _ = lomc!(state, df1; laststep=200); # Continuation run
-
+julia> df2, _ = lomc!(state, df1; laststep=200, metadata=(;info="cont")); # Continuation run
 
 julia> size(df1)
 (100, 11)
 
 julia> size(df2)
 (200, 11)
+
+julia> using DataFrames; metadata(df2, "info") # retrieve custom metadata
+"cont"
+
+julia> metadata(df2, "hamiltonian") # some metadata is automatically added
+"HubbardReal1D(BoseFS{6,3}((1, 2, 3)); u=1.0, t=1.0)"
 ```
 """
-function lomc!(ham, v; df=DataFrame(), name="lomc!", kwargs...)
+function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
     state = QMCState(ham, v; kwargs...)
-    return lomc!(state, df; name)
+    return lomc!(state, df; name, metadata)
 end
 function lomc!(ham; style=IsStochasticInteger(), kwargs...)
     if Threads.nthreads() > 1
@@ -324,11 +328,34 @@ function lomc!(ham; style=IsStochasticInteger(), kwargs...)
     return lomc!(ham, v; kwargs...)
 end
 # For continuation, you can pass a QMCState and a DataFrame
-function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
-    report = Report()
+function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
     if !iszero(laststep)
         state.laststep = laststep
     end
+
+    # initialise report
+    report = Report()
+
+    # add metadata to report
+    report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
+    # add metadata from state
+    report_metadata!(report, "laststep", state.laststep)
+    report_metadata!(report, "num_replicas", length(state.replicas))
+    report_metadata!(report, "hamiltonian", state.hamiltonian)
+    report_metadata!(report, "r_strat", state.r_strat)
+    report_metadata!(report, "s_strat", state.s_strat)
+    report_metadata!(report, "τ_strat", state.τ_strat)
+    params = state.replicas[1].params
+    report_metadata!(report, "params", params)
+    report_metadata!(report, "dτ", params.dτ)
+    report_metadata!(report, "step", params.step)
+    report_metadata!(report, "shift", params.shift)
+    report_metadata!(report, "shiftMode", params.shiftMode)
+    report_metadata!(report, "maxlength", state.maxlength[])
+    report_metadata!(report, "post_step", state.post_step)
+    report_metadata!(report, "v_summary", summary(state.replicas[1].v))
+    report_metadata!(report, "v_type", typeof(state.replicas[1].v))
+    isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
 
     # Sanity checks.
     step, laststep = state.step, state.laststep
@@ -370,7 +397,11 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!")
     # DataFrames should be merged in a more permissive manner?
     result_df = finalize_report!(state.r_strat, report)
     if !isempty(df)
-        return (; df=vcat(df, result_df), state)
+        df = vcat(df, result_df) # metadata is not propagated
+        for (key, val) in report_metadata(report) # add metadata
+            DataFrames.metadata!(df, key, val)
+        end
+        return (; df, state)
     else
         return (; df=result_df, state)
     end

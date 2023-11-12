@@ -30,23 +30,42 @@ Keyword arguments are passed on to
 [`Arrow.write`](https://arrow.apache.org/julia/dev/reference/#Arrow.write). Compression is
 enabled by default for large `DataFrame`s (over 10,000 rows).
 
+Table-level metadata of the `DataFrame` is saved as Arrow metadata (with `String` value)
+unless overwritten with the keyword argument `metadata`.
+
 See also [`RimuIO.load_df`](@ref).
 """
 function save_df(
     filename, df::DataFrame;
     compress = size(df)[1]>10_000 ? :zstd : nothing,
+    metadata = nothing,
     kwargs...
 )
-    Arrow.write(filename, df; compress, kwargs...)
+    if metadata === nothing
+        metadata = [key => string(val) for (key, val) in DataFrames.metadata(df)]
+    end
+    Arrow.write(filename, df; compress, metadata, kwargs...)
 end
 
 """
-    RimuIO.load_df(filename) -> DataFrame
-Load Arrow file into dataframe.
+    RimuIO.load_df(filename; propagate_metadata = true, add_filename = true) -> DataFrame
+Load Arrow file into `DataFrame``. Optionally propagate metadata to `DataFrame` and
+add the file name as metadata.
 
 See also [`RimuIO.save_df`](@ref).
 """
-load_df(filename) = DataFrame(Arrow.Table(filename))
+function load_df(filename; propagate_metadata = true, add_filename = true)
+    table = Arrow.Table(filename)
+    df = DataFrame(table)
+    if propagate_metadata
+        meta_data = Arrow.getmetadata(table)
+        for (key, val) in meta_data
+            metadata!(df, key, val)
+        end
+    end
+    add_filename && metadata!(df, "filename", filename) # add filename as metadata
+    return df
+end
 
 """
     RimuIO.save_dvec(filename, dvec)
