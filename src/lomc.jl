@@ -236,6 +236,28 @@ function Base.show(io::IO, st::QMCState)
     end
 end
 
+function add_default_metadata!(report::Report, state::QMCState)
+    report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
+    # add metadata from state
+    report_metadata!(report, "laststep", state.laststep)
+    report_metadata!(report, "num_replicas", length(state.replicas))
+    report_metadata!(report, "hamiltonian", state.hamiltonian)
+    report_metadata!(report, "r_strat", state.r_strat)
+    report_metadata!(report, "s_strat", state.s_strat)
+    report_metadata!(report, "τ_strat", state.τ_strat)
+    params = state.replicas[1].params
+    report_metadata!(report, "params", params)
+    report_metadata!(report, "dτ", params.dτ)
+    report_metadata!(report, "step", params.step)
+    report_metadata!(report, "shift", params.shift)
+    report_metadata!(report, "shiftMode", params.shiftMode)
+    report_metadata!(report, "maxlength", state.maxlength[])
+    report_metadata!(report, "post_step", state.post_step)
+    report_metadata!(report, "v_summary", summary(state.replicas[1].v))
+    report_metadata!(report, "v_type", typeof(state.replicas[1].v))
+    return report
+end
+
 """
     lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
     lomc!(state::QMCState, [df]; kwargs...) -> df, state
@@ -283,6 +305,9 @@ otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
 * `metadata` - metadata to be added to the report `df`. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
+
+Some metadata is automatically added to the report `df` including
+[`Rimu.PACKAGE_VERSION`](@ref) and data from the `state`.
 
 # Return values
 
@@ -335,26 +360,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
 
     # initialise report
     report = Report()
-
-    # add metadata to report
-    report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
-    # add metadata from state
-    report_metadata!(report, "laststep", state.laststep)
-    report_metadata!(report, "num_replicas", length(state.replicas))
-    report_metadata!(report, "hamiltonian", state.hamiltonian)
-    report_metadata!(report, "r_strat", state.r_strat)
-    report_metadata!(report, "s_strat", state.s_strat)
-    report_metadata!(report, "τ_strat", state.τ_strat)
-    params = state.replicas[1].params
-    report_metadata!(report, "params", params)
-    report_metadata!(report, "dτ", params.dτ)
-    report_metadata!(report, "step", params.step)
-    report_metadata!(report, "shift", params.shift)
-    report_metadata!(report, "shiftMode", params.shiftMode)
-    report_metadata!(report, "maxlength", state.maxlength[])
-    report_metadata!(report, "post_step", state.post_step)
-    report_metadata!(report, "v_summary", summary(state.replicas[1].v))
-    report_metadata!(report, "v_type", typeof(state.replicas[1].v))
+    add_default_metadata!(report, state)
     isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
 
     # Sanity checks.
