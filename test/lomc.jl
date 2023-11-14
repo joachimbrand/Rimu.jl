@@ -404,7 +404,7 @@ using DataFrames
             Rimu.report!(rp, :b, 6)
             @test sprint(show, rp) == "Report:\n  b => [4, 6]"
             Rimu.report_metadata!(rp, :a, 1)
-            @test Rimu.report_metadata(rp, "a") == "1"
+            @test Rimu.get_metadata(rp, "a") == "1"
         end
     end
 

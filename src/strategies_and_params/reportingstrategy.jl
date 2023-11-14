@@ -3,7 +3,7 @@
 
 Internal structure that holds the temporary reported values as well as metadata.
 
-See [`report!`](@ref), [`report_metadata!`](@ref), [`report_metadata`](@ref).
+See [`report!`](@ref), [`report_metadata!`](@ref), [`get_metadata`](@ref).
 """
 struct Report
     data::LittleDict{Symbol,Vector}
@@ -28,7 +28,7 @@ Base.isempty(report::Report) = all(isempty, values(report.data))
 
 function DataFrames.DataFrame(report::Report)
     df = DataFrame(report.data; copycols=false)
-    for (key, val) in report_metadata(report) # add metadata
+    for (key, val) in get_metadata(report) # add metadata
         DataFrames.metadata!(df, key, val)
     end
     return df
@@ -43,7 +43,7 @@ Alternatively, an iterable of key-value pairs or a `NamedTuple` can be passed.
 
 Throws an error if `key` already exists.
 
-See also [`report_metadata`](@ref), [`report!`](@ref), [`Report`](@ref).
+See also [`get_metadata`](@ref), [`report!`](@ref), [`Report`](@ref).
 """
 function report_metadata!(report::Report, key, value)
     key = string(key)
@@ -62,16 +62,16 @@ function report_metadata!(report::Report, kvpairs::NamedTuple)
 end
 
 """
-    report_metadata(report::Report, key)
+    get_metadata(report::Report, key)
 
 Get metadata `key` from `report`. `key` is converted to a `String`.
 
 See also [`report_metadata!`](@ref), [`Report`](@ref), [`report!`](@ref).
 """
-function report_metadata(report::Report, key)
+function get_metadata(report::Report, key)
     return report.meta[string(key)]
 end
-function report_metadata(report::Report)
+function get_metadata(report::Report)
     return report.meta
 end
 

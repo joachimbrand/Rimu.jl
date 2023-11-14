@@ -236,7 +236,7 @@ function Base.show(io::IO, st::QMCState)
     end
 end
 
-function add_default_metadata!(report::Report, state::QMCState)
+function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
     report_metadata!(report, "laststep", state.laststep)
@@ -303,11 +303,12 @@ otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
   be passed into `lomc!` that will be pushed into
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
-* `metadata` - metadata to be added to the report `df`. Must be an iterable of
+* `metadata` - user-supplied metadata to be added to the report `df`. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
+  All metadata is converted to strings.
 
 Some metadata is automatically added to the report `df` including
-[`Rimu.PACKAGE_VERSION`](@ref) and data from the `state`.
+[`Rimu.PACKAGE_VERSION`](@ref) and data from `state`.
 
 # Return values
 
@@ -360,7 +361,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
 
     # initialise report
     report = Report()
-    add_default_metadata!(report, state)
+    report_default_metadata!(report, state)
     isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
 
     # Sanity checks.
@@ -404,7 +405,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
     result_df = finalize_report!(state.r_strat, report)
     if !isempty(df)
         df = vcat(df, result_df) # metadata is not propagated
-        for (key, val) in report_metadata(report) # add metadata
+        for (key, val) in get_metadata(report) # add metadata
             DataFrames.metadata!(df, key, val)
         end
         return (; df, state)
