@@ -59,7 +59,7 @@ function load_df(filename; propagate_metadata = true, add_filename = true)
     df = DataFrame(table)
     if propagate_metadata
         meta_data = Arrow.getmetadata(table)
-        for (key, val) in meta_data
+        isnothing(meta_data) || for (key, val) in meta_data
             metadata!(df, key, val)
         end
     end
