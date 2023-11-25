@@ -61,6 +61,8 @@ using DataFrames
         addr = BoseFS{5,2}((2,3))
         H = HubbardReal1D(addr; u=0.1)
         @test default_starting_vector(H) == default_starting_vector(addr)
+        addr2 = BoseFS{5,2}((3, 2))
+        @test default_starting_vector(H, address=addr2) == default_starting_vector(addr2)
         @test default_starting_vector(addr; threading=false) isa DVec
         @test default_starting_vector(addr; threading=true) isa PDVec
         v = default_starting_vector(addr; threading=true)

@@ -298,8 +298,11 @@ v = DVec(starting_address => 10; style)
 ```
 otherwise. See [`PDVec`](@ref), [`DVec`](@ref) and [`StochasticStyle`](@ref).
 """
-function default_starting_vector(hamiltonian::AbstractHamiltonian; kwargs...)
-    return default_starting_vector(starting_address(hamiltonian); kwargs...)
+function default_starting_vector(
+    hamiltonian::AbstractHamiltonian;
+    address=starting_address(hamiltonian), kwargs...
+)
+    return default_starting_vector(address; kwargs...)
 end
 function default_starting_vector(address;
     style=IsStochasticInteger(),
