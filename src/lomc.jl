@@ -280,6 +280,43 @@ function report_default_metadata!(report::Report, state::QMCState)
 end
 
 """
+    default_starting_vector(hamiltonian::AbstractHamiltonian; kwargs...)
+    default_starting_vector(
+        address=starting_address(hamiltonian);
+        style=IsStochasticInteger(),
+        threading=nothing
+    )
+Return a default starting vector for [`lomc!`](@ref). The default choice for the starting
+vector is
+```julia
+v = PDVec(starting_address => 10; style)
+```
+if threading is available or
+
+```julia
+v = DVec(starting_address => 10; style)
+```
+otherwise. See [`PDVec`](@ref), [`DVec`](@ref) and [`StochasticStyle`](@ref).
+"""
+function default_starting_vector(hamiltonian::AbstractHamiltonian; kwargs...)
+    return default_starting_vector(starting_address(hamiltonian); kwargs...)
+end
+function default_starting_vector(address;
+    style=IsStochasticInteger(),
+    threading=nothing,
+)
+    if isnothing(threading)
+        threading = Threads.nthreads() > 1
+    end
+    if threading
+        v = PDVec(address => 10; style)
+    else
+        v = DVec(address => 10; style)
+    end
+    return v
+end
+
+"""
     lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
     lomc!(state::QMCState, [df]; kwargs...) -> df, state
 
@@ -363,16 +400,8 @@ julia> metadata(df2, "hamiltonian") # some metadata is automatically added
   be passed for merging with the report `df`.
 
 The default choice for the starting vector is
-```julia
-v = PDVec(starting_address => 10; style)
-```
-if threading is available or
-
-```julia
-v = DVec(starting_address => 10; style)
-```
-otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
-[`DVec`](@ref) and [`StochasticStyle`](@ref).
+`v = default_starting_vector(; address, style, threading)`.
+See [`default_starting_vector`](@ref).
 """
 function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
     state = QMCState(ham, v; kwargs...)
@@ -385,6 +414,7 @@ function lomc!(
     address=starting_address(ham),
     kwargs...
 )
+    v = default_starting_vector(ham; style, threading, address)
     if Threads.nthreads() > 1 && (threading ≠ false) || threading == true
         v = PDVec(address => 10; style)
     else
