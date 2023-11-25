@@ -48,7 +48,7 @@ using DataFrames
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=0.1)
         dv = DVec(add => 1; style=IsStochasticInteger())
-        df, state = lomc!(H, v; laststep=0, shift=23.1, dτ=0.002)
+        df, state = lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
         @test state.replicas[1].params.dτ == state.dτ == 0.002
         @test state.replicas[1].params.shift == state.shift == 23.1
         state.dτ = 0.004

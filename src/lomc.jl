@@ -139,10 +139,12 @@ function QMCState(
     dτ=nothing,
     shift=nothing,
     wm=nothing,
+    style=nothing,
     targetwalkers=1000,
+    address=starting_address(hamiltonian),
     params::FciqmcRunStrategy=RunTillLastStep(
         laststep = 100,
-        shift = float(valtype(v))(diagonal_element(hamiltonian, first(keys(localpart(v)))))
+        shift = float(valtype(v))(diagonal_element(hamiltonian, address))
     ),
     s_strat::ShiftStrategy=DoubleLogUpdate(; targetwalkers),
     r_strat::ReportingStrategy=ReportDFAndInfo(),
@@ -169,8 +171,8 @@ function QMCState(
     if threading ≠ nothing
         @warn "Starting vector is provided. Ignoring `threading=$threading`."
     end
-    if starting_address ≠ nothing
-        @warn "Starting vector is provided. Ignoring `starting_address=$starting_address`."
+    if style ≠ nothing
+        @warn "Starting vector is provided. Ignoring `style=$style`."
     end
     wm = isnothing(wm) ? working_memory(v) : wm
 
@@ -295,7 +297,7 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
 * `targetwalkers = 1000` - target for the 1-norm of the coefficient vector.
 * `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused
   if `v` is specified.
-* `starting_address = starting_address(ham)` - set starting address for default `v`; unused
+* `address = starting_address(ham)` - set starting address for default `v`; unused
   if `v` is specified.
 * `threading = true` - use multithreading if available; unused if `v` is specified.
 * `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
@@ -352,7 +354,7 @@ julia> metadata(df2, "hamiltonian") # some metadata is automatically added
 * `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
   reached, `lomc!` will abort
 * `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
-  diagonal_element(ham, first(keys(localpart(v))))` -
+  diagonal_element(ham, starting_address(ham))` -
   basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref). Parameter values
   are overridden by explicit keyword arguments `laststep`, `dτ`, `shift`; is mutated.
 * `wm` - working memory for re-use in subsequent calculations; is mutated.
@@ -379,15 +381,15 @@ function lomc!(
     ham;
     style=IsStochasticInteger(),
     threading=true,
-    starting_address=starting_address(ham),
+    address=starting_address(ham),
     kwargs...
 )
     if Threads.nthreads() > 1 && threading
-        v = PDVec(starting_address => 10; style)
+        v = PDVec(address => 10; style)
     else
-        v = DVec(starting_address => 10; style)
+        v = DVec(address => 10; style)
     end
-    return lomc!(ham, v; kwargs...)
+    return lomc!(ham, v; address, kwargs...) # pass address for setting the default shift
 end
 # For continuation, you can pass a QMCState and a DataFrame
 function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
