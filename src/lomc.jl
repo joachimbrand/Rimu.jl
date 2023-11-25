@@ -418,12 +418,7 @@ function lomc!(
     address=starting_address(ham),
     kwargs...
 )
-    v = default_starting_vector(ham; style, threading, address)
-    if Threads.nthreads() > 1 && (threading ≠ false) || threading == true
-        v = PDVec(address => 10; style)
-    else
-        v = DVec(address => 10; style)
-    end
+    v = default_starting_vector(address; style, threading)
     return lomc!(ham, v; address, kwargs...) # pass address for setting the default shift
 end
 # For continuation, you can pass a QMCState and a DataFrame
