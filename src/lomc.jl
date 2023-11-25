@@ -150,7 +150,6 @@ function QMCState(
     r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     threading=nothing,
-    starting_address=nothing,
     replica::ReplicaStrategy=NoStats(),
     post_step=(),
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
@@ -297,7 +296,10 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
 * `address = starting_address(ham)` - set starting address for default `v`.
 * `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused
   if `v` is specified.
-* `threading = true` - use multithreading if available; unused if `v` is specified.
+* `threading` - default is to use multithreading and
+  [MPI](https://juliaparallel.org/MPI.jl/latest/) if multiple threads are available. Set to
+  `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
+  unused if `v` is specified.
 * `shift = diagonal_element(ham, starting_address)` - initial value of shift.
 * `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
   [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
@@ -379,11 +381,11 @@ end
 function lomc!(
     ham;
     style=IsStochasticInteger(),
-    threading=true,
+    threading=nothing,
     address=starting_address(ham),
     kwargs...
 )
-    if Threads.nthreads() > 1 && threading
+    if Threads.nthreads() > 1 && (threading ≠ false) || threading == true
         v = PDVec(address => 10; style)
     else
         v = DVec(address => 10; style)
