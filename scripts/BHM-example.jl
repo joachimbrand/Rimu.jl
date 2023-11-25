@@ -79,10 +79,11 @@ plot!(df.steps, df.norm, label="norm", ylabel="norm", xlabel="steps")
 # Now let's look at estimating the energy from the shift.
 # The mean of the shift is a useful estimator of the shift. Calculating the error bars
 # is a bit more involved as correlations have to be removed from the time series.
-# The following code does that:
+# The following code does that with blocking transformations:
 se = shift_estimator(df; skip=steps_equilibrate)
 
-# For the projected energy, it a bit more complicated as it's a ratio of two means:
+# For the projected energy, it a bit more complicated as it's a ratio of fluctuationg
+# quantities:
 pe = projected_energy(df; skip=steps_equilibrate)
 
 # The result is a ratio distribution. Let's get its median and lower and upper error bars
@@ -107,6 +108,8 @@ dimension(Ĥ)
 # using standard linear algebra:
 using LinearAlgebra
 exact_energy = eigvals(Matrix(Ĥ))[1]
+# Read more about `Rimu.jl`s capabilities for exact diagonalisation in the example
+# "Exact diagonalisation".
 
 # Comparing our results for the energy:
 println("Energy from $steps_measure steps with $targetwalkers walkers:

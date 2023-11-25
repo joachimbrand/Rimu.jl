@@ -289,12 +289,12 @@ end
 Return a default starting vector for [`lomc!`](@ref). The default choice for the starting
 vector is
 ```julia
-v = PDVec(starting_address => 10; style)
+v = PDVec(address => 10; style)
 ```
 if threading is available or
 
 ```julia
-v = DVec(starting_address => 10; style)
+v = DVec(address => 10; style)
 ```
 otherwise. See [`PDVec`](@ref), [`DVec`](@ref) and [`StochasticStyle`](@ref).
 """
@@ -404,7 +404,8 @@ julia> metadata(df2, "hamiltonian") # some metadata is automatically added
 
 The default choice for the starting vector is
 `v = default_starting_vector(; address, style, threading)`.
-See [`default_starting_vector`](@ref).
+See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref), and
+[`StochasticStyle`](@ref).
 """
 function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
     state = QMCState(ham, v; kwargs...)
