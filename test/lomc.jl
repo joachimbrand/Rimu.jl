@@ -44,6 +44,19 @@ using DataFrames
         @test df.steps == [1:100; 1:100]
     end
 
+    @testset "Setting dτ and shift" begin
+        add = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(add; u=0.1)
+        dv = DVec(add => 1; style=IsStochasticInteger())
+        df, state = lomc!(H, v; laststep=0, shift=23.1, dτ=0.002)
+        @test state.replicas[1].params.dτ == state.dτ == 0.002
+        @test state.replicas[1].params.shift == state.shift == 23.1
+        state.dτ = 0.004
+        @test state.replicas[1].params.dτ == state.dτ == 0.004
+        state.shift = 5.0
+        @test state.replicas[1].params.shift == state.shift == 5.0
+        @test state.replica == NoStats{1}() # uses getfield method
+    end
     @testset "Setting walkernumber" begin
         add = BoseFS{2,5}((0,0,2,0,0))
         H = HubbardMom1D(add; u=0.5)
@@ -64,6 +77,9 @@ using DataFrames
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=1000)
         walkers = lomc!(H, copy(dv); s_strat, laststep=1000).df.norm
         @test median(walkers) ≈ 1000 rtol=0.1
+
+        _, state = lomc!(H, copy(dv); targetwalkers=500, laststep=0)
+        @test state.s_strat.targetwalkers == 500
     end
 
     @testset "Replicas" begin

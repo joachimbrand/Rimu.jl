@@ -137,18 +137,18 @@ function QMCState(
     hamiltonian, v;
     laststep=nothing,
     dτ=nothing,
+    shift=nothing,
     wm=nothing,
+    targetwalkers=1000,
     params::FciqmcRunStrategy=RunTillLastStep(
         laststep = 100,
-        shift = float(valtype(v))(diagonal_element(
-            hamiltonian,
-            starting_address(hamiltonian)
-        ))
+        shift = float(valtype(v))(diagonal_element(hamiltonian, first(keys(localpart(v)))))
     ),
-    s_strat::ShiftStrategy=DoubleLogUpdate(),
+    s_strat::ShiftStrategy=DoubleLogUpdate(; targetwalkers),
     r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     threading=nothing,
+    starting_address=nothing,
     replica::ReplicaStrategy=NoStats(),
     post_step=(),
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
@@ -162,9 +162,15 @@ function QMCState(
     if !isnothing(dτ)
         params.dτ = dτ
     end
+    if !isnothing(shift)
+        params.shift = shift
+    end
 
     if threading ≠ nothing
-        @warn "Threading has been removed. Ignoring `threading=$threading`."
+        @warn "Starting vector is provided. Ignoring `threading=$threading`."
+    end
+    if starting_address ≠ nothing
+        @warn "Starting vector is provided. Ignoring `starting_address=$starting_address`."
     end
     wm = isnothing(wm) ? working_memory(v) : wm
 
@@ -189,7 +195,7 @@ function QMCState(
     )
 end
 
-# Allow setting step and laststep from QMCState.
+# Allow setting step, laststep, dτ, shift from QMCState.
 function Base.getproperty(state::QMCState, key::Symbol)
     if key == :step
         step = state.replicas[1].params.step
@@ -199,6 +205,10 @@ function Base.getproperty(state::QMCState, key::Symbol)
         return laststep
     elseif key == :maxlength
         return getfield(state, :maxlength)[]
+    elseif key == :dτ
+        return state.replicas[1].params.dτ
+    elseif key == :shift
+        return state.replicas[1].params.shift
     else
         return getfield(state, key)
     end
@@ -212,6 +222,16 @@ function Base.setproperty!(state::QMCState, key::Symbol, value)
     elseif key == :laststep
         for r in state.replicas
             r.params.laststep = value
+        end
+        return value
+    elseif key == :dτ
+        for r in state.replicas
+            r.params.dτ = value
+        end
+        return value
+    elseif key == :shift
+        for r in state.replicas
+            r.params.shift = value
         end
         return value
     elseif key == :maxlength
@@ -263,45 +283,27 @@ end
     lomc!(state::QMCState, [df]; kwargs...) -> df, state
 
 Linear operator Monte Carlo: Perform a projector quantum Monte Carlo simulation for
-determining the lowest eigenvalue of `ham`. `v` can be a single starting vector. The default
-choice is
+determining the lowest eigenvalue of `ham`. The details of the simulation are controlled by
+the optional keyword arguments and by the type of the optional starting vector `v`.
+Alternatively, a `QMCState` can be passed in to continue a previous simulation.
 
-```julia
-v = PDVec(starting_address(ham) => 10; style=IsStochasticInteger())
-```
-if threading is available or
+# Common keyword arguments and defaults:
 
-```julia
-v = DVec(starting_address(ham) => 10; style=IsStochasticInteger())
-```
-
-otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
-[`DVec`](@ref) and [`StochasticStyle`](@ref).
-
-# Keyword arguments, defaults, and precedence:
-
-* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
-  diagonal_element(ham, starting_address(ham)))` -
-  basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref); is mutated
-* `laststep` - can be used to override information otherwise contained in `params`
-* `s_strat::ShiftStrategy = DoubleLogUpdate(targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4)` -
-  how to update the `shift`, see [`ShiftStrategy`](@ref)
-* `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
-  reached, `lomc!` will abort
+* `laststep = 100` - controls the number of steps.
+* `dτ = 0.01` - time step.
+* `shift = diagonal_element(ham, starting_address(ham))` - initial value of shift.
+* `targetwalkers = 1000` - target for the 1-norm of the coefficient vector.
 * `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused
   if `v` is specified.
+* `starting_address = starting_address(ham)` - set starting address for default `v`; unused
+  if `v` is specified.
+* `threading = true` - use multithreading if available; unused if `v` is specified.
 * `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
   [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
-* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulation, see
+* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
   [`ReplicaStrategy`](@ref).
 * `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see
   [`ReportingStrategy`](@ref)
-* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step dynamically, see
-  [`TimeStepStrategy`](@ref)
-* `wm` - working memory; if set, it controls the use of multithreading and overrides
-  `threading`; is mutated
-* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
-  be passed into `lomc!` that will be pushed into
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
 * `metadata` - user-supplied metadata to be added to the report `df`. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
@@ -324,7 +326,7 @@ julia> add = BoseFS((1,2,3));
 
 julia> hamiltonian = HubbardReal1D(add);
 
-julia> df1, state = lomc!(hamiltonian);
+julia> df1, state = lomc!(hamiltonian; targetwalkers=500, laststep=100);
 
 julia> df2, _ = lomc!(state, df1; laststep=200, metadata=(;info="cont")); # Continuation run
 
@@ -340,16 +342,50 @@ julia> using DataFrames; metadata(df2, "info") # retrieve custom metadata
 julia> metadata(df2, "hamiltonian") # some metadata is automatically added
 "HubbardReal1D(BoseFS{6,3}((1, 2, 3)); u=1.0, t=1.0)"
 ```
+
+# Further keyword arguments and defaults:
+
+* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step or not, see
+  [`TimeStepStrategy`](@ref)
+* `s_strat::ShiftStrategy = DoubleLogUpdate(; targetwalkers, ζ = 0.08, ξ = ζ^2/4)` -
+  how to update the `shift`, see [`ShiftStrategy`](@ref).
+* `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
+  reached, `lomc!` will abort
+* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
+  diagonal_element(ham, first(keys(localpart(v))))` -
+  basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref). Parameter values
+  are overridden by explicit keyword arguments `laststep`, `dτ`, `shift`; is mutated.
+* `wm` - working memory for re-use in subsequent calculations; is mutated.
+* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
+  be passed for merging with the report `df`.
+
+The default choice for the starting vector is
+```julia
+v = PDVec(starting_address => 10; style)
+```
+if threading is available or
+
+```julia
+v = DVec(starting_address => 10; style)
+```
+otherwise. It triggers the integer walker FCIQMC algorithm. See [`PDVec`](@ref),
+[`DVec`](@ref) and [`StochasticStyle`](@ref).
 """
 function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
     state = QMCState(ham, v; kwargs...)
     return lomc!(state, df; name, metadata)
 end
-function lomc!(ham; style=IsStochasticInteger(), kwargs...)
-    if Threads.nthreads() > 1
-        v = PDVec(starting_address(ham) => 10; style)
+function lomc!(
+    ham;
+    style=IsStochasticInteger(),
+    threading=true,
+    starting_address=starting_address(ham),
+    kwargs...
+)
+    if Threads.nthreads() > 1 && threading
+        v = PDVec(starting_address => 10; style)
     else
-        v = DVec(starting_address(ham) => 10; style)
+        v = DVec(starting_address => 10; style)
     end
     return lomc!(ham, v; kwargs...)
 end
