@@ -57,6 +57,16 @@ using DataFrames
         @test state.replicas[1].params.shift == state.shift == 5.0
         @test state.replica == NoStats{1}() # uses getfield method
     end
+    @testset "default_starting_vector" begin
+        addr = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(addr; u=0.1)
+        @test default_starting_vector(H) == default_starting_vector(addr)
+        @test default_starting_vector(addr; threading=false) isa DVec
+        @test default_starting_vector(addr; threading=true) isa PDVec
+        v = default_starting_vector(addr; threading=true)
+        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=0, threading=false)
+        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=0, style=IsStochasticInteger())
+    end
     @testset "Setting walkernumber" begin
         add = BoseFS{2,5}((0,0,2,0,0))
         H = HubbardMom1D(add; u=0.5)
