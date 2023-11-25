@@ -293,13 +293,12 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
 
 * `laststep = 100` - controls the number of steps.
 * `dτ = 0.01` - time step.
-* `shift = diagonal_element(ham, starting_address(ham))` - initial value of shift.
 * `targetwalkers = 1000` - target for the 1-norm of the coefficient vector.
+* `address = starting_address(ham)` - set starting address for default `v`.
 * `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused
   if `v` is specified.
-* `address = starting_address(ham)` - set starting address for default `v`; unused
-  if `v` is specified.
 * `threading = true` - use multithreading if available; unused if `v` is specified.
+* `shift = diagonal_element(ham, starting_address)` - initial value of shift.
 * `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
   [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
 * `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
