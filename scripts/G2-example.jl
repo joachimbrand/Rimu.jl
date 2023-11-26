@@ -53,21 +53,14 @@ targetwalkers = 100;
 
 # Other FCIQMC parameters and strategies are the same as before
 dτ = 0.001
-reporting_interval = 1
 svec = DVec(aIni => 1)
-Random.seed!(17)
-params = RunTillLastStep(dτ = dτ, laststep = steps_equilibrate + steps_measure)
-s_strat = DoubleLogUpdate(targetwalkers = targetwalkers, ζ = 0.08)
-r_strat = ReportDFAndInfo(reporting_interval = reporting_interval, info_interval = 100)
-τ_strat = ConstantTimeStep();
+Random.seed!(17);
 
 # Now we run the main FCIQMC loop:
 df, state = lomc!(H, svec;
-            params,
+            dτ,
             laststep = steps_equilibrate + steps_measure,
-            s_strat,
-            r_strat,
-            τ_strat,
+            targetwalkers,
             replica,
 );
 

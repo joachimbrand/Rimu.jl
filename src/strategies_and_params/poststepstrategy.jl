@@ -24,8 +24,10 @@ abstract type PostStepStrategy end
 """
     post_step(::PostStepStrategy, ::ReplicaState) -> kvpairs
 
-Compute statistics after FCIQMC step. Should return a tuple of `:key => value` pairs. 
-This function is only called every [`reporting_interval`](@ref) steps, as defined by the `ReportingStrategy`. 
+Compute statistics after FCIQMC step. Should return a tuple of `:key => value` pairs.
+This function is only called every [`reporting_interval`](@ref) steps, as defined by the
+`ReportingStrategy`.
+
 See also [`PostStepStrategy`](@ref), [`ReportingStrategy`](@ref).
 """
 post_step
