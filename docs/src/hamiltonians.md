@@ -62,12 +62,17 @@ BoseHubbardMom1D2C
 HubbardMom1DEP
 ```
 
+### Harmonic oscillator models
+```@docs
+HOCartesianContactInteractions
+HOCartesianEnergyConservedPerDim
+HOCartesianCentralImpurity
+```
+
 ### Other
 ```@docs
 MatrixHamiltonian
 Transcorrelated1D
-HOCartesianEnergyConserved
-HOCartesianEnergyConservedPerDim
 ```
 
 ### Convenience functions
@@ -157,7 +162,7 @@ neighbour_site
 ```
 
 ## Harmonic Oscillator
-Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesianEnergyConserved`](@ref) 
+Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesianContactInteractions`](@ref) 
 and [`HOCartesianEnergyConservedPerDim`](@ref).
 ```@docs
 get_all_blocks
@@ -166,7 +171,8 @@ fock_to_cart
 Underlying integrals for the interaction matrix elements are implemented in the following unexported functions
 ```@docs
 Hamiltonians.four_oscillator_integral_general
-Hamiltonians.four_oscillator_integral_1D
+Hamiltonians.ho_delta_potential
+Hamiltonians.log_abs_oscillator_zero
 ```
 
 ## Index

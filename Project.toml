@@ -1,7 +1,7 @@
 name = "Rimu"
 uuid = "c53c40cc-bd84-11e9-2cf4-a9fde2b9386e"
 authors = ["Joachim Brand <j.brand@massey.ac.nz>"]
-version = "0.9.0"
+version = "0.10.1"
 
 [deps]
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
@@ -39,6 +39,12 @@ TerminalLoggers = "5d786b92-1e48-4d6f-9151-6b4477ca9bed"
 TupleTools = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
 VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 
+[weakdeps]
+KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
+
+[extensions]
+KrylovKitExt = "KrylovKit"
+
 [compat]
 Arrow = "1.5, 2"
 BSON = "0.3"
@@ -50,6 +56,7 @@ Distributions = "0.25"
 FFTW = "1"
 Folds = "0.2"
 HypergeometricFunctions = "0.3"
+KrylovKit = "0.6"
 MPI = "0.20"
 MacroTools = "0.5"
 Measurements = "2"
@@ -61,15 +68,18 @@ Reexport = "1"
 Setfield = "0.7, 0.8, 1"
 SpecialFunctions = "1, 2"
 StaticArrays = "1"
+Statistics = "1"
 StatsBase = "0.33, 0.34"
 StrFormat = "1"
 StrLiterals = "1"
+TOML = "1"
 TerminalLoggers = "0.1.4"
 TupleTools = "1"
-VectorInterface = "0.2"
+VectorInterface = "0.2, 0.3, 0.4"
 julia = "1.7"
 
 [extras]
+KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]

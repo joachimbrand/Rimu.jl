@@ -48,8 +48,6 @@ function test_dvec_interface(type; kwargs...)
             end
             @testset "properties" begin
                 u = type(:a => 1, :b => 2; kwargs...)
-                v = type(0.5 => 0.1im; kwargs...)
-
                 @test valtype(u) ≡ scalartype(u) ≡ Int
                 @test keytype(u) ≡ Symbol
                 @test eltype(u) ≡ Pair{Symbol,Int}
@@ -57,6 +55,7 @@ function test_dvec_interface(type; kwargs...)
                 @test ndims(u) == 1
                 @test u isa AbstractDVec{Symbol,Int}
 
+                v = type(0.5 => 0.1im; kwargs...)
                 @test valtype(v) ≡ scalartype(v) ≡ ComplexF64
                 @test keytype(v) ≡ Float64
                 @test eltype(v) ≡ Pair{Float64,ComplexF64}
@@ -109,10 +108,18 @@ function test_dvec_interface(type; kwargs...)
                 @test e == zerovector(u) == empty(u) == similar(u)
                 @test e == zerovector!(copy(u)) == zerovector!(copy(u)) == empty!(copy(u))
                 @test e ≡ zerovector!(e) ≡ zerovector!!(e) ≡ empty!(e)
+                @test typeof(empty(u)) === typeof(u)
+                @test typeof(zerovector(u)) === typeof(u)
 
                 @test scalartype(zerovector(u, Int)) ≡ Int
                 @test scalartype(empty(u, Int)) ≡ Int
                 @test eltype(similar(u, Float64, Int)) ≡ Pair{Float64,Int}
+                @test eltype(similar(u, String)) ≡ Pair{Int,String}
+                @test eltype(similar(u, Float64, String)) ≡ Pair{Float64,String}
+
+                v = type(1 => 1; kwargs...)
+                @test zerovector!!(v, Int) ≡ v
+                @test zerovector!!(v, Float64) ≢ v
             end
             @testset "scale(!)" begin
                 u = type(1 => 1.0 + im, 2 => -2.0im; kwargs...)
@@ -134,6 +141,8 @@ function test_dvec_interface(type; kwargs...)
 
                 w = type(1 => 1; kwargs...)
                 @test scale(w, 1 + im) == (1 + im) * w == type(1 => 1 + im)
+                @test scale!!(w, 1 + im) ≢ w
+                @test scale!!(w, 1) ≡ w
             end
             @testset "add(!)" begin
                 u = type(45 => 10.0, 12 => 3.5; kwargs...)
@@ -149,6 +158,11 @@ function test_dvec_interface(type; kwargs...)
                 @test axpby!(2, u, -7, copy(v)) == x
 
                 @test u + type(12 => -3.5 + im; kwargs...) == type(45 => 10, 12 => im)
+
+                @test add!!(v, u, 2, -7) ≡ v
+                @test add!!(v, u, 2 + im, -7) ≢ v
+                @test add!!(v, u, 2, -7 - im) ≢ v
+                @test add!!(v, type(1 => im; kwargs...), 2, -7 - im) ≢ v
             end
             @testset "inner" begin
                 u = type(zip(1:4, [1, 1.5, im, -im]); kwargs...)
@@ -196,8 +210,9 @@ function test_dvec_interface(type; kwargs...)
 
                 u = type(Dict(ps); kwargs...)
 
-                @test reduce(+, values(u); init=1) == sum(vs) + 1
-                @test reduce(+, keys(u); init=-1) == sum(ks) - 1
+                @test reduce(+, values(u); init=0) == sum(vs)
+                @test reduce(*, keys(u)) == prod(ks)
+                @test mapreduce(x -> x[1], +, pairs(u)) == sum(ks)
 
                 @test mapreduce(x -> x + 1.1, +, values(u)) ≈ sum(x -> x + 1.1, vs)
                 @test mapreduce(abs2, *, keys(u)) == prod(abs2, ks)
@@ -207,6 +222,9 @@ function test_dvec_interface(type; kwargs...)
                 @test minimum(abs2, values(u)) == minimum(abs2, vs)
                 @test maximum(x -> x + 1.1, keys(u)) ≈ maximum(x -> x + 1.1, ks)
                 @test prod(p -> p[1] - p[2], pairs(u)) == prod(p -> p[1] - p[2], ps)
+
+                v = type{Int,Int}(; kwargs...)
+                @test mapreduce(x -> x + 1, +, keys(v); init=0) == 0
             end
             @testset "all, any" begin
                 ks = ['a', 'b', 'c', 'd', 'e', 'f']
@@ -246,6 +264,20 @@ function test_dvec_interface(type; kwargs...)
             @test StochasticStyle(type(:a => 1 + 2im; kwargs...)) isa IsStochastic2Pop
             @test StochasticStyle(type(:a => SA[1 1; 1 1]; kwargs...)) isa StyleUnknown
         end
+        @testset "Stochastic styles convert eltype" begin
+            u = type(:a => 0f0; kwargs...)
+            @test valtype(u) === Float32
+            @test StochasticStyle(u) == IsDeterministic{Float32}()
+
+            v = type(:a => 1; style=IsDynamicSemistochastic(), kwargs...)
+            @test v[:a] isa Float64
+
+            w = type(:a => 1.0; style=IsStochasticInteger(), kwargs...)
+            @test w isa type{Symbol,Int}
+
+            x = type(:a => 1.0; style=IsStochastic2Pop(), kwargs...)
+            @test !isreal(x)
+        end
     end
 end
 
@@ -254,39 +286,135 @@ end
         test_dvec_interface(DVec; capacity=200)
     end
 
-    @testset "Stochastic styles convert eltype" begin
-        dvec1 = DVec(:a => 0f0)
-        @test valtype(dvec1) === Float32
-        @test StochasticStyle(dvec1) == IsDeterministic{Float32}()
-
-        dvec2 = DVec(:a => 1, style=IsDynamicSemistochastic())
-        @test dvec2[:a] isa Float64
-
-        dvec3 = DVec(:a => 1.0, style=IsStochasticInteger())
-        @test dvec3 isa DVec{Symbol,Int}
-
-        dvec4 = DVec(:a => 1.0, style=IsStochastic2Pop())
-        @test !isreal(dvec4)
-    end
 end
 
 @testset "InitiatorDVec" begin
     @testset "interface tests" begin
         test_dvec_interface(InitiatorDVec; capacity=100)
+        test_dvec_interface(InitiatorDVec; initiator=DictVectors.CoherentInitiator(1))
+    end
+end
+
+using Rimu.DictVectors: num_segments, is_distributed
+
+@testset "PDVec" begin
+    @testset "constructor errors" begin
+        @test_throws ArgumentError PDVec(1 => 1; initiator="none")
+        @test_throws ArgumentError PDVec(1 => 1; communicator="none")
     end
 
-    @testset "Stochastic styles convert eltype" begin
-        dvec1 = InitiatorDVec(:a => 0f0)
-        @test valtype(dvec1) === Float32
-        @test StochasticStyle(dvec1) == IsDeterministic{Float32}()
+    @testset "operations" begin
+        @testset "properties" begin
+            pd1 = PDVec(zip(1:10, 10:-1.0:1))
+            pd2 = PDVec(zip(1:10, 10:-1.0:1))
+            pd2[1] += 1e-13
+            pd3 = PDVec(zip(1:10, 10:-1.0:1); style=IsDynamicSemistochastic())
+            pd4 = PDVec(zip(1:9, 10:-1.0:2))
 
-        dvec2 = InitiatorDVec(:a => 1, style=IsDynamicSemistochastic())
-        @test dvec2[:a] isa Float64
+            @test num_segments(pd1) == Threads.nthreads()
+            @test num_segments(pd2) == Threads.nthreads()
 
-        dvec3 = InitiatorDVec(:a => 1.0, style=IsStochasticInteger())
-        @test dvec3 isa InitiatorDVec{Symbol,Int}
+            @test StochasticStyle(pd1) ≡ IsDeterministic()
+            @test StochasticStyle(pd3) ≡ IsDynamicSemistochastic()
 
-        dvec4 = InitiatorDVec(:a => 1.0, style=IsStochastic2Pop())
-        @test !isreal(dvec4)
+            @test length(pd1) == length(pd2) == length(pd3) == 10
+            @test pd1 == pd3
+            @test pd1 != pd2
+            @test pd2 ≈ pd3
+            @test pd2 ≉ pd3 atol=1e-16
+            @test pd3 != pd4
+
+            @test length(pd4 - pd3) == 1
+
+            @test dot(pd1, pd1) == sum(abs2, values(pd1))
+            @test dot(pd1, pd3) == sum(abs2, values(pd1))
+
+            @test !is_distributed(pd1)
+            @test !is_distributed(values(pd1))
+
+            @test real(pd1) == pd1
+            @test isempty(imag(pd1))
+        end
+
+        @testset "DVec with PDVec" begin
+            pv = PDVec(zip(1:10, 10:-1:1))
+            dv = PDVec{Int,Int}()
+            copyto!(dv, pv)
+            @test dv == pv
+            @test dot(dv, pv) / (norm(dv) * norm(pv)) ≈ 1
+
+            add!(pv, dv)
+            @test pv == 2 * dv
+            @test 0.5 * pv == dv
+        end
+
+        @testset "map(!)" begin
+            pd1 = PDVec(zip(2:2:12, [1, -1, 2, -2, 3, -3]))
+            pd1_m = map(x -> x + 1, values(pd1))
+            @test length(pd1_m) == 5
+            @test pd1_m[2] == 2
+            @test pd1 ≠ pd1_m
+
+            map!(x -> x + 1, values(pd1))
+            @test length(pd1) == 5
+            @test pd1[2] == 2
+
+            @test pd1_m == pd1
+
+            pd2 = similar(pd1)
+            map!(x -> x - 2, pd2, values(pd1))
+            @test length(pd2) == 4
+            @test pd2[6] == 1
+
+            pd3 = map!(x -> x + 4, pd2, values(pd2))
+            @test pd3 === pd2
+            @test length(pd2) == 3
+        end
+
+        @testset "filter(!)" begin
+            pd1 = PDVec(zip(1:6, [1, -1, 2, -2, 3, -3]))
+            pd2 = similar(pd1)
+            pd2 = filter!(>(0), pd2, values(pd1))
+            @test all(>(0), values(pd2))
+            @test length(pd2) == 3
+
+            pd3 = filter(x -> x % 2 == 0, keys(pd1))
+            @test all(<(0), values(pd3))
+            @test length(pd3) == 3
+
+            filter!(p -> p[1] - p[2] ≠ 0, pairs(pd1))
+            @test length(pd1) == 5
+
+            filter!(iseven, keys(pd1))
+            @test length(pd1) == 3
+
+            filter!(iseven, pd1, values(pd1))
+            @test length(pd1) == 1
+        end
+
+        @testset "operator dot" begin
+            add = FermiFS2C((1,1,0,0), (0,0,1,1))
+            H = HubbardMom1D(add)
+            T = Transcorrelated1D(add)
+            D = DensityMatrixDiagonal(1)
+
+            dv1 = H * DVec(add => 1.0)
+            dv2 = T * DVec(add => 1.0)
+            pv1 = H * PDVec(add => 1.0)
+            pv2 = T * PDVec(add => 1.0)
+            wm = PDWorkingMemory(pv1)
+
+            for op in (H, T, D)
+                @test dot(pv1, op, pv2) ≈ dot(dv1, op, dv2)
+                @test dot(dv1, op, pv2) ≈ dot(pv1, op, dv2)
+
+                @test dot(pv1, op, pv2, wm) ≈ dot(pv1, op, dv2)
+            end
+        end
+    end
+
+    @testset "interface tests" begin
+        test_dvec_interface(PDVec)
+        test_dvec_interface(PDVec; initiator=true)
     end
 end

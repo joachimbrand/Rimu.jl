@@ -18,11 +18,14 @@ Momentum space Hubbard models
 - [`BoseHubbardMom1D2C`](@ref)
 - [`HubbardMom1DEP`](@ref)
 
+Harmonic oscillator models
+- [`HOCartesianContactInteractions`](@ref)
+- [`HOCartesianEnergyConservedPerDim`](@ref)
+- [`HOCartesianCentralImpurity`](@ref)
+
 Other
 - [`MatrixHamiltonian`](@ref)
 - [`Transcorrelated1D`](@ref)
-- [`HOCartesianEnergyConserved`](@ref)
-- [`HOCartesianEnergyConservedPerDim`](@ref)
 
 ## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)
@@ -78,7 +81,8 @@ export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 
-export HOCartesianEnergyConserved, HOCartesianEnergyConservedPerDim, AxialAngularMomentumHO
+export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, HOCartesianCentralImpurity 
+export AxialAngularMomentumHO
 export get_all_blocks, fock_to_cart
 
 include("abstract.jl")
@@ -110,8 +114,9 @@ include("correlation_functions.jl")
 include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
 
-include("HOCartesianEnergyConserved.jl")
+include("HOCartesianContactInteractions.jl")
 include("HOCartesianEnergyConservedPerDim.jl")
+include("HOCartesianCentralImpurity.jl")
 include("vertices.jl")
 include("ho-cart-tools.jl")
 include("angular_momentum.jl")

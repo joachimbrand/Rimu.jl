@@ -8,8 +8,9 @@ support the interface from [VectorInterface.jl](https://github.com/Jutho/VectorI
 and are designed to work well for quantum Monte Carlo with [`lomc!`](@ref Main.lomc!) and
 for matrix-free linear algebra with [KrylovKit](https://github.com/Jutho/KrylovKit.jl).
 
-Concrete implementations are available as [`DVec`](@ref Main.DictVectors.DVec) and
-[`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec).
+Concrete implementations are available as [`PDVec`](@ref Main.DictVectors.PDVec),
+[`DVec`](@ref Main.DictVectors.DVec), and [`InitiatorDVec`](@ref
+Main.DictVectors.InitiatorDVec).
 
 `AbstractDVec`s have a [`StochasticStyle`](@ref) which selects the spawning algorithm in
 `FCIQMC`. Looking up an element that is not stored in the `AbstractDVec` should return a
@@ -54,7 +55,7 @@ end
     localpart(dv) -> AbstractDVec
 
 Get the part of `dv` that is located on this MPI rank. Returns `dv` itself for
-`AbstractDVec`s.
+vectors that can't be MPI distributed ([`DVec`](@ref Main.DictVectors.DVec)s and [`InitiatorDVec`](@ref Main.DictVectors.InitiatorDVec)s).
 """
 localpart(dv) = dv # default for local data
 
@@ -127,7 +128,8 @@ function apply_operator!(
         target, working_memory, spawn_stats
     )
     if C
-        comp_names, comp_stats = compress!(target)
+        comp_names, _ = step_stats(CompressionStrategy(target))
+        comp_stats = compress!(target)
         names = (spawn_names..., comp_names...)
         stats = (spawn_stats..., comp_stats...)
     else
