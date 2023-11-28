@@ -518,6 +518,7 @@ using DataFrames
                 @test single_particle_density(add) == (1, 3, 3)
                 @test single_particle_density(add; component=1) == (1, 2, 3)
                 @test single_particle_density(add; component=2) == (0, 1, 0)
+                @test single_particle_density(DVec(add => 1); component=2) == (0, 1, 0)
             end
         end
     end
