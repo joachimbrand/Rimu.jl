@@ -883,9 +883,9 @@ end
     # - to be completed
 
     # constant density localised state
-    @test diagonal_element(S0, stack_state) == 5.
-    @test diagonal_element(S1, stack_state) ≈ 1
-    @test diagonal_element(S2, stack_state) ≈ -1
+    @test diagonal_element(S0, localised_state) == 5.
+    @test diagonal_element(S1, localised_state) ≈ 1
+    @test diagonal_element(S2, localised_state) ≈ -1
 
     # constant density uniform state
     @test diagonal_element(S0, uniform_state) == 0
