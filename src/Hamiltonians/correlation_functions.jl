@@ -306,3 +306,24 @@ function Base.show(io::IO, ::StringCorrelator{D}) where {D}
 end
 
 LOStructure(::Type{<:StringCorrelator}) = IsDiagonal()
+
+function diagonal_element(::StringCorrelator{0}, add::SingleComponentFockAddress)
+    return diagonal_element(G2RealCorrelator(0), add)
+end
+
+function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress) where {D}
+    M = num_modes(add)
+    N = num_particles(add)
+    n̄ = N/M
+    d = mod(D, M)
+    v = onr(add)
+
+    result = 0  
+    for i in eachindex(v)
+        phase_sum = sum([(v[mod1(k,M)] - n̄) for k in collect(i:1:(i+d+1)) ])
+
+        result += (v[i]- n̄) * exp(pi * im * phase_sum) * (v[mod1(i + d, M)]-n̄)
+    end
+
+    return result / M
+end
