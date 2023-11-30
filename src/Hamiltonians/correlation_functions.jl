@@ -294,6 +294,26 @@ end
 """
     StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
+    Two-body operator for string correlation between sites separated by `d` with `0 ≤ d < m`
+
+```math
+    \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{i}^{M} \\delta n_j \\exp{i \\pi \\sum_{j \\leq k < j + r} \\delta n_k} \\delta n_{j+r}
+```
+where ``\\delta n_j = n_j - \\bar{n}`` is the boson number deviation from the mean filling number. 
+
+Assumes a one-dimensional lattice with periodic boundary conditions. 
+
+# Arguments
+- `d::Integer`: distance between sites. 
+
+# See also 
+
+* [`HubbardReal1D`](@ref)
+* [`G2RealCorrelator`](@ref)
+* [`SuperfluidCorrelator`](@ref)
+* [`AbstractHamiltonian`](@ref)
+* [`AllOverlaps`](@ref)
+
 """
 
 struct StringCorrelator{D} <: AbstractHamiltonian{Float64}

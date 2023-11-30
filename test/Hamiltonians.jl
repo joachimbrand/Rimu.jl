@@ -866,6 +866,33 @@ end
 
 end
 
+@testset "StringCorrelator" begin
+    m = 6
+    n1 = 4
+    n2 = m
+    non_unital_localised_state = BoseFS((n1,0,0,0,0,0))
+
+    localised_state = BoseFS((n2,0,0,0,0,0))
+    uniform_state = near_uniform(BoseFS{n2,m})
+
+    S0 = StringCorrelator(0)
+    S1 = StringCorrelator(1)
+    S2 = StringCorrelator(2)
+
+    # non unital localised state
+    # - to be completed
+
+    # constant density localised state
+    @test diagonal_element(S0, stack_state) == 5.
+    @test diagonal_element(S1, stack_state) ≈ 1
+    @test diagonal_element(S2, stack_state) ≈ -1
+
+    # constant density uniform state
+    @test diagonal_element(S0, uniform_state) == 0
+    @test diagonal_element(S2, uniform_state) == 0
+    
+end
+
 @testset "Momentum" begin
     @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) ≡ 2.0
     @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) ≡ 7.0
