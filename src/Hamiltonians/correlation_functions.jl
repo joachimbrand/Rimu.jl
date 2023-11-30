@@ -289,3 +289,20 @@ end
 function diagonal_element(::SuperfluidCorrelator{D}, add::SingleComponentFockAddress) where {D}
     return 0.0
 end
+
+
+"""
+    StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+
+"""
+
+struct StringCorrelator{D} <: AbstractHamiltonian{Float64}
+end
+
+StringCorrelator(d::Int) = StringCorrelator{d}()
+
+function Base.show(io::IO, ::StringCorrelator{D}) where {D}
+    print(io, "StringCorrelator($D)")
+end
+
+LOStructure(::Type{<:StringCorrelator}) = IsDiagonal()
