@@ -327,3 +327,5 @@ function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress
 
     return result / M
 end
+
+num_offdiagonals(::StringCorrelator, ::SingleComponentFockAddress) = 0
