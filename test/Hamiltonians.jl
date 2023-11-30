@@ -839,6 +839,33 @@ end
     @test num_offdiagonals(G2RealCorrelator(0), comp) == 0
 end
 
+@testset "SuperfluidCorrelator" begin
+    m = 6
+    n1 = 4
+    n2 = m
+    add1 = BoseFS((n1,0,0,0,0,0))
+    add2 = near_uniform(BoseFS{n2,m})
+
+    # localised state
+    @test diagonal_element(SuperfluidCorrelator(0), add1) == n1/m
+    @test diagonal_element(SuperfluidCorrelator(1), add1) == 0.
+
+    # constant density state
+    @test diagonal_element(SuperfluidCorrelator(0), add2) == n2/m
+    @test diagonal_element(SuperfluidCorrelator(1), add2) == 0.
+
+    # offdiagonals
+    @test num_offdiagonals(SuperfluidCorrelator(0), add1) == 1
+    @test num_offdiagonals(SuperfluidCorrelator(0), add2) == 6
+
+    # get_offdiagonal
+    @test get_offdiagonal(SuperfluidCorrelator(0), add1, 1) == (add1, n1)
+    @test get_offdiagonal(SuperfluidCorrelator(1), add1, 1) == (BoseFS((3,1,0,0,0,0)), sqrt(n1))
+    @test get_offdiagonal(SuperfluidCorrelator(0), add2, 1) == (add2, 1.)
+    @test get_offdiagonal(SuperfluidCorrelator(1), add2, 1) == (BoseFS((0,2,1,1,1,1)), sqrt(2))
+
+end
+
 @testset "Momentum" begin
     @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) ≡ 2.0
     @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) ≡ 7.0

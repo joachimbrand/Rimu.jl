@@ -240,6 +240,29 @@ end
 """
     SuperfluidCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
+Two-body operator for superfluid correlation between sites separated by `d` with `0 ≤ d < m`
+
+```math
+    \\hat{C}_{\\text{SF}}(d) = \\frac{1}{M} \\sum_{i}^{M} a_{i}^{\\dagger} a_{i + d}
+```
+Assumes a one-dimensional lattice with periodic boundary conditions. 
+```math
+    \\hat{G}^{(2)}(-M/2 \\leq d < 0) = \\hat{G}^{(2)}(|d|),
+```
+```math
+    \\hat{G}^{(2)}(M/2 < d < M) = \\hat{G}^{(2)}(M - d),
+```
+
+# Arguments
+- `d::Integer`: distance between sites. 
+
+# See also 
+
+* [`HubbardReal1D`](@ref)
+* [`G2RealCorrelator`](@ref)
+* [`AbstractHamiltonian`](@ref)
+* [`AllOverlaps`](@ref)
+
 """
 struct SuperfluidCorrelator{D} <: AbstractHamiltonian{Float64}
 end
