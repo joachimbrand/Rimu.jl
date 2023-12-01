@@ -870,7 +870,10 @@ end
     m = 6
     n1 = 4
     n2 = m
+    
+    # unital refers to n̄=1
     non_unital_localised_state = BoseFS((n1,0,0,0,0,0))
+    non_unital_uniform_state = near_uniform(non_unital_localised_state)
 
     localised_state = BoseFS((n2,0,0,0,0,0))
     uniform_state = near_uniform(BoseFS{n2,m})
@@ -880,7 +883,11 @@ end
     S2 = StringCorrelator(2)
 
     # non unital localised state
-    # - to be completed
+    @test diagonal_element(S0, non_unital_localised_state) ≈ 20/9
+    @test diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
+
+    # non unital near uniform state
+    @test diagonal_element(S0, non_unital_uniform_state) ≈ 2/9
 
     # constant density localised state
     @test diagonal_element(S0, localised_state) == 5.
