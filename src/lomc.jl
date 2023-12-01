@@ -340,7 +340,7 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
   [MPI](https://juliaparallel.org/MPI.jl/latest/) if multiple threads are available. Set to
   `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
   unused if `v` is specified.
-* `shift = diagonal_element(ham, starting_address)` - initial value of shift.
+* `shift = diagonal_element(ham, address)` - initial value of shift.
 * `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
   [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
 * `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
@@ -395,7 +395,7 @@ julia> metadata(df2, "hamiltonian") # some metadata is automatically added
 * `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
   reached, `lomc!` will abort
 * `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
-  diagonal_element(ham, starting_address(ham))` -
+  diagonal_element(ham, address(ham))` -
   basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref). Parameter values
   are overridden by explicit keyword arguments `laststep`, `dτ`, `shift`; is mutated.
 * `wm` - working memory for re-use in subsequent calculations; is mutated.
