@@ -344,7 +344,7 @@ end
 """
     bose_hubbard_interaction(address)
 
-Return Σ_i *n_i* (*n_i*-1) for computing the Bose-Hubbard on-site interaction (without the
+Return ``Σ_i *n_i* (*n_i*-1)`` for computing the Bose-Hubbard on-site interaction (without the
 *U* prefactor.)
 
 # Example
