@@ -315,7 +315,6 @@ Assumes a one-dimensional lattice with periodic boundary conditions.
 * [`AllOverlaps`](@ref)
 
 """
-
 struct StringCorrelator{D} <: AbstractHamiltonian{Float64}
 end
 
