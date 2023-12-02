@@ -859,10 +859,10 @@ end
     @test num_offdiagonals(SuperfluidCorrelator(0), add2) == 6
 
     # get_offdiagonal
-    @test get_offdiagonal(SuperfluidCorrelator(0), add1, 1) == (add1, n1)
-    @test get_offdiagonal(SuperfluidCorrelator(1), add1, 1) == (BoseFS((3,1,0,0,0,0)), sqrt(n1))
-    @test get_offdiagonal(SuperfluidCorrelator(0), add2, 1) == (add2, 1.)
-    @test get_offdiagonal(SuperfluidCorrelator(1), add2, 1) == (BoseFS((0,2,1,1,1,1)), sqrt(2))
+    @test get_offdiagonal(SuperfluidCorrelator(0), add1, 1) == (add1, n1/m)
+    @test get_offdiagonal(SuperfluidCorrelator(1), add1, 1) == (BoseFS((3,1,0,0,0,0)), sqrt(n1)/m)
+    @test get_offdiagonal(SuperfluidCorrelator(0), add2, 1) == (add2, 1/m)
+    @test get_offdiagonal(SuperfluidCorrelator(1), add2, 1) == (BoseFS((0,2,1,1,1,1)), sqrt(2)/m)
 
 end
 

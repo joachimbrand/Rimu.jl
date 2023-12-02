@@ -246,12 +246,6 @@ Two-body operator for superfluid correlation between sites separated by `d` with
     \\hat{C}_{\\text{SF}}(d) = \\frac{1}{M} \\sum_{i}^{M} a_{i}^{\\dagger} a_{i + d}
 ```
 Assumes a one-dimensional lattice with periodic boundary conditions. 
-```math
-    \\hat{G}^{(2)}(-M/2 \\leq d < 0) = \\hat{G}^{(2)}(|d|),
-```
-```math
-    \\hat{G}^{(2)}(M/2 < d < M) = \\hat{G}^{(2)}(M - d),
-```
 
 # Arguments
 - `d::Integer`: distance between sites. 
@@ -280,7 +274,8 @@ end
 function get_offdiagonal(::SuperfluidCorrelator{D}, add::SingleComponentFockAddress, chosen) where {D}
     src = find_occupied_mode(add, chosen)
     dst = find_mode(add, mod1(src.mode + D, num_modes(add)))
-    return excitation(add, (dst,), (src,))
+    address, value = excitation(add, (dst,), (src,))
+    return address, value / num_modes(add)
 end
 
 function diagonal_element(::SuperfluidCorrelator{0}, add::SingleComponentFockAddress)
@@ -294,12 +289,12 @@ end
 """
     StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
-    Two-body operator for string correlation between sites separated by `d` with `0 ≤ d < m`
+Two-body operator for string correlation between sites separated by `d` with `0 ≤ d < m`
 
 ```math
-    \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{i}^{M} \\delta n_j \\exp{i \\pi \\sum_{j \\leq k < j + r} \\delta n_k} \\delta n_{j+r}
+    \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{i}^{M} \\delta n_j e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k} \\delta n_{j+d}
 ```
-where ``\\delta n_j = n_j - \\bar{n}`` is the boson number deviation from the mean filling number. 
+where ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling number. 
 
 Assumes a one-dimensional lattice with periodic boundary conditions. 
 
@@ -349,7 +344,7 @@ function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress
 
     result = 0  
     for i in eachindex(v)
-        phase_sum = sum([(v[mod1(k,M)] - n̄) for k in collect(i:1:(i+d-1)) ])
+        phase_sum = sum( (v[mod1(k,M)] - n̄) for k in i:1:(i+d-1) )
 
         result += (v[i]- n̄) * exp(pi * im * phase_sum) * (v[mod1(i + d, M)]-n̄)
     end
