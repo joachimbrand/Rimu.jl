@@ -98,6 +98,8 @@ function BoseFS(onr::Union{AbstractArray,Tuple})
     N = sum(onr)
     return BoseFS{N,M}(onr)
 end
+BoseFS(vals::Integer...) = BoseFS(vals)
+BoseFS{N,M}(vals::Integer...) where {N,M} = BoseFS{N,M}(vals)
 
 BoseFS(M::Integer, pairs::Pair...) = BoseFS(M, pairs)
 BoseFS(M::Integer, pairs) = BoseFS(sparse_to_onr(M, pairs))
@@ -112,7 +114,7 @@ function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}
     elseif b.bs isa SortedParticleList
         print(io, "BoseFS{$N,$M}(", onr_sparse_string(onr(b)), ")")
     else
-        print(io, "BoseFS{$N,$M}(", tuple(onr(b)...), ")")
+        print(io, "BoseFS{$N,$M}", tuple(onr(b)...))
     end
 end
 

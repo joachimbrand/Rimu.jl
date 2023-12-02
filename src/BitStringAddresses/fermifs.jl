@@ -98,6 +98,8 @@ function FermiFS(onr::Union{AbstractArray,Tuple})
     N = sum(onr)
     return FermiFS{N,M}(onr)
 end
+FermiFS(vals::Integer...) = FermiFS(vals)
+FermiFS{N,M}(vals::Integer...) where {N,M} = FermiFS{N,M}(vals)
 
 # Sparse constructors
 FermiFS(M::Integer, pairs::Pair...) = FermiFS(M, pairs)
@@ -113,7 +115,7 @@ function print_address(io::IO, f::FermiFS{N,M}; compact=false) where {N,M}
     elseif f.bs isa SortedParticleList
         print(io, "FermiFS{$N,$M}(", onr_sparse_string(onr(f)), ")")
     else
-        print(io, "FermiFS{$N,$M}(", tuple(onr(f)...), ")")
+        print(io, "FermiFS{$N,$M}", tuple(onr(f)...))
     end
 end
 
