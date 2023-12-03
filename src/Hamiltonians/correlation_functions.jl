@@ -245,10 +245,17 @@ Two-body operator for superfluid correlation between sites separated by `d` with
 ```math
     \\hat{C}_{\\text{SF}}(d) = \\frac{1}{M} \\sum_{i}^{M} a_{i}^{\\dagger} a_{i + d}
 ```
-Assumes a one-dimensional lattice with periodic boundary conditions. 
+Assumes a one-dimensional lattice with periodic boundary conditions.
+
+SuperfluidCorrelator must be wrapped in 'AllOverlaps'
 
 # Arguments
-- `d::Integer`: distance between sites. 
+- `d::Integer`: distance between sites.
+
+# Implementation
+Follow below for an example on how 'SuperfluidCorrelator' is used. Implementation is similar to that of 'G2RealCorrelator'
+- [G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html)
+
 
 # See also 
 
