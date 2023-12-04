@@ -864,6 +864,11 @@ end
     @test get_offdiagonal(SuperfluidCorrelator(0), add2, 1) == (add2, 1/m)
     @test get_offdiagonal(SuperfluidCorrelator(1), add2, 1) == (BoseFS((0,2,1,1,1,1)), sqrt(2)/m)
 
+    # Test for a specific type, e.g., Int
+    sc = SuperfluidCorrelator{Int}()
+    io = IOBuffer()
+    @test String(take!(io)) == "SuperfluidCorrelator(Int)"
+
 end
 
 @testset "StringCorrelator" begin
@@ -897,6 +902,11 @@ end
     # constant density uniform state
     @test diagonal_element(S0, uniform_state) == 0
     @test diagonal_element(S2, uniform_state) == 0
+
+    # Test for a specific type, e.g., Int
+    sc = StringCorrelator{Int}()
+    io = IOBuffer()
+    @test String(take!(io)) == "StringCorrelator(Int)"
     
 end
 
