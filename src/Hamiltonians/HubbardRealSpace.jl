@@ -118,7 +118,7 @@ in `D` dimensions.
 ```math
   \\hat{H} = -\\sum_{\\langle i,j\\rangle,σ} t_σ a^†_{iσ} a_{jσ} +
   \\frac{1}{2}\\sum_{i,σ} u_{σσ} n_{iσ} (n_{iσ} - 1) +
-  \\frac{1}{2}\\sum_{i,σ≠τ}u_{στ} n_{iσ} n_{iτ}
+  \\sum_{i,σ≠τ}u_{στ} n_{iσ} n_{iτ}
 ```
 
 If `v` is nonzero then this calculates ``\\hat{H} + \\hat{V}`` by adding the

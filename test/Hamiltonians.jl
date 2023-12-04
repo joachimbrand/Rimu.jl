@@ -1496,7 +1496,7 @@ end
         Lz = AxialAngularMomentumHO(S; addr)
         Ly = AxialAngularMomentumHO(S; z_dim=2, addr)
         Lx = AxialAngularMomentumHO(S; z_dim=1, addr)
-        
+
         Lz_vals = eigvals(Matrix(BasisSetRep(Lz)))
         Ly_vals = eigvals(Matrix(BasisSetRep(Ly)))
         Lx_vals = eigvals(Matrix(BasisSetRep(Lx)))
@@ -1538,8 +1538,8 @@ end
         df = get_all_blocks(H; save_to_file = "test_block_df.arrow")
         df_file = load_df("test_block_df.arrow")
         @test df[!,[1,2,3,5]] == df_file[!,[1,2,3,5]]
-        
-        # HOCartesianContactInteractions requires a valid energy restriction 
+
+        # HOCartesianContactInteractions requires a valid energy restriction
         @test_throws ArgumentError get_all_blocks(HOCartesianContactInteractions(addr; S))
 
         # block_by_level = false
@@ -1563,7 +1563,7 @@ end
 
         @test Hamiltonians.index((3,2,1)) == 1
         @test Hamiltonians.index((5,4,3)) == 10
-    end    
+    end
 
     @testset "HO utilities" begin
         S = (4,4)

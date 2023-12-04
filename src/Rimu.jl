@@ -49,6 +49,7 @@ include("StatsTools/StatsTools.jl")
 @reexport using .StatsTools
 
 export lomc!
+export default_starting_vector
 export FciqmcRunStrategy, RunTillLastStep
 export ShiftStrategy, LogUpdate, LogUpdateAfterTargetWalkers
 export DontUpdate, DoubleLogUpdate, DoubleLogUpdateAfterTargetWalkers

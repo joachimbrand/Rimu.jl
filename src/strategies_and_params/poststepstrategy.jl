@@ -24,8 +24,10 @@ abstract type PostStepStrategy end
 """
     post_step(::PostStepStrategy, ::ReplicaState) -> kvpairs
 
-Compute statistics after FCIQMC step. Should return a tuple of `:key => value` pairs. 
-This function is only called every [`reporting_interval`](@ref) steps, as defined by the `ReportingStrategy`. 
+Compute statistics after FCIQMC step. Should return a tuple of `:key => value` pairs.
+This function is only called every [`reporting_interval`](@ref) steps, as defined by the
+`ReportingStrategy`.
+
 See also [`PostStepStrategy`](@ref), [`ReportingStrategy`](@ref).
 """
 post_step
@@ -266,7 +268,7 @@ julia> single_particle_density(v; component=1)
 """
 function single_particle_density(dvec; component=0)
     K = keytype(dvec)
-    V = valtype(dvec)
+    V = float(valtype(dvec))
     M = num_modes(K)
     N = num_particles(K)
 
@@ -281,12 +283,12 @@ function single_particle_density(dvec; component=0)
 end
 
 function single_particle_density(add::SingleComponentFockAddress; component=0)
-    return Tuple(onr(add))
+    return float.(Tuple(onr(add)))
 end
 function single_particle_density(add::Union{CompositeFS,BoseFS2C}; component=0)
     if component == 0
-        return Float64.(Tuple(sum(onr(add))))
+        return float.(Tuple(sum(onr(add))))
     else
-        return Float64.(Tuple(onr(add)[component]))
+        return float.(Tuple(onr(add)[component]))
     end
 end
