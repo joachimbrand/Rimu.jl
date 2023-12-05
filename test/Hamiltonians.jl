@@ -902,10 +902,8 @@ end
     @test diagonal_element(S0, uniform_state) == 0
     @test diagonal_element(S2, uniform_state) == 0
 
-    # Test for a specific type, e.g., Int
-    sc = StringCorrelator{Int}()
-    io = IOBuffer()
-    @test String(take!(io)) == "StringCorrelator(Int)"
+    # Test show function
+    @test parse_address(sprint(show, fermi; context=:compact => true)) == fermi
     
 end
 
