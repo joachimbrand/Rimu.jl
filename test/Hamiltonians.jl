@@ -912,6 +912,7 @@ end
     d = 5
     output = @capture_out print(StringCorrelator(d))
     @test output == "StringCorrelator($d)"
+    
 end
 
 @testset "Momentum" begin
