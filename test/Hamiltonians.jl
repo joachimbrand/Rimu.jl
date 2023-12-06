@@ -839,10 +839,10 @@ end
     @test num_offdiagonals(G2RealCorrelator(0), add1) == 0
     @test num_offdiagonals(G2RealCorrelator(0), comp) == 0
 
-        # Test show method
-        d = 5
-        output = @capture_out print(G2RealCorrelator(d))
-        @test output == "G2RealCorrelator($d)"
+    # Test show method
+    d = 5
+    output = @capture_out print(G2RealCorrelator(d))
+    @test output == "G2RealCorrelator($d)"
 end
 
 @testset "SuperfluidCorrelator" begin
@@ -870,17 +870,10 @@ end
     @test get_offdiagonal(SuperfluidCorrelator(0), add2, 1) == (add2, 1/m)
     @test get_offdiagonal(SuperfluidCorrelator(1), add2, 1) == (BoseFS((0,2,1,1,1,1)), sqrt(2)/m)
 
-    # Test for a specific type, e.g., Int
-    # sc = SuperfluidCorrelator{Int}()
-    # io = IOBuffer()
-    # @test String(take!(io)) == "SuperfluidCorrelator(Int)"
-
     # Test show method
     d = 5
     output = @capture_out print(SuperfluidCorrelator(d))
     @test output == "SuperfluidCorrelator($d)"
-
-
 end
 
 @testset "StringCorrelator" begin
@@ -915,16 +908,10 @@ end
     @test diagonal_element(S0, uniform_state) == 0
     @test diagonal_element(S2, uniform_state) == 0
 
-    # Test for a specific type, e.g., Int
-    # sc = StringCorrelator{Int}()
-    # io = IOBuffer()
-    # @test String(take!(io)) == "StringCorrelator(Int)"
-
     # Test show method
     d = 5
     output = @capture_out print(StringCorrelator(d))
     @test output == "StringCorrelator($d)"
-    
 end
 
 @testset "Momentum" begin
