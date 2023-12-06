@@ -356,6 +356,10 @@ function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress
         result += (v[i]- n̄) * exp(pi * im * phase_sum) * (v[mod1(i + d, M)]-n̄)
     end
 
+    if M == N
+        return real(result) /M
+    end
+
     return result / M
 end
 
