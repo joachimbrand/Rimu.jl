@@ -364,7 +364,21 @@ function parse_address(str)
     if !isnothing(m)
         m2 = match(r"{([0-9]+)}", str)
         BITS = parse(Int, m2.captures[1])
-        return ONRFS{BITS}(Tuple(parse.(Int, split(m.captures[1], r" +"))))
+        T = if BITS ≤ 8
+            UInt8
+        elseif BITS ≤ 16
+            UInt16
+        elseif BITS ≤ 32
+            UInt32
+        elseif BITS ≤ 64
+            UInt64
+        elseif BITS ≤ 128
+            UInt128
+        else
+            throw(ArgumentError("invalid fock state format \"$str\""))
+        end
+        t = Tuple(parse.(T, split(m.captures[1], r" +")))
+        return OccupationNumberFS(SVector(t))
     end
     # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)
