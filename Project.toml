@@ -6,6 +6,7 @@ version = "0.10.3"
 [deps]
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
 ConsoleProgressMonitor = "88cd18e8-d9cc-4ea6-8889-5259c0d15c8b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"

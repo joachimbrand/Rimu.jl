@@ -374,11 +374,11 @@ function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress
     if iszero(N % M)
         n̄ = N ÷ M
         
-        result = 0  
+        result = 0.  
         for i in eachindex(v)
             phase_sum = sum( (v[mod1(k,M)] - n̄) for k in i:1:(i+d-1) )
 
-            result += (v[i]- n̄) * exp(pi * im * phase_sum) * (v[mod1(i + d, M)]-n̄)
+            result += (v[i]- n̄) * (-1)^(phase_sum) * (v[mod1(i + d, M)]-n̄)
         end
     
         return result / M
