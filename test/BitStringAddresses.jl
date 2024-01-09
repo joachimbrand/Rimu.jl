@@ -482,3 +482,53 @@ end
     fs = ONRFS{3}((1, 7, 0))
     @test excitation(fs, (2,), ()) == (fs, 0.0) # overflow, illegal address
 end
+
+@testset "Test select_uint_type function" begin
+    # Test for N in the range (0, 2^8)
+    @test select_uint_type(Val(1)) == UInt8
+    @test select_uint_type(Val(2^8 - 1)) == UInt8
+
+    # Test for N in the range [2^8, 2^16)
+    @test select_uint_type(Val(2^8)) == UInt16
+    @test select_uint_type(Val(2^16 - 1)) == UInt16
+
+    # Test for N in the range [2^16, 2^32)
+    @test select_uint_type(Val(2^16)) == UInt32
+    @test select_uint_type(Val(2^32 - 1)) == UInt32
+
+    # Test for N outside the valid range
+    @test_throws ArgumentError select_uint_type(Val(0))
+    @test_throws ArgumentError select_uint_type(Val(2^32))
+end
+
+@testset "Test OccupationNumberFS functions" begin
+    # Test OccupationNumberFS with SVector input
+    @testset "Test OccupationNumberFS with SVector input" begin
+        @test OccupationNumberFS(SVector{3, UInt8}(1, 2, 3)) isa OccupationNumberFS{3, UInt8}
+        @test_throws ArgumentError OccupationNumberFS(SVector(-1, 2, 3))
+        @test_throws ArgumentError OccupationNumberFS(SVector(1, 2, 300))
+        @test OccupationNumberFS(SVector{3,UInt16}(1, 2, 300)) isa OccupationNumberFS{3,UInt16}
+    end
+
+    # Test OccupationNumberFS with multiple arguments
+    @testset "Test OccupationNumberFS with multiple arguments" begin
+        @test isa(OccupationNumberFS(1, 2, 3), OccupationNumberFS{3, UInt8})
+        @test_throws ArgumentError OccupationNumberFS(-1, 2, 3)
+        @test_throws ArgumentError OccupationNumberFS(1, 2, 300)
+    end
+
+    # Test OccupationNumberFS with M and multiple arguments
+    @testset "Test OccupationNumberFS with M and multiple arguments" begin
+        @test isa(OccupationNumberFS(1, 2, 3), OccupationNumberFS{3, UInt8})
+        @test_throws ArgumentError OccupationNumberFS(-1, 2, 3)
+        @test_throws ArgumentError OccupationNumberFS(1, 2, 300)
+    end
+
+    # Test OccupationNumberFS with BoseFS input
+    @testset "Test OccupationNumberFS with BoseFS input" begin
+        fs = BoseFS(1, 2)
+        @test isa(OccupationNumberFS(fs), OccupationNumberFS{2, UInt8})
+        fs = BoseFS(1, 333)
+        @test isa(OccupationNumberFS(fs), OccupationNumberFS{2,UInt16})
+    end
+end

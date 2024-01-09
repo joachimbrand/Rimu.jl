@@ -163,10 +163,10 @@ end
 near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
 
 """
-    onr(bs)
+    onr(fs::SingleComponentFockAddress)
 
-Compute and return the occupation number representation of the bit string
-address `bs` as an `SVector{M,Int32}`, where `M` is the number of modes.
+Compute and return the occupation number representation of the Fock state `fs` as an
+`SVector{M}`, where `M` is the number of modes.
 """
 onr(b::BoseFS{<:Any,M}) where {M} = to_bose_onr(b.bs, Val(M))
 

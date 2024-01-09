@@ -1,8 +1,48 @@
+"""
+    select_uint_type(::Val{N}) where {N}
+
+Select a suitable unsigned integer type for storing `N` particles in a single mode.
+"""
+function select_uint_type(::Val{N}) where {N}
+    if 0 < N < 2^8
+        return UInt8
+    elseif 2^8 ≤ N < 2^16
+        return UInt16
+    elseif 2^16 ≤ N < 2^32
+        return UInt32
+    else
+        throw(ArgumentError("`N` must be ≤ 2^32 and > 0, got $N"))
+    end
+end
+
+"""
+    OccupationNumberFS{M,T} <: SingleComponentFockAddress
+Address type that stores the occupation numbers of a single component bosonic Fock state
+with `M` modes. The occupation numbers must fit into the type `T <: Unsigned`. The number of
+particles is runtime data, and can be retrieved with `num_particles(address)`.
+
+# Constructors
+- `OccupationNumberFS(number...)`: Construct from occupation numbers. Must be `Integer` and
+  < 256 to fit into `UInt8`.
+- `OccupationNumberFS{[M,T]}(onr[...]): Construct from occupation numbers. If unspecified,
+  the type of the occupation numbers is inferred from the type of the arguments.
+- `OccupationNumberFS(fs::BoseFS)`: Construct from [`BoseFS`](@ref).
+- With shortform macro [`@fs_str`](@ref). Specify the number of
+  significant bits in braces. See example below.
+
+# Examples
+```jl_doctest
+julia> OccupationNumberFS(1,2,3)
+OccupationNumberFS{3, UInt8}(1, 2, 3)
+
+julia> fs"|1 2 3⟩{8}"
+OccupationNumberFS{3, UInt8}(1, 2, 3)
+```
+"""
 struct OccupationNumberFS{M,T} <: SingleComponentFockAddress{missing,M}
     onr::SVector{M,T}
 
-    function OccupationNumberFS(onr::SVector{M,T}) where {M,T}
-        T <: Unsigned || throw(ArgumentError("T must be an unsigned integer type, got $T"))
+    function OccupationNumberFS(onr::SVector{M,T}) where {M,T<:Unsigned}
         new{M,T}(onr)
     end
 end
@@ -25,6 +65,10 @@ function OccupationNumberFS{M}(args...) where M
     all(x -> x ≥ 0, sv) || throw(ArgumentError("all arguments must be non-negative"))
     all(x -> x < 256, sv) || throw(ArgumentError("arguments don't fit in a byte, specify type"))
     return OccupationNumberFS(SVector{M,UInt8}(args...))
+end
+
+function OccupationNumberFS(fs::BoseFS{N,M}) where {N,M}
+    return OccupationNumberFS{M,select_uint_type(Val(N))}(onr(fs))
 end
 
 function print_address(io::IO, ofs::OccupationNumberFS{M,T}; compact=false) where {M,T}
