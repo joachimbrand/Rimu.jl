@@ -359,11 +359,15 @@ function parse_address(str)
         particles = parse.(Int, filter(!isempty, split(m.captures[2], r" +")))
         return FermiFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
     end
-    # ONRFS
-    m = match(r"\|([ 0-9]+)⟩{[0-9]}", str)
+    # OccupationNumberFS
+    m = match(r"\|([ 0-9]+)⟩{[0-9]*}", str)
     if !isnothing(m)
         m2 = match(r"{([0-9]+)}", str)
-        BITS = parse(Int, m2.captures[1])
+        if isnothing(m2) # empty braces defaults to UInt8
+            BITS = 8
+        else
+            BITS = parse(Int, m2.captures[1])
+        end
         T = if BITS ≤ 8
             UInt8
         elseif BITS ≤ 16
@@ -375,11 +379,16 @@ function parse_address(str)
         elseif BITS ≤ 128
             UInt128
         else
-            throw(ArgumentError("invalid fock state format \"$str\""))
+            throw(ArgumentError("invalid Fock state format \"$str\""))
         end
         t = Tuple(parse.(T, split(m.captures[1], r" +")))
         return OccupationNumberFS(SVector(t))
     end
+    m = match(r"\|([ 0-9]+)⟩{", str) # anything else that has a curly brace
+    if !isnothing(m)
+        throw(ArgumentError("invalid Fock state format \"$str\""))
+    end
+
     # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)
     if !isnothing(m)
@@ -391,7 +400,7 @@ function parse_address(str)
         chars = filter(!=(' '), Vector{Char}(m.captures[1]))
         return FermiFS(chars .== '↑')
     end
-    throw(ArgumentError("invalid fock state format \"$str\""))
+    throw(ArgumentError("invalid Fock state format \"$str\""))
 end
 
 """

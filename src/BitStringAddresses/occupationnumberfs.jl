@@ -22,10 +22,11 @@ with `M` modes. The occupation numbers must fit into the type `T <: Unsigned`. T
 particles is runtime data, and can be retrieved with `num_particles(address)`.
 
 # Constructors
-- `OccupationNumberFS(number...)`: Construct from occupation numbers. Must be `Integer` and
-  < 256 to fit into `UInt8`.
-- `OccupationNumberFS{[M,T]}(onr[...]): Construct from occupation numbers. If unspecified,
-  the type of the occupation numbers is inferred from the type of the arguments.
+- `OccupationNumberFS(number1, ...)`: Construct from occupation numbers. Must be `Integer`
+  and < 256 to fit into `UInt8`.
+- `OccupationNumberFS{[M,T]}(onr): Construct from collection `onr` with `M` occupation
+  numbers with type `T`. If unspecified, the type `T` of the occupation numbers is inferred
+  from the type of the arguments.
 - `OccupationNumberFS(fs::BoseFS)`: Construct from [`BoseFS`](@ref).
 - With shortform macro [`@fs_str`](@ref). Specify the number of
   significant bits in braces. See example below.

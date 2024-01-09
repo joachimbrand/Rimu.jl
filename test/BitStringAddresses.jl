@@ -461,28 +461,6 @@ end
     end
 end
 
-@testset "ONRFS" begin
-    fs = ONRFS((1,2,3,0,1,20,3,2,5,0,1),100)
-    @test eval(Meta.parse(repr(fs))) == fs
-    @test parse_address(sprint(show, fs; context=:compact => true)) == fs
-
-    @test num_modes(fs) == 11
-    @test num_particles(fs) == 38
-    @test num_occupied_modes(fs) == 9
-    @test onr(fs) == [1,2,3,0,1,20,3,2,5,0,1]
-    @test collect(fs) == onr(fs)
-
-    @test excitation(fs, (), (4,5)) == (fs, 0.0) # annihilation of vacuum
-    @test excitation(fs, (), (6, 6, 5)) == (fs"|1 2 3 0 0 18 3 2 5 0 1⟩{7}", √(20*19*1))
-    nfs, amp = excitation(fs, (4, 6), ())
-    @test num_particles(nfs) == num_particles(fs) + 2
-    @test amp == √(1 * 21)
-    @test onr(nfs) == [1,2,3,1,1,21,3,2,5,0,1]
-
-    fs = ONRFS{3}((1, 7, 0))
-    @test excitation(fs, (2,), ()) == (fs, 0.0) # overflow, illegal address
-end
-
 @testset "Test select_uint_type function" begin
     # Test for N in the range (0, 2^8)
     @test select_uint_type(Val(1)) == UInt8
@@ -530,5 +508,20 @@ end
         @test isa(OccupationNumberFS(fs), OccupationNumberFS{2, UInt8})
         fs = BoseFS(1, 333)
         @test isa(OccupationNumberFS(fs), OccupationNumberFS{2,UInt16})
+    end
+
+    @testset "Test printing and parsing OccupationNumberFS" begin
+        fs = OccupationNumberFS(1, 2, 3, 0, 1, 20, 3, 2, 5, 0, 1)
+        @test eval(Meta.parse(repr(fs))) == fs
+        @test parse_address(sprint(show, fs; context=:compact => true)) == fs
+
+        for T in [UInt8, UInt16, UInt32, UInt64, UInt128]
+            fs = OccupationNumberFS{11,T}(1, 2, 3, 0, 1, 20, 3, 2, 5, 0, 1)
+            @test eval(Meta.parse(repr(fs))) == fs
+            @test parse_address(sprint(show, fs; context=:compact => true)) == fs
+        end
+
+        @test_throws ArgumentError parse_address("fs\"|1 2 3⟩{-8}\"")
+        @test_throws ArgumentError parse_address("fs\"|1 2 3⟩{129}\"")
     end
 end
