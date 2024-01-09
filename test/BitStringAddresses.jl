@@ -4,6 +4,7 @@ using Rimu.BitStringAddresses: num_chunks, chunks
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
 using Rimu.BitStringAddresses: occupied_modes, update_component
 using Rimu.BitStringAddresses: parse_address
+using Rimu.BitStringAddresses: select_uint_type, destroy, create
 using Random
 using StaticArrays
 using Test

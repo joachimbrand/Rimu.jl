@@ -29,7 +29,6 @@ include("sortedparticlelist.jl")
 include("bosefs.jl")
 include("fermifs.jl")
 include("multicomponent.jl")
-include("onrfs.jl")
 include("occupationnumberfs.jl")
 
 end
