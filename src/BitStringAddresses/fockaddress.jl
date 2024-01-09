@@ -155,19 +155,20 @@ See also [`find_occupied_mode`](@ref),
 occupied_modes
 
 """
-    excitation(a::SingleComponentFockAddress, creations::NTuple, destructions::NTuple)
+    excitation(addr::SingleComponentFockAddress, creations::NTuple, destructions::NTuple)
 
-Generate an excitation on address `a` by applying `creations` and `destructions`, which are
-tuples of the appropriate address indices (i.e. [`BoseFSIndex`](@ref) for bosons, or
+Generate an excitation on address `addr` by applying `creations` and `destructions`, which
+are tuples of the appropriate address indices (i.e. [`BoseFSIndex`](@ref) for bosons, or
 [`FermiFSIndex`](@ref) for fermions).
 
 ```math
-a^†_{c_1} a^†_{c_2} \\ldots a_{d_1} a_{d_2} \\ldots |\\mathrm{a}\\rangle \\to
-α|\\mathrm{nadd}\\rangle
+a^†_{c_1} a^†_{c_2} \\ldots a_{d_1} a_{d_2} \\ldots |\\mathrm{addr}\\rangle \\to
+α|\\mathrm{naddr}\\rangle
 ```
 
-Returns the new address `nadd` and the value `α`. If the excitation is illegal, returns an
-arbitrary address and the value `0.0`.
+Returns the new address `naddr` and the factor `α`. The value of `α` is given by the square
+root of the product of mode occupations before destruction and after creation. If the
+excitation is illegal, returns an arbitrary address and the value `0.0`.
 
 # Example
 
@@ -187,15 +188,15 @@ See [`SingleComponentFockAddress`](@ref).
 excitation
 
 """
-    OccupiedModeMap(add) <: AbstractVector
+    OccupiedModeMap(addr) <: AbstractVector
 
 Get a map of occupied modes in address as an `AbstractVector` of indices compatible with
 [`excitation`](@ref) - [`BoseFSIndex`](@ref) or [`FermiFSIndex`](@ref).
 
-`OccupiedModeMap(add)[i]` contains the index for the `i`-th occupied mode.
+`OccupiedModeMap(addr)[i]` contains the index for the `i`-th occupied mode.
 This is useful because repeatedly looking for occupied modes with
 [`find_occupied_mode`](@ref) can be time-consuming.
-`OccupiedModeMap(add)` is an eager version of the iterator returned by
+`OccupiedModeMap(addr)` is an eager version of the iterator returned by
 [`occupied_modes`](@ref). It is similar to [`onr`](@ref) but contains more information.
 
 # Example
@@ -237,8 +238,8 @@ struct OccupiedModeMap{N,T} <: AbstractVector{T}
     length::Int
 end
 
-function OccupiedModeMap(add::SingleComponentFockAddress{N,M}) where {N,M}
-    modes = occupied_modes(add)
+function OccupiedModeMap(addr::SingleComponentFockAddress{N,M}) where {N,M}
+    modes = occupied_modes(addr)
     T = eltype(modes)
     # There are at most N occupied modes. This could be also @generated for cases where N ≫ M
     indices = MVector{min(N,M),T}(undef)
@@ -411,17 +412,36 @@ Useful for copying the printout from a vector to the REPL.
 
 # Example
 
-```
+```jldoctest
 julia> DVec(BoseFS{3,4}((0, 1, 2, 0)) => 1)
 DVec{BoseFS{3, 4, BitString{6, 1, UInt8}},Int64} with 1 enrty, style = IsStochasticInteger{Int64}()
   fs"|0 1 2 0⟩" => 1
 
 julia> fs"|0 1 2 0⟩" => 1 # Copied from above printout
 BoseFS{3,4}((0, 1, 2, 0)) => 1
+
+julia> fs"|1 2 3⟩⊗|0 1 0⟩" # composite bosonic Fock state
+CompositeFS(
+  BoseFS{6,3}(1, 2, 3),
+  BoseFS{1,3}(0, 1, 0),
+)
+
+julia> fs"|↑↓↑⟩" # construct a fermionic Fock state
+CompositeFS(
+  FermiFS{2,3}(1, 0, 1),
+  FermiFS{1,3}(0, 1, 0),
+)
+
+julia> s = fs"|0 1 2 0⟩{}" # constructing OccupationNumberFS with default UInt8 container
+OccupationNumberFS{4, UInt8}(0, 1, 2, 0)
+
+julia> [s] # prints out with the signifcant number of bits specified in braces
+1-element Vector{OccupationNumberFS{4, UInt8}}:
+ fs"|0 1 2 0⟩{8}"
 ```
 
 See also [`FermiFS`](@ref), [`BoseFS`](@ref), [`CompositeFS`](@ref), [`FermiFS2C`](@ref),
-[`ONRFS`](@ref).
+[`OccupationNumberFS`](@ref).
 """
 macro fs_str(str)
     return parse_address(str)

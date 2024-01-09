@@ -87,10 +87,89 @@ end
 onr(ofs::OccupationNumberFS) = ofs.onr
 num_occupied_modes(ofs::OccupationNumberFS) = mapreduce(!iszero, +, onr(ofs))
 num_particles(ofs::OccupationNumberFS) = sum(onr(ofs))|>Int
+# `num_modes` does not have to be defined here, because it is defined for the abstract type
 
-# TODO: methods for building Hamiltonians
-# - `excitation`
-# - `occupied_modes`
-# - `OccupiedModMap`
+"""
+    destroy(ofs::OccupationNumberFS{M,T}, i::Integer) where {M,T}
 
-# Which methods do we need? (`find_occupied_mode`?)
+Destroy one particle at the `i`-th mode of the occupation number Fock state `ofs`.
+
+# Arguments
+- `ofs::OccupationNumberFS{M,T}`: The occupation number Fock state, where `M` is the number
+  of modes and `T` is the type of the occupation numbers.
+- `i::Integer`: The index of the mode where the particle is to be destroyed.
+
+# Returns
+- A tuple containing the updated Fock state and the occupation number at the `i`-th site
+  before the destruction.
+
+See also: [`create`](@ref), [`excitation`](@ref).
+"""
+@inline function destroy(ofs::OccupationNumberFS{M,T}, i::Integer) where {M,T}
+    val = ofs.onr[i]
+    @set! ofs.onr[i] = val - one(T)
+    return (ofs, val)
+end
+
+"""
+    create(ofs::OccupationNumberFS{M,T}, i::Integer) where {M,T}
+
+Create one particle at the `i`-th mode of the occupation number Fock state `ofs`.
+
+# Arguments
+- `ofs::OccupationNumberFS{M,T}`: The occupation number Fock state, where `M` is the number
+  of modes and `T` is the type of the occupation numbers.
+- `i::Integer`: The index of the mode where the particle is to be created.
+
+# Returns
+- A tuple containing the updated Fock state and the occupation number at the `i`-th mode
+  after the creation.
+
+See also: [`destroy`](@ref), [`excitation`](@ref).
+"""
+@inline function create(ofs::OccupationNumberFS{M,T}, i::Integer) where {M,T}
+    val = ofs.onr[i] + one(T)
+    @set! ofs.onr[i] = val
+    return (ofs, val)
+end
+
+"""
+    excitation(addr::OccupationNumberFS, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int})
+    → (nadd, α)
+Generate an excitation on an [`OccupationNumberFS`](@ref) by applying the creation and
+destruction operators specified by the tuples of mode numbers `c` and `d` to the Fock state
+`addr`. The modes are simply indexed by integers (starting at 1). The value of `α` is given
+by the square root of the product of mode occupations before destruction and after creation.
+
+The number of particles may change by this type of excitation.
+
+# Example
+```jl_doctest
+julia> s = fs"|1 2 3⟩{8}"
+OccupationNumberFS{3, UInt8}(1, 2, 3)
+
+julia> num_particles(s)
+6
+
+julia> es, α = excitation(s, (1,1), (3,))
+(OccupationNumberFS{3, UInt8}(3, 2, 2), 4.242640687119285)
+
+julia> num_particles(es)
+7
+```
+"""
+function excitation(fs::OccupationNumberFS{<:Any, T}, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
+    accu = one(T)
+    for i in d
+        fs, val = destroy(fs, i)
+        accu *= val
+    end
+    for i in c
+        fs, val = create(fs, i)
+        accu *= val
+    end
+    return fs, √accu
+end
+
+# Do we need more methods for building Hamiltonians? (`find_occupied_mode`,
+# `OccupiedModMap`, `occupied_modes`?)

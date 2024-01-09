@@ -14,7 +14,6 @@ using Base.Cartesian
 
 export AbstractFockAddress, SingleComponentFockAddress, BoseFS, BoseFS2C, FermiFS
 export CompositeFS, FermiFS2C, time_reverse
-export ONRFS
 export OccupationNumberFS
 export BoseFSIndex, FermiFSIndex
 export BitString, SortedParticleList

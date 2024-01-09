@@ -524,4 +524,25 @@ end
         @test_throws ArgumentError parse_address("fs\"|1 2 3⟩{-8}\"")
         @test_throws ArgumentError parse_address("fs\"|1 2 3⟩{129}\"")
     end
+
+    ofs = OccupationNumberFS{3,UInt8}(1, 2, 3)
+    @testset "Test destroy function" begin
+        ofs_after_destroy, val_before_destroy = destroy(ofs, 2)
+        @test ofs_after_destroy.onr == SVector{3,UInt8}(1, 1, 3)
+        @test val_before_destroy == 2
+    end
+
+    @testset "Test create function" begin
+        ofs_after_create, val_after_create = create(ofs, 2)
+        @test ofs_after_create.onr == SVector{3,UInt8}(1, 3, 3)
+        @test val_after_create == 3
+    end
+
+    @testset "Test excitation function" begin
+        c = (1,)
+        d = (2,)
+        fs_after_excitation, sqrt_accu = excitation(ofs, c, d)
+        @test fs_after_excitation.onr == SVector{3,UInt8}(2, 1, 3)
+        @test sqrt_accu ≈ √4
+    end
 end
