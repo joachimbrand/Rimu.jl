@@ -133,7 +133,7 @@ See also: [`destroy`](@ref), [`excitation`](@ref).
     return (ofs, val)
 end
 
-"""
+@doc """
     excitation(addr::OccupationNumberFS, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int})
     → (nadd, α)
 Generate an excitation on an [`OccupationNumberFS`](@ref) by applying the creation and
@@ -158,7 +158,9 @@ julia> num_particles(es)
 7
 ```
 """
-function excitation(fs::OccupationNumberFS{<:Any, T}, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
+excitation(fs::OccupationNumberFS{<:Any,T}, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
+
+@check_allocs function excitation(fs::OccupationNumberFS{<:Any,T}, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
     accu = one(T)
     for i in d
         fs, val = destroy(fs, i)

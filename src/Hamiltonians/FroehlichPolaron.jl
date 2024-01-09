@@ -24,12 +24,12 @@ geometry is to provide the number of dimensions `num_dimensions`. In this case t
 [`num_modes(address)`](@ref) of `address` must be a square number for `num_dimensions = 2`,
 or a cube number for `num_dimensions = 3`.
 
-The `address` must be of type [`ONRFS`](@ref).
+The `address` must be of type [`OccupationNumberFS`](@ref).
 """
 struct FroehlichPolaron{
     P, # total momentum
     T, # eltype
-    A<:ONRFS, # address type
+    A<:OccupationNumberFS, # address type
     G # lattice type
 } <: AbstractHamiltonian{T}
     add::A
@@ -40,7 +40,7 @@ struct FroehlichPolaron{
 end
 
 function FroehlichPolaron(
-    addr::ONRFS{<:Any, M};
+    addr::OccupationNumberFS{<:Any, M};
     geometry=nothing,
     alpha=1.0,
     total_mom=0.0,
@@ -91,7 +91,7 @@ Base.getproperty(h::FroehlichPolaron, ::Val{:geometry}) = getfield(h, :geometry)
 
 num_dimensions(h::FroehlichPolaron) = num_dimensions(h.geometry)
 
-# function diagonal_element(h::FroehlichPolaron, addr::ONRFS)
+# function diagonal_element(h::FroehlichPolaron, addr::OccupationNumberFS)
 #     return (
 #         (-h.total_mom)^2 +
 #         num_particles(addr) +

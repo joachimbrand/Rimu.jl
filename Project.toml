@@ -4,6 +4,7 @@ authors = ["Joachim Brand <j.brand@massey.ac.nz>"]
 version = "0.9.1-dev"
 
 [deps]
+AllocCheck = "9b6a8646-10ed-4001-bbdc-1d2f46dfbb1a"
 Arrow = "69666777-d1a9-59fb-9406-91d4454c9d45"
 BSON = "fbb218c0-5317-5bc6-957e-2ee96dd4b1f0"
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"

@@ -9,6 +9,7 @@ using StaticArrays
 using SparseArrays
 using Setfield
 using Parameters
+using AllocCheck
 
 using Base.Cartesian
 
