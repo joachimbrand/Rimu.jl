@@ -32,11 +32,14 @@ particles is runtime data, and can be retrieved with `num_particles(address)`.
 
 # Examples
 ```jl_doctest
-julia> OccupationNumberFS(1,2,3)
+julia> ofs = OccupationNumberFS(1,2,3)
 OccupationNumberFS{3, UInt8}(1, 2, 3)
 
-julia> fs"|1 2 3⟩{8}"
-OccupationNumberFS{3, UInt8}(1, 2, 3)
+julia> ofs == fs"|1 2 3⟩{8}"
+true
+
+julia> num_particles(ofs)
+6
 ```
 """
 struct OccupationNumberFS{M,T} <: SingleComponentFockAddress{missing,M}
@@ -81,16 +84,12 @@ function print_address(io::IO, ofs::OccupationNumberFS{M,T}; compact=false) wher
 end
 
 onr(ofs::OccupationNumberFS) = ofs.onr
-Base.length(::OccupationNumberFS{M}) where M = M
-Base.getindex(ofs::OccupationNumberFS, i::Int) = ofs.onr[i]
 num_occupied_modes(ofs::OccupationNumberFS) = mapreduce(!iszero, +, onr(ofs))
-num_modes(::Type{OccupationNumberFS{M}}) where M = M
-num_particles(ofs::OccupationNumberFS) = sum(onr(ofs))
+num_particles(ofs::OccupationNumberFS) = sum(onr(ofs))|>Int
 
-function Base.iterate(ofs::OccupationNumberFS, state=1)
-    if state > num_modes(ofs)
-        return nothing
-    else
-        return ofs[state], state+1
-    end
-end
+# TODO: methods for building Hamiltonians
+# - `excitation`
+# - `occupied_modes`
+# - `OccupiedModMap`
+
+# Which methods do we need? (`find_occupied_mode`?)
