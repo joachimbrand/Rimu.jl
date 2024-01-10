@@ -113,14 +113,12 @@ indexed by integer index `chosen`.
 # Example
 
 ```jldoctest
-julia> addr = BoseFS((3, 2, 1));
-
+julia> addr = BoseFS(3, 2, 1);
 
 julia> H = HubbardMom1D(addr);
 
-
 julia> get_offdiagonal(H, addr, 3)
-(BoseFS{6,3}((2, 1, 3)), 1.0)
+(BoseFS{6,3}(2, 1, 3), 1.0)
 ```
 """
 get_offdiagonal(m::AbstractMatrix, i, n) = offdiagonals(m, i)[n]

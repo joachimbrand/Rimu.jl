@@ -173,14 +173,14 @@ excitation is illegal, returns an arbitrary address and the value `0.0`.
 # Example
 
 ```jldoctest
-julia> f = FermiFS((1,1,0,0,1,1,1,1))
-FermiFS{6,8}((1, 1, 0, 0, 1, 1, 1, 1))
+julia> f = FermiFS(1,1,0,0,1,1,1,1)
+FermiFS{6,8}(1, 1, 0, 0, 1, 1, 1, 1)
 
 julia> i, j, k, l = find_mode(f, (3,4,2,5))
 (FermiFSIndex(occnum=0, mode=3, offset=2), FermiFSIndex(occnum=0, mode=4, offset=3), FermiFSIndex(occnum=1, mode=2, offset=1), FermiFSIndex(occnum=1, mode=5, offset=4))
 
 julia> excitation(f, (i,j), (k,l))
-(FermiFS{6,8}((1, 0, 1, 1, 0, 1, 1, 1)), -1.0)
+(FermiFS{6,8}(1, 0, 1, 1, 0, 1, 1, 1), -1.0)
 ```
 
 See [`SingleComponentFockAddress`](@ref).
@@ -202,8 +202,8 @@ This is useful because repeatedly looking for occupied modes with
 # Example
 
 ```jldoctest
-julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
-BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
+julia> b = BoseFS(10, 0, 0, 0, 2, 0, 1)
+BoseFS{13,7}(10, 0, 0, 0, 2, 0, 1)
 
 julia> mb = OccupiedModeMap(b)
 3-element OccupiedModeMap{7, BoseFSIndex}:
@@ -211,8 +211,8 @@ julia> mb = OccupiedModeMap(b)
  BoseFSIndex(occnum=2, mode=5, offset=14)
  BoseFSIndex(occnum=1, mode=7, offset=18)
 
-julia> f = FermiFS((1,1,1,1,0,0,1,0,0))
-FermiFS{5,9}((1, 1, 1, 1, 0, 0, 1, 0, 0))
+julia> f = FermiFS(1,1,1,1,0,0,1,0,0)
+FermiFS{5,9}(1, 1, 1, 1, 0, 0, 1, 0, 0)
 
 julia> mf = OccupiedModeMap(f)
 5-element OccupiedModeMap{5, FermiFSIndex}:
@@ -273,8 +273,8 @@ Dot product extracting mode occupation numbers from an [`OccupiedModeMap`](@ref)
 to [`onr`](@ref).
 
 ```jldoctest
-julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
-BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
+julia> b = BoseFS(10, 0, 0, 0, 2, 0, 1)
+BoseFS{13,7}(10, 0, 0, 0, 2, 0, 1)
 
 julia> mb = OccupiedModeMap(b)
 3-element OccupiedModeMap{7, BoseFSIndex}:
@@ -413,12 +413,12 @@ Useful for copying the printout from a vector to the REPL.
 # Example
 
 ```jldoctest
-julia> DVec(BoseFS{3,4}((0, 1, 2, 0)) => 1)
-DVec{BoseFS{3, 4, BitString{6, 1, UInt8}},Int64} with 1 enrty, style = IsStochasticInteger{Int64}()
+julia> DVec(BoseFS{3,4}(0, 1, 2, 0) => 1)
+DVec{BoseFS{3, 4, BitString{6, 1, UInt8}},Int64} with 1 entry, style = IsStochasticInteger{Int64}()
   fs"|0 1 2 0⟩" => 1
 
 julia> fs"|0 1 2 0⟩" => 1 # Copied from above printout
-BoseFS{3,4}((0, 1, 2, 0)) => 1
+BoseFS{3,4}(0, 1, 2, 0) => 1
 
 julia> fs"|1 2 3⟩⊗|0 1 0⟩" # composite bosonic Fock state
 CompositeFS(
@@ -719,8 +719,8 @@ can be given to `excitation`
 # Example
 
 ```jldoctest
-julia> addr = BoseFS((10, 0, 0, 0, 2, 0, 1))
-BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
+julia> addr = BoseFS(10, 0, 0, 0, 2, 0, 1)
+BoseFS{13,7}(10, 0, 0, 0, 2, 0, 1)
 
 julia> pairs = OccupiedPairsMap(addr)
 5-element OccupiedPairsMap{78, Tuple{BoseFSIndex, BoseFSIndex}}:
@@ -731,7 +731,7 @@ julia> pairs = OccupiedPairsMap(addr)
  (BoseFSIndex(occnum=1, mode=7, offset=18), BoseFSIndex(occnum=2, mode=5, offset=14))
 
 julia> excitation(addr, pairs[2], pairs[4])
-(BoseFS{13,7}((9, 0, 0, 0, 4, 0, 0)), 10.954451150103322)
+(BoseFS{13,7}(9, 0, 0, 0, 4, 0, 0), 10.954451150103322)
 ```
 
 See also [`OccupiedModeMap`](@ref).

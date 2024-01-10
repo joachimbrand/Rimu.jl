@@ -22,8 +22,8 @@ with `M` modes. The occupation numbers must fit into the type `T <: Unsigned`. T
 particles is runtime data, and can be retrieved with `num_particles(address)`.
 
 # Constructors
-- `OccupationNumberFS(number1, ...)`: Construct from occupation numbers. Must be `Integer`
-  and < 256 to fit into `UInt8`.
+- `OccupationNumberFS(val::Integer...)`: Construct from occupation numbers. Must be
+  < 256 to fit into `UInt8`.
 - `OccupationNumberFS{[M,T]}(onr)`: Construct from collection `onr` with `M` occupation
   numbers with type `T`. If unspecified, the type `T` of the occupation numbers is inferred
   from the type of the arguments.

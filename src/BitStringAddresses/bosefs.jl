@@ -23,7 +23,7 @@ automatically based on the properties of the address.
 * `BoseFS{N,M,S}(bs::S)`: Unsafe constructor. Does not check whether the number of
   particles in `bs` is equal to `N`.
 
-* [`@fs_str`](@ref): addresses are sometimes printed in a compact manner. This
+* [`@fs_str`](@ref): Addresses are sometimes printed in a compact manner. This
   representation can also be used as a constructor. See the last example below.
 
 # Examples
@@ -156,10 +156,10 @@ a total of `N` particles.
 # Examples
 ```jldoctest
 julia> near_uniform(BoseFS{7,5})
-BoseFS{7,5}((2, 2, 1, 1, 1))
+BoseFS{7,5}(2, 2, 1, 1, 1)
 
 julia> near_uniform(FermiFS{3,5})
-FermiFS{3,5}((1, 1, 1, 0, 0))
+FermiFS{3,5}(1, 1, 1, 0, 0)
 ```
 """
 function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
@@ -285,10 +285,11 @@ The off-diagonals are indexed as follows:
 ```jldoctest
 julia> using Rimu.Hamiltonians: hopnextneighbour
 
-julia> hopnextneighbour(BoseFS((1, 0, 1)), 3)
-(BoseFS{2,3}((2, 0, 0)), 1.4142135623730951)
-julia> hopnextneighbour(BoseFS((1, 0, 1)), 4)
-(BoseFS{2,3}((1, 1, 0)), 1.0)
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3)
+(BoseFS{2,3}(2, 0, 0), 1.4142135623730951)
+
+julia> hopnextneighbour(BoseFS(1, 0, 1), 4)
+(BoseFS{2,3}(1, 1, 0), 1.0)
 ```
 """
 function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
