@@ -1,28 +1,79 @@
 """
-    Report
+    Report()
 
-Internal structure that holds the temporary reported values. See [`report!`](@ref).
+Internal structure that holds the temporary reported values as well as metadata.
+
+See [`report!`](@ref), [`report_metadata!`](@ref), [`get_metadata`](@ref).
 """
 struct Report
     data::LittleDict{Symbol,Vector}
+    meta::LittleDict{String,String} # `String`s are required for Arrow metadata
 
-    Report() = new(Dict{Symbol,Vector}())
+    Report() = new(LittleDict{Symbol,Vector}(), LittleDict{String,String}())
 end
 
 function Base.show(io::IO, report::Report)
     print(io, "Report")
     if !isempty(report.data)
-        print(":")
+        print(io, ":")
         keywidth = maximum(length.(string.(keys(report.data))))
         for (k, v) in report.data
-            print("\n  $(lpad(k, keywidth)) => $v")
+            print(io, "\n  $(lpad(k, keywidth)) => $v")
         end
     end
 end
 
-Base.empty!(report::Report) = foreach(empty!, values(report.data))
+Base.empty!(report::Report) = foreach(empty!, values(report.data)) # does not empty metadata
 Base.isempty(report::Report) = all(isempty, values(report.data))
-DataFrames.DataFrame(report::Report) = DataFrame(report.data; copycols=false)
+
+function DataFrames.DataFrame(report::Report)
+    df = DataFrame(report.data; copycols=false)
+    for (key, val) in get_metadata(report) # add metadata
+        DataFrames.metadata!(df, key, val)
+    end
+    return df
+end
+
+"""
+    report_metadata!(report::Report, key, value)
+    report_metadata!(report::Report, kvpairs)
+
+Set metadata `key` to `value` in `report`. `key` and `value` are converted to `String`s.
+Alternatively, an iterable of key-value pairs or a `NamedTuple` can be passed.
+
+Throws an error if `key` already exists.
+
+See also [`get_metadata`](@ref), [`report!`](@ref), [`Report`](@ref).
+"""
+function report_metadata!(report::Report, key, value)
+    key = string(key)
+    haskey(report.meta, key) && throw(ArgumentError("duplicate metadata key: $key"))
+    report.meta[key] = string(value)
+    return report
+end
+function report_metadata!(report::Report, kvpairs)
+    for (k, v) in kvpairs
+        report_metadata!(report, k, v)
+    end
+    return report
+end
+function report_metadata!(report::Report, kvpairs::NamedTuple)
+    return report_metadata!(report, pairs(kvpairs))
+end
+
+"""
+    get_metadata(report::Report, key)
+
+Get metadata `key` from `report`. `key` is converted to a `String`.
+
+See also [`report_metadata!`](@ref), [`Report`](@ref), [`report!`](@ref).
+"""
+function get_metadata(report::Report, key)
+    return report.meta[string(key)]
+end
+function get_metadata(report::Report)
+    return report.meta
+end
 
 const SymbolOrString = Union{Symbol,AbstractString}
 
@@ -148,9 +199,7 @@ reporting_interval(::ReportingStrategy) = 1
 Finalize the report. This function is called after all steps in [`lomc!`](@ref) have
 finished.
 """
-function finalize_report!(::ReportingStrategy, report)
-    DataFrame(report)
-end
+finalize_report!(::ReportingStrategy, report) = DataFrame(report)
 
 function print_stats(io::IO, step, state)
     print(io, "[ ", lpad(step, 11), " | ")
@@ -288,7 +337,10 @@ function report_after_step(s::ReportToFile, step, report, state)
 
         if !_isopen(s)
             # If the writer is closed or absent, we need to create a new one
-            s.writer = open(Arrow.Writer, s.filename; compress=s.compress)
+            s.writer = open(
+                Arrow.Writer, s.filename;
+                compress=s.compress, metadata=report.meta
+            )
         end
         Arrow.write(s.writer, report.data)
         empty!(report)
@@ -301,13 +353,16 @@ function finalize_report!(s::ReportToFile, report)
         if !isempty(report)
             if !_isopen(s)
                 # If the writer is closed or absent, we need to create a new one
-                s.writer = open(Arrow.Writer, s.filename; compress=s.compress)
+                s.writer = open(
+                    Arrow.Writer, s.filename;
+                    compress=s.compress, metadata=report.meta
+                )
             end
             Arrow.write(s.writer, report.data)
         end
         close(s.writer) # close the writer
         if s.return_df
-            return DataFrame(Arrow.Table(s.filename))
+            return RimuIO.load_df(s.filename)
         end
     end
     return DataFrame()

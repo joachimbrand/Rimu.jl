@@ -238,15 +238,28 @@ end
         StochasticStyles.ThresholdCompression(),
         StochasticStyles.ThresholdCompression(2),
     )
-        target = similar(dv)
+        target_1 = similar(dv)
+        target_2 = similar(dv)
+        dv_before = copy(dv)
         for _ in 1:1000
-            compressed = copy(dv)
-            StochasticStyles.compress!(compression, compressed)
-            add!(target, compressed)
+            compressed_1 = copy(dv)
+            compressed_2 = similar(dv)
+            StochasticStyles.compress!(compression, compressed_1)
+            StochasticStyles.compress!(compression, compressed_2, dv)
+            @test length(compressed_1) < length(dv)
+            @test length(compressed_2) < length(dv)
+            add!(target_1, compressed_1)
+            add!(target_2, compressed_2)
         end
-        scale!(target, 1/1000)
-        @test walkernumber(target) ≈ walkernumber(dv) rtol=0.1
-        @test dot(target, dv) ≈ 1 rtol=0.1
+        scale!(target_1, 1/1000)
+        scale!(target_2, 1/1000)
+        @test walkernumber(target_1) ≈ walkernumber(dv) rtol=0.1
+        @test walkernumber(target_2) ≈ walkernumber(dv) rtol=0.1
+        @test dot(target_1, dv) ≈ 1 rtol=0.1
+        @test dot(target_2, dv) ≈ 1 rtol=0.1
+
+        # double check that the dv didn't change during compression.
+        @test dv_before == dv
     end
 end
 

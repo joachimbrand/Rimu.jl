@@ -71,8 +71,9 @@ returns a relevant subtype. The default is [`NoCompression`](@ref).
 When defining a new `CompressionStrategy`, subtype it as `MyCompressionStrategy <:
 CompressionStrategy` and define these methods:
 
-* [`compress!(s::MyCompressionStrategy, v)`](@ref compress!)
-* [`compress!(s::MyCompressionStrategy, w, v)`](@ref compress!)
+* [`compress!(s::CompressionStrategy, v)`](@ref compress!)
+* [`compress!(s::CompressionStrategy, w, v)`](@ref compress!)
+* [`step_stats(s::CompressionStrategy)`](@ref step_stats)
 """
 abstract type CompressionStrategy end
 
@@ -84,6 +85,7 @@ Default [`CompressionStrategy`](@ref). Leaves the vector intact.
 struct NoCompression <: CompressionStrategy end
 
 CompressionStrategy(::StochasticStyle) = NoCompression()
+CompressionStrategy(v) = CompressionStrategy(StochasticStyle(v))
 
 """
     compress!([::CompressionStrategy,] v) -> ::NTuple{N,::Symbol}, ::NTuple{N}
@@ -98,16 +100,21 @@ Returns two tuples, containing the names and values of statistics that are to be
 compress!(v) = compress!(CompressionStrategy(StochasticStyle(v)), v)
 compress!(w, v) = compress!(CompressionStrategy(StochasticStyle(v)), w, v)
 
-compress!(::NoCompression, v) = (), ()
+step_stats(::NoCompression) = (), ()
+
+compress!(::NoCompression, v) = ()
 function compress!(::NoCompression, w, v)
-    copy!(w, v)
-    return (), ()
+    for (add, val) in pairs(v)
+        w[add] = val
+    end
+    return ()
 end
 
 """
     step_stats(::StochasticStyle)
+    step_stats(::CompressionStrategy)
 
-Return a tuple of names (`Symbol` or `String`) and a tuple of zeros of values of the same
+Return a tuple of stat names (`Symbol` or `String`) and a tuple of zeros of the same
 length. These will be reported as columns in the `DataFrame` returned by [`lomc!`](@ref Main.lomc!).
 """
 step_stats(v) = step_stats(StochasticStyle(v))

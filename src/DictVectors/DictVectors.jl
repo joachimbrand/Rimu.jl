@@ -2,12 +2,14 @@
 Module that provides concrete implementations of the [`AbstractDVec`](@ref) interface.
 
 - [`DVec`](@ref): basic [`AbstractDVec`](@ref)
+- [`PDVec`](@ref): parallel [`AbstractDVec`](@ref) with MPI and initiator support
 - [`InitiatorDVec`](@ref): allows storing information about initiator status
 
 See [`Interfaces`](@ref).
 """
 module DictVectors
 
+using Folds
 using LinearAlgebra
 using Random
 using VectorInterface
@@ -18,12 +20,12 @@ using ..Interfaces
 using ..Hamiltonians
 using ..StochasticStyles
 
-# TODO: ordering
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
     working_memory, sort_into_targets!
 
-export deposit!, storage, walkernumber, propagate!, dot_from_right
-export DVec, InitiatorDVec
+export deposit!, storage, walkernumber, dot_from_right
+export DVec, InitiatorDVec, PDVec, PDWorkingMemory
+
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 
 
@@ -57,8 +59,12 @@ include("abstractdvec.jl")
 include("projectors.jl")
 
 include("initiators.jl")
+include("communicators.jl")
 
 include("dvec.jl")
 include("initiatordvec.jl")
+
+include("pdvec.jl")
+include("pdworkingmemory.jl")
 
 end # module

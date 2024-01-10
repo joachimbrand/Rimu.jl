@@ -360,7 +360,7 @@ function get_overlaps_nondiagonal!(names, values, operators, vecs::NTuple{N}, ::
     end
 end
 
-function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, ::Val{B}) where {N,B}
+function Rimu.all_overlaps(operators::Tuple, vecs::NTuple{N,MPIData}, _, ::Val{B}) where {N,B}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]
     values = T[]

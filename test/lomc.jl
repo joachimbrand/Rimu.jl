@@ -1,6 +1,6 @@
 using Rimu
 using Test
-using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator
+using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, NonInitiator
 using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement
 using Rimu.StochasticStyles: ThresholdCompression
 using Rimu.StatsTools
@@ -10,6 +10,7 @@ using KrylovKit
 using Suppressor
 using Statistics
 using Logging
+using DataFrames
 
 @testset "lomc!/QMCState" begin
     @testset "Setting laststep + working memory" begin
@@ -43,6 +44,31 @@ using Logging
         @test df.steps == [1:100; 1:100]
     end
 
+    @testset "Setting dτ and shift" begin
+        add = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(add; u=0.1)
+        dv = DVec(add => 1; style=IsStochasticInteger())
+        df, state = lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
+        @test state.replicas[1].params.dτ == state.dτ == 0.002
+        @test state.replicas[1].params.shift == state.shift == 23.1
+        state.dτ = 0.004
+        @test state.replicas[1].params.dτ == state.dτ == 0.004
+        state.shift = 5.0
+        @test state.replicas[1].params.shift == state.shift == 5.0
+        @test state.replica == NoStats{1}() # uses getfield method
+    end
+    @testset "default_starting_vector" begin
+        addr = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(addr; u=0.1)
+        @test default_starting_vector(H) == default_starting_vector(addr)
+        addr2 = BoseFS{5,2}((3, 2))
+        @test default_starting_vector(H, address=addr2) == default_starting_vector(addr2)
+        @test default_starting_vector(addr; threading=false) isa DVec
+        @test default_starting_vector(addr; threading=true) isa PDVec
+        v = default_starting_vector(addr; threading=true)
+        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=0, threading=false)
+        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=0, style=IsStochasticInteger())
+    end
     @testset "Setting walkernumber" begin
         add = BoseFS{2,5}((0,0,2,0,0))
         H = HubbardMom1D(add; u=0.5)
@@ -63,15 +89,17 @@ using Logging
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=1000)
         walkers = lomc!(H, copy(dv); s_strat, laststep=1000).df.norm
         @test median(walkers) ≈ 1000 rtol=0.1
+
+        _, state = lomc!(H, copy(dv); targetwalkers=500, laststep=0)
+        @test state.s_strat.targetwalkers == 500
     end
 
     @testset "Replicas" begin
         add = near_uniform(BoseFS{5,15})
         H = HubbardReal1D(add)
         G = GutzwillerSampling(H, g=1)
-        dv = DVec(add => 1, style=IsDynamicSemistochastic())
-
         @testset "NoStats" begin
+            dv = DVec(add => 1, style=IsDynamicSemistochastic())
             df, state = lomc!(H, dv; replica=NoStats(1))
             @test state.replica == NoStats(1)
             @test length(state.replicas) == 1
@@ -87,58 +115,66 @@ using Logging
             @test isnothing(Rimu.check_transform(NoStats(), H))
         end
 
+        # column names are of the form c{i}_dot_c{j} and c{i}_Op{k}_c{j}.
+        function num_stats(df)
+            return length(filter(x -> match(r"^c[0-9]", x) ≠ nothing, names(df)))
+        end
         @testset "AllOverlaps" begin
-            # column names are of the form c{i}_dot_c{j} and c{i}_Op{k}_c{j}.
-            num_stats(df) = length(filter(x -> match(r"^c[0-9]", x) ≠ nothing, names(df)))
+            for dv in (
+                DVec(add => 1, style=IsDynamicSemistochastic()),
+                PDVec(add => 1, style=IsDynamicSemistochastic()),
+            )
 
-            # No operator: N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(4))
-            @test num_stats(df) == binomial(4, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(5))
-            @test num_stats(df) == binomial(5, 2)
+                # No operator: N choose 2 reports.
+                df, _ = lomc!(H, dv; replica=AllOverlaps(4))
+                @test num_stats(df) == binomial(4, 2)
+                df, _ = lomc!(H, dv; replica=AllOverlaps(5))
+                @test num_stats(df) == binomial(5, 2)
 
-            # No vector norm: N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H, vecnorm=false))
-            @test num_stats(df) == binomial(4, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H, vecnorm=false))
-            @test num_stats(df) == binomial(5, 2)
+                # No vector norm: N choose 2 reports.
+                df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H, vecnorm=false))
+                @test num_stats(df) == binomial(4, 2)
+                df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H, vecnorm=false))
+                @test num_stats(df) == binomial(5, 2)
 
-            # No operator, no vector norm: 0 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(4; vecnorm=false))
-            @test num_stats(df) == 0
-            df, _ = lomc!(H, dv; replica=AllOverlaps(5; vecnorm=false))
-            @test num_stats(df) == 0
+                # No operator, no vector norm: 0 reports.
+                df, _ = lomc!(H, dv; replica=AllOverlaps(4; vecnorm=false))
+                @test num_stats(df) == 0
+                df, _ = lomc!(H, dv; replica=AllOverlaps(5; vecnorm=false))
+                @test num_stats(df) == 0
 
-            # One operator: 2 * N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H))
-            @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H))
-            @test num_stats(df) == 2 * binomial(5, 2)
+                # One operator: 2 * N choose 2 reports.
+                df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H))
+                @test num_stats(df) == 2 * binomial(4, 2)
+                df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H))
+                @test num_stats(df) == 2 * binomial(5, 2)
 
-            # Two operators: 3 * N choose 2 reports.
-            df, _ = lomc!(H, dv; replica=AllOverlaps(2; operator=(G, H)))
-            @test num_stats(df) == 3 * binomial(2, 2)
-            df, _ = lomc!(H, dv; replica=AllOverlaps(7; operator=(G, H)))
-            @test num_stats(df) == 3 * binomial(7, 2)
+                # Two operators: 3 * N choose 2 reports.
+                df, _ = lomc!(H, dv; replica=AllOverlaps(2; operator=(G, H)))
+                @test num_stats(df) == 3 * binomial(2, 2)
+                df, _ = lomc!(H, dv; replica=AllOverlaps(7; operator=(G, H)))
+                @test num_stats(df) == 3 * binomial(7, 2)
 
-            # Transformed operators: (3 + 1) * N choose 2 reports.
-            df, _ = lomc!(G, dv; replica=AllOverlaps(2; operator=(H, G), transform=G))
-            @test num_stats(df) == 4 * binomial(2, 2)
-            df, _ = lomc!(G, dv; replica=AllOverlaps(7; operator=(H, G), transform=G))
-            @test num_stats(df) == 4 * binomial(7, 2)
+                # Transformed operators: (3 + 1) * N choose 2 reports.
+                df, _ = lomc!(G, dv; replica=AllOverlaps(2; operator=(H, G), transform=G))
+                @test num_stats(df) == 4 * binomial(2, 2)
+                df, _ = lomc!(G, dv; replica=AllOverlaps(7; operator=(H, G), transform=G))
+                @test num_stats(df) == 4 * binomial(7, 2)
 
-            # Check transformation
-            # good transform - no warning
-            @test_logs min_level=Logging.Warn Rimu.check_transform(AllOverlaps(; operator=H, transform=G), G)
-            # no operators - no warning
-            @test_logs min_level=Logging.Warn Rimu.check_transform(AllOverlaps(;), H)
-            # Hamiltonian transformed and operators not transformed
-            @test_logs (:warn, Regex("(Expected overlaps)")) Rimu.check_transform(AllOverlaps(; operator=H), G)
-            # Hamiltonian not transformed and operators transformed
-            @test_logs (:warn, Regex("(Expected overlaps)")) Rimu.check_transform(AllOverlaps(; operator=H, transform=G), H)
-            # Different transformations
-            @test_logs (:warn, Regex("(not consistent)")) Rimu.check_transform(AllOverlaps(; operator=H, transform=GutzwillerSampling(H, 0.5)), G)
-
+                # Check transformation
+                # good transform - no warning
+                @test_logs min_level=Logging.Warn Rimu.check_transform(AllOverlaps(; operator=H, transform=G), G)
+                # no operators - no warning
+                @test_logs min_level=Logging.Warn Rimu.check_transform(AllOverlaps(;), H)
+                # Hamiltonian transformed and operators not transformed
+                @test_logs (:warn, Regex("(Expected overlaps)")) Rimu.check_transform(AllOverlaps(; operator=H), G)
+                # Hamiltonian not transformed and operators transformed
+                @test_logs (:warn, Regex("(Expected overlaps)")) Rimu.check_transform(AllOverlaps(; operator=H, transform=G), H)
+                # Different transformations
+                @test_logs (:warn, Regex("(not consistent)")) Rimu.check_transform(AllOverlaps(; operator=H, transform=GutzwillerSampling(H, 0.5)), G)
+            end
+        end
+        @testset "AllOverlaps special cases" begin
             # Complex operator
             v = DVec(1 => 1)
             G = MatrixHamiltonian(rand(5, 5))
@@ -148,6 +184,7 @@ using Logging
             @test df.c1_Op1_c2 isa Vector{ComplexF64}
 
             # MPIData
+            dv = DVec(add => 1, style=IsDynamicSemistochastic())
             df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
             df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))
@@ -249,7 +286,7 @@ using Logging
     @testset "Setting `maxlength`" begin
         add = BoseFS{15,10}((0,0,0,0,0,15,0,0,0,0))
         H = HubbardMom1D(add; u=6.0)
-        dv = DVec(add => 1; style=IsDynamicSemistochastic())
+        dv = PDVec(add => 1; style=IsDynamicSemistochastic())
 
         Random.seed!(1336)
 
@@ -274,7 +311,7 @@ using Logging
         add = BoseFS{5,5}((1,1,1,1,1))
         H = HubbardReal1D(add; u=0.5)
         # Using Deterministic to get exact same result
-        dv = DVec(add => 1.0, style=IsDeterministic())
+        dv = PDVec(add => 1.0, style=IsDeterministic())
 
         # Run lomc!, then change laststep and continue.
         df, state = lomc!(H, copy(dv))
@@ -292,12 +329,14 @@ using Logging
     @testset "Reporting" begin
         add = BoseFS((1,2,1,1))
         H = HubbardReal1D(add; u=2)
-        dv = DVec(add => 1, style=IsDeterministic())
+        dv = PDVec(add => 1, style=IsDeterministic())
 
         @testset "ReportDFAndInfo" begin
             r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=devnull, writeinfo=true)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test size(df, 1) == 20
+            @test metadata(df, "Rimu.PACKAGE_VERSION") == string(Rimu.PACKAGE_VERSION)
+            @test_throws ArgumentError lomc!(H, copy(dv); r_strat, metadata=(;dτ=0.001))
 
             out = @capture_out begin
                 r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=stdout, writeinfo=true)
@@ -320,10 +359,12 @@ using Logging
             @test Rimu._isopen(r_strat) == false
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            df = lomc!(H, copy(dv); r_strat, laststep=100, metadata=(;u=6.0)).df
             @test isempty(df)
             @test Rimu._isopen(r_strat) == false
             df1 = RimuIO.load_df("test-report.arrow")
+            @test metadata(df1, "u") == "6.0" # custom metadata is saved
+            @test metadata(df1, "filename") == "test-report.arrow" # filename in metadata
 
             r_strat = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
@@ -384,6 +425,14 @@ using Logging
             rm("test-report-3.arrow"; force=true)
             rm("test-report-nc.arrow"; force=true)
             rm("test-report-lz4.arrow"; force=true)
+        end
+        @testset "Report" begin
+            rp = Rimu.Report()
+            Rimu.report!(rp, :b, 4)
+            Rimu.report!(rp, :b, 6)
+            @test sprint(show, rp) == "Report:\n  b => [4, 6]"
+            Rimu.report_metadata!(rp, :a, 1)
+            @test Rimu.get_metadata(rp, "a") == "1"
         end
     end
 
@@ -469,6 +518,7 @@ using Logging
                 @test single_particle_density(add) == (1, 3, 3)
                 @test single_particle_density(add; component=1) == (1, 2, 3)
                 @test single_particle_density(add; component=2) == (0, 1, 0)
+                @test single_particle_density(DVec(add => 1); component=2) == (0, 7, 0)
             end
         end
     end
@@ -541,6 +591,8 @@ end
         @test "len_before" ∉ names(df_th)
         @test "len_before" ∉ names(df_cx)
         @test "len_before" ∉ names(df_de)
+        @test all(>(0), df_dp.len_before)
+        @test all(df_dp.len_before .≥ df_dp.len)
 
         E_st, σ_st = mean_and_se(df_st.shift[500:end])
         E_th, σ_th = mean_and_se(df_th.shift[500:end])
@@ -590,6 +642,11 @@ end
             initiator=CoherentInitiator(1),
             style=IsDynamicSemistochastic(),
         )
+        dv_ni = InitiatorDVec(
+            add => 1;
+            initiator=NonInitiator(),
+            style=IsDynamicSemistochastic(),
+        )
 
         @testset "Energies below the plateau & initiator bias" begin
             Random.seed!(8008)
@@ -604,14 +661,18 @@ end
             df_i1 = lomc!(H, copy(dv_i1); s_strat, laststep, dτ).df
             df_i2 = lomc!(H, copy(dv_i2); s_strat, laststep, dτ).df
             df_i3 = lomc!(H, copy(dv_i3); s_strat, laststep, dτ).df
+            df_ni = lomc!(H, copy(dv_ni); s_strat, laststep, dτ).df
 
             E_no, σ_no = mean_and_se(df_no.shift[2000:end])
             E_i1, σ_i1 = mean_and_se(df_i1.shift[2000:end])
             E_i2, σ_i2 = mean_and_se(df_i2.shift[2000:end])
             E_i3, σ_i3 = mean_and_se(df_i3.shift[2000:end])
+            E_ni, σ_ni = mean_and_se(df_ni.shift[2000:end])
 
             # Garbage energy from no initiator.
             @test E_no < E0
+            @test E_ni < E0
+            @test E_no ≈ E_ni atol=3 * σ_no
             # Initiator has a bias.
             @test E_i1 > E0
             @test E_i2 > E0
@@ -636,17 +697,20 @@ end
             df_i1 = lomc!(H, copy(dv_i1); s_strat, laststep, dτ).df
             df_i2 = lomc!(H, copy(dv_i2); s_strat, laststep, dτ).df
             df_i3 = lomc!(H, copy(dv_i3); s_strat, laststep, dτ).df
+            df_ni = lomc!(H, copy(dv_ni); s_strat, laststep, dτ).df
 
             E_no, σ_no = mean_and_se(df_no.shift[500:end])
             E_i1, σ_i1 = mean_and_se(df_i1.shift[500:end])
             E_i2, σ_i2 = mean_and_se(df_i2.shift[500:end])
             E_i3, σ_i3 = mean_and_se(df_i3.shift[500:end])
+            E_ni, σ_ni = mean_and_se(df_ni.shift[500:end])
 
             # All estimates should be fairly good.
             @test E_no ≈ E0 atol=3σ_no
             @test E_i1 ≈ E0 atol=3σ_i1
             @test E_i2 ≈ E0 atol=3σ_i2
             @test E_i3 ≈ E0 atol=3σ_i3
+            @test E_ni ≈ E0 atol=3σ_ni
         end
     end
 end

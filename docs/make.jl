@@ -44,12 +44,17 @@ end
 
 makedocs(;
     modules=[Rimu,Rimu.RimuIO],
-    format=Documenter.HTML(prettyurls = false),
+    format=Documenter.HTML(
+        prettyurls = false,
+        size_threshold=500_000, # 500 kB
+        size_threshold_warn=200_000, # 200 kB
+    ),
     pages=[
         "Guide" => "index.md",
         "Examples" => EXAMPLES_PAIRS[sortperm(EXAMPLES_NUMS)],
         "User documentation" => [
             "StatsTools" => "statstools.md",
+            "Using MPI" => "mpi.md",
         ],
         "Developer documentation" => [
             "Interfaces" => "interfaces.md",
@@ -68,7 +73,7 @@ makedocs(;
     sitename="Rimu.jl",
     authors="Joachim Brand <j.brand@massey.ac.nz>",
     checkdocs=:exports,
-    doctest=false # Doctests are done while testing.
+    doctest=false, # Doctests are done while testing.
 )
 
 deploydocs(
