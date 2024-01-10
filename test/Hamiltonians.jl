@@ -1506,14 +1506,3 @@ end
         @test isempty(fock_to_cart(null_addr, S))
     end
 end
-
-@testset "FroehlichPolaron" begin
-    addr = OccupationNumberFS(0, 0, 0, 0, 1, 0, 0, 0)
-    ham = FroehlichPolaron(addr; total_mom=3, alpha=6, num_dimensions=3)
-    @test num_dimensions(ham) == num_dimensions(ham.geometry) == 3
-    @test ham.geometry == PeriodicBoundaries(2, 2, 2)
-    @test eval(Meta.parse(repr(ham))) == ham
-    @test starting_address(ham) == ham.add == addr
-
-    # TODO: test the rest of the interface (add `FroehlichPolaron` to interface tests)
-end

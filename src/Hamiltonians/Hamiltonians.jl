@@ -26,7 +26,6 @@ Harmonic oscillator models
 Other
 - [`MatrixHamiltonian`](@ref)
 - [`Transcorrelated1D`](@ref)
-- [`FroehlichPolaron`](@ref)
 
 ## [Wrappers](#Hamiltonian-wrappers)
 - [`GutzwillerSampling`](@ref)
@@ -74,7 +73,6 @@ export TimeReversalSymmetry
 export Stoquastic
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
-export FroehlichPolaron
 
 export G2MomCorrelator, G2RealCorrelator, DensityMatrixDiagonal, Momentum
 
@@ -122,6 +120,4 @@ include("HOCartesianCentralImpurity.jl")
 include("vertices.jl")
 include("ho-cart-tools.jl")
 include("angular_momentum.jl")
-
-include("FroehlichPolaron.jl")
 end
