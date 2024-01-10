@@ -24,7 +24,7 @@ straightforward to implement efficient Hamiltonians. Examples are:
 
 ```@autodocs
 Modules = [BitStringAddresses]
-Pages = ["fockaddress.jl","bosefs.jl","fermifs.jl","multicomponent.jl","onrfs.jl"]
+Pages = ["fockaddress.jl","bosefs.jl","fermifs.jl","multicomponent.jl","occupationnumberfs.jl"]
 Private = false
 ```
 
@@ -33,6 +33,10 @@ Private = false
 The atomic addresses, [`BoseFS`](@ref) and [`FermiFS`](@ref), are implemented as either
 bitstrings or sorted lists of particles. Using these approaches over an occupation number
 representation makes the addresses much more space-efficient.
+
+Therewhile [`OccupationNumberFS`](@ref) internally uses the occupation number representation, 
+which allows it to handle excitation operations that change the particle number. This is fast
+but requires more storage space.
 
 ### Internal APIs
 
