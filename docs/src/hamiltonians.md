@@ -73,7 +73,6 @@ HOCartesianCentralImpurity
 ```@docs
 MatrixHamiltonian
 Transcorrelated1D
-FroehlichPolaron
 ```
 
 ### Convenience functions
