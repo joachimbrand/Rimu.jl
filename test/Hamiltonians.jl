@@ -1502,13 +1502,13 @@ end
         @test fock_to_cart(addr, S) == [(0, 1), (0, 1), (3, 3)]
         @test fock_to_cart(addr, S; zero_index = false) == [(1, 2), (1, 2), (4, 4)]
 
-        null_addr = BoseFS(prod(S),)
+        null_addr = BoseFS(prod(S), 1=>0)
         @test isempty(fock_to_cart(null_addr, S))
     end
 end
 
 @testset "FroehlichPolaron" begin
-    addr = ONRFS((0,0,0,0,1,0,0,0),20)
+    addr = OccupationNumberFS(0, 0, 0, 0, 1, 0, 0, 0)
     ham = FroehlichPolaron(addr; total_mom=3, alpha=6, num_dimensions=3)
     @test num_dimensions(ham) == num_dimensions(ham.geometry) == 3
     @test ham.geometry == PeriodicBoundaries(2, 2, 2)

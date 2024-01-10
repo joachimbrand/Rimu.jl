@@ -24,7 +24,7 @@ particles is runtime data, and can be retrieved with `num_particles(address)`.
 # Constructors
 - `OccupationNumberFS(number1, ...)`: Construct from occupation numbers. Must be `Integer`
   and < 256 to fit into `UInt8`.
-- `OccupationNumberFS{[M,T]}(onr): Construct from collection `onr` with `M` occupation
+- `OccupationNumberFS{[M,T]}(onr)`: Construct from collection `onr` with `M` occupation
   numbers with type `T`. If unspecified, the type `T` of the occupation numbers is inferred
   from the type of the arguments.
 - `OccupationNumberFS(fs::BoseFS)`: Construct from [`BoseFS`](@ref).
@@ -133,7 +133,7 @@ See also: [`destroy`](@ref), [`excitation`](@ref).
     return (ofs, val)
 end
 
-@doc """
+"""
     excitation(addr::OccupationNumberFS, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int})
     → (nadd, α)
 Generate an excitation on an [`OccupationNumberFS`](@ref) by applying the creation and
@@ -158,9 +158,7 @@ julia> num_particles(es)
 7
 ```
 """
-excitation(fs::OccupationNumberFS{<:Any,T}, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
-
-@check_allocs function excitation(fs::OccupationNumberFS{<:Any,T}, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
+function excitation(fs::OccupationNumberFS{<:Any,T}, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
     accu = one(T)
     for i in d
         fs, val = destroy(fs, i)

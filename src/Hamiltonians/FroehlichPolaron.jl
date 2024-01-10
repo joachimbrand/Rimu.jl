@@ -40,7 +40,7 @@ struct FroehlichPolaron{
 end
 
 function FroehlichPolaron(
-    addr::OccupationNumberFS{<:Any, M};
+    addr::OccupationNumberFS{M};
     geometry=nothing,
     alpha=1.0,
     total_mom=0.0,
