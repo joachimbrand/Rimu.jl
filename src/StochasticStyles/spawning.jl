@@ -319,7 +319,7 @@ end
     prob = abs(val) * boost / num_offdiags
     num_attempts = 0
     for i in 1:num_offdiags
-        if rand() > prob
+        if rand() < prob
             new_add, mat_elem = offdiags[i]
             new_val = mat_elem / prob * val
             spawns += abs(projected_deposit!(w, new_add, new_val, add => val, s.threshold))
