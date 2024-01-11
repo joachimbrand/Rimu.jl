@@ -81,8 +81,11 @@ Concrete implementations:
 * [`CoherentInitiator`](@ref)
 * [`NonInitiator`](@ref)
 
-`InitiatorRule`s define how to store and retrieve data from associated [`AbstractInitiatorValue`](@ref)s.
-When defining a new `InitiatorRule`, also define the following:
+# Extended Help
+
+`InitiatorRule`s define how to store and retrieve data from associated
+[`AbstractInitiatorValue`](@ref)s. When defining a new `InitiatorRule`, also define the
+following:
 
 * [`initiator_valtype`](@ref)
 * [`from_initiator_value`](@ref)

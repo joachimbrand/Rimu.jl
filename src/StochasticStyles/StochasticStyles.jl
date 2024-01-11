@@ -5,7 +5,7 @@ performing stochastic matrix-vector multiplication.
 
 # Implemented stochastic styles:
 
-* [`StochasticStyle`](@ref)
+* [`StochasticStyle`](@ref): abstract type for stochastic styles
 * [`IsStochasticInteger`](@ref)
 * [`IsDeterministic`](@ref)
 * [`IsStochasticWithThreshold`](@ref)
@@ -17,7 +17,6 @@ The offdiagonal spawning is defined in `spawning.jl` and is controlled by settin
 
 The vector compression strategies are defined in `compression.jl` and are controlled by
 setting a [`CompressionStrategy`](@ref).
-
 """
 module StochasticStyles
 

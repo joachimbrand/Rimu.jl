@@ -26,6 +26,8 @@ import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, 
 export deposit!, storage, walkernumber, dot_from_right
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory
 
+export InitiatorRule, Initiator, SimpleInitiator, NonInitiator, CoherentInitiator
+
 export AbstractProjector, NormProjector, Norm2Projector, UniformProjector, Norm1ProjectorPPop
 
 
