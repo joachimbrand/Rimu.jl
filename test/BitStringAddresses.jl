@@ -481,7 +481,6 @@ end
 end
 
 @testset "Test OccupationNumberFS functions" begin
-    # Test OccupationNumberFS with SVector input
     @testset "Test OccupationNumberFS with SVector input" begin
         @test OccupationNumberFS(SVector{3, UInt8}(1, 2, 3)) isa OccupationNumberFS{3, UInt8}
         @test_throws ArgumentError OccupationNumberFS(SVector(-1, 2, 3))
@@ -489,21 +488,20 @@ end
         @test OccupationNumberFS(SVector{3,UInt16}(1, 2, 300)) isa OccupationNumberFS{3,UInt16}
     end
 
-    # Test OccupationNumberFS with multiple arguments
     @testset "Test OccupationNumberFS with multiple arguments" begin
         @test isa(OccupationNumberFS(1, 2, 3), OccupationNumberFS{3, UInt8})
+        @test_throws ArgumentError OccupationNumberFS(1.1, 2, 3)
         @test_throws ArgumentError OccupationNumberFS(-1, 2, 3)
         @test_throws ArgumentError OccupationNumberFS(1, 2, 300)
     end
 
-    # Test OccupationNumberFS with M and multiple arguments
     @testset "Test OccupationNumberFS with M and multiple arguments" begin
-        @test isa(OccupationNumberFS(1, 2, 3), OccupationNumberFS{3, UInt8})
-        @test_throws ArgumentError OccupationNumberFS(-1, 2, 3)
-        @test_throws ArgumentError OccupationNumberFS(1, 2, 300)
+        @test OccupationNumberFS{3}([1, 2, 3]) == OccupationNumberFS{3,UInt8}(1, 2, 3)
+        @test_throws ArgumentError OccupationNumberFS{3}(1.1, 2, 3)
+        @test_throws ArgumentError OccupationNumberFS{3}(-1, 2, 3)
+        @test_throws ArgumentError OccupationNumberFS{3}(1, 2, 300)
     end
 
-    # Test OccupationNumberFS with BoseFS input
     @testset "Test OccupationNumberFS with BoseFS input" begin
         fs = BoseFS(1, 2)
         @test isa(OccupationNumberFS(fs), OccupationNumberFS{2, UInt8})
@@ -545,5 +543,14 @@ end
         fs_after_excitation, sqrt_accu = excitation(ofs, c, d)
         @test fs_after_excitation.onr == SVector{3,UInt8}(2, 1, 3)
         @test sqrt_accu ≈ √4
+    end
+
+    @testset "Test properties of OccupationNumberFS" begin
+        @test num_modes(ofs) == 3
+        @test num_particles(ofs) == 6
+        @test num_occupied_modes(ofs) == 3
+        @test onr(ofs) == SVector{3,UInt8}(1, 2, 3)
+        lfs = OccupationNumberFS{6}([1 0 0; 1 1 0])
+        @test onr(lfs, LadderBoundaries(2, 3)) == [1 0 0; 1 1 0]
     end
 end
