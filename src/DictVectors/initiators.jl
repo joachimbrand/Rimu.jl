@@ -118,10 +118,11 @@ Convert `v` to an [`AbstractInitiatorValue`](@ref), taking the initiator rule an
 to_initiator_value
 
 """
-    Initiator(threshold) <: InitiatorRule
+    Initiator(threshold = 1.0) <: InitiatorRule
 
 Initiator rule to be passed to [`PDVec`](@ref) or [`InitiatorDVec`](@ref). An initiator is a
-configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
+configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. The
+`threshold` can be passed as a keyword argument. Rules:
 
 * Initiators can spawn anywhere.
 * Non-initiators can spawn to initiators.
@@ -131,6 +132,7 @@ See [`InitiatorRule`](@ref).
 struct Initiator{T} <: InitiatorRule
     threshold::T
 end
+Initiator(;threshold=1.0) = Initiator(threshold)
 initiator_valtype(::Initiator, ::Type{V}) where {V} = InitiatorValue{V}
 
 function from_initiator_value(::Initiator, v::InitiatorValue)
@@ -159,10 +161,11 @@ function to_initiator_value(rule::Initiator, add, val, parent)
 end
 
 """
-    SimpleInitiator(threshold) <: InitiatorRule
+    SimpleInitiator(threshold = 1.0) <: InitiatorRule
 
 Initiator rule to be passed to [`PDVec`](@ref) or [`InitiatorDVec`](@ref). An initiator is
-a configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
+a configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. The
+`threshold` can be passed as a keyword argument. Rules:
 
 * Initiators can spawn anywhere.
 * Non-initiators cannot spawn.
@@ -172,6 +175,7 @@ See [`InitiatorRule`](@ref).
 struct SimpleInitiator{T} <: InitiatorRule
     threshold::T
 end
+SimpleInitiator(;threshold=1.0) = SimpleInitiator(threshold)
 initiator_valtype(::SimpleInitiator, ::Type{V}) where {V} = InitiatorValue{V}
 
 function from_initiator_value(i::SimpleInitiator, v::InitiatorValue)
@@ -182,10 +186,11 @@ function to_initiator_value(rule::SimpleInitiator, add, val, parent)
 end
 
 """
-    CoherentInitiator(threshold) <: InitiatorRule
+    CoherentInitiator(threshold = 1.0) <: InitiatorRule
 
 Initiator rule to be passed to [`PDVec`](@ref) or [`InitiatorDVec`](@ref). An initiator is
-a configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. Rules:
+a configuration `add` with a coefficient with magnitude `abs(v[add]) > threshold`. The
+`threshold` can be passed as a keyword argument. Rules:
 
 * Initiators can spawn anywhere.
 * Non-initiators can spawn to initiators.
@@ -197,6 +202,7 @@ See [`InitiatorRule`](@ref).
 struct CoherentInitiator{T} <: InitiatorRule
     threshold::T
 end
+CoherentInitiator(;threshold=1.0) = CoherentInitiator(threshold)
 initiator_valtype(::CoherentInitiator, ::Type{V}) where {V} = InitiatorValue{V}
 
 function from_initiator_value(i::CoherentInitiator, v::InitiatorValue)
@@ -211,7 +217,7 @@ function to_initiator_value(rule::CoherentInitiator, add, val, parent)
 end
 
 """
-    NonInitiator{V} <: InitiatorRule{V}
+    NonInitiator() <: InitiatorRule
 
 Initiator rule that disables the approximation. This is the default setting for
 [`PDVec`](@ref).
