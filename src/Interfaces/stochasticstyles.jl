@@ -10,11 +10,11 @@ Concrete `StochasticStyle`s can be used for the `style` keyword argument of
 [`lomc!`](@ref Main.lomc!), [`DVec`](@ref Main.DictVectors.DVec) and
 [`PDVec`](@ref Main.DictVectors.PDVec). The following styles are available:
 
-* [`IsStochasticInteger`](@ref)
-* [`IsDeterministic`](@ref)
-* [`IsStochasticWithThreshold`](@ref)
-* [`IsDynamicSemistochastic`](@ref)
-* [`StyleUnknown`](@ref)
+* [`IsStochasticInteger`](@ref Main.StochasticStyles.IsStochasticInteger)
+* [`IsDeterministic`](@ref Main.StochasticStyles.IsDeterministic)
+* [`IsStochasticWithThreshold`](@ref Main.StochasticStyles.IsStochasticWithThreshold)
+* [`IsDynamicSemistochastic`](@ref Main.StochasticStyles.IsDynamicSemistochastic)
+* [`StyleUnknown`](@ref Main.StochasticStyles.StyleUnknown)
 
 # Extended Help
 ## Interface
