@@ -220,6 +220,9 @@ using DataFrames
 
         df, state = lomc!(H; laststep=100, style = IsDeterministic())
         @test StochasticStyle(state.replicas[1].v) isa IsDeterministic
+
+        df, state = lomc!(H; laststep=1, threading=false, initiator=Initiator())
+        @test state.replicas[1].v isa InitiatorDVec
     end
 
     @testset "ShiftStrategy" begin
