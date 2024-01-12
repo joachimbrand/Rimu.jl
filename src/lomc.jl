@@ -284,19 +284,24 @@ end
     default_starting_vector(
         address=starting_address(hamiltonian);
         style=IsStochasticInteger(),
+        initiator=NonInitiator(),
         threading=nothing
     )
 Return a default starting vector for [`lomc!`](@ref). The default choice for the starting
 vector is
 ```julia
-v = PDVec(address => 10; style)
+v = PDVec(address => 10; style, initiator)
 ```
-if threading is available or
-
+if threading is available, or otherwise
 ```julia
 v = DVec(address => 10; style)
 ```
-otherwise. See [`PDVec`](@ref), [`DVec`](@ref) and [`StochasticStyle`](@ref).
+if `initiator == NonInitiator()`, and
+```julia
+v = InitiatorDVec(address => 10; style, initiator)
+```
+if not. See [`PDVec`](@ref), [`DVec`](@ref), [`InitiatorDVec`](@ref),
+[`StochasticStyle`](@ref), and [`InitiatorRule`].
 """
 function default_starting_vector(
     hamiltonian::AbstractHamiltonian;
@@ -307,14 +312,17 @@ end
 function default_starting_vector(address;
     style=IsStochasticInteger(),
     threading=nothing,
+    initiator=NonInitiator(),
 )
     if isnothing(threading)
         threading = Threads.nthreads() > 1
     end
     if threading
-        v = PDVec(address => 10; style)
-    else
+        v = PDVec(address => 10; style, initiator)
+    elseif initiator isa NonInitiator
         v = DVec(address => 10; style)
+    else
+        v = InitiatorDVec(address => 10; style, initiator)
     end
     return v
 end
@@ -336,6 +344,8 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
 * `address = starting_address(ham)` - set starting address for default `v` and `shift`.
 * `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused
   if `v` is specified.
+* `initiator = NonInitiator()` - set [`InitiatorRule`](@ref) for default `v`; unused if `v`
+  is specified.
 * `threading` - default is to use multithreading and
   [MPI](https://juliaparallel.org/MPI.jl/latest/) if multiple threads are available. Set to
   `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
@@ -403,9 +413,9 @@ julia> metadata(df2, "hamiltonian") # some metadata is automatically added
   be passed for merging with the report `df`.
 
 The default choice for the starting vector is
-`v = default_starting_vector(; address, style, threading)`.
-See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref), and
-[`StochasticStyle`](@ref).
+`v = default_starting_vector(; address, style, threading, initiator)`.
+See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
+[`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
 """
 function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
     state = QMCState(ham, v; kwargs...)
@@ -416,9 +426,10 @@ function lomc!(
     style=IsStochasticInteger(),
     threading=nothing,
     address=starting_address(ham),
+    initiator=NonInitiator(),
     kwargs...
 )
-    v = default_starting_vector(address; style, threading)
+    v = default_starting_vector(address; style, threading, initiator)
     return lomc!(ham, v; address, kwargs...) # pass address for setting the default shift
 end
 # For continuation, you can pass a QMCState and a DataFrame

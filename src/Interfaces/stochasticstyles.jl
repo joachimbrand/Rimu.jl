@@ -7,9 +7,17 @@ generalised vector `v` that determines how simulations are to proceed.
 # Usage
 
 Concrete `StochasticStyle`s can be used for the `style` keyword argument of
-[`lomc!`](@ref Main.lomc!) and [`DVec`](@ref Main.DictVectors.DVec).
+[`lomc!`](@ref Main.lomc!), [`DVec`](@ref Main.DictVectors.DVec) and
+[`PDVec`](@ref Main.DictVectors.PDVec). The following styles are available:
 
-# Interface
+* [`IsStochasticInteger`](@ref Main.StochasticStyles.IsStochasticInteger)
+* [`IsDeterministic`](@ref Main.StochasticStyles.IsDeterministic)
+* [`IsStochasticWithThreshold`](@ref Main.StochasticStyles.IsStochasticWithThreshold)
+* [`IsDynamicSemistochastic`](@ref Main.StochasticStyles.IsDynamicSemistochastic)
+* [`StyleUnknown`](@ref Main.StochasticStyles.StyleUnknown)
+
+# Extended Help
+## Interface
 
 When defining a new `StochasticStyle`, subtype it as `MyStyle<:StochasticStyle{T}` where `T`
 is the concrete value type the style is designed to work with.
