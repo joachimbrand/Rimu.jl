@@ -616,9 +616,7 @@ end
         @test E_de ≈ E0 atol=3σ_de
         @test E_dp ≈ E0 atol=3σ_dp
         @test E_nr ≈ E0 atol=3σ_nr
-
-        # For some reason, Bernoulli requires more walkers
-        @test_broken E_br ≈ E0 atol=3σ_br
+        @test E_br ≈ E0 atol=3σ_br
     end
 
     @testset "Initiator energies" begin
