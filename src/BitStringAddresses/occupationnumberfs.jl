@@ -26,12 +26,8 @@ julia> num_particles(ofs)
 6
 ```
 """
-struct OccupationNumberFS{M,T} <: SingleComponentFockAddress{missing,M}
+struct OccupationNumberFS{M,T<:Unsigned} <: SingleComponentFockAddress{missing,M}
     onr::SVector{M,T}
-
-    function OccupationNumberFS(onr::SVector{M,T}) where {M,T<:Unsigned}
-        new{M,T}(onr)
-    end
 end
 
 function OccupationNumberFS{M,T}(args...) where {M,T}
@@ -68,8 +64,8 @@ function print_address(io::IO, ofs::OccupationNumberFS{M,T}; compact=false) wher
 end
 
 onr(ofs::OccupationNumberFS) = ofs.onr
-num_occupied_modes(ofs::OccupationNumberFS) = mapreduce(!iszero, +, onr(ofs))
-num_particles(ofs::OccupationNumberFS) = sum(onr(ofs))|>Int
+num_occupied_modes(ofs::OccupationNumberFS) = count(!iszero, onr(ofs))
+num_particles(ofs::OccupationNumberFS) = Int(sum(onr(ofs)))
 # `num_modes` does not have to be defined here, because it is defined for the abstract type
 
 """
