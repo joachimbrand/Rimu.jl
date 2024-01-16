@@ -908,6 +908,10 @@ end
     @test diagonal_element(S0, uniform_state) == 0
     @test diagonal_element(S2, uniform_state) == 0
 
+    # Test return type for integer, and non-integer filling
+    @test diagonal_element(S0, localised_state) isa Float64
+    @test diagonal_element(S1, non_unital_localised_state) isa ComplexF64
+
     # Test show method
     d = 5
     output = @capture_out print(StringCorrelator(d))
