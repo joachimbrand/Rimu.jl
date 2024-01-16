@@ -310,6 +310,14 @@ end
 end
 
 @testset "FermiFS" begin
+    @testset "occupation numbers as arguments" begin
+        t = (1, 0, 1, 0, 1, 0, 1, 0, 1, 0)
+        @test FermiFS(t...) == FermiFS(t) # pass occupation numbers or tuple
+        @test FermiFS(1) == fs"|↑⟩" # single occupation number
+        @test_throws ArgumentError FermiFS(2)
+        @test FermiFS(5, 1 => 0) == fs"|⋅⋅⋅⋅⋅⟩" # vacuum with 5 modes
+    end
+
     small = SVector(1, 0, 0, 0, 0, 1, 1, 1, 0, 0)
     big = [rand(0:1) for _ in 1:70]
     giant = [rand() < 0.1 for _ in 1:200]
