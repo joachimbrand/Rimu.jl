@@ -342,27 +342,6 @@ function diagonal_element(::StringCorrelator{0}, add::SingleComponentFockAddress
     return result / M
 end
 
-# function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress) where {D}
-#     M = num_modes(add)
-#     N = num_particles(add)
-#     n̄ = N/M
-#     d = mod(D, M)
-#     v = onr(add)
-
-#     result = 0  
-#     for i in eachindex(v)
-#         phase_sum = sum( (v[mod1(k,M)] - n̄) for k in i:1:(i+d-1) )
-
-#         result += (v[i]- n̄) * exp(pi * im * phase_sum) * (v[mod1(i + d, M)]-n̄)
-#     end
-
-#     if M == N
-#         return real(result) /M
-#     end
-
-#     return result / M
-# end
-
 num_offdiagonals(::StringCorrelator, ::SingleComponentFockAddress) = 0
 
 function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress) where {D}
