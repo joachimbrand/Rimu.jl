@@ -1,21 +1,4 @@
 """
-    select_uint_type(::Val{N}) where {N}
-
-Select a suitable unsigned integer type for storing `N` particles in a single mode.
-"""
-function select_uint_type(::Val{N}) where {N}
-    if 0 < N < 2^8
-        return UInt8
-    elseif 2^8 ≤ N < 2^16
-        return UInt16
-    elseif 2^16 ≤ N < 2^32
-        return UInt32
-    else
-        throw(ArgumentError("`N` must be ≤ 2^32 and > 0, got $N"))
-    end
-end
-
-"""
     OccupationNumberFS{M,T} <: SingleComponentFockAddress
 Address type that stores the occupation numbers of a single component bosonic Fock state
 with `M` modes. The occupation numbers must fit into the type `T <: Unsigned`. The number of
@@ -72,7 +55,7 @@ function OccupationNumberFS{M}(args...) where M
 end
 
 function OccupationNumberFS(fs::BoseFS{N,M}) where {N,M}
-    return OccupationNumberFS{M,select_uint_type(Val(N))}(onr(fs))
+    return OccupationNumberFS{M,select_int_type(N)}(onr(fs))
 end
 
 function print_address(io::IO, ofs::OccupationNumberFS{M,T}; compact=false) where {M,T}

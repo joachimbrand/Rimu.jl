@@ -4,7 +4,7 @@ using Rimu.BitStringAddresses: num_chunks, chunks
 using Rimu.BitStringAddresses: remove_ghost_bits, has_ghost_bits
 using Rimu.BitStringAddresses: occupied_modes, update_component
 using Rimu.BitStringAddresses: parse_address
-using Rimu.BitStringAddresses: select_uint_type, destroy, create
+using Rimu.BitStringAddresses: destroy, create
 using Random
 using StaticArrays
 using Test
@@ -460,24 +460,6 @@ end
         @test CompositeFS(BoseFS2C(BoseFS((1,2)), BoseFS((3,1)))) ==
             CompositeFS(BoseFS((1,2)), BoseFS((3,1)))
     end
-end
-
-@testset "Test select_uint_type function" begin
-    # Test for N in the range (0, 2^8)
-    @test select_uint_type(Val(1)) == UInt8
-    @test select_uint_type(Val(2^8 - 1)) == UInt8
-
-    # Test for N in the range [2^8, 2^16)
-    @test select_uint_type(Val(2^8)) == UInt16
-    @test select_uint_type(Val(2^16 - 1)) == UInt16
-
-    # Test for N in the range [2^16, 2^32)
-    @test select_uint_type(Val(2^16)) == UInt32
-    @test select_uint_type(Val(2^32 - 1)) == UInt32
-
-    # Test for N outside the valid range
-    @test_throws ArgumentError select_uint_type(Val(0))
-    @test_throws ArgumentError select_uint_type(Val(2^32))
 end
 
 @testset "Test OccupationNumberFS functions" begin
