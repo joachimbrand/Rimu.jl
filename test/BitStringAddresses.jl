@@ -525,6 +525,11 @@ end
         fs_after_excitation, sqrt_accu = excitation(ofs, c, d)
         @test fs_after_excitation.onr == SVector{3,UInt8}(2, 1, 3)
         @test sqrt_accu ≈ √4
+
+        # indexing with BoseFSIndex
+        i, j = find_mode(ofs, (1, 2))
+        @test j ==  BoseFSIndex(occnum=2, mode=2, offset=2)
+        @test excitation(ofs, (i,), (j,)) == (fs_after_excitation, sqrt_accu)
     end
 
     @testset "Test properties of OccupationNumberFS" begin
@@ -534,5 +539,7 @@ end
         @test onr(ofs) == SVector{3,UInt8}(1, 2, 3)
         lfs = OccupationNumberFS{6}([1 0 0; 1 1 0])
         @test onr(lfs, LadderBoundaries(2, 3)) == [1 0 0; 1 1 0]
+        @test num_occupied_modes(lfs) == length(occupied_modes(lfs)) == 3
+        @test OccupiedModeMap(lfs) == collect(occupied_modes(lfs))
     end
 end

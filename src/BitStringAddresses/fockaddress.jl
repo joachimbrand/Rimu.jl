@@ -65,10 +65,10 @@ Find the `i`-th mode in address. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@r
 bounds.
 
 ```jldoctest
-julia> find_mode(BoseFS((1, 0, 2)), 2)
+julia> find_mode(BoseFS(1, 0, 2), 2)
 BoseFSIndex(occnum=0, mode=2, offset=2)
 
-julia> find_mode(FermiFS((1, 1, 1, 0)), (2,3))
+julia> find_mode(FermiFS(1, 1, 1, 0), (2,3))
 (FermiFSIndex(occnum=1, mode=2, offset=1), FermiFSIndex(occnum=1, mode=3, offset=2))
 ```
 
@@ -87,13 +87,13 @@ Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and [`FermiFSIndex`](@ref) f
 # Example
 
 ```jldoctest
-julia> find_occupied_mode(FermiFS((1, 1, 1, 0)), 2)
+julia> find_occupied_mode(FermiFS(1, 1, 1, 0), 2)
 FermiFSIndex(occnum=1, mode=2, offset=1)
 
-julia> find_occupied_mode(BoseFS((1, 0, 2)), 1)
+julia> find_occupied_mode(BoseFS(1, 0, 2), 1)
 BoseFSIndex(occnum=1, mode=1, offset=0)
 
-julia> find_occupied_mode(BoseFS((1, 0, 2)), 1, 2)
+julia> find_occupied_mode(BoseFS(1, 0, 2), 1, 2)
 BoseFSIndex(occnum=2, mode=3, offset=3)
 ```
 
@@ -242,7 +242,8 @@ function OccupiedModeMap(addr::SingleComponentFockAddress{N,M}) where {N,M}
     modes = occupied_modes(addr)
     T = eltype(modes)
     # There are at most N occupied modes. This could be also @generated for cases where N ≫ M
-    indices = MVector{min(N,M),T}(undef)
+    L = ismissing(N) ? M : min(N, M)
+    indices = MVector{L,T}(undef)
     i = 0
     for index in modes
         i += 1
@@ -489,7 +490,7 @@ Struct used for indexing and performing [`excitation`](@ref)s on a [`BoseFS`](@r
  represented by `SortedParticleList`.
 
 """
-struct BoseFSIndex<:FieldVector{3,Int}
+Base.@kwdef struct BoseFSIndex<:FieldVector{3,Int}
     occnum::Int
     mode::Int
     offset::Int
@@ -604,7 +605,7 @@ Struct used for indexing and performing [`excitation`](@ref)s on a [`FermiFS`](@
   represented by a bitstring, and the position in the list when using `SortedParticleList`.
 
 """
-struct FermiFSIndex<:FieldVector{3,Int}
+Base.@kwdef struct FermiFSIndex<:FieldVector{3,Int}
     occnum::Int
     mode::Int
     offset::Int

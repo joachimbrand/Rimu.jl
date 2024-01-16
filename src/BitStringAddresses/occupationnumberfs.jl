@@ -64,7 +64,6 @@ function print_address(io::IO, ofs::OccupationNumberFS{M,T}; compact=false) wher
 end
 
 onr(ofs::OccupationNumberFS) = ofs.onr
-num_occupied_modes(ofs::OccupationNumberFS) = count(!iszero, onr(ofs))
 num_particles(ofs::OccupationNumberFS) = Int(sum(onr(ofs)))
 # `num_modes` does not have to be defined here, because it is defined for the abstract type
 
@@ -113,12 +112,13 @@ See also: [`destroy`](@ref), [`excitation`](@ref).
 end
 
 """
-    excitation(addr::OccupationNumberFS, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int})
+    excitation(addr::OccupationNumberFS, c::NTuple, d::NTuple)
     → (nadd, α)
 Generate an excitation on an [`OccupationNumberFS`](@ref) by applying the creation and
 destruction operators specified by the tuples of mode numbers `c` and `d` to the Fock state
-`addr`. The modes are simply indexed by integers (starting at 1). The value of `α` is given
-by the square root of the product of mode occupations before destruction and after creation.
+`addr`. The modes are indexed by integers (starting at 1), or by indices of type
+`BoseFSIndex`. The value of `α` is given by the square root of the product of mode
+occupations before destruction and after creation.
 
 The number of particles may change by this type of excitation.
 
@@ -137,7 +137,11 @@ julia> num_particles(es)
 7
 ```
 """
-function excitation(fs::OccupationNumberFS{<:Any,T}, c::NTuple{<:Any,Int}, d::NTuple{<:Any,Int}) where {T}
+function excitation(
+    fs::OccupationNumberFS{<:Any,T},
+    c::NTuple{<:Any,Int},
+    d::NTuple{<:Any,Int}
+) where {T}
     accu = one(T)
     for i in d
         fs, val = destroy(fs, i)
@@ -149,6 +153,40 @@ function excitation(fs::OccupationNumberFS{<:Any,T}, c::NTuple{<:Any,Int}, d::NT
     end
     return fs, √accu
 end
+function excitation(
+    fs::OccupationNumberFS,
+    c::NTuple{N1,BoseFSIndex},
+    d::NTuple{N2,BoseFSIndex}
+) where {N1, N2}
+    creations = ntuple(i -> c[i].mode, Val(N1)) # convert BoseFSIndex to mode number
+    destructions = ntuple(i -> d[i].mode, Val(N2))
+    return excitation(fs, creations, destructions)
+end
 
-# Do we need more methods for building Hamiltonians? (`find_occupied_mode`,
-# `OccupiedModMap`, `occupied_modes`?)
+
+# `SingleComponentFockAddress` interface
+
+find_mode(ofs::OccupationNumberFS, n::Integer) = BoseFSIndex(ofs.onr[n], n, n)
+function find_mode(ofs::OccupationNumberFS, ns::NTuple{N,Integer}) where N
+    return ntuple(i -> find_mode(ofs, ns[i]), Val(N))
+end
+
+num_occupied_modes(ofs::OccupationNumberFS) = count(!iszero, onr(ofs))
+
+# for the lazy iterator `occupied_modes` we adapt the `BoseOccupiedModes` type
+function occupied_modes(ofs::OccupationNumberFS{M}) where {M}
+    return BoseOccupiedModes{missing, M, typeof(ofs)}(ofs)
+end
+
+function Base.length(bom::BoseOccupiedModes{<:Any,<:Any,<:OccupationNumberFS})
+    return num_occupied_modes(bom.storage)
+end
+
+function Base.iterate(bom::BoseOccupiedModes{<:Any,<:Any,<:OccupationNumberFS}, i=1)
+    s = onr(bom.storage) # is an SVector with the onr
+    while true
+        i > length(s) && return nothing
+        iszero(s[i]) || return BoseFSIndex(s[i], i, i), i + 1
+        i += 1
+    end
+end
