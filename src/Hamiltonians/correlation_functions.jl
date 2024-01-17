@@ -299,7 +299,7 @@ end
 Two-body operator for string correlation between sites separated by `d` with `0 ≤ d < m`
 
 ```math
-    \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{i}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
+    \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
 ```
 where ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling number. 
 
