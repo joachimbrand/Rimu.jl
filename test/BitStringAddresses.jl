@@ -544,10 +544,29 @@ end
         @test num_modes(ofs) == 3
         @test num_particles(ofs) == 6
         @test num_occupied_modes(ofs) == 3
-        @test onr(ofs) == SVector{3,UInt8}(1, 2, 3)
+        @test onr(ofs) == ofs.onr == SVector{3,UInt8}(1, 2, 3)
+        @test occupation_number_representation(ofs) == onr(ofs)
+        @test onr(reverse(ofs)) == reverse(onr(ofs))
         lfs = OccupationNumberFS{6}([1 0 0; 1 1 0])
         @test onr(lfs, LadderBoundaries(2, 3)) == [1 0 0; 1 1 0]
         @test num_occupied_modes(lfs) == length(occupied_modes(lfs)) == 3
         @test OccupiedModeMap(lfs) == collect(occupied_modes(lfs))
+        b1, b2 = BoseFS(1, 6), BoseFS(3, 4)
+        o1, o2 = OccupationNumberFS(b1), OccupationNumberFS(b2)
+        @test (o1 < o2) == (b1 < b2)
+    end
+
+    @testset "OccupationNumberFS in hamiltonians" begin
+        bfs = BoseFS(1, 2, 3)
+        ofs = OccupationNumberFS(bfs)
+        @test sparse(HubbardMom1D(ofs)) == sparse(HubbardMom1D(bfs))
+        @test sparse(HubbardMom1DEP(ofs)) == sparse(HubbardMom1DEP(bfs))
+        @test sparse(HubbardReal1D(ofs)) == sparse(HubbardReal1D(bfs))
+        @test sparse(HubbardReal1DEP(ofs)) == sparse(HubbardReal1DEP(bfs))
+        @test sparse(HubbardRealSpace(ofs)) == sparse(HubbardRealSpace(bfs))
+        @test sparse(ExtendedHubbardReal1D(ofs)) == sparse(ExtendedHubbardReal1D(bfs))
+        oham = HubbardReal1D(OccupationNumberFS(0, 2, 1))
+        bham = HubbardReal1D(BoseFS(0, 2, 1))
+        @test sparse(ParitySymmetry(oham; odd=true)) == sparse(ParitySymmetry(bham; odd=true))
     end
 end

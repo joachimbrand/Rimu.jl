@@ -58,6 +58,16 @@ abstract type SingleComponentFockAddress{N,M} <: AbstractFockAddress{N,M} end
 num_components(::Type{<:SingleComponentFockAddress}) = 1
 
 """
+    occupation_number_representation(fs::SingleComponentFockAddress)
+    onr(fs::SingleComponentFockAddress)
+
+Compute and return the occupation number representation of the Fock state `fs` as an
+`SVector{M}`, where `M` is the number of modes.
+"""
+onr
+const occupation_number_representation = onr
+
+"""
     find_mode(::SingleComponentFockAddress, i)
 
 Find the `i`-th mode in address. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and
@@ -100,7 +110,17 @@ BoseFSIndex(occnum=2, mode=3, offset=3)
 See also [`occupied_modes`](@ref), [`OccupiedModeMap`](@ref),
 [`SingleComponentFockAddress`](@ref).
 """
-find_occupied_mode
+function find_occupied_mode(b::SingleComponentFockAddress, index::Integer, n=1)
+    mode_iterator = occupied_modes(b)
+    T = eltype(mode_iterator)
+    for (occnum, mode, offset) in mode_iterator
+        index -= occnum ≥ n
+        if index == 0
+            return T(occnum, mode, offset)
+        end
+    end
+    return T(0, 0, 0)
+end
 
 """
     num_occupied_modes(::SingleComponentFockAddress)

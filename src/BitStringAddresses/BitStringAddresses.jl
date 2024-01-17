@@ -19,7 +19,8 @@ export BoseFSIndex, FermiFSIndex
 export BitString, SortedParticleList
 export num_particles, num_modes, num_components
 export find_occupied_mode, find_mode, occupied_modes, is_occupied, num_occupied_modes
-export excitation, onr, near_uniform, OccupiedModeMap, OccupiedPairsMap
+export excitation, near_uniform, OccupiedModeMap, OccupiedPairsMap
+export onr, occupation_number_representation
 export hopnextneighbour, bose_hubbard_interaction
 export @fs_str
 

@@ -167,12 +167,6 @@ function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
 end
 near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
 
-"""
-    onr(fs::SingleComponentFockAddress)
-
-Compute and return the occupation number representation of the Fock state `fs` as an
-`SVector{M}`, where `M` is the number of modes.
-"""
 onr(b::BoseFS{<:Any,M}) where {M} = to_bose_onr(b.bs, Val(M))
 
 function Base.reverse(b::BoseFS)
@@ -252,15 +246,7 @@ function find_mode(b::BoseFS, indices::NTuple{N}) where {N}
     return result # not reached
 end
 
-function find_occupied_mode(b::BoseFS, index::Integer, n=1)
-    for (occnum, mode, offset) in occupied_modes(b)
-        index -= occnum ≥ n
-        if index == 0
-            return BoseFSIndex(occnum, mode, offset)
-        end
-    end
-    return BoseFSIndex(0, 0, 0)
-end
+# find_occupied_mode provided by generic implementation
 
 function excitation(b::B, creations, destructions) where {B<:BoseFS}
     new_bs, val = bose_excitation(b.bs, creations, destructions)
@@ -341,7 +327,7 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
     end
     return BoseFS{N,M,A}(new_address), √prod
 end
-function hopnextneighbour(b::BoseFS, i)
+function hopnextneighbour(b::SingleComponentFockAddress, i)
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
 
@@ -367,11 +353,11 @@ julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((3,0,1,0)))
 function bose_hubbard_interaction(b::BoseFS{<:Any,<:Any,A}) where {A<:BitString}
     return bose_hubbard_interaction(Val(num_chunks(A)), b)
 end
-function bose_hubbard_interaction(b::BoseFS)
+function bose_hubbard_interaction(b::SingleComponentFockAddress)
     return bose_hubbard_interaction(nothing, b)
 end
 
-@inline function bose_hubbard_interaction(_, b::BoseFS)
+@inline function bose_hubbard_interaction(_, b::SingleComponentFockAddress)
     result = 0
     for (n, _, _) in occupied_modes(b)
         result += n * (n - 1)
@@ -379,7 +365,7 @@ end
     return result
 end
 
-@inline function bose_hubbard_interaction(::Val{1}, b::BoseFS)
+@inline function bose_hubbard_interaction(::Val{1}, b::BoseFS{<:Any,<:Any,<:BitString})
     # currently this ammounts to counting occupation numbers of modes
     chunk = chunks(b.bs)[1]
     matrixelementint = 0

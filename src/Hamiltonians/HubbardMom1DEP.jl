@@ -73,7 +73,7 @@ struct HubbardMom1DEP{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{T
 end
 
 function HubbardMom1DEP(
-    add::Union{BoseFS,FermiFS2C};
+    add::Union{SingleComponentFockAddress,FermiFS2C};
     u=1.0, t=1.0, dispersion = hubbard_dispersion, v_ho=1.0,
 )
     M = num_modes(add)
@@ -120,7 +120,7 @@ Base.getproperty(h::HubbardMom1DEP{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where 
 ks(h::HubbardMom1DEP) = getfield(h, :ks)
 
 @inline function momentum_transfer_diagonal(
-    h::HubbardMom1DEP{<:Any,M,<:BoseFS}, map
+    h::HubbardMom1DEP{<:Any,M,<:SingleComponentFockAddress}, map
 ) where {M}
     return h.u / 2M * momentum_transfer_diagonal(map)
 end
@@ -130,7 +130,7 @@ end
     return h.u / 2M * momentum_transfer_diagonal(map_a, map_b)
 end
 
-@inline function diagonal_element(h::HubbardMom1DEP, add::BoseFS)
+@inline function diagonal_element(h::HubbardMom1DEP, add::SingleComponentFockAddress)
     map = OccupiedModeMap(add)
     return dot(h.kes, map) + momentum_transfer_diagonal(h, map) +
         momentum_external_potential_diagonal(h.ep, add, map)
@@ -149,7 +149,7 @@ end
 ### offdiagonals
 ###
 struct OffdiagonalsBoseMom1DEP{
-    A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
+    A<:SingleComponentFockAddress,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
 } <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
@@ -158,7 +158,7 @@ struct OffdiagonalsBoseMom1DEP{
     map::O
 end
 
-function offdiagonals(h::HubbardMom1DEP, a::BoseFS)
+function offdiagonals(h::HubbardMom1DEP, a::SingleComponentFockAddress)
     M = num_modes(a)
     map = OccupiedModeMap(a)
     singlies = length(map)

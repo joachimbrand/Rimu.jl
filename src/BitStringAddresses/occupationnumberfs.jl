@@ -63,7 +63,14 @@ function print_address(io::IO, ofs::OccupationNumberFS{M,T}; compact=false) wher
     end
 end
 
+Base.reverse(ofs::OccupationNumberFS) = OccupationNumberFS(reverse(ofs.onr))
+
 onr(ofs::OccupationNumberFS) = ofs.onr
+Base.isless(a::OccupationNumberFS, b::OccupationNumberFS) = isless(b.onr, a.onr)
+# reversing the order here to make it consistent with BoseFS
+Base.:(==)(a::OccupationNumberFS, b::OccupationNumberFS) = a.onr == b.onr
+Base.hash(ofs::OccupationNumberFS, h::UInt) = hash(ofs.onr, h)
+
 num_particles(ofs::OccupationNumberFS) = Int(sum(onr(ofs)))
 # `num_modes` does not have to be defined here, because it is defined for the abstract type
 
@@ -190,3 +197,6 @@ function Base.iterate(bom::BoseOccupiedModes{<:Any,<:Any,<:OccupationNumberFS}, 
         i += 1
     end
 end
+
+# find_occupied_modes provided by generic implementation
+# OccupiedModeMap provided by generic implementation

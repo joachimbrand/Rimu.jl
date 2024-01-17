@@ -44,7 +44,7 @@ struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
 end
 
 function HubbardMom1D(
-    add::Union{BoseFS,FermiFS2C};
+    add::Union{SingleComponentFockAddress,FermiFS2C};
     u=1.0, t=1.0, dispersion = hubbard_dispersion,
 )
     M = num_modes(add)
@@ -95,7 +95,7 @@ julia> Hamiltonians.num_singly_doubly_occupied_sites(BoseFS{3,3}((2, 0, 1)))
 (2, 1)
 ```
 """
-function num_singly_doubly_occupied_sites(b::BoseFS)
+function num_singly_doubly_occupied_sites(b::SingleComponentFockAddress)
     singlies = 0
     doublies = 0
     for (n, _, _) in occupied_modes(b)
@@ -118,17 +118,17 @@ function num_singly_doubly_occupied_sites(onrep::AbstractArray)
 end
 
 # standard interface function
-function num_offdiagonals(ham::HubbardMom1D, add::BoseFS)
+function num_offdiagonals(ham::HubbardMom1D, add::SingleComponentFockAddress)
     singlies, doublies = num_singly_doubly_occupied_sites(add)
     return num_offdiagonals(ham, add, singlies, doublies)
 end
 
 # 4-argument version
-@inline function num_offdiagonals(ham::HubbardMom1D, add::BoseFS, singlies, doublies)
+@inline function num_offdiagonals(ham::HubbardMom1D, ::SingleComponentFockAddress, singlies, doublies)
     M = num_modes(ham)
     return singlies * (singlies - 1) * (M - 2) + doublies * (M - 1)
 end
-@inline function num_offdiagonals(ham::HubbardMom1D, add::FermiFS2C{N1,N2}) where {N1,N2}
+@inline function num_offdiagonals(ham::HubbardMom1D, ::FermiFS2C{N1,N2}) where {N1,N2}
     M = num_modes(ham)
     return N1 * N2 * (M - 1)
 end
@@ -151,7 +151,7 @@ julia> Hamiltonians.momentum_transfer_diagonal(H, OccupiedModeMap(a))
 ```
 """
 @inline function momentum_transfer_diagonal(
-    h::HubbardMom1D{<:Any,M,<:BoseFS}, map
+    h::HubbardMom1D{<:Any,M,<:SingleComponentFockAddress}, map
 ) where {M}
     return h.u / 2M * momentum_transfer_diagonal(map)
 end
@@ -161,7 +161,7 @@ end
     return h.u / 2M * momentum_transfer_diagonal(map_a, map_b)
 end
 
-@inline function diagonal_element(h::HubbardMom1D, add::BoseFS)
+@inline function diagonal_element(h::HubbardMom1D, add::SingleComponentFockAddress)
     map = OccupiedModeMap(add)
     return dot(h.kes, map) + momentum_transfer_diagonal(h, map)
 end
@@ -174,7 +174,7 @@ end
 
 @inline function get_offdiagonal(
     ham::HubbardMom1D{<:Any,M,A}, add::A, chosen, map=OccupiedModeMap(add)
-) where {M,A<:BoseFS}
+) where {M,A<:SingleComponentFockAddress}
     add, onproduct = momentum_transfer_excitation(add, chosen, map)
     return add, ham.u/(2*M)*onproduct
 end
@@ -199,7 +199,7 @@ Specialized [`AbstractOffdiagonals`](@ref) that keeps track of singly and doubly
 sites in current address.
 """
 struct OffdiagonalsBoseMom1D{
-    A<:BoseFS,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
+    A<:SingleComponentFockAddress,T,H<:AbstractHamiltonian{T},O<:OccupiedModeMap
 } <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
@@ -207,7 +207,7 @@ struct OffdiagonalsBoseMom1D{
     map::O
 end
 
-function offdiagonals(h::HubbardMom1D, a::BoseFS)
+function offdiagonals(h::HubbardMom1D, a::SingleComponentFockAddress)
     map = OccupiedModeMap(a)
     singlies = length(map)
     doublies = count(i -> i.occnum ≥ 2, map)

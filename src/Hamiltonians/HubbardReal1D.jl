@@ -43,15 +43,15 @@ Base.getproperty(h::HubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::HubbardReal1D{<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
 Base.getproperty(h::HubbardReal1D, ::Val{:add}) = getfield(h, :add)
 
-function num_offdiagonals(::HubbardReal1D, address::BoseFS)
+function num_offdiagonals(::HubbardReal1D, address::SingleComponentFockAddress)
     return 2 * num_occupied_modes(address)
 end
 
-function diagonal_element(h::HubbardReal1D, address::BoseFS)
+function diagonal_element(h::HubbardReal1D, address::SingleComponentFockAddress)
     h.u * bose_hubbard_interaction(address) / 2
 end
 
-function get_offdiagonal(h::HubbardReal1D, add::BoseFS, chosen)
+function get_offdiagonal(h::HubbardReal1D, add::SingleComponentFockAddress, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
     return naddress, - h.t * onproduct
 end

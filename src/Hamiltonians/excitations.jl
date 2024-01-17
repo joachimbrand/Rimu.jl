@@ -24,7 +24,7 @@ Return the new address(es), the value, modes `p` and `q`, and the momentum chang
 See [`excitation`](@ref), [`OccupiedModeMap`](@ref).
 """
 @inline function momentum_transfer_excitation(
-    add::BoseFS, chosen, map::OccupiedModeMap; fold=true
+    add::SingleComponentFockAddress, chosen, map::OccupiedModeMap; fold=true
 )
     M = num_modes(add)
     singlies = length(map) # number of at least singly occupied modes
