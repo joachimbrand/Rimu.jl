@@ -470,36 +470,36 @@ end
     end
 end
 
-@testset "Test OccupationNumberFS functions" begin
-    @testset "Test OccupationNumberFS with SVector input" begin
+@testset "OccupationNumberFS functions" begin
+    @testset "OccupationNumberFS with SVector input" begin
         @test OccupationNumberFS(SVector{3, UInt8}(1, 2, 3)) isa OccupationNumberFS{3, UInt8}
         @test_throws ArgumentError OccupationNumberFS(SVector(-1, 2, 3))
         @test_throws ArgumentError OccupationNumberFS(SVector(1, 2, 300))
         @test OccupationNumberFS(SVector{3,UInt16}(1, 2, 300)) isa OccupationNumberFS{3,UInt16}
     end
 
-    @testset "Test OccupationNumberFS with multiple arguments" begin
+    @testset "OccupationNumberFS with multiple arguments" begin
         @test isa(OccupationNumberFS(1, 2, 3), OccupationNumberFS{3, UInt8})
         @test_throws ArgumentError OccupationNumberFS(1.1, 2, 3)
         @test_throws ArgumentError OccupationNumberFS(-1, 2, 3)
         @test_throws ArgumentError OccupationNumberFS(1, 2, 300)
     end
 
-    @testset "Test OccupationNumberFS with M and multiple arguments" begin
+    @testset "OccupationNumberFS with M and multiple arguments" begin
         @test OccupationNumberFS{3}([1, 2, 3]) == OccupationNumberFS{3,UInt8}(1, 2, 3)
         @test_throws ArgumentError OccupationNumberFS{3}(1.1, 2, 3)
         @test_throws ArgumentError OccupationNumberFS{3}(-1, 2, 3)
         @test_throws ArgumentError OccupationNumberFS{3}(1, 2, 300)
     end
 
-    @testset "Test OccupationNumberFS with BoseFS input" begin
+    @testset "OccupationNumberFS with BoseFS input" begin
         fs = BoseFS(1, 2)
         @test isa(OccupationNumberFS(fs), OccupationNumberFS{2, UInt8})
         fs = BoseFS(1, 333)
         @test isa(OccupationNumberFS(fs), OccupationNumberFS{2,UInt16})
     end
 
-    @testset "Test printing and parsing OccupationNumberFS" begin
+    @testset "Printing and parsing OccupationNumberFS" begin
         fs = OccupationNumberFS(1, 2, 3, 0, 1, 20, 3, 2, 5, 0, 1)
         @test eval(Meta.parse(repr(fs))) == fs
         @test parse_address(sprint(show, fs; context=:compact => true)) == fs
@@ -515,19 +515,19 @@ end
     end
 
     ofs = OccupationNumberFS{3,UInt8}(1, 2, 3)
-    @testset "Test destroy function" begin
+    @testset "Destroy function" begin
         ofs_after_destroy, val_before_destroy = destroy(ofs, 2)
         @test ofs_after_destroy.onr == SVector{3,UInt8}(1, 1, 3)
         @test val_before_destroy == 2
     end
 
-    @testset "Test create function" begin
+    @testset "Create function" begin
         ofs_after_create, val_after_create = create(ofs, 2)
         @test ofs_after_create.onr == SVector{3,UInt8}(1, 3, 3)
         @test val_after_create == 3
     end
 
-    @testset "Test excitation function" begin
+    @testset "Excitation function" begin
         c = (1,)
         d = (2,)
         fs_after_excitation, sqrt_accu = excitation(ofs, c, d)
@@ -540,7 +540,7 @@ end
         @test excitation(ofs, (i,), (j,)) == (fs_after_excitation, sqrt_accu)
     end
 
-    @testset "Test properties of OccupationNumberFS" begin
+    @testset "Properties of OccupationNumberFS" begin
         @test num_modes(ofs) == 3
         @test num_particles(ofs) == 6
         @test num_occupied_modes(ofs) == 3
