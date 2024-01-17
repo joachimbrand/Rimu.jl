@@ -334,9 +334,9 @@ function diagonal_element(::StringCorrelator{0}, add::SingleComponentFockAddress
     n̄ = N/M
     v = onr(add)
 
-    result = 0  
+    result = 0.0
     for i in eachindex(v)
-        result += (v[i]- n̄)^2
+        result += (v[i] - n̄)^2
     end
 
     return result / M
@@ -348,30 +348,41 @@ function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress
     M = num_modes(add)
     N = num_particles(add)
     d = mod(D, M)
-    v = onr(add)
 
     if iszero(N % M)
-        n̄ = N ÷ M
-        
-        result = 0.  
-        for i in eachindex(v)
-            phase_sum = sum( (v[mod1(k,M)] - n̄) for k in i:1:(i+d-1) )
-
-            result += (v[i]- n̄) * (-1)^(phase_sum) * (v[mod1(i + d, M)]-n̄)
-        end
-    
-        return result / M
-
+        _string_diagonal_real(d, add)
     else
-        n̄ = N/M
-
-        result = ComplexF64(0)  
-        for i in eachindex(v)
-            phase_sum = sum( (v[mod1(k,M)] - n̄) for k in i:1:(i+d-1) )
-    
-            result += (v[i]- n̄) * exp(pi * im * phase_sum) * (v[mod1(i + d, M)]-n̄)
-        end
-    
-        return result / M
+        _string_diagonal_complex(d, add)
     end
+end
+
+function _string_diagonal_complex(d, add)
+    M = num_modes(add)
+    N = num_particles(add)
+    n̄ = N/M
+    v = onr(add)
+
+    result = ComplexF64(0)
+    for i in eachindex(v)
+        phase_sum = sum((v[mod1(k, M)] - n̄) for k in i:1:(i+d-1))
+
+        result += (v[i] - n̄) * exp(pi * im * phase_sum) * (v[mod1(i + d, M)] - n̄)
+    end
+
+    return result / M
+end
+function _string_diagonal_real(d, add)
+    M = num_modes(add)
+    N = num_particles(add)
+    n̄ = N ÷ M
+    v = onr(add)
+
+    result = 0.0
+    for i in eachindex(v)
+        phase_sum = sum((v[mod1(k, M)] - n̄) for k in i:1:(i+d-1))
+
+        result += (v[i] - n̄) * (-1)^phase_sum * (v[mod1(i + d, M)] - n̄)
+    end
+
+    return result / M
 end
