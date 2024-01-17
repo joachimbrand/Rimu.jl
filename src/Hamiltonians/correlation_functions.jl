@@ -296,12 +296,12 @@ end
 """
     StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
-Two-body operator for string correlation between sites separated by `d` with `0 ≤ d < m`
+Two-body operator for string correlation between sites separated by `d` with `0 ≤ d < M`
 
 ```math
     \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{i}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
 ```
-where ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling number. 
+Here ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` and ``M`` being the number of particles and number of lattice sites respectively. ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling number.
 
 Assumes a one-dimensional lattice with periodic boundary conditions. 
 
