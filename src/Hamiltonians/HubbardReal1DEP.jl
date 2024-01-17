@@ -49,7 +49,7 @@ struct HubbardReal1DEP{TT,A<:AbstractFockAddress,U,T,M} <: AbstractHamiltonian{T
     ep::SVector{M,TT}
 end
 
-function HubbardReal1DEP(addr::BoseFS{<:Any,M}; u=1.0, t=1.0, v_ho=1.0) where M
+function HubbardReal1DEP(addr::SingleComponentFockAddress{<:Any,M}; u=1.0, t=1.0, v_ho=1.0) where M
     U, T, V = promote(float(u), float(t), float(v_ho))
     # js = range(1-cld(M,2); length=M)
     is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
@@ -72,18 +72,18 @@ Base.getproperty(h::HubbardReal1DEP, ::Val{:ep}) = getfield(h, :ep)
 
 starting_address(h::HubbardReal1DEP) = h.add
 
-function num_offdiagonals(::HubbardReal1DEP, address::BoseFS)
+function num_offdiagonals(::HubbardReal1DEP, address::SingleComponentFockAddress)
     return 2 * num_occupied_modes(address)
 end
 
-function diagonal_element(h::HubbardReal1DEP, address::BoseFS)
+function diagonal_element(h::HubbardReal1DEP, address::SingleComponentFockAddress)
     sum(occupied_modes(address)) do index
         occnum, mode = index
         h.u * occnum * (occnum - 1) / 2 + h.ep[mode] * occnum
     end
 end
 
-function get_offdiagonal(h::HubbardReal1DEP, add::BoseFS, chosen)
+function get_offdiagonal(h::HubbardReal1DEP, add::SingleComponentFockAddress, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
     return naddress, - h.t * onproduct
 end

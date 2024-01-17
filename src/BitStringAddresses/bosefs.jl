@@ -7,9 +7,13 @@ automatically based on the properties of the address.
 
 # Constructors
 
-* `BoseFS{[N,M]}(onr)`: Create `BoseFS{N,M}` from [`onr`](@ref) representation. This is
-  efficient if `N` and `M` are provided, and `onr` is a statically-sized collection, such as
-  a `Tuple` or `SVector`.
+* `BoseFS{[N,M]}(val::Integer...)`: Create `BoseFS{N,M}` from occupation numbers. This is
+  type-stable if the number of modes `M` and the number of particles `N` are provided.
+  Otherwise, `M` and `N` are inferred from the arguments.
+
+* `BoseFS{[N,M]}(onr)`: Create `BoseFS{N,M}` from occupation number representation, see
+  [`onr`](@ref). This is efficient if `N` and `M` are provided, and `onr` is a
+  statically-sized collection, such as a `Tuple` or `SVector`.
 
 * `BoseFS{[N,M]}([M, ]pairs...)`: Provide the number of modes `M` and `mode =>
   occupation_number` pairs. If `M` is provided as a type parameter, it should not be
@@ -19,33 +23,33 @@ automatically based on the properties of the address.
 * `BoseFS{N,M,S}(bs::S)`: Unsafe constructor. Does not check whether the number of
   particles in `bs` is equal to `N`.
 
-* [`@fs_str`](@ref): addresses are sometimes printed in a compact manner. This
+* [`@fs_str`](@ref): Addresses are sometimes printed in a compact manner. This
   representation can also be used as a constructor. See the last example below.
 
 # Examples
 
 ```jldoctest
-julia> BoseFS{6,5}((0, 1, 2, 3, 0))
-BoseFS{6,5}((0, 1, 2, 3, 0))
+julia> BoseFS{6,5}(0, 1, 2, 3, 0)
+BoseFS{6,5}(0, 1, 2, 3, 0)
 
 julia> BoseFS([abs(i - 3) ≤ 1 ? i - 1 : 0 for i in 1:5])
-BoseFS{6,5}((0, 1, 2, 3, 0))
+BoseFS{6,5}(0, 1, 2, 3, 0)
 
 julia> BoseFS(5, 2 => 1, 3 => 2, 4 => 3)
-BoseFS{6,5}((0, 1, 2, 3, 0))
+BoseFS{6,5}(0, 1, 2, 3, 0)
 
 julia> BoseFS{6,5}(i => i - 1 for i in 2:4)
-BoseFS{6,5}((0, 1, 2, 3, 0))
+BoseFS{6,5}(0, 1, 2, 3, 0)
 
 julia> fs"|0 1 2 3 0⟩"
-BoseFS{6,5}((0, 1, 2, 3, 0))
+BoseFS{6,5}(0, 1, 2, 3, 0)
 
 julia> fs"|b 5: 2 3 3 4 4 4⟩"
-BoseFS{6,5}((0, 1, 2, 3, 0))
+BoseFS{6,5}(0, 1, 2, 3, 0)
 ```
 
-See also: [`SingleComponentFockAddress`](@ref), [`FermiFS`](@ref), [`CompositeFS`](@ref),
-[`FermiFS2C`](@ref).
+See also: [`SingleComponentFockAddress`](@ref), [`OccupationNumberFS`](@ref),
+[`FermiFS`](@ref), [`CompositeFS`](@ref), [`FermiFS2C`](@ref).
 """
 struct BoseFS{N,M,S} <: SingleComponentFockAddress{N,M}
     bs::S
@@ -98,6 +102,9 @@ function BoseFS(onr::Union{AbstractArray,Tuple})
     N = sum(onr)
     return BoseFS{N,M}(onr)
 end
+BoseFS(vals::Integer...) = BoseFS(vals) # specify occupation numbers
+BoseFS(val::Integer) = BoseFS((val,)) # single mode address
+BoseFS{N,M}(vals::Integer...) where {N,M} = BoseFS{N,M}(vals)
 
 BoseFS(M::Integer, pairs::Pair...) = BoseFS(M, pairs)
 BoseFS(M::Integer, pairs) = BoseFS(sparse_to_onr(M, pairs))
@@ -112,7 +119,7 @@ function print_address(io::IO, b::BoseFS{N,M}; compact=false) where {N,M}
     elseif b.bs isa SortedParticleList
         print(io, "BoseFS{$N,$M}(", onr_sparse_string(onr(b)), ")")
     else
-        print(io, "BoseFS{$N,$M}(", tuple(onr(b)...), ")")
+        print(io, "BoseFS{$N,$M}", tuple(onr(b)...))
     end
 end
 
@@ -149,10 +156,10 @@ a total of `N` particles.
 # Examples
 ```jldoctest
 julia> near_uniform(BoseFS{7,5})
-BoseFS{7,5}((2, 2, 1, 1, 1))
+BoseFS{7,5}(2, 2, 1, 1, 1)
 
 julia> near_uniform(FermiFS{3,5})
-FermiFS{3,5}((1, 1, 1, 0, 0))
+FermiFS{3,5}(1, 1, 1, 0, 0)
 ```
 """
 function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
@@ -160,13 +167,8 @@ function near_uniform(::Type{<:BoseFS{N,M}}) where {N,M}
 end
 near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
 
-"""
-    onr(bs)
-
-Compute and return the occupation number representation of the bit string
-address `bs` as an `SVector{M,Int32}`, where `M` is the number of modes.
-"""
 onr(b::BoseFS{<:Any,M}) where {M} = to_bose_onr(b.bs, Val(M))
+const occupation_number_representation = onr # resides here because `onr` has to be defined
 
 function Base.reverse(b::BoseFS)
     return typeof(b)(reverse(b.bs))
@@ -245,15 +247,7 @@ function find_mode(b::BoseFS, indices::NTuple{N}) where {N}
     return result # not reached
 end
 
-function find_occupied_mode(b::BoseFS, index::Integer, n=1)
-    for (occnum, mode, offset) in occupied_modes(b)
-        index -= occnum ≥ n
-        if index == 0
-            return BoseFSIndex(occnum, mode, offset)
-        end
-    end
-    return BoseFSIndex(0, 0, 0)
-end
+# find_occupied_mode provided by generic implementation
 
 function excitation(b::B, creations, destructions) where {B<:BoseFS}
     new_bs, val = bose_excitation(b.bs, creations, destructions)
@@ -278,10 +272,11 @@ The off-diagonals are indexed as follows:
 ```jldoctest
 julia> using Rimu.Hamiltonians: hopnextneighbour
 
-julia> hopnextneighbour(BoseFS((1, 0, 1)), 3)
-(BoseFS{2,3}((2, 0, 0)), 1.4142135623730951)
-julia> hopnextneighbour(BoseFS((1, 0, 1)), 4)
-(BoseFS{2,3}((1, 1, 0)), 1.0)
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3)
+(BoseFS{2,3}(2, 0, 0), 1.4142135623730951)
+
+julia> hopnextneighbour(BoseFS(1, 0, 1), 4)
+(BoseFS{2,3}(1, 1, 0), 1.0)
 ```
 """
 function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
@@ -333,7 +328,7 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
     end
     return BoseFS{N,M,A}(new_address), √prod
 end
-function hopnextneighbour(b::BoseFS, i)
+function hopnextneighbour(b::SingleComponentFockAddress, i)
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
 
@@ -359,11 +354,11 @@ julia> Hamiltonians.bose_hubbard_interaction(BoseFS{4,4}((3,0,1,0)))
 function bose_hubbard_interaction(b::BoseFS{<:Any,<:Any,A}) where {A<:BitString}
     return bose_hubbard_interaction(Val(num_chunks(A)), b)
 end
-function bose_hubbard_interaction(b::BoseFS)
+function bose_hubbard_interaction(b::SingleComponentFockAddress)
     return bose_hubbard_interaction(nothing, b)
 end
 
-@inline function bose_hubbard_interaction(_, b::BoseFS)
+@inline function bose_hubbard_interaction(_, b::SingleComponentFockAddress)
     result = 0
     for (n, _, _) in occupied_modes(b)
         result += n * (n - 1)
@@ -371,7 +366,7 @@ end
     return result
 end
 
-@inline function bose_hubbard_interaction(::Val{1}, b::BoseFS)
+@inline function bose_hubbard_interaction(::Val{1}, b::BoseFS{<:Any,<:Any,<:BitString})
     # currently this ammounts to counting occupation numbers of modes
     chunk = chunks(b.bs)[1]
     matrixelementint = 0

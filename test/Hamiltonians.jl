@@ -1502,7 +1502,7 @@ end
         @test fock_to_cart(addr, S) == [(0, 1), (0, 1), (3, 3)]
         @test fock_to_cart(addr, S; zero_index = false) == [(1, 2), (1, 2), (4, 4)]
 
-        null_addr = BoseFS(prod(S),)
+        null_addr = BoseFS(prod(S), 1=>0)
         @test isempty(fock_to_cart(null_addr, S))
     end
 end

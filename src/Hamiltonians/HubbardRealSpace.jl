@@ -15,7 +15,7 @@ and `σ`, `τ` are component indices.
 
 See also [`BoseFS`](@ref), [`FermiFS`](@ref), [`CompositeFS`](@ref).
 """
-local_interaction(b::BoseFS, u) = u * bose_hubbard_interaction(b) / 2
+local_interaction(b::SingleComponentFockAddress, u) = u * bose_hubbard_interaction(b) / 2
 local_interaction(f::FermiFS, _) = 0
 function local_interaction(a::SingleComponentFockAddress, b::SingleComponentFockAddress, u)
     u * dot(occupied_modes(a), occupied_modes(b))

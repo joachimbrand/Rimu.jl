@@ -19,7 +19,7 @@ and normalisation
     \\sum_{d=0}^{M-1} \\langle \\hat{G}^{(2)}(d) \\rangle = \\frac{N (N-1)}{M}.
 ```
 
-For multicomponent basis, calculates correlations between all particles equally, 
+For multicomponent basis, calculates correlations between all particles equally,
 equivalent to stacking all components into a single Fock state.
 
 # Arguments
@@ -108,15 +108,17 @@ The diagonal element, where `(p-q)=0`, is
 
 # Arguments
 - `d::Integer`: the distance between two particles.
-- `c`: possible instructions: `:cross`: default instruction, computing correlation between particles across two components;
+- `c`: possible instructions: `:cross`: default instruction, computing correlation between
+  particles across two components;
   `:first`: computing correlation between particles within the first component;
   `:second`: computing correlation between particles within the second component.
   These are the only defined instructions, using anything else will produce errors.
 
 # To use on a one-component system
 
-For a system with only one component, e.g. with `BoseFS`, the second argument `c` is irrelevant
-and can be any of the above instructions, one could simply skip this argument and let it be the default value.
+For a system with only one component, e.g. with `BoseFS`, the second argument `c` is
+irrelevant and can be any of the above instructions, one could simply skip this argument
+and let it be the default value.
 
 # See also
 
@@ -166,7 +168,7 @@ function num_offdiagonals(g::G2MomCorrelator{3}, add::BoseFS2C)
     # number of excitations that can be made
 end
 
-function num_offdiagonals(g::G2MomCorrelator, add::BoseFS)
+function num_offdiagonals(g::G2MomCorrelator, add::SingleComponentFockAddress)
     m = num_modes(add)
     singlies, doublies = num_singly_doubly_occupied_sites(add)
     return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
@@ -188,7 +190,8 @@ function diagonal_element(g::G2MomCorrelator{3}, add::BoseFS2C{NA,NB,M,AA,AB}) w
     return ComplexF64(gd/M)
 end
 
-function diagonal_element(g::G2MomCorrelator, add::BoseFS{N,M,A}) where {N,M,A}
+function diagonal_element(g::G2MomCorrelator, add::SingleComponentFockAddress)
+    M = num_modes(add)
     onrep = onr(add)
     gd = 0
     for p in 1:M
@@ -230,7 +233,7 @@ function get_offdiagonal(
     g::G2MomCorrelator,
     add::A,
     chosen,
-)::Tuple{A,ComplexF64} where {A<:BoseFS}
+)::Tuple{A,ComplexF64} where {A<:SingleComponentFockAddress}
     M = num_modes(add)
     new_add, gamma, Δp = momentum_transfer_excitation(add, chosen, OccupiedModeMap(add))
     gd = exp(-im*g.d*Δp*2π/M)*gamma

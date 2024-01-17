@@ -7,21 +7,21 @@ Represents the projection of angular momentum onto `z`-axis:
 ```math
 \\hat{L}_z = i \\hbar \\sum_{j=1}^N \\left( b_x b_y^\\dag - b_y b_x^\\dag \\right),
 ```
-where ``b_x^\\dag`` and ``b_x`` are raising and lowering (ladder) operators 
-for  a harmonic oscillator in the ``x`` dimension, and simlarly for ``y``. 
+where ``b_x^\\dag`` and ``b_x`` are raising and lowering (ladder) operators
+for  a harmonic oscillator in the ``x`` dimension, and simlarly for ``y``.
 
-This is implemented for an ``N`` particle Fock space with creation and annihilation 
+This is implemented for an ``N`` particle Fock space with creation and annihilation
 operators as
 ```math
-\\frac{1}{\\hbar} \\hat{L}_z = i \\sum_{n_x=1}^{M_x} \\sum_{n_y=1}^{M_y} 
+\\frac{1}{\\hbar} \\hat{L}_z = i \\sum_{n_x=1}^{M_x} \\sum_{n_y=1}^{M_y}
     \\left( a_{n_x-1,n_y+1}^\\dag - a_{n_x+1,n_y-1}^\\dag \\right) a_{n_x, n_y}.
 ```
 in units of ``\\hbar``.
 
 Argument `S` is a tuple defining the range of Cartesian modes in each dimension and
-their mapping to Fock space modes in a `SingleComponentFockAddress`. If `S` indicates 
-a 3D system the `z` dimension can be changed by setting `z_dim`; 
-`S` should be be isotropic in the remaining `x`-`y` plane, i.e. must have 
+their mapping to Fock space modes in a `SingleComponentFockAddress`. If `S` indicates
+a 3D system the `z` dimension can be changed by setting `z_dim`;
+`S` should be be isotropic in the remaining `x`-`y` plane, i.e. must have
 `S[x_dim] == S[y_dim]`.
 The starting address `addr` only needs to satisfy `num_modes(addr) == prod(S)`.
 
@@ -34,7 +34,7 @@ julia> S = (2,2)
 (2, 2)
 
 julia> Lz = AxialAngularMomentumHO(S)
-AxialAngularMomentumHO((2, 2); z_dim = 3, addr = BoseFS{0,4}((0, 0, 0, 0)))
+AxialAngularMomentumHO((2, 2); z_dim = 3, addr = BoseFS{0,4}(0, 0, 0, 0))
 
 julia> v = DVec(BoseFS(prod(S), 2 => 1) => 1.0)
 DVec{BoseFS{1, 4, BitString{4, 1, UInt8}},Float64} with 1 entry, style = IsDeterministic{Float64}()
@@ -54,7 +54,7 @@ struct AxialAngularMomentumHO{A,D} <: AbstractHamiltonian{ComplexF64}
     xyz::NTuple{3,Int64}
 end
 
-function AxialAngularMomentumHO(S; z_dim = 3, addr = BoseFS(prod(S)))
+function AxialAngularMomentumHO(S; z_dim = 3, addr = BoseFS(prod(S), 1=>0))
     D = length(S)
     D < 2 && throw(ArgumentError("number of dimensions should be at least 2"))
     if D == 3 && z_dim ≠ 3
@@ -97,13 +97,13 @@ function get_offdiagonal(L::AxialAngularMomentumHO{<:Any,D}, addr::SingleCompone
 
     # Cartesian basis indices
     n_i = Tuple(states[mode_i])
-    
+
     # only two indices change
     n_k = @. n_i[[x,y]] + (2b - 1) * (1, -1)
 
     # check bounds
     n_k[1] in 1:S[x] && n_k[2] in 1:S[y] || return addr, 0.0 #(0.0, 0.0, omm[mode].occnum)
-    
+
     # prefactor based on Cartesian indices - this should use 0-indexing
     p = (1 - 2b) * sqrt((n_i[x] - 1 + b) * (n_i[y] - b))
 
@@ -120,6 +120,6 @@ function get_offdiagonal(L::AxialAngularMomentumHO{<:Any,D}, addr::SingleCompone
     new = find_mode(addr, mode_k)
 
     new_add, val = excitation(addr, (new,), (omm[chosen_mode],))
-    
+
     return new_add, p * val * im
 end

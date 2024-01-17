@@ -23,8 +23,8 @@ parity, respectively, where `ᾱ == reverse(α)`.
 * `ParitySymmetry` works by modifying the [`offdiagonals`](@ref) iterator.
 
 ```jldoctest
-julia> ham = HubbardReal1D(BoseFS((0,2,1)))
-HubbardReal1D(BoseFS{3,3}((0, 2, 1)); u=1.0, t=1.0)
+julia> ham = HubbardReal1D(BoseFS(0,2,1))
+HubbardReal1D(BoseFS{3,3}(0, 2, 1); u=1.0, t=1.0)
 
 julia> size(Matrix(ham))
 (10, 10)

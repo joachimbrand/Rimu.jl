@@ -20,17 +20,17 @@ After construction, we can access the underlying Hamiltonian with `G.hamiltonian
 # Example
 
 ```jldoctest
-julia> H = HubbardMom1D(BoseFS((1,1,1)); u=6.0, t=1.0)
-HubbardMom1D(BoseFS{3,3}((1, 1, 1)); u=6.0, t=1.0)
+julia> H = HubbardMom1D(BoseFS(1,1,1); u=6.0, t=1.0)
+HubbardMom1D(BoseFS{3,3}(1, 1, 1); u=6.0, t=1.0)
 
 julia> G = GutzwillerSampling(H, g=0.3)
-GutzwillerSampling(HubbardMom1D(BoseFS{3,3}((1, 1, 1)); u=6.0, t=1.0); g=0.3)
+GutzwillerSampling(HubbardMom1D(BoseFS{3,3}(1, 1, 1); u=6.0, t=1.0); g=0.3)
 
-julia> get_offdiagonal(H, BoseFS((2, 1, 0)), 1)
-(BoseFS{3,3}((1, 0, 2)), 2.0)
+julia> get_offdiagonal(H, BoseFS(2, 1, 0), 1)
+(BoseFS{3,3}(1, 0, 2), 2.0)
 
-julia> get_offdiagonal(G, BoseFS((2, 1, 0)), 1)
-(BoseFS{3,3}((1, 0, 2)), 0.8131393194811987)
+julia> get_offdiagonal(G, BoseFS(2, 1, 0), 1)
+(BoseFS{3,3}(1, 0, 2), 0.8131393194811987)
 ```
 
 # Observables

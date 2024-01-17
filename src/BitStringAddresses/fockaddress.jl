@@ -58,6 +58,15 @@ abstract type SingleComponentFockAddress{N,M} <: AbstractFockAddress{N,M} end
 num_components(::Type{<:SingleComponentFockAddress}) = 1
 
 """
+    occupation_number_representation(fs::SingleComponentFockAddress)
+    onr(fs::SingleComponentFockAddress)
+
+Compute and return the occupation number representation of the Fock state `fs` as an
+`SVector{M}`, where `M` is the number of modes.
+"""
+onr
+
+"""
     find_mode(::SingleComponentFockAddress, i)
 
 Find the `i`-th mode in address. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and
@@ -65,10 +74,10 @@ Find the `i`-th mode in address. Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@r
 bounds.
 
 ```jldoctest
-julia> find_mode(BoseFS((1, 0, 2)), 2)
+julia> find_mode(BoseFS(1, 0, 2), 2)
 BoseFSIndex(occnum=0, mode=2, offset=2)
 
-julia> find_mode(FermiFS((1, 1, 1, 0)), (2,3))
+julia> find_mode(FermiFS(1, 1, 1, 0), (2,3))
 (FermiFSIndex(occnum=1, mode=2, offset=1), FermiFSIndex(occnum=1, mode=3, offset=2))
 ```
 
@@ -87,20 +96,30 @@ Returns [`BoseFSIndex`](@ref) for [`BoseFS`](@ref), and [`FermiFSIndex`](@ref) f
 # Example
 
 ```jldoctest
-julia> find_occupied_mode(FermiFS((1, 1, 1, 0)), 2)
+julia> find_occupied_mode(FermiFS(1, 1, 1, 0), 2)
 FermiFSIndex(occnum=1, mode=2, offset=1)
 
-julia> find_occupied_mode(BoseFS((1, 0, 2)), 1)
+julia> find_occupied_mode(BoseFS(1, 0, 2), 1)
 BoseFSIndex(occnum=1, mode=1, offset=0)
 
-julia> find_occupied_mode(BoseFS((1, 0, 2)), 1, 2)
+julia> find_occupied_mode(BoseFS(1, 0, 2), 1, 2)
 BoseFSIndex(occnum=2, mode=3, offset=3)
 ```
 
 See also [`occupied_modes`](@ref), [`OccupiedModeMap`](@ref),
 [`SingleComponentFockAddress`](@ref).
 """
-find_occupied_mode
+function find_occupied_mode(b::SingleComponentFockAddress, index::Integer, n=1)
+    mode_iterator = occupied_modes(b)
+    T = eltype(mode_iterator)
+    for (occnum, mode, offset) in mode_iterator
+        index -= occnum ≥ n
+        if index == 0
+            return T(occnum, mode, offset)
+        end
+    end
+    return T(0, 0, 0)
+end
 
 """
     num_occupied_modes(::SingleComponentFockAddress)
@@ -155,31 +174,32 @@ See also [`find_occupied_mode`](@ref),
 occupied_modes
 
 """
-    excitation(a::SingleComponentFockAddress, creations::NTuple{N}, destructions::NTuple{N})
+    excitation(addr::SingleComponentFockAddress, creations::NTuple, destructions::NTuple)
 
-Generate an excitation on address `a` by applying `creations` and `destructions`, which are
-tuples of the appropriate address indices (i.e. [`BoseFSIndex`](@ref) for bosons, or
+Generate an excitation on address `addr` by applying `creations` and `destructions`, which
+are tuples of the appropriate address indices (i.e. [`BoseFSIndex`](@ref) for bosons, or
 [`FermiFSIndex`](@ref) for fermions).
 
 ```math
-a^†_{c_1} a^†_{c_2} \\ldots a_{d_1} a_{d_2} \\ldots |\\mathrm{a}\\rangle \\to
-α|\\mathrm{nadd}\\rangle
+a^†_{c_1} a^†_{c_2} \\ldots a_{d_1} a_{d_2} \\ldots |\\mathrm{addr}\\rangle \\to
+α|\\mathrm{naddr}\\rangle
 ```
 
-Returns the new address `nadd` and the value `α`. If the excitation is illegal, returns an
-arbitrary address and the value `0.0`.
+Returns the new address `naddr` and the factor `α`. The value of `α` is given by the square
+root of the product of mode occupations before destruction and after creation. If the
+excitation is illegal, returns an arbitrary address and the value `0.0`.
 
 # Example
 
 ```jldoctest
-julia> f = FermiFS((1,1,0,0,1,1,1,1))
-FermiFS{6,8}((1, 1, 0, 0, 1, 1, 1, 1))
+julia> f = FermiFS(1,1,0,0,1,1,1,1)
+FermiFS{6,8}(1, 1, 0, 0, 1, 1, 1, 1)
 
 julia> i, j, k, l = find_mode(f, (3,4,2,5))
 (FermiFSIndex(occnum=0, mode=3, offset=2), FermiFSIndex(occnum=0, mode=4, offset=3), FermiFSIndex(occnum=1, mode=2, offset=1), FermiFSIndex(occnum=1, mode=5, offset=4))
 
 julia> excitation(f, (i,j), (k,l))
-(FermiFS{6,8}((1, 0, 1, 1, 0, 1, 1, 1)), -1.0)
+(FermiFS{6,8}(1, 0, 1, 1, 0, 1, 1, 1), -1.0)
 ```
 
 See [`SingleComponentFockAddress`](@ref).
@@ -187,22 +207,22 @@ See [`SingleComponentFockAddress`](@ref).
 excitation
 
 """
-    OccupiedModeMap(add) <: AbstractVector
+    OccupiedModeMap(addr) <: AbstractVector
 
 Get a map of occupied modes in address as an `AbstractVector` of indices compatible with
 [`excitation`](@ref) - [`BoseFSIndex`](@ref) or [`FermiFSIndex`](@ref).
 
-`OccupiedModeMap(add)[i]` contains the index for the `i`-th occupied mode.
+`OccupiedModeMap(addr)[i]` contains the index for the `i`-th occupied mode.
 This is useful because repeatedly looking for occupied modes with
 [`find_occupied_mode`](@ref) can be time-consuming.
-`OccupiedModeMap(add)` is an eager version of the iterator returned by
+`OccupiedModeMap(addr)` is an eager version of the iterator returned by
 [`occupied_modes`](@ref). It is similar to [`onr`](@ref) but contains more information.
 
 # Example
 
 ```jldoctest
-julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
-BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
+julia> b = BoseFS(10, 0, 0, 0, 2, 0, 1)
+BoseFS{13,7}(10, 0, 0, 0, 2, 0, 1)
 
 julia> mb = OccupiedModeMap(b)
 3-element OccupiedModeMap{7, BoseFSIndex}:
@@ -210,8 +230,8 @@ julia> mb = OccupiedModeMap(b)
  BoseFSIndex(occnum=2, mode=5, offset=14)
  BoseFSIndex(occnum=1, mode=7, offset=18)
 
-julia> f = FermiFS((1,1,1,1,0,0,1,0,0))
-FermiFS{5,9}((1, 1, 1, 1, 0, 0, 1, 0, 0))
+julia> f = FermiFS(1,1,1,1,0,0,1,0,0)
+FermiFS{5,9}(1, 1, 1, 1, 0, 0, 1, 0, 0)
 
 julia> mf = OccupiedModeMap(f)
 5-element OccupiedModeMap{5, FermiFSIndex}:
@@ -237,11 +257,12 @@ struct OccupiedModeMap{N,T} <: AbstractVector{T}
     length::Int
 end
 
-function OccupiedModeMap(add::SingleComponentFockAddress{N,M}) where {N,M}
-    modes = occupied_modes(add)
+function OccupiedModeMap(addr::SingleComponentFockAddress{N,M}) where {N,M}
+    modes = occupied_modes(addr)
     T = eltype(modes)
     # There are at most N occupied modes. This could be also @generated for cases where N ≫ M
-    indices = MVector{min(N,M),T}(undef)
+    L = ismissing(N) ? M : min(N, M)
+    indices = MVector{L,T}(undef)
     i = 0
     for index in modes
         i += 1
@@ -272,8 +293,8 @@ Dot product extracting mode occupation numbers from an [`OccupiedModeMap`](@ref)
 to [`onr`](@ref).
 
 ```jldoctest
-julia> b = BoseFS((10, 0, 0, 0, 2, 0, 1))
-BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
+julia> b = BoseFS(10, 0, 0, 0, 2, 0, 1)
+BoseFS{13,7}(10, 0, 0, 0, 2, 0, 1)
 
 julia> mb = OccupiedModeMap(b)
 3-element OccupiedModeMap{7, BoseFSIndex}:
@@ -359,6 +380,36 @@ function parse_address(str)
         particles = parse.(Int, filter(!isempty, split(m.captures[2], r" +")))
         return FermiFS(parse(Int, m.captures[1]), zip(particles, fill(1, length(particles))))
     end
+    # OccupationNumberFS
+    m = match(r"\|([ 0-9]+)⟩{[0-9]*}", str)
+    if !isnothing(m)
+        m2 = match(r"{([0-9]+)}", str)
+        if isnothing(m2) # empty braces defaults to UInt8
+            BITS = 8
+        else
+            BITS = parse(Int, m2.captures[1])
+        end
+        T = if BITS ≤ 8
+            UInt8
+        elseif BITS ≤ 16
+            UInt16
+        elseif BITS ≤ 32
+            UInt32
+        elseif BITS ≤ 64
+            UInt64
+        elseif BITS ≤ 128
+            UInt128
+        else
+            throw(ArgumentError("invalid Fock state format \"$str\""))
+        end
+        t = Tuple(parse.(T, split(m.captures[1], r" +")))
+        return OccupationNumberFS(SVector(t))
+    end
+    m = match(r"\|([ 0-9]+)⟩{", str) # anything else that has a curly brace
+    if !isnothing(m)
+        throw(ArgumentError("invalid Fock state format \"$str\""))
+    end
+
     # BoseFS
     m = match(r"\|([ 0-9]+)⟩", str)
     if !isnothing(m)
@@ -370,7 +421,7 @@ function parse_address(str)
         chars = filter(!=(' '), Vector{Char}(m.captures[1]))
         return FermiFS(chars .== '↑')
     end
-    throw(ArgumentError("invalid fock state format \"$str\""))
+    throw(ArgumentError("invalid Fock state format \"$str\""))
 end
 
 """
@@ -381,16 +432,36 @@ Useful for copying the printout from a vector to the REPL.
 
 # Example
 
-```
-julia> DVec(BoseFS{3,4}((0, 1, 2, 0)) => 1)
-DVec{BoseFS{3, 4, BitString{6, 1, UInt8}},Int64} with 1 enrty, style = IsStochasticInteger{Int64}()
+```jldoctest
+julia> DVec(BoseFS{3,4}(0, 1, 2, 0) => 1)
+DVec{BoseFS{3, 4, BitString{6, 1, UInt8}},Int64} with 1 entry, style = IsStochasticInteger{Int64}()
   fs"|0 1 2 0⟩" => 1
 
 julia> fs"|0 1 2 0⟩" => 1 # Copied from above printout
-BoseFS{3,4}((0, 1, 2, 0)) => 1
+BoseFS{3,4}(0, 1, 2, 0) => 1
+
+julia> fs"|1 2 3⟩⊗|0 1 0⟩" # composite bosonic Fock state
+CompositeFS(
+  BoseFS{6,3}(1, 2, 3),
+  BoseFS{1,3}(0, 1, 0),
+)
+
+julia> fs"|↑↓↑⟩" # construct a fermionic Fock state
+CompositeFS(
+  FermiFS{2,3}(1, 0, 1),
+  FermiFS{1,3}(0, 1, 0),
+)
+
+julia> s = fs"|0 1 2 0⟩{}" # constructing OccupationNumberFS with default UInt8 container
+OccupationNumberFS{4, UInt8}(0, 1, 2, 0)
+
+julia> [s] # prints out with the signifcant number of bits specified in braces
+1-element Vector{OccupationNumberFS{4, UInt8}}:
+ fs"|0 1 2 0⟩{8}"
 ```
 
-See also [`FermiFS`](@ref), [`BoseFS`](@ref), [`CompositeFS`](@ref), [`FermiFS2C`](@ref).
+See also [`FermiFS`](@ref), [`BoseFS`](@ref), [`CompositeFS`](@ref), [`FermiFS2C`](@ref),
+[`OccupationNumberFS`](@ref).
 """
 macro fs_str(str)
     return parse_address(str)
@@ -438,7 +509,7 @@ Struct used for indexing and performing [`excitation`](@ref)s on a [`BoseFS`](@r
  represented by `SortedParticleList`.
 
 """
-struct BoseFSIndex<:FieldVector{3,Int}
+Base.@kwdef struct BoseFSIndex<:FieldVector{3,Int}
     occnum::Int
     mode::Int
     offset::Int
@@ -553,7 +624,7 @@ Struct used for indexing and performing [`excitation`](@ref)s on a [`FermiFS`](@
   represented by a bitstring, and the position in the list when using `SortedParticleList`.
 
 """
-struct FermiFSIndex<:FieldVector{3,Int}
+Base.@kwdef struct FermiFSIndex<:FieldVector{3,Int}
     occnum::Int
     mode::Int
     offset::Int
@@ -658,18 +729,18 @@ end
 """
     OccupiedPairsMap(addr::SingleComponentFockAddress) <: AbstractVector
 
-Get a map of all distinct pairs of indices in `addr`. Pairs involving 
+Get a map of all distinct pairs of indices in `addr`. Pairs involving
 multiply-occupied modes are counted once, (including self-pairing).
-This is useful for cases where identifying pairs of particles for eg. 
+This is useful for cases where identifying pairs of particles for eg.
 interactions is not well-defined or efficient to do on the fly.
-This is an eager iterator whose elements are a tuple of particle indices that 
+This is an eager iterator whose elements are a tuple of particle indices that
 can be given to `excitation`
 
 # Example
 
 ```jldoctest
-julia> addr = BoseFS((10, 0, 0, 0, 2, 0, 1))
-BoseFS{13,7}((10, 0, 0, 0, 2, 0, 1))
+julia> addr = BoseFS(10, 0, 0, 0, 2, 0, 1)
+BoseFS{13,7}(10, 0, 0, 0, 2, 0, 1)
 
 julia> pairs = OccupiedPairsMap(addr)
 5-element OccupiedPairsMap{78, Tuple{BoseFSIndex, BoseFSIndex}}:
@@ -680,7 +751,7 @@ julia> pairs = OccupiedPairsMap(addr)
  (BoseFSIndex(occnum=1, mode=7, offset=18), BoseFSIndex(occnum=2, mode=5, offset=14))
 
 julia> excitation(addr, pairs[2], pairs[4])
-(BoseFS{13,7}((9, 0, 0, 0, 4, 0, 0)), 10.954451150103322)
+(BoseFS{13,7}(9, 0, 0, 0, 4, 0, 0), 10.954451150103322)
 ```
 
 See also [`OccupiedModeMap`](@ref).
@@ -708,7 +779,7 @@ function OccupiedPairsMap(addr::SingleComponentFockAddress{N}) where {N}
             @inbounds pairs[a] = (p_i, p_j)
         end
     end
-    
+
     return OccupiedPairsMap(SVector(pairs), a)
 end
 

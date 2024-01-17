@@ -41,7 +41,7 @@ Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,V}, ::Val{:v}) where V = V
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
 
-function num_offdiagonals(::ExtendedHubbardReal1D, address::BoseFS)
+function num_offdiagonals(::ExtendedHubbardReal1D, address::SingleComponentFockAddress)
     return 2 * num_occupied_modes(address)
 end
 
@@ -51,7 +51,7 @@ end
 Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
 sum_j n_j n_{j+1} with periodic boundary conditions.
 """
-function extended_bose_hubbard_interaction(b::BoseFS)
+function extended_bose_hubbard_interaction(b::SingleComponentFockAddress)
     omm = OccupiedModeMap(b)
 
     prev = zero(eltype(omm))
@@ -71,12 +71,12 @@ function extended_bose_hubbard_interaction(b::BoseFS)
     return ext_result, reg_result
 end
 
-function diagonal_element(h::ExtendedHubbardReal1D, b::BoseFS)
+function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddress)
     ebhinteraction, bhinteraction = extended_bose_hubbard_interaction(b)
     return h.u * bhinteraction / 2 + h.v * ebhinteraction
 end
 
-function get_offdiagonal(h::ExtendedHubbardReal1D, add::BoseFS, chosen)
+function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen)
     return naddress, - h.t * onproduct
 end
