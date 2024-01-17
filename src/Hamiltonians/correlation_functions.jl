@@ -334,7 +334,7 @@ function diagonal_element(::StringCorrelator{0}, add::SingleComponentFockAddress
     n̄ = N/M
     v = onr(add)
 
-    result = 0  
+    result = 0.0
     for i in eachindex(v)
         result += (v[i] - n̄)^2
     end
