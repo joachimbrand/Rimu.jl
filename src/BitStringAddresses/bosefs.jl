@@ -168,6 +168,7 @@ end
 near_uniform(b::AbstractFockAddress) = near_uniform(typeof(b))
 
 onr(b::BoseFS{<:Any,M}) where {M} = to_bose_onr(b.bs, Val(M))
+const occupation_number_representation = onr # resides here because `onr` has to be defined
 
 function Base.reverse(b::BoseFS)
     return typeof(b)(reverse(b.bs))

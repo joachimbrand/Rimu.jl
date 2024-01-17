@@ -65,7 +65,6 @@ Compute and return the occupation number representation of the Fock state `fs` a
 `SVector{M}`, where `M` is the number of modes.
 """
 onr
-const occupation_number_representation = onr
 
 """
     find_mode(::SingleComponentFockAddress, i)
