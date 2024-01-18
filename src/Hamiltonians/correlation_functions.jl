@@ -240,30 +240,22 @@ end
 """
     SuperfluidCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
-Two-body operator for superfluid correlation between sites separated by `d` with `0 ≤ d < m`
+Operator for extracting superfluid correlation between sites separated by a distance `d` with `0 ≤ d < M`:
 
 ```math
     \\hat{C}_{\\text{SF}}(d) = \\frac{1}{M} \\sum_{i}^{M} a_{i}^{\\dagger} a_{i + d}
 ```
-Assumes a one-dimensional lattice with periodic boundary conditions.
+Assumes a one-dimensional lattice with ``M`` sites and periodic boundary conditions. ``M`` is also the number of modes in the Fock state address.
 
-SuperfluidCorrelator must be wrapped in 'AllOverlaps'
-
-# Arguments
-- `d::Integer`: distance between sites.
-
-# Implementation
-Follow below for an example on how 'SuperfluidCorrelator' is used. Implementation is similar to that of 'G2RealCorrelator'
-- [G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html)
+# Usage
+Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping `SuperfluidCorrelator` with 
+[`AllOverlaps`](@ref) and passing into [`lomc!'](@ref) with the `replica` keyword argument. For an example with a
+similar use of [`G2RealCorrelator`](@ref) see 
+[G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html).
 
 
-# See also 
-
-* [`HubbardReal1D`](@ref)
-* [`G2RealCorrelator`](@ref)
-* [`AbstractHamiltonian`](@ref)
-* [`AllOverlaps`](@ref)
-
+See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`AbstractHamiltonian`](@ref),
+and [`AllOverlaps`](@ref).
 """
 struct SuperfluidCorrelator{D} <: AbstractHamiltonian{Float64}
 end
@@ -296,26 +288,21 @@ end
 """
     StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
-Two-body operator for string correlation between sites separated by `d` with `0 ≤ d < M`
+Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice 
+separated by a distance `d` with `0 ≤ d < M`
 
 ```math
     \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
 ```
-Here ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` and ``M`` being the number of particles and number of lattice sites respectively. ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling number.
+Here, ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling 
+number and ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` particles and 
+``M`` lattice sites (or modes). 
 
-Assumes a one-dimensional lattice with periodic boundary conditions. 
+Assumes a one-dimensional lattice with periodic boundary conditions. For usage
+see [`SuperfluidCorrelator`](@ref) and [`AllOverlaps`](@ref).
 
-# Arguments
-- `d::Integer`: distance between sites. 
-
-# See also 
-
-* [`HubbardReal1D`](@ref)
-* [`G2RealCorrelator`](@ref)
-* [`SuperfluidCorrelator`](@ref)
-* [`AbstractHamiltonian`](@ref)
-* [`AllOverlaps`](@ref)
-
+See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`SuperfluidCorrelator`](@ref),
+[`AbstractHamiltonian`](@ref), and [`AllOverlaps`](@ref).
 """
 struct StringCorrelator{D} <: AbstractHamiltonian{Float64}
 end
