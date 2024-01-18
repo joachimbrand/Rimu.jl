@@ -895,24 +895,24 @@ end
     @test num_offdiagonals(S0, localised_state) == 0
     
     # non unital localised state
-    @test diagonal_element(S0, non_unital_localised_state) ≈ 20/9
-    @test diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
+    @test @inferred diagonal_element(S0, non_unital_localised_state) ≈ 20/9
+    @test @inferred diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
 
     # non unital near uniform state
-    @test diagonal_element(S0, non_unital_uniform_state) ≈ 2/9
+    @test @inferred diagonal_element(S0, non_unital_uniform_state) ≈ 2/9
 
     # constant density localised state
-    @test diagonal_element(S0, localised_state) == 5.
-    @test diagonal_element(S1, localised_state) ≈ 1
-    @test diagonal_element(S2, localised_state) ≈ -1
+    @test @inferred diagonal_element(S0, localised_state) == 5.
+    @test @inferred diagonal_element(S1, localised_state) ≈ 1
+    @test @inferred diagonal_element(S2, localised_state) ≈ -1
 
     # constant density uniform state
-    @test diagonal_element(S0, uniform_state) == 0
-    @test diagonal_element(S2, uniform_state) == 0
+    @test @inferred diagonal_element(S0, uniform_state) == 0
+    @test @inferred diagonal_element(S2, uniform_state) == 0
 
     # Test return type for integer, and non-integer filling
-    @test diagonal_element(S0, localised_state) isa Float64
-    @test diagonal_element(S1, non_unital_localised_state) isa ComplexF64
+    @test @inferred diagonal_element(S0, localised_state) isa Float64
+    @test @inferred diagonal_element(S1, non_unital_localised_state) isa ComplexF64
 
     # Test show method
     d = 5
