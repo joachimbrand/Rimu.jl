@@ -853,8 +853,8 @@ end
     add2 = near_uniform(BoseFS{n2,m})
 
     # localised state
-    @test diagonal_element(SuperfluidCorrelator(0), add1) == n1/m
-    @test diagonal_element(SuperfluidCorrelator(1), add1) == 0.
+    @test @inferred diagonal_element(SuperfluidCorrelator(0), add1) == n1/m
+    @test @inferred diagonal_element(SuperfluidCorrelator(1), add1) == 0.
 
     # constant density state
     @test diagonal_element(SuperfluidCorrelator(0), add2) == n2/m
