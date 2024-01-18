@@ -336,7 +336,7 @@ function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress
     N = num_particles(add)
     d = mod(D, M)
 
-    if iszero(N % M)
+    if !ismissing(N) && iszero(N % M)
         return _string_diagonal_real(d, add)
     else
         return _string_diagonal_complex(d, add)
