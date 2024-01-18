@@ -892,6 +892,8 @@ end
     S1 = StringCorrelator(1)
     S2 = StringCorrelator(2)
 
+    @test num_offdiagonals(S0, localised_state) == 0
+    
     # non unital localised state
     @test diagonal_element(S0, non_unital_localised_state) ≈ 20/9
     @test diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
