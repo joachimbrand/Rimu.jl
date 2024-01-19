@@ -1,47 +1,201 @@
+# In this file:
+#
+# - FCIQMCProblem
+# - FCIQMCIterator
+# - QMCState
+# - ReplicaState
+# - advance!
+# - default_starting_vector
+# - init
+# - solve!
+#
+# Helper functions:
+# - _n_walkers
+# - _init
+# - report_default_metadata!
+# - FirstOrderTransitionOperator
+
 """
-    FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
-
-First order transition operator
-```math
-𝐓 = 1 + dτ(S - 𝐇)
-```
-where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`.
-
-``𝐓`` represents the first order expansion of the exponential evolution operator
-of the imaginary-time Schrödinger equation (Euler step) and repeated application
-will project out the ground state eigenvector of the `hamiltonian`.  It is the
-transition operator used in FCIQMC.
+    _n_walkers(v, s_strat)
+Returns an estimate of the expected number of walkers as an integer.
 """
-struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
-    hamiltonian::H
-    shift::S
-    dτ::Float64
-
-    function FirstOrderTransitionOperator(hamiltonian::H, shift::S, dτ) where {H,S}
-        T = eltype(hamiltonian)
-        return new{T,S,H}(hamiltonian, shift, Float64(dτ))
+function _n_walkers(v, s_strat)
+    n = if hasfield(typeof(s_strat), :targetwalkers)
+        s_strat.targetwalkers
+    else # e.g. for LogUpdate()
+        walkernumber(v)
     end
+    return ceil(Int, max(real(n), imag(n)))
 end
 
-function Hamiltonians.diagonal_element(t::FirstOrderTransitionOperator, add)
-    diag = diagonal_element(t.hamiltonian, add)
-    return 1 - t.dτ * (diag - t.shift)
-end
+# to be passed into init() and solve()
+"""
+    FCIQMCProblem(ham::AbstractHamiltonian, [v]; kwargs...)
 
-struct FirstOrderOffdiagonals{
-    A,V,O<:AbstractVector{Tuple{A,V}}
-} <: AbstractVector{Tuple{A,V}}
-    dτ::Float64
-    offdiagonals::O
-end
-function Hamiltonians.offdiagonals(t::FirstOrderTransitionOperator, add)
-    return FirstOrderOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
-end
-Base.size(o::FirstOrderOffdiagonals) = size(o.offdiagonals)
+Linear operator Monte Carlo: Set up a projector quantum Monte Carlo simulation for
+determining the lowest eigenvalue of `ham`. The details of the simulation are controlled by
+the optional keyword arguments and by the type of the optional starting vector `v`.
 
-function Base.getindex(o::FirstOrderOffdiagonals, i)
-    add, val = o.offdiagonals[i]
-    return add, -val * o.dτ
+Pass into [`init`](@ref) or [`solve`](@ref) to start the simulation.
+
+# Common keyword arguments and defaults:
+
+* `laststep = 100` - controls the number of steps.
+* `dτ = 0.01` - time step.
+* `targetwalkers = 1000` - target for the 1-norm of the coefficient vector.
+* `address = starting_address(ham)` - set starting address for default `v` and `shift`.
+* `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused
+  if `v` is specified.
+* `initiator = NonInitiator()` - set [`InitiatorRule`](@ref) for default `v`; unused if `v`
+  is specified.
+* `threading` - default is to use multithreading and
+  [MPI](https://juliaparallel.org/MPI.jl/latest/) if multiple threads are available. Set to
+  `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
+  unused if `v` is specified.
+* `shift = diagonal_element(ham, address)` - initial value of shift.
+* `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
+  [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
+* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
+  [`ReplicaStrategy`](@ref).
+* `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see
+  [`ReportingStrategy`](@ref)
+* `metadata` - user-supplied metadata to be added to the report `df`. Must be an iterable of
+  pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
+  All metadata is converted to strings.
+
+Some metadata is automatically added to the report `df` including
+[`Rimu.PACKAGE_VERSION`](@ref) and data from `state`.
+
+# Return values
+
+`lomc!` returns a named tuple with the following fields:
+
+* `df`: a `DataFrame` with all statistics being reported.
+* `state`: a `QMCState` that can be used for continuations.
+
+# Example
+
+```jldoctest
+julia> add = BoseFS(1,2,3);
+
+julia> hamiltonian = HubbardReal1D(add);
+
+julia> df1, state = lomc!(hamiltonian; targetwalkers=500, laststep=100);
+
+julia> df2, _ = lomc!(state, df1; laststep=200, metadata=(;info="cont")); # Continuation run
+
+julia> size(df1)
+(100, 11)
+
+julia> size(df2)
+(200, 11)
+
+julia> using DataFrames; metadata(df2, "info") # retrieve custom metadata
+"cont"
+
+julia> metadata(df2, "hamiltonian") # some metadata is automatically added
+"HubbardReal1D(BoseFS{6,3}(1, 2, 3); u=1.0, t=1.0)"
+```
+
+# Further keyword arguments and defaults:
+
+* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step or not, see
+  [`TimeStepStrategy`](@ref)
+* `s_strat::ShiftStrategy = DoubleLogUpdate(; targetwalkers, ζ = 0.08, ξ = ζ^2/4)` -
+  how to update the `shift`, see [`ShiftStrategy`](@ref).
+* `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
+  reached, `lomc!` will abort
+* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
+  diagonal_element(ham, address)` -
+  basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref). Parameter values
+  are overridden by explicit keyword arguments `laststep`, `dτ`, `shift`; is mutated.
+* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
+  be passed for merging with the report `df`.
+
+The default choice for the starting vector is
+`v = default_starting_vector(; address, style, threading, initiator)`.
+See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
+[`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
+"""
+struct FCIQMCProblem
+    hamiltonian::AbstractHamiltonian
+    starting_vector::Any
+    r_strat::ReportingStrategy
+    s_strat::ShiftStrategy
+    τ_strat::TimeStepStrategy
+    post_step::NTuple
+    replica::ReplicaStrategy
+    maxlength::Int
+    run_strat::FciqmcRunStrategy
+end
+function FCIQMCProblem(
+    hamiltonian, v;
+    laststep=nothing,
+    dτ=nothing,
+    shift=nothing,
+    style=nothing,
+    targetwalkers=1000,
+    address=starting_address(hamiltonian),
+    params::FciqmcRunStrategy=RunTillLastStep(
+        laststep=100,
+        shift=float(valtype(v))(diagonal_element(hamiltonian, address))
+    ),
+    s_strat::ShiftStrategy=DoubleLogUpdate(; targetwalkers),
+    r_strat::ReportingStrategy=ReportDFAndInfo(),
+    τ_strat::TimeStepStrategy=ConstantTimeStep(),
+    threading=nothing,
+    replica::ReplicaStrategy=NoStats(),
+    post_step=(),
+    maxlength=2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
+)
+    Hamiltonians.check_address_type(hamiltonian, keytype(v))
+    # Set up r_strat and params
+    r_strat = refine_r_strat(r_strat)
+    if !isnothing(laststep)
+        params.laststep = laststep
+    end
+    if !isnothing(dτ)
+        params.dτ = dτ
+    end
+    if !isnothing(shift)
+        params.shift = shift
+    end
+
+    if threading ≠ nothing
+        @warn "Starting vector is provided. Ignoring `threading=$threading`."
+    end
+    if style ≠ nothing
+        @warn "Starting vector is provided. Ignoring `style=$style`."
+    end
+
+    # Set up post_step
+    if !(post_step isa Tuple)
+        post_step = (post_step,)
+    end
+
+    return FCIQMCProblem(
+        hamiltonian,
+        v,
+        r_strat,
+        s_strat,
+        τ_strat,
+        post_step,
+        replica,
+        maxlength,
+        params,
+    )
+end
+# without passing a starting vector
+function FCIQMCProblem(
+    ham;
+    style=IsStochasticInteger(),
+    threading=nothing,
+    address=starting_address(ham),
+    initiator=NonInitiator(),
+    kwargs...
+)
+    v = default_starting_vector(address; style, threading, initiator)
+    return FCIQMCProblem(ham, v; address, kwargs...) # pass address for setting the default shift
 end
 
 
@@ -120,74 +274,14 @@ struct QMCState{
     replica::RRS
 end
 
-"""
-    _n_walkers(v, s_strat)
-Returns an estimate of the expected number of walkers as an integer.
-"""
-function _n_walkers(v, s_strat)
-    n = if hasfield(typeof(s_strat), :targetwalkers)
-        s_strat.targetwalkers
-    else # e.g. for LogUpdate()
-        walkernumber(v)
-    end
-    return ceil(Int, max(real(n), imag(n)))
-end
+function QMCState(problem::FCIQMCProblem)
+    @unpack hamiltonian, starting_vector, r_strat, s_strat, τ_strat, post_step, replica, maxlength, run_strat = problem
 
-function QMCState(
-    hamiltonian, v;
-    laststep=nothing,
-    dτ=nothing,
-    shift=nothing,
-    wm=nothing,
-    style=nothing,
-    targetwalkers=1000,
-    address=starting_address(hamiltonian),
-    params::FciqmcRunStrategy=RunTillLastStep(
-        laststep = 100,
-        shift = float(valtype(v))(diagonal_element(hamiltonian, address))
-    ),
-    s_strat::ShiftStrategy=DoubleLogUpdate(; targetwalkers),
-    r_strat::ReportingStrategy=ReportDFAndInfo(),
-    τ_strat::TimeStepStrategy=ConstantTimeStep(),
-    threading=nothing,
-    replica::ReplicaStrategy=NoStats(),
-    post_step=(),
-    maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
-)
-    Hamiltonians.check_address_type(hamiltonian, keytype(v))
-    # Set up r_strat and params
-    r_strat = refine_r_strat(r_strat)
-    if !isnothing(laststep)
-        params.laststep = laststep
-    end
-    if !isnothing(dτ)
-        params.dτ = dτ
-    end
-    if !isnothing(shift)
-        params.shift = shift
-    end
-
-    if threading ≠ nothing
-        @warn "Starting vector is provided. Ignoring `threading=$threading`."
-    end
-    if style ≠ nothing
-        @warn "Starting vector is provided. Ignoring `style=$style`."
-    end
-    wm = isnothing(wm) ? working_memory(v) : wm
-
-    # Set up post_step
-    if !(post_step isa Tuple)
-        post_step = (post_step,)
-    end
-
-    # Set up replicas
-    nreplicas = num_replicas(replica)
-    if nreplicas > 1
-        replicas = ntuple(nreplicas) do i
-            ReplicaState(hamiltonian, deepcopy(v), deepcopy(wm), deepcopy(params), "_$i")
-        end
-    else
-        replicas = (ReplicaState(hamiltonian, v, wm, params, ""),)
+    # Set up replicas - always copy initial vector
+    replicas = ntuple(num_replicas(replica)) do i
+        v = deepcopy(starting_vector)
+        wm = working_memory(v)
+        ReplicaState(hamiltonian, v, wm, deepcopy(run_strat), "_$i")
     end
 
     return QMCState(
@@ -260,20 +354,16 @@ end
 # implement the Common Solve interface using CommonSolve.jl
 
 # return type for init() to be passed into solve!()
+"""
+    FCIQMCIterator(state, report, df, name)
+
+Struct returned by [`init`](@ref) to be passed into [`solve!`](@ref).
+"""
 struct FCIQMCIterator
     state::QMCState
     report::Report
     df::DataFrame
     name::String
-end
-
-# to be passed into init() and solve()
-struct FCIQMCProblem
-    state::QMCState
-end
-
-function FCIQMCProblem(args...; kwargs...)
-    return FCIQMCProblem(QMCState(args...; kwargs...))
 end
 
 
@@ -347,122 +437,30 @@ function default_starting_vector(address;
     return v
 end
 
+
 """
-    lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
-    lomc!(state::QMCState, [df]; kwargs...) -> df, state
-
-Linear operator Monte Carlo: Perform a projector quantum Monte Carlo simulation for
-determining the lowest eigenvalue of `ham`. The details of the simulation are controlled by
-the optional keyword arguments and by the type of the optional starting vector `v`.
-Alternatively, a `QMCState` can be passed in to continue a previous simulation.
-
-# Common keyword arguments and defaults:
-
-* `laststep = 100` - controls the number of steps.
-* `dτ = 0.01` - time step.
-* `targetwalkers = 1000` - target for the 1-norm of the coefficient vector.
-* `address = starting_address(ham)` - set starting address for default `v` and `shift`.
-* `style = IsStochasticInteger()` - set [`StochasticStyle`](@ref) for default `v`; unused
-  if `v` is specified.
-* `initiator = NonInitiator()` - set [`InitiatorRule`](@ref) for default `v`; unused if `v`
-  is specified.
-* `threading` - default is to use multithreading and
-  [MPI](https://juliaparallel.org/MPI.jl/latest/) if multiple threads are available. Set to
-  `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
-  unused if `v` is specified.
-* `shift = diagonal_element(ham, address)` - initial value of shift.
-* `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
-  [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
-* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
-  [`ReplicaStrategy`](@ref).
-* `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see
-  [`ReportingStrategy`](@ref)
-* `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
-* `metadata` - user-supplied metadata to be added to the report `df`. Must be an iterable of
-  pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
-  All metadata is converted to strings.
-
-Some metadata is automatically added to the report `df` including
-[`Rimu.PACKAGE_VERSION`](@ref) and data from `state`.
-
-# Return values
-
-`lomc!` returns a named tuple with the following fields:
-
-* `df`: a `DataFrame` with all statistics being reported.
-* `state`: a `QMCState` that can be used for continuations.
-
-# Example
-
-```jldoctest
-julia> add = BoseFS(1,2,3);
-
-julia> hamiltonian = HubbardReal1D(add);
-
-julia> df1, state = lomc!(hamiltonian; targetwalkers=500, laststep=100);
-
-julia> df2, _ = lomc!(state, df1; laststep=200, metadata=(;info="cont")); # Continuation run
-
-julia> size(df1)
-(100, 11)
-
-julia> size(df2)
-(200, 11)
-
-julia> using DataFrames; metadata(df2, "info") # retrieve custom metadata
-"cont"
-
-julia> metadata(df2, "hamiltonian") # some metadata is automatically added
-"HubbardReal1D(BoseFS{6,3}(1, 2, 3); u=1.0, t=1.0)"
-```
-
-# Further keyword arguments and defaults:
-
-* `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step or not, see
-  [`TimeStepStrategy`](@ref)
-* `s_strat::ShiftStrategy = DoubleLogUpdate(; targetwalkers, ζ = 0.08, ξ = ζ^2/4)` -
-  how to update the `shift`, see [`ShiftStrategy`](@ref).
-* `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
-  reached, `lomc!` will abort
-* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
-  diagonal_element(ham, address)` -
-  basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref). Parameter values
-  are overridden by explicit keyword arguments `laststep`, `dτ`, `shift`; is mutated.
-* `wm` - working memory for re-use in subsequent calculations; is mutated.
-* `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
-  be passed for merging with the report `df`.
-
-The default choice for the starting vector is
-`v = default_starting_vector(; address, style, threading, initiator)`.
-See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
-[`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
-"""
-function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
-    state = QMCState(ham, v; kwargs...)
-    return lomc!(state, df; name, metadata)
-end
-function lomc!(
-    ham;
-    style=IsStochasticInteger(),
-    threading=nothing,
-    address=starting_address(ham),
-    initiator=NonInitiator(),
-    kwargs...
+    CommonSolve.init(
+    problem::FCIQMCProblem, df=DataFrame();
+    laststep=0, name="fciqmc", metadata=nothing
 )
-    v = default_starting_vector(address; style, threading, initiator)
-    return lomc!(ham, v; address, kwargs...) # pass address for setting the default shift
-end
-# For continuation, you can pass a QMCState and a DataFrame
-function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
-    iter = CommonSolve.init(FCIQMCProblem(state), df; laststep, name, metadata)
-    return CommonSolve.solve!(iter)
-end
 
+Initialise a [`FCIQMCIterator`](@ref) for running [`solve!`](@ref) on `problem`. The
+optional `df` can be used to merge with a previous report `df`. The `laststep`
+can be used to override the value from `problem`. The `metadata` is added to the report
+`df`. The `name` is used for the progress bar.
+"""
 function CommonSolve.init(
     problem::FCIQMCProblem, df=DataFrame();
-    laststep=0, name="lomc!", metadata=nothing
+    laststep=0, name="fciqmc", metadata=nothing
 )
-    state = problem.state # extract QMCState
+    state = QMCState(problem) # initialise replicas and working memory
+    return _init(state, df; laststep, name, metadata)
+end
+
+function _init(
+    state::QMCState, df=DataFrame();
+    laststep=0, name="fciqmc", metadata=nothing
+)
     if !iszero(laststep)
         state.laststep = laststep
     end
@@ -471,9 +469,18 @@ function CommonSolve.init(
     report = Report()
     report_default_metadata!(report, state)
     isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
-    return FCIQMCIterator(problem.state, report, df, name)
+    return FCIQMCIterator(state, report, df, name)
 end
 
+"""
+    CommonSolve.solve!(iterator::FCIQMCIterator)
+
+Run the simulation. The `iterator` is returned by [`init`](@ref).
+
+Returns a named tuple with the following fields:
+- `df`: a `DataFrame` with all statistics being reported.
+- `state`: a `QMCState` that can be used for continuations.
+"""
 function CommonSolve.solve!(iterator::FCIQMCIterator)
     @unpack state, report, df, name = iterator
     # Sanity checks.
@@ -525,6 +532,53 @@ function CommonSolve.solve!(iterator::FCIQMCIterator)
         return (; df=result_df, state)
     end
 end
+
+"""
+    FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
+
+First order transition operator
+```math
+𝐓 = 1 + dτ(S - 𝐇)
+```
+where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`.
+
+``𝐓`` represents the first order expansion of the exponential evolution operator
+of the imaginary-time Schrödinger equation (Euler step) and repeated application
+will project out the ground state eigenvector of the `hamiltonian`.  It is the
+transition operator used in FCIQMC.
+"""
+struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
+    hamiltonian::H
+    shift::S
+    dτ::Float64
+
+    function FirstOrderTransitionOperator(hamiltonian::H, shift::S, dτ) where {H,S}
+        T = eltype(hamiltonian)
+        return new{T,S,H}(hamiltonian, shift, Float64(dτ))
+    end
+end
+
+function Hamiltonians.diagonal_element(t::FirstOrderTransitionOperator, add)
+    diag = diagonal_element(t.hamiltonian, add)
+    return 1 - t.dτ * (diag - t.shift)
+end
+
+struct FirstOrderOffdiagonals{
+    A,V,O<:AbstractVector{Tuple{A,V}}
+} <: AbstractVector{Tuple{A,V}}
+    dτ::Float64
+    offdiagonals::O
+end
+function Hamiltonians.offdiagonals(t::FirstOrderTransitionOperator, add)
+    return FirstOrderOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
+end
+Base.size(o::FirstOrderOffdiagonals) = size(o.offdiagonals)
+
+function Base.getindex(o::FirstOrderOffdiagonals, i)
+    add, val = o.offdiagonals[i]
+    return add, -val * o.dτ
+end
+
 
 """
     advance!(report::Report, state::QMCState, replica::ReplicaState)

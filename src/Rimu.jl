@@ -78,7 +78,8 @@ include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
 include("strategies_and_params/deprecated.jl")
 
-include("lomc.jl")                  # top level
+include("FCIQMCProblem.jl")                  # top level
+include("lomc_deprecated.jl")       # deprecated
 
 include("RMPI/RMPI.jl")
 
