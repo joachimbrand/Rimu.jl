@@ -327,14 +327,21 @@ function default_starting_vector(address;
     return v
 end
 
-"""
-    lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
-    lomc!(state::QMCState, [df]; kwargs...) -> df, state
+@doc """
+    solve(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
+    init(ham::AbstractHamiltonian, [v]; kwargs...) -> state::QMCState
+    solve!(state::QMCState, [df]; kwargs...) -> df, state
+    lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state (deprecated)
+    lomc!(state::QMCState, [df]; kwargs...) -> df, state (deprecated)
 
 Linear operator Monte Carlo: Perform a projector quantum Monte Carlo simulation for
 determining the lowest eigenvalue of `ham`. The details of the simulation are controlled by
 the optional keyword arguments and by the type of the optional starting vector `v`.
-Alternatively, a `QMCState` can be passed in to continue a previous simulation.
+`init()` can be used to prepare a `QMCState` for a subsequent run of `solve!`, which
+will trigger the simulation. `solve()` is a convenience function that combines `init()`
+and `solve!` in one call.
+
+A `state` from a previous calculation can be passed for a continuation run.
 
 # Common keyword arguments and defaults:
 
@@ -417,9 +424,11 @@ The default choice for the starting vector is
 See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
 [`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
 """
+(lomc!, CommonSolve.solve, CommonSolve.solve!, CommonSolve.init)
+
 function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
-    state = QMCState(ham, v; kwargs...)
-    return lomc!(state, df; name, metadata)
+    state = init(ham, v; kwargs...)
+    return solve!(state, df; name, metadata)
 end
 function lomc!(
     ham;
@@ -427,13 +436,52 @@ function lomc!(
     threading=nothing,
     address=starting_address(ham),
     initiator=NonInitiator(),
+    df=DataFrame(), name="lomc!", metadata=nothing,
     kwargs...
 )
     v = default_starting_vector(address; style, threading, initiator)
-    return lomc!(ham, v; address, kwargs...) # pass address for setting the default shift
+    state = init(ham, v; address, kwargs...) # pass address for setting the default shift
+    return solve!(state, df; name, metadata)
 end
 # For continuation, you can pass a QMCState and a DataFrame
 function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
+    return solve!(state, df; laststep, name, metadata)
+end
+
+function CommonSolve.init(ham::AbstractHamiltonian, v; kwargs...)
+    return QMCState(ham, v; kwargs...)
+end
+function CommonSolve.init(
+    ham::AbstractHamiltonian;
+    style=IsStochasticInteger(),
+    threading=nothing,
+    address=starting_address(ham),
+    initiator=NonInitiator(),
+    kwargs...
+)
+    v = default_starting_vector(address; style, threading, initiator)
+    return init(ham, v; address, kwargs...) # pass address for setting the default shift
+end
+
+function CommonSolve.solve(
+    ham::AbstractHamiltonian, v::AbstractDVec;
+    df=DataFrame(), name="lomc!", metadata=nothing, kwargs...
+)
+    return solve!(init(ham, v; kwargs...), df; name, metadata)
+end
+function CommonSolve.solve(
+    ham::AbstractHamiltonian;
+    style=IsStochasticInteger(),
+    threading=nothing,
+    address=starting_address(ham),
+    initiator=NonInitiator(),
+    df=DataFrame(), name="lomc!", metadata=nothing,
+    kwargs...
+)
+    state = init(ham; style, threading, address, initiator, kwargs...)
+    return solve!(state, df; name, metadata)
+end
+function CommonSolve.solve!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
     if !iszero(laststep)
         state.laststep = laststep
     end
