@@ -24,6 +24,7 @@ Harmonic oscillator models
 - [`HOCartesianCentralImpurity`](@ref)
 
 Other
+- [`FroehlichPolaron`](@ref)
 - [`MatrixHamiltonian`](@ref)
 - [`Transcorrelated1D`](@ref)
 
@@ -73,6 +74,7 @@ export TimeReversalSymmetry
 export Stoquastic
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
+export FroehlichPolaron
 
 export G2MomCorrelator, G2RealCorrelator, SuperfluidCorrelator, DensityMatrixDiagonal, Momentum
 export StringCorrelator
@@ -102,6 +104,7 @@ include("ExtendedHubbardReal1D.jl")
 
 include("BoseHubbardReal1D2C.jl")
 include("BoseHubbardMom1D2C.jl")
+include("FroehlichPolaron.jl")
 
 include("GutzwillerSampling.jl")
 include("GuidingVectorSampling.jl")

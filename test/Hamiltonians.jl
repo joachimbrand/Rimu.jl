@@ -880,7 +880,7 @@ end
     m = 6
     n1 = 4
     n2 = m
-    
+
     # unital refers to n̄=1
     non_unital_localised_state = BoseFS((n1,0,0,0,0,0))
     non_unital_uniform_state = near_uniform(non_unital_localised_state)
@@ -893,7 +893,7 @@ end
     S2 = StringCorrelator(2)
 
     @test num_offdiagonals(S0, localised_state) == 0
-    
+
     # non unital localised state
     @test @inferred diagonal_element(S0, non_unital_localised_state) ≈ 20/9
     @test @inferred diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
@@ -918,7 +918,7 @@ end
     d = 5
     output = @capture_out print(StringCorrelator(d))
     @test output == "StringCorrelator($d)"
-    
+
 end
 
 @testset "Momentum" begin
@@ -1586,5 +1586,16 @@ end
 
         null_addr = BoseFS(prod(S), 1=>0)
         @test isempty(fock_to_cart(null_addr, S))
+    end
+
+    @testset "FroehlichPolaron" begin
+        addr = OccupationNumberFS(0, 0, 0, 0, 1, 0, 0, 0)
+        ham = FroehlichPolaron(addr; total_mom=3, alpha=6, num_dimensions=3)
+        @test num_dimensions(ham) == num_dimensions(ham.geometry) == 3
+        @test ham.geometry == PeriodicBoundaries(2, 2, 2)
+        @test eval(Meta.parse(repr(ham))) == ham
+        @test starting_address(ham) == ham.addr == addr
+
+        # TODO: test the rest of the interface (add `FroehlichPolaron` to interface tests)
     end
 end
