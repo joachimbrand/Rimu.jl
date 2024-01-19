@@ -12,6 +12,7 @@ using Statistics
 using Logging
 using DataFrames
 
+Random.seed!(1234)
 @testset "lomc!/QMCState" begin
     @testset "Setting laststep + working memory" begin
         add = BoseFS{5,2}((2,3))
