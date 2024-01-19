@@ -9,6 +9,7 @@ using Parameters
 using Reexport
 using Setfield
 using StaticArrays
+using CommonSolve
 using CommonSolve: init, solve, solve!
 using StatsBase
 using ProgressLogging
