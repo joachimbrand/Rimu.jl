@@ -103,6 +103,8 @@ them into [`AllOverlaps`](@ref).
 ```@docs
 G2MomCorrelator
 G2RealCorrelator
+SuperfluidCorrelator
+StringCorrelator
 DensityMatrixDiagonal
 Momentum
 AxialAngularMomentumHO

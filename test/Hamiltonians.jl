@@ -4,6 +4,7 @@ using Random
 using Rimu
 using Test
 using DataFrames
+using Suppressor
 
 function exact_energy(ham)
     dv = DVec(starting_address(ham) => 1.0)
@@ -837,6 +838,87 @@ end
     # offdiagonals
     @test num_offdiagonals(G2RealCorrelator(0), add1) == 0
     @test num_offdiagonals(G2RealCorrelator(0), comp) == 0
+
+    # Test show method
+    d = 5
+    output = @capture_out print(G2RealCorrelator(d))
+    @test output == "G2RealCorrelator($d)"
+end
+
+@testset "SuperfluidCorrelator" begin
+    m = 6
+    n1 = 4
+    n2 = m
+    add1 = BoseFS((n1,0,0,0,0,0))
+    add2 = near_uniform(BoseFS{n2,m})
+
+    # localised state
+    @test @inferred diagonal_element(SuperfluidCorrelator(0), add1) == n1/m
+    @test @inferred diagonal_element(SuperfluidCorrelator(1), add1) == 0.
+
+    # constant density state
+    @test diagonal_element(SuperfluidCorrelator(0), add2) == n2/m
+    @test diagonal_element(SuperfluidCorrelator(1), add2) == 0.
+
+    # offdiagonals
+    @test num_offdiagonals(SuperfluidCorrelator(0), add1) == 1
+    @test num_offdiagonals(SuperfluidCorrelator(0), add2) == 6
+
+    # get_offdiagonal
+    @test get_offdiagonal(SuperfluidCorrelator(0), add1, 1) == (add1, n1/m)
+    @test get_offdiagonal(SuperfluidCorrelator(1), add1, 1) == (BoseFS((3,1,0,0,0,0)), sqrt(n1)/m)
+    @test get_offdiagonal(SuperfluidCorrelator(0), add2, 1) == (add2, 1/m)
+    @test get_offdiagonal(SuperfluidCorrelator(1), add2, 1) == (BoseFS((0,2,1,1,1,1)), sqrt(2)/m)
+
+    # Test show method
+    d = 5
+    output = @capture_out print(SuperfluidCorrelator(d))
+    @test output == "SuperfluidCorrelator($d)"
+end
+
+@testset "StringCorrelator" begin
+    m = 6
+    n1 = 4
+    n2 = m
+    
+    # unital refers to n̄=1
+    non_unital_localised_state = BoseFS((n1,0,0,0,0,0))
+    non_unital_uniform_state = near_uniform(non_unital_localised_state)
+
+    localised_state = BoseFS((n2,0,0,0,0,0))
+    uniform_state = near_uniform(BoseFS{n2,m})
+
+    S0 = StringCorrelator(0)
+    S1 = StringCorrelator(1)
+    S2 = StringCorrelator(2)
+
+    @test num_offdiagonals(S0, localised_state) == 0
+    
+    # non unital localised state
+    @test @inferred diagonal_element(S0, non_unital_localised_state) ≈ 20/9
+    @test @inferred diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
+
+    # non unital near uniform state
+    @test @inferred diagonal_element(S0, non_unital_uniform_state) ≈ 2/9
+
+    # constant density localised state
+    @test @inferred diagonal_element(S0, localised_state) == 5.
+    @test @inferred diagonal_element(S1, localised_state) ≈ 1
+    @test @inferred diagonal_element(S2, localised_state) ≈ -1
+
+    # constant density uniform state
+    @test @inferred diagonal_element(S0, uniform_state) == 0
+    @test @inferred diagonal_element(S2, uniform_state) == 0
+
+    # Test return type for integer, and non-integer filling
+    @test @inferred diagonal_element(S0, localised_state) isa Float64
+    @test @inferred diagonal_element(S1, non_unital_localised_state) isa ComplexF64
+
+    # Test show method
+    d = 5
+    output = @capture_out print(StringCorrelator(d))
+    @test output == "StringCorrelator($d)"
+    
 end
 
 @testset "Momentum" begin

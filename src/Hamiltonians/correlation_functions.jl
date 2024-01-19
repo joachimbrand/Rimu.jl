@@ -239,3 +239,140 @@ function get_offdiagonal(
     gd = exp(-im*g.d*Δp*2π/M)*gamma
     return new_add, ComplexF64(gd/M)
 end
+
+"""
+    SuperfluidCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+
+Operator for extracting superfluid correlation between sites separated by a distance `d` with `0 ≤ d < M`:
+
+```math
+    \\hat{C}_{\\text{SF}}(d) = \\frac{1}{M} \\sum_{i}^{M} a_{i}^{\\dagger} a_{i + d}
+```
+Assumes a one-dimensional lattice with ``M`` sites and periodic boundary conditions. ``M`` is also the number of modes in the Fock state address.
+
+# Usage
+Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping `SuperfluidCorrelator` with 
+[`AllOverlaps`](@ref) and passing into [`lomc!`](@ref) with the `replica` keyword argument. For an example with a
+similar use of [`G2RealCorrelator`](@ref) see 
+[G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html).
+
+
+See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`AbstractHamiltonian`](@ref),
+and [`AllOverlaps`](@ref).
+"""
+struct SuperfluidCorrelator{D} <: AbstractHamiltonian{Float64}
+end
+
+SuperfluidCorrelator(d::Int) = SuperfluidCorrelator{d}()
+
+function Base.show(io::IO, ::SuperfluidCorrelator{D}) where {D}
+    print(io, "SuperfluidCorrelator($D)")
+end
+
+function num_offdiagonals(::SuperfluidCorrelator, add::SingleComponentFockAddress)
+    return num_occupied_modes(add)
+end
+
+function get_offdiagonal(::SuperfluidCorrelator{D}, add::SingleComponentFockAddress, chosen) where {D}
+    src = find_occupied_mode(add, chosen)
+    dst = find_mode(add, mod1(src.mode + D, num_modes(add)))
+    address, value = excitation(add, (dst,), (src,))
+    return address, value / num_modes(add)
+end
+
+function diagonal_element(::SuperfluidCorrelator{0}, add::SingleComponentFockAddress)
+    return num_particles(add) / num_modes(add)
+end
+function diagonal_element(::SuperfluidCorrelator{D}, add::SingleComponentFockAddress) where {D}
+    return 0.0
+end
+
+
+"""
+    StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+
+Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice 
+separated by a distance `d` with `0 ≤ d < M`
+
+```math
+    \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
+```
+Here, ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling 
+number and ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` particles and 
+``M`` lattice sites (or modes). 
+
+Assumes a one-dimensional lattice with periodic boundary conditions. For usage
+see [`SuperfluidCorrelator`](@ref) and [`AllOverlaps`](@ref).
+
+See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`SuperfluidCorrelator`](@ref),
+[`AbstractHamiltonian`](@ref), and [`AllOverlaps`](@ref).
+"""
+struct StringCorrelator{D} <: AbstractHamiltonian{Float64}
+end
+
+StringCorrelator(d::Int) = StringCorrelator{d}()
+
+function Base.show(io::IO, ::StringCorrelator{D}) where {D}
+    print(io, "StringCorrelator($D)")
+end
+
+LOStructure(::Type{<:StringCorrelator}) = IsDiagonal()
+
+function diagonal_element(::StringCorrelator{0}, add::SingleComponentFockAddress)
+    M = num_modes(add)
+    N = num_particles(add)
+    n̄ = N/M
+    v = onr(add)
+
+    result = 0.0
+    for i in eachindex(v)
+        result += (v[i] - n̄)^2
+    end
+
+    return result / M
+end
+
+num_offdiagonals(::StringCorrelator, ::SingleComponentFockAddress) = 0
+
+function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress) where {D}
+    M = num_modes(add)
+    N = num_particles(add)
+    d = mod(D, M)
+
+    if !ismissing(N) && iszero(N % M)
+        return _string_diagonal_real(d, add)
+    else
+        return _string_diagonal_complex(d, add)
+    end
+end
+
+function _string_diagonal_complex(d, add)
+    M = num_modes(add)
+    N = num_particles(add)
+    n̄ = N/M
+    v = onr(add)
+
+    result = ComplexF64(0)
+    for i in eachindex(v)
+        phase_sum = sum((v[mod1(k, M)] - n̄) for k in i:1:(i+d-1))
+
+        result += (v[i] - n̄) * exp(pi * im * phase_sum) * (v[mod1(i + d, M)] - n̄)
+    end
+
+    return result / M
+end
+function _string_diagonal_real(d, add)
+    M = num_modes(add)
+    N = num_particles(add)
+    n̄ = N ÷ M
+    v = onr(add)
+
+    result = 0.0
+    for i in eachindex(v)
+        phase_sum = sum((v[mod1(k, M)] - n̄) for k in i:1:(i+d-1))
+
+        result += (v[i] - n̄) * (-1)^phase_sum * (v[mod1(i + d, M)] - n̄)
+    end
+
+    return result / M
+end
