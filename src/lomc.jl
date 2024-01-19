@@ -257,6 +257,26 @@ function Base.show(io::IO, st::QMCState)
     end
 end
 
+# implement the Common Solve interface using CommonSolve.jl
+
+# return type for init() to be passed into solve!()
+struct FCIQMCIterator
+    state::QMCState
+    report::Report
+    df::DataFrame
+    name::String
+end
+
+# to be passed into init() and solve()
+struct FCIQMCProblem
+    state::QMCState
+end
+
+function FCIQMCProblem(args...; kwargs...)
+    return FCIQMCProblem(QMCState(args...; kwargs...))
+end
+
+
 function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
@@ -434,6 +454,15 @@ function lomc!(
 end
 # For continuation, you can pass a QMCState and a DataFrame
 function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
+    iter = CommonSolve.init(FCIQMCProblem(state), df; laststep, name, metadata)
+    return CommonSolve.solve!(iter)
+end
+
+function CommonSolve.init(
+    problem::FCIQMCProblem, df=DataFrame();
+    laststep=0, name="lomc!", metadata=nothing
+)
+    state = problem.state # extract QMCState
     if !iszero(laststep)
         state.laststep = laststep
     end
@@ -442,7 +471,11 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
     report = Report()
     report_default_metadata!(report, state)
     isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
+    return FCIQMCIterator(problem.state, report, df, name)
+end
 
+function CommonSolve.solve!(iterator::FCIQMCIterator)
+    @unpack state, report, df, name = iterator
     # Sanity checks.
     step, laststep = state.step, state.laststep
     for replica in state.replicas
