@@ -27,55 +27,42 @@ or a cube number for `num_dimensions = 3`.
 The `address` must be of type [`OccupationNumberFS`](@ref).
 """
 struct FroehlichPolaron{
-    P, # total momentum
     T, # eltype
-    A<:OccupationNumberFS, # address type
-    G # lattice type
+    M, # number of modes
+    A<:OccupationNumberFS{M} # address type
 } <: AbstractHamiltonian{T}
     addr::A
-    alpha::T
-    geometry::G
-    # nu_k::Vector{T}
-    # p_squared_k::Vector{T}
+    v::T
+    mass::T
+    omega::T
+    l::T
+    p::T
+    ks::SVector{M,T} # values for k
 end
 
 function FroehlichPolaron(
     addr::OccupationNumberFS;
-    geometry=nothing,
-    alpha=1.0,
-    total_mom=0.0,
-    num_dimensions=1
+    v=1.0,
+    mass=1.0,
+    omega=1.0,
+    l=1.0,
+    p=0.0,
 )
     M = num_modes(addr) # this is compile-time information
-    if isnothing(geometry)
-        if num_dimensions == 1
-            geometry = PeriodicBoundaries(M)
-        elseif num_dimensions == 2
-            sm = round(Int, sqrt(M))
-            if sm^2 == M
-                geometry = PeriodicBoundaries(sm, sm)
-            else
-                throw(ArgumentError("Number of modes $M is not a square. Specify geometry."))
-            end
-        elseif num_dimensions == 3
-            cm = round(Int, cbrt(M))
-            if cm^3 == M
-                geometry = PeriodicBoundaries(cm, cm, cm)
-            else
-                throw(ArgumentError("Number of modes $M is not a cube. Specify geometry."))
-            end
-        else
-            throw(ArgumentError("Invalid number of dimensions: $num_dimensions"))
-        end
+    v, p, mass, omega, l = promote(float(v), float(p), float(mass), float(omega), float(l))
+    step = typeof(v)(2π/M)
+    if isodd(M)
+        start = -π*(1+1/M) + step
+    else
+        start = -π + step
     end
-    geometry isa PeriodicBoundaries || throw(ArgumentError("Invalid geometry: $geometry"))
-    alpha, P = promote(float(alpha), float(total_mom))
-    return FroehlichPolaron{P,typeof(P),typeof(addr),typeof(geometry)}(addr, alpha, geometry)
+    kr = range(start; step = step, length = M)
+    ks = SVector{M}(kr)
+    return FroehlichPolaron(addr, v, mass, omega, l, p, ks)
 end
 
 function Base.show(io::IO, h::FroehlichPolaron)
-    print(io, "FroehlichPolaron($(h.addr); alpha=$(h.alpha), total_mom=$(h.total_mom), ")
-    print(io, "geometry=$(h.geometry))")
+    print(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p))")
 end
 
 function starting_address(h::FroehlichPolaron)
@@ -85,12 +72,15 @@ end
 LOStructure(::Type{<:FroehlichPolaron{<:Real}}) = IsHermitian()
 
 Base.getproperty(h::FroehlichPolaron, s::Symbol) = getproperty(h, Val(s))
+Base.getproperty(h::FroehlichPolaron, ::Val{:ks}) = getfield(h, :ks)
 Base.getproperty(h::FroehlichPolaron, ::Val{:addr}) = getfield(h, :addr)
-Base.getproperty(h::FroehlichPolaron, ::Val{:alpha}) = getfield(h, :alpha)
-Base.getproperty(::FroehlichPolaron{P}, ::Val{:total_mom}) where P = P
-Base.getproperty(h::FroehlichPolaron, ::Val{:geometry}) = getfield(h, :geometry)
+Base.getproperty(h::FroehlichPolaron, ::Val{:v}) = getfield(h, :v)
+Base.getproperty(h::FroehlichPolaron, ::Val{:mass}) = getfield(h, :mass)
+Base.getproperty(h::FroehlichPolaron, ::Val{:omega}) = getfield(h, :omega)
+Base.getproperty(h::FroehlichPolaron, ::Val{:l}) = getfield(h, :l)
+Base.getproperty(h::FroehlichPolaron, ::Val{:p}) = getfield(h, :p)
 
-num_dimensions(h::FroehlichPolaron) = num_dimensions(h.geometry)
+ks(h::FroehlichPolaron) = getfield(h, :ks)
 
 # function diagonal_element(h::FroehlichPolaron, addr::OccupationNumberFS)
 #     return (
