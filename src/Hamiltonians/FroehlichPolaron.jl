@@ -29,7 +29,8 @@ The `address` must be of type [`OccupationNumberFS`](@ref).
 struct FroehlichPolaron{
     T, # eltype
     M, # number of modes
-    A<:OccupationNumberFS{M} # address type
+    A<:OccupationNumberFS{M}, # address type
+    MC # momentum cutoff indicating type
 } <: AbstractHamiltonian{T}
     addr::A
     v::T
@@ -38,6 +39,8 @@ struct FroehlichPolaron{
     l::T
     p::T
     ks::SVector{M,T} # values for k
+    momentum_cutoff::MC
+    mode_cutoff::T
 end
 
 function FroehlichPolaron(
@@ -47,9 +50,11 @@ function FroehlichPolaron(
     omega=1.0,
     l=1.0,
     p=0.0,
+    momentum_cutoff=nothing,
+    mode_cutoff=100.0,
 )
     M = num_modes(addr) # this is compile-time information
-    v, p, mass, omega, l = promote(float(v), float(p), float(mass), float(omega), float(l))
+    v, p, mass, omega, l,momentum_cutoff = promote(float(v), float(p), float(mass), float(omega), float(l), float(momentum_cutoff))
     step = typeof(v)(2π/M)
     if isodd(M)
         start = -π*(1+1/M) + step
@@ -58,11 +63,12 @@ function FroehlichPolaron(
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    return FroehlichPolaron(addr, v, mass, omega, l, p, ks)
+    return FroehlichPolaron(addr, v, mass, omega, l, p, ks, momentum_cutoff, mode_cutoff)
 end
 
 function Base.show(io::IO, h::FroehlichPolaron)
-    print(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p))")
+    print(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
+    println("momentum_cutoff=$(h.momentum_cutoff), mode_cutoff=$(h.mode_cutoff))")
 end
 
 function starting_address(h::FroehlichPolaron)
@@ -105,11 +111,31 @@ function num_offdiagonals(::FroehlichPolaron{<:Any,M}, ::OccupationNumberFS{M}) 
     return 2M #num_occupied_modes
 end
 
-function get_offdiagonal(h::FroehlichPolaron{<:Any,M}, addr::OccupationNumberFS{M},chosen) where {M}
-    if chosen ≤ M
-        naddress, value = excitation(addr, (chosen,),())
-        return naddress, - h.v * value
+function get_offdiagonal(h::FroehlichPolaron{<:Any,M,<:Any,<:Nothing}, addr::OccupationNumberFS{M},chosen) where {M}
+    return _froehlich_offdiag(h,addr,chosen)
+end
+
+function get_offdiagonal(h::FroehlichPolaron{T,M,<:Any,T}, addr::OccupationNumberFS{M},chosen) where {T,M}
+    #branch for momentum cutoff
+    p_tot = dot(h.ks, onr(addr))
+    if p_tot > h.momentum_cutoff # check if address exceeds momentum_cutoff
+        return addr, 0.0
     else
+        return _froehlich_offdiag(h,addr,chosen)
+    end
+end
+
+function _froehlich_offdiag(h::FroehlichPolaron{<:Any,M}, addr::OccupationNumberFS{M},chosen) where {M}
+    if chosen ≤ M # assign first M indices to creations
+
+        if onr(addr)[chosen] ≥ h.mode_cutoff # check whether occupation exceeds cutoff
+            return addr, 0.0
+        else
+            naddress, value = excitation(addr, (chosen,),())
+            return naddress, - h.v * value
+        end
+    else # remaining indices are destructions
+
         naddress, value = excitation(addr, (),(chosen-M,))
         return naddress, - h.v * value
     end
