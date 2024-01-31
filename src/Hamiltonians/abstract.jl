@@ -60,7 +60,7 @@ function dimension(::BoseFS{N,M}) where {N,M}
 end
 function dimension(::OccupationNumberFS{M,T}) where {M,T}
     n = typemax(T)
-    return binomial(BigInt(n + M - 1), BigInt(n))
+    return BigInt(n + 1)^BigInt(M)
 end
 function dimension(::FermiFS{N,M}) where {N,M}
     return binomial(BigInt(M), BigInt(N))
