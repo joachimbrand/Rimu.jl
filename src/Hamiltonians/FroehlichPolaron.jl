@@ -54,7 +54,12 @@ function FroehlichPolaron(
     mode_cutoff=100.0,
 )
     M = num_modes(addr) # this is compile-time information
-    v, p, mass, omega, l,momentum_cutoff = promote(float(v), float(p), float(mass), float(omega), float(l), float(momentum_cutoff))
+    if isnothing(momentum_cutoff)
+        v, p, mass, omega, l, mode_cutoff = promote(float(v), float(p), float(mass), float(omega), float(l), float(mode_cutoff))
+    else
+        v, p, mass, omega, l, momentum_cutoff, mode_cutoff = promote(float(v), float(p), float(mass), float(omega), float(l), float(mode_cutoff), float(momentum_cutoff))    
+    end
+
     step = typeof(v)(2π/M)
     if isodd(M)
         start = -π*(1+1/M) + step
@@ -67,7 +72,7 @@ function FroehlichPolaron(
 end
 
 function Base.show(io::IO, h::FroehlichPolaron)
-    print(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
+    println(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
     println("momentum_cutoff=$(h.momentum_cutoff), mode_cutoff=$(h.mode_cutoff))")
 end
 
@@ -87,14 +92,6 @@ LOStructure(::Type{<:FroehlichPolaron{<:Real}}) = IsHermitian()
 # Base.getproperty(h::FroehlichPolaron, ::Val{:p}) = getfield(h, :p)
 
 ks(h::FroehlichPolaron) = getfield(h, :ks)
-
-# function diagonal_element(h::FroehlichPolaron, addr::OccupationNumberFS)
-#     return (
-#         (-h.total_mom)^2 +
-#         num_particles(addr) +
-#         sum(νk(h, k) for k in momentum(h, addr))
-#     )
-# end
 
 # TODO: Sort out scales for momentum and energy; additional parameters?
 # TODO: compute diagonal and off-diagonal elements
@@ -117,17 +114,18 @@ end
 
 function get_offdiagonal(h::FroehlichPolaron{T,M,<:Any,T}, addr::OccupationNumberFS{M},chosen) where {T,M}
     #branch for momentum cutoff
-    p_tot = dot(h.ks, onr(addr))
-    if p_tot > h.momentum_cutoff # check if address exceeds momentum_cutoff
+    naddress, value = _froehlich_offdiag(h,addr,chosen)
+    
+    new_p_tot = dot(h.ks, onr(naddress))
+    if new_p_tot > h.momentum_cutoff # check if momentum of new address exceeds momentum_cutoff
         return addr, 0.0
     else
-        return _froehlich_offdiag(h,addr,chosen)
+        return naddress, - h.v * value
     end
 end
 
-function _froehlich_offdiag(h::FroehlichPolaron{<:Any,M}, addr::OccupationNumberFS{M},chosen) where {M}
+function _froehlich_offdiag(h, addr::OccupationNumberFS{M},chosen) where {M}
     if chosen ≤ M # assign first M indices to creations
-
         if onr(addr)[chosen] ≥ h.mode_cutoff # check whether occupation exceeds cutoff
             return addr, 0.0
         else
