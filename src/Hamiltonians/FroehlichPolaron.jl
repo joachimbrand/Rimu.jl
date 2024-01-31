@@ -10,10 +10,10 @@
 The Froehlich polaron Hamiltonian is given by
 
 ```math
-H = (P̂_f - P)^2 + N̂ + Σₖ νₖ (âₖ^† + â_{-k})
+H = \\frac{(P̂_f - P)^2}{m} + ωN̂ - ν Σₖ(âₖ^† + â_{-k})
 ```
 
-where ``P`` is the total momentum `total_mom`, ``P̂_f = Σ_k k âₖ^† âₖ`` is the momentum
+where ``P`` is the total momentum `total_mom`, ``P̂_f = \\frac{M}{L}Σ_k k âₖ^† âₖ`` is the momentum
 operator for the bosons, ``N̂ = Σ_k âₖ^† âₖ`` is the number operator for the bosons, and
 ``νₖ = \\sqrt{α}/|k|`` is the coupling strength determined by the coupling parameter
 `α == alpha`.
@@ -66,19 +66,19 @@ function Base.show(io::IO, h::FroehlichPolaron)
 end
 
 function starting_address(h::FroehlichPolaron)
-    return getfield(h, :addr)
+    return h.addr
 end
 
 LOStructure(::Type{<:FroehlichPolaron{<:Real}}) = IsHermitian()
 
-Base.getproperty(h::FroehlichPolaron, s::Symbol) = getproperty(h, Val(s))
-Base.getproperty(h::FroehlichPolaron, ::Val{:ks}) = getfield(h, :ks)
-Base.getproperty(h::FroehlichPolaron, ::Val{:addr}) = getfield(h, :addr)
-Base.getproperty(h::FroehlichPolaron, ::Val{:v}) = getfield(h, :v)
-Base.getproperty(h::FroehlichPolaron, ::Val{:mass}) = getfield(h, :mass)
-Base.getproperty(h::FroehlichPolaron, ::Val{:omega}) = getfield(h, :omega)
-Base.getproperty(h::FroehlichPolaron, ::Val{:l}) = getfield(h, :l)
-Base.getproperty(h::FroehlichPolaron, ::Val{:p}) = getfield(h, :p)
+# Base.getproperty(h::FroehlichPolaron, s::Symbol) = getproperty(h, Val(s))
+# Base.getproperty(h::FroehlichPolaron, ::Val{:ks}) = getfield(h, :ks)
+# Base.getproperty(h::FroehlichPolaron, ::Val{:addr}) = getfield(h, :addr)
+# Base.getproperty(h::FroehlichPolaron, ::Val{:v}) = getfield(h, :v)
+# Base.getproperty(h::FroehlichPolaron, ::Val{:mass}) = getfield(h, :mass)
+# Base.getproperty(h::FroehlichPolaron, ::Val{:omega}) = getfield(h, :omega)
+# Base.getproperty(h::FroehlichPolaron, ::Val{:l}) = getfield(h, :l)
+# Base.getproperty(h::FroehlichPolaron, ::Val{:p}) = getfield(h, :p)
 
 ks(h::FroehlichPolaron) = getfield(h, :ks)
 
@@ -91,7 +91,26 @@ ks(h::FroehlichPolaron) = getfield(h, :ks)
 # end
 
 # TODO: Sort out scales for momentum and energy; additional parameters?
-# TODO: pre-compute and store grid for p_squared_k (k.e.) and nu_k (coupling strength)
 # TODO: compute diagonal and off-diagonal elements
 # TODO: rest of AbstractHamiltonian interface
 # TODO: write unit tests for FroehlichPolaron
+
+function diagonal_element(h::FroehlichPolaron{<:Any,M}, addr::OccupationNumberFS{M}) where {M}
+    map = onr(addr)
+    p_f = (M/h.l) * dot(h.ks,map)
+    return h.omega * num_particles(addr) + (h.p - p_f)^2 / h.mass
+end
+
+function num_offdiagonals(::FroehlichPolaron{<:Any,M}, ::OccupationNumberFS{M}) where {M}
+    return 2M #num_occupied_modes
+end
+
+function get_offdiagonal(h::FroehlichPolaron{<:Any,M}, addr::OccupationNumberFS{M},chosen) where {M}
+    if chosen ≤ M
+        naddress, value = excitation(addr, (chosen,),())
+        return naddress, - h.v * value
+    else
+        naddress, value = excitation(addr, (),(chosen-M,))
+        return naddress, - h.v * value
+    end
+end
