@@ -109,7 +109,7 @@ Hint = HOCartesianContactInteractions(addr1; S, interaction_only = true)
 # can be obtained by using keyword argument `g` in `HOCartesianContactInteractions` or by
 # rescaling `ΔE` since the interactions are handled with first-order perturbation theory.
 
-# `Rimu` also contains [`HOCartesianEnergyConservedPerDim`](@ref) which is a similar
+# Rimu also contains [`HOCartesianEnergyConservedPerDim`](@ref) which is a similar
 # Hamiltonian but with the stricter condition that the contact interaction only connects
 # states that have the same total energy in each dimension, rather than conserving the
 # overall total energy. Both Hamiltonians can handle anisotropic systems by passing a tuple

@@ -21,8 +21,8 @@ address = BoseFS(10, 5 => 10)
 # `1.0`.
 H = HubbardMom1D(address; u=6.0)
 
-# Next, we construct the starting vector. We use a `PDVec`, which is automatically MPI
-# distributed if MPI is available. We set the vector's stochastic style to
+# Next, we construct the starting vector. We use a [`PDVec`](@ref), which is automatically
+# MPI distributed if MPI is available. We set the vector's stochastic style to
 # [`IsDynamicSemistochastic`](@ref), which improves statistics and reduces the sign problem.
 initial_vector = PDVec(address => 1.0; style=IsDynamicSemistochastic())
 
@@ -46,8 +46,8 @@ r_strat = ReportToFile(
 s_strat = DoubleLogUpdate(targetwalkers=10_000)
 post_step = ProjectedEnergy(H, initial_vector)
 
-# The `@mpi_root` macro performs an action on the root rank only, which is useful for
-# printing.
+# The [`@mpi_root`](@ref Main.Rimu.RMPI.@mpi_root) macro performs an action on the root rank
+# only, which is useful for printing.
 @mpi_root println("Running FCIQMC with ", mpi_size(), " rank(s).")
 
 # Finally, we can run the computation.

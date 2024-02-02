@@ -7,7 +7,7 @@
 # Run it with `julia G2-example.jl`.
 
 # First, we load the reqired packages. `Rimu` for FCIQMC calculation, and `DataFrames` for
-# output.
+# maniplating the output.
 using Rimu
 using Random
 using DataFrames
@@ -37,9 +37,9 @@ G2list = ((G2RealCorrelator(d) for d in dvals)...,)
 # of the model are run simultaneously. We enable this by defining a
 # [`ReplicaStrategy`](@ref). Each replica has its own state and FCIQMC is effectively
 # performed independently on each one.  For calculating observables, we use
-# [`AllOverlaps`](@ref) for the `ReplicaStrategy`.  At each timestep, after the FCIQMC step
-# is performed on, this strategy calculates the overlaps of every operator with the
-# wavefunctions from each pair of replicas.
+# [`AllOverlaps`](@ref) for the [`ReplicaStrategy`](@ref). At each timestep, after the
+# FCIQMC step is performed on, this strategy calculates the overlaps of every operator with
+# the wavefunctions from each pair of replicas.
 
 # To obtain an unbiased result, at least two replicas should be used. One can also use more
 # than two to improve the statistics. This is particularly helpful when the walker number is
@@ -83,8 +83,9 @@ println(filter(contains("Op"), names(df)))
 # errors from poor sampling if the number of walkers is too low.
 
 # We use the function [`rayleigh_replica_estimator`](@ref) to calculate the Rayleigh
-# quotient using all replicas in `df`, returning a [`RatioBlockingResult`](@ref). Using the
-# keyword `skip` will ignore the initial equilibration steps.
+# quotient using all replicas in `df`, returning a [`RatioBlockingResult`](@ref
+# Main.StatsTools.RatioBlockingResult). Using the keyword `skip` will ignore the initial
+# equilibration steps.
 
 # Now, we can calculate the correlation function for each value of ``d``.
 println("Two-body correlator from $num_replicas replicas:")

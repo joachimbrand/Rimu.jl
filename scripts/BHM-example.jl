@@ -50,14 +50,18 @@ dτ = 0.001;
 # additon to the shift, the projected energy is a second estimator for the energy. It
 # usually produces better statistics than the shift.
 
-# We first need to define a projector. Here we use the function `default_starting_vector`
-# to generate a vector with only a single occupied configuration. We will use the same vector as a starting vector for the FCIQMC calculation.
+# We first need to define a projector. Here we use the function
+# [`default_starting_vector`](@ref) to generate a vector with only a single occupied
+# configuration. We will use the same vector as a starting vector for the FCIQMC
+# calculation.
 initial_vector = default_starting_vector(initial_address; style=IsDynamicSemistochastic())
 
 # The choice of the `style` argument already determines the FCIQMC algorithm to
-# use. `IsDynamicSemistochastic()` is usually the best choice.
+# use. [`IsDynamicSemistochastic`](@ref) is usually the best choice as it reduces noise and
+# improves the sign problem.
 
-# Observables are passed into the `lomc!` function with the `post_step` keyword argument.
+# Observables are passed into the [`lomc!`](@ref) function with the `post_step` keyword
+# argument.
 post_step = ProjectedEnergy(H, initial_vector)
 
 # ## Running the calculation
@@ -122,7 +126,7 @@ plot!(
 dimension(H)
 
 # In this case, it's easy (and more efficient) to calculate the exact ground state energy
-# using standard linear algebra. Read more about `Rimu.jl`s capabilities for exact
+# using standard linear algebra. Read more about Rimu's capabilities for exact
 # diagonalisation in the example "Exact diagonalisation".
 
 using LinearAlgebra
