@@ -1,30 +1,29 @@
 # # Example 3: Calculating observables
 
-# This is an example calculation of the two-body correlation function G_2.
+# This is an example calculation of the two-body correlation function ``G_2``.
 
 # A runnable script for this example is located
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/G2-example.jl).
 # Run it with `julia G2-example.jl`.
 
-# Firstly, we load all needed modules.
-# `Rimu` for FCIQMC calculation, and `DataFrames` for output
-
+# First, we load the reqired packages. `Rimu` for FCIQMC calculation, and `DataFrames` for
+# output.
 using Rimu
 using Random
 using DataFrames
 
-# We use the same Hamiltonian as the first example,
-# a Bose-Hubbard model with 6 particles in 6 sites, with
-# strong interactions (we expect a Mott insulating state).
+# We use the same Hamiltonian as the first example, a Bose-Hubbard model with 6 particles in
+# 6 sites, with strong interactions (we expect a Mott insulating state).
 m = n = 6
-aIni = near_uniform(BoseFS{n,m})
-H = HubbardReal1D(aIni; u = 6.0, t = 1.0)
+initial_address = near_uniform(BoseFS{n,m})
+H = HubbardReal1D(initial_address; u = 6.0, t = 1.0)
 
-# Now we define the operators for the observables we wish to calculate
+# Now we define the operators for the observables we wish to calculate.
 dvals = 0:m-1
-G2list = ([G2RealCorrelator(d) for d in dvals]...,)
-# This is a tuple of [`G2RealCorrelator`](@ref)s, which are subtyped to
-# [`AbstractHamiltonian`](@ref), but with less functionality than a full Hamiltonian.
+G2list = ((G2RealCorrelator(d) for d in dvals)...,)
+
+# This is a tuple of [`G2RealCorrelator`](@ref)s, subtypes of
+# [`AbstractHamiltonian`](@ref).
 # It calculates the two-body correlation function on a lattice
 # ```math
 #     \hat{G}^{(2)}(d) = \frac{1}{M} \sum_i^M \hat{n}_i (\hat{n}_{i+d} - \delta_{0d}).
@@ -34,41 +33,44 @@ G2list = ([G2RealCorrelator(d) for d in dvals]...,)
 #     \sum_{d=0}^{M-1} \langle \hat{G}^{(2)}(d) \rangle = \frac{N (N-1)}{M}.
 # ```
 
-# Observables are calculated using the "replica trick" whereby several
-# copies or "replicas" of the model are run simultaneously. We enable this by defining
-# a [`ReplicaStrategy`](@ref). Each replica has its own state and FCIQMC is effectively
-# performed independently on each one.
-# For calculating observables, we use [`AllOverlaps`](@ref) for the `ReplicaStrategy`.
-# At each timestep, after the necessary FCIQMC variables are calculated for each replica,
-# (e.g. shift, norm etc.), this strategy calculates the overlaps of every operator with
-# the wavefunctions from each pair of replicas.
-num_reps = 3
-replica = AllOverlaps(num_reps; operator = G2list)
+# Observables are calculated using the "replica trick" whereby several copies or "replicas"
+# of the model are run simultaneously. We enable this by defining a
+# [`ReplicaStrategy`](@ref). Each replica has its own state and FCIQMC is effectively
+# performed independently on each one.  For calculating observables, we use
+# [`AllOverlaps`](@ref) for the `ReplicaStrategy`.  At each timestep, after the FCIQMC step
+# is performed on, this strategy calculates the overlaps of every operator with the
+# wavefunctions from each pair of replicas.
 
-# We need a reasonable number of timesteps to get good statistics, and we are running
-# multiple replicas, so we will only use a small number of walkers:
+# To obtain an unbiased result, at least two replicas should be used. One can also use more
+# than two to improve the statistics. This is particularly helpful when the walker number is
+# low.
+num_replicas = 3
+replica = AllOverlaps(num_replicas; operator = G2list)
+
+# Other FCIQMC parameters and strategies can be set in the same way as before.
 steps_equilibrate = 1_000
 steps_measure = 5_000
 targetwalkers = 100;
-
-# Other FCIQMC parameters and strategies are the same as before
 dτ = 0.001
-svec = DVec(aIni => 1)
-Random.seed!(17);
+initial_vector = DVec(initial_address => 1)
 
-# Now we run the main FCIQMC loop:
-df, state = lomc!(H, svec;
-            dτ,
-            laststep = steps_equilibrate + steps_measure,
-            targetwalkers,
-            replica,
+Random.seed!(17); #hide
+
+# Now we run FCIQMC.
+df, state = lomc!(
+    H, initial_vector;
+    dτ,
+    laststep = steps_equilibrate + steps_measure,
+    targetwalkers,
+    replica,
 );
 
-# The output `DataFrame` has FCIQMC statistics for each replica
-# (e.g. shift)
+# The output `DataFrame` has FCIQMC statistics for each replica (e.g. shift, norm),
 println(filter(startswith("shift_"), names(df)))
-# as well as vector-vector overlaps (e.g. `c1_dot_c2`)
+
+# as well as vector-vector overlaps (e.g. `c1_dot_c2`),
 println(filter(contains("dot"), names(df)))
+
 # and operator overlaps (e.g. `c1_Op1_c2`) between the replicas.
 println(filter(contains("Op"), names(df)))
 
@@ -80,33 +82,30 @@ println(filter(contains("Op"), names(df)))
 # The sum over all replica pairs (a,b), especially in the denominator, helps to avoid
 # errors from poor sampling if the number of walkers is too low.
 
-# We use the function [`rayleigh_replica_estimator`](@ref)
-# to calculate the Rayleigh quotient using all replicas in `df`, returning a
-# `RatioBlockingResult` using `MonteCarloMeasurements`. Using the keyword `skip`
-# will ignore the initial equilibration steps.
+# We use the function [`rayleigh_replica_estimator`](@ref) to calculate the Rayleigh
+# quotient using all replicas in `df`, returning a [`RatioBlockingResult`](@ref). Using the
+# keyword `skip` will ignore the initial equilibration steps.
 
-# Now we can calculate the correlation function for each value of `d`
-println("Two-body correlator from $num_reps replicas:")
+# Now, we can calculate the correlation function for each value of ``d``.
+println("Two-body correlator from $num_replicas replicas:")
 for d in dvals
     r = rayleigh_replica_estimator(df; op_name = "Op$(d+1)", skip=steps_equilibrate)
     println("   G2($d) = $(r.f) ± $(r.σ_f)")
 end
 
-# As expected, the onsite correlation at ``d=0`` is low since this is
-# a Mott insulating state with unit filling fraction, and is highest at
-# ``d=3`` which is the longest possible separation with periodic boundary conditions.
+# As expected, the onsite correlation at ``d=0`` is low since this is a Mott insulating
+# state with unit filling fraction, and is highest at ``d=3`` which is the longest possible
+# separation with periodic boundary conditions.
 
-# Since we ran multiple independent replicas, we also have multiple estimates of
-# the shift energy
-println("Shift energy from $num_reps replicas:")
-for i in 1:num_reps
+# Since we ran multiple independent replicas, we also have multiple estimates of the shift
+# energy.
+println("Shift energy from $num_replicas replicas:")
+for i in 1:num_replicas
     se = shift_estimator(df; shift="shift_$i", skip=steps_equilibrate)
     println("   Replica $i: $(se.mean) ± $(se.err)")
 end
 
-# Finished!
-
 using Test                                  #hide
-r = rayleigh_replica_estimator(df; op_name = "Op1", skip=steps_equilibrate) #hide
+r = rayleigh_replica_estimator(df; op_name="Op1", skip=steps_equilibrate) #hide
 @test r.f ≈ 0.2 rtol=0.1                    #hide
 nothing                                     #hide

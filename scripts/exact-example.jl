@@ -39,10 +39,10 @@ dimension(ham)
 # As we'll see later, there are two ways to construct the matrices from Hamiltonians
 # directly, but they both use [`BasisSetRep`](@ref) under the hood. The
 # [`BasisSetRep`](@ref), when called with a Hamiltonian and optionally a starting address,
-# constructs the sparse matrix of the system and its basis. The starting address defaults to
-# the one that was used to initialize the Hamiltonian. [`BasisSetRep`](@ref) only returns
-# the part of the matrix that is accessible from this starting address through non-zero
-# offdiagonal elements.
+# constructs the sparse matrix of the system, as well as its basis. The starting address
+# defaults to the one that was used to initialize the Hamiltonian. [`BasisSetRep`](@ref)
+# only returns the part of the matrix that is accessible from this starting address through
+# non-zero offdiagonal elements.
 
 bsr = BasisSetRep(ham);
 
@@ -75,7 +75,7 @@ sparse(ham)
 # and
 # [`eigvals`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigvals)
 # functions from the LinearAlgebra standard library. They operate on dense matrices and
-# return the full spectra, hence they are only useful for small systems or when all
+# return the full spectra, hence they are only useful for small systems, or when all
 # eigenvalues are required.
 
 using LinearAlgebra
@@ -150,20 +150,13 @@ vals_kk
 # While this method is by far the slowest of the ones discussed, it also uses drastically
 # less memory. This allows us to diagonalise much larger Hamiltonians.
 
-# To use this method, you first need a starting [`DVec`](@ref):
+# To use this method, you first need a starting vector. It's best to use [`PDVec`](@ref)
+# here as it leverages threading during the diagonalisation.
 
-dvec = DVec(add => 1.0)
+dvec = PDVec(add => 1.0)
 
 # Then, pass that vector and the Hamiltonian to
-# [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve). Since
-# the function has no way of knowing the Hamiltonian is Hermitian, we have to provide that
-# information through the `issymmetric` or `ishermitian` keyword arguments. Make sure to
-# only pass this argument when the Hamiltonian is actually symmetric. To check that,
-# look at the `LOStructure` trait:
-
-LOStructure(ham)
-
-#
+# [`eigsolve`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
 
 vals_mf, vecs_mf = eigsolve(ham, dvec, num_eigvals, :SR; issymmetric=true)
 vals_mf
@@ -186,7 +179,7 @@ eigsolve(ham, vecs_mf[2], num_eigvals, :SR, issymmetric=true)[1]
 # performed to make sure they do. There is also currently no way of using both at the same
 # time. Please consult the documentation for a more in-depth description of these options.
 
-# The Hamiltonian presented in this example is compatible with the
+# The Hamiltonian presented in this example is compatible with
 # [`ParitySymmetry`](@ref). Let's see how the matrix size is reduced when applying it.
 
 size(sparse(ham))
@@ -202,8 +195,9 @@ all_eigs = eigvals(Matrix(ham))
 even_eigs = eigvals(Matrix(ParitySymmetry(ham)))
 
 # The eigenvalues of the transformed Hamiltonian are a subset of the full spectrum. To get
-# the other half, we can pass the `even=false` keyword argument to it. When doing that, we
-# need to make sure the starting address of the Hamiltonian is not symmetric under reversal:
+# the other half, we can pass the `even=false` keyword argument to
+# [`ParitySymmetry`](@ref). When doing that, we need to make sure the starting address of
+# the Hamiltonian is not symmetric under reversal:
 
 add_odd = BoseFS(M, cld(M, 2) => N - 3, cld(M, 2) - 1 => 2, cld(M, 2) + 2 => 1)
 
@@ -224,15 +218,15 @@ sort([even_eigs; odd_eigs]) ≈ all_eigs
 # To demonstrate this, we will use the [`DensityMatrixDiagonal`](@ref) operator, which in
 # this case will give the momentum density.
 
-# The idea here is to construct a [`DVec`](@ref) from the computed eigenvector and use it
+# The idea here is to construct a [`PDVec`](@ref) from the computed eigenvector and use it
 # directly with the operator.
 
-dvec = DVec(zip(bsr.basis, eigvecs(Matrix(ham))[:, 1]))
+dvec = PDVec(zip(bsr.basis, eigvecs(Matrix(ham))[:, 1]))
 
 # The eigenvectors these methods produce are normalized, hence we can use the three-argument
-# `dot` to compute the values of observables. Here we are computing the single particle 
+# `dot` to compute the values of observables. Here we are computing the single particle
 # momentum density distribution, which is just the diagonal of the single-particle density
-# matrix in momentum space:
+# matrix in momentum space.
 
 [dot(dvec, DensityMatrixDiagonal(i), dvec) for i in 1:M]
 
