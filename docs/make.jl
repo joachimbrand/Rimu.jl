@@ -46,7 +46,7 @@ makedocs(;
     modules=[Rimu,Rimu.RimuIO],
     format=Documenter.HTML(
         prettyurls = false,
-        size_threshold=500_000, # 500 kB
+        size_threshold=700_000, # 700 kB
         size_threshold_warn=200_000, # 200 kB
     ),
     pages=[
