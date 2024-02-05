@@ -25,7 +25,7 @@ H = HubbardReal1D(initial_address; u = 6.0, t = 1.0)
 
 # ## Parameters of the calculation
 
-# Now let's setup the Monte Carlo calculation. We need to decide the number of walkers to
+# Now, let's setup the Monte Carlo calculation. We need to decide the number of walkers to
 # use in this Monte Carlo run, which is equivalent to the average one-norm of the
 # coefficient vector. Higher values will result in better statistics, but require more
 # memory and computing power.
@@ -37,7 +37,7 @@ steps_equilibrate = 1_000;
 steps_measure = 2_000;
 laststep = steps_equilibrate + steps_measure
 
-# Next, we pick a timestep size. FCIQMC does not have a timestep error, however, the
+# Next, we pick a timestep size. FCIQMC does not have a timestep error, but the
 # timestep needs to be small enough, or the computation might diverge. If the timestep is
 # too small, however, the computation might take a long time to equillibrate. The
 # appropriate timestep size is problem-dependent and is best determined throgh
@@ -46,13 +46,13 @@ dτ = 0.001;
 
 # ## Defining an observable
 
-# Now let's set up an observable to measure. Here we will measure the projected energy. In
+# Now, let's set up an observable to measure. Here we will measure the projected energy. In
 # additon to the shift, the projected energy is a second estimator for the energy. It
 # usually produces better statistics than the shift.
 
-# We first need to define a projector. Here we use the function
+# We first need to define a projector. Here, we use the function
 # [`default_starting_vector`](@ref) to generate a vector with only a single occupied
-# configuration. We will use the same vector as a starting vector for the FCIQMC
+# configuration. We will use the same vector as the starting vector for the FCIQMC
 # calculation.
 initial_vector = default_starting_vector(initial_address; style=IsDynamicSemistochastic())
 
@@ -92,7 +92,7 @@ plot!(df.steps, df.norm, label="norm", ylabel="norm", xlabel="steps", color=1)
 # After an initial equilibriation period, the norm fluctuates around the target number of
 # walkers.
 
-# Now let's look at using the shift to estimate the ground state energy of `H`. The mean of
+# Now, let's look at using the shift to estimate the ground state energy of `H`. The mean of
 # the shift is a useful estimator of the energy. Calculating the error bars is a bit more
 # involved as autocorrelations have to be removed from the time series. This is done by
 # performing blocking analysis.
@@ -103,7 +103,7 @@ se = shift_estimator(df; skip=steps_equilibrate)
 
 # Computing the error of the projected energy is a bit more complicated, as it's a ratio of
 # fluctuating variables. Thankfully, the complications are handled by the following
-# functions.
+# function.
 pe = projected_energy(df; skip=steps_equilibrate)
 
 # The result is a ratio distribution. We extract its median and the edges of the 95%
@@ -116,8 +116,9 @@ plot(df.steps, df.shift, ylabel="energy", xlabel="steps", label="shift")
 plot!(x->se.mean, df.steps[steps_equilibrate+1:end], ribbon=se.err, label="shift mean")
 plot!(
     x -> v.val, df.steps[steps_equilibrate+1:end], ribbon=(v.val_l,v.val_u),
-    label="projected_energy",
+    label="projected energy",
 )
+lens!([steps_equilibrate, laststep], [-4.9, -3.1]; inset=(1, bbox(0.2, 0, 0.75, 0.7)))
 
 # In this case the projected energy and the shift are close to each other an the error bars
 # are hard to see.
