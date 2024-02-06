@@ -25,12 +25,14 @@ jobs:
       fail-fast: false
     steps:
       - name: "Checkout"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: "Setup Julia"
         uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
+      - name: "Load cache"
+        uses: julia-actions/cache@v1
       - name: "Build"
         uses: julia-actions/julia-buildpkg@latest
       - name: "Run tests"

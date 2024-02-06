@@ -17,12 +17,13 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: "Set up Julia"
         uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
+      - uses: julia-actions/cache@v1
       - name: "Run test"
         run: |
           julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
