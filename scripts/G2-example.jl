@@ -18,7 +18,7 @@ m = n = 6
 initial_address = near_uniform(BoseFS{n,m})
 H = HubbardReal1D(initial_address; u = 6.0, t = 1.0)
 
-# Now we define the operators for the observables we wish to calculate.
+# Now, we define the operators for the observables we wish to calculate.
 dvals = 0:m-1
 G2list = ((G2RealCorrelator(d) for d in dvals)...,)
 
@@ -52,13 +52,13 @@ steps_equilibrate = 1_000
 steps_measure = 5_000
 targetwalkers = 100;
 dτ = 0.001
-initial_vector = DVec(initial_address => 1)
 
 Random.seed!(17); #hide
 
-# Now we run FCIQMC.
+# Now, we run FCIQMC. Note that passing an initial vector is optional - if we only pass the
+# style, a vector with the appropriate style is created automatically.
 df, state = lomc!(
-    H, initial_vector;
+    H; style=IsDynamicSemistochastic(),
     dτ,
     laststep = steps_equilibrate + steps_measure,
     targetwalkers,

@@ -11,7 +11,7 @@
 using Rimu
 using Rimu.RMPI
 
-# We will compute the ground-state of a Bose-Hubbard model in momentum space with 10
+# We will compute the ground state of a Bose-Hubbard model in momentum space with 10
 # particles in 10 sites.
 
 # First, we define the Hamiltonian. We want to start from an address with zero momentum.
@@ -22,7 +22,7 @@ address = BoseFS(10, 5 => 10)
 H = HubbardMom1D(address; u=6.0)
 
 # Next, we construct the starting vector. We use a [`PDVec`](@ref), which is automatically
-# MPI distributed if MPI is available. We set the vector's stochastic style to
+# MPI-distributed if MPI is available. We set the vector's stochastic style to
 # [`IsDynamicSemistochastic`](@ref), which improves statistics and reduces the sign problem.
 initial_vector = PDVec(address => 1.0; style=IsDynamicSemistochastic())
 

@@ -1,6 +1,6 @@
 # # Example 4: Exact diagonalisation
 
-# When working with smaller systems, or when multiple eigenvalues of a system are required,
+# When working with smaller systems or when multiple eigenvalues of a system are required,
 # one can use an exact diagonalisation method. There are a few ways to go about
 # this, each with its pros and cons. The purpose of this tutorial is to show off the methods
 # as well as provide a few tips regarding them.
