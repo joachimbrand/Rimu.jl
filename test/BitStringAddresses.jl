@@ -559,7 +559,6 @@ end
     @testset "OccupationNumberFS in hamiltonians" begin
         bfs = BoseFS(1, 2, 3)
         ofs = OccupationNumberFS(bfs)
-        sizelim = dimension(ofs)
         @test sparse(HubbardMom1D(ofs)) == sparse(HubbardMom1D(bfs))
         @test sparse(HubbardMom1DEP(ofs)) == sparse(HubbardMom1DEP(bfs))
         @test sparse(HubbardReal1D(ofs)) == sparse(HubbardReal1D(bfs))
