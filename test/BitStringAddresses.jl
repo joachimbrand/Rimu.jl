@@ -559,14 +559,16 @@ end
     @testset "OccupationNumberFS in hamiltonians" begin
         bfs = BoseFS(1, 2, 3)
         ofs = OccupationNumberFS(bfs)
-        @test sparse(HubbardMom1D(ofs)) == sparse(HubbardMom1D(bfs))
-        @test sparse(HubbardMom1DEP(ofs)) == sparse(HubbardMom1DEP(bfs))
-        @test sparse(HubbardReal1D(ofs)) == sparse(HubbardReal1D(bfs))
-        @test sparse(HubbardReal1DEP(ofs)) == sparse(HubbardReal1DEP(bfs))
-        @test sparse(HubbardRealSpace(ofs)) == sparse(HubbardRealSpace(bfs))
-        @test sparse(ExtendedHubbardReal1D(ofs)) == sparse(ExtendedHubbardReal1D(bfs))
+        sizelim = dimension(ofs)
+        @test sparse(HubbardMom1D(ofs); sizelim) == sparse(HubbardMom1D(bfs))
+        @test sparse(HubbardMom1DEP(ofs); sizelim) == sparse(HubbardMom1DEP(bfs))
+        @test sparse(HubbardReal1D(ofs); sizelim) == sparse(HubbardReal1D(bfs))
+        @test sparse(HubbardReal1DEP(ofs); sizelim) == sparse(HubbardReal1DEP(bfs))
+        @test sparse(HubbardRealSpace(ofs); sizelim) == sparse(HubbardRealSpace(bfs))
+        @test sparse(ExtendedHubbardReal1D(ofs); sizelim) == sparse(ExtendedHubbardReal1D(bfs))
         oham = HubbardReal1D(OccupationNumberFS(0, 2, 1))
         bham = HubbardReal1D(BoseFS(0, 2, 1))
-        @test sparse(ParitySymmetry(oham; odd=true)) == sparse(ParitySymmetry(bham; odd=true))
+        @test sparse(ParitySymmetry(oham; odd=true); sizelim) ==
+            sparse(ParitySymmetry(bham; odd=true))
     end
 end
