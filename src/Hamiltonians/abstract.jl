@@ -68,14 +68,13 @@ end
 function dimension(::Type{<:FermiFS{N,M}}) where {N,M}
     return binomial(BigInt(M), BigInt(N))
 end
-function dimension(::BoseFS2C{NA,NB,M}) where {NA,NB,M}
+function dimension(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return dimension(BoseFS{NA,M}) * dimension(BoseFS{NB,M})
 end
 function dimension(::Type{<:CompositeFS{<:Any,<:Any,<:Any,T}}) where {T}
-    return dimension(T)
-end
-function dimension(::Type{<:Tuple{A,B}}) where {A,B}
-    return dimension(A) * dimension(B)
+    return prod(dimension, T.parameters)
+    # This relies on an implementation detail of the Tuple type and may break in future
+    # julia versions.
 end
 
 # for backward compatibility
