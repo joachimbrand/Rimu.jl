@@ -72,6 +72,14 @@ Base.getproperty(h::HubbardReal1DEP, ::Val{:ep}) = getfield(h, :ep)
 
 starting_address(h::HubbardReal1DEP) = h.add
 
+# `HubbardReal1DEP` conserves particle number. Thus we can lower the bound on the dimension
+# for the non-conserving `OccupationNumberFS`.
+function dimension(::HubbardReal1DEP, a::OccupationNumberFS)
+    m = num_modes(a)
+    n = num_particles(a)
+    return dimension(BoseFS{n,m})
+end
+
 function num_offdiagonals(::HubbardReal1DEP, address::SingleComponentFockAddress)
     return 2 * num_occupied_modes(address)
 end
