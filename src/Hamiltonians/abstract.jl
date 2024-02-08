@@ -50,7 +50,10 @@ See also [`BasisSetRep`](@ref).
 # Extended Help
 
 When extending `AbstractHamiltonian`, define a method for the two-argument form
-`dimension(h::MyNewHamiltonian, addr)`. When extending `AbstractFockAddress`, define a
+`dimension(h::MyNewHamiltonian, addr)`. For number-conserving Hamiltonians, the function
+[`Rimu.Hamiltonians.number_conserving_dimension`](@ref) may be useful.
+
+When extending `AbstractFockAddress`, define a
 method for `dimension(::Type{MyNewFockAddress})`.
 """
 dimension(h::AbstractHamiltonian) = dimension(h, starting_address(h))
