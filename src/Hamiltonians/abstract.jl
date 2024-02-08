@@ -59,14 +59,14 @@ dimension(addr::AbstractFockAddress) = dimension(typeof(addr))
 # dimension(_) = Inf # fallback
 
 function dimension(::Type{<:BoseFS{N,M}}) where {N,M}
-    return binomial(BigInt(N + M - 1), BigInt(N))
+    return number_conserving_bose_dimension(N,M)
 end
 function dimension(::Type{<:OccupationNumberFS{M,T}}) where {M,T}
     n = typemax(T)
     return BigInt(n + 1)^BigInt(M)
 end
 function dimension(::Type{<:FermiFS{N,M}}) where {N,M}
-    return binomial(BigInt(M), BigInt(N))
+    return number_conserving_fermi_dimension(N, M)
 end
 function dimension(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return dimension(BoseFS{NA,M}) * dimension(BoseFS{NB,M})
@@ -89,6 +89,51 @@ LinearAlgebra.ishermitian(h::AbstractHamiltonian) = LOStructure(h) ≡ IsHermiti
 LinearAlgebra.issymmetric(h::AbstractHamiltonian) = ishermitian(h) && isreal(h)
 
 BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(starting_address(h)))
+
+"""
+    number_conserving_bose_dimension(n, m)
+
+Return the dimension of the number-conserving Fock space for `n` bosons in `m` modes:
+`binomial(n + m - 1, n)`.
+
+See also [`number_conserving_fermi_dimension`](@ref), [`number_conserving_dimension`](@ref).
+"""
+number_conserving_bose_dimension(n, m) = binomial(BigInt(n + m - 1), BigInt(n))
+"""
+    number_conserving_fermi_dimension(n, m)
+
+Return the dimension of the number-conserving Fock space for `n` fermions in `m` modes:
+`binomial(m, n)`.
+
+See also [`number_conserving_bose_dimension`](@ref), [`number_conserving_dimension`](@ref).
+"""
+number_conserving_fermi_dimension(n, m) = binomial(BigInt(m), BigInt(n))
+
+"""
+    number_conserving_dimension(address <: AbstractFockAddress)
+
+Return the dimension of the Fock space spanned by the address type assuming particle number
+conservation.
+
+See also [`number_conserving_bose_dimension`](@ref),
+[`number_conserving_fermi_dimension`](@ref), [`dimension`](@ref).
+"""
+function number_conserving_dimension(address::Union{BoseFS,OccupationNumberFS})
+    m = num_modes(address)
+    n = num_particles(address)
+    return number_conserving_bose_dimension(n, m)
+end
+function number_conserving_dimension(address::FermiFS)
+    m = num_modes(address)
+    n = num_particles(address)
+    return number_conserving_fermi_dimension(n, m)
+end
+function number_conserving_dimension(addr::BoseFS2C)
+    return number_conserving_dimension(addr.bsa) * number_conserving_dimension(addr.bsb)
+end
+function number_conserving_dimension(address::CompositeFS)
+    return prod(number_conserving_dimension, address.components)
+end
 
 """
     rayleigh_quotient(H, v)

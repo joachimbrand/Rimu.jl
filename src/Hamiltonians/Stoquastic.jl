@@ -17,11 +17,11 @@ starting_address(h::Stoquastic) = starting_address(h.hamiltonian)
 LOStructure(::Type{<:Stoquastic{<:Any,H}}) where {H} = LOStructure(H)
 Base.adjoint(h::Stoquastic) = Stoquastic(h.hamiltonian')
 
-dimension(h::Stoquastic) = dimension(h.hamiltonian)
-num_offdiagonals(h::Stoquastic, add) = num_offdiagonals(h.hamiltonian, add)
-diagonal_element(h::Stoquastic, add) = diagonal_element(h.hamiltonian, add)
+dimension(h::Stoquastic, address) = dimension(h.hamiltonian, address)
+num_offdiagonals(h::Stoquastic, address) = num_offdiagonals(h.hamiltonian, address)
+diagonal_element(h::Stoquastic, address) = diagonal_element(h.hamiltonian, address)
 
-function get_offdiagonal(h::Stoquastic, add1, chosen)
-    add2, matrix_element = get_offdiagonal(h.hamiltonian, add1, chosen)
-    return add2, -abs(matrix_element)
+function get_offdiagonal(h::Stoquastic, address, chosen)
+    naddress, matrix_element = get_offdiagonal(h.hamiltonian, address, chosen)
+    return naddress, -abs(matrix_element)
 end
