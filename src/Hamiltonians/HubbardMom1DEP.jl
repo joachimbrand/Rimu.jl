@@ -100,6 +100,15 @@ end
 function starting_address(h::HubbardMom1DEP)
     return h.add
 end
+
+# `HubbardMom1DEP` conserves particle number. Thus we can lower the bound on the dimension
+# for the non-conserving `OccupationNumberFS`.
+function dimension(::HubbardMom1DEP, a::OccupationNumberFS)
+    m = num_modes(a)
+    n = num_particles(a)
+    return dimension(BoseFS{n,m})
+end
+
 function get_offdiagonal(h::HubbardMom1DEP{<:Any,<:Any,F}, add::F, i) where {F}
     return offdiagonals(h, add)[i]
 end

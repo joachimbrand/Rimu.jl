@@ -22,12 +22,13 @@ BitStringAddresses.num_modes(h::AbstractHamiltonian) = num_modes(starting_addres
 """
     dimension(h::AbstractHamiltonian, addr=starting_address(h))
     dimension(addr::AbstractFockAddress)
+    dimension(::Type{<:AbstractFockAddress})
 
 Return the estimated dimension of Hilbert space. May return a `BigInt` number.
 
-When called on an address, the dimension of the linear space spanned by the address type is
-returned. When called on an `AbstractHamiltonian`, an upper bound on the dimension of
-the matrix representing the Hamiltonian is returned.
+When called on an address or address type, the dimension of the linear space spanned by the
+address type is returned. When called on an `AbstractHamiltonian`, an upper bound on the
+dimension of the matrix representing the Hamiltonian is returned.
 
 # Examples
 
@@ -44,32 +45,36 @@ julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))
 julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))|>Float64
 1.3860838210861882e81
 ```
-# Interface
-
-When extending `AbstractHamiltonian`, define a method for the two-argument form
-`dimension(h::MyNewHamiltonian, addr)`.
 
 See also [`BasisSetRep`](@ref).
+# Extended Help
+
+When extending `AbstractHamiltonian`, define a method for the two-argument form
+`dimension(h::MyNewHamiltonian, addr)`. When extending `AbstractFockAddress`, define a
+method for `dimension(::Type{MyNewFockAddress})`.
 """
 dimension(h::AbstractHamiltonian) = dimension(h, starting_address(h))
 dimension(::AbstractHamiltonian, addr) = dimension(addr)
+dimension(addr::AbstractFockAddress) = dimension(typeof(addr))
 # dimension(_) = Inf # fallback
 
-function dimension(::BoseFS{N,M}) where {N,M}
+function dimension(::Type{<:BoseFS{N,M}}) where {N,M}
     return binomial(BigInt(N + M - 1), BigInt(N))
 end
-function dimension(::OccupationNumberFS{M,T}) where {M,T}
+function dimension(::Type{<:OccupationNumberFS{M,T}}) where {M,T}
     n = typemax(T)
-    return binomial(BigInt(n + M - 1), BigInt(n))
+    return BigInt(n + 1)^BigInt(M)
 end
-function dimension(::FermiFS{N,M}) where {N,M}
+function dimension(::Type{<:FermiFS{N,M}}) where {N,M}
     return binomial(BigInt(M), BigInt(N))
 end
-function dimension(b::BoseFS2C)
-    return dimension(b.bsa) * dimension(b.bsb)
+function dimension(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
+    return dimension(BoseFS{NA,M}) * dimension(BoseFS{NB,M})
 end
-function dimension(c::CompositeFS)
-    return prod(x -> dimension(x), c.components)
+function dimension(::Type{<:CompositeFS{<:Any,<:Any,<:Any,T}}) where {T}
+    return prod(dimension, T.parameters)
+    # This relies on an implementation detail of the Tuple type and may break in future
+    # julia versions.
 end
 
 # for backward compatibility
