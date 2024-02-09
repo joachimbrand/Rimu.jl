@@ -234,8 +234,6 @@ Part of the [`AbstractHamiltonian`](@ref) interface.
 In order to define this trait for a new linear operator type, define a method for
 `LOStructure(::Type{<:MyNewLOType}) = …`.
 """
-LOStructure, IsDiagonal, IsHermitian, AdjointKnown, AdjointUnknown
-
 abstract type LOStructure end
 
 struct IsDiagonal <: LOStructure end
