@@ -107,6 +107,11 @@ function num_singly_doubly_occupied_sites(b::SingleComponentFockAddress)
     return singlies, doublies
 end
 
+# faster method for this special case
+function num_singly_doubly_occupied_sites(b::OccupationNumberFS)
+    return num_singly_doubly_occupied_sites(onr(b))
+end
+
 function num_singly_doubly_occupied_sites(onrep::AbstractArray)
     # this one is faster by about a factor of 2 if you already have the onrep
     # returns number of singly and doubly occupied sites
