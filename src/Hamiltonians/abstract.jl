@@ -33,28 +33,32 @@ dimension of the matrix representing the Hamiltonian is returned.
 # Examples
 
 ```jldoctest
-julia> dimension(BoseFS((1,2,3)))
+julia> dimension(OccupationNumberFS(1,2,3))
+16777216
+
+julia> dimension(HubbardReal1D(OccupationNumberFS(1,2,3)))
 28
 
-julia> dimension(HubbardReal1D(BoseFS((1,2,3))))
-28
-
-julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))
+julia> dimension(BoseFS{200,100})
 1386083821086188248261127842108801860093488668581216236221011219101585442774669540
 
-julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))|>Float64
+julia> Float64(ans)
 1.3860838210861882e81
 ```
 
 See also [`BasisSetRep`](@ref).
 # Extended Help
 
-When extending `AbstractHamiltonian`, define a method for the two-argument form
-`dimension(h::MyNewHamiltonian, addr)`. For number-conserving Hamiltonians, the function
-[`Rimu.Hamiltonians.number_conserving_dimension`](@ref) may be useful.
+The default fallback for `dimension` called on an `AbstractHamiltonian` is to return the
+dimension of the address space, which provides an upper bound. For new Hamiltonians a
+tighter bound can be provided by defining a custom method.
 
-When extending `AbstractFockAddress`, define a
-method for `dimension(::Type{MyNewFockAddress})`.
+When extending [`AbstractHamiltonian`](@ref), define a method for the two-argument form
+`dimension(h::MyNewHamiltonian, addr)`. For number-conserving Hamiltonians, the function
+[`Hamiltonians.number_conserving_dimension`](@ref) may be useful.
+
+When extending [`AbstractFockAddress`](@ref), define a method for
+`dimension(::Type{MyNewFockAddress})`.
 """
 dimension(h::AbstractHamiltonian) = dimension(h, starting_address(h))
 dimension(::AbstractHamiltonian, addr) = dimension(addr)
