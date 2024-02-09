@@ -46,11 +46,11 @@ julia> Float64(ans)
 1.3860838210861882e81
 ```
 
-See also [`BasisSetRep`](@ref).
+Part of the [`AbstractHamiltonian`](@ref) interface. See also [`BasisSetRep`](@ref).
 # Extended Help
 
-The default fallback for `dimension` called on an `AbstractHamiltonian` is to return the
-dimension of the address space, which provides an upper bound. For new Hamiltonians a
+The default fallback for `dimension` called on an [`AbstractHamiltonian`](@ref) is to return
+the dimension of the address space, which provides an upper bound. For new Hamiltonians a
 tighter bound can be provided by defining a custom method.
 
 When extending [`AbstractHamiltonian`](@ref), define a method for the two-argument form
@@ -145,6 +145,8 @@ end
 """
     rayleigh_quotient(H, v)
 
+Return the Rayleigh quotient of the linear operator `H` and the vector `v`:
+
 ```math
 \\frac{⟨ v | H | v ⟩}{⟨ v|v ⟩}
 ```
@@ -174,7 +176,8 @@ end
     momentum(ham::AbstractHamiltonian)
 
 Momentum as a linear operator in Fock space. Pass a Hamiltonian `ham` in order to convey
-information about the Fock basis.
+information about the Fock basis. Returns an [`AbstractHamiltonian`](@ref) that represents
+the momentum operator.
 
 Note: `momentum` is currently only defined on [`HubbardMom1D`](@ref).
 
@@ -199,6 +202,7 @@ julia> v = DVec(add => 10; capacity=1000);
 julia> rayleigh_quotient(mom, v) # momentum expectation value for state vector `v`
 -1.5707963267948966
 ```
+Part of the [`AbstractHamiltonian`](@ref) interface.
 """
 momentum
 
@@ -423,6 +427,8 @@ DVec{BoseFS{1, 3, BitString{3, 1, UInt8}},Float64} with 3 entries, style = IsDet
 ```
 Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 [`starting_address`](@ref).
+
+Part of the [`AbstractHamiltonian`](@ref) interface. See also [`build_basis`](@ref).
 """
 struct BasisSetRep{A,SM,H}
     sm::SM
