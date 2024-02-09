@@ -135,7 +135,7 @@ The following functions come with default implementations, but may be customized
 
 ```@docs
 random_offdiagonal
-Hamiltonians.LOStructure
+Hamiltonians.LOStructure IsDiagonal IsHermitian AdjointKnown AdjointUnknown
 dimension
 has_adjoint
 allowed_address_type
