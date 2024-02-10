@@ -63,7 +63,7 @@ When extending [`AbstractFockAddress`](@ref), define a method for
 dimension(h::AbstractHamiltonian) = dimension(h, starting_address(h))
 dimension(::AbstractHamiltonian, addr) = dimension(addr)
 dimension(addr::AbstractFockAddress) = dimension(typeof(addr))
-# dimension(_) = Inf # fallback
+dimension(::T) where {T<:Number} = typemax(T) # e.g. integer addresses
 
 function dimension(::Type{<:BoseFS{N,M}}) where {N,M}
     return number_conserving_bose_dimension(N,M)

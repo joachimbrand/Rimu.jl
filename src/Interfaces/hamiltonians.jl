@@ -18,14 +18,15 @@ For available implementations see [`Hamiltonians`](@ref Main.Hamiltonians).
 
 # Interface
 
-Methods that need to be implemented:
+Basic interface methods to implement:
 
-* [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
-* [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
-* [`diagonal_element(::AbstractHamiltonian, address)`](@ref)
 * [`starting_address(::AbstractHamiltonian)`](@ref)
+* [`diagonal_element(::AbstractHamiltonian, address)`](@ref)
+* [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
+* [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref) (optional, see
+    below)
 
-Optional methods to implement:
+Optional additional methods to implement:
 
 * [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
 * [`dimension(::AbstractHamiltonian, addr)`](@ref Main.Hamiltonians.dimension): defaults to
@@ -34,7 +35,7 @@ Optional methods to implement:
   `typeof(starting_address(h))`
 * [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
-Provides:
+Provides the following functions and methods:
 
 * [`offdiagonals`](@ref): iterator over reachable off-diagonal matrix elements
 * [`random_offdiagonal`](@ref): function to generate random off-diagonal matrix element
@@ -45,6 +46,11 @@ Provides:
 * `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes (slow!)
 * [`BasisSetRep`](@ref Main.Hamiltonians.sparse): construct a basis set repesentation
 * [`sparse`](@ref Main.Hamiltonians.sparse), [`Matrix`](@ref): construct a (sparse) matrix representation
+
+Alternatively to the above, [`offdiagonals`](@ref) can be implemented instead of
+[`get_offdiagonal`](@ref). Sometimes this can be done efficiently. In this case
+[`num_offdiagonals`](@ref) should provide an upper bound on the number of elements obtained
+when iterating [`offdiagonals`](@ref).
 
 See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref).
 """
