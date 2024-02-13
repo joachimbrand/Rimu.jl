@@ -24,7 +24,7 @@ G2list = ((G2RealCorrelator(d) for d in dvals)...,)
 
 # This is a tuple of [`G2RealCorrelator`](@ref)s, subtypes of
 # [`AbstractHamiltonian`](@ref).
-# It calculates the two-body correlation function on a lattice
+# It calculates the density-density correlation function on a lattice
 # ```math
 #     \hat{G}^{(2)}(d) = \frac{1}{M} \sum_i^M \hat{n}_i (\hat{n}_{i+d} - \delta_{0d}).
 # ```
@@ -33,8 +33,11 @@ G2list = ((G2RealCorrelator(d) for d in dvals)...,)
 #     \sum_{d=0}^{M-1} \langle \hat{G}^{(2)}(d) \rangle = \frac{N (N-1)}{M}.
 # ```
 
-# Observables are calculated using the "replica trick" whereby several copies or "replicas"
-# of the model are run simultaneously. We enable this by defining a
+# Observables that are defined by expectation values are calculated using the 
+# "replica trick". Thereby several independent copies or "replicas"
+# of the state vector are propagated simultaneously. The reason is to have two (or more)
+# stochastically independent copies of the state vector available such that we can
+# calculate bias-free overlaps. We enable this by defining a
 # [`ReplicaStrategy`](@ref). Each replica has its own state and FCIQMC is effectively
 # performed independently on each one.  For calculating observables, we use
 # [`AllOverlaps`](@ref) for the [`ReplicaStrategy`](@ref). At each timestep, after the
@@ -95,8 +98,8 @@ for d in dvals
 end
 
 # As expected, the onsite correlation at ``d=0`` is low since this is a Mott insulating
-# state with unit filling fraction, and is highest at ``d=3`` which is the longest possible
-# separation with periodic boundary conditions.
+# state with unit filling fraction, and is close to ``1.0`` for all other values of the
+# displacement ``d``.
 
 # Since we ran multiple independent replicas, we also have multiple estimates of the shift
 # energy.

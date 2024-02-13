@@ -11,13 +11,16 @@
 using Rimu
 using Rimu.RMPI
 
+# Note that it is not necessary to initialise the MPI library, as this is already done automatically
+# when Rimu is loaded.
+
 # We will compute the ground state of a Bose-Hubbard model in momentum space with 10
 # particles in 10 sites.
 
 # First, we define the Hamiltonian. We want to start from an address with zero momentum.
 address = BoseFS(10, 5 => 10)
 
-# We will set the interaction strength `u` to `6`. The hopping strength `t` defaults to
+# We will set the interaction strength `u` to `6.0`. The hopping strength `t` defaults to
 # `1.0`.
 H = HubbardMom1D(address; u=6.0)
 

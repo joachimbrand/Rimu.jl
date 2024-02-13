@@ -43,7 +43,7 @@ fock_to_cart(addr, S)
 # according to the non-interacting energy of the basis states. The first task is
 # to find all blocks of basis states with the same energy. The strength of the
 # interaction is not relevant at this point, just that it is non-zero.
-# Use a dummy groundstate address to build the Hamiltonian.
+# Use an arbitrary `N`-particle starting address to build the Hamiltonian.
 
 H = HOCartesianContactInteractions(BoseFS(P, 1 => N); S);
 

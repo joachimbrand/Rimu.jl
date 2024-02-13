@@ -32,15 +32,16 @@ H = HubbardReal1D(initial_address; u = 6.0, t = 1.0)
 targetwalkers = 1_000;
 
 # FCIQMC takes a certain number of steps to equllibrate, after which the observables will
-# fluctuate around a mean value. In this example, we will devote 1000 steps to equllibration and take an additional 2000 steps for measurement.
+# fluctuate around a mean value. In this example, we will devote 1000 steps to equilibration 
+# and take an additional 2000 steps for measurement.
 steps_equilibrate = 1_000;
 steps_measure = 2_000;
 laststep = steps_equilibrate + steps_measure
 
-# Next, we pick a timestep size. FCIQMC does not have a timestep error, but the
-# timestep needs to be small enough, or the computation might diverge. If the timestep is
-# too small, however, the computation might take a long time to equillibrate. The
-# appropriate timestep size is problem-dependent and is best determined throgh
+# Next, we pick a time step size. FCIQMC does not have a time step error, but the
+# time step needs to be small enough, or the computation might diverge. If the time step is
+# too small, however, the computation might take a long time to equilibrate. The
+# appropriate time step size is problem-dependent and is best determined through
 # experimentation.
 dτ = 0.001;
 
@@ -60,8 +61,9 @@ initial_vector = default_starting_vector(initial_address; style=IsDynamicSemisto
 # use. [`IsDynamicSemistochastic`](@ref) is usually the best choice as it reduces noise and
 # improves the sign problem.
 
-# Observables are passed into the [`lomc!`](@ref) function with the `post_step` keyword
-# argument.
+# Observables that can be calculated by projection of the fluctuating quantum state onto 
+# a constant vector are passed into the [`lomc!`](@ref) function with the `post_step`
+# keyword argument.
 post_step = ProjectedEnergy(H, initial_vector)
 
 # ## Running the calculation
@@ -88,14 +90,15 @@ df, state = lomc!(
 # We can plot the norm of the coefficient vector as a function of the number of steps.
 hline([targetwalkers], label="targetwalkers", color=2, linestyle=:dash)
 plot!(df.steps, df.norm, label="norm", ylabel="norm", xlabel="steps", color=1)
+xlabel!("steps"); ylabel("norm")
 
 # After an initial equilibriation period, the norm fluctuates around the target number of
 # walkers.
 
 # Now, let's look at using the shift to estimate the ground state energy of `H`. The mean of
 # the shift is a useful estimator of the energy. Calculating the error bars is a bit more
-# involved as autocorrelations have to be removed from the time series. This is done by
-# performing blocking analysis.
+# involved as autocorrelations have to be removed from the time series. This can be done
+# with the function [`shift_estimator`](@ref), which performs a blocking analysis.
 se = shift_estimator(df; skip=steps_equilibrate)
 
 # Here, `se` contains the calculated mean and standard errors of the shift, as well as some
@@ -119,8 +122,9 @@ plot!(
     label="projected energy",
 )
 lens!([steps_equilibrate, laststep], [-5.1, -2.9]; inset=(1, bbox(0.2, 0.25, 0.6, 0.4)))
+xlabel!("steps"); ylabel("energy")
 
-# In this case the projected energy and the shift are close to each other an the error bars
+# In this case the projected energy and the shift are close to each other and the error bars
 # are hard to see.
 
 # The problem was just a toy example, as the dimension of the Hamiltonian is rather small:
