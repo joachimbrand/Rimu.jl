@@ -32,7 +32,7 @@ H = HubbardReal1D(initial_address; u = 6.0, t = 1.0)
 targetwalkers = 1_000;
 
 # FCIQMC takes a certain number of steps to equllibrate, after which the observables will
-# fluctuate around a mean value. In this example, we will devote 1000 steps to equilibration 
+# fluctuate around a mean value. In this example, we will devote 1000 steps to equilibration
 # and take an additional 2000 steps for measurement.
 steps_equilibrate = 1_000;
 steps_measure = 2_000;
@@ -61,7 +61,7 @@ initial_vector = default_starting_vector(initial_address; style=IsDynamicSemisto
 # use. [`IsDynamicSemistochastic`](@ref) is usually the best choice as it reduces noise and
 # improves the sign problem.
 
-# Observables that can be calculated by projection of the fluctuating quantum state onto 
+# Observables that can be calculated by projection of the fluctuating quantum state onto
 # a constant vector are passed into the [`lomc!`](@ref) function with the `post_step`
 # keyword argument.
 post_step = ProjectedEnergy(H, initial_vector)
@@ -88,9 +88,12 @@ df, state = lomc!(
 # ## Analysing the results
 
 # We can plot the norm of the coefficient vector as a function of the number of steps.
-hline([targetwalkers], label="targetwalkers", color=2, linestyle=:dash)
-plot!(df.steps, df.norm, label="norm", ylabel="norm", xlabel="steps", color=1)
-xlabel!("steps"); ylabel("norm")
+hline(
+    [targetwalkers];
+    label="targetwalkers", xlabel="steps", ylabel="norm",
+    color=2, linestyle=:dash,
+)
+plot!(df.steps, df.norm, label="norm", color=1)
 
 # After an initial equilibriation period, the norm fluctuates around the target number of
 # walkers.
@@ -114,7 +117,7 @@ pe = projected_energy(df; skip=steps_equilibrate)
 v = val_and_errs(pe; p=0.95)
 
 # Let's visualise these estimators together with the time series of the shift.
-plot(df.steps, df.shift, ylabel="energy", xlabel="steps", label="shift")
+plot(df.steps, df.shift, ylabel="energy", xlabel="steps", label="energy")
 
 plot!(x->se.mean, df.steps[steps_equilibrate+1:end], ribbon=se.err, label="shift mean")
 plot!(
@@ -122,7 +125,6 @@ plot!(
     label="projected energy",
 )
 lens!([steps_equilibrate, laststep], [-5.1, -2.9]; inset=(1, bbox(0.2, 0.25, 0.6, 0.4)))
-xlabel!("steps"); ylabel("energy")
 
 # In this case the projected energy and the shift are close to each other and the error bars
 # are hard to see.
