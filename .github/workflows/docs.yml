@@ -8,6 +8,8 @@ on:
       - feature/github-actions
       - feature/doc-**
       - 'doc/**'
+    branches-ignore:
+      - 'dependabot/**'
     tags: '*'
   pull_request:
     branches:
@@ -16,6 +18,8 @@ on:
       - feature/github-actions
       - feature/doc-**
       - 'doc/**'
+    branches-ignore:
+      - 'dependabot/**'
 
 jobs:
   build:
