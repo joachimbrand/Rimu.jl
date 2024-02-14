@@ -1,11 +1,7 @@
 name: Allocations
 
 on:
-  push:
-    branches:
-      - develop
-      - 'feature/**'
-      - 'bugfix/**'
+  push
 
 jobs:
   allocations:
