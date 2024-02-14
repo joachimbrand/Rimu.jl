@@ -39,7 +39,7 @@ jobs:
           echo ::set-output name=body::$body
       # check if the previous comment exists
       - name: find comment
-        uses: peter-evans/find-comment@v1
+        uses: peter-evans/find-comment@v3
         id: fc
         with:
           issue-number: ${{ github.event.pull_request.number }}
