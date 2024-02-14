@@ -1,7 +1,12 @@
 name: Documentation
 
 on:
-  push
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - '*'
 
 jobs:
   build:
