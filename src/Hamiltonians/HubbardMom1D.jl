@@ -70,6 +70,14 @@ function starting_address(h::HubbardMom1D)
     return h.add
 end
 
+# `HubbardMom1D` conserves particle number. Thus we can lower the bound on the dimension
+# for the non-conserving `OccupationNumberFS`.
+function dimension(::HubbardMom1D, a::OccupationNumberFS)
+    m = num_modes(a)
+    n = num_particles(a)
+    return dimension(BoseFS{n,m})
+end
+
 LOStructure(::Type{<:HubbardMom1D{<:Real}}) = IsHermitian()
 
 Base.getproperty(h::HubbardMom1D, s::Symbol) = getproperty(h, Val(s))
