@@ -3,23 +3,9 @@ name: Documentation
 on:
   push:
     branches:
-      - master
       - develop
-      - feature/github-actions
-      - feature/doc-**
-      - 'doc/**'
-    branches-ignore:
-      - 'dependabot/**'
     tags: '*'
-  pull_request:
-    branches:
-      - master
-      - develop
-      - feature/github-actions
-      - feature/doc-**
-      - 'doc/**'
-    branches-ignore:
-      - 'dependabot/**'
+  pull_request
 
 jobs:
   build:
@@ -42,6 +28,7 @@ jobs:
           julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
           julia --project=docs/ -e 'using Rimu'
       - name: Build and deploy
+        if: github.actor != 'dependabot[bot]'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: julia --project=docs/ docs/make.jl
