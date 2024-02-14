@@ -1,11 +1,9 @@
 name: Allocations
 
 on:
-  push:
-    branches:
-      - develop
-      - 'feature/**'
-      - 'bugfix/**'
+  pull_request:
+    branches-ignore:
+    - 'doc/**'
 
 jobs:
   allocations:

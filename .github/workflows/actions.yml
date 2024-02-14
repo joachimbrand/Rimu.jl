@@ -1,18 +1,7 @@
 name: Run tests
 
 on:
-  push:
-    branches:
-      - master
-      - develop
-      - 'feature/**'
-      - 'bugfix/**'
-    # tags: '*'
-  pull_request:
-    branches:
-      - master
-      - develop
-      - feature/github-actions
+  push
 
 jobs:
   test:

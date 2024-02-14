@@ -2,11 +2,11 @@ name: Documentation
 
 on:
   push:
-    branches-ignore:
-      - 'dependabot/**'
+    branches:
+      - develop
   pull_request:
-    branches-ignore:
-      - 'dependabot/**'
+    branches:
+      - '*'
 
 jobs:
   build:
@@ -29,6 +29,7 @@ jobs:
           julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
           julia --project=docs/ -e 'using Rimu'
       - name: Build and deploy
+        if: github.actor != 'dependabot[bot]'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: julia --project=docs/ docs/make.jl
