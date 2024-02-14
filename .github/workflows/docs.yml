@@ -2,22 +2,9 @@ name: Documentation
 
 on:
   push:
-    branches:
-      - master
-      - develop
-      - feature/github-actions
-      - feature/doc-**
-      - 'doc/**'
     branches-ignore:
       - 'dependabot/**'
-    tags: '*'
   pull_request:
-    branches:
-      - master
-      - develop
-      - feature/github-actions
-      - feature/doc-**
-      - 'doc/**'
     branches-ignore:
       - 'dependabot/**'
 
