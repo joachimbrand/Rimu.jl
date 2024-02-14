@@ -13,12 +13,11 @@ function exact_energy(ham)
 end
 
 """
-    test_hamiltonian_interface(H, addr)
+    test_hamiltonian_interface(H, addr=starting_address(H))
 
 The main purpose of this test function is to check that all required methods are defined.
 """
-function test_hamiltonian_interface(H)
-    addr = starting_address(H)
+function test_hamiltonian_interface(H, addr=starting_address(H))
     @testset "$(nameof(typeof(H)))" begin
         @testset "*, mul!, and call" begin
             v = DVec(addr => eltype(H)(2.0))
@@ -59,10 +58,22 @@ function test_hamiltonian_interface(H)
             end
         end
         @testset "dimension" begin
-            @test dimension(H) ≥ dimension(H, starting_address(H))
+            @test dimension(H) == dimension(H, starting_address(H))
+            @test dimension(addr) ≥ dimension(H, addr)
         end
         @testset "allowed_address_type" begin
+            @test starting_address(H) isa allowed_address_type(H)
             @test addr isa allowed_address_type(H)
+        end
+        @testset "offdiagonals" begin
+            # `get_offdiagonal` is not mandatory but `offdiagonals` is
+            if length(methods(get_offdiagonal, (typeof(H), typeof(add), Int))) > 0
+                ods = [get_offdiagonal(H, addr, i) for i in 1:num_offdiagonals(H, addr)]
+                @test ods == offdiagonals(H, addr)
+            end
+            number_of_nonzero_offdiagonals = length(DVec(offdiagonals(H, addr)))
+            @test number_of_nonzero_offdiagonals ≤ num_offdiagonals(H, addr)
+            @test number_of_nonzero_offdiagonals ≤ dimension(H, addr)
         end
     end
 end
@@ -139,6 +150,7 @@ end
         HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
         HubbardReal1DEP(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0, v_ho=3.0),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
+        HubbardMom1D(OccupationNumberFS(6, 0, 0, 4); t=1.0, u=0.5),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
         ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
         HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),

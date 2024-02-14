@@ -68,6 +68,8 @@ function Base.show(io::IO, h::TimeReversalSymmetry)
     print(io, "TimeReversalSymmetry(", h.hamiltonian, ", even=", h.even, ")")
 end
 
+dimension(h::TimeReversalSymmetry, addr) = dimension(h.hamiltonian, addr) # upper bound
+
 LOStructure(h::TimeReversalSymmetry) = LOStructure(h.hamiltonian)
 Base.adjoint(h::TimeReversalSymmetry) = TimeReversalSymmetry(h.hamiltonian', even=h.even)
 

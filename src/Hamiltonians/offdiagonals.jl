@@ -1,12 +1,11 @@
 ###
-### This file contains the definition of `offdiagonals`, as well as some internal functions
-### operating on Bosonic addresses.
+### This file contains the definition of `offdiagonals`.
 ###
 """
     AbstractOffdiagonals{A,T}<:AbstractVector{Tuple{A,T}}
 
-Iterator over new address and matrix elements for reachable off-diagonal matrix elements of a
-linear operator.
+Iterator over new address and matrix elements for reachable off-diagonal matrix elements of
+a linear operator.
 
 See [`Offdiagonals`](@ref) for a default implementation.
 
@@ -19,6 +18,7 @@ See [`Offdiagonals`](@ref) for a default implementation.
   `get_offdiagonal(h, a, i)`.
 * `Base.size(::AbstractOffdiagonals)`: should be equivalent to `num_offdiagonals(h, a)`.
 
+See also [`offdiagonals`](@ref), [`AbstractHamiltonian`](@ref).
 """
 abstract type AbstractOffdiagonals{A,T} <: AbstractVector{Tuple{A,T}} end
 
@@ -27,19 +27,17 @@ Base.IndexStyle(::Type{<:AbstractOffdiagonals}) = IndexLinear()
 offdiagonals(h, a) = Offdiagonals(h, a)
 
 """
-    Offdiagonals(h, address)
+    Offdiagonals(h, address) <: AbstractOffdiagonals
 
 Iterator over new address and matrix element for reachable off-diagonal matrix elements of
 linear operator `h` from address `address`.  Represents an abstract vector containing the
-possibly non-zero off-diagonal matrix elements of the column of ham indexed by add.
+non-zero off-diagonal matrix elements of the column of `h` indexed by `address`. To
+construct this iterator use [`offdiagonals`](@ref).
 
-This is the default implementation defined in terms of [`num_offdiagonals`](@ref) and
-[`get_offdiagonal`](@ref).
+This is the default implementation of [`AbstractOffdiagonals`](@ref) defined in terms of
+[`num_offdiagonals`](@ref) and [`get_offdiagonal`](@ref).
 
-# See also
-
-* [`offdiagonals`](@ref)
-
+See also [`offdiagonals`](@ref), [`AbstractHamiltonian`](@ref).
 """
 struct Offdiagonals{A,T,H<:AbstractHamiltonian{T}} <: AbstractOffdiagonals{A,T}
     hamiltonian::H
@@ -59,7 +57,3 @@ function Base.getindex(s::Offdiagonals{A,T}, i)::Tuple{A,T} where {A,T}
 end
 
 Base.size(s::Offdiagonals) = (s.length,)
-
-###
-### Internal functions common to several different bosonic Hamiltonians
-###

@@ -273,14 +273,7 @@ Base.:(==)(H::HubbardRealSpace, G::HubbardRealSpace) = all(map(p -> getproperty(
 
 starting_address(h::HubbardRealSpace) = h.address
 
-# `HubbardRealSpace` conserves particle number. Thus we can lower the bound on the dimension
-# for the non-conserving `OccupationNumberFS`.
-# NOTE: We should think of a more general mechanism that works for composite addresses.
-function dimension(::HubbardRealSpace, a::OccupationNumberFS)
-    m = num_modes(a)
-    n = num_particles(a)
-    return dimension(BoseFS{n,m})
-end
+dimension(::HubbardRealSpace, address) = number_conserving_dimension(address)
 
 function diagonal_element(h::HubbardRealSpace, address)
     int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u)

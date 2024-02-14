@@ -18,14 +18,15 @@ For available implementations see [`Hamiltonians`](@ref Main.Hamiltonians).
 
 # Interface
 
-Methods that need to be implemented:
+Basic interface methods to implement:
 
-* [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
-* [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref)
-* [`diagonal_element(::AbstractHamiltonian, address)`](@ref)
 * [`starting_address(::AbstractHamiltonian)`](@ref)
+* [`diagonal_element(::AbstractHamiltonian, address)`](@ref)
+* [`num_offdiagonals(::AbstractHamiltonian, address)`](@ref)
+* [`get_offdiagonal(::AbstractHamiltonian, address, chosen::Integer)`](@ref) (optional, see
+    below)
 
-Optional methods to implement:
+Optional additional methods to implement:
 
 * [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
 * [`dimension(::AbstractHamiltonian, addr)`](@ref Main.Hamiltonians.dimension): defaults to
@@ -34,7 +35,7 @@ Optional methods to implement:
   `typeof(starting_address(h))`
 * [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
-Provides:
+Provides the following functions and methods:
 
 * [`offdiagonals`](@ref): iterator over reachable off-diagonal matrix elements
 * [`random_offdiagonal`](@ref): function to generate random off-diagonal matrix element
@@ -46,6 +47,11 @@ Provides:
 * [`BasisSetRep`](@ref Main.Hamiltonians.sparse): construct a basis set repesentation
 * [`sparse`](@ref Main.Hamiltonians.sparse), [`Matrix`](@ref): construct a (sparse) matrix representation
 
+Alternatively to the above, [`offdiagonals`](@ref) can be implemented instead of
+[`get_offdiagonal`](@ref). Sometimes this can be done efficiently. In this case
+[`num_offdiagonals`](@ref) should provide an upper bound on the number of elements obtained
+when iterating [`offdiagonals`](@ref).
+
 See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref).
 """
 abstract type AbstractHamiltonian{T} end
@@ -54,52 +60,56 @@ Base.eltype(::AbstractHamiltonian{T}) where {T} = T
 
 """
     allowed_address_type(h::AbstractHamiltonian)
-Return the type of addresses that can be used with Hamiltonian `h`. Part of the
-[`AbstractHamiltonian`](@ref) interface. Defaults to `typeof(starting_address(h))`.
+Return the type of addresses that can be used with Hamiltonian `h`.
 
-Overload this function if the Hamiltonian can be used with addresses of different types.
+Part of the [`AbstractHamiltonian`](@ref) interface.
+
+Defaults to `typeof(starting_address(h))`. Overload this function if the Hamiltonian can be
+used with addresses of different types.
 """
 allowed_address_type(h::AbstractHamiltonian) = typeof(starting_address(h))
 allowed_address_type(::AbstractMatrix) = Integer
 
 """
-    diagonal_element(ham, add)
+    diagonal_element(ham, address)
 
 Compute the diagonal matrix element of the linear operator `ham` at
-address `add`.
+address `address`.
 
 # Example
 
 ```jldoctest
-julia> addr = BoseFS((3, 2, 1));
+julia> address = BoseFS((3, 2, 1));
 
 
-julia> H = HubbardMom1D(addr);
+julia> H = HubbardMom1D(address);
 
 
-julia> diagonal_element(H, addr)
+julia> diagonal_element(H, address)
 8.666666666666664
 ```
+Part of the [`AbstractHamiltonian`](@ref) interface.
 """
 diagonal_element(m::AbstractMatrix, i) = m[i, i]
 
 """
-    num_offdiagonals(ham, add)
+    num_offdiagonals(ham, address)
 
-Compute the number of number of reachable configurations from address `add`.
+Compute the number of number of reachable configurations from address `address`.
 
 # Example
 
 ```jldoctest
-julia> addr = BoseFS((3, 2, 1));
+julia> address = BoseFS((3, 2, 1));
 
 
-julia> H = HubbardMom1D(addr);
+julia> H = HubbardMom1D(address);
 
 
-julia> num_offdiagonals(H, addr)
+julia> num_offdiagonals(H, address)
 10
 ```
+Part of the [`AbstractHamiltonian`](@ref) interface.
 """
 num_offdiagonals(m::AbstractMatrix, i) = length(offdiagonals(m, i))
 
@@ -120,50 +130,49 @@ julia> H = HubbardMom1D(addr);
 julia> get_offdiagonal(H, addr, 3)
 (BoseFS{6,3}(2, 1, 3), 1.0)
 ```
+Part of the [`AbstractHamiltonian`](@ref) interface.
 """
 get_offdiagonal(m::AbstractMatrix, i, n) = offdiagonals(m, i)[n]
 
 """
     starting_address(h)
 
-Return the starting address for Hamiltonian `h`. Part of the [`AbstractHamiltonian`](@ref)
-interface. When called on an `AbstractMatrix` return the index of the lowest diagonal
+Return the starting address for Hamiltonian `h`. When called on an `AbstractMatrix`,
+`starting_address` returns the index of the lowest diagonal
 element.
 
 # Example
 
 ```jldoctest
-julia> addr = BoseFS((3, 2, 1));
+julia> address = BoseFS((3, 2, 1));
 
 
-julia> H = HubbardMom1D(addr);
+julia> H = HubbardMom1D(address);
 
 
-julia> addr == starting_address(H)
+julia> address == starting_address(H)
 true
 ```
+Part of the [`AbstractHamiltonian`](@ref) interface.
 """
 starting_address(m::AbstractMatrix) = findmin(real.(diag(m)))[2]
 
 """
     offdiagonals(h::AbstractHamiltonian, address)
 
-Return an iterator over reachable off-diagonal matrix elements of type
-`<:AbstractOffdiagonals`. Defaults to returning `Offdiagonals(h, a)`
+Return an iterator over nonzero off-diagonal matrix elements of `h` in the same column as
+`address`. Will iterate over pairs `(newaddress, matrixelement)`.
 
-# See also
-
-* [`Offdiagonals`](@ref Main.Hamiltonians.Offdiagonals)
-* [`AbstractOffdiagonals`](@ref Main.Hamiltonians.AbstractOffdiagonals)
+# Example
 
 ```jldoctest
-julia> addr = BoseFS((3,2,1));
+julia> address = BoseFS(3,2,1);
 
 
-julia> H = HubbardReal1D(addr);
+julia> H = HubbardReal1D(address);
 
 
-julia> h = offdiagonals(H, addr)
+julia> h = offdiagonals(H, address)
 6-element Rimu.Hamiltonians.Offdiagonals{BoseFS{6, 3, BitString{8, 1, UInt8}}, Float64, HubbardReal1D{Float64, BoseFS{6, 3, BitString{8, 1, UInt8}}, 1.0, 1.0}}:
  (fs"|2 3 1⟩", -3.0)
  (fs"|2 2 2⟩", -2.449489742783178)
@@ -172,6 +181,16 @@ julia> h = offdiagonals(H, addr)
  (fs"|4 2 0⟩", -2.0)
  (fs"|3 3 0⟩", -1.7320508075688772)
 ```
+Part of the [`AbstractHamiltonian`](@ref) interface.
+
+# Extemded help
+
+`offdiagonals` return and iterator of type `<:AbstractOffdiagonals`. It defaults to
+returning `Offdiagonals(h, a)`
+
+See also [`Offdiagonals`](@ref Main.Hamiltonians.Offdiagonals),
+[`AbstractOffdiagonals`](@ref Main.Hamiltonians.AbstractOffdiagonals).
+
 """
 function offdiagonals(m::AbstractMatrix, i)
     pairs = collect(zip(axes(m, 1), view(m, :, i)))
@@ -188,6 +207,7 @@ Generate a single random excitation, i.e. choose from one of the accessible off-
 elements in the column corresponding to address `add` of the Hamiltonian matrix represented
 by `ham`. Alternatively, pass as argument an iterator over the accessible matrix elements.
 
+Part of the [`AbstractHamiltonian`](@ref) interface.
 """
 function random_offdiagonal(offdiagonals::AbstractVector)
     nl = length(offdiagonals) # check how many sites we could get_offdiagonal to
@@ -200,21 +220,25 @@ function random_offdiagonal(ham, add)
     return random_offdiagonal(offdiagonals(ham, add))
 end
 
-"""
+@doc """
     LOStructure(op::AbstractHamiltonian)
     LOStructure(typeof(op))
 
-`LOStructure` speficies properties of the linear operator `op`. If a special structure is
-known this can speed up calculations. Implemented structures are:
+Return information about the structure of the linear operator `op`.
+`LOStructure` is used as a trait to speficy symmetries or other properties of the linear
+operator `op` that may simplify or speed up calculations. Implemented instances are:
 
-* `IsDiagonal`: The operator is diagonal.
-* `IsHermitian`: The operator is complex and Hermitian or real and symmetric.
-* `AdjointKnown`: The operator is not Hermitian, but its [`adjoint`](@ref Main.Hamiltonians.adjoint) is implemented.
-* `AdjointUnknown`: [`adjoint`](@ref Main.Hamiltonians.adjoint) for this operator is not implemented.
+* `IsDiagonal()`: The operator is diagonal.
+* `IsHermitian()`: The operator is complex and Hermitian or real and symmetric.
+* `AdjointKnown()`: The operator is not Hermitian, but its
+    [`adjoint`](@ref Main.Hamiltonians.adjoint) is implemented.
+* `AdjointUnknown()`: [`adjoint`](@ref Main.Hamiltonians.adjoint) for this operator is not
+    implemented.
+
+Part of the [`AbstractHamiltonian`](@ref) interface.
 
 In order to define this trait for a new linear operator type, define a method for
 `LOStructure(::Type{<:MyNewLOType}) = …`.
-
 """
 abstract type LOStructure end
 
@@ -232,6 +256,10 @@ LOStructure(::AbstractMatrix) = AdjointKnown()
     has_adjoint(op)
 
 Return true if `adjoint` is defined on `op`.
+
+Part of the [`AbstractHamiltonian`](@ref) interface.
+
+See also [`LOStructure`](@ref Main.Hamiltonians.LOStructure).
 """
 has_adjoint(op) = has_adjoint(LOStructure(op))
 has_adjoint(::AdjointUnknown) = false

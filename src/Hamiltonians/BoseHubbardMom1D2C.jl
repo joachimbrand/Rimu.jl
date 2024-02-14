@@ -46,6 +46,8 @@ function Base.show(io::IO, h::BoseHubbardMom1D2C)
     print(io, "BoseHubbardMom1D2C($addr; ua=$ua, ub=$ub, ta=$ta, tb=$tb, v=$v)")
 end
 
+dimension(::BoseHubbardMom1D2C, address) = number_conserving_dimension(address)
+
 function starting_address(h::BoseHubbardMom1D2C)
     return BoseFS2C(starting_address(h.ha), starting_address(h.hb))
 end

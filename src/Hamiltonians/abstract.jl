@@ -33,40 +33,47 @@ dimension of the matrix representing the Hamiltonian is returned.
 # Examples
 
 ```jldoctest
-julia> dimension(BoseFS((1,2,3)))
+julia> dimension(OccupationNumberFS(1,2,3))
+16777216
+
+julia> dimension(HubbardReal1D(OccupationNumberFS(1,2,3)))
 28
 
-julia> dimension(HubbardReal1D(BoseFS((1,2,3))))
-28
-
-julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))
+julia> dimension(BoseFS{200,100})
 1386083821086188248261127842108801860093488668581216236221011219101585442774669540
 
-julia> dimension(HubbardReal1D(near_uniform(BoseFS{200,100})))|>Float64
+julia> Float64(ans)
 1.3860838210861882e81
 ```
 
-See also [`BasisSetRep`](@ref).
+Part of the [`AbstractHamiltonian`](@ref) interface. See also [`BasisSetRep`](@ref).
 # Extended Help
 
-When extending `AbstractHamiltonian`, define a method for the two-argument form
-`dimension(h::MyNewHamiltonian, addr)`. When extending `AbstractFockAddress`, define a
-method for `dimension(::Type{MyNewFockAddress})`.
+The default fallback for `dimension` called on an [`AbstractHamiltonian`](@ref) is to return
+the dimension of the address space, which provides an upper bound. For new Hamiltonians a
+tighter bound can be provided by defining a custom method.
+
+When extending [`AbstractHamiltonian`](@ref), define a method for the two-argument form
+`dimension(h::MyNewHamiltonian, addr)`. For number-conserving Hamiltonians, the function
+[`Hamiltonians.number_conserving_dimension`](@ref) may be useful.
+
+When extending [`AbstractFockAddress`](@ref), define a method for
+`dimension(::Type{MyNewFockAddress})`.
 """
 dimension(h::AbstractHamiltonian) = dimension(h, starting_address(h))
 dimension(::AbstractHamiltonian, addr) = dimension(addr)
 dimension(addr::AbstractFockAddress) = dimension(typeof(addr))
-# dimension(_) = Inf # fallback
+dimension(::T) where {T<:Number} = typemax(T) # e.g. integer addresses
 
 function dimension(::Type{<:BoseFS{N,M}}) where {N,M}
-    return binomial(BigInt(N + M - 1), BigInt(N))
+    return number_conserving_bose_dimension(N,M)
 end
 function dimension(::Type{<:OccupationNumberFS{M,T}}) where {M,T}
     n = typemax(T)
     return BigInt(n + 1)^BigInt(M)
 end
 function dimension(::Type{<:FermiFS{N,M}}) where {N,M}
-    return binomial(BigInt(M), BigInt(N))
+    return number_conserving_fermi_dimension(N, M)
 end
 function dimension(::Type{<:BoseFS2C{NA,NB,M}}) where {NA,NB,M}
     return dimension(BoseFS{NA,M}) * dimension(BoseFS{NB,M})
@@ -91,7 +98,54 @@ LinearAlgebra.issymmetric(h::AbstractHamiltonian) = ishermitian(h) && isreal(h)
 BitStringAddresses.near_uniform(h::AbstractHamiltonian) = near_uniform(typeof(starting_address(h)))
 
 """
+    number_conserving_bose_dimension(n, m)
+
+Return the dimension of the number-conserving Fock space for `n` bosons in `m` modes:
+`binomial(n + m - 1, n)`.
+
+See also [`number_conserving_fermi_dimension`](@ref), [`number_conserving_dimension`](@ref).
+"""
+number_conserving_bose_dimension(n, m) = binomial(BigInt(n + m - 1), BigInt(n))
+"""
+    number_conserving_fermi_dimension(n, m)
+
+Return the dimension of the number-conserving Fock space for `n` fermions in `m` modes:
+`binomial(m, n)`.
+
+See also [`number_conserving_bose_dimension`](@ref), [`number_conserving_dimension`](@ref).
+"""
+number_conserving_fermi_dimension(n, m) = binomial(BigInt(m), BigInt(n))
+
+"""
+    number_conserving_dimension(address <: AbstractFockAddress)
+
+Return the dimension of the Fock space spanned by the address type assuming particle number
+conservation.
+
+See also [`number_conserving_bose_dimension`](@ref),
+[`number_conserving_fermi_dimension`](@ref), [`dimension`](@ref).
+"""
+function number_conserving_dimension(address::Union{BoseFS,OccupationNumberFS})
+    m = num_modes(address)
+    n = num_particles(address)
+    return number_conserving_bose_dimension(n, m)
+end
+function number_conserving_dimension(address::FermiFS)
+    m = num_modes(address)
+    n = num_particles(address)
+    return number_conserving_fermi_dimension(n, m)
+end
+function number_conserving_dimension(addr::BoseFS2C)
+    return number_conserving_dimension(addr.bsa) * number_conserving_dimension(addr.bsb)
+end
+function number_conserving_dimension(address::CompositeFS)
+    return prod(number_conserving_dimension, address.components)
+end
+
+"""
     rayleigh_quotient(H, v)
+
+Return the Rayleigh quotient of the linear operator `H` and the vector `v`:
 
 ```math
 \\frac{⟨ v | H | v ⟩}{⟨ v|v ⟩}
@@ -122,7 +176,8 @@ end
     momentum(ham::AbstractHamiltonian)
 
 Momentum as a linear operator in Fock space. Pass a Hamiltonian `ham` in order to convey
-information about the Fock basis.
+information about the Fock basis. Returns an [`AbstractHamiltonian`](@ref) that represents
+the momentum operator.
 
 Note: `momentum` is currently only defined on [`HubbardMom1D`](@ref).
 
@@ -147,6 +202,7 @@ julia> v = DVec(add => 10; capacity=1000);
 julia> rayleigh_quotient(mom, v) # momentum expectation value for state vector `v`
 -1.5707963267948966
 ```
+Part of the [`AbstractHamiltonian`](@ref) interface.
 """
 momentum
 
@@ -371,6 +427,8 @@ DVec{BoseFS{1, 3, BitString{3, 1, UInt8}},Float64} with 3 entries, style = IsDet
 ```
 Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 [`starting_address`](@ref).
+
+Part of the [`AbstractHamiltonian`](@ref) interface. See also [`build_basis`](@ref).
 """
 struct BasisSetRep{A,SM,H}
     sm::SM

@@ -33,13 +33,7 @@ function starting_address(h::ExtendedHubbardReal1D)
     return getfield(h, :add)
 end
 
-# `ExtendedHubbardReal1D` conserves particle number. Thus we can lower the bound on the dimension
-# for the non-conserving `OccupationNumberFS`.
-function dimension(::ExtendedHubbardReal1D, a::OccupationNumberFS)
-    m = num_modes(a)
-    n = num_particles(a)
-    return dimension(BoseFS{n,m})
-end
+dimension(::ExtendedHubbardReal1D, address) = number_conserving_dimension(address)
 
 LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real}}) = IsHermitian()
 
