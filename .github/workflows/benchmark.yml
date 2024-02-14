@@ -1,16 +1,20 @@
 name: Benchmarks
 
-on: pull_request
+on:
+  pull_request:
+    branches-ignore:
+    - 'dependabot/**'
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@latest
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v1
         with:
           version: 1
-      - uses: julia-actions/julia-buildpkg@latest
+      - uses: julia-actions/cache@v1
+      - uses: julia-actions/julia-buildpkg@v1
       - name: Install dependencies
         run: julia -e 'using Pkg; pkg"add PkgBenchmark BenchmarkTools BenchmarkCI@0.1"'
       - name: Run benchmarks

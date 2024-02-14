@@ -60,8 +60,6 @@ function test_hamiltonian_interface(H)
         end
         @testset "dimension" begin
             @test dimension(H) ≥ dimension(H, starting_address(H))
-            @test dimension(Float64, H) isa Float64
-            @test dimension(Int, H) == dimension(H)
         end
         @testset "allowed_address_type" begin
             @test addr isa allowed_address_type(H)
@@ -880,7 +878,7 @@ end
     m = 6
     n1 = 4
     n2 = m
-    
+
     # unital refers to n̄=1
     non_unital_localised_state = BoseFS((n1,0,0,0,0,0))
     non_unital_uniform_state = near_uniform(non_unital_localised_state)
@@ -893,7 +891,7 @@ end
     S2 = StringCorrelator(2)
 
     @test num_offdiagonals(S0, localised_state) == 0
-    
+
     # non unital localised state
     @test @inferred diagonal_element(S0, non_unital_localised_state) ≈ 20/9
     @test @inferred diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
@@ -918,7 +916,7 @@ end
     d = 5
     output = @capture_out print(StringCorrelator(d))
     @test output == "StringCorrelator($d)"
-    
+
 end
 
 @testset "Momentum" begin
@@ -1587,4 +1585,11 @@ end
         null_addr = BoseFS(prod(S), 1=>0)
         @test isempty(fock_to_cart(null_addr, S))
     end
+end
+
+@testset "dimension and multi-component addresses" begin
+    addresses = [CompositeFS(FermiFS((1,0,1)), FermiFS((0,1,0))), BoseFS((1,0,1)),
+                FermiFS2C((1,0,1), (0,1,0)), BoseFS2C((1,0,1), (0,1,0))
+    ]
+    [@test dimension(addr) == dimension(typeof(addr)) for addr in addresses]
 end

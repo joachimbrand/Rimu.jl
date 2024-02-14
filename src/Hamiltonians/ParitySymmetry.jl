@@ -68,6 +68,8 @@ function starting_address(h::ParitySymmetry)
     return min(add, reverse(add))
 end
 
+dimension(h::ParitySymmetry, addr) = dimension(h.hamiltonian, addr) # upper bound
+
 get_offdiagonal(h::ParitySymmetry, add, i) = offdiagonals(h, add)[i]
 num_offdiagonals(h::ParitySymmetry, add) = num_offdiagonals(h.hamiltonian, add)
 
