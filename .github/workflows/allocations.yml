@@ -1,7 +1,9 @@
 name: Allocations
 
 on:
-  push
+  pull_request:
+    branches-ignore:
+    - 'doc/**'
 
 jobs:
   allocations:
