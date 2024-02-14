@@ -91,7 +91,7 @@ df, state = lomc!(
 hline(
     [targetwalkers];
     label="targetwalkers", xlabel="steps", ylabel="norm",
-    color=2, linestyle=:dash, margin = 2Plots.cm
+    color=2, linestyle=:dash, margin = 1Plots.cm
 )
 plot!(df.steps, df.norm, label="norm", color=1)
 
@@ -117,7 +117,7 @@ pe = projected_energy(df; skip=steps_equilibrate)
 v = val_and_errs(pe; p=0.95)
 
 # Let's visualise these estimators together with the time series of the shift.
-plot(df.steps, df.shift, ylabel="energy", xlabel="steps", label="shift", margin = 2Plots.cm)
+plot(df.steps, df.shift, ylabel="energy", xlabel="steps", label="shift", margin = 1Plots.cm)
 
 plot!(x->se.mean, df.steps[steps_equilibrate+1:end], ribbon=se.err, label="shift mean")
 plot!(
