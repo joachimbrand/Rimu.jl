@@ -1,6 +1,14 @@
 name: Benchmarks
 
-on: pull_request
+on:
+  pull_request:
+    branches-ignore:
+    - 'dependabot/**'
+    - 'doc/**'
+  push:
+    branches-ignore:
+    - 'dependabot/**'
+    - 'doc/**'
 
 jobs:
   run:
