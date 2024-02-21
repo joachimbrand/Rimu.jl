@@ -189,7 +189,10 @@ end
 
         HOCartesianContactInteractions(BoseFS((2,0,0,0))),
         HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
-        HOCartesianCentralImpurity(BoseFS((1,0,0,0,0)))
+        HOCartesianCentralImpurity(BoseFS((1,0,0,0,0))),
+
+        FroehlichPolaron(OccupationNumberFS(1,1,1)),
+        FroehlichPolaron(OccupationNumberFS(1,1,1); momentum_cutoff = 10.0)
     )
         test_hamiltonian_interface(H)
     end
@@ -993,6 +996,34 @@ end
     # ylabel!("Energy")
     # xlabel!("ho quantum number n")
     # title!("Harmonic oscillator in Hubbard, M = $m, l_0 = $l0")
+end
+
+@testset "FroehlichPolaron" begin
+    addr1 = OccupationNumberFS(1,1,1)
+
+    # Test momentum_cutoff and mode_cutoff
+    addr2 = OccupationNumberFS(1,2,3)
+    @test_throws ArgumentError FroehlichPolaron(addr2; mode_cutoff=1.0)
+    @test_throws ArgumentError FroehlichPolaron(addr2; momentum_cutoff = 10.0) 
+    
+    addr3 = OccupationNumberFS(1,2,3,4)
+    f2 = FroehlichPolaron(addr2)
+    f3 = FroehlichPolaron(addr3)
+
+    # test ks vector 
+    step = (2π/3)
+    ks2 = range(-π*(1+1/3) +  step; step=step, length = 3)
+    @test Vector(f2.ks) == ks2
+    step = (2π/4)
+    ks3 = range(-π+step; step=step, length = 4)
+    @test Vector(f3.ks) == ks3
+
+    # test num_offdiagonals
+    @test num_offdiagonals(f, addr1) == 2*3
+
+    # test diagonal_element
+
+    # test offdiagonal element
 end
 
 @testset "HubbardMom1D(FermiFS2C)" begin
