@@ -100,6 +100,9 @@ end
 function starting_address(h::HubbardMom1DEP)
     return h.add
 end
+
+dimension(::HubbardMom1DEP, address) = number_conserving_dimension(address)
+
 function get_offdiagonal(h::HubbardMom1DEP{<:Any,<:Any,F}, add::F, i) where {F}
     return offdiagonals(h, add)[i]
 end

@@ -72,6 +72,8 @@ Base.getproperty(h::HubbardReal1DEP, ::Val{:ep}) = getfield(h, :ep)
 
 starting_address(h::HubbardReal1DEP) = h.add
 
+dimension(::HubbardReal1DEP, address) = number_conserving_dimension(address)
+
 function num_offdiagonals(::HubbardReal1DEP, address::SingleComponentFockAddress)
     return 2 * num_occupied_modes(address)
 end

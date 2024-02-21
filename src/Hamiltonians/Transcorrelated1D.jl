@@ -97,6 +97,8 @@ function Base.show(io::IO, h::Transcorrelated1D)
     end
 end
 
+dimension(::Transcorrelated1D, address) = number_conserving_dimension(address)
+
 LOStructure(::Type{<:Transcorrelated1D}) = AdjointUnknown()
 
 function get_offdiagonal(h::Transcorrelated1D{<:Any,F}, add::F, i) where {F}

@@ -272,6 +272,9 @@ end
 Base.:(==)(H::HubbardRealSpace, G::HubbardRealSpace) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
 
 starting_address(h::HubbardRealSpace) = h.address
+
+dimension(::HubbardRealSpace, address) = number_conserving_dimension(address)
+
 function diagonal_element(h::HubbardRealSpace, address)
     int = isnothing(h.u) ? 0.0 : local_interaction(address, h.u)
     pot = isnothing(h.v) ? 0.0 : external_potential(address, h.potential)

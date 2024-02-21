@@ -567,6 +567,7 @@ end
         @test sparse(ExtendedHubbardReal1D(ofs)) == sparse(ExtendedHubbardReal1D(bfs))
         oham = HubbardReal1D(OccupationNumberFS(0, 2, 1))
         bham = HubbardReal1D(BoseFS(0, 2, 1))
-        @test sparse(ParitySymmetry(oham; odd=true)) == sparse(ParitySymmetry(bham; odd=true))
+        @test sparse(ParitySymmetry(oham; odd=true)) ==
+            sparse(ParitySymmetry(bham; odd=true))
     end
 end

@@ -3,28 +3,20 @@ name: Documentation
 on:
   push:
     branches:
-      - master
       - develop
-      - feature/github-actions
-      - feature/doc-**
-      - 'doc/**'
-    tags: '*'
   pull_request:
     branches:
-      - master
-      - develop
-      - feature/github-actions
-      - feature/doc-**
-      - 'doc/**'
+      - '*'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@latest
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v1
         with:
           version: '1.7'
+      - uses: julia-actions/cache@v1
       - name: Install dependencies
         run: |
           export JULIA_PROJECT=@.
@@ -37,6 +29,8 @@ jobs:
           julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
           julia --project=docs/ -e 'using Rimu'
       - name: Build and deploy
+        if: github.actor != 'dependabot[bot]'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GKSwstype: "100" # https://discourse.julialang.org/t/generation-of-documentation-fails-qt-qpa-xcb-could-not-connect-to-display/60988
         run: julia --project=docs/ docs/make.jl

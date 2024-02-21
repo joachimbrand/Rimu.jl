@@ -70,6 +70,8 @@ function starting_address(h::HubbardMom1D)
     return h.add
 end
 
+dimension(::HubbardMom1D, address) = number_conserving_dimension(address)
+
 LOStructure(::Type{<:HubbardMom1D{<:Real}}) = IsHermitian()
 
 Base.getproperty(h::HubbardMom1D, s::Symbol) = getproperty(h, Val(s))
@@ -103,6 +105,11 @@ function num_singly_doubly_occupied_sites(b::SingleComponentFockAddress)
         doublies += n > 1
     end
     return singlies, doublies
+end
+
+# faster method for this special case
+function num_singly_doubly_occupied_sites(b::OccupationNumberFS)
+    return num_singly_doubly_occupied_sites(onr(b))
 end
 
 function num_singly_doubly_occupied_sites(onrep::AbstractArray)

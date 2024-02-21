@@ -33,6 +33,8 @@ function starting_address(h::ExtendedHubbardReal1D)
     return getfield(h, :add)
 end
 
+dimension(::ExtendedHubbardReal1D, address) = number_conserving_dimension(address)
+
 LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real}}) = IsHermitian()
 
 Base.getproperty(h::ExtendedHubbardReal1D, s::Symbol) = getproperty(h, Val(s))
