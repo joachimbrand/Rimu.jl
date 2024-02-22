@@ -13,10 +13,10 @@ function FroehlichPolaron(
 The 1D Froehlich polaron Hamiltonian is given by
 
 ```math
-H = \\frac{(P̂_f - P)^2}{m} + ωN̂ - ν Σₖ(âₖ^† + â_{-k})
+H = \\frac{(P̂_f - P)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
 ```
 
-where ``P`` is the total momentum `total_mom`, ``P̂_f = \\frac{M}{L}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons, ``N̂ = Σ_k âₖ^† âₖ`` is the number operator for the bosons, and ``ν`` is the coupling strength. Here, ``M`` is the number of discrete momentum modes and ``L`` is the momentum scaling.
+where ``P`` is the total momentum `total_mom`, ``P̂_f = \\frac{M}{l}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons, ``N̂ = Σ_k âₖ^† âₖ`` is the number operator for the bosons, and ``v`` is the coupling strength. Here, ``M`` is the number of discrete momentum modes and ``l`` is the momentum scaling.
 
 The `address` must be of type [`OccupationNumberFS`](@ref).
 
@@ -26,7 +26,7 @@ The `address` must be of type [`OccupationNumberFS`](@ref).
 * `v`: the coupling strength
 * `mass`: the particle mass
 * `omega`: the oscillation frequency of the phonons
-* `l`: the next-neighbor interaction
+* `l`: the scale parameter of the momentum lattice
 * `p`: the total momentum
 * `momentum_cutoff`: the maximum total momentum allowed for a basis element
 * `mode_cutoff`: the maximum population in each momentum mode
@@ -63,6 +63,9 @@ function FroehlichPolaron(
     if _exceed_mode_cutoff(mode_cutoff,addr)
         throw(ArgumentError("Starting address cannot have occupations that exceed mode_cutoff"))
     end
+    if iszero(l)
+        throw(ArgumentError("l cannot be zero"))
+    end
 
     M = num_modes(addr) # this is compile-time information
     if isnothing(momentum_cutoff)
@@ -77,11 +80,11 @@ function FroehlichPolaron(
     else
         start = -π + step
     end
-    kr = range(start; step = step, length = M)
+    kr = (M/l)*range(start; step = step, length = M)
     ks = SVector{M}(kr)
 
     if !isnothing(momentum_cutoff)
-        momentum = (M/l) * dot(ks,onr(addr))
+        momentum = dot(ks,onr(addr))
         if momentum > momentum_cutoff
             throw(ArgumentError("Starting address has momentum $momentum which cannot exceed momentum_cutoff $momentum_cutoff"))
         end
@@ -115,7 +118,7 @@ ks(h::FroehlichPolaron) = getfield(h, :ks)
 
 function diagonal_element(h::FroehlichPolaron{<:Any,M}, addr::OccupationNumberFS{M}) where {M}
     map = onr(addr)
-    p_f = (M/h.l) * dot(h.ks,map)
+    p_f = dot(h.ks,map)
     return h.omega * num_particles(addr) + (h.p - p_f)^2 / h.mass
 end
 
