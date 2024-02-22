@@ -998,34 +998,6 @@ end
     # title!("Harmonic oscillator in Hubbard, M = $m, l_0 = $l0")
 end
 
-@testset "FroehlichPolaron" begin
-    addr1 = OccupationNumberFS(1,1,1)
-
-    # Test momentum_cutoff and mode_cutoff
-    addr2 = OccupationNumberFS(1,2,3)
-    @test_throws ArgumentError FroehlichPolaron(addr2; mode_cutoff=1.0)
-    @test_throws ArgumentError FroehlichPolaron(addr2; momentum_cutoff = 10.0) 
-    
-    addr3 = OccupationNumberFS(1,2,3,4)
-    f2 = FroehlichPolaron(addr2)
-    f3 = FroehlichPolaron(addr3)
-
-    # test ks vector 
-    step = (2π/3)
-    ks2 = range(-π*(1+1/3) +  step; step=step, length = 3)
-    @test Vector(f2.ks) == ks2
-    step = (2π/4)
-    ks3 = range(-π+step; step=step, length = 4)
-    @test Vector(f3.ks) == ks3
-
-    # test num_offdiagonals
-    @test num_offdiagonals(f, addr1) == 2*3
-
-    #TODO:test diagonal_element
-
-    #TODO:test offdiagonal element
-end
-
 @testset "HubbardMom1D(FermiFS2C)" begin
     @testset "Two fermions vs two bosons" begin
         bose = HubbardMom1D(BoseFS((0,0,2,0,0)))
@@ -1630,14 +1602,58 @@ end
     end
 
     @testset "FroehlichPolaron" begin
-        addr = OccupationNumberFS(0, 0, 0, 0, 1, 0, 0, 0)
-        ham = FroehlichPolaron(addr; total_mom=3, alpha=6, num_dimensions=3)
-        @test num_dimensions(ham) == num_dimensions(ham.geometry) == 3
-        @test ham.geometry == PeriodicBoundaries(2, 2, 2)
-        @test eval(Meta.parse(repr(ham))) == ham
-        @test starting_address(ham) == ham.addr == addr
+        # TESTS FOR OLD IMPLEMENTATION
+        # addr = OccupationNumberFS(0, 0, 0, 0, 1, 0, 0, 0)
+        # ham = FroehlichPolaron(addr; total_mom=3, alpha=6, num_dimensions=3)
+        # @test num_dimensions(ham) == num_dimensions(ham.geometry) == 3
+        # @test ham.geometry == PeriodicBoundaries(2, 2, 2)
+        # @test eval(Meta.parse(repr(ham))) == ham
+        # @test starting_address(ham) == ham.addr == addr
 
-        # TODO: test the rest of the interface (add `FroehlichPolaron` to interface tests)
+        addr1 = OccupationNumberFS(1,1,1)
+
+        # test momentum_cutoff and mode_cutoff when initialising
+        addr2 = OccupationNumberFS(1,2,3)
+        @test_throws ArgumentError FroehlichPolaron(addr2; mode_cutoff=1.0)
+        @test_throws ArgumentError FroehlichPolaron(addr2; momentum_cutoff = 10.0) 
+        
+        addr3 = OccupationNumberFS(1,2,3,4)
+        f2 = FroehlichPolaron(addr2)
+        f3 = FroehlichPolaron(addr3;mode_cutoff = 20.0)
+    
+        @test starting_address(f2) == f2.addr == addr2
+    
+        # test ks vector 
+        step = (2π/3)
+        ks2 = (3/1)*range(-π*(1+1/3) +  step; step=step, length = 3)
+        @test Vector(f2.ks) == ks2
+        step = (2π/4)
+        ks3 = (4/1)*range(-π+step; step=step, length = 4)
+        @test Vector(f3.ks) == ks3
+    
+        # test num_offdiagonals
+        @test num_offdiagonals(f2, addr1) == 2*3
+    
+        # test diagonal_element
+        f2_diag = f2.omega*6 + (1/f2.mass) * (f2.p - dot(f2.ks,onr(addr2)))^2
+        @test diagonal_element(f2,addr2) == f2_diag
+    
+        # test offdiagonal element
+        f2_offdiag = (OccupationNumberFS(1,3,3), -f2.v*sqrt(3))
+        @test get_offdiagonal(f2, addr2,2) == f2_offdiag
+    
+        f3_offdiag = (OccupationNumberFS(1,2,3,3), -f3.v*sqrt(4))
+        @test get_offdiagonal(f3, addr3,8) == f3_offdiag
+    
+        # test mode_cutoff
+        @test get_offdiagonal(f2, OccupationNumberFS(10,3,4), 1)[2] == 0.0
+        @test get_offdiagonal(f3, OccupationNumberFS(1,3,20,10), 3)[2] == 0.0
+    
+        # test momentum_cutoff
+        # addr2 has momentum 12.56
+        addr4 = OccupationNumberFS(1,2,1)
+        f4 = FroehlichPolaron(addr4; momentum_cutoff = 10.0)
+        @test get_offdiagonal(f4, addr2, 3)[2] == 0.0
     end
 end
 
