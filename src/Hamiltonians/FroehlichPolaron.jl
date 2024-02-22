@@ -1,14 +1,14 @@
 """
-function FroehlichPolaron(
-    addr::OccupationNumberFS;
-    v=1.0,
-    mass=1.0,
-    omega=1.0,
-    l=1.0,
-    p=0.0,
-    momentum_cutoff=nothing,
-    mode_cutoff=100.0,
-)
+    function FroehlichPolaron(
+        addr::OccupationNumberFS;
+         v=1.0,
+         mass=1.0,
+        omega=1.0,
+        l=1.0,
+        p=0.0,
+        momentum_cutoff=nothing,
+        mode_cutoff=100.0,
+    )
 
 The 1D Froehlich polaron Hamiltonian is given by
 
