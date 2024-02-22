@@ -1,28 +1,19 @@
 """
-    function FroehlichPolaron(
-        addr::OccupationNumberFS;
-         v=1.0,
-         mass=1.0,
-        omega=1.0,
-        l=1.0,
-        p=0.0,
-        momentum_cutoff=nothing,
-        mode_cutoff=100.0,
-    )
+    FroehlichPolaron(addr::OccupationNumberFS; v=1.0, mass=1.0, omega=1.0, l=1.0, kwargs...)
+    
 
 The 1D Froehlich polaron Hamiltonian is given by
 
 ```math
-H = \\frac{(P̂_f - P)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
+H = \\frac{(p̂_f - p)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
 ```
 
-where ``P`` is the total momentum `total_mom`, ``P̂_f = \\frac{M}{l}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons, ``N̂ = Σ_k âₖ^† âₖ`` is the number operator for the bosons, and ``v`` is the coupling strength. Here, ``M`` is the number of discrete momentum modes and ``l`` is the momentum scaling.
+where ``p`` is the total momentum and ``p̂_f = \\frac{M}{l}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons. ``N̂`` is the number operator for the bosons.
 
-The `address` must be of type [`OccupationNumberFS`](@ref).
 
 # Arguments
 
-* `addr`: the starting address.
+* `addr::OccupationNumberFS`: the starting address
 * `v`: the coupling strength
 * `mass`: the particle mass
 * `omega`: the oscillation frequency of the phonons
@@ -30,7 +21,6 @@ The `address` must be of type [`OccupationNumberFS`](@ref).
 * `p`: the total momentum
 * `momentum_cutoff`: the maximum total momentum allowed for a basis element
 * `mode_cutoff`: the maximum population in each momentum mode
-
 
 """
 struct FroehlichPolaron{
