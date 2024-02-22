@@ -16,7 +16,7 @@ The 1D Froehlich polaron Hamiltonian is given by
 H = \\frac{(P̂_f - P)^2}{m} + ωN̂ - ν Σₖ(âₖ^† + â_{-k})
 ```
 
-where ``P`` is the total momentum `total_mom`, ``P̂_f = \\frac{M}{L}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons, ``N̂ = Σ_k âₖ^† âₖ`` is the number operator for the bosons, and ``ν`` is the coupling strength. Here, ``M`` is the number of discrete momentum modes and ```L`` is the momentum scaling.
+where ``P`` is the total momentum `total_mom`, ``P̂_f = \\frac{M}{L}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons, ``N̂ = Σ_k âₖ^† âₖ`` is the number operator for the bosons, and ``ν`` is the coupling strength. Here, ``M`` is the number of discrete momentum modes and ``L`` is the momentum scaling.
 
 The `address` must be of type [`OccupationNumberFS`](@ref).
 
