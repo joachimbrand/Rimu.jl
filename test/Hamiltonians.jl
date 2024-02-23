@@ -1602,14 +1602,6 @@ end
     end
 
     @testset "FroehlichPolaron" begin
-        # TESTS FOR OLD IMPLEMENTATION
-        # addr = OccupationNumberFS(0, 0, 0, 0, 1, 0, 0, 0)
-        # ham = FroehlichPolaron(addr; total_mom=3, alpha=6, num_dimensions=3)
-        # @test num_dimensions(ham) == num_dimensions(ham.geometry) == 3
-        # @test ham.geometry == PeriodicBoundaries(2, 2, 2)
-        # @test eval(Meta.parse(repr(ham))) == ham
-        # @test starting_address(ham) == ham.addr == addr
-
         addr1 = OccupationNumberFS(1,1,1)
 
         # test momentum_cutoff and mode_cutoff when initialising
