@@ -2,7 +2,7 @@
     FroehlichPolaron(addr::OccupationNumberFS; v=1.0, mass=1.0, omega=1.0, l=1.0, kwargs...)
     
 
-The 1D Froehlich polaron Hamiltonian is given by
+The Froehlich polaron Hamiltonian for a 1D lattice with ``M`` momentum modes is given by
 
 ```math
 H = \\frac{(p̂_f - p)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
@@ -11,16 +11,15 @@ H = \\frac{(p̂_f - p)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
 where ``p`` is the total momentum and ``p̂_f = \\frac{M}{l}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons. ``N̂`` is the number operator for the bosons.
 
 
-# Arguments
+# `Keyword Arguments
 
-* `addr::OccupationNumberFS`: the starting address
-* `v`: the coupling strength
-* `mass`: the particle mass
-* `omega`: the oscillation frequency of the phonons
-* `l`: the scale parameter of the momentum lattice
-* `p`: the total momentum
-* `momentum_cutoff`: the maximum total momentum allowed for a basis element
-* `mode_cutoff`: the maximum population in each momentum mode
+* `v=1.0`: the coupling strength, ``v``
+* `mass=1.0`: the particle mass, ``m``
+* `omega=1.0`: the oscillation frequency of the phonons, ``ω``
+* `l=1.0`: the scale parameter of the momentum lattice, ``l``
+* `p=0.0`: the total momentum, ``p``
+* `momentum_cutoff=nothing`: the maximum total momentum allowed for a basis element
+* `mode_cutoff=10.0`: the maximum population in each momentum mode
 
 """
 struct FroehlichPolaron{
