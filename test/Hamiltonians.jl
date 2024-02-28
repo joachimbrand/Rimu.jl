@@ -1046,15 +1046,15 @@ end
     # test momentum_cutoff and mode_cutoff when initialising
     addr2 = OccupationNumberFS(1,2,3)
     @test_throws ArgumentError FroehlichPolaron(addr2; mode_cutoff=1.0)
-    @test_throws ArgumentError FroehlichPolaron(addr2; momentum_cutoff = 10.0) 
-    
+    @test_throws ArgumentError FroehlichPolaron(addr2; momentum_cutoff = 10.0)
+
     addr3 = OccupationNumberFS(1,2,3,4)
     f2 = FroehlichPolaron(addr2)
     f3 = FroehlichPolaron(addr3;mode_cutoff = 20.0)
 
     @test starting_address(f2) == f2.addr == addr2
 
-    # test ks vector 
+    # test ks vector
     step = (2π/3)
     ks2 = (3/1)*range(-π*(1+1/3) +  step; step=step, length = 3)
     @test Vector(f2.ks) == ks2
@@ -1077,7 +1077,7 @@ end
     @test get_offdiagonal(f3, addr3,8) == f3_offdiag
 
     # test mode_cutoff
-    @test get_offdiagonal(f2, OccupationNumberFS(10,3,4), 1)[2] == 0.0
+    @test get_offdiagonal(f2, OccupationNumberFS(10,3,4), 1)[2] ≠ 0.0
     @test get_offdiagonal(f3, OccupationNumberFS(1,3,20,10), 3)[2] == 0.0
 
     # test momentum_cutoff

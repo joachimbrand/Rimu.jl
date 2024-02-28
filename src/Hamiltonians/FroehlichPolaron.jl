@@ -22,7 +22,8 @@ operator for the bosons.
 * `l=1.0`: the box size in real space ``l``. Provides scale parameter of the momentum
     lattice.
 * `momentum_cutoff=nothing`: the maximum boson momentum allowed for an address.
-* `mode_cutoff=10`: the maximum number of bosons in each momentum mode.
+* `mode_cutoff`: the maximum number of bosons in each momentum mode. Defaults to the maximum
+    value supported by the address type [`OccupationNumberFS`](@ref).
 
 See also [`OccupationNumberFS`](@ref) and [`AbstractHamiltonian`](@ref).
 """
@@ -44,23 +45,19 @@ struct FroehlichPolaron{
 end
 
 function FroehlichPolaron(
-    addr::OccupationNumberFS;
+    addr::OccupationNumberFS{M,AT};
     v=1.0,
     mass=1.0,
     omega=1.0,
     l=1.0,
     p=0.0,
     momentum_cutoff=nothing,
-    mode_cutoff=10,
-)
-    if _exceed_mode_cutoff(mode_cutoff,addr)
-        throw(ArgumentError("Starting address cannot have occupations that exceed mode_cutoff"))
-    end
-    if iszero(l)
-        throw(ArgumentError("l cannot be zero"))
+    mode_cutoff=nothing,
+) where {M,AT}
+    if l ≤ 0
+        throw(ArgumentError("l must be positive"))
     end
 
-    M = num_modes(addr) # this is compile-time information
     v, p, mass, omega, l = promote(float(v), float(p), float(mass), float(omega), float(l))
 
     step = typeof(v)(2π/M)
@@ -80,12 +77,18 @@ function FroehlichPolaron(
         end
     end
 
+    if isnothing(mode_cutoff)
+        mode_cutoff = Int(typemax(AT))
+    end
     mode_cutoff = floor(Int, mode_cutoff)::Int
+    if _exceed_mode_cutoff(mode_cutoff, addr)
+        throw(ArgumentError("Starting address cannot have occupations that exceed mode_cutoff"))
+    end
     return FroehlichPolaron(addr, v, mass, omega, l, p, ks, momentum_cutoff, mode_cutoff)
 end
 
 function Base.show(io::IO, h::FroehlichPolaron)
-    println(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
+    print(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
     println(io, "momentum_cutoff=$(h.momentum_cutoff), mode_cutoff=$(h.mode_cutoff))")
 end
 
