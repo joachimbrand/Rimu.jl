@@ -1,5 +1,5 @@
 """
-    FroehlichPolaron(addr::OccupationNumberFS; v=1.0, mass=1.0, omega=1.0, l=1.0, kwargs...)
+    FroehlichPolaron(addr::OccupationNumberFS; kwargs...)
     
 
 The Froehlich polaron Hamiltonian for a 1D lattice with ``M`` momentum modes is given by
@@ -11,7 +11,7 @@ H = \\frac{(p̂_f - p)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
 where ``p`` is the total momentum and ``p̂_f = \\frac{M}{l}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons. ``N̂`` is the number operator for the bosons.
 
 
-# `Keyword Arguments
+# Keyword Arguments
 
 * `v=1.0`: the coupling strength, ``v``
 * `mass=1.0`: the particle mass, ``m``
