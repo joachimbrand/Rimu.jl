@@ -1,28 +1,30 @@
 """
-    FroehlichPolaron(addr::OccupationNumberFS; kwargs...)
-    
+    FroehlichPolaron(address::OccupationNumberFS{M}; kwargs...) <: AbstractHamiltonian
 
-The Froehlich polaron Hamiltonian for a 1D lattice with ``M`` momentum modes is given by
+
+The Froehlich polaron Hamiltonian for a 1D lattice with `M` momentum modes is given by
 
 ```math
 H = \\frac{(p̂_f - p)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
 ```
 
-where ``p`` is the total momentum, ``p̂_f = Σ_k k âₖ^† âₖ`` is the momentum operator for the 
-bosons, and ``k`` part of the momentum lattice with separation ``2π/l``. ``N̂`` is the number 
+where ``p`` is the total momentum, ``p̂_f = Σ_k k âₖ^† âₖ`` is the momentum operator for the
+bosons, and ``k`` part of the momentum lattice with separation ``2π/l``. ``N̂`` is the number
 operator for the bosons.
 
 
 # Keyword Arguments
 
-* `v=1.0`: the coupling strength, ``v``
-* `mass=1.0`: the particle mass, ``m``
-* `omega=1.0`: the oscillation frequency of the phonons, ``ω``
-* `l=1.0`: the box size in real space; provides scale parameter of the momentum lattice, ``l``
-* `p=0.0`: the total momentum, ``p``
-* `momentum_cutoff=nothing`: the maximum total momentum allowed for a basis element
-* `mode_cutoff=10.0`: the maximum population in each momentum mode
+* `p=0.0`: the total momentum ``p``.
+* `v=1.0`: the coupling strength ``v``.
+* `mass=1.0`: the particle mass ``m``.
+* `omega=1.0`: the oscillation frequency of the phonons ``ω``.
+* `l=1.0`: the box size in real space ``l``. Provides scale parameter of the momentum
+    lattice.
+* `momentum_cutoff=nothing`: the maximum boson momentum allowed for an address.
+* `mode_cutoff=10`: the maximum number of bosons in each momentum mode.
 
+See also [`OccupationNumberFS`](@ref) and [`AbstractHamiltonian`](@ref).
 """
 struct FroehlichPolaron{
     T, # eltype
@@ -38,7 +40,7 @@ struct FroehlichPolaron{
     p::T
     ks::SVector{M,T} # values for k
     momentum_cutoff::MC
-    mode_cutoff::T
+    mode_cutoff::Int
 end
 
 function FroehlichPolaron(
@@ -49,7 +51,7 @@ function FroehlichPolaron(
     l=1.0,
     p=0.0,
     momentum_cutoff=nothing,
-    mode_cutoff=10.0,
+    mode_cutoff=10,
 )
     if _exceed_mode_cutoff(mode_cutoff,addr)
         throw(ArgumentError("Starting address cannot have occupations that exceed mode_cutoff"))
@@ -59,11 +61,7 @@ function FroehlichPolaron(
     end
 
     M = num_modes(addr) # this is compile-time information
-    if isnothing(momentum_cutoff)
-        v, p, mass, omega, l, mode_cutoff = promote(float(v), float(p), float(mass), float(omega), float(l), float(mode_cutoff))
-    else
-        v, p, mass, omega, l, momentum_cutoff, mode_cutoff = promote(float(v), float(p), float(mass), float(omega), float(l), float(mode_cutoff), float(momentum_cutoff))    
-    end
+    v, p, mass, omega, l = promote(float(v), float(p), float(mass), float(omega), float(l))
 
     step = typeof(v)(2π/M)
     if isodd(M)
@@ -75,12 +73,14 @@ function FroehlichPolaron(
     ks = SVector{M}(kr)
 
     if !isnothing(momentum_cutoff)
+        momentum_cutoff = floor(Int, momentum_cutoff)::Int
         momentum = dot(ks,onr(addr))
         if momentum > momentum_cutoff
             throw(ArgumentError("Starting address has momentum $momentum which cannot exceed momentum_cutoff $momentum_cutoff"))
         end
     end
 
+    mode_cutoff = floor(Int, mode_cutoff)::Int
     return FroehlichPolaron(addr, v, mass, omega, l, p, ks, momentum_cutoff, mode_cutoff)
 end
 
@@ -95,9 +95,6 @@ end
 
 LOStructure(::Type{<:FroehlichPolaron{<:Real}}) = IsHermitian()
 
-
-
-
 function diagonal_element(h::FroehlichPolaron{<:Any,M}, addr::OccupationNumberFS{M}) where {M}
     map = onr(addr)
     p_f = dot(h.ks,map)
@@ -109,13 +106,14 @@ function num_offdiagonals(::FroehlichPolaron{<:Any,M}, ::OccupationNumberFS{M}) 
 end
 
 function get_offdiagonal(h::FroehlichPolaron{<:Any,M,<:Any,<:Nothing}, addr::OccupationNumberFS{M},chosen) where {M}
+    # branch that bypasses momentum cutoff
     return _froehlich_offdiag(h,addr,chosen)
 end
 
-function get_offdiagonal(h::FroehlichPolaron{T,M,<:Any,T}, addr::OccupationNumberFS{M},chosen) where {T,M}
-    #branch for momentum cutoff
+function get_offdiagonal(h::FroehlichPolaron{<:Any,M,<:Any,Int}, addr::OccupationNumberFS{M}, chosen) where {M}
+    # branch for checking momentum cutoff
     naddress, value = _froehlich_offdiag(h,addr,chosen)
-    
+
     new_p_tot = dot(h.ks, onr(naddress))
     if (M/h.l) * new_p_tot > h.momentum_cutoff # check if momentum of new address exceeds momentum_cutoff
         return addr, 0.0
