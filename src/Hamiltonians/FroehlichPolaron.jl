@@ -8,7 +8,9 @@ The Froehlich polaron Hamiltonian for a 1D lattice with ``M`` momentum modes is 
 H = \\frac{(p̂_f - p)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
 ```
 
-where ``p`` is the total momentum and ``p̂_f = \\frac{M}{l}Σ_k k âₖ^† âₖ`` is the momentum operator for the bosons. ``N̂`` is the number operator for the bosons.
+where ``p`` is the total momentum, ``p̂_f = Σ_k k âₖ^† âₖ`` is the momentum operator for the 
+bosons, and ``k`` part of the momentum lattice with separation ``2π/l``. ``N̂`` is the number 
+operator for the bosons.
 
 
 # Keyword Arguments
@@ -16,7 +18,7 @@ where ``p`` is the total momentum and ``p̂_f = \\frac{M}{l}Σ_k k âₖ^† a�
 * `v=1.0`: the coupling strength, ``v``
 * `mass=1.0`: the particle mass, ``m``
 * `omega=1.0`: the oscillation frequency of the phonons, ``ω``
-* `l=1.0`: the scale parameter of the momentum lattice, ``l``
+* `l=1.0`: the box size in real space; provides scale parameter of the momentum lattice, ``l``
 * `p=0.0`: the total momentum, ``p``
 * `momentum_cutoff=nothing`: the maximum total momentum allowed for a basis element
 * `mode_cutoff=10.0`: the maximum population in each momentum mode
@@ -84,7 +86,7 @@ end
 
 function Base.show(io::IO, h::FroehlichPolaron)
     println(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
-    println("momentum_cutoff=$(h.momentum_cutoff), mode_cutoff=$(h.mode_cutoff))")
+    println(io, "momentum_cutoff=$(h.momentum_cutoff), mode_cutoff=$(h.mode_cutoff))")
 end
 
 function starting_address(h::FroehlichPolaron)
@@ -93,17 +95,8 @@ end
 
 LOStructure(::Type{<:FroehlichPolaron{<:Real}}) = IsHermitian()
 
-# The optional `geometry` argument specifies the geometry of the lattice for ``k``-space and
-# should be of the type [`PeriodicBoundaries`](@ref). A simplified way of specifying the
-# geometry is to provide the number of dimensions `num_dimensions`. In this case the
-# [`num_modes(address)`](@ref) of `address` must be a square number for `num_dimensions = 2`,
-# or a cube number for `num_dimensions = 3`.
 
-ks(h::FroehlichPolaron) = getfield(h, :ks)
 
-# TODO: Sort out scales for momentum and energy; additional parameters?
-# TODO: rest of AbstractHamiltonian interface
-# TODO: write unit tests for FroehlichPolaron
 
 function diagonal_element(h::FroehlichPolaron{<:Any,M}, addr::OccupationNumberFS{M}) where {M}
     map = onr(addr)
