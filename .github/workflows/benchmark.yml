@@ -49,13 +49,13 @@ jobs:
       # create/update comment
       - name: create comment
         if: ${{ steps.fc.outputs.comment-id == 0 }} && github.actor != 'dependabot[bot]'
-        uses: peter-evans/create-or-update-comment@v1
+        uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: ${{ steps.generate-result-markdown.outputs.body }}
       - name: update comment
         if: ${{ steps.fc.outputs.comment-id != 0 }} && github.actor != 'dependabot[bot]'
-        uses: peter-evans/create-or-update-comment@v1
+        uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}
           body: ${{ steps.generate-result-markdown.outputs.body }}
