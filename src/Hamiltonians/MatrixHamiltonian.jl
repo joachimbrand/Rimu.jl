@@ -31,7 +31,9 @@ LOStructure(::Type{<:MatrixHamiltonian{<:Any,<:Any,true}}) = IsHermitian()
 LOStructure(::Type{<:MatrixHamiltonian}) = AdjointKnown()
 LinearAlgebra.adjoint(mh::MatrixHamiltonian) = MatrixHamiltonian(mh.m')
 LinearAlgebra.adjoint(mh::MatrixHamiltonian{<:Any,<:Any,true}) = mh
-
+function Base.:(==)(a::MatrixHamiltonian, b::MatrixHamiltonian)
+    return a.m == b.m && a.starting_index == b.starting_index
+end
 
 starting_address(mh::MatrixHamiltonian) = mh.starting_index
 

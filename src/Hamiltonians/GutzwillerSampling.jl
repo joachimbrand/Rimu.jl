@@ -73,6 +73,10 @@ Base.getproperty(h::GutzwillerSampling, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::GutzwillerSampling{<:Any,<:Any,<:Any,G}, ::Val{:g}) where G = G
 Base.getproperty(h::GutzwillerSampling, ::Val{:hamiltonian}) = getfield(h, :hamiltonian)
 
+function Base.:(==)(a::GutzwillerSampling{A}, b::GutzwillerSampling{B}) where {A,B}
+    return A == B && a.g == b.g && a.hamiltonian == b.hamiltonian
+end
+
 # Forward some interface functions.
 num_offdiagonals(h::GutzwillerSampling, add) = num_offdiagonals(h.hamiltonian, add)
 diagonal_element(h::GutzwillerSampling, add) = diagonal_element(h.hamiltonian, add)
