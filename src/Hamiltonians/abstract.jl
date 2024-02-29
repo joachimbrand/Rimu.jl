@@ -724,3 +724,6 @@ TransformUndoer(k::AbstractHamiltonian) = TransformUndoer(k::AbstractHamiltonian
 # common methods
 starting_address(s::TransformUndoer) = starting_address(s.transform)
 dimension(s::TransformUndoer, addr) = dimension(s.transform, addr)
+function Base.:(==)(a::TransformUndoer, b::TransformUndoer)
+    return a.transform == b.transform && a.op == b.op
+end

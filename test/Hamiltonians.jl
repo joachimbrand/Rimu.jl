@@ -75,6 +75,10 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
             @test number_of_nonzero_offdiagonals ≤ num_offdiagonals(H, addr)
             @test number_of_nonzero_offdiagonals ≤ dimension(H, addr)
         end
+        @testset "show" begin
+            # Check that the result of show can be pasted into the REPL
+            @test eval(Meta.parse(repr(H))) == H
+        end
     end
 end
 

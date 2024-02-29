@@ -103,10 +103,10 @@ function FroehlichPolaron(
 end
 
 function Base.show(io::IO, h::FroehlichPolaron)
-    print(io, "FroehlichPolaron(")
-    show(IOContext(io, :compact => true), h.addr)
-    print(io, "; v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
-    isnothing(h.momentum_cutoff) || print(io, "momentum_cutoff = $(h.momentum_cutoff), ")
+    compact_addr = repr(h.addr, context=:compact => true) # compact print address
+    print(io, "FroehlichPolaron($compact_addr; ")
+    print(io, "v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
+    isnothing(h.momentum_cutoff) || print(io, "momentum_cutoff=$(h.momentum_cutoff), ")
     print(io, "mode_cutoff=$(h.mode_cutoff))")
 
 end
