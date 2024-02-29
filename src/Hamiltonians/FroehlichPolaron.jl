@@ -105,7 +105,7 @@ end
 function Base.show(io::IO, h::FroehlichPolaron)
     print(io, "FroehlichPolaron(")
     show(IOContext(io, :compact => true), h.addr)
-    print("; v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
+    print(io, "; v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
     isnothing(h.momentum_cutoff) || print(io, "momentum_cutoff = $(h.momentum_cutoff), ")
     print(io, "mode_cutoff=$(h.mode_cutoff))")
 
