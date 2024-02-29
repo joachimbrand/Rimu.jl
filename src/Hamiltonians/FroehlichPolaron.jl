@@ -5,7 +5,7 @@
 The Froehlich polaron Hamiltonian for a 1D lattice with `M` momentum modes is given by
 
 ```math
-H = \\frac{(p̂_f - p)^2}{m} + ωN̂ - v Σₖ(âₖ^† + â_{-k})
+H = (p̂_f - p)^2/m + ωN̂ - v Σₖ(âₖ^† + â₋ₖ)
 ```
 
 where ``p`` is the total momentum, ``p̂_f = Σ_k k âₖ^† âₖ`` is the momentum operator for the
@@ -108,14 +108,14 @@ function num_offdiagonals(::FroehlichPolaron{<:Any,M}, ::OccupationNumberFS{M}) 
     return 2M #num_occupied_modes
 end
 
-function get_offdiagonal(h::FroehlichPolaron{<:Any,M,<:Any,<:Nothing}, addr::OccupationNumberFS{M},chosen) where {M}
+function get_offdiagonal(h::FroehlichPolaron{<:Any,M,<:Any,Nothing}, addr::OccupationNumberFS{M},chosen) where {M}
     # branch that bypasses momentum cutoff
-    return _froehlich_offdiag(h,addr,chosen)
+    return _froehlich_offdiag(h, addr, chosen)
 end
 
 function get_offdiagonal(h::FroehlichPolaron{T,M,<:Any,T}, addr::OccupationNumberFS{M}, chosen) where {M,T}
     # branch for checking momentum cutoff
-    naddress, value = _froehlich_offdiag(h,addr,chosen)
+    naddress, value = _froehlich_offdiag(h, addr, chosen)
 
     new_p_tot = dot(h.ks, onr(naddress))
     if (M/h.l) * new_p_tot > h.momentum_cutoff # check if momentum of new address exceeds momentum_cutoff
@@ -130,16 +130,16 @@ function _froehlich_offdiag(h, addr::OccupationNumberFS{M},chosen) where {M}
         if onr(addr)[chosen] ≥ h.mode_cutoff # check whether occupation exceeds cutoff
             return addr, 0.0
         else
-            naddress, value = excitation(addr, (chosen,),())
+            naddress, value = excitation(addr, (chosen,), ())
             return naddress, - h.v * value
         end
     else # remaining indices are destructions
 
-        naddress, value = excitation(addr, (),(chosen-M,))
+        naddress, value = excitation(addr, (), (chosen - M,))
         return naddress, - h.v * value
     end
 end
 
 function _exceed_mode_cutoff(mode_cutoff, addr::OccupationNumberFS{M}) where {M}
-    return any(x->x>mode_cutoff,onr(addr))
+    return any(x -> x > mode_cutoff, onr(addr))
 end
