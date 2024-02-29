@@ -25,7 +25,22 @@ operator for the bosons.
 * `mode_cutoff`: the maximum number of bosons in each momentum mode. Defaults to the maximum
     value supported by the address type [`OccupationNumberFS`](@ref).
 
-See also [`OccupationNumberFS`](@ref) and [`AbstractHamiltonian`](@ref).
+# Examples
+```jldoctest
+julia> fs = OccupationNumberFS(0,0,0)
+OccupationNumberFS{3, UInt8}(0, 0, 0)
+
+julia> ham = FroehlichPolaron(fs; v=0.5)
+FroehlichPolaron(fs"|0 0 0⟩{8}"; v=0.5, mass=1.0, omega=1.0, l=1.0, p=0.0, mode_cutoff=255)
+
+julia> dimension(ham)
+16777216
+
+julia> dimension(FroehlichPolaron(fs; v=0.5, mode_cutoff=5))
+216
+```
+
+See also [`OccupationNumberFS`](@ref), [`dimension`](@ref), [`AbstractHamiltonian`](@ref).
 """
 struct FroehlichPolaron{
     T, # eltype
@@ -88,8 +103,12 @@ function FroehlichPolaron(
 end
 
 function Base.show(io::IO, h::FroehlichPolaron)
-    print(io, "FroehlichPolaron($(h.addr); v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
-    println(io, "momentum_cutoff=$(h.momentum_cutoff), mode_cutoff=$(h.mode_cutoff))")
+    print(io, "FroehlichPolaron(")
+    show(IOContext(io, :compact => true), h.addr)
+    print("; v=$(h.v), mass=$(h.mass), omega=$(h.omega), l=$(h.l), p=$(h.p), ")
+    isnothing(h.momentum_cutoff) || print(io, "momentum_cutoff = $(h.momentum_cutoff), ")
+    print(io, "mode_cutoff=$(h.mode_cutoff))")
+
 end
 
 function starting_address(h::FroehlichPolaron)
@@ -142,4 +161,11 @@ end
 
 function _exceed_mode_cutoff(mode_cutoff, addr::OccupationNumberFS{M}) where {M}
     return any(x -> x > mode_cutoff, onr(addr))
+end
+
+function dimension(h::FroehlichPolaron, address)
+    # takes into account `mode_cutoff` but not `momentum_cutoff`
+    M = num_modes(address)
+    n = h.mode_cutoff
+    return BigInt(n + 1)^BigInt(M)
 end
