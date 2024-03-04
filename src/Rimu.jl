@@ -9,6 +9,8 @@ using Parameters
 using Reexport
 using Setfield
 using StaticArrays
+using CommonSolve
+using CommonSolve: init, solve, solve!
 using StatsBase
 using ProgressLogging
 using TerminalLoggers: TerminalLogger
@@ -60,6 +62,8 @@ export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneli
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export localpart, walkernumber
 export smart_logger, default_logger
+export FCIQMCProblem
+export solve, solve!, init # from CommonSolve
 
 function __init__()
     # Turn on smart logging once at runtime. Turn off with `default_logger()`.
@@ -74,7 +78,8 @@ include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
 include("strategies_and_params/deprecated.jl")
 
-include("lomc.jl")                  # top level
+include("FCIQMCProblem.jl")                  # top level
+include("lomc_deprecated.jl")       # deprecated
 
 include("RMPI/RMPI.jl")
 
