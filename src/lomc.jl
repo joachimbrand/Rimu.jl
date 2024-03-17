@@ -102,7 +102,7 @@ the algorithm. Constructed and returned by [`lomc!`](@ref).
 struct QMCState{
     H,
     N,
-    R<:ReplicaState,
+    R<:NTuple{N,<:ReplicaState},
     RS<:ReportingStrategy,
     SS<:ShiftStrategy,
     TS<:TimeStepStrategy,
@@ -110,7 +110,7 @@ struct QMCState{
     PS<:NTuple{<:Any,PostStepStrategy},
 }
     hamiltonian::H
-    replicas::NTuple{N,R}
+    replicas::R
     maxlength::Ref{Int}
 
     r_strat::RS
