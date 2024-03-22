@@ -59,6 +59,8 @@ Can be advanced a step forward with [`advance!`](@ref).
 * `pv`: vector from the previous step.
 * `wm`: working memory.
 * `pnorm`: previous walker number (see [`walkernumber`](@ref)).
+* `s_strat`: shift strategy.
+* `τ_strat`: time step strategy.
 * `shift`: shift to control the walker number.
 * `dτ`: time step size.
 * `id`: string ID appended to reported column names.
@@ -66,24 +68,26 @@ Can be advanced a step forward with [`advance!`](@ref).
 See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
 [`lomc!`](@ref).
 """
-mutable struct ReplicaState{H,T,V,W}
+mutable struct ReplicaState{H,T,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy}
     # Future TODO: rename these fields, add interface for accessing them.
     hamiltonian::H
     v::V       # vector
     pv::V      # previous vector.
     wm::W      # working memory. Maybe working memories could be shared among replicas?
     pnorm::T   # previous walker number - used to control the shift
+    s_strat::SS # shift strategy
+    τ_strat::TS # time step strategy
     shift::T   # shift to control the walker number
     dτ::Float64 # time step size
     id::String # id is appended to column names
 end
 
-function ReplicaState(h, v, wm, shift, dτ, id="")
+function ReplicaState(h, v, wm, shift, dτ, s_strat, τ_strat, id="")
     if isnothing(wm)
         wm = similar(v)
     end
     pv = zerovector(v)
-    return ReplicaState(h, v, pv, wm, walkernumber(v), shift, dτ, id)
+    return ReplicaState(h, v, pv, wm, walkernumber(v), shift, dτ, s_strat, τ_strat, id)
 end
 
 function Base.show(io::IO, r::ReplicaState)
@@ -106,8 +110,6 @@ struct QMCState{
     N,
     R<:NTuple{N,<:ReplicaState},
     RS<:ReportingStrategy,
-    SS<:ShiftStrategy,
-    TS<:TimeStepStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
 }
@@ -117,8 +119,6 @@ struct QMCState{
     step::Ref{Int}
     laststep::Ref{Int}
     r_strat::RS
-    s_strat::SS
-    τ_strat::TS
     post_step::PS
     replica::RRS
 end
@@ -216,18 +216,20 @@ function QMCState(
                 hamiltonian,
                 deepcopy(v),
                 deepcopy(wm),
+                deepcopy(s_strat),
+                deepcopy(τ_strat),
                 shift,
                 dτ,
                 "_$i")
         end
     else
-        replicas = (ReplicaState(hamiltonian, v, wm, shift, dτ),)
+        replicas = (ReplicaState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),)
     end
 
     return QMCState(
         hamiltonian, replicas, Ref(Int(maxlength)), Ref(Int(step)),
         Ref(Int(laststep)),
-        r_strat, s_strat, τ_strat, post_step, replica
+        r_strat, post_step, replica
     )
 end
 
@@ -247,16 +249,16 @@ end
 function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
+    replica = state.replicas[1]
     report_metadata!(report, "laststep", state.laststep[])
     report_metadata!(report, "num_replicas", length(state.replicas))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
     report_metadata!(report, "r_strat", state.r_strat)
-    report_metadata!(report, "s_strat", state.s_strat)
-    report_metadata!(report, "τ_strat", state.τ_strat)
-    params = state.replicas[1]
-    report_metadata!(report, "dτ", params.dτ)
+    report_metadata!(report, "s_strat", replica.s_strat)
+    report_metadata!(report, "τ_strat", replica.τ_strat)
+    report_metadata!(report, "dτ", replica.dτ)
     report_metadata!(report, "step", state.step[])
-    report_metadata!(report, "shift", params.shift)
+    report_metadata!(report, "shift", replica.shift)
     report_metadata!(report, "maxlength", state.maxlength[])
     report_metadata!(report, "post_step", state.post_step)
     report_metadata!(report, "v_summary", summary(state.replicas[1].v))
@@ -481,8 +483,8 @@ it should terminate.
 """
 function advance!(report, state::QMCState, replica::ReplicaState)
 
-    @unpack hamiltonian, r_strat, s_strat, τ_strat = state
-    @unpack v, pv, wm, pnorm, dτ, shift, id = replica
+    @unpack hamiltonian, r_strat = state
+    @unpack v, pv, wm, pnorm, dτ, shift, id, s_strat, τ_strat = replica
     step = state.step[]
 
     ### PROPAGATOR ACTS
