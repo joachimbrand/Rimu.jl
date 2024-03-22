@@ -389,10 +389,6 @@ julia> metadata(df2, "hamiltonian") # some metadata is automatically added
   how to update the `shift`, see [`ShiftStrategy`](@ref).
 * `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
   reached, `lomc!` will abort
-* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
-  diagonal_element(ham, address)` -
-  basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref). Parameter values
-  are overridden by explicit keyword arguments `laststep`, `dτ`, `shift`; is mutated.
 * `wm` - working memory for re-use in subsequent calculations; is mutated.
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
   be passed for merging with the report `df`.
