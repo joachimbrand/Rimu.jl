@@ -112,7 +112,8 @@ struct QMCState{
     hamiltonian::H
     replicas::R
     maxlength::Ref{Int}
-
+    step::Ref{Int}
+    laststep::Ref{Int}
     r_strat::RS
     s_strat::SS
     τ_strat::TS
@@ -191,57 +192,10 @@ function QMCState(
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(Int(maxlength)),
+        hamiltonian, replicas, Ref(Int(maxlength)), Ref(Int(params.step)),
+        Ref(Int(params.laststep)),
         r_strat, s_strat, τ_strat, post_step, replica
     )
-end
-
-# Allow setting step, laststep, dτ, shift from QMCState.
-function Base.getproperty(state::QMCState, key::Symbol)
-    if key == :step
-        step = state.replicas[1].params.step
-        return step
-    elseif key == :laststep
-        laststep = state.replicas[1].params.laststep
-        return laststep
-    elseif key == :maxlength
-        return getfield(state, :maxlength)[]
-    elseif key == :dτ
-        return state.replicas[1].params.dτ
-    elseif key == :shift
-        return state.replicas[1].params.shift
-    else
-        return getfield(state, key)
-    end
-end
-function Base.setproperty!(state::QMCState, key::Symbol, value)
-    if key == :step
-        for r in state.replicas
-            r.params.step = value
-        end
-        return value
-    elseif key == :laststep
-        for r in state.replicas
-            r.params.laststep = value
-        end
-        return value
-    elseif key == :dτ
-        for r in state.replicas
-            r.params.dτ = value
-        end
-        return value
-    elseif key == :shift
-        for r in state.replicas
-            r.params.shift = value
-        end
-        return value
-    elseif key == :maxlength
-        getfield(state, :maxlength)[] = value
-        return value
-    else
-        # This will error
-        return setfield!(state, key, value)
-    end
 end
 
 function Base.show(io::IO, st::QMCState)
@@ -250,7 +204,7 @@ function Base.show(io::IO, st::QMCState)
         print(io, " with ", length(st.replicas), " replicas")
     end
     print(io, "\n  H:    ", st.hamiltonian)
-    print(io, "\n  step: ", st.step, " / ", st.laststep)
+    print(io, "\n  step: ", st.step[], " / ", st.laststep[])
     print(io, "\n  replicas: ")
     for (i, r) in enumerate(st.replicas)
         print(io, "\n    $i: ", r)
@@ -260,7 +214,7 @@ end
 function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
-    report_metadata!(report, "laststep", state.laststep)
+    report_metadata!(report, "laststep", state.laststep[])
     report_metadata!(report, "num_replicas", length(state.replicas))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
     report_metadata!(report, "r_strat", state.r_strat)
@@ -269,7 +223,7 @@ function report_default_metadata!(report::Report, state::QMCState)
     params = state.replicas[1].params
     report_metadata!(report, "params", params)
     report_metadata!(report, "dτ", params.dτ)
-    report_metadata!(report, "step", params.step)
+    report_metadata!(report, "step", state.step[])
     report_metadata!(report, "shift", params.shift)
     report_metadata!(report, "shiftMode", params.shiftMode)
     report_metadata!(report, "maxlength", state.maxlength[])
@@ -435,7 +389,7 @@ end
 # For continuation, you can pass a QMCState and a DataFrame
 function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
     if !iszero(laststep)
-        state.laststep = laststep
+        state.laststep[] = laststep
     end
 
     # initialise report
@@ -444,19 +398,15 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
     isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
 
     # Sanity checks.
-    step, laststep = state.step, state.laststep
-    for replica in state.replicas
-        @assert replica.params.step == step
-        @assert replica.params.laststep == laststep
-    end
     check_transform(state.replica, state.hamiltonian)
 
     # main loop
-    initial_step = step
+    laststep = state.laststep[]
+    step = initial_step = state.step[]
     update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
-    # update_steps = 400
+
     @withprogress name=name while step < laststep
-        step += 1
+        step = state.step[] += 1
         if step % reporting_interval(state.r_strat) == 0
             report!(state.r_strat, step, report, :steps, step)
         end
@@ -506,8 +456,8 @@ function advance!(report, state::QMCState, replica::ReplicaState)
 
     @unpack hamiltonian, r_strat, s_strat, τ_strat = state
     @unpack v, pv, wm, pnorm, params, id = replica
-    @unpack step, shiftMode, shift, dτ = params
-    step += 1
+    @unpack shiftMode, shift, dτ = params
+    step = state.step[]
 
     ### PROPAGATOR ACTS
     ### FROM HERE

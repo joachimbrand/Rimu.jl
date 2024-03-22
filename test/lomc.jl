@@ -27,19 +27,20 @@ Random.seed!(1234)
         @test state.replicas[1].v === v
         @test state.replicas[1].pv !== v && state.replicas[1].pv !== wm
 
-        state.laststep = 10
+        state.laststep[] = 10
         df = lomc!(state, df).df
         @test state.replicas[1].v === wm
         @test state.replicas[1].pv === v
 
         @test size(df, 1) == 10
+        @test state.step[] == 10
         @test state.replicas[1].params.step == 10
 
-        state.laststep = 100
+        state.laststep[] = 100
         df = lomc!(state, df).df
         @test size(df, 1) == 100
 
-        state.step = 0
+        state.step[] = 0
         df = lomc!(state, df).df
         @test size(df, 1) == 200
         @test df.steps == [1:100; 1:100]
@@ -50,12 +51,8 @@ Random.seed!(1234)
         H = HubbardReal1D(add; u=0.1)
         dv = DVec(add => 1; style=IsStochasticInteger())
         df, state = lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
-        @test state.replicas[1].params.dτ == state.dτ == 0.002
-        @test state.replicas[1].params.shift == state.shift == 23.1
-        state.dτ = 0.004
-        @test state.replicas[1].params.dτ == state.dτ == 0.004
-        state.shift = 5.0
-        @test state.replicas[1].params.shift == state.shift == 5.0
+        @test state.replicas[1].params.dτ  == 0.002
+        @test state.replicas[1].params.shift == 23.1
         @test state.replica == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
@@ -306,7 +303,7 @@ Random.seed!(1234)
         @test all(df.len_5[1:end-1] .≤ 10)
         @test all(df.len_6[1:end-1] .≤ 10)
 
-        state.maxlength += 1000
+        state.maxlength[] += 1000
         df_cont = lomc!(state).df
         @test size(df_cont, 1) == 100 - size(df, 1)
     end
@@ -319,7 +316,7 @@ Random.seed!(1234)
 
         # Run lomc!, then change laststep and continue.
         df, state = lomc!(H, copy(dv))
-        state.laststep = 200
+        state.laststep[] = 200
         df1 = lomc!(state, df).df
 
         # Run lomc! with laststep already set.
