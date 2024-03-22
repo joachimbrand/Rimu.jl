@@ -13,7 +13,7 @@ Passed as a parameter to [`lomc!`](@ref).
 abstract type ShiftStrategy end
 
 """
-    update_shift(s <: ShiftStrategy, shift, shiftMode, tnorm, pnorm, dτ, step, df, v_new, v_old)
+    update_shift(s <: ShiftStrategy, shift, tnorm, pnorm, dτ, step, df, v_new, v_old)
 Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
 """
 update_shift
@@ -28,8 +28,8 @@ See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
     targetwalkers::Int = 1_000_000
 end
 
-@inline function update_shift(s::DontUpdate, shift, _, tnorm, args...)
-    return shift, false, tnorm, tnorm < s.targetwalkers
+@inline function update_shift(s::DontUpdate, shift, tnorm, args...)
+    return shift, tnorm, tnorm < s.targetwalkers
 end
 
 """
@@ -42,13 +42,15 @@ See [`LogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 @with_kw struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    shift_mode::Ref{Bool} = Ref(false)
 end
 @inline function update_shift(s::LogUpdateAfterTargetWalkers,
-                        shift, shiftMode, tnorm, args...)
-    if shiftMode || real(tnorm) > s.targetwalkers
-        return update_shift(LogUpdate(s.ζ), shift, true, tnorm, args...)
+                        shift, tnorm, args...)
+    if s.shift_mode[] || real(tnorm) > s.targetwalkers
+        s.shift_mode[] = true
+        return update_shift(LogUpdate(s.ζ), shift, tnorm, args...)
     end
-    return shift, false, tnorm, true
+    return shift, tnorm, true
 end
 
 """
@@ -67,10 +69,10 @@ See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 end
 
 @inline function update_shift(s::LogUpdate,
-                        shift, shiftMode,
+                        shift,
                         tnorm, pnorm, dτ, args...)
-    # return new shift and new shiftMode
-    return shift - s.ζ/dτ * log(tnorm/pnorm), true, tnorm, true
+    # return new shift
+    return shift - s.ζ/dτ * log(tnorm/pnorm), tnorm, true
 end
 
 """
@@ -96,10 +98,10 @@ function DoubleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4)
 end
 
 @inline function update_shift(s::DoubleLogUpdate,
-                        shift, shiftMode,
+                        shift,
                         tnorm, pnorm, dτ, args...)
     new_shift = shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm)
-    return new_shift, true, tnorm, true
+    return new_shift, tnorm, true
 end
 
 """
@@ -113,24 +115,25 @@ See [`DoubleLogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
+    shift_mode::Ref{Bool} = Ref(false)
 end
 
 @inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
-                        shift, shiftMode,
+                        shift,
                         tnorm, pnorm, dτ, step, df, args...)
-    if shiftMode || real(tnorm) > s.targetwalkers
-            return update_shift(
-                DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ),
-                shift,
-                true,
-                tnorm,
-                pnorm,
-                dτ,
-                step,
-                df
-            )
+    if s.shift_mode[] || real(tnorm) > s.targetwalkers
+        s.shift_mode[] = true
+        return update_shift(
+            DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ),
+            shift,
+            tnorm,
+            pnorm,
+            dτ,
+            step,
+            df
+        )
     end
-    return shift, false, tnorm, true
+    return shift, tnorm, true
 end
 
 # more experimental strategies from here on:
@@ -163,16 +166,16 @@ function DoubleLogSumUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4, α =
 end
 
 @inline function update_shift(s::DoubleLogSumUpdate,
-                        shift, shiftMode,
+                        shift,
                         tnorm, pnorm, dτ, step, df, v_new, v_old
 )
     tp = DictVectors.UniformProjector() ⋅ v_new
     pp = DictVectors.UniformProjector() ⋅ v_old
     twn = (1 - s.α) * tnorm + s.α * tp
     pwn = (1 - s.α) * pnorm + s.α * pp
-    # return new shift and new shiftMode
+    # return new shift
     new_shift = shift - s.ξ/dτ * log(twn/s.targetwalkers) - s.ζ/dτ * log(twn/pwn)
-    return new_shift, true, tnorm, true
+    return new_shift, tnorm, true
 end
 
 """
@@ -204,16 +207,16 @@ function TripleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4, η = 0.
 end
 
 @inline function update_shift(s::TripleLogUpdate,
-                        shift, shiftMode,
+                        shift,
                         tnorm, pnorm, dτ, step, df, v_new, v_old
 )
     tp = abs2(DictVectors.Norm1ProjectorPPop() ⋅ v_new)
     pp = abs2(DictVectors.Norm1ProjectorPPop() ⋅ v_old)
-    # return new shift and new shiftMode
+    # return new shift
     new_shift = shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm)
     # new_shift -= s.η/dτ * log(tp/pp)
     new_shift -= s.η/dτ * log(tp/s.targetwalkers)
-    return new_shift, true, tnorm, true
+    return new_shift, tnorm, true
 end
 
 """
@@ -241,11 +244,11 @@ function DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4)
 end
 
 @inline function update_shift(s::DoubleLogProjected,
-                        shift, shiftMode,
+                        shift,
                         tnorm, pnorm, dτ, step, df, v_new, v_old)
-    # return new shift and new shiftMode
+    # return new shift
     tp = s.projector⋅v_new
     pp = s.projector⋅v_old
     new_shift = shift - s.ζ/dτ * log(tp/pp) - s.ξ/dτ * log(tp/s.target)
-    return new_shift, true, tnorm, true
+    return new_shift, tnorm, true
 end

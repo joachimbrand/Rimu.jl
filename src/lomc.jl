@@ -59,29 +59,31 @@ Can be advanced a step forward with [`advance!`](@ref).
 * `pv`: vector from the previous step.
 * `wm`: working memory.
 * `pnorm`: previous walker number (see [`walkernumber`](@ref)).
-* `params`: the [`FciqmcRunStrategy`](@ref).
+* `shift`: shift to control the walker number.
+* `dτ`: time step size.
 * `id`: string ID appended to reported column names.
 
 See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
 [`lomc!`](@ref).
 """
-mutable struct ReplicaState{H,T,V,W,R<:FciqmcRunStrategy{T}}
+mutable struct ReplicaState{H,T,V,W}
     # Future TODO: rename these fields, add interface for accessing them.
     hamiltonian::H
     v::V       # vector
     pv::V      # previous vector.
     wm::W      # working memory. Maybe working memories could be shared among replicas?
     pnorm::T   # previous walker number - used to control the shift
-    params::R  # params: step, laststep, dτ...
+    shift::T   # shift to control the walker number
+    dτ::Float64 # time step size
     id::String # id is appended to column names
 end
 
-function ReplicaState(h, v, wm, params, id="")
+function ReplicaState(h, v, wm, shift, dτ, id="")
     if isnothing(wm)
         wm = similar(v)
     end
     pv = zerovector(v)
-    return ReplicaState(h, v, pv, wm, walkernumber(v), params, id)
+    return ReplicaState(h, v, pv, wm, walkernumber(v), shift, dτ, id)
 end
 
 function Base.show(io::IO, r::ReplicaState)
@@ -136,6 +138,7 @@ end
 
 function QMCState(
     hamiltonian, v;
+    step=nothing,
     laststep=nothing,
     dτ=nothing,
     shift=nothing,
@@ -158,14 +161,38 @@ function QMCState(
     Hamiltonians.check_address_type(hamiltonian, keytype(v))
     # Set up r_strat and params
     r_strat = refine_r_strat(r_strat)
-    if !isnothing(laststep)
-        params.laststep = laststep
-    end
-    if !isnothing(dτ)
-        params.dτ = dτ
-    end
-    if !isnothing(shift)
-        params.shift = shift
+
+    # eventually we want to deprecate the use of params
+    if !isnothing(params)
+        if !isnothing(step)
+            params.step = step
+        end
+        if !isnothing(laststep)
+            params.laststep = laststep
+        end
+        if !isnothing(dτ)
+            params.dτ = dτ
+        end
+        if !isnothing(shift)
+            params.shift = shift
+        end
+        step = params.step
+        dτ = params.dτ
+        shift = params.shift
+        laststep = params.laststep
+    else
+        if isnothing(step)
+            step = 0
+        end
+        if isnothing(laststep)
+            laststep = 100
+        end
+        if isnothing(dτ)
+            dτ = 0.01
+        end
+        if isnothing(shift)
+            shift = float(valtype(v))(diagonal_element(hamiltonian, address))
+        end
     end
 
     if threading ≠ nothing
@@ -185,15 +212,21 @@ function QMCState(
     nreplicas = num_replicas(replica)
     if nreplicas > 1
         replicas = ntuple(nreplicas) do i
-            ReplicaState(hamiltonian, deepcopy(v), deepcopy(wm), deepcopy(params), "_$i")
+            ReplicaState(
+                hamiltonian,
+                deepcopy(v),
+                deepcopy(wm),
+                shift,
+                dτ,
+                "_$i")
         end
     else
-        replicas = (ReplicaState(hamiltonian, v, wm, params, ""),)
+        replicas = (ReplicaState(hamiltonian, v, wm, shift, dτ),)
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(Int(maxlength)), Ref(Int(params.step)),
-        Ref(Int(params.laststep)),
+        hamiltonian, replicas, Ref(Int(maxlength)), Ref(Int(step)),
+        Ref(Int(laststep)),
         r_strat, s_strat, τ_strat, post_step, replica
     )
 end
@@ -220,12 +253,10 @@ function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "r_strat", state.r_strat)
     report_metadata!(report, "s_strat", state.s_strat)
     report_metadata!(report, "τ_strat", state.τ_strat)
-    params = state.replicas[1].params
-    report_metadata!(report, "params", params)
+    params = state.replicas[1]
     report_metadata!(report, "dτ", params.dτ)
     report_metadata!(report, "step", state.step[])
     report_metadata!(report, "shift", params.shift)
-    report_metadata!(report, "shiftMode", params.shiftMode)
     report_metadata!(report, "maxlength", state.maxlength[])
     report_metadata!(report, "post_step", state.post_step)
     report_metadata!(report, "v_summary", summary(state.replicas[1].v))
@@ -455,8 +486,7 @@ it should terminate.
 function advance!(report, state::QMCState, replica::ReplicaState)
 
     @unpack hamiltonian, r_strat, s_strat, τ_strat = state
-    @unpack v, pv, wm, pnorm, params, id = replica
-    @unpack shiftMode, shift, dτ = params
+    @unpack v, pv, wm, pnorm, dτ, shift, id = replica
     step = state.step[]
 
     ### PROPAGATOR ACTS
@@ -473,24 +503,26 @@ function advance!(report, state::QMCState, replica::ReplicaState)
     len = length(v)
 
     # Updates
-    shift, shiftMode, pnorm, proceed = update_shift(
-        s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, pv
+    shift, pnorm, proceed = update_shift(
+        s_strat, shift, tnorm, pnorm, dτ, step, nothing, v, pv
     )
     dτ = update_dτ(τ_strat, dτ, tnorm)
 
-    @pack! params = step, shiftMode, shift, dτ
-    @pack! replica = v, pv, wm, pnorm, params
+    @pack! replica = dτ, shift, v, pv, wm, pnorm
     ### TO HERE
 
     if step % reporting_interval(state.r_strat) == 0
         # Note: post_step must be called after packing the values.
-        post_step_stats = post_step(state.post_step, replica)
+        post_step_stats = post_step_action(state.post_step, replica, step)
 
         # Reporting
         report!(
             r_strat, step, report,
-            (dτ, shift, shiftMode, len, norm=tnorm), id,
+            (dτ, shift, len, norm=tnorm), id,
         )
+        if hasfield(typeof(s_strat), :shift_mode)
+            report!(r_strat, step, report, (; shift_mode=s_strat.shift_mode[]), id)
+        end
         report!(r_strat, step, report, step_stat_names, step_stat_values, id)
         report!(state.r_strat, step, report, post_step_stats, id)
     end
