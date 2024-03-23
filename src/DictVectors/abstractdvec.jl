@@ -145,6 +145,15 @@ function VectorInterface.scale!!(v::AbstractDVec, α::T) where {T<:Number}
         return scale(v, α)
     end
 end
+function VectorInterface.scale!!(y::AbstractDVec, v::AbstractDVec, α::T) where {T<:Number}
+    Y = scalartype(y)
+    U = scalartype(v)
+    if promote_type(Y, U, T) == Y && keytype(y) == keytype(v)
+        return scale!(y, v, α)
+    else
+        return scale(v, α)
+    end
+end
 
 LinearAlgebra.mul!(w::AbstractDVec, v::AbstractDVec, α) = scale!(w, v, α)
 LinearAlgebra.lmul!(α, v::AbstractDVec) = scale!(v, α)

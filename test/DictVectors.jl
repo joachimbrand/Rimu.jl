@@ -124,9 +124,13 @@ function test_dvec_interface(type; kwargs...)
             @testset "scale(!)" begin
                 u = type(1 => 1.0 + im, 2 => -2.0im; kwargs...)
                 v = type(1 => 3.5 + 3.5im, 2 => -7.0im; kwargs...)
+                w = type(1 => 3.5 + 3.5im, 2 => -7.0im, 3 => 0; kwargs...)
+                y = type(1 => 0; kwargs...) # different value type
 
                 @test scale(u, 3.5) == 3.5u == v
                 @test scale!!(copy(u), 3.5) == scale!(copy(u), 3.5) == v
+                @test scale!!(y, copy(u), 3.5) == v ≠ y
+                @test scale!!(copy(w), copy(u), 3.5) == scale!(copy(w), copy(u), 3.5) == v
                 @test scale!(zerovector(u), u, 3.5) == v
                 @test lmul!(3.5, copy(u)) == v
                 @test rmul!(copy(u), 3.5) == v

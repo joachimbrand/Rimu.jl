@@ -157,10 +157,12 @@ end
     include("doctests.jl")
 end
 
-# Check that no implicit imports are used in the Rimu module.
-# See https://ericphanson.github.io/ExplicitImports.jl/stable/
-@test check_no_implicit_imports(Rimu; skip=(Rimu, Base, Core, VectorInterface)) === nothing
-# If this test fails, make your import statements explicit.
-# For example, replace `using Foo` with `using Foo: bar, baz`.
+@safetestset "ExplicitImports" begin
+    # Check that no implicit imports are used in the Rimu module.
+    # See https://ericphanson.github.io/ExplicitImports.jl/stable/
+    @test check_no_implicit_imports(Rimu; skip=(Rimu, Base, Core, VectorInterface)) === nothing
+    # If this test fails, make your import statements explicit.
+    # For example, replace `using Foo` with `using Foo: bar, baz`.
+end
 
 # Note: Running Rimu with several MPI ranks is tested seperately on GitHub CI and not here.
