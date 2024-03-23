@@ -9,7 +9,7 @@ using Logging, TerminalLoggers
 using TOML
 using Test
 using Rimu.StatsTools
-
+using ExplicitImports: check_no_implicit_imports
 
 # assuming VERSION ≥ v"1.6"
 # the following is needed because random numbers of collections are computed
@@ -156,5 +156,9 @@ end
 @safetestset "doctests" begin
     include("doctests.jl")
 end
+
+# Check that no implicit imports are used in the Rimu module.
+# See https://ericphanson.github.io/ExplicitImports.jl/stable/
+@test check_no_implicit_imports(Rimu; skip=(Rimu, Base, Core, VectorInterface)) === nothing
 
 # Note: Running Rimu with several MPI ranks is tested seperately on GitHub CI and not here.
