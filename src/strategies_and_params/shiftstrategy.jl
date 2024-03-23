@@ -24,7 +24,7 @@ Don't update the `shift`.  Return when `targetwalkers` is reached.
 
 See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
-@with_kw struct DontUpdate <: ShiftStrategy
+Base.@kwdef struct DontUpdate <: ShiftStrategy
     targetwalkers::Int = 1_000_000
 end
 
@@ -39,7 +39,7 @@ shift according to the log formula with damping parameter `ζ`.
 
 See [`LogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
-@with_kw struct LogUpdateAfterTargetWalkers <: ShiftStrategy
+Base.@kwdef struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     shift_mode::Ref{Bool} = Ref(false)
@@ -64,7 +64,7 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 
 See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
-@with_kw struct LogUpdate <: ShiftStrategy
+Base.@kwdef struct LogUpdate <: ShiftStrategy
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
 
@@ -111,7 +111,7 @@ shift according to the log formula with damping parameter `ζ` and `ξ`.
 
 See [`DoubleLogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 """
-@with_kw mutable struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
+Base.@kwdef struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
