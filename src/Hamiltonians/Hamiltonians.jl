@@ -47,13 +47,21 @@ Other
 """
 module Hamiltonians
 
-using Parameters, StaticArrays, LinearAlgebra, SparseArrays
-using FFTW
-using Setfield
-using SpecialFunctions, HypergeometricFunctions, Combinatorics, TupleTools, DataFrames
+using Combinatorics: Combinatorics, multiset_permutations,
+    with_replacement_combinations
+using DataFrames: DataFrames, DataFrame, transform
+using FFTW: FFTW, fft
+using HypergeometricFunctions: HypergeometricFunctions, _₃F₂
+using LinearAlgebra: LinearAlgebra, I, diag, dot, ishermitian, issymmetric,
+    mul!, norm
+using Parameters: Parameters, @unpack
+using Setfield: Setfield
+using SparseArrays: SparseArrays, nnz, nzrange, sparse
+using SpecialFunctions: SpecialFunctions, gamma
+using StaticArrays: StaticArrays, SA, SMatrix, SVector
+using TupleTools: TupleTools
 
 using ..BitStringAddresses
-
 using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
     offdiagonals, random_offdiagonal, LOStructure, allowed_address_type

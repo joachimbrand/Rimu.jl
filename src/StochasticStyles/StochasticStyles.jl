@@ -20,14 +20,15 @@ setting a [`CompressionStrategy`](@ref).
 """
 module StochasticStyles
 
-using StaticArrays
-using StatsBase
-using ..Rimu: MultiScalar, localpart
+using StaticArrays: StaticArrays
+using StatsBase: StatsBase, sample
+
+using ..Rimu: MultiScalar
 
 using ..Interfaces
 import ..Interfaces:
     deposit!, diagonal_element, offdiagonals, random_offdiagonal, default_style,
-    apply_column!, step_stats, compress!
+    apply_column!, step_stats, compress!, localpart
 export
     StochasticStyle, IsStochasticInteger, IsDeterministic, IsStochasticWithThreshold,
     IsDynamicSemistochastic, StyleUnknown, Exact, WithReplacement, DynamicSemistochastic,

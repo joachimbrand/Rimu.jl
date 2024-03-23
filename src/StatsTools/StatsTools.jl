@@ -22,9 +22,19 @@ Tools for the statistical analysis of Monte Carlo data.
 """
 module StatsTools
 
-using Statistics, MonteCarloMeasurements, Distributions, DataFrames
-using StrLiterals, StrFormat # for Base.show() methods
-using Random, SpecialFunctions, LinearAlgebra
+using DataFrames: DataFrames, DataFrame
+using Distributions: Distributions, Chisq, Distribution, MvNormal, Normal,
+    cquantile, var
+using LinearAlgebra: LinearAlgebra, diag, norm
+using MonteCarloMeasurements: MonteCarloMeasurements, AbstractParticles, pcov,
+    pextrema, piterate, pmaximum, pmean, pmedian,
+    pmiddle, pminimum, pquantile
+using Random: Random
+using SpecialFunctions: SpecialFunctions, erf
+using Statistics: Statistics
+using StrFormat: StrFormat, @f_str
+using StrLiterals: StrLiterals
+
 import ProgressLogging, Folds
 import MacroTools
 import Measurements
@@ -32,7 +42,7 @@ import Measurements
 import Statistics: cov
 import Measurements: measurement
 import MonteCarloMeasurements: Particles
-import Base: show, NamedTuple
+import Base: NamedTuple
 
 export growth_witness, smoothen
 export blocking_analysis, blocking_analysis_data, mean_and_se

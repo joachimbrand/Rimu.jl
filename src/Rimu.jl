@@ -1,20 +1,23 @@
 module Rimu
 
-using Arrow
-using DataFrames
-using DataStructures
-using LinearAlgebra
-using OrderedCollections # for LittleDict
-using Parameters
-using Reexport
-using Setfield
-using StaticArrays
-using StatsBase
-using ProgressLogging
+using Arrow: Arrow
+using DataFrames: DataFrames, DataFrame, metadata
+using DataStructures: DataStructures
+using LinearAlgebra: LinearAlgebra, dot, isdiag
+using OrderedCollections: OrderedCollections, LittleDict, freeze
+using Parameters: Parameters, @pack!, @unpack, @with_kw
+using ProgressLogging: ProgressLogging, @logprogress, @withprogress
+using Reexport: Reexport, @reexport
+using Setfield: Setfield
+using StaticArrays: StaticArrays, SVector
+using StatsBase: StatsBase
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
 import ConsoleProgressMonitor
 import TOML
+
+@reexport using LinearAlgebra
+@reexport using VectorInterface
 
 """
     Rimu.PACKAGE_VERSION

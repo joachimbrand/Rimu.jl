@@ -9,19 +9,23 @@ See [`Interfaces`](@ref).
 """
 module DictVectors
 
-using Folds
-using LinearAlgebra
-using Random
-using VectorInterface
+using Folds: Folds
+using LinearAlgebra: LinearAlgebra, I, dot, ⋅, mul!, normalize!, rank
+using Random: Random
+using VectorInterface: VectorInterface, add, add!, inner, norm, scalartype,
+    scale, scale!, zerovector, zerovector!, zerovector!!
 
 import MPI
 
-using ..Interfaces
-using ..Hamiltonians
-using ..StochasticStyles
+using ..Interfaces: Interfaces, AbstractDVec, AdjointUnknown,
+    CompressionStrategy, IsDiagonal, LOStructure,
+    apply_column!, apply_operator!, compress!,
+    diagonal_element, offdiagonals, step_stats
+using ..Hamiltonians: Hamiltonians, AbstractHamiltonian
+using ..StochasticStyles: StochasticStyles, IsDeterministic
 
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
-    working_memory, sort_into_targets!
+    working_memory
 
 export deposit!, storage, walkernumber, dot_from_right
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory
