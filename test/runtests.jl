@@ -157,7 +157,7 @@ end
     include("doctests.jl")
 end
 
-@safetestset "ExplicitImports" begin
+VERSION ≥ v"1.7" && @safetestset "ExplicitImports" begin
     # Check that no implicit imports are used in the Rimu module.
     # See https://ericphanson.github.io/ExplicitImports.jl/stable/
     @test check_no_implicit_imports(Rimu; skip=(Rimu, Base, Core, VectorInterface)) === nothing
