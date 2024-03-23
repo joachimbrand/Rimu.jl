@@ -1,8 +1,9 @@
 module KrylovKitExt
 
-using Rimu
-using KrylovKit
-using LinearAlgebra
+using KrylovKit: KrylovKit, EigSorter, eigsolve
+using LinearAlgebra: LinearAlgebra, mul!, ishermitian, issymmetric
+using Rimu: Rimu, AbstractDVec, AbstractHamiltonian, IsDeterministic, PDVec,
+    PDWorkingMemory, scale!!, working_memory, zerovector
 
 const U = Union{Symbol,EigSorter}
 

@@ -8,11 +8,15 @@ using Rimu.RMPI
 module RMPI
 
 import MPI
-using Rimu
-using LinearAlgebra
-using Random
-using StaticArrays
-using VectorInterface
+
+using LinearAlgebra: LinearAlgebra, I, dot, ⋅
+using Random: Random
+using StaticArrays: StaticArrays, SVector
+using VectorInterface: VectorInterface, add, zerovector
+
+using Rimu: Rimu, AbstractDVec, AbstractFockAddress, DictVectors, IsDiagonal,
+    LOStructure, StochasticStyle, deposit!, diagonal_element, freeze,
+    localpart, offdiagonals, storage, val, walkernumber
 
 import Rimu: sort_into_targets!
 import ..DictVectors: mpi_rank, mpi_comm, mpi_size

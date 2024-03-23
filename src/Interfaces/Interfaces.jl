@@ -35,10 +35,8 @@ Follow the links for the definitions of the interfaces!
 """
 module Interfaces
 
-using Reexport
-
-@reexport using LinearAlgebra
-@reexport using VectorInterface
+using LinearAlgebra: LinearAlgebra, diag
+using VectorInterface: VectorInterface, add, zerovector!
 
 import OrderedCollections: freeze
 
