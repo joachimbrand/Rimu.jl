@@ -40,24 +40,19 @@ end
 
 """
     update_shift!(
-        shift_parameters,
         s <: ShiftStrategy,
+        shift_parameters,
+        tnorm,
         v_new,
         v_old,
         step,
         report
-    ) -> shift_stats, continue
+    ) -> shift_stats, proceed
 Update the `shift_parameters` according to strategy `s`. See [`ShiftStrategy`](@ref).
-Returns a named tuple of the shift statistics and a boolean `continue` indicating whether
-the simulation should continue.
+Returns a named tuple of the shift statistics and a boolean `proceed` indicating whether
+the simulation should proceed.
 """
 update_shift!
-
-"""
-    update_shift(s <: ShiftStrategy, shift, tnorm, pnorm, dτ, step, df, v_new, v_old)
-Update the shift according to strategy `s`. See [`ShiftStrategy`](@ref).
-"""
-update_shift
 
 """
     DontUpdate(; targetwalkers = 1_000_000) <: ShiftStrategy
@@ -69,13 +64,8 @@ Base.@kwdef struct DontUpdate <: ShiftStrategy
     targetwalkers::Int = 1_000_000
 end
 
-@inline function update_shift(s::DontUpdate, shift, tnorm, args...)
-    return shift, tnorm, tnorm < s.targetwalkers
-end
-
-function update_shift!(sp, s::DontUpdate, v_new, _...)
-    norm = walkernumber(v_new)
-    return (; shift=sp.shift, norm), norm < s.targetwalkers
+function update_shift!(s::DontUpdate, sp, tnorm, _...)
+    return (; shift=sp.shift, norm=tnorm), tnorm < s.targetwalkers
 end
 
 """
@@ -88,20 +78,10 @@ See [`LogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
 Base.@kwdef struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
-    shift_mode::Ref{Bool} = Ref(false)
-end
-@inline function update_shift(s::LogUpdateAfterTargetWalkers,
-                        shift, tnorm, args...)
-    if s.shift_mode[] || real(tnorm) > s.targetwalkers
-        s.shift_mode[] = true
-        return update_shift(LogUpdate(s.ζ), shift, tnorm, args...)
-    end
-    return shift, tnorm, true
 end
 
-function update_shift!(sp, s::LogUpdateAfterTargetWalkers, v_new, _...)
+function update_shift!(s::LogUpdateAfterTargetWalkers, sp, tnorm, _...)
     @unpack shift, pnorm, time_step, shift_mode = sp
-    tnorm = walkernumber(v_new)
     if shift_mode || real(tnorm) > s.targetwalkers
         shift_mode = true
         dτ = time_step
@@ -127,16 +107,8 @@ Base.@kwdef struct LogUpdate <: ShiftStrategy
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
 
-@inline function update_shift(s::LogUpdate,
-                        shift,
-                        tnorm, pnorm, dτ, args...)
-    # return new shift
-    return shift - s.ζ/dτ * log(tnorm/pnorm), tnorm, true
-end
-
-function update_shift!(sp, s::LogUpdate, v_new, _...)
+function update_shift!(s::LogUpdate, sp, tnorm, _...)
     @unpack shift, pnorm, time_step = sp
-    tnorm = walkernumber(v_new)
     dτ = time_step
     shift -= s.ζ / dτ * log(tnorm / pnorm)
     pnorm = tnorm
@@ -166,16 +138,8 @@ function DoubleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4)
     return DoubleLogUpdate(targetwalkers, ζ, ξ)
 end
 
-@inline function update_shift(s::DoubleLogUpdate,
-                        shift,
-                        tnorm, pnorm, dτ, args...)
-    new_shift = shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm)
-    return new_shift, tnorm, true
-end
-
-function update_shift!(sp, s::DoubleLogUpdate, v_new, _...)
+function update_shift!(s::DoubleLogUpdate, sp, tnorm, _...)
     @unpack shift, pnorm, time_step = sp
-    tnorm = walkernumber(v_new)
     dτ = time_step
     shift -= s.ξ / dτ * log(tnorm / s.targetwalkers) + s.ζ / dτ * log(tnorm / pnorm)
     pnorm = tnorm
@@ -194,30 +158,10 @@ Base.@kwdef struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     targetwalkers::Int
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
     ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
-    shift_mode::Ref{Bool} = Ref(false)
 end
 
-@inline function update_shift(s::DoubleLogUpdateAfterTargetWalkers,
-                        shift,
-                        tnorm, pnorm, dτ, step, df, args...)
-    if s.shift_mode[] || real(tnorm) > s.targetwalkers
-        s.shift_mode[] = true
-        return update_shift(
-            DoubleLogUpdate(s.targetwalkers,s.ζ,s.ξ),
-            shift,
-            tnorm,
-            pnorm,
-            dτ,
-            step,
-            df
-        )
-    end
-    return shift, tnorm, true
-end
-
-function update_shift!(sp, s::DoubleLogUpdateAfterTargetWalkers, v_new, _...)
+function update_shift!(s::DoubleLogUpdateAfterTargetWalkers, sp, tnorm, _...)
     @unpack shift, pnorm, time_step, shift_mode = sp
-    tnorm = walkernumber(v_new)
     if shift_mode || real(tnorm) > s.targetwalkers
         shift_mode = true
         dτ = time_step
@@ -257,21 +201,8 @@ function DoubleLogSumUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4, α =
     DoubleLogSumUpdate(targetwalkers,  ζ, ξ, α)
 end
 
-@inline function update_shift(s::DoubleLogSumUpdate,
-                        shift,
-                        tnorm, pnorm, dτ, step, df, v_new, v_old
-)
-    tp = DictVectors.UniformProjector() ⋅ v_new
-    pp = DictVectors.UniformProjector() ⋅ v_old
-    twn = (1 - s.α) * tnorm + s.α * tp
-    pwn = (1 - s.α) * pnorm + s.α * pp
-    # return new shift
-    new_shift = shift - s.ξ/dτ * log(twn/s.targetwalkers) - s.ζ/dτ * log(twn/pwn)
-    return new_shift, tnorm, true
-end
-function update_shift!(sp, s::DoubleLogSumUpdate, v_new, v_old, _...)
+function update_shift!(s::DoubleLogSumUpdate, sp, tnorm, v_new, v_old, _...)
     @unpack shift, pnorm, time_step = sp
-    tnorm = walkernumber(v_new)
     dτ = time_step
     tp = DictVectors.UniformProjector() ⋅ v_new
     pp = DictVectors.UniformProjector() ⋅ v_old # could be cached
@@ -309,18 +240,8 @@ function DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4)
     return DoubleLogProjected(target, freeze(projector), ζ, ξ)
 end
 
-@inline function update_shift(s::DoubleLogProjected,
-                        shift,
-                        tnorm, pnorm, dτ, step, df, v_new, v_old)
-    # return new shift
-    tp = s.projector⋅v_new
-    pp = s.projector⋅v_old
-    new_shift = shift - s.ζ/dτ * log(tp/pp) - s.ξ/dτ * log(tp/s.target)
-    return new_shift, tnorm, true
-end
-function update_shift!(sp, s::DoubleLogProjected, v_new, v_old, _...)
+function update_shift!(s::DoubleLogProjected, sp, tnorm, v_new, v_old, _...)
     @unpack shift, pnorm, time_step = sp
-    tnorm = walkernumber(v_new)
     dτ = time_step
     tp = s.projector ⋅ v_new
     pp = s.projector ⋅ v_old

@@ -510,13 +510,11 @@ function advance!(report, state::QMCState, replica::ReplicaState)
     len = length(v)
 
     # Updates
-    # shift, pnorm, proceed = update_shift(
-    #     s_strat, shift, tnorm, pnorm, time_step, step, nothing, v, pv
-    # )
     time_step = update_dτ(τ_strat, time_step, tnorm)
 
-    # @pack! shift_parameters = shift, pnorm, time_step
-    shift_stats, proceed = update_shift!(shift_parameters, s_strat, v, pv, step, report)
+    shift_stats, proceed = update_shift!(
+        s_strat, shift_parameters, tnorm, v, pv, step, report
+    )
 
     @pack! replica = v, pv, wm
     ### TO HERE
@@ -526,13 +524,6 @@ function advance!(report, state::QMCState, replica::ReplicaState)
         post_step_stats = post_step_action(state.post_step, replica, step)
 
         # Reporting
-        # report!(
-        #     r_strat, step, report,
-        #     (dτ=time_step, shift, len, norm=tnorm), id,
-        # )
-        # if hasfield(typeof(s_strat), :shift_mode)
-        #     report!(r_strat, step, report, (; shift_mode=s_strat.shift_mode[]), id)
-        # end
         report!(r_strat, step, report, (; dτ=time_step, len), id)
         report!(r_strat, step, report, shift_stats, id) # shift, norm, shift_mode
 
