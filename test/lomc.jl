@@ -263,11 +263,6 @@ Random.seed!(1234)
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
 
-        # TripleLogUpdate
-        s_strat = Rimu.TripleLogUpdate(targetwalkers = 100)
-        df, state  = lomc!(H; s_strat, laststep=100)
-        @test size(df, 1) == 100
-
         # DoubleLogProjected
         s_strat = Rimu.DoubleLogProjected(target = 100.0, projector=UniformProjector())
         df, state  = lomc!(H; s_strat, laststep=100)

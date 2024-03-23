@@ -99,9 +99,17 @@ end
     return shift, tnorm, true
 end
 
-function update_shift!(sp, s::LogUpdateAfterTargetWalkers, _...)
-    norm = sp.norm
-    return update_shift!(sp, LogUpdate(s.ζ), norm)
+function update_shift!(sp, s::LogUpdateAfterTargetWalkers, v_new, _...)
+    @unpack shift, pnorm, time_step, shift_mode = sp
+    tnorm = walkernumber(v_new)
+    if shift_mode || real(tnorm) > s.targetwalkers
+        shift_mode = true
+        dτ = time_step
+        shift -= s.ζ / dτ * log(tnorm / pnorm)
+    end
+    pnorm = tnorm
+    @pack! sp = shift, pnorm, shift_mode
+    return (; shift, norm=tnorm, shift_mode), true
 end
 
 """
@@ -124,6 +132,16 @@ end
                         tnorm, pnorm, dτ, args...)
     # return new shift
     return shift - s.ζ/dτ * log(tnorm/pnorm), tnorm, true
+end
+
+function update_shift!(sp, s::LogUpdate, v_new, _...)
+    @unpack shift, pnorm, time_step = sp
+    tnorm = walkernumber(v_new)
+    dτ = time_step
+    shift -= s.ζ / dτ * log(tnorm / pnorm)
+    pnorm = tnorm
+    @pack! sp = shift, pnorm
+    return (; shift, norm=tnorm), true
 end
 
 """
@@ -153,6 +171,16 @@ end
                         tnorm, pnorm, dτ, args...)
     new_shift = shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm)
     return new_shift, tnorm, true
+end
+
+function update_shift!(sp, s::DoubleLogUpdate, v_new, _...)
+    @unpack shift, pnorm, time_step = sp
+    tnorm = walkernumber(v_new)
+    dτ = time_step
+    shift -= s.ξ / dτ * log(tnorm / s.targetwalkers) + s.ζ / dτ * log(tnorm / pnorm)
+    pnorm = tnorm
+    @pack! sp = shift, pnorm
+    return (; shift, norm=tnorm), true
 end
 
 """
@@ -185,6 +213,19 @@ end
         )
     end
     return shift, tnorm, true
+end
+
+function update_shift!(sp, s::DoubleLogUpdateAfterTargetWalkers, v_new, _...)
+    @unpack shift, pnorm, time_step, shift_mode = sp
+    tnorm = walkernumber(v_new)
+    if shift_mode || real(tnorm) > s.targetwalkers
+        shift_mode = true
+        dτ = time_step
+        shift -= s.ξ / dτ * log(tnorm / s.targetwalkers) + s.ζ / dτ * log(tnorm / pnorm)
+    end
+    pnorm = tnorm
+    @pack! sp = shift, pnorm, shift_mode
+    return (; shift, norm=tnorm, shift_mode), true
 end
 
 # more experimental strategies from here on:
@@ -228,47 +269,21 @@ end
     new_shift = shift - s.ξ/dτ * log(twn/s.targetwalkers) - s.ζ/dτ * log(twn/pwn)
     return new_shift, tnorm, true
 end
-
-"""
-    TripleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, η = 0.01) <: ShiftStrategy
-Strategy for updating the shift according to the extended log formula with damping
-parameters `ζ`, `ξ`, and `η`.
-
-```math
-S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{w}^n}\\right)
-- \\frac{ξ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{w}^\\text{target}}\\right)
-- \\frac{η}{dτ}\\ln\\left(\\frac{\\|ℜ(Ψ^{n+1})\\|_1^2 + \\|ℑ(Ψ^{n+1})\\|_1^2}
-{\\|ℜ(Ψ^{n})\\|_1^2 + \\|ℑ(Ψ^{n})\\|_1^2}\\right),
-```
-where ``N_\\mathrm{w}`` is the [`walkernumber()`](@ref).
-When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
-T = 2/ζ.
-
-
-See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
-"""
-struct TripleLogUpdate{T} <: ShiftStrategy
-    targetwalkers::T
-    ζ::Float64 # damping parameter
-    ξ::Float64  # restoring force to bring walker number to the target
-    η::Float64
-end
-function TripleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4, η = 0.01)
-    return TripleLogUpdate(targetwalkers, ζ, ξ, η)
-end
-
-@inline function update_shift(s::TripleLogUpdate,
-                        shift,
-                        tnorm, pnorm, dτ, step, df, v_new, v_old
-)
-    tp = abs2(DictVectors.Norm1ProjectorPPop() ⋅ v_new)
-    pp = abs2(DictVectors.Norm1ProjectorPPop() ⋅ v_old)
+function update_shift!(sp, s::DoubleLogSumUpdate, v_new, v_old, _...)
+    @unpack shift, pnorm, time_step = sp
+    tnorm = walkernumber(v_new)
+    dτ = time_step
+    tp = DictVectors.UniformProjector() ⋅ v_new
+    pp = DictVectors.UniformProjector() ⋅ v_old # could be cached
+    twn = (1 - s.α) * tnorm + s.α * tp
+    pwn = (1 - s.α) * pnorm + s.α * pp
     # return new shift
-    new_shift = shift - s.ξ/dτ * log(tnorm/s.targetwalkers) - s.ζ/dτ * log(tnorm/pnorm)
-    # new_shift -= s.η/dτ * log(tp/pp)
-    new_shift -= s.η/dτ * log(tp/s.targetwalkers)
-    return new_shift, tnorm, true
+    shift -= s.ξ / dτ * log(twn / s.targetwalkers) + s.ζ / dτ * log(twn / pwn)
+    pnorm = tnorm
+    @pack! sp = shift, pnorm
+    return (; shift, norm=tnorm, up=tp), true
 end
+
 
 """
     DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
@@ -302,4 +317,16 @@ end
     pp = s.projector⋅v_old
     new_shift = shift - s.ζ/dτ * log(tp/pp) - s.ξ/dτ * log(tp/s.target)
     return new_shift, tnorm, true
+end
+function update_shift!(sp, s::DoubleLogProjected, v_new, v_old, _...)
+    @unpack shift, pnorm, time_step = sp
+    tnorm = walkernumber(v_new)
+    dτ = time_step
+    tp = s.projector ⋅ v_new
+    pp = s.projector ⋅ v_old
+    # return new shift
+    shift -= s.ξ / dτ * log(tp / s.target) + s.ζ / dτ * log(tp / pp)
+    pnorm = tnorm
+    @pack! sp = shift, pnorm
+    return (; shift, norm=tnorm, tp, pp), true
 end
