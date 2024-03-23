@@ -9,14 +9,17 @@ Provides convenience functions:
 """
 module RimuIO
 
-using ..DictVectors
-using ..Interfaces
-using ..BitStringAddresses
+using Arrow: Arrow, ArrowTypes
+using BSON: BSON, bson
+using DataFrames: DataFrames, DataFrame, metadata!
+using StaticArrays: StaticArrays, SVector
 
-using Arrow
-using DataFrames
-using BSON
-using StaticArrays
+using Rimu.BitStringAddresses: BitStringAddresses, BitString, BoseFS,
+    CompositeFS, FermiFS, SortedParticleList,
+    num_modes, num_particles
+using Rimu.DictVectors: DictVectors
+using Rimu.Interfaces: Interfaces, localpart, storage
+
 
 export save_df, load_df, save_dvec, load_dvec
 

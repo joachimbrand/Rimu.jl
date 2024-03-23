@@ -4,11 +4,11 @@ Module with types and methods pertaining to bitstring addresses.
 ```
 module BitStringAddresses
 
-using LinearAlgebra
-using StaticArrays
-using SparseArrays
-using Setfield
-using Parameters
+using LinearAlgebra: LinearAlgebra, I, dot
+using Parameters: Parameters, @unpack
+using Setfield: Setfield, @set, @set!, setindex
+using SparseArrays: SparseArrays, SparseVector, nonzeros, rowvals, spzeros
+using StaticArrays: StaticArrays, @MVector, FieldVector, MVector, SA, SVector
 
 using Base.Cartesian
 
