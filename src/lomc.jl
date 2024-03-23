@@ -1,5 +1,6 @@
 """
     FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
+    FirstOrderTransitionOperator(sp::DefaultShiftParameters, hamiltonian)
 
 First order transition operator
 ```math
@@ -21,6 +22,10 @@ struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
         T = eltype(hamiltonian)
         return new{T,S,H}(hamiltonian, shift, Float64(dτ))
     end
+end
+
+function FirstOrderTransitionOperator(sp::DefaultShiftParameters, hamiltonian)
+    return FirstOrderTransitionOperator(hamiltonian, sp.shift, sp.time_step)
 end
 
 function Hamiltonians.diagonal_element(t::FirstOrderTransitionOperator, add)
@@ -68,26 +73,28 @@ Can be advanced a step forward with [`advance!`](@ref).
 See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
 [`lomc!`](@ref).
 """
-mutable struct ReplicaState{H,T,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy}
+mutable struct ReplicaState{H,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy,SP}
     # Future TODO: rename these fields, add interface for accessing them.
     hamiltonian::H
     v::V       # vector
     pv::V      # previous vector.
     wm::W      # working memory. Maybe working memories could be shared among replicas?
-    pnorm::T   # previous walker number - used to control the shift
     s_strat::SS # shift strategy
     τ_strat::TS # time step strategy
-    shift::T   # shift to control the walker number
-    dτ::Float64 # time step size
+    shift_parameters::SP # norm, shift, time_step; is mutable
     id::String # id is appended to column names
 end
 
-function ReplicaState(h, v, wm, shift, dτ, s_strat, τ_strat, id="")
+function ReplicaState(h, v, wm, s_strat, τ_strat, shift, dτ::Float64, id="")
     if isnothing(wm)
         wm = similar(v)
     end
     pv = zerovector(v)
-    return ReplicaState(h, v, pv, wm, walkernumber(v), shift, dτ, s_strat, τ_strat, id)
+    sp = initialise_shift_parameters(s_strat, shift, walkernumber(v), dτ)
+    return ReplicaState(h, v, pv, wm, s_strat, τ_strat, sp, id)
+    # return ReplicaState{
+    #     typeof(h),typeof(v),typeof(wm),typeof(s_strat),typeof(τ_strat),typeof(sp)
+    # }(h, v, pv, wm, s_strat, τ_strat, sp, id)
 end
 
 function Base.show(io::IO, r::ReplicaState)
@@ -250,15 +257,16 @@ function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
     replica = state.replicas[1]
+    shift_parameters=replica.shift_parameters
     report_metadata!(report, "laststep", state.laststep[])
     report_metadata!(report, "num_replicas", length(state.replicas))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
     report_metadata!(report, "r_strat", state.r_strat)
     report_metadata!(report, "s_strat", replica.s_strat)
     report_metadata!(report, "τ_strat", replica.τ_strat)
-    report_metadata!(report, "dτ", replica.dτ)
+    report_metadata!(report, "dτ", shift_parameters.time_step)
     report_metadata!(report, "step", state.step[])
-    report_metadata!(report, "shift", replica.shift)
+    report_metadata!(report, "shift", shift_parameters.shift)
     report_metadata!(report, "maxlength", state.maxlength[])
     report_metadata!(report, "post_step", state.post_step)
     report_metadata!(report, "v_summary", summary(state.replicas[1].v))
@@ -484,12 +492,13 @@ it should terminate.
 function advance!(report, state::QMCState, replica::ReplicaState)
 
     @unpack hamiltonian, r_strat = state
-    @unpack v, pv, wm, pnorm, dτ, shift, id, s_strat, τ_strat = replica
+    @unpack v, pv, wm, id, s_strat, τ_strat, shift_parameters = replica
+    @unpack shift, pnorm, time_step = shift_parameters
     step = state.step[]
 
     ### PROPAGATOR ACTS
     ### FROM HERE
-    transition_op = FirstOrderTransitionOperator(hamiltonian, shift, dτ)
+    transition_op = FirstOrderTransitionOperator(shift_parameters, hamiltonian)
 
     # Step
     step_stat_names, step_stat_values, wm, pv = apply_operator!(wm, pv, v, transition_op)
@@ -502,11 +511,12 @@ function advance!(report, state::QMCState, replica::ReplicaState)
 
     # Updates
     shift, pnorm, proceed = update_shift(
-        s_strat, shift, tnorm, pnorm, dτ, step, nothing, v, pv
+        s_strat, shift, tnorm, pnorm, time_step, step, nothing, v, pv
     )
-    dτ = update_dτ(τ_strat, dτ, tnorm)
+    time_step = update_dτ(τ_strat, time_step, tnorm)
 
-    @pack! replica = dτ, shift, v, pv, wm, pnorm
+    @pack! shift_parameters = shift, pnorm, time_step
+    @pack! replica = v, pv, wm
     ### TO HERE
 
     if step % reporting_interval(state.r_strat) == 0
@@ -516,7 +526,7 @@ function advance!(report, state::QMCState, replica::ReplicaState)
         # Reporting
         report!(
             r_strat, step, report,
-            (dτ, shift, len, norm=tnorm), id,
+            (dτ=time_step, shift, len, norm=tnorm), id,
         )
         if hasfield(typeof(s_strat), :shift_mode)
             report!(r_strat, step, report, (; shift_mode=s_strat.shift_mode[]), id)

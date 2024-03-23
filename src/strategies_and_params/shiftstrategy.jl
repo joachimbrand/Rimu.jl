@@ -1,5 +1,6 @@
 """
-Abstract type for defining the strategy for updating the `shift`.
+Abstract type for defining the strategy for controlling the norm, potentially by updating
+the `shift`. The concrete types are typically stateful and store the necessary information.
 Passed as a parameter to [`lomc!`](@ref).
 
 ## Implemented strategies:
@@ -11,6 +12,46 @@ Passed as a parameter to [`lomc!`](@ref).
 * [`DoubleLogUpdateAfterTargetWalkers`](@ref)
 """
 abstract type ShiftStrategy end
+
+"""
+    DefaultShiftParameters
+Default mutable struct for storing the shift parameters.
+
+See [`shift_parameters`](@ref).
+"""
+mutable struct DefaultShiftParameters{S, N}
+    shift::S # for current time step
+    pnorm::N # norm from previous time step
+    time_step::Float64
+    counter::Int
+    shift_mode::Bool
+end
+
+"""
+    initialise_shift_parameters(s::ShiftStrategy, shift, norm, time_step, counter=0, shift_mode=false)
+Initiatlise a struct to store the shift parameters.
+"""
+function initialise_shift_parameters(
+    ::ShiftStrategy, shift, norm, time_step,
+    counter=0, shift_mode=false
+)
+    return DefaultShiftParameters(shift, norm, time_step, counter, shift_mode)
+end
+
+"""
+    update_shift!(
+        shift_parameters,
+        s <: ShiftStrategy,
+        v_new,
+        v_old,
+        step,
+        report
+    ) -> shift_stats, continue
+Update the `shift_parameters` according to strategy `s`. See [`ShiftStrategy`](@ref).
+Returns a named tuple of the shift statistics and a boolean `continue` indicating whether
+the simulation should continue.
+"""
+update_shift!
 
 """
     update_shift(s <: ShiftStrategy, shift, tnorm, pnorm, dτ, step, df, v_new, v_old)
@@ -32,6 +73,11 @@ end
     return shift, tnorm, tnorm < s.targetwalkers
 end
 
+function update_shift!(sp, s::DontUpdate, v_new, _...)
+    norm = walkernumber(v_new)
+    return (; shift=sp.shift, norm), norm < s.targetwalkers
+end
+
 """
     LogUpdateAfterTargetWalkers(targetwalkers, ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift: After `targetwalkers` is reached, update the
@@ -51,6 +97,11 @@ end
         return update_shift(LogUpdate(s.ζ), shift, tnorm, args...)
     end
     return shift, tnorm, true
+end
+
+function update_shift!(sp, s::LogUpdateAfterTargetWalkers, _...)
+    norm = sp.norm
+    return update_shift!(sp, LogUpdate(s.ζ), norm)
 end
 
 """

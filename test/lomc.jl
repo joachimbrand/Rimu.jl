@@ -50,8 +50,8 @@ Random.seed!(1234)
         H = HubbardReal1D(add; u=0.1)
         dv = DVec(add => 1; style=IsStochasticInteger())
         df, state = lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
-        @test state.replicas[1].dτ  == 0.002
-        @test state.replicas[1].shift == 23.1
+        @test state.replicas[1].shift_parameters.time_step  == 0.002
+        @test state.replicas[1].shift_parameters.shift == 23.1
         @test state.replica == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
