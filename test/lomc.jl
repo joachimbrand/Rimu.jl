@@ -276,6 +276,7 @@ Random.seed!(1234)
         @test_throws ErrorException DelayedDoubleLogUpdateAfterTW()
         @test_throws ErrorException DoubleLogUpdateAfterTargetWalkersSwitch()
         @test_throws ErrorException DelayedDoubleLogUpdate()
+        @test_throws ErrorException TripleLogUpdate()
     end
 
     @testset "Setting `maxlength`" begin
