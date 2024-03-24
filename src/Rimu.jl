@@ -63,6 +63,7 @@ export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneli
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export localpart, walkernumber
 export smart_logger, default_logger
+export QMCProblem, SimulationPlan
 
 function __init__()
     # Turn on smart logging once at runtime. Turn off with `default_logger()`.
@@ -76,6 +77,7 @@ include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
 include("strategies_and_params/deprecated.jl")
+include("QMCProblem.jl")
 
 include("lomc.jl")                  # top level
 
