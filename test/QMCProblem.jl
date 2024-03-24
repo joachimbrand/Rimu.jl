@@ -23,4 +23,8 @@ using Test
     @test_throws ArgumentError QMCProblem(h; start_at=[dv, dv, dv])
     p = QMCProblem(h; start_at=[BoseFS(1, 3)=>1, BoseFS(2, 2)=>3])
     @test p.starting_vectors isa Tuple{DVec}
+    @test_throws ArgumentError QMCProblem(h; start_at=(1,2,3))
+    @test_throws ArgumentError QMCProblem(h; shift=(1, 2, 3))
+    @test QMCProblem(h; shift=2).initial_shift_parameters[1].shift == 2
+    @test QMCProblem(h; shift=(2,)).initial_shift_parameters[1].shift == 2
 end
