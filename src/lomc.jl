@@ -512,7 +512,7 @@ function advance!(report, state::QMCState, replica::ReplicaState)
     # Updates
     time_step = update_dτ(τ_strat, time_step, tnorm)
 
-    shift_stats, proceed = update_shift!(
+    shift_stats, proceed = update_shift_parameters!(
         s_strat, shift_parameters, tnorm, v, pv, step, report
     )
 

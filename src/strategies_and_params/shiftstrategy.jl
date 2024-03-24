@@ -1,7 +1,7 @@
 """
+    ShiftStrategy
 Abstract type for defining the strategy for controlling the norm, potentially by updating
-the `shift`. The concrete types are typically stateful and store the necessary information.
-Passed as a parameter to [`lomc!`](@ref).
+the `shift`. Passed as a parameter to [`lomc!`](@ref).
 
 ## Implemented strategies:
 
@@ -10,6 +10,16 @@ Passed as a parameter to [`lomc!`](@ref).
 * [`LogUpdate`](@ref)
 * [`LogUpdateAfterTargetWalkers`](@ref) - FCIQMC standard
 * [`DoubleLogUpdateAfterTargetWalkers`](@ref)
+
+# Extended help
+
+Internally
+To implement a custom strategy, define a new subtype of `Rimu.ShiftStrategy` and implement
+methods for:
+- [`Rimu.update_shift_parameters!`](@ref) - to update the `shift_parameters`
+- [`Rimu.initialise_shift_parameters`](@ref) - (optional) to initialise and construct a
+    custom implementation of the `shift_parameters`. The default implementation is
+    [`Rimu.DefaultShiftParameters`](@ref).
 """
 abstract type ShiftStrategy end
 
@@ -17,7 +27,7 @@ abstract type ShiftStrategy end
     DefaultShiftParameters
 Default mutable struct for storing the shift parameters.
 
-See [`shift_parameters`](@ref).
+See [`ShiftStrategy`](@ref), [`initialise_shift_parameters`](@ref).
 """
 mutable struct DefaultShiftParameters{S, N}
     shift::S # for current time step
@@ -30,6 +40,8 @@ end
 """
     initialise_shift_parameters(s::ShiftStrategy, shift, norm, time_step, counter=0, shift_mode=false)
 Initiatlise a struct to store the shift parameters.
+
+See [`ShiftStrategy`](@ref), [`update_shift_parameters!`](@ref), [`DefaultShiftParameters`](@ref).
 """
 function initialise_shift_parameters(
     ::ShiftStrategy, shift, norm, time_step,
@@ -39,7 +51,7 @@ function initialise_shift_parameters(
 end
 
 """
-    update_shift!(
+    update_shift_parameters!(
         s <: ShiftStrategy,
         shift_parameters,
         tnorm,
@@ -51,8 +63,10 @@ end
 Update the `shift_parameters` according to strategy `s`. See [`ShiftStrategy`](@ref).
 Returns a named tuple of the shift statistics and a boolean `proceed` indicating whether
 the simulation should proceed.
+
+See [`initialise_shift_parameters`](@ref), [`ShiftStrategy`](@ref).
 """
-update_shift!
+update_shift_parameters!
 
 """
     DontUpdate(; targetwalkers = 1_000_000) <: ShiftStrategy
@@ -64,7 +78,7 @@ Base.@kwdef struct DontUpdate <: ShiftStrategy
     targetwalkers::Int = 1_000_000
 end
 
-function update_shift!(s::DontUpdate, sp, tnorm, _...)
+function update_shift_parameters!(s::DontUpdate, sp, tnorm, _...)
     return (; shift=sp.shift, norm=tnorm), tnorm < s.targetwalkers
 end
 
@@ -80,7 +94,7 @@ Base.@kwdef struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
 
-function update_shift!(s::LogUpdateAfterTargetWalkers, sp, tnorm, _...)
+function update_shift_parameters!(s::LogUpdateAfterTargetWalkers, sp, tnorm, _...)
     @unpack shift, pnorm, time_step, shift_mode = sp
     if shift_mode || real(tnorm) > s.targetwalkers
         shift_mode = true
@@ -107,7 +121,7 @@ Base.@kwdef struct LogUpdate <: ShiftStrategy
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
 end
 
-function update_shift!(s::LogUpdate, sp, tnorm, _...)
+function update_shift_parameters!(s::LogUpdate, sp, tnorm, _...)
     @unpack shift, pnorm, time_step = sp
     dτ = time_step
     shift -= s.ζ / dτ * log(tnorm / pnorm)
@@ -138,7 +152,7 @@ function DoubleLogUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4)
     return DoubleLogUpdate(targetwalkers, ζ, ξ)
 end
 
-function update_shift!(s::DoubleLogUpdate, sp, tnorm, _...)
+function update_shift_parameters!(s::DoubleLogUpdate, sp, tnorm, _...)
     @unpack shift, pnorm, time_step = sp
     dτ = time_step
     shift -= s.ξ / dτ * log(tnorm / s.targetwalkers) + s.ζ / dτ * log(tnorm / pnorm)
@@ -160,7 +174,7 @@ Base.@kwdef struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
 end
 
-function update_shift!(s::DoubleLogUpdateAfterTargetWalkers, sp, tnorm, _...)
+function update_shift_parameters!(s::DoubleLogUpdateAfterTargetWalkers, sp, tnorm, _...)
     @unpack shift, pnorm, time_step, shift_mode = sp
     if shift_mode || real(tnorm) > s.targetwalkers
         shift_mode = true
@@ -201,7 +215,7 @@ function DoubleLogSumUpdate(;targetwalkers = 1000,  ζ = 0.08, ξ = ζ^2/4, α =
     DoubleLogSumUpdate(targetwalkers,  ζ, ξ, α)
 end
 
-function update_shift!(s::DoubleLogSumUpdate, sp, tnorm, v_new, v_old, _...)
+function update_shift_parameters!(s::DoubleLogSumUpdate, sp, tnorm, v_new, v_old, _...)
     @unpack shift, pnorm, time_step = sp
     dτ = time_step
     tp = DictVectors.UniformProjector() ⋅ v_new
@@ -240,7 +254,7 @@ function DoubleLogProjected(; target, projector, ζ = 0.08, ξ = ζ^2/4)
     return DoubleLogProjected(target, freeze(projector), ζ, ξ)
 end
 
-function update_shift!(s::DoubleLogProjected, sp, tnorm, v_new, v_old, _...)
+function update_shift_parameters!(s::DoubleLogProjected, sp, tnorm, v_new, v_old, _...)
     @unpack shift, pnorm, time_step = sp
     dτ = time_step
     tp = s.projector ⋅ v_new
