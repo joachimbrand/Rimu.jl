@@ -6,7 +6,7 @@ or the `walltime` is exceeded.
 See [`QMCProblem`](@ref).
 """
 Base.@kwdef struct SimulationPlan
-    starting_step::Int = 1
+    starting_step::Int = 0
     last_step::Int = 100
     walltime::Float64 = Inf
 end
@@ -15,7 +15,7 @@ end
     QMCProblem(hamiltonian::AbstractHamiltonian; kwargs...)
 Defines the problem to be solved by the QMC algorithm.
 
-# Common keyword arguments and defaults:
+# Keyword arguments and defaults:
 - `targetwalkers = 1_000`: target for the 1-norm of the coefficient vector.
 - `time_step = 0.01`: initial time step size.
 - `last_step = 100`: controls the number of steps.

@@ -8,7 +8,7 @@ using OrderedCollections: OrderedCollections, LittleDict, freeze
 using Parameters: Parameters, @pack!, @unpack, @with_kw
 using ProgressLogging: ProgressLogging, @logprogress, @withprogress
 using Reexport: Reexport, @reexport
-using Setfield: Setfield
+using Setfield: Setfield, @set
 using StaticArrays: StaticArrays, SVector
 using StatsBase: StatsBase
 using TerminalLoggers: TerminalLogger

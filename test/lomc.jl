@@ -11,6 +11,7 @@ using Suppressor
 using Statistics
 using Logging
 using DataFrames
+using Setfield
 
 Random.seed!(1234)
 @testset "lomc!/QMCState" begin
@@ -27,20 +28,21 @@ Random.seed!(1234)
         @test state.replicas[1].v === v
         @test state.replicas[1].pv !== v && state.replicas[1].pv !== wm
 
-        state.laststep[] = 10
-        df = lomc!(state, df).df
+        # @set state.simulation_plan.last_step = 10
+        df = lomc!(state, df, laststep=10).df
         @test state.replicas[1].v === wm
         @test state.replicas[1].pv === v
 
         @test size(df, 1) == 10
         @test state.step[] == 10
 
-        state.laststep[] = 100
-        df = lomc!(state, df).df
+        # @set state.simulation_plan.last_step = 100
+        df, state = lomc!(state, df, laststep=100)
         @test size(df, 1) == 100
 
         state.step[] = 0
-        df = lomc!(state, df).df
+        # state = @set state.simulation_plan.starting_step = 0
+        df, state = lomc!(state, df)
         @test size(df, 1) == 200
         @test df.steps == [1:100; 1:100]
     end
@@ -311,8 +313,8 @@ Random.seed!(1234)
 
         # Run lomc!, then change laststep and continue.
         df, state = lomc!(H, copy(dv))
-        state.laststep[] = 200
-        df1 = lomc!(state, df).df
+        # @set state.simulation_plan.last_step = 200
+        df1 = lomc!(state, df, laststep=200).df
 
         # Run lomc! with laststep already set.
         df2 = lomc!(H, copy(dv); laststep=200).df

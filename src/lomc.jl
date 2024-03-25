@@ -124,7 +124,8 @@ struct QMCState{
     replicas::R
     maxlength::Ref{Int}
     step::Ref{Int}
-    laststep::Ref{Int}
+    # laststep::Ref{Int}
+    simulation_plan::SimulationPlan
     r_strat::RS
     post_step::PS
     replica::RRS
@@ -147,6 +148,7 @@ function QMCState(
     hamiltonian, v;
     step=nothing,
     laststep=nothing,
+    simulation_plan=nothing,
     dτ=nothing,
     shift=nothing,
     wm=nothing,
@@ -202,6 +204,13 @@ function QMCState(
         end
     end
 
+    if isnothing(simulation_plan)
+        simulation_plan = SimulationPlan(;
+            starting_step = step,
+            last_step = laststep
+        )
+    end
+
     if threading ≠ nothing
         @warn "Starting vector is provided. Ignoring `threading=$threading`."
     end
@@ -234,8 +243,10 @@ function QMCState(
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(Int(maxlength)), Ref(Int(step)),
-        Ref(Int(laststep)),
+        hamiltonian, replicas, Ref(Int(maxlength)),
+        Ref(simulation_plan.starting_step), # step
+        simulation_plan,
+        # Ref(Int(laststep)),
         r_strat, post_step, replica
     )
 end
@@ -246,7 +257,7 @@ function Base.show(io::IO, st::QMCState)
         print(io, " with ", length(st.replicas), " replicas")
     end
     print(io, "\n  H:    ", st.hamiltonian)
-    print(io, "\n  step: ", st.step[], " / ", st.laststep[])
+    print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  replicas: ")
     for (i, r) in enumerate(st.replicas)
         print(io, "\n    $i: ", r)
@@ -258,7 +269,7 @@ function report_default_metadata!(report::Report, state::QMCState)
     # add metadata from state
     replica = state.replicas[1]
     shift_parameters=replica.shift_parameters
-    report_metadata!(report, "laststep", state.laststep[])
+    report_metadata!(report, "laststep", state.simulation_plan.last_step)
     report_metadata!(report, "num_replicas", length(state.replicas))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
     report_metadata!(report, "r_strat", state.r_strat)
@@ -426,7 +437,7 @@ end
 # For continuation, you can pass a QMCState and a DataFrame
 function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
     if !iszero(laststep)
-        state.laststep[] = laststep
+        state = @set state.simulation_plan.last_step = laststep
     end
 
     # initialise report
@@ -438,7 +449,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
     check_transform(state.replica, state.hamiltonian)
 
     # main loop
-    laststep = state.laststep[]
+    laststep = state.simulation_plan.last_step
     step = initial_step = state.step[]
     update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
 
