@@ -19,7 +19,7 @@ import TOML
 
 @reexport using LinearAlgebra
 @reexport using VectorInterface
-@reexport using CommonSolve: init
+@reexport using CommonSolve: CommonSolve, init
 
 """
     Rimu.PACKAGE_VERSION
