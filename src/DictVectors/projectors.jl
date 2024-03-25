@@ -148,6 +148,9 @@ Base.pairs(fd::FrozenDVec) = fd.pairs
 Base.length(fd::FrozenDVec) = length(fd.pairs)
 Base.iterate(fd::FrozenDVec) = iterate(fd.pairs)
 Base.iterate(fd::FrozenDVec, state) = iterate(fd.pairs, state)
+Base.:(==)(fd1::FrozenDVec, fd2::FrozenDVec) = fd1.pairs == fd2.pairs
+
+walkernumber(fd::FrozenDVec) = sum(p->abs(p[2]), pairs(fd))
 
 freeze(dv::AbstractDVec) = FrozenDVec(collect(pairs(localpart(dv))))
 
