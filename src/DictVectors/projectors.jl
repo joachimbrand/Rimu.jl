@@ -145,6 +145,9 @@ Base.keytype(::FrozenDVec{K}) where {K} = K
 Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
 Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}
 Base.pairs(fd::FrozenDVec) = fd.pairs
+Base.length(fd::FrozenDVec) = length(fd.pairs)
+Base.iterate(fd::FrozenDVec) = iterate(fd.pairs)
+Base.iterate(fd::FrozenDVec, state) = iterate(fd.pairs, state)
 
 freeze(dv::AbstractDVec) = FrozenDVec(collect(pairs(localpart(dv))))
 
