@@ -27,11 +27,13 @@ Defines the problem to be solved by the QMC algorithm.
 - `start_at = starting_address(hamiltonian)`: Define the initial state vector. This can be a
     single address, a collection of addresses, a single starting vector, or a collection of
     starting vectors. If multiple starting vectors are passed, their number must match the
-    number of replicas.
+    number of replicas. If (a collection of) [`AbstractDVec`](@ref)(s) is passed, the
+    keyword arguments `style`, `initiator`, and `threading` are ignored.
 - `shift`: initial shift value or collection of shift values. Determined by default from the
     Hamiltonian and the starting vectors.
 - `style = IsDynamicSemistochastic()`: The [`StochasticStyle`](@ref) of the simulation.
-- `threads = Threads.nthreads()`: number of threads to use.
+- `initiator = NonInitiator()`: The [`InitiatorRule`](@ref) for the simulation.
+- `threading = Threads.nthreads()>1`: whether to use threading.
 - `starting_step = 1`: starting step of the simulation.
 - `simulation_plan = SimulationPlan(; starting_step, last_step, walltime)`: defines the
     duration of the simulation. Takes precedence over `last_step` and `walltime`.
@@ -43,12 +45,17 @@ Defines the problem to be solved by the QMC algorithm.
     parameters. Overrides `shift` if provided.
 - `time_step_strategy = ConstantTimeStep()`: strategy for updating the time step.
 - `maxlength = 2 * targetwalkers + 100`: maximum length of the vectors.
+- `display_name = "QMCSimulation"` - name displayed in progress bar (via `ProgressLogging`)
+- `metadata` - user-supplied metadata to be added to the report. Must be an iterable of
+  pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
+  All metadata is converted to strings.
 """
 struct QMCProblem{N} # is not type stable but does not matter
     hamiltonian::AbstractHamiltonian
     starting_vectors
     style::StochasticStyle
-    threads::Int
+    initiator::InitiatorRule
+    threading::Bool
     simulation_plan::SimulationPlan
     replica_strategy::ReplicaStrategy{N}
     shift_strategy::ShiftStrategy
@@ -57,6 +64,7 @@ struct QMCProblem{N} # is not type stable but does not matter
     post_step_strategy::Tuple
     time_step_strategy::TimeStepStrategy
     maxlength::Int
+    metadata::LittleDict{String,String} # user-supplied metadata + display_name
 end
 # could be extended later with
 # - `spectral_strategy = NoStats(n_spectral_states)`: strategy for handling excited states
@@ -67,7 +75,8 @@ function QMCProblem(
     start_at = starting_address(hamiltonian),
     shift = nothing,
     style = IsDynamicSemistochastic(),
-    threads = Threads.nthreads(),
+    initiator = NonInitiator(),
+    threading = Threads.nthreads()>1,
     time_step = 0.01,
     starting_step = 1,
     last_step = 100,
@@ -82,25 +91,27 @@ function QMCProblem(
     reporting_strategy = ReportDFAndInfo(),
     post_step_strategy = (),
     time_step_strategy = ConstantTimeStep(),
-    maxlength = nothing
+    maxlength = nothing,
+    metadata = nothing,
+    display_name = "QMCSimulation"
 )
     n_replicas = num_replicas(replica_strategy) # replica_strategy may override n_replicas
 
     # set up starting_vectors
     if start_at isa AbstractFockAddress # single address
-        starting_vectors = (DVec(start_at => 1,),) # tuple of length 1
+        starting_vectors = (freeze(DVec(start_at => 1,)),) # tuple of length 1
     elseif eltype(start_at) <: AbstractFockAddress # multiple addresses
-        starting_vectors = (DVec(address => 1 for address in start_at),)
+        starting_vectors = (freeze(DVec(address => 1 for address in start_at)),)
     elseif start_at isa AbstractDVec # single starting vector
         starting_vectors = (start_at,) # tuple of length 1
     elseif eltype(start_at) <: Pair{<:AbstractFockAddress} # single starting vector
-        starting_vectors = (DVec(start_at),) # tuple of length 1
+        starting_vectors = (freeze(DVec(start_at)),) # tuple of length 1
     elseif eltype(start_at) <: AbstractDVec # multiple starting vectors
         starting_vectors = Tuple(sv for sv in start_at)
     else
         throw(ArgumentError("`start_at` has invalid format."))
     end
-    @assert starting_vectors isa NTuple{<:Any, <:AbstractDVec}
+    @assert starting_vectors isa NTuple{<:Any, <:Union{AbstractDVec, FrozenDVec}}
     length(starting_vectors) == 1 || length(starting_vectors) == n_replicas ||
         throw(ArgumentError("The number of starting vectors must match the number of replicas."))
     all(v -> keytype(v) <: allowed_address_type(hamiltonian), starting_vectors) ||
@@ -129,11 +140,18 @@ function QMCProblem(
         maxlength = 2 * shift_strategy.targetwalkers + 100 # padding for small walkernumbers
     end
 
+    # convert metadata to LittleDict
+    report = Report()
+    report_metadata!(report, "display_name", display_name)
+    isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
+    metadata = report.meta::LittleDict{String, String}
+
     return QMCProblem{n_replicas}(
         hamiltonian,
         starting_vectors,
         style,
-        threads,
+        initiator,
+        threading,
         simulation_plan,
         replica_strategy,
         shift_strategy,
@@ -141,12 +159,16 @@ function QMCProblem(
         reporting_strategy,
         post_step_strategy,
         time_step_strategy,
-        maxlength
+        maxlength,
+        metadata,
     )
 end
 
 function _determine_initial_shift(hamiltonian, starting_vectors)
     shifts = map(starting_vectors) do v
+        if v isa FrozenDVec
+            v = DVec(v)
+        end
         dot(v, hamiltonian, v) / (v ⋅ v)
         ## or
         # minimum(a -> diagonal_element(hamiltonian, a), keys(v))

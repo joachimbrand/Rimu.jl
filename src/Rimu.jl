@@ -13,11 +13,13 @@ using StaticArrays: StaticArrays, SVector
 using StatsBase: StatsBase
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
+using OrderedCollections: freeze
 import ConsoleProgressMonitor
 import TOML
 
 @reexport using LinearAlgebra
 @reexport using VectorInterface
+@reexport using CommonSolve: init
 
 """
     Rimu.PACKAGE_VERSION
@@ -46,6 +48,7 @@ include("StochasticStyles/StochasticStyles.jl")
 @reexport using .StochasticStyles
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
+using .DictVectors: FrozenDVec
 include("RimuIO/RimuIO.jl")
 @reexport using .RimuIO
 include("StatsTools/StatsTools.jl")
@@ -80,6 +83,7 @@ include("strategies_and_params/deprecated.jl")
 include("QMCProblem.jl")
 
 include("lomc.jl")                  # top level
+include("QMCSimulation.jl")
 
 include("RMPI/RMPI.jl")
 
