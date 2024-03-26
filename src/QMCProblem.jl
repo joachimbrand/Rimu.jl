@@ -80,7 +80,7 @@ function QMCProblem(
     initiator = NonInitiator(),
     threading = Threads.nthreads()>1,
     time_step = 0.01,
-    starting_step = 1,
+    starting_step = 0,
     last_step = 100,
     walltime = Inf,
     simulation_plan = SimulationPlan(starting_step, last_step, walltime),

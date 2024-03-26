@@ -20,7 +20,8 @@ import TOML
 
 @reexport using LinearAlgebra
 @reexport using VectorInterface
-@reexport using CommonSolve: CommonSolve, init
+@reexport using CommonSolve: CommonSolve, init, step!
+@reexport using DataFrames
 
 """
     Rimu.PACKAGE_VERSION

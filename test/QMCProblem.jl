@@ -71,5 +71,16 @@ end
     @test r == rand(Int)
 
     @test sm.modified[] == false == sm.aborted[] == sm.success[]
+    @test size(DataFrame(sm)) == (0, 0)
+end
 
+@testset "step!" begin
+    h = HubbardReal1D(BoseFS(1, 3))
+    p = QMCProblem(h)
+    sm = init(p)
+    @test sm.modified[] == false == sm.aborted[] == sm.success[]
+
+    @test step!(sm) isa Rimu.QMCSimulation
+    @test sm.modified[] == true
+    @test size(DataFrame(sm))[1] == sm.qmc_state.step[]
 end

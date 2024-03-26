@@ -135,9 +135,10 @@ function Base.show(io::IO, sm::QMCSimulation)
     end
 end
 
-# TODO: show method, interface for reading results
+# TODO: interface for reading results
 
 num_replicas(s::QMCSimulation) = num_replicas(s.qmc_problem)
+DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
 
 """
     init(problem::QMCProblem; copy_vectors=true)::QMCSimulation
@@ -151,8 +152,32 @@ function CommonSolve.init(problem::QMCProblem; copy_vectors=true)
 end
 
 function CommonSolve.step!(sm::QMCSimulation)
-    @unpack qmc_state, report = sm
-    plan = qmc_state.simulation_plan
+    @unpack qmc_state, report, modified, aborted, success = sm
+    @unpack replicas, simulation_plan, step = qmc_state
 
+    if aborted[] || success[]
+        @warn "Simulation is already aborted or finished."
+        return sm
+    end
+    if step[] >= simulation_plan.last_step
+        @warn "Simulation has already reached the last step."
+        return sm
+    end
+
+    step[] += 1
+    proceed = true
+    # advance all replicas
+    for replica in replicas
+        proceed &= advance!(report, qmc_state, replica)
+    end
+    modified[] = true
+
+    if !proceed
+        aborted[] = true
+        return sm
+    end
+    if step[] == simulation_plan.last_step
+        success[] = true
+    end
     return sm
 end
