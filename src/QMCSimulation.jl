@@ -12,6 +12,9 @@ struct QMCSimulation
     qmc_problem::QMCProblem
     qmc_state::QMCState
     report::Report
+    modified::Ref{Bool}
+    aborted::Ref{Bool}
+    success::Ref{Bool}
 end
 
 function _set_up_v(dv::AbstractDVec, copy_vectors, _...)
@@ -39,9 +42,14 @@ function QMCSimulation(problem::QMCProblem; copy_vectors=true)
     @unpack hamiltonian, starting_vectors, style, threading, simulation_plan,
         replica_strategy, shift_strategy, initial_shift_parameters,
         reporting_strategy, post_step_strategy, time_step_strategy,
-        maxlength, metadata, initiator = problem
+        maxlength, metadata, initiator, random_seed = problem
 
     n_replicas = num_replicas(replica_strategy)
+
+    # seed the random number generator
+    if !isnothing(random_seed)
+        Random.seed!(random_seed + hash(RMPI.mpi_rank()))
+    end
 
     # set up the starting vectors and shift parameters
     if length(starting_vectors) == 1 && n_replicas > 1
@@ -109,7 +117,7 @@ function QMCSimulation(problem::QMCProblem; copy_vectors=true)
     # Sanity checks.
     check_transform(qmc_state.replica, qmc_state.hamiltonian)
 
-    return QMCSimulation(problem, qmc_state, report)
+    return QMCSimulation(problem, qmc_state, report, Ref(false), Ref(false), Ref(false))
 end
 
 function Base.show(io::IO, sm::QMCSimulation)
@@ -120,6 +128,7 @@ function Base.show(io::IO, sm::QMCSimulation)
     end
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
+    print(io, "\n  modified = $(sm.modified[]), aborted = $(sm.aborted[]), success = $(sm.success[])")
     print(io, "\n  replicas: ")
     for (i, r) in enumerate(st.replicas)
         print(io, "\n    $i: ", r)
@@ -139,4 +148,11 @@ See also [`QMCProblem`](@ref), [`QMCSimulation`](@ref).
 """
 function CommonSolve.init(problem::QMCProblem; copy_vectors=true)
     return QMCSimulation(problem; copy_vectors)
+end
+
+function CommonSolve.step!(sm::QMCSimulation)
+    @unpack qmc_state, report = sm
+    plan = qmc_state.simulation_plan
+
+    return sm
 end

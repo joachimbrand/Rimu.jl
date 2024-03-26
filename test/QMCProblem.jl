@@ -1,5 +1,6 @@
 using Rimu
 using Test
+import Random
 
 using Rimu.DictVectors: FrozenDVec
 using OrderedCollections: freeze
@@ -35,4 +36,40 @@ using OrderedCollections: freeze
     @test_throws ArgumentError QMCProblem(h; shift=(1, 2, 3))
     @test QMCProblem(h; shift=2).initial_shift_parameters[1].shift == 2
     @test QMCProblem(h; shift=(2,)).initial_shift_parameters[1].shift == 2
+end
+
+@testset "QMCSimulation" begin
+    h = HubbardReal1D(BoseFS(1, 3))
+    p = QMCProblem(h) # generates random_seed
+    @test p.random_seed isa UInt64
+
+    # default gives reproducible random numbers
+    sm = init(p) # seeds RNG
+    r = rand(Int)
+    init(p) # re-seeds RNG with same seed
+    @test r == rand(Int)
+
+    # but QMCProblem will re-seed
+    Random.seed!(127)
+    p = QMCProblem(h)
+    sm = init(p)
+    r = rand(Int)
+    Random.seed!(127)
+    p = QMCProblem(h)
+    sm = init(p)
+    @test r ≠ rand(Int)
+
+    # unless seeding in QMCProblem is disabled
+    Random.seed!(127)
+    p = QMCProblem(h; seed=false)
+    @test isnothing(p.random_seed)
+    sm = init(p)
+    r = rand(Int)
+    Random.seed!(127)
+    p = QMCProblem(h; seed=false)
+    sm = init(p)
+    @test r == rand(Int)
+
+    @test sm.modified[] == false == sm.aborted[] == sm.success[]
+
 end
