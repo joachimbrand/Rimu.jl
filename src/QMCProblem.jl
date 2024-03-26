@@ -45,10 +45,11 @@ Defines the problem to be solved by the QMC algorithm.
     parameters. Overrides `shift` if provided.
 - `time_step_strategy = ConstantTimeStep()`: strategy for updating the time step.
 - `maxlength = 2 * targetwalkers + 100`: maximum length of the vectors.
-- `display_name = "QMCSimulation"` - name displayed in progress bar (via `ProgressLogging`)
-- `metadata` - user-supplied metadata to be added to the report. Must be an iterable of
+- `display_name = "QMCSimulation"`: name displayed in progress bar (via `ProgressLogging`)
+- `metadata`: user-supplied metadata to be added to the report. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
   All metadata is converted to strings.
+- `seed = true`: provide and store a seed for the random number generator.
 """
 struct QMCProblem{N} # is not type stable but does not matter
     hamiltonian::AbstractHamiltonian
@@ -65,6 +66,7 @@ struct QMCProblem{N} # is not type stable but does not matter
     time_step_strategy::TimeStepStrategy
     maxlength::Int
     metadata::LittleDict{String,String} # user-supplied metadata + display_name
+    random_seed::Union{Nothing,UInt64}
 end
 # could be extended later with
 # - `spectral_strategy = NoStats(n_spectral_states)`: strategy for handling excited states
@@ -93,9 +95,18 @@ function QMCProblem(
     time_step_strategy = ConstantTimeStep(),
     maxlength = nothing,
     metadata = nothing,
-    display_name = "QMCSimulation"
+    display_name = "QMCSimulation",
+    seed = true
 )
     n_replicas = num_replicas(replica_strategy) # replica_strategy may override n_replicas
+
+    if seed == true
+        random_seed = rand(RandomDevice(),UInt64)
+    elseif seed == false
+        random_seed = nothing
+    elseif !isnothing(seed)
+        random_seed = UInt64(seed)
+    end
 
     # set up starting_vectors
     if start_at isa AbstractFockAddress # single address
@@ -161,6 +172,7 @@ function QMCProblem(
         time_step_strategy,
         maxlength,
         metadata,
+        random_seed
     )
 end
 

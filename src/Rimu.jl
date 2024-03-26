@@ -14,6 +14,7 @@ using StatsBase: StatsBase
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
 using OrderedCollections: freeze
+using Random: RandomDevice, seed!
 import ConsoleProgressMonitor
 import TOML
 

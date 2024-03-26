@@ -1,6 +1,7 @@
 """
     QMCSimulation
-Holds the state and the results of a QMC simulation.
+Holds the state and the results of a QMC simulation. Initialise with
+[`init(::QMCProblem)`](@ref) amd solve with [`solve(::QMCSimulation)`].
 
 ## Fields
 - `qmc_problem::QMCProblem`: the problem to be solved.
@@ -34,12 +35,7 @@ function _set_up_v(fdv::FrozenDVec, _, style, initiator, threading)
     return v
 end
 
-"""
-    init(problem::QMCProblem; copy_vectors=true)
-
-TBW
-"""
-function CommonSolve.init(problem::QMCProblem; copy_vectors=true)
+function QMCSimulation(problem::QMCProblem; copy_vectors=true)
     @unpack hamiltonian, starting_vectors, style, threading, simulation_plan,
         replica_strategy, shift_strategy, initial_shift_parameters,
         reporting_strategy, post_step_strategy, time_step_strategy,
@@ -110,10 +106,37 @@ function CommonSolve.init(problem::QMCProblem; copy_vectors=true)
     report = Report()
     report_default_metadata!(report, qmc_state)
     report_metadata!(report, metadata) # add user metadata
+    # Sanity checks.
+    check_transform(qmc_state.replica, qmc_state.hamiltonian)
 
     return QMCSimulation(problem, qmc_state, report)
 end
 
-# TODO: add docstring, show method, and tests
+function Base.show(io::IO, sm::QMCSimulation)
+    print(io, "QMCSimulation")
+    st = sm.qmc_state
+    if length(st.replicas) > 1
+        print(io, " with ", length(st.replicas), " replicas")
+    end
+    print(io, "\n  H:    ", st.hamiltonian)
+    print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
+    print(io, "\n  replicas: ")
+    for (i, r) in enumerate(st.replicas)
+        print(io, "\n    $i: ", r)
+    end
+end
+
+# TODO: show method, interface for reading results
 
 num_replicas(s::QMCSimulation) = num_replicas(s.qmc_problem)
+
+"""
+    init(problem::QMCProblem; copy_vectors=true)::QMCSimulation
+
+Initialise a [`QMCSimulation`](@ref).
+
+See also [`QMCProblem`](@ref), [`QMCSimulation`](@ref).
+"""
+function CommonSolve.init(problem::QMCProblem; copy_vectors=true)
+    return QMCSimulation(problem; copy_vectors)
+end
