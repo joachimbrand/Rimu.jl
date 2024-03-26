@@ -143,17 +143,25 @@ DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
 """
     init(problem::QMCProblem; copy_vectors=true)::QMCSimulation
 
-Initialise a [`QMCSimulation`](@ref).
+Initialise a [`Rimu.QMCSimulation`](@ref).
 
-See also [`QMCProblem`](@ref), [`QMCSimulation`](@ref).
+See also [`QMCProblem`](@ref).
 """
 function CommonSolve.init(problem::QMCProblem; copy_vectors=true)
     return QMCSimulation(problem; copy_vectors)
 end
 
+"""
+    step!(sm::QMCSimulation)
+
+Advance the simulation by one step.
+
+See also [`QMCProblem`](@ref), [`init`](@ref), [`Rimu.QMCSimulation`](@ref).
+"""
 function CommonSolve.step!(sm::QMCSimulation)
     @unpack qmc_state, report, modified, aborted, success = sm
-    @unpack replicas, simulation_plan, step = qmc_state
+    @unpack replicas, simulation_plan, step, r_strat,
+        replica = qmc_state
 
     if aborted[] || success[]
         @warn "Simulation is already aborted or finished."
@@ -165,12 +173,26 @@ function CommonSolve.step!(sm::QMCSimulation)
     end
 
     step[] += 1
+
+    # report step number
+    if step[] % reporting_interval(r_strat) == 0
+        report!(r_strat, step[], report, :steps, step[])
+    end
+
     proceed = true
     # advance all replicas
     for replica in replicas
         proceed &= advance!(report, qmc_state, replica)
     end
     modified[] = true
+
+    # report replica stats
+    if step[] % reporting_interval(r_strat) == 0
+        replica_names, replica_values = replica_stats(replica, replicas)
+        report!(r_strat, step[], report, replica_names, replica_values)
+        report_after_step(r_strat, step[], report, step[])
+        ensure_correct_lengths(report)
+    end
 
     if !proceed
         aborted[] = true
