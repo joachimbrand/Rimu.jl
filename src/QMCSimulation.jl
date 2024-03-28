@@ -218,6 +218,9 @@ function CommonSolve.solve!(sm::QMCSimulation)
     @unpack aborted, success, message, elapsed_time = sm
     @unpack simulation_plan, step = sm.qmc_state
 
+    last_step = simulation_plan.last_step
+    initial_step = step[]
+
     if aborted[] || success[]
         @warn "Simulation is already aborted or finished."
         return sm
@@ -226,13 +229,21 @@ function CommonSolve.solve!(sm::QMCSimulation)
         @warn "Simulation has already reached the last step."
         return sm
     end
+
     starting_time = time()
-    while !sm.aborted[] && !sm.success[]
+    update_steps = max((last_step - initial_step) ÷ 200, 100) # log often but not too often
+    name = get_metadata(sm.report, "display_name")
+
+    @withprogress name = while !sm.aborted[] && !sm.success[]
         step!(sm)
         if time() - starting_time > simulation_plan.walltime
             aborted[] = true
             message = "Walltime limit reached."
         end
+        if step[] % update_steps == 0 # for updating progress bars
+            @logprogress (step[] - initial_step) / (last_step - initial_step)
+        end
+
     end
     elapsed_time[] = time() - starting_time
     return sm
