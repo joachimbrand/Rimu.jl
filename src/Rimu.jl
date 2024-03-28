@@ -20,7 +20,7 @@ import TOML
 
 @reexport using LinearAlgebra
 @reexport using VectorInterface
-@reexport using CommonSolve: CommonSolve, init, step!
+@reexport using CommonSolve: CommonSolve, init, step!, solve, solve!
 @reexport using DataFrames
 
 """

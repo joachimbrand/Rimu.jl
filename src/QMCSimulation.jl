@@ -15,6 +15,8 @@ struct QMCSimulation
     modified::Ref{Bool}
     aborted::Ref{Bool}
     success::Ref{Bool}
+    message::String
+    elapsed_time::Ref{Float64}
 end
 
 function _set_up_v(dv::AbstractDVec, copy_vectors, _...)
@@ -117,7 +119,9 @@ function QMCSimulation(problem::QMCProblem; copy_vectors=true)
     # Sanity checks.
     check_transform(qmc_state.replica, qmc_state.hamiltonian)
 
-    return QMCSimulation(problem, qmc_state, report, Ref(false), Ref(false), Ref(false))
+    return QMCSimulation(
+        problem, qmc_state, report, Ref(false), Ref(false), Ref(false), "", Ref(0.0)
+    )
 end
 
 function Base.show(io::IO, sm::QMCSimulation)
@@ -129,6 +133,7 @@ function Base.show(io::IO, sm::QMCSimulation)
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  modified = $(sm.modified[]), aborted = $(sm.aborted[]), success = $(sm.success[])")
+    sm.message == "" || print(io, "\n  message: ", sm.message)
     print(io, "\n  replicas: ")
     for (i, r) in enumerate(st.replicas)
         print(io, "\n    $i: ", r)
@@ -152,7 +157,7 @@ function CommonSolve.init(problem::QMCProblem; copy_vectors=true)
 end
 
 """
-    step!(sm::QMCSimulation)
+    step!(sm::QMCSimulation)::QMCSimulation
 
 Advance the simulation by one step.
 
@@ -201,5 +206,34 @@ function CommonSolve.step!(sm::QMCSimulation)
     if step[] == simulation_plan.last_step
         success[] = true
     end
+    return sm
+end
+
+"""
+    CommonSolve.solve!(sm::QMCSimulation)::QMCSimulation
+
+Solve the simulation until the last step or the walltime is exceeded.
+"""
+function CommonSolve.solve!(sm::QMCSimulation)
+    @unpack aborted, success, message, elapsed_time = sm
+    @unpack simulation_plan, step = sm.qmc_state
+
+    if aborted[] || success[]
+        @warn "Simulation is already aborted or finished."
+        return sm
+    end
+    if step[] >= simulation_plan.last_step
+        @warn "Simulation has already reached the last step."
+        return sm
+    end
+    starting_time = time()
+    while !sm.aborted[] && !sm.success[]
+        step!(sm)
+        if time() - starting_time > simulation_plan.walltime
+            aborted[] = true
+            message = "Walltime limit reached."
+        end
+    end
+    elapsed_time[] = time() - starting_time
     return sm
 end
