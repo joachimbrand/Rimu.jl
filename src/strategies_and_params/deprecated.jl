@@ -2,7 +2,7 @@
 # version.
 export DelayedLogUpdateAfterTargetWalkers, HistoryLogUpdate, DelayedLogUpdate
 export DelayedDoubleLogUpdateAfterTW, DoubleLogUpdateAfterTargetWalkersSwitch
-export DelayedDoubleLogUpdate
+export DelayedDoubleLogUpdate, TripleLogUpdate
 
 function DelayedLogUpdateAfterTargetWalkers(args...; kwargs...)
     error("`DelayedLogUpdateAfterTargetWalkers` is deprecated. See `ShiftStrategy`!")
@@ -217,3 +217,48 @@ end
 #         return shift, true, pnorm # important: return the old norm - not updated
 #     end
 # end
+
+# """
+#     TripleLogUpdate(; targetwalkers = 1000, ζ = 0.08, ξ = ζ^2/4, η = 0.01) <: ShiftStrategy
+# Strategy for updating the shift according to the extended log formula with damping
+# parameters `ζ`, `ξ`, and `η`.
+
+# ```math
+# S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{w}^n}\\right)
+# - \\frac{ξ}{dτ}\\ln\\left(\\frac{N_\\mathrm{w}^{n+1}}{N_\\mathrm{w}^\\text{target}}\\right)
+# - \\frac{η}{dτ}\\ln\\left(\\frac{\\|ℜ(Ψ^{n+1})\\|_1^2 + \\|ℑ(Ψ^{n+1})\\|_1^2}
+# {\\|ℜ(Ψ^{n})\\|_1^2 + \\|ℑ(Ψ^{n})\\|_1^2}\\right),
+# ```
+# where ``N_\\mathrm{w}`` is the [`walkernumber()`](@ref).
+# When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
+# T = 2/ζ.
+
+
+# See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
+# """
+# struct TripleLogUpdate{T} <: ShiftStrategy
+#     targetwalkers::T
+#     ζ::Float64 # damping parameter
+#     ξ::Float64  # restoring force to bring walker number to the target
+#     η::Float64
+# end
+# function TripleLogUpdate(; targetwalkers=1000, ζ=0.08, ξ=ζ^2 / 4, η=0.01)
+#     return TripleLogUpdate(targetwalkers, ζ, ξ, η)
+# end
+
+# @inline function update_shift(s::TripleLogUpdate,
+#     shift, shiftMode,
+#     tnorm, pnorm, dτ, step, df, v_new, v_old
+# )
+#     tp = abs2(DictVectors.Norm1ProjectorPPop() ⋅ v_new)
+#     pp = abs2(DictVectors.Norm1ProjectorPPop() ⋅ v_old)
+#     # return new shift and new shiftMode
+#     new_shift = shift - s.ξ / dτ * log(tnorm / s.targetwalkers) - s.ζ / dτ * log(tnorm / pnorm)
+#     # new_shift -= s.η/dτ * log(tp/pp)
+#     new_shift -= s.η / dτ * log(tp / s.targetwalkers)
+#     return new_shift, true, tnorm, true
+# end
+
+function TripleLogUpdate(args...; kwargs...)
+    error("`TripleLogUpdate` is deprecated. See `ShiftStrategy`!")
+end

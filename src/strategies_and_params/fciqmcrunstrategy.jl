@@ -19,6 +19,10 @@ abstract type FciqmcRunStrategy{T} end
     ) <: FciqmcRunStrategy
 Parameters for running [`lomc!()`](@ref) for a fixed number of time steps.
 For alternative strategies, see [`FciqmcRunStrategy`](@ref).
+
+!!! warning
+    The use of this strategy is deprecated. Pass the relevant arguments directly to
+    [`lomc!()`](@ref) instead.
 """
 @with_kw mutable struct RunTillLastStep{T} <: FciqmcRunStrategy{T}
     step::Int = 0 # number of current/starting timestep

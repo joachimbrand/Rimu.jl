@@ -39,6 +39,10 @@ end
     include("Hamiltonians.jl")
 end
 
+@safetestset "QMCProblem" begin
+    include("QMCProblem.jl")
+end
+
 @safetestset "lomc!" begin
     include("lomc.jl")
 end

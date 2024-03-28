@@ -11,6 +11,7 @@ using Suppressor
 using Statistics
 using Logging
 using DataFrames
+using Setfield
 
 Random.seed!(1234)
 @testset "lomc!/QMCState" begin
@@ -27,20 +28,21 @@ Random.seed!(1234)
         @test state.replicas[1].v === v
         @test state.replicas[1].pv !== v && state.replicas[1].pv !== wm
 
-        state.laststep = 10
-        df = lomc!(state, df).df
+        # @set state.simulation_plan.last_step = 10
+        df = lomc!(state, df, laststep=10).df
         @test state.replicas[1].v === wm
         @test state.replicas[1].pv === v
 
         @test size(df, 1) == 10
-        @test state.replicas[1].params.step == 10
+        @test state.step[] == 10
 
-        state.laststep = 100
-        df = lomc!(state, df).df
+        # @set state.simulation_plan.last_step = 100
+        df, state = lomc!(state, df, laststep=100)
         @test size(df, 1) == 100
 
-        state.step = 0
-        df = lomc!(state, df).df
+        state.step[] = 0
+        # state = @set state.simulation_plan.starting_step = 0
+        df, state = lomc!(state, df)
         @test size(df, 1) == 200
         @test df.steps == [1:100; 1:100]
     end
@@ -50,12 +52,8 @@ Random.seed!(1234)
         H = HubbardReal1D(add; u=0.1)
         dv = DVec(add => 1; style=IsStochasticInteger())
         df, state = lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
-        @test state.replicas[1].params.dτ == state.dτ == 0.002
-        @test state.replicas[1].params.shift == state.shift == 23.1
-        state.dτ = 0.004
-        @test state.replicas[1].params.dτ == state.dτ == 0.004
-        state.shift = 5.0
-        @test state.replicas[1].params.shift == state.shift == 5.0
+        @test state.replicas[1].shift_parameters.time_step  == 0.002
+        @test state.replicas[1].shift_parameters.shift == 23.1
         @test state.replica == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
@@ -92,7 +90,7 @@ Random.seed!(1234)
         @test median(walkers) ≈ 1000 rtol=0.1
 
         _, state = lomc!(H, copy(dv); targetwalkers=500, laststep=0)
-        @test state.s_strat.targetwalkers == 500
+        @test state.replicas[1].s_strat.targetwalkers == 500
     end
 
     @testset "Replicas" begin
@@ -239,14 +237,18 @@ Random.seed!(1234)
         s_strat = LogUpdateAfterTargetWalkers(targetwalkers = 100)
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
+        @test df.shift_mode[end] # finish in variable shift mode
         @test df.norm[end] > 100
 
         # LogUpdate
+        s_strat = DoubleLogUpdate(targetwalkers=100)
+        df, state = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+
         v = state.replicas[1].v
-        params = state.replicas[1].params
+        step = state.step[]
         s_strat = LogUpdate()
-        df = lomc!(H, v; df, params, s_strat, laststep=200).df
+        df = lomc!(H, v; df, step, s_strat, laststep=200).df
         @test size(df, 1) == 200
         @test 500 > df.norm[end] > 100
 
@@ -254,7 +256,7 @@ Random.seed!(1234)
         s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = 100)
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
+        @test df.shift_mode[end] # finish in variable shift mode
         @test df.norm[end] > 100
 
         # test unexported strategies
@@ -262,20 +264,11 @@ Random.seed!(1234)
         s_strat = Rimu.DoubleLogSumUpdate(targetwalkers = 100)
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
-
-        # TripleLogUpdate
-        s_strat = Rimu.TripleLogUpdate(targetwalkers = 100)
-        df, state  = lomc!(H; s_strat, laststep=100)
-        @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
 
         # DoubleLogProjected
         s_strat = Rimu.DoubleLogProjected(target = 100.0, projector=UniformProjector())
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
-
     end
 
     @testset "deprecated" begin
@@ -285,6 +278,7 @@ Random.seed!(1234)
         @test_throws ErrorException DelayedDoubleLogUpdateAfterTW()
         @test_throws ErrorException DoubleLogUpdateAfterTargetWalkersSwitch()
         @test_throws ErrorException DelayedDoubleLogUpdate()
+        @test_throws ErrorException TripleLogUpdate()
     end
 
     @testset "Setting `maxlength`" begin
@@ -306,7 +300,7 @@ Random.seed!(1234)
         @test all(df.len_5[1:end-1] .≤ 10)
         @test all(df.len_6[1:end-1] .≤ 10)
 
-        state.maxlength += 1000
+        state.maxlength[] += 1000
         df_cont = lomc!(state).df
         @test size(df_cont, 1) == 100 - size(df, 1)
     end
@@ -319,8 +313,8 @@ Random.seed!(1234)
 
         # Run lomc!, then change laststep and continue.
         df, state = lomc!(H, copy(dv))
-        state.laststep = 200
-        df1 = lomc!(state, df).df
+        # @set state.simulation_plan.last_step = 200
+        df1 = lomc!(state, df, laststep=200).df
 
         # Run lomc! with laststep already set.
         df2 = lomc!(H, copy(dv); laststep=200).df
