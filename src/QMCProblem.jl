@@ -49,7 +49,7 @@ Defines the problem to be solved by the QMC algorithm.
 - `metadata`: user-supplied metadata to be added to the report. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
   All metadata is converted to strings.
-- `seed = true`: provide and store a seed for the random number generator.
+- `random_seed = true`: provide and store a seed for the random number generator.
 """
 struct QMCProblem{N} # is not type stable but does not matter
     hamiltonian::AbstractHamiltonian
@@ -96,16 +96,16 @@ function QMCProblem(
     maxlength = nothing,
     metadata = nothing,
     display_name = "QMCSimulation",
-    seed = true
+    random_seed = true
 )
     n_replicas = num_replicas(replica_strategy) # replica_strategy may override n_replicas
 
-    if seed == true
+    if random_seed == true
         random_seed = rand(RandomDevice(),UInt64)
-    elseif seed == false
+    elseif random_seed == false
         random_seed = nothing
-    elseif !isnothing(seed)
-        random_seed = UInt64(seed)
+    elseif !isnothing(random_seed)
+        random_seed = UInt64(random_seed)
     end
 
     # set up starting_vectors

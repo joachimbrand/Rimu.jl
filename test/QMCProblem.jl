@@ -86,12 +86,21 @@ end
 
     # unless seeding in QMCProblem is disabled
     Random.seed!(127)
-    p = QMCProblem(h; seed=false)
+    p = QMCProblem(h; random_seed=false)
     @test isnothing(p.random_seed)
     sm = init(p)
     r = rand(Int)
     Random.seed!(127)
-    p = QMCProblem(h; seed=false)
+    p = QMCProblem(h; random_seed=false)
+    sm = init(p)
+    @test r == rand(Int)
+
+    # or if the seed is provided
+    p = QMCProblem(h; random_seed=123)
+    @test p.random_seed == 123
+    sm = init(p)
+    r = rand(Int)
+    p = QMCProblem(h; random_seed=123)
     sm = init(p)
     @test r == rand(Int)
 
