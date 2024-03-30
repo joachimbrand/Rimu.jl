@@ -123,4 +123,12 @@ end
     @test sm.modified[] == true
     @test sm.success[] == true
     @test size(DataFrame(sm))[1] == sm.qmc_state.step[]
+
+    df, state = sm # deconstruction for backward compatibility
+    @test df == DataFrame(sm) == sm.df
+    @test state == sm.qmc_state == sm.state
+
+    # Tables.jl interface
+    @test Tables.istable(sm)
+    @test map(NamedTuple, Tables.rows(sm)) == map(NamedTuple, Tables.rows(df))
 end

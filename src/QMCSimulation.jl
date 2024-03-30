@@ -140,6 +140,38 @@ function Base.show(io::IO, sm::QMCSimulation)
     end
 end
 
+# iteration for backward compatibility
+# undocumented; may be removed in the future
+function Base.iterate(sm::QMCSimulation, state=1)
+    if state == 1
+        return DataFrame(sm), 2
+    elseif state == 2
+        return sm.qmc_state, 3
+    else
+        return nothing
+    end
+end
+# getproperty access to :df and :state fields for backward compatibility
+# undocumented; may be removed in the future
+function Base.getproperty(sm::QMCSimulation, key::Symbol)
+    if key == :df
+        return DataFrame(sm)
+    elseif key == :state
+        return sm.qmc_state
+    else
+        return getfield(sm, key)
+    end
+end
+
+# Tables.jl integration: provide access to report.data
+# Note that using the `Tables` interface will not include metadata in the output.
+# To include metadata, use the `DataFrame` constructor.
+Tables.istable(::Type{<:QMCSimulation}) = true
+Tables.columnaccess(::Type{<:QMCSimulation}) = true
+Tables.columns(sm::QMCSimulation) = Tables.columns(sm.report.data)
+Tables.schema(sm::QMCSimulation) = Tables.schema(sm.report.data)
+
+
 # TODO: interface for reading results
 
 num_replicas(s::QMCSimulation) = num_replicas(s.qmc_problem)

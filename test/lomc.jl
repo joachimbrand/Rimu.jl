@@ -429,9 +429,9 @@ Random.seed!(1234)
             rp = Rimu.Report()
             Rimu.report!(rp, :b, 4)
             Rimu.report!(rp, :b, 6)
-            @test sprint(show, rp) == "Report:\n  b => [4, 6]\n metadata"
             Rimu.report_metadata!(rp, :a, 1)
             @test Rimu.get_metadata(rp, "a") == "1"
+            @test sprint(show, rp) == "Report:\n  b => [4, 6]\n metadata:\n  a => 1"
 
             # Tables integration
             NamedTuple(first(Tables.rows(rp))) == (b=4,)

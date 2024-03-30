@@ -36,12 +36,10 @@ Base.empty!(report::Report) = foreach(empty!, values(report.data)) # does not em
 Base.isempty(report::Report) = all(isempty, values(report.data))
 
 # Tables.jl integration
-
 Tables.istable(::Type{<:Report}) = true
 Tables.columnaccess(::Type{<:Report}) = true
 Tables.columns(report::Report) = Tables.columns(report.data)
-Tables.schema(r::Report) = Tables.schema(r.data)
-
+Tables.schema(report::Report) = Tables.schema(report.data)
 # Note that using the `Tables` interface will not include metadata in the output.
 # To include metadata, use the `DataFrame` constructor.
 
