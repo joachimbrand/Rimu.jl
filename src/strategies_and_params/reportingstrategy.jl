@@ -2,6 +2,7 @@
     Report()
 
 Internal structure that holds the temporary reported values as well as metadata.
+It can be converted to a `DataFrame` with [`DataFrame(report::Report)`](@ref).
 
 See [`report!`](@ref), [`report_metadata!`](@ref), [`get_metadata`](@ref).
 """
@@ -21,11 +22,34 @@ function Base.show(io::IO, report::Report)
             print(io, "\n  $(lpad(k, keywidth)) => $v")
         end
     end
+    print(io, "\n metadata")
+    if !isempty(report.meta)
+        print(io, ":")
+        keywidth = maximum(length.(string.(keys(report.meta))))
+        for (k, v) in report.meta
+            print(io, "\n  $(lpad(k, keywidth)) => $v")
+        end
+    end
 end
 
 Base.empty!(report::Report) = foreach(empty!, values(report.data)) # does not empty metadata
 Base.isempty(report::Report) = all(isempty, values(report.data))
 
+# Tables.jl integration
+
+Tables.istable(::Type{<:Report}) = true
+Tables.columnaccess(::Type{<:Report}) = true
+Tables.columns(report::Report) = Tables.columns(report.data)
+Tables.schema(r::Report) = Tables.schema(r.data)
+
+# Note that using the `Tables` interface will not include metadata in the output.
+# To include metadata, use the `DataFrame` constructor.
+
+"""
+    DataFrame(report::Report)
+Convert the [`Report`](@ref) to a `DataFrame`. Metadata is added as metadata to the
+`DataFrame`.
+"""
 function DataFrames.DataFrame(report::Report)
     df = DataFrame(report.data; copycols=false)
     for (key, val) in get_metadata(report) # add metadata
