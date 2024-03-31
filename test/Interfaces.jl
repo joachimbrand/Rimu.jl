@@ -34,7 +34,7 @@ using Test
     @test has_adjoint(ham)
 end
 
-# using lomc! with a matrix is not documented and may be removed in the future
+# using lomc! with a matrix was removed in Rimu.jl v0.12.0
 @testset "lomc! with matrix" begin
     ham = [1 1 2 3 2;
            2 0 2 2 3;
@@ -42,10 +42,24 @@ end
            0 0 1 1 2;
            0 1 0 1 0]
     vector = ones(5)
-    post_step = ProjectedEnergy(ham, vector)
-    df, st = lomc!(ham, vector; laststep=10_000, post_step)
+    @test_throws ArgumentError lomc!(ham, vector; laststep=10_000)
+
+    # rephrase with MatrixHamiltonian
+    mh = MatrixHamiltonian(ham)
+    sv = DVec(pairs(vector))
+    post_step = ProjectedEnergy(mh, sv)
+
+    # solve with new API
+    p = QMCProblem(mh; start_at=sv, last_step=10_000, post_step_strategy=post_step)
+    sm = solve(p)
+    last_shift = DataFrame(sm).shift[end]
+
+    # solve with old API
+    df, _ = lomc!(mh, sv; laststep=10_000, post_step)
     eigs = eigen(ham)
+
+    @test eigs.values[1] ≈ last_shift rtol = 0.01
     @test df.shift[end] ≈ eigs.values[1] rtol=0.01
     @test df.hproj[end] / df.vproj[end] ≈ eigs.values[1] rtol=0.01
-    @test normalize(st.replicas[1].v) ≈ eigs.vectors[:, 1] rtol=0.01
+    @test normalize(sm.qmc_state.replicas[1].v) ≈ DVec(pairs(eigs.vectors[:, 1])) rtol = 0.01
 end

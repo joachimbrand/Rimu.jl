@@ -157,6 +157,11 @@ function QMCProblem(
     isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
     metadata = report.meta::LittleDict{String, String}
 
+    # set up post_step_strategy as a tuple
+    if post_step_strategy isa PostStepStrategy
+        post_step_strategy = (post_step_strategy,)
+    end
+
     return QMCProblem{n_replicas}(
         hamiltonian,
         starting_vectors,

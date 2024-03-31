@@ -262,3 +262,7 @@ end
 function TripleLogUpdate(args...; kwargs...)
     error("`TripleLogUpdate` is deprecated. See `ShiftStrategy`!")
 end
+
+function lomc!(::AbstractMatrix, v=nothing; kwargs...)
+    throw(ArgumentError("Using lomc! with a matrix is no longer supported. Use `MatrixHamiltonian` instead."))
+end

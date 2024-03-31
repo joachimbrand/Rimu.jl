@@ -725,22 +725,20 @@ end
     end
 end
 
-@testset "AbstractMatrix and MatrixHamiltonian" begin
-    # lomc!() with AbstractMatrix
+@testset "MatrixHamiltonian" begin
+    # using lomc! with an `AbstractMatrix` was removed in Rimu.jl v0.12.0
+
+    # generate matrix
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
     @test dim ≤ dimension(Int, starting_address(ham)) == dimension(starting_address(ham))
     bsr = BasisSetRep(ham, starting_address(ham))
     sm, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
-    # run lomc! in deterministic mode with Matrix and Vector
-    a = lomc!(sm, ones(dim)).df
-    b = lomc!(sm, ones(dim)).df
-    @test a.shift ≈ b.shift
+
     # run lomc! in deterministic mode with Hamiltonian and DVec
     v = DVec(k=>1.0 for k in basis; style=IsDeterministic()) # corresponds to `ones(dim)`
-    c = lomc!(ham, v).df
-    @test a.shift ≈ c.shift
+    a = lomc!(ham, v).df
 
     # MatrixHamiltonian
     @test_throws ArgumentError MatrixHamiltonian([1 2 3; 4 5 6])
@@ -761,15 +759,15 @@ end
 
     # lomc!
     # float walkernumber triggers IsDeterministic algorithm
-    d = lomc!(mh, ones(dim)).df
+    d = lomc!(mh, DVec(pairs(ones(dim)))).df
     @test d.shift ≈ a.shift
     # integer walkernumber triggers IsStochasticInteger algorithm
     Random.seed!(15)
-    e = lomc!(mh, ones(Int,dim)).df
+    e = lomc!(mh, DVec(pairs(ones(Int,dim)))).df
     @test ≈(e.shift[end], a.shift[end], atol=0.3)
     # wrap full matrix as MatrixHamiltonian
     fmh =  MatrixHamiltonian(Matrix(sm))
-    f = lomc!(fmh, ones(dim)).df
+    f = lomc!(fmh, DVec(pairs(ones(dim)))).df
     @test f.shift ≈ a.shift
 end
 
