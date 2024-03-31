@@ -1,12 +1,9 @@
 """
     QMCSimulation
 Holds the state and the results of a QMC simulation. Initialise with
-[`init(::FCIQMCProblem)`](@ref) amd solve with [`solve(::QMCSimulation)`].
+[`init(::FCIQMCProblem)`](@ref) and solve with [`solve!(::QMCSimulation)`].
 
-## Fields
-- `qmc_problem::FCIQMCProblem`: the problem to be solved.
-- `qmc_state::QMCState`: the state of the simulation.
-- `report::Report`: the report of the simulation.
+Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 """
 struct QMCSimulation
     qmc_problem::FCIQMCProblem
@@ -182,7 +179,8 @@ DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
 
 Initialise a [`Rimu.QMCSimulation`](@ref).
 
-See also [`FCIQMCProblem`](@ref).
+See also [`FCIQMCProblem`](@ref), [`solve!`](@ref), [`solve`](@ref), [`step!`](@ref),
+[`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.init(problem::FCIQMCProblem; copy_vectors=true)
     return QMCSimulation(problem; copy_vectors)
@@ -193,7 +191,8 @@ end
 
 Advance the simulation by one step.
 
-See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`Rimu.QMCSimulation`](@ref).
+See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`solve`](@ref),
+[`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::QMCSimulation)
     @unpack qmc_state, report, modified, aborted, success = sm
@@ -242,9 +241,22 @@ function CommonSolve.step!(sm::QMCSimulation)
 end
 
 """
+    CommonSolve.solve(::FCIQMCProblem)::QMCSimulation
+
+Initialize and solve the simulation until the last step or the walltime is exceeded.
+
+See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`step!`](@ref),
+[`Rimu.QMCSimulation`](@ref).
+"""
+CommonSolve.solve
+
+"""
     CommonSolve.solve!(sm::QMCSimulation)::QMCSimulation
 
 Solve the simulation until the last step or the walltime is exceeded.
+
+See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve`](@ref), [`step!`](@ref),
+[`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.solve!(sm::QMCSimulation)
     @unpack aborted, success, message, elapsed_time = sm
