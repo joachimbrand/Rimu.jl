@@ -1,5 +1,6 @@
 """
     Report()
+    Report(df::DataFrame)
 
 Internal structure that holds the temporary reported values as well as metadata.
 It can be converted to a `DataFrame` with [`DataFrame(report::Report)`](@ref).
@@ -141,6 +142,23 @@ function report!(report::Report, kvpairs, postfix::SymbolOrString="")
     return report
 end
 
+"""
+    report!(report::Report, df::DataFrame)
+
+Convert the `DataFrame` `df` to a `Report`. This function does not copy the data.
+"""
+function report!(report::Report, df::DataFrame)
+    empty!(report)
+    empty!(report.meta) # clear metadata as well
+    for n in propertynames(df)
+        report.data[n] = df[!, n] # does not copy the data
+    end
+    for (k, v) in DataFrames.metadata(df)
+        report.meta[k] = v
+    end
+    return report
+end
+
 function ensure_correct_lengths(report::Report)
     lens = length.(values(report.data))
     for i in 1:length(report.data)
@@ -221,7 +239,7 @@ reporting_interval(::ReportingStrategy) = 1
 Finalize the report. This function is called after all steps in [`lomc!`](@ref) have
 finished.
 """
-finalize_report!(::ReportingStrategy, report) = DataFrame(report)
+finalize_report!(::ReportingStrategy, report) = report
 
 function print_stats(io::IO, step, state)
     print(io, "[ ", lpad(step, 11), " | ")
@@ -385,11 +403,11 @@ function finalize_report!(s::ReportToFile, report)
         close(s.writer) # close the writer
         empty!(report)
         if s.return_df
-            return RimuIO.load_df(s.filename)
+            return report!(report, RimuIO.load_df(s.filename))
         end
     end
     empty!(report)
-    return DataFrame(report) # return an empty DataFrame with metadata
+    return report # return the report
 end
 function reporting_interval(s::ReportToFile)
     return s.reporting_interval

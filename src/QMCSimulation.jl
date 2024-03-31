@@ -175,8 +175,7 @@ Tables.schema(sm::QMCSimulation) = Tables.schema(sm.report.data)
 # TODO: interface for reading results
 
 num_replicas(s::QMCSimulation) = num_replicas(s.qmc_problem)
-# the report may need to be read from disk, this is what the finalizer does
-DataFrames.DataFrame(s::QMCSimulation) = finalize_report!(s.qmc_state.r_strat, s.report)
+DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
 
 """
     init(problem::QMCProblem; copy_vectors=true)::QMCSimulation
@@ -320,7 +319,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
     # compatible, which should be the case if the run is an actual continuation. Maybe the
     # DataFrames should be merged in a more permissive manner?
-    result_df = finalize_report!(simulation.qmc_state.r_strat, simulation.report)
+    result_df = DataFrame(simulation)
 
     if !isempty(df)
         df = vcat(df, result_df) # metadata is not propagated
