@@ -1,15 +1,15 @@
 """
     QMCSimulation
 Holds the state and the results of a QMC simulation. Initialise with
-[`init(::QMCProblem)`](@ref) amd solve with [`solve(::QMCSimulation)`].
+[`init(::FCIQMCProblem)`](@ref) amd solve with [`solve(::QMCSimulation)`].
 
 ## Fields
-- `qmc_problem::QMCProblem`: the problem to be solved.
+- `qmc_problem::FCIQMCProblem`: the problem to be solved.
 - `qmc_state::QMCState`: the state of the simulation.
 - `report::Report`: the report of the simulation.
 """
 struct QMCSimulation
-    qmc_problem::QMCProblem
+    qmc_problem::FCIQMCProblem
     qmc_state::QMCState
     report::Report
     modified::Ref{Bool}
@@ -40,7 +40,7 @@ function _set_up_v(fdv::FrozenDVec, _, style, initiator, threading)
     return v
 end
 
-function QMCSimulation(problem::QMCProblem; copy_vectors=true)
+function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
     @unpack hamiltonian, starting_vectors, style, threading, simulation_plan,
         replica_strategy, shift_strategy, initial_shift_parameters,
         reporting_strategy, post_step_strategy, time_step_strategy,
@@ -178,13 +178,13 @@ num_replicas(s::QMCSimulation) = num_replicas(s.qmc_problem)
 DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
 
 """
-    init(problem::QMCProblem; copy_vectors=true)::QMCSimulation
+    init(problem::FCIQMCProblem; copy_vectors=true)::QMCSimulation
 
 Initialise a [`Rimu.QMCSimulation`](@ref).
 
-See also [`QMCProblem`](@ref).
+See also [`FCIQMCProblem`](@ref).
 """
-function CommonSolve.init(problem::QMCProblem; copy_vectors=true)
+function CommonSolve.init(problem::FCIQMCProblem; copy_vectors=true)
     return QMCSimulation(problem; copy_vectors)
 end
 
@@ -193,7 +193,7 @@ end
 
 Advance the simulation by one step.
 
-See also [`QMCProblem`](@ref), [`init`](@ref), [`Rimu.QMCSimulation`](@ref).
+See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::QMCSimulation)
     @unpack qmc_state, report, modified, aborted, success = sm
@@ -291,7 +291,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
         replica = state
     first_replica = first(replicas)
     @assert step[] ≥ simulation_plan.starting_step
-    problem = QMCProblem(hamiltonian;
+    problem = FCIQMCProblem(hamiltonian;
         start_at = first_replica.v,
         initial_shift_parameters = first_replica.shift_parameters,
         shift_strategy = first_replica.s_strat,

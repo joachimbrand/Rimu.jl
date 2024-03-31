@@ -7,6 +7,10 @@ and the norm.
 Implemented strategies:
 
    * [`RunTillLastStep`](@ref)
+
+!!! warning
+    The use of this strategy is deprecated. Pass the relevant arguments directly to
+    [`lomc!()`](@ref) instead.
 """
 abstract type FciqmcRunStrategy{T} end
 

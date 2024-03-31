@@ -50,7 +50,7 @@ end
     post_step = ProjectedEnergy(mh, sv)
 
     # solve with new API
-    p = QMCProblem(mh; start_at=sv, last_step=10_000, post_step_strategy=post_step)
+    p = FCIQMCProblem(mh; start_at=sv, last_step=10_000, post_step_strategy=post_step)
     sm = solve(p)
     last_shift = DataFrame(sm).shift[end]
 

@@ -3,7 +3,7 @@
 Defines the duration of the simulation. The simulation ends when the `last_step` is reached
 or the `walltime` is exceeded.
 
-See [`QMCProblem`](@ref).
+See [`FCIQMCProblem`](@ref), [`QMCSimulation`](@ref).
 """
 Base.@kwdef struct SimulationPlan
     starting_step::Int = 0
@@ -12,35 +12,58 @@ Base.@kwdef struct SimulationPlan
 end
 
 """
-    QMCProblem(hamiltonian::AbstractHamiltonian; kwargs...)
-Defines the problem to be solved by the QMC algorithm.
+    FCIQMCProblem(hamiltonian::AbstractHamiltonian; kwargs...)
+Defines a problem to be solved by the FCIQMC algorithm.
 
-# Keyword arguments and defaults:
-- `targetwalkers = 1_000`: target for the 1-norm of the coefficient vector.
+# Common keyword arguments and defaults:
 - `time_step = 0.01`: initial time step size.
 - `last_step = 100`: controls the number of steps.
-- `walltime = Inf`: maximum time allowed for the simulation.
-- `reporting_strategy = ReportDFAndInfo()`: strategy for reporting the results.
-- `post_step_strategy = ()`: strategy to be executed after each step.
-- `replica_strategy = NoStats(n_replicas)`: run several synchronised simulations, see
-  [`ReplicaStrategy`](@ref).
+- `targetwalkers = 1_000`: target for the 1-norm of the coefficient vector.
 - `start_at = starting_address(hamiltonian)`: Define the initial state vector. This can be a
     single address, a collection of addresses, a single starting vector, or a collection of
     starting vectors. If multiple starting vectors are passed, their number must match the
     number of replicas. If (a collection of) [`AbstractDVec`](@ref)(s) is passed, the
     keyword arguments `style`, `initiator`, and `threading` are ignored.
-- `shift`: initial shift value or collection of shift values. Determined by default from the
-    Hamiltonian and the starting vectors.
 - `style = IsDynamicSemistochastic()`: The [`StochasticStyle`](@ref) of the simulation.
 - `initiator = NonInitiator()`: The [`InitiatorRule`](@ref) for the simulation.
-- `threading = Threads.nthreads()>1`: whether to use threading.
+- `threading`: default is to use multithreading and
+  [MPI](https://juliaparallel.org/MPI.jl/latest/) if multiple threads are available. Set to
+  `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
+  may be overridden by `start_at`.
+- `reporting_strategy = ReportDFAndInfo()`: how and when to report results, see
+  [`ReportingStrategy`](@ref).
+- `post_step_strategy = ()`: extract observables (e.g.
+  [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
+- `n_replicas = 1`: number of synchronised independent simulations.
+- `replica_strategy = NoStats(n_replicas)`: which results to report from replica
+  simulations, see [`ReplicaStrategy`](@ref).
+
+# Example
+
+```jldoctest
+julia> hamiltonian = HubbardReal1D(BoseFS(1,2,3));
+
+julia> problem = FCIQMCProblem(hamiltonian; targetwalkers = 500, last_step = 100);
+
+julia> simulation = solve(problem);
+
+julia> simulation.success[]
+true
+
+julia> size(DataFrame(sm))
+(100, 10)
+```
+
+# Further keyword arguments:
 - `starting_step = 1`: starting step of the simulation.
+- `walltime = Inf`: maximum time allowed for the simulation.
 - `simulation_plan = SimulationPlan(; starting_step, last_step, walltime)`: defines the
     duration of the simulation. Takes precedence over `last_step` and `walltime`.
-- `n_replicas = 1`: number of replicas
 - `ζ = 0.08`: damping parameter for the shift update.
 - `ξ = ζ^2/4`: forcing parameter for the shift update.
 - `shift_strategy = DoubleLogUpdate(; targetwalkers, ζ, ξ)`: strategy for updating the shift.
+- `shift`: initial shift value or collection of shift values. Determined by default from the
+    Hamiltonian and the starting vectors.
 - `initial_shift_parameters`: initial shift parameters or collection of initial shift
     parameters. Overrides `shift` if provided.
 - `time_step_strategy = ConstantTimeStep()`: strategy for updating the time step.
@@ -50,8 +73,10 @@ Defines the problem to be solved by the QMC algorithm.
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
   All metadata is converted to strings.
 - `random_seed = true`: provide and store a seed for the random number generator.
+
+See also [`init`](@ref), [`solve`](@ref).
 """
-struct QMCProblem{N} # is not type stable but does not matter
+struct FCIQMCProblem{N} # is not type stable but does not matter
     hamiltonian::AbstractHamiltonian
     starting_vectors
     style::StochasticStyle
@@ -71,7 +96,7 @@ end
 # could be extended later with
 # - `spectral_strategy = NoStats(n_spectral_states)`: strategy for handling excited states
 
-function QMCProblem(
+function FCIQMCProblem(
     hamiltonian::AbstractHamiltonian;
     n_replicas = 1,
     start_at = starting_address(hamiltonian),
@@ -162,7 +187,7 @@ function QMCProblem(
         post_step_strategy = (post_step_strategy,)
     end
 
-    return QMCProblem{n_replicas}(
+    return FCIQMCProblem{n_replicas}(
         hamiltonian,
         starting_vectors,
         style,
@@ -193,6 +218,4 @@ function _determine_initial_shift(hamiltonian, starting_vectors)
     return shifts
 end
 
-num_replicas(::QMCProblem{N}) where N = N
-
-# TODO: define method for init(::QMCProblem) to set up the simulation
+num_replicas(::FCIQMCProblem{N}) where N = N
