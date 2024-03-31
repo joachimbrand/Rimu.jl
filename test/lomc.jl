@@ -52,7 +52,7 @@ Random.seed!(1234)
         add = BoseFS{5,2}((2,3))
         H = HubbardReal1D(add; u=0.1)
         dv = DVec(add => 1; style=IsStochasticInteger())
-        df, state = lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
+        df, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
         @test state.replicas[1].shift_parameters.time_step  == 0.002
         @test state.replicas[1].shift_parameters.shift == 23.1
         @test state.replica == NoStats{1}() # uses getfield method
@@ -66,8 +66,8 @@ Random.seed!(1234)
         @test default_starting_vector(addr; threading=false) isa DVec
         @test default_starting_vector(addr; threading=true) isa PDVec
         v = default_starting_vector(addr; threading=true)
-        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=0, threading=false)
-        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=0, style=IsStochasticInteger())
+        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, threading=false)
+        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, style=IsStochasticInteger())
     end
     @testset "Setting walkernumber" begin
         add = BoseFS{2,5}((0,0,2,0,0))
@@ -90,7 +90,7 @@ Random.seed!(1234)
         walkers = lomc!(H, copy(dv); s_strat, laststep=1000).df.norm
         @test median(walkers) ≈ 1000 rtol=0.1
 
-        _, state = lomc!(H, copy(dv); targetwalkers=500, laststep=0)
+        _, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, copy(dv); targetwalkers=500, laststep=0)
         @test state.replicas[1].s_strat.targetwalkers == 500
     end
 

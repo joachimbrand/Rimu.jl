@@ -383,11 +383,13 @@ function finalize_report!(s::ReportToFile, report)
             Arrow.write(s.writer, report.data)
         end
         close(s.writer) # close the writer
+        empty!(report)
         if s.return_df
             return RimuIO.load_df(s.filename)
         end
     end
-    return DataFrame()
+    empty!(report)
+    return DataFrame(report) # return an empty DataFrame with metadata
 end
 function reporting_interval(s::ReportToFile)
     return s.reporting_interval

@@ -113,7 +113,7 @@ function QMCProblem(
         starting_vectors = (freeze(DVec(start_at => 1,)),) # tuple of length 1
     elseif eltype(start_at) <: AbstractFockAddress # multiple addresses
         starting_vectors = (freeze(DVec(address => 1 for address in start_at)),)
-    elseif start_at isa AbstractDVec # single starting vector
+    elseif start_at isa Union{AbstractDVec, RMPI.MPIData} # single starting vector
         starting_vectors = (start_at,) # tuple of length 1
     elseif eltype(start_at) <: Pair{<:AbstractFockAddress} # single starting vector
         starting_vectors = (freeze(DVec(start_at)),) # tuple of length 1
@@ -122,7 +122,7 @@ function QMCProblem(
     else
         throw(ArgumentError("`start_at` has invalid format."))
     end
-    @assert starting_vectors isa NTuple{<:Any, <:Union{AbstractDVec, FrozenDVec}}
+    @assert starting_vectors isa NTuple{<:Any,<:Union{AbstractDVec,FrozenDVec,RMPI.MPIData}}
     length(starting_vectors) == 1 || length(starting_vectors) == n_replicas ||
         throw(ArgumentError("The number of starting vectors must match the number of replicas."))
     all(v -> keytype(v) <: allowed_address_type(hamiltonian), starting_vectors) ||

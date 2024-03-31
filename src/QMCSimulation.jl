@@ -175,7 +175,8 @@ Tables.schema(sm::QMCSimulation) = Tables.schema(sm.report.data)
 # TODO: interface for reading results
 
 num_replicas(s::QMCSimulation) = num_replicas(s.qmc_problem)
-DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
+# the report may need to be read from disk, this is what the finalizer does
+DataFrames.DataFrame(s::QMCSimulation) = finalize_report!(s.qmc_state.r_strat, s.report)
 
 """
     init(problem::QMCProblem; copy_vectors=true)::QMCSimulation
@@ -227,7 +228,7 @@ function CommonSolve.step!(sm::QMCSimulation)
     if step[] % reporting_interval(r_strat) == 0
         replica_names, replica_values = replica_stats(replica, replicas)
         report!(r_strat, step[], report, replica_names, replica_values)
-        report_after_step(r_strat, step[], report, step[])
+        report_after_step(r_strat, step[], report, qmc_state)
         ensure_correct_lengths(report)
     end
 
@@ -277,6 +278,57 @@ function CommonSolve.solve!(sm::QMCSimulation)
         end
 
     end
+    finalize_report!(sm.qmc_state.r_strat, sm.report)
     elapsed_time[] = time() - starting_time
     return sm
+end
+
+# methods for backward compatibility
+function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
+    if !iszero(laststep)
+        state = @set state.simulation_plan.last_step = laststep
+    end
+    @unpack hamiltonian, replicas, maxlength, step, simulation_plan, r_strat, post_step,
+        replica = state
+    first_replica = first(replicas)
+    @assert step[] ≥ simulation_plan.starting_step
+    problem = QMCProblem(hamiltonian;
+        start_at = first_replica.v,
+        initial_shift_parameters = first_replica.shift_parameters,
+        shift_strategy = first_replica.s_strat,
+        time_step_strategy = first_replica.τ_strat,
+        replica_strategy = replica,
+        reporting_strategy = r_strat,
+        post_step_strategy = post_step,
+        maxlength = maxlength[],
+        simulation_plan = simulation_plan,
+        metadata = metadata,
+        display_name = name,
+        random_seed = false
+    )
+    report = Report()
+    report_default_metadata!(report, state)
+    report_metadata!(report, problem.metadata) # add user metadata
+    # Sanity checks.
+    check_transform(state.replica, state.hamiltonian)
+
+    simulation = QMCSimulation(
+        problem, state, report, Ref(false), Ref(false), Ref(false), "", Ref(0.0)
+    )
+    solve!(simulation)
+
+    # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
+    # compatible, which should be the case if the run is an actual continuation. Maybe the
+    # DataFrames should be merged in a more permissive manner?
+    result_df = finalize_report!(simulation.qmc_state.r_strat, simulation.report)
+
+    if !isempty(df)
+        df = vcat(df, result_df) # metadata is not propagated
+        for (key, val) in get_metadata(report) # add metadata
+            DataFrames.metadata!(df, key, val)
+        end
+        return (; df, state)
+    else
+        return (; df=result_df, state)
+    end
 end

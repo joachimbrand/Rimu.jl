@@ -435,61 +435,61 @@ function lomc!(
     return lomc!(ham, v; address, kwargs...) # pass address for setting the default shift
 end
 # For continuation, you can pass a QMCState and a DataFrame
-function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
-    if !iszero(laststep)
-        state = @set state.simulation_plan.last_step = laststep
-    end
+# function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
+#     if !iszero(laststep)
+#         state = @set state.simulation_plan.last_step = laststep
+#     end
 
-    # initialise report
-    report = Report()
-    report_default_metadata!(report, state)
-    isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
+#     # initialise report
+#     report = Report()
+#     report_default_metadata!(report, state)
+#     isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
 
-    # Sanity checks.
-    check_transform(state.replica, state.hamiltonian)
+#     # Sanity checks.
+#     check_transform(state.replica, state.hamiltonian)
 
-    # main loop
-    laststep = state.simulation_plan.last_step
-    step = initial_step = state.step[]
-    update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
+#     # main loop
+#     laststep = state.simulation_plan.last_step
+#     step = initial_step = state.step[]
+#     update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
 
-    @withprogress name=name while step < laststep
-        step = state.step[] += 1
-        if step % reporting_interval(state.r_strat) == 0
-            report!(state.r_strat, step, report, :steps, step)
-        end
-        # This loop could be threaded if num_threads() == num_replicas? MPIData would
-        # need to be aware of the replica's id and use that in communication.
-        success = true
-        for replica in state.replicas
-            success &= advance!(report, state, replica)
-        end
-        if step % reporting_interval(state.r_strat) == 0
-            replica_names, replica_values = replica_stats(state.replica, state.replicas)
-            report!(state.r_strat, step, report, replica_names, replica_values)
-            report_after_step(state.r_strat, step, report, state)
-            ensure_correct_lengths(report)
-        end
-        if step % update_steps == 0 # for updating progress bars
-            @logprogress (step-initial_step)/(laststep-initial_step)
-        end
-        !success && break
-    end
+#     @withprogress name=name while step < laststep
+#         step = state.step[] += 1
+#         if step % reporting_interval(state.r_strat) == 0
+#             report!(state.r_strat, step, report, :steps, step)
+#         end
+#         # This loop could be threaded if num_threads() == num_replicas? MPIData would
+#         # need to be aware of the replica's id and use that in communication.
+#         success = true
+#         for replica in state.replicas
+#             success &= advance!(report, state, replica)
+#         end
+#         if step % reporting_interval(state.r_strat) == 0
+#             replica_names, replica_values = replica_stats(state.replica, state.replicas)
+#             report!(state.r_strat, step, report, replica_names, replica_values)
+#             report_after_step(state.r_strat, step, report, state)
+#             ensure_correct_lengths(report)
+#         end
+#         if step % update_steps == 0 # for updating progress bars
+#             @logprogress (step-initial_step)/(laststep-initial_step)
+#         end
+#         !success && break
+#     end
 
-    # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
-    # compatible, which should be the case if the run is an actual continuation. Maybe the
-    # DataFrames should be merged in a more permissive manner?
-    result_df = finalize_report!(state.r_strat, report)
-    if !isempty(df)
-        df = vcat(df, result_df) # metadata is not propagated
-        for (key, val) in get_metadata(report) # add metadata
-            DataFrames.metadata!(df, key, val)
-        end
-        return (; df, state)
-    else
-        return (; df=result_df, state)
-    end
-end
+#     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
+#     # compatible, which should be the case if the run is an actual continuation. Maybe the
+#     # DataFrames should be merged in a more permissive manner?
+#     result_df = DataFrame(finalize_report!(state.r_strat, report))
+#     if !isempty(df)
+#         df = vcat(df, result_df) # metadata is not propagated
+#         for (key, val) in get_metadata(report) # add metadata
+#             DataFrames.metadata!(df, key, val)
+#         end
+#         return (; df, state)
+#     else
+#         return (; df=result_df, state)
+#     end
+# end
 
 """
     advance!(report::Report, state::QMCState, replica::ReplicaState)
