@@ -16,26 +16,26 @@ end
 Defines a problem to be solved by the FCIQMC algorithm.
 
 # Common keyword arguments and defaults:
-- `time_step = 0.01`: initial time step size.
-- `last_step = 100`: controls the number of steps.
-- `targetwalkers = 1_000`: target for the 1-norm of the coefficient vector.
+- `time_step = 0.01`: Initial time step size.
+- `last_step = 100`: Controls the number of steps.
+- `targetwalkers = 1_000`: Target for the 1-norm of the coefficient vector.
 - `start_at = starting_address(hamiltonian)`: Define the initial state vector. This can be a
     single address, a collection of addresses, a single starting vector, or a collection of
     starting vectors. If multiple starting vectors are passed, their number must match the
     number of replicas. If (a collection of) [`AbstractDVec`](@ref)(s) is passed, the
     keyword arguments `style`, `initiator`, and `threading` are ignored.
 - `style = IsDynamicSemistochastic()`: The [`StochasticStyle`](@ref) of the simulation.
-- `initiator = NonInitiator()`: The [`InitiatorRule`](@ref) for the simulation.
-- `threading`: default is to use multithreading and
+- `initiator = NonInitiator()`: Whether to use initiators. See [`InitiatorRule`](@ref).
+- `threading`: Default is to use multithreading and
   [MPI](https://juliaparallel.org/MPI.jl/latest/) if multiple threads are available. Set to
   `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
   may be overridden by `start_at`.
-- `reporting_strategy = ReportDFAndInfo()`: how and when to report results, see
+- `reporting_strategy = ReportDFAndInfo()`: How and when to report results, see
   [`ReportingStrategy`](@ref).
-- `post_step_strategy = ()`: extract observables (e.g.
+- `post_step_strategy = ()`: Extract observables (e.g.
   [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
-- `n_replicas = 1`: number of synchronised independent simulations.
-- `replica_strategy = NoStats(n_replicas)`: which results to report from replica
+- `n_replicas = 1`: Number of synchronised independent simulations.
+- `replica_strategy = NoStats(n_replicas)`: Which results to report from replica
   simulations, see [`ReplicaStrategy`](@ref).
 
 # Example
@@ -50,29 +50,31 @@ julia> simulation = solve(problem);
 julia> simulation.success[]
 true
 
-julia> size(DataFrame(sm))
+julia> size(DataFrame(simulation))
 (100, 10)
 ```
 
 # Further keyword arguments:
-- `starting_step = 1`: starting step of the simulation.
-- `walltime = Inf`: maximum time allowed for the simulation.
-- `simulation_plan = SimulationPlan(; starting_step, last_step, walltime)`: defines the
+- `starting_step = 1`: Starting step of the simulation.
+- `walltime = Inf`: Maximum time allowed for the simulation.
+- `simulation_plan = SimulationPlan(; starting_step, last_step, walltime)`: Defines the
     duration of the simulation. Takes precedence over `last_step` and `walltime`.
-- `ζ = 0.08`: damping parameter for the shift update.
-- `ξ = ζ^2/4`: forcing parameter for the shift update.
-- `shift_strategy = DoubleLogUpdate(; targetwalkers, ζ, ξ)`: strategy for updating the shift.
-- `shift`: initial shift value or collection of shift values. Determined by default from the
+- `ζ = 0.08`: Damping parameter for the shift update.
+- `ξ = ζ^2/4`: Forcing parameter for the shift update.
+- `shift_strategy = DoubleLogUpdate(; targetwalkers, ζ, ξ)`: How to update the `shift`,
+    see [`ShiftStrategy`](@ref).
+- `shift`: Initial shift value or collection of shift values. Determined by default from the
     Hamiltonian and the starting vectors.
-- `initial_shift_parameters`: initial shift parameters or collection of initial shift
+- `initial_shift_parameters`: Initial shift parameters or collection of initial shift
     parameters. Overrides `shift` if provided.
-- `time_step_strategy = ConstantTimeStep()`: strategy for updating the time step.
-- `maxlength = 2 * targetwalkers + 100`: maximum length of the vectors.
-- `display_name = "QMCSimulation"`: name displayed in progress bar (via `ProgressLogging`)
-- `metadata`: user-supplied metadata to be added to the report. Must be an iterable of
+- `time_step_strategy = ConstantTimeStep()`: Adjust time step or not, see
+  [`TimeStepStrategy`](@ref).
+- `maxlength = 2 * targetwalkers + 100`: Maximum length of the vectors.
+- `display_name = "QMCSimulation"`: Name displayed in progress bar (via `ProgressLogging`).
+- `metadata`: User-supplied metadata to be added to the report. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
   All metadata is converted to strings.
-- `random_seed = true`: provide and store a seed for the random number generator.
+- `random_seed = true`: Provide and store a seed for the random number generator.
 
 See also [`init`](@ref), [`solve`](@ref).
 """
