@@ -10,8 +10,17 @@ See [`report!`](@ref), [`report_metadata!`](@ref), [`get_metadata`](@ref).
 struct Report
     data::LittleDict{Symbol,Vector}
     meta::LittleDict{String,String} # `String`s are required for Arrow metadata
+    is_finalized::Ref{Bool}
 
-    Report() = new(LittleDict{Symbol,Vector}(), LittleDict{String,String}())
+    Report() = new(LittleDict{Symbol,Vector}(), LittleDict{String,String}(), Ref(false))
+end
+
+function is_finalized(report::Report)
+    return report.is_finalized[]
+end
+function un_finalize!(report::Report)
+    report.is_finalized[] = false
+    return report
 end
 
 function Base.show(io::IO, report::Report)
@@ -64,13 +73,10 @@ end
 Set metadata `key` to `value` in `report`. `key` and `value` are converted to `String`s.
 Alternatively, an iterable of key-value pairs or a `NamedTuple` can be passed.
 
-Throws an error if `key` already exists.
-
 See also [`get_metadata`](@ref), [`report!`](@ref), [`Report`](@ref).
 """
 function report_metadata!(report::Report, key, value)
     key = string(key)
-    haskey(report.meta, key) && throw(ArgumentError("duplicate metadata key: $key"))
     report.meta[key] = string(value)
     return report
 end
@@ -239,7 +245,10 @@ reporting_interval(::ReportingStrategy) = 1
 Finalize the report. This function is called after all steps in [`lomc!`](@ref) have
 finished.
 """
-finalize_report!(::ReportingStrategy, report) = report
+function finalize_report!(::ReportingStrategy, report)
+    report.is_finalized[] = true
+    return report
+end
 
 function print_stats(io::IO, step, state)
     print(io, "[ ", lpad(step, 11), " | ")
@@ -377,6 +386,7 @@ function report_after_step(s::ReportToFile, step, report, state)
 
         if !_isopen(s)
             # If the writer is closed or absent, we need to create a new one
+            # Simulation status metadata will be absent in the Arrow file
             s.writer = open(
                 Arrow.Writer, s.filename;
                 compress=s.compress, metadata=report.meta
@@ -388,6 +398,7 @@ function report_after_step(s::ReportToFile, step, report, state)
 end
 # We rely on this function to be called to close the writer.
 function finalize_report!(s::ReportToFile, report)
+    is_finalized(report) && return report
     if s.save_if
         println(s.io, "Finalizing.")
         if !isempty(report)
@@ -402,11 +413,13 @@ function finalize_report!(s::ReportToFile, report)
         end
         close(s.writer) # close the writer
         empty!(report)
+        report.is_finalized[] = true
         if s.return_df
             return report!(report, RimuIO.load_df(s.filename))
         end
     end
-    empty!(report)
+    report.is_finalized[] = true
+    empty!(report) # retains the metadata
     return report # return the report
 end
 function reporting_interval(s::ReportToFile)

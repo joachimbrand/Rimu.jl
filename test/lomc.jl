@@ -17,9 +17,9 @@ import Tables
 Random.seed!(1234)
 @testset "lomc!/QMCState" begin
     @testset "Setting laststep + working memory" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=0.1)
-        dv = DVec(add => 1; style=IsStochasticInteger())
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=0.1)
+        dv = DVec(address => 1; style=IsStochasticInteger())
 
         # test passing working memory
         v = copy(dv)
@@ -49,9 +49,9 @@ Random.seed!(1234)
     end
 
     @testset "Setting dτ and shift" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=0.1)
-        dv = DVec(add => 1; style=IsStochasticInteger())
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=0.1)
+        dv = DVec(address => 1; style=IsStochasticInteger())
         df, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
         @test state.replicas[1].shift_parameters.time_step  == 0.002
         @test state.replicas[1].shift_parameters.shift == 23.1
@@ -70,9 +70,9 @@ Random.seed!(1234)
         @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, style=IsStochasticInteger())
     end
     @testset "Setting walkernumber" begin
-        add = BoseFS{2,5}((0,0,2,0,0))
-        H = HubbardMom1D(add; u=0.5)
-        dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
+        address = BoseFS{2,5}((0,0,2,0,0))
+        H = HubbardMom1D(address; u=0.5)
+        dv = DVec(address => 1; style=IsStochasticWithThreshold(1.0))
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
         v = copy(dv)
@@ -95,11 +95,11 @@ Random.seed!(1234)
     end
 
     @testset "Replicas" begin
-        add = near_uniform(BoseFS{5,15})
-        H = HubbardReal1D(add)
+        address = near_uniform(BoseFS{5,15})
+        H = HubbardReal1D(address)
         G = GutzwillerSampling(H, g=1)
         @testset "NoStats" begin
-            dv = DVec(add => 1, style=IsDynamicSemistochastic())
+            dv = DVec(address => 1, style=IsDynamicSemistochastic())
             df, state = lomc!(H, dv; replica=NoStats(1))
             @test state.replica == NoStats(1)
             @test length(state.replicas) == 1
@@ -121,8 +121,8 @@ Random.seed!(1234)
         end
         @testset "AllOverlaps" begin
             for dv in (
-                DVec(add => 1, style=IsDynamicSemistochastic()),
-                PDVec(add => 1, style=IsDynamicSemistochastic()),
+                DVec(address => 1, style=IsDynamicSemistochastic()),
+                PDVec(address => 1, style=IsDynamicSemistochastic()),
             )
 
                 # No operator: N choose 2 reports.
@@ -184,7 +184,7 @@ Random.seed!(1234)
             @test df.c1_Op1_c2 isa Vector{ComplexF64}
 
             # MPIData
-            dv = DVec(add => 1, style=IsDynamicSemistochastic())
+            dv = DVec(address => 1, style=IsDynamicSemistochastic())
             df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
             df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))
@@ -193,9 +193,9 @@ Random.seed!(1234)
     end
 
     @testset "Dead population" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=20)
-        dv = DVec(add => 10; style=IsStochasticInteger())
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=20)
+        dv = DVec(address => 10; style=IsStochasticInteger())
 
         # Only population is dead.
         params = RunTillLastStep(shift = 0.0)
@@ -213,8 +213,8 @@ Random.seed!(1234)
     end
 
     @testset "Default DVec" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=20)
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=20)
         df, state = lomc!(H; laststep=100)
         @test StochasticStyle(state.replicas[1].v) isa IsStochasticInteger
 
@@ -226,8 +226,8 @@ Random.seed!(1234)
     end
 
     @testset "ShiftStrategy" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=20)
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=20)
 
         # DontUpdate
         s_strat = DontUpdate(targetwalkers = 100)
@@ -283,9 +283,9 @@ Random.seed!(1234)
     end
 
     @testset "Setting `maxlength`" begin
-        add = BoseFS{15,10}((0,0,0,0,0,15,0,0,0,0))
-        H = HubbardMom1D(add; u=6.0)
-        dv = PDVec(add => 1; style=IsDynamicSemistochastic())
+        address = BoseFS{15,10}((0,0,0,0,0,15,0,0,0,0))
+        H = HubbardMom1D(address; u=6.0)
+        dv = PDVec(address => 1; style=IsDynamicSemistochastic())
 
         Random.seed!(1336)
 
@@ -307,10 +307,10 @@ Random.seed!(1234)
     end
 
     @testset "Continuations" begin
-        add = BoseFS{5,5}((1,1,1,1,1))
-        H = HubbardReal1D(add; u=0.5)
+        address = BoseFS{5,5}((1,1,1,1,1))
+        H = HubbardReal1D(address; u=0.5)
         # Using Deterministic to get exact same result
-        dv = PDVec(add => 1.0, style=IsDeterministic())
+        dv = PDVec(address => 1.0, style=IsDeterministic())
 
         # Run lomc!, then change laststep and continue.
         df, state = lomc!(H, copy(dv))
@@ -326,16 +326,15 @@ Random.seed!(1234)
     end
 
     @testset "Reporting" begin
-        add = BoseFS((1,2,1,1))
-        H = HubbardReal1D(add; u=2)
-        dv = PDVec(add => 1, style=IsDeterministic())
+        address = BoseFS((1,2,1,1))
+        H = HubbardReal1D(address; u=2)
+        dv = PDVec(address => 1, style=IsDeterministic())
 
         @testset "ReportDFAndInfo" begin
             r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=devnull, writeinfo=true)
             df = lomc!(H, copy(dv); r_strat, laststep=100).df
             @test size(df, 1) == 20
             @test metadata(df, "Rimu.PACKAGE_VERSION") == string(Rimu.PACKAGE_VERSION)
-            @test_throws ArgumentError lomc!(H, copy(dv); r_strat, metadata=(;dτ=0.001))
 
             out = @capture_out begin
                 r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=stdout, writeinfo=true)
@@ -440,9 +439,9 @@ Random.seed!(1234)
     end
 
     @testset "Post step" begin
-        add = BoseFS((0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0))
-        H = HubbardMom1D(add; u=4)
-        dv = DVec(add => 1)
+        address = BoseFS((0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0))
+        H = HubbardMom1D(address; u=4)
+        dv = DVec(address => 1)
 
         @testset "Projector, ProjectedEnergy" begin
             Random.seed!(1337)
@@ -476,7 +475,7 @@ Random.seed!(1234)
             @test all(-1.0 .≤ df.coherence .≤ 1.0)
             @test all(in.(df.single_coherence, Ref((-1, 0, 1))))
 
-            cdv = DVec(add => 1 + im)
+            cdv = DVec(address => 1 + im)
             df, _ = lomc!(H, cdv; post_step)
             @test df.coherence isa Vector{ComplexF64}
         end
@@ -489,7 +488,7 @@ Random.seed!(1234)
             @test df.loneliness[1] == 1
             @test all(1 .≥ df.loneliness .≥ 0)
 
-            cdv = DVec(add => 1 + im)
+            cdv = DVec(address => 1 + im)
             df, _ = lomc!(H, cdv; post_step)
             @test df.loneliness isa Vector{ComplexF64}
         end
@@ -509,19 +508,19 @@ Random.seed!(1234)
                 SingleParticleDensity(save_every=2),
             )
             df, st = lomc!(H, copy(dv); post_step)
-            @test all(==(ntuple(_ -> 0, num_modes(add))), df.single_particle_density[1:2:end])
+            @test all(==(ntuple(_ -> 0, num_modes(address))), df.single_particle_density[1:2:end])
             @test all(≈(3), sum.(df.single_particle_density[2:2:end]))
 
             @test df.single_particle_density[end] == single_particle_density(st.replicas[1].v)
 
-            for add in (
+            for address in (
                 BoseFS2C((1,2,3), (0,1,0)),
                 CompositeFS(BoseFS((1,2,3)), FermiFS((0,1,0)))
             )
-                @test single_particle_density(add) == (1, 3, 3)
-                @test single_particle_density(add; component=1) == (1, 2, 3)
-                @test single_particle_density(add; component=2) == (0, 1, 0)
-                @test single_particle_density(DVec(add => 1); component=2) == (0, 7, 0)
+                @test single_particle_density(address) == (1, 3, 3)
+                @test single_particle_density(address; component=1) == (1, 2, 3)
+                @test single_particle_density(address; component=2) == (0, 1, 0)
+                @test single_particle_density(DVec(address => 1); component=2) == (0, 7, 0)
             end
         end
     end
@@ -554,20 +553,20 @@ end
     end
 
     @testset "Stochastic style comparison" begin
-        add = BoseFS{5,5}((1,1,1,1,1))
-        H = HubbardReal1D(add)
+        address = BoseFS{5,5}((1,1,1,1,1))
+        H = HubbardReal1D(address)
         E0 = -8.280991746582686
 
         Random.seed!(1234)
-        dv_st = DVec(add => 1; style=IsStochasticInteger())
-        dv_th = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
-        dv_cx = DVec(add => 1 + im; style=IsStochastic2Pop())
-        dv_dy = DVec(add => 1; style=IsDynamicSemistochastic())
-        dv_de = DVec(add => 1; style=IsDeterministic())
-        dv_dp = DVec(add => 1; style=IsDeterministic(ThresholdCompression()))
+        dv_st = DVec(address => 1; style=IsStochasticInteger())
+        dv_th = DVec(address => 1; style=IsStochasticWithThreshold(1.0))
+        dv_cx = DVec(address => 1 + im; style=IsStochastic2Pop())
+        dv_dy = DVec(address => 1; style=IsDynamicSemistochastic())
+        dv_de = DVec(address => 1; style=IsDeterministic())
+        dv_dp = DVec(address => 1; style=IsDeterministic(ThresholdCompression()))
 
-        dv_nr = DVec(add => 1; style=IsDynamicSemistochastic(spawning=WithoutReplacement()))
-        dv_br = DVec(add => 1; style=IsDynamicSemistochastic(spawning=Bernoulli()))
+        dv_nr = DVec(address => 1; style=IsDynamicSemistochastic(spawning=WithoutReplacement()))
+        dv_br = DVec(address => 1; style=IsDynamicSemistochastic(spawning=Bernoulli()))
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
         s_strat_cx = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100 + 100im)
@@ -623,28 +622,28 @@ end
     end
 
     @testset "Initiator energies" begin
-        add = BoseFS{10,10}((0,0,0,0,10,0,0,0,0,0))
+        address = BoseFS{10,10}((0,0,0,0,10,0,0,0,0,0))
         dv_no = DVec(
-            add => 1;
+            address => 1;
             style=IsDynamicSemistochastic()
         )
         dv_i1 = InitiatorDVec(
-            add => 1;
+            address => 1;
             initiator=Initiator(1),
             style=IsDynamicSemistochastic(),
         )
         dv_i2 = InitiatorDVec(
-            add => 1;
+            address => 1;
             initiator=SimpleInitiator(1),
             style=IsDynamicSemistochastic(),
         )
         dv_i3 = InitiatorDVec(
-            add => 1;
+            address => 1;
             initiator=CoherentInitiator(1),
             style=IsDynamicSemistochastic(),
         )
         dv_ni = InitiatorDVec(
-            add => 1;
+            address => 1;
             initiator=NonInitiator(),
             style=IsDynamicSemistochastic(),
         )
@@ -652,7 +651,7 @@ end
         @testset "Energies below the plateau & initiator bias" begin
             Random.seed!(8008)
 
-            H = HubbardMom1D(add; u=4.0)
+            H = HubbardMom1D(address; u=4.0)
             E0 = -9.251592973178997
 
             s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=300)
@@ -688,7 +687,7 @@ end
         @testset "Energies above the plateau" begin
             Random.seed!(1337)
 
-            H = HubbardMom1D(add)
+            H = HubbardMom1D(address)
             E0 = -16.36048582876015
 
             s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=3000)

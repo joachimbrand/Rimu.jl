@@ -2,6 +2,7 @@ using Rimu
 using Test
 import Random
 
+using Rimu: is_finalized
 using Rimu.DictVectors: FrozenDVec
 using OrderedCollections: freeze
 
@@ -113,15 +114,18 @@ end
     p = FCIQMCProblem(h)
     sm = init(p)
     @test sm.modified[] == false == sm.aborted[] == sm.success[]
+    @test is_finalized(sm.report) == false
     @test sprint(show, sm) == "QMCSimulation\n  H:    HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  step: 0 / 100\n  modified = false, aborted = false, success = false\n  replicas: \n    1: ReplicaState(v: 1-element PDVec, wm: 0-element PDWorkingMemory)"
 
     @test step!(sm) isa Rimu.QMCSimulation
     @test sm.modified[] == true
+    @test is_finalized(sm.report) == false
     @test size(DataFrame(sm))[1] == sm.qmc_state.step[]
 
     @test solve!(sm) isa Rimu.QMCSimulation
     @test sm.modified[] == true
     @test sm.success[] == true
+    @test is_finalized(sm.report) == true
     @test size(DataFrame(sm))[1] == sm.qmc_state.step[]
 
     df, state = sm # deconstruction for backward compatibility
@@ -131,4 +135,22 @@ end
     # Tables.jl interface
     @test Tables.istable(sm)
     @test map(NamedTuple, Tables.rows(sm)) == map(NamedTuple, Tables.rows(df))
+
+    # continue simulation
+    @test sm.qmc_state.step[] == 100
+    solve!(sm; last_step=200)
+    @test sm.qmc_state.step[] == 200
+    @test sm.success[] == true == parse(Bool, (Rimu.get_metadata(sm.report, "success")))
+
+    # time out
+    p = FCIQMCProblem(h; last_step=100, walltime=1e-3)
+    sm = init(p)
+    @test_logs (:warn, Regex("(Walltime)")) solve!(sm)
+    @test sm.success[] == false
+    @test sm.aborted[] == true
+    @test sm.message[] == "Walltime limit reached."
+
+    solve!(sm; walltime=1.0)
+    @test sm.success[] == true
+    @test sm.qmc_state.step[] == 100
 end

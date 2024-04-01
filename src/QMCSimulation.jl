@@ -12,7 +12,7 @@ struct QMCSimulation
     modified::Ref{Bool}
     aborted::Ref{Bool}
     success::Ref{Bool}
-    message::String
+    message::Ref{String}
     elapsed_time::Ref{Float64}
 end
 
@@ -117,7 +117,7 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
     check_transform(qmc_state.replica, qmc_state.hamiltonian)
 
     return QMCSimulation(
-        problem, qmc_state, report, Ref(false), Ref(false), Ref(false), "", Ref(0.0)
+        problem, qmc_state, report, Ref(false), Ref(false), Ref(false), Ref(""), Ref(0.0)
     )
 end
 
@@ -130,11 +130,22 @@ function Base.show(io::IO, sm::QMCSimulation)
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  modified = $(sm.modified[]), aborted = $(sm.aborted[]), success = $(sm.success[])")
-    sm.message == "" || print(io, "\n  message: ", sm.message)
+    sm.message[] == "" || print(io, "\n  message: ", sm.message[])
     print(io, "\n  replicas: ")
     for (i, r) in enumerate(st.replicas)
         print(io, "\n    $i: ", r)
     end
+end
+
+function report_simulation_status_metadata!(report::Report, sm::QMCSimulation)
+    @unpack modified, aborted, success, message, elapsed_time = sm
+
+    report_metadata!(report, "modified", modified[])
+    report_metadata!(report, "aborted", aborted[])
+    report_metadata!(report, "success", success[])
+    report_metadata!(report, "message", message[])
+    report_metadata!(report, "elapsed_time", elapsed_time[])
+    return report
 end
 
 # iteration for backward compatibility
@@ -191,11 +202,15 @@ end
 
 Advance the simulation by one step.
 
+Calling [`solve!`](@ref) will advance the simulation until the last step or the walltime is
+exceeded. When completing the simulation without calling [`solve!`](@ref), the simulation
+report needs to be finalised by calling [`Rimu.finalize_report!`](@ref).
+
 See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`solve`](@ref),
 [`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::QMCSimulation)
-    @unpack qmc_state, report, modified, aborted, success = sm
+    @unpack qmc_state, report, modified, aborted, success, message = sm
     @unpack replicas, simulation_plan, step, r_strat,
         replica = qmc_state
 
@@ -232,6 +247,7 @@ function CommonSolve.step!(sm::QMCSimulation)
 
     if !proceed
         aborted[] = true
+        message[] = "Aborted in step $(step[])."
         return sm
     end
     if step[] == simulation_plan.last_step
@@ -251,46 +267,80 @@ See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`step!`](@r
 CommonSolve.solve
 
 """
-    CommonSolve.solve!(sm::QMCSimulation)::QMCSimulation
+    CommonSolve.solve!(sm::QMCSimulation; kwargs...)::QMCSimulation
 
 Solve the simulation until the last step or the walltime is exceeded.
+
+# Keyword arguments:
+* `last_step = nothing`: Set the last step to a new value and continue the simulation.
+* `walltime = nothing`: Set the allowed walltime to a new value and continue the simulation.
+* `reset_time = false`: Reset the `elapsed_time` counter and continue the simulation.
 
 See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve`](@ref), [`step!`](@ref),
 [`Rimu.QMCSimulation`](@ref).
 """
-function CommonSolve.solve!(sm::QMCSimulation)
-    @unpack aborted, success, message, elapsed_time = sm
-    @unpack simulation_plan, step = sm.qmc_state
+function CommonSolve.solve!(sm::QMCSimulation;
+    last_step = nothing,
+    walltime = nothing,
+    reset_time = false,
+)
+    reset_flags = reset_time # reset flags if resetting time
+    if !isnothing(last_step)
+        sm = @set sm.qmc_state.simulation_plan.last_step = last_step
+        report_metadata!(sm.report, "laststep", last_step)
+        reset_flags = true
+    end
+    if !isnothing(walltime)
+        sm = @set sm.qmc_state.simulation_plan.walltime = walltime
+        reset_flags = true
+    end
+
+    @unpack aborted, success, message, elapsed_time, report = sm
+    @unpack simulation_plan, step, r_strat = sm.qmc_state
 
     last_step = simulation_plan.last_step
     initial_step = step[]
+
+    if step[] >= last_step
+        @warn "Simulation has already reached the last step."
+        return sm
+    end
+
+    if reset_flags # reset the flags
+        aborted[] = false
+        success[] = false
+        message[] = ""
+    end
+    if reset_time # reset the elapsed time
+        elapsed_time[] = 0.0
+    end
 
     if aborted[] || success[]
         @warn "Simulation is already aborted or finished."
         return sm
     end
-    if step[] >= simulation_plan.last_step
-        @warn "Simulation has already reached the last step."
-        return sm
-    end
+    un_finalize!(report)
 
-    starting_time = time()
+    starting_time = time() + elapsed_time[] # simulation time accumulates
     update_steps = max((last_step - initial_step) ÷ 200, 100) # log often but not too often
     name = get_metadata(sm.report, "display_name")
 
-    @withprogress name = while !sm.aborted[] && !sm.success[]
-        step!(sm)
+    @withprogress name = while !aborted[] && !success[]
         if time() - starting_time > simulation_plan.walltime
             aborted[] = true
-            message = "Walltime limit reached."
+            message[] = "Walltime limit reached."
+            @warn "Walltime limit reached. Aborting simulation."
+        else
+            step!(sm)
         end
         if step[] % update_steps == 0 # for updating progress bars
             @logprogress (step[] - initial_step) / (last_step - initial_step)
         end
 
     end
-    finalize_report!(sm.qmc_state.r_strat, sm.report)
     elapsed_time[] = time() - starting_time
+    report_simulation_status_metadata!(report, sm) # potentially overwrite values
+    finalize_report!(r_strat, report)
     return sm
 end
 
