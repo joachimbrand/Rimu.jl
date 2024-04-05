@@ -1,7 +1,7 @@
 """
     QMCSimulation
 Holds the state and the results of a QMC simulation. Initialise with
-[`init(::FCIQMCProblem)`](@ref) and solve with [`solve!(::QMCSimulation)`].
+[`init(::FCIQMCProblem)`](@ref) and solve with [`solve!(::QMCSimulation)`](@ref).
 
 Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 """
@@ -80,7 +80,7 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
             wm,
             deepcopy(shift_strategy),
             deepcopy(time_step_strategy),
-            only(initial_shift_parameters),
+            only(shift_parameters),
             ""),)
     else
         replicas = ntuple(n_replicas) do i
