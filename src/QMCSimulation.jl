@@ -241,7 +241,7 @@ function CommonSolve.step!(sm::QMCSimulation)
     if step[] % reporting_interval(r_strat) == 0
         replica_names, replica_values = replica_stats(replica, replicas)
         report!(r_strat, step[], report, replica_names, replica_values)
-        report_after_step(r_strat, step[], report, qmc_state)
+        report_after_step!(r_strat, step[], report, qmc_state)
         ensure_correct_lengths(report)
     end
 

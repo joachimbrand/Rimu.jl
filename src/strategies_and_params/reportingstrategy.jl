@@ -188,7 +188,7 @@ A `ReportingStrategy` can define any of the following:
 
 * [`refine_r_strat`](@ref)
 * [`report!`](@ref)
-* [`report_after_step`](@ref)
+* [`report_after_step!`](@ref)
 * [`finalize_report!`](@ref)
 * [`reporting_interval`](@ref)
 
@@ -222,13 +222,13 @@ function report!(::ReportingStrategy, _, args...)
 end
 
 """
-    report_after_step(::ReportingStrategy, step, report, state)
+    report_after_step!(::ReportingStrategy, step, report, state) -> report
 
 This function is called at the very end of a step, after [`reporting_interval`](@ref) steps.
-For example, it can be used to print some information to `stdout`.
+It may modify the `report`.
 """
-function report_after_step(::ReportingStrategy, args...)
-    return nothing
+function report_after_step!(::ReportingStrategy, _, report, args...)
+    return report
 end
 
 """
@@ -275,10 +275,11 @@ end
 function report!(s::ReportDFAndInfo, _, args...)
     report!(args...)
 end
-function report_after_step(s::ReportDFAndInfo, step, _, state)
+function report_after_step!(s::ReportDFAndInfo, step, report, state)
     if s.writeinfo && step % (s.info_interval * s.reporting_interval) == 0
         print_stats(s.io, step, state)
     end
+    return report
 end
 function reporting_interval(s::ReportDFAndInfo)
     return s.reporting_interval
@@ -379,7 +380,7 @@ function report!(s::ReportToFile, _, args...)
         report!(args...)
     end
 end
-function report_after_step(s::ReportToFile, step, report, state)
+function report_after_step!(s::ReportToFile, step, report, state)
     if s.save_if && step % (s.chunk_size * s.reporting_interval) == 0
         # Report some stats:
         print_stats(s.io, step, state)
@@ -395,6 +396,7 @@ function report_after_step(s::ReportToFile, step, report, state)
         Arrow.write(s.writer, report.data)
         empty!(report)
     end
+    return report
 end
 # We rely on this function to be called to close the writer.
 function finalize_report!(s::ReportToFile, report)
