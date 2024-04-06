@@ -16,6 +16,10 @@ import Tables
 
 Random.seed!(1234)
 @testset "lomc!/QMCState" begin
+    @testset "AbstractMatrix" begin
+        @test_throws ArgumentError lomc!([1 2; 3 4])
+    end
+
     @testset "Setting laststep + working memory" begin
         address = BoseFS{5,2}((2,3))
         H = HubbardReal1D(address; u=0.1)
@@ -270,16 +274,6 @@ Random.seed!(1234)
         s_strat = Rimu.DoubleLogProjected(target = 100.0, projector=UniformProjector())
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-    end
-
-    @testset "deprecated" begin
-        @test_throws ErrorException DelayedLogUpdateAfterTargetWalkers()
-        @test_throws ErrorException HistoryLogUpdate()
-        @test_throws ErrorException DelayedLogUpdate()
-        @test_throws ErrorException DelayedDoubleLogUpdateAfterTW()
-        @test_throws ErrorException DoubleLogUpdateAfterTargetWalkersSwitch()
-        @test_throws ErrorException DelayedDoubleLogUpdate()
-        @test_throws ErrorException TripleLogUpdate()
     end
 
     @testset "Setting `maxlength`" begin
