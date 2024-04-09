@@ -370,11 +370,16 @@ function Base.empty!(buf::NestedSegmentedBuffer)
 end
 
 function mpi_communicate!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
+    ncols = src.ncols
+    if dst.ncols ≠ ncols
+        throw(ArgumentError("mismatch in number of cols ($ncols and $(dst.ncols))."))
+    end
+
     resize!(dst.counts, length(src.counts))
-    MPI.Alltoall!(src.counts, dst.counts, comm)
+    MPI.Alltoall!(MPI.UBuffer(src.counts, 1), MPI.UBuffer(dst.counts, 1), comm)
 
     resize!(dst.offsets, length(src.offsets))
-    MPI.Alltoall!(src.offsets, dst.offsets, comm)
+    MPI.Alltoall!(MPI.UBuffer(src.offsets, ncols), MPI.UBuffer(dst.offsets, ncols), comm)
 
     resize!(dst.buffer, sum(dst.counts))
     send_vbuff = MPI.VBuffer(src.buffer, src.counts)
