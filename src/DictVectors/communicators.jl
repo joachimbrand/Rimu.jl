@@ -315,19 +315,19 @@ function copy_to_local!(ptp::PointToPoint, w, t)
 end
 
 struct NestedSegmentedBuffer{T} <: AbstractMatrix{SubVector{T}}
-    ncols::Int
+    nrows::Int
     counts::Vector{Int}
     offsets::Vector{Int}
     buffer::Vector{T}
 end
-function NestedSegmentedBuffer{T}(ncols) where {T}
-    return NestedSegmentedBuffer{T}(ncols, Int[], Int[], T[])
+function NestedSegmentedBuffer{T}(nrows) where {T}
+    return NestedSegmentedBuffer{T}(nrows, Int[], Int[], T[])
 end
 
-Base.size(buf::NestedSegmentedBuffer) = (buf.ncols, length(buf.offsets) ÷ buf.ncols)
+Base.size(buf::NestedSegmentedBuffer) = (buf.nrows, length(buf.offsets) ÷ buf.nrows)
 
 function Base.getindex(buf::NestedSegmentedBuffer, i, j)
-    nrows = buf.ncols
+    nrows = buf.nrows
     ncols = length(buf.counts)
     index = (j - 1) * nrows + i
 
@@ -339,8 +339,8 @@ function Base.getindex(buf::NestedSegmentedBuffer, i, j)
 end
 
 function append_collections!(buf::NestedSegmentedBuffer, iters)
-    if length(iters) ≠ buf.ncols
-        throw(ArgumentError("Expected $(buf.ncols) iterators, got $(length(iters))"))
+    if length(iters) ≠ buf.nrows
+        throw(ArgumentError("Expected $(buf.nrows) iterators, got $(length(iters))"))
     end
 
     count = sum(length, iters)
@@ -362,6 +362,13 @@ function append_collections!(buf::NestedSegmentedBuffer, iters)
     end
     return buf
 end
+function append_empty_column!(buf::NestedSegmentedBuffer)
+    push!(buf.counts, 0)
+    for i in 1:buf.nrows
+        push!(buf.offsets, 0)
+    end
+    return buf
+end
 
 function Base.empty!(buf::NestedSegmentedBuffer)
     empty!(buf.counts)
@@ -370,16 +377,16 @@ function Base.empty!(buf::NestedSegmentedBuffer)
 end
 
 function mpi_communicate!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
-    ncols = src.ncols
-    if dst.ncols ≠ ncols
-        throw(ArgumentError("mismatch in number of cols ($ncols and $(dst.ncols))."))
+    nrows = src.nrows
+    if dst.nrows ≠ nrows
+        throw(ArgumentError("mismatch in number of cols ($nrows and $(dst.nrows))."))
     end
 
     resize!(dst.counts, length(src.counts))
     MPI.Alltoall!(MPI.UBuffer(src.counts, 1), MPI.UBuffer(dst.counts, 1), comm)
 
     resize!(dst.offsets, length(src.offsets))
-    MPI.Alltoall!(MPI.UBuffer(src.offsets, ncols), MPI.UBuffer(dst.offsets, ncols), comm)
+    MPI.Alltoall!(MPI.UBuffer(src.offsets, nrows), MPI.UBuffer(dst.offsets, nrows), comm)
 
     resize!(dst.buffer, sum(dst.counts))
     send_vbuff = MPI.VBuffer(src.buffer, src.counts)
@@ -395,20 +402,48 @@ end
 
 # Alltoall!(sendrecvbuf, comm)
 
-#=
 struct AllToAll{K,V} <: Communicator
-    buffer::SegmentedBuffer{Pair{K,V}}
+    send_buffer::NestedSegmentedBuffer{Pair{K,V}}
+    recv_buffer::NestedSegmentedBuffer{Pair{K,V}}
     mpi_comm::MPI.Comm
     mpi_rank::Int
     mpi_size::Int
 end
-
-mpi_rank(ptp::AllToAll) = ptp.mpi_rank
-mpi_size(ptp::AllToAll) = ptp.mpi_size
-mpi_comm(ptp::AllToAll) = ptp.mpi_comm
-
-function synchronize_remote!(ptp::AllToAll, w)
-
+function AllToAll{K,V}(
+    ;
+    mpi_comm=MPI.COMM_WORLD,
+    mpi_rank=MPI.Comm_rank(mpi_comm),
+    mpi_size=MPI.Comm_size(mpi_comm),
+    threads=Threads.nthreads(),
+) where {K,V}
+    return AllToAll(
+        NestedSegmentedBuffer{Pair{K,V}}(threads),
+        NestedSegmentedBuffer{Pair{K,V}}(threads),
+        mpi_comm,
+        mpi_rank,
+        mpi_size,
+    )
 end
 
-=#
+mpi_rank(ata::AllToAll) = ata.mpi_rank
+mpi_size(ata::AllToAll) = ata.mpi_size
+mpi_comm(ata::AllToAll) = ata.mpi_comm
+
+function synchronize_remote!(ata::AllToAll, w)
+    # Fill the buffer
+    empty!(ata.send_buffer)
+
+    for i in 0:(ata.mpi_size - 1)
+        if i == ata.mpi_rank
+            # these are not remote, but need to be added anyway
+            append_empty_column!(ata.send_buffer)
+        else
+            append_collections!(ata.send_buffer, remote_segments(w, i))
+        end
+    end
+    mpi_communicate!(ata.send_buffer, ata.recv_buffer, ata.mpi_comm)
+
+    for i in 1:mpi_size()
+        foreach(dict_add!, local_segments(w), view(ata.recv_buffer, :, i))
+    end
+end
