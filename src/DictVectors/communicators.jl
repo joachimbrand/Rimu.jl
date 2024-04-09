@@ -161,6 +161,8 @@ function target_segment(c::LocalPart, k, num_segments)
     end
 end
 
+const SubVector{T} = SubArray{T,1,Vector{T},Tuple{UnitRange{Int64}},true}
+
 """
     SegmentedBuffer
 
@@ -168,7 +170,7 @@ Multiple vectors stored in a simple buffer with MPI communication.
 
 See [`replace_collections!`](@ref), [`mpi_send`](@ref), [`mpi_recv_any!`](@ref).
 """
-struct SegmentedBuffer{T} <: AbstractVector{SubArray{T,1,Vector{T},Tuple{UnitRange{Int64}},true}}
+struct SegmentedBuffer{T} <: AbstractVector{SubVector{T}}
     offsets::Vector{Int}
     buffer::Vector{T}
 end
@@ -311,3 +313,97 @@ function copy_to_local!(ptp::PointToPoint, w, t)
     # Pack the segments into a PDVec and return it.
     return main_column(w)
 end
+
+struct NestedSegmentedBuffer{T} <: AbstractMatrix{SubVector{T}}
+    ncols::Int
+    counts::Vector{Int}
+    offsets::Vector{Int}
+    buffer::Vector{T}
+end
+function NestedSegmentedBuffer{T}(ncols) where {T}
+    return NestedSegmentedBuffer{T}(ncols, Int[], Int[], T[])
+end
+
+Base.size(buf::NestedSegmentedBuffer) = (buf.ncols, length(buf.offsets) ÷ buf.ncols)
+
+function Base.getindex(buf::NestedSegmentedBuffer, i, j)
+    nrows = buf.ncols
+    ncols = length(buf.counts)
+    index = (j - 1) * nrows + i
+
+    offset = sum(view(buf.counts, 1:(j-1)))
+
+    start_index = (i == 1 ? 0 : buf.offsets[index - 1]) + offset + 1
+    end_index = buf.offsets[index] + offset
+    return view(buf.buffer, start_index:end_index)
+end
+
+function append_collections!(buf::NestedSegmentedBuffer, iters)
+    if length(iters) ≠ buf.ncols
+        throw(ArgumentError("Expected $(buf.ncols) iterators, got $(length(iters))"))
+    end
+
+    count = sum(length, iters)
+    buf_start = length(buf.buffer)
+    offset_start = length(buf.offsets)
+
+    push!(buf.counts, count)
+    resize!(buf.offsets, length(iters) + length(buf.offsets))
+    resize!(buf.buffer, count + length(buf.buffer))
+
+    curr = 0
+    for (i, it) in enumerate(iters)
+        curr += length(it)
+        buf.offsets[offset_start + i] = curr
+    end
+
+    for (i, v) in enumerate(Iterators.flatten(iters))
+        buf.buffer[buf_start + i] = v
+    end
+    return buf
+end
+
+function Base.empty!(buf::NestedSegmentedBuffer)
+    empty!(buf.counts)
+    empty!(buf.offsets)
+    empty!(buf.buffer)
+end
+
+function mpi_communicate!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
+    resize!(dst.counts, length(src.counts))
+    MPI.Alltoall!(src.counts, dst.counts, comm)
+
+    resize!(dst.offsets, length(src.offsets))
+    MPI.Alltoall!(src.offsets, dst.offsets, comm)
+
+    resize!(dst.buffer, sum(dst.counts))
+    send_vbuff = MPI.VBuffer(src.buffer, src.counts)
+    recv_vbuff = MPI.VBuffer(dst.buffer, dst.counts)
+
+    MPI.Alltoallv!(send_vbuff, recv_vbuff, comm)
+    return dst
+end
+
+# Alltoallv!(sendbuf, sendcounts, sendtype, recvbuf, recvcounts, recvtype, comm)
+# sendbuf: data to send
+# sendcounts: number to send to each rank
+
+# Alltoall!(sendrecvbuf, comm)
+
+#=
+struct AllToAll{K,V} <: Communicator
+    buffer::SegmentedBuffer{Pair{K,V}}
+    mpi_comm::MPI.Comm
+    mpi_rank::Int
+    mpi_size::Int
+end
+
+mpi_rank(ptp::AllToAll) = ptp.mpi_rank
+mpi_size(ptp::AllToAll) = ptp.mpi_size
+mpi_comm(ptp::AllToAll) = ptp.mpi_comm
+
+function synchronize_remote!(ptp::AllToAll, w)
+
+end
+
+=#
