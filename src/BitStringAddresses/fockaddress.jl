@@ -8,6 +8,9 @@ See also [`SingleComponentFockAddress`](@ref), [`CompositeFS`](@ref), [`BoseFS`]
 """
 abstract type AbstractFockAddress{N,M} end
 
+# `AbstractFockAddress`es can be reconstructed from their printout.
+Base.typeinfo_implicit(::Type{<:AbstractFockAddress}) = true
+
 """
     num_particles(::Type{<:AbstractFockAddress})
     num_particles(::AbstractFockAddress)

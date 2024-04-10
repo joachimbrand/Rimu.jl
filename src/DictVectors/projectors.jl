@@ -141,6 +141,13 @@ faster dot products. See: [`freeze`](@ref).
 struct FrozenDVec{K,V} <: AbstractProjector
     pairs::Vector{Pair{K,V}}
 end
+function Base.show(io::IO, fd::FrozenDVec)
+    io = IOContext(io, :compact => true)
+    print(io, "Rimu.FrozenDVec(")
+    show(io, fd.pairs)
+    print(io, ")")
+end
+
 Base.keytype(::FrozenDVec{K}) where {K} = K
 Base.valtype(::FrozenDVec{<:Any,V}) where {V} = V
 Base.eltype(::FrozenDVec{K,V}) where {K,V} = Pair{K,V}

@@ -83,3 +83,12 @@ function default_logger(args...; kwargs...)
     Base.global_logger(ConsoleLogger(args...; kwargs...)) # disable terminal progress bar
     return Base.global_logger()
 end
+
+"""
+    delete(nt::NamedTuple, keys)::NamedTuple
+
+Delete the keys from the NamedTuple. Credit tkf.
+"""
+function delete(nt::NamedTuple{names}, keys) where {names}
+    return NamedTuple{filter(x -> x ∉ keys, names)}(nt)
+end

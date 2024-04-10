@@ -70,6 +70,7 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export localpart, walkernumber
 export smart_logger, default_logger
 export FCIQMCProblem, SimulationPlan
+export ExactDiagonalizationProblem, KrylovKitMatrix
 
 function __init__()
     # Turn on smart logging once at runtime. Turn off with `default_logger()`.
@@ -86,6 +87,7 @@ include("FCIQMCProblem.jl")
 
 include("lomc.jl")                  # top level
 include("QMCSimulation.jl")
+include("exact_diagonalization.jl")
 
 include("RMPI/RMPI.jl")
 

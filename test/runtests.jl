@@ -23,6 +23,10 @@ using ExplicitImports: check_no_implicit_imports
     include("Interfaces.jl")
 end
 
+@safetestset "exact_diagonalization" begin
+    include("exact_diagonalization.jl")
+end
+
 @safetestset "BitStringAddresses" begin
     include("BitStringAddresses.jl")
 end
