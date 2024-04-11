@@ -250,12 +250,14 @@ struct PointToPoint{K,V} <: Communicator
     mpi_comm::MPI.Comm
     mpi_rank::Int
     mpi_size::Int
+    report::Bool
 end
 function PointToPoint{K,V}(
     ;
     mpi_comm=MPI.COMM_WORLD,
     mpi_rank=MPI.Comm_rank(mpi_comm),
     mpi_size=MPI.Comm_size(mpi_comm),
+    report=false,
 ) where {K,V}
     return PointToPoint(
         [SegmentedBuffer{Pair{K,V}}() for _ in 1:mpi_size-1],
@@ -263,6 +265,7 @@ function PointToPoint{K,V}(
         mpi_comm,
         mpi_rank,
         mpi_size,
+        report,
     )
 end
 
@@ -271,20 +274,26 @@ mpi_size(ptp::PointToPoint) = ptp.mpi_size
 mpi_comm(ptp::PointToPoint) = ptp.mpi_comm
 
 function synchronize_remote!(ptp::PointToPoint, w)
-    # Asynchronously send all buffers.
-    for offset in 1:ptp.mpi_size - 1
-        dst_rank = mod(ptp.mpi_rank + offset, ptp.mpi_size)
-        send_buffer = ptp.send_buffers[offset]
-        replace_collections!(send_buffer, remote_segments(w, dst_rank))
-        mpi_send(send_buffer, dst_rank, ptp.mpi_comm)
-    end
+    comm_time = @elapsed begin
+        # Asynchronously send all buffers.
+        for offset in 1:ptp.mpi_size - 1
+            dst_rank = mod(ptp.mpi_rank + offset, ptp.mpi_size)
+            send_buffer = ptp.send_buffers[offset]
+            replace_collections!(send_buffer, remote_segments(w, dst_rank))
+            mpi_send(send_buffer, dst_rank, ptp.mpi_comm)
+        end
 
-    # Receive and insert from each rank. The order is first come first serve.
-    for _ in 1:ptp.mpi_size - 1
-        mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
-        Folds.foreach(dict_add!, local_segments(w), ptp.recv_buffer)
+        # Receive and insert from each rank. The order is first come first serve.
+        for _ in 1:ptp.mpi_size - 1
+            mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
+            Folds.foreach(dict_add!, local_segments(w), ptp.recv_buffer)
+        end
     end
-    return (), ()
+    if ptp.report
+        return (:total_comm_time,), (comm_time,)
+    else
+        return (), ()
+    end
 end
 
 function copy_to_local!(ptp::PointToPoint, w, t)
