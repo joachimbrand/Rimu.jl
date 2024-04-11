@@ -119,7 +119,7 @@ is_distributed(::NotDistributed) = false
 mpi_rank(::NotDistributed) = 0
 mpi_size(::NotDistributed) = 1
 
-synchronize_remote!(::NotDistributed) = (), ()
+synchronize_remote!(::NotDistributed, _) = (), ()
 
 function copy_to_local!(::NotDistributed, w, t)
     return t
@@ -145,7 +145,7 @@ is_distributed(::LocalPart) = false
 mpi_rank(lp::LocalPart) = mpi_rank(lp.communicator)
 mpi_size(lp::LocalPart) = mpi_size(lp.communicator)
 
-function synchronize_remote!(::LocalPart, w)
+function synchronize_remote!(::LocalPart, _)
     throw(CommunicatorError("attemted to synchronize localpart"))
 end
 
