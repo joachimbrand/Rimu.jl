@@ -198,10 +198,12 @@ function collect_local!(w::PDWorkingMemory)
 end
 
 """
-    synchronize_remote!(w::PDWorkingMemory)
+    synchronize_remote!(w::PDWorkingMemory) -> names, values
 
 Synchronize non-local segments across MPI. Controlled by the [`Communicator`](@ref). This
 can only be perfomed after [`collect_local!`](@ref).
+
+Should return a `Tuple` of names and a `Tuple` of values to report.
 
 See [`PDWorkingMemory`](@ref).
 """
@@ -260,11 +262,11 @@ function Interfaces.apply_operator!(
 
     stat_names, stats = perform_spawns!(working_memory, source, ham, boost)
     collect_local!(working_memory)
-    synchronize_remote!(working_memory)
+    sync_stat_names, sync_stats = synchronize_remote!(working_memory)
     target, comp_stat_names, comp_stats = move_and_compress!(target, working_memory)
 
-    stat_names = (stat_names..., comp_stat_names...)
-    stats = (stats..., comp_stats...)
+    stat_names = (stat_names..., comp_stat_names..., sync_stat_names...)
+    stats = (stats..., comp_stats..., sync_stats...)
 
     return stat_names, stats, working_memory, target
 end

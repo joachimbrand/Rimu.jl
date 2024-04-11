@@ -119,7 +119,7 @@ is_distributed(::NotDistributed) = false
 mpi_rank(::NotDistributed) = 0
 mpi_size(::NotDistributed) = 1
 
-synchronize_remote!(::NotDistributed, w) = w
+synchronize_remote!(::NotDistributed) = (), ()
 
 function copy_to_local!(::NotDistributed, w, t)
     return t
@@ -284,6 +284,7 @@ function synchronize_remote!(ptp::PointToPoint, w)
         mpi_recv_any!(ptp.recv_buffer, ptp.mpi_comm)
         Folds.foreach(dict_add!, local_segments(w), ptp.recv_buffer)
     end
+    return (), ()
 end
 
 function copy_to_local!(ptp::PointToPoint, w, t)
@@ -314,6 +315,13 @@ function copy_to_local!(ptp::PointToPoint, w, t)
     return main_column(w)
 end
 
+"""
+    NestedSegmentedBuffer
+
+2D grid of vectors stored in a simple buffer with collective MPI communication support.
+
+See [`append_collections!`](@ref), [`mpi_exchange!`](@ref).
+"""
 struct NestedSegmentedBuffer{T} <: AbstractMatrix{SubVector{T}}
     nrows::Int
     counts::Vector{Int}
@@ -338,6 +346,11 @@ function Base.getindex(buf::NestedSegmentedBuffer, i, j)
     return view(buf.buffer, start_index:end_index)
 end
 
+"""
+    append_collections!(buf::NestedSegmentedBuffer, iters)
+
+Add a column to `buf`. The length of `iters` should match `buf.nrows`.
+"""
 function append_collections!(buf::NestedSegmentedBuffer, iters)
     if length(iters) ≠ buf.nrows
         throw(ArgumentError("Expected $(buf.nrows) iterators, got $(length(iters))"))
@@ -362,6 +375,11 @@ function append_collections!(buf::NestedSegmentedBuffer, iters)
     end
     return buf
 end
+"""
+    append_empty_column!(buf::NestedSegmentedBuffer)
+
+Like [`append_collections!`](@ref), but adds an empty column.
+"""
 function append_empty_column!(buf::NestedSegmentedBuffer)
     push!(buf.counts, 0)
     for i in 1:buf.nrows
@@ -376,7 +394,12 @@ function Base.empty!(buf::NestedSegmentedBuffer)
     empty!(buf.buffer)
 end
 
-function mpi_communicate!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
+"""
+    mpi_exchange!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
+
+The `n`-th column from `src` will be sent to rank `n+1`. The data sent from rank `r` will be stored in the `(r-1)`-st column.
+"""
+function mpi_exchange!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
     nrows = src.nrows
     if dst.nrows ≠ nrows
         throw(ArgumentError("mismatch in number of cols ($nrows and $(dst.nrows))."))
@@ -396,18 +419,18 @@ function mpi_communicate!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer
     return dst
 end
 
-# Alltoallv!(sendbuf, sendcounts, sendtype, recvbuf, recvcounts, recvtype, comm)
-# sendbuf: data to send
-# sendcounts: number to send to each rank
+"""
+    AllToAll{K,V} <: Communicator
 
-# Alltoall!(sendrecvbuf, comm)
-
+[`Communicator`](@ref) that uses collective communication using `MPI.Alltoall!`.
+"""
 struct AllToAll{K,V} <: Communicator
     send_buffer::NestedSegmentedBuffer{Pair{K,V}}
     recv_buffer::NestedSegmentedBuffer{Pair{K,V}}
     mpi_comm::MPI.Comm
     mpi_rank::Int
     mpi_size::Int
+    report::Bool
 end
 function AllToAll{K,V}(
     ;
@@ -415,6 +438,7 @@ function AllToAll{K,V}(
     mpi_rank=MPI.Comm_rank(mpi_comm),
     mpi_size=MPI.Comm_size(mpi_comm),
     threads=Threads.nthreads(),
+    report=false,
 ) where {K,V}
     return AllToAll(
         NestedSegmentedBuffer{Pair{K,V}}(threads),
@@ -422,6 +446,7 @@ function AllToAll{K,V}(
         mpi_comm,
         mpi_rank,
         mpi_size,
+        report,
     )
 end
 
@@ -431,19 +456,26 @@ mpi_comm(ata::AllToAll) = ata.mpi_comm
 
 function synchronize_remote!(ata::AllToAll, w)
     # Fill the buffer
-    empty!(ata.send_buffer)
+    comm_time = @elapsed begin
+        empty!(ata.send_buffer)
 
-    for i in 0:(ata.mpi_size - 1)
-        if i == ata.mpi_rank
-            # these are not remote, but need to be added anyway
-            append_empty_column!(ata.send_buffer)
-        else
-            append_collections!(ata.send_buffer, remote_segments(w, i))
+        for i in 0:(ata.mpi_size - 1)
+            if i == ata.mpi_rank
+                # these are not remote, but need to be added anyway
+                append_empty_column!(ata.send_buffer)
+            else
+                append_collections!(ata.send_buffer, remote_segments(w, i))
+            end
+        end
+        mpi_time = @elapsed mpi_exchange!(ata.send_buffer, ata.recv_buffer, ata.mpi_comm)
+
+        for i in 1:mpi_size()
+            foreach(dict_add!, local_segments(w), view(ata.recv_buffer, :, i))
         end
     end
-    mpi_communicate!(ata.send_buffer, ata.recv_buffer, ata.mpi_comm)
-
-    for i in 1:mpi_size()
-        foreach(dict_add!, local_segments(w), view(ata.recv_buffer, :, i))
+    if ata.report
+        return (:mpi_comm_time,:total_comm_time), (mpi_time,comm_time)
+    else
+        return (), ()
     end
 end
