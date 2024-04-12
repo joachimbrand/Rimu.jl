@@ -1,16 +1,12 @@
 """
     ExactDiagonalizationProblem(h::AbstractHamiltonian, [v0]; kwargs...)
 
-Defines an exact diagonalization problem in quantum physics by an
-[`AbstractHamiltonian`](@ref) `h`, and optionally a starting vector or starting address
-`v0`. `ExactDiagonalizationProblem`s can be initialized with [`init`](@ref), and solved
-with [`solve`](@ref).
+Defines an exact diagonalization problem with an [`AbstractHamiltonian`](@ref) `h`.
+Optionally, a starting vector of type [`AbstractDVec`](@ref), or a single address or a
+collection of addresses can be passed as `v0`.
 
-# Arguments
-The constructor for `ExactDiagonalizationProblem` takes the following arguments:
-- `h::AbstractHamiltonian`: The Hamiltonian of the system.
-- `v0`: Optional. The initial state vector as a [`AbstractDVec`](@ref). Alternatively, a
-    single address, a collection of addresses, or a single starting vector can be passed.
+`ExactDiagonalizationProblem`s can be initialized with [`init`](@ref), and solved
+with [`solve`](@ref).
 
 # Keyword arguments
 - `algorithm=LinearAlgebraEigen()`: The algorithm to use for solving the problem. The
