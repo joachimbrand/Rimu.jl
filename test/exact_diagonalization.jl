@@ -41,8 +41,8 @@ using KrylovKit
     factor = vectors[1][addr] / ve_kd[1][addr]
     @test vectors[1] ≈ scale(ve_kd[1], factor)
 
-    @test_logs (:warn, "Unused keyword arguments in `solve`: (which = :SR,)")  va_la,
-        ve_la, info_la = solve(p, LinearAlgebraEigen())
+    @test_logs((:warn, "Unused keyword arguments in `solve`: (which = :SR,)"),
+        (va_la, ve_la, info_la = solve(p, LinearAlgebraEigen())))
 
     @test values[1:2] ≈ va_la[1:2]
     factor = vectors[1][addr] / ve_la[1][addr]

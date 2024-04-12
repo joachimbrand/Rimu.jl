@@ -13,8 +13,9 @@ The constructor for `ExactDiagonalizationProblem` takes the following arguments:
     single address, a collection of addresses, or a single starting vector can be passed.
 
 # Keyword arguments
-- `algorithm`: The algorithm to use for solving the problem. If not specified, the
-    `LinearAlgebraEigen()` algorithm will be used.
+- `algorithm=LinearAlgebraEigen()`: The algorithm to use for solving the problem. The
+    algorithm can also be specified as the second positional argument in the `init`
+    function.
 - Optional keyword arguments will be passed on to the `init` and `solve` functions.
 
 # Algorithms
@@ -71,11 +72,21 @@ Rimu.MatrixEDEigenResult with 10 eigenvalue(s),
 
 julia> using KrylovKit
 
-julia> result = solve(p, KrylovKitDirect());
+julia> s = init(p; algorithm = KrylovKitDirect())
+KrylovKitDirectEDSolver
+  for h = HubbardReal1D(fs"|1 1 1⟩"; u=1.0, t=1.0),
+  v0 = 1-element PDVec: style = IsDeterministic{Float64}()
+  fs"|1 1 1⟩" => 1.0,
+  kwargs = NamedTuple()
+)
+
+julia> result = solve(s);
 
 julia> result.values[1] ≈ values[1]
 true
 ```
+See also [`init`](@ref), [`solve`](@ref), [`LinearAlgebraEigen`](@ref),
+[`KrylovKitMatrix`](@ref), [`KrylovKitDirect`](@ref).
 !!! note
     Using the `KrylovKitMatrix()` or `KrylovKitDirect()` algorithms require the KrylovKit.jl
     package. It can be loaded with `using KrylovKit`.
