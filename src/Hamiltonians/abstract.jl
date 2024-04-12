@@ -449,8 +449,9 @@ function _bsr_ensure_symmetry(
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
     single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    if dimension(h, single_addr) > sizelim
-        throw(ArgumentError("dimension larger than sizelim"))
+    d = dimension(h, single_addr)
+    if d > sizelim
+        throw(ArgumentError("Dimension = $d larger than sizelim = $sizelim. Set a larger `sizelim` if this is safe."))
     end
     check_address_type(h, addr_or_vec)
     sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)

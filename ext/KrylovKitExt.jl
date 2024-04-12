@@ -3,8 +3,8 @@ module KrylovKitExt
 using KrylovKit: KrylovKit, EigSorter, eigsolve
 using LinearAlgebra: LinearAlgebra, mul!, ishermitian, issymmetric
 using Rimu: Rimu, AbstractDVec, AbstractHamiltonian, IsDeterministic, PDVec, DVec,
-    PDWorkingMemory, scale!!, working_memory, zerovector, KrylovKitMatrixEDSolver,
-    delete
+    PDWorkingMemory, scale!!, working_memory, zerovector, MatrixEDSolver,
+    delete, KrylovKitMatrix, dimension, AbstractEDResult
 using CommonSolve: CommonSolve
 
 const U = Union{Symbol,EigSorter}
@@ -56,23 +56,42 @@ end
 A struct that holds the results of an "ExactDiagonalizationProblem" solved with KrylovKit.
 
 # Fields
-- `vals`: The eigenvalues.
-- `vecs`: The eigenvectors as `DVec`s.
+- `values`: The eigenvalues.
+- `vectors`: The eigenvectors as `DVec`s.
 - `info`: The convergence information.
 """
-struct KrylovKitResult{T,DV,I}
-    vals::Vector{T}
-    vecs::Vector{DV}
+struct KrylovKitResult{P,VA<:Vector,VDV<:Vector,I} <: AbstractEDResult
+    problem::P
+    values::VA
+    vectors::VDV
     info::I
 end
 
-function Base.show(io::IO, r::KrylovKitResult)
-    n = length(r.vals)
+
+struct MatrixEDKrylovKitResult{P,VA<:Vector,VE<:Vector,B,I} <: AbstractEDResult
+    problem::P
+    values::VA
+    vecs::VE
+    basis::B
+    info::I
+end
+function Base.getproperty(r::MatrixEDKrylovKitResult, key::Symbol)
+    vecs = getfield(r, :vecs)
+    if key === :vectors
+        return [DVec(zip(getfield(r, :basis), v)) for v in vecs]
+    else
+        return getfield(r, key)
+    end
+end
+
+function Base.show(io::IO, r::R) where R<:Union{KrylovKitResult,MatrixEDKrylovKitResult}
+    ts = R isa KrylovKitResult ? "KrylovKitResult" : "MatrixEDKrylovKitResult"
+    n = length(r.values)
     info = r.info
-    print(io, "Rimu.KrylovKitResult with $n eigenvalue(s),\n  vals = ")
-    show(io, r.vals)
-    print(io, ",\n  and vecs of length $(length(r.vecs[1])).")
-    print(io, "\n  Convergence info: ")
+    print(io, "$ts with $n eigenvalue(s),\n  `values` = ")
+    show(io, r.values)
+    print(io, ",\n  and `vectors` of length $(length(r.vectors[1])).")
+    print(io, "\n  Convergence `info`: ")
     info.converged == 0 && print(io, "no converged values ")
     info.converged == 1 && print(io, "one converged value ")
     info.converged > 1 && print(io, "$(info.converged) converged values ")
@@ -85,47 +104,56 @@ function Base.show(io::IO, r::KrylovKitResult)
     print(io, "  The norms of the residuals are ≤ $(maximum(info.normres)).")
 end
 
-function CommonSolve.solve(s::Rimu.KrylovKitMatrixEDSolver;
-    verbose=nothing,
-    abstol=nothing,
-    reltol=nothing,
-    maxiters=nothing,
-    howmany=1,
-    which=:SR,
-    kwargs...
-)
-    kwargs = (s.kwargs..., kwargs..., :howmany=>howmany, :which=>which)
-    if !isnothing(verbose)
-        if verbose
-            kwargs = (kwargs..., :verbosity => 1)
+# solve for KrylovKit solvers: prepare arguments for `KrylovKit.eigsolve`
+function CommonSolve.solve(s::S; kwargs...
+) where {S<:Union{Rimu.MatrixEDSolver{<:KrylovKitMatrix}, Rimu.KrylovKitDirectEDSolver}}
+    # combine keyword arguments and set defaults for `howmany` and `which`
+    kw_nt = (; howmany = 1, which = :SR, s.kw_nt..., kwargs...)
+    # check if universal keyword arguments are present
+    if isdefined(kw_nt, :verbose)
+        if kw_nt.verbose
+            kw_nt = (; kw_nt..., verbosity = 1)
         else
-            kwargs = (kwargs..., :verbosity => 0)
+            kw_nt = (; kw_nt..., verbosity = 0)
         end
     end
-    if !isnothing(abstol)
-        kwargs = (kwargs..., :tol => abstol)
-    elseif !isnothing(reltol)
-        kwargs = (kwargs..., :tol => reltol)
+    if isdefined(kw_nt, :reltol)
+        kw_nt = (; kw_nt..., tol = kw_nt.reltol)
     end
-    if !isnothing(maxiters)
-        kwargs = (kwargs..., :maxiter => maxiters)
+    if isdefined(kw_nt, :abstol) # abstol has precedence over reltol
+        kw_nt = (; kw_nt..., tol = kw_nt.abstol)
     end
+    if isdefined(kw_nt, :maxiters)
+        kw_nt = (; kw_nt..., maxiter = kw_nt.maxiters)
+    end
+    kw_nt = delete(kw_nt, (:verbose, :reltol, :abstol, :maxiters))
 
-    # Remove duplicates and the `howmany` and `which` keys from the kwargs.
-    nt = NamedTuple(kwargs) # remove duplicates, only the last value is kept
-    howmany, which = nt.howmany, nt.which
-    kwargs = delete(nt, (:howmany, :which))
+    # Remove the `howmany` and `which` keys from the kwargs.
+    howmany, which = kw_nt.howmany, kw_nt.which
+    kw_nt = delete(kw_nt, (:howmany, :which))
 
+    return _kk_eigsolve(s, howmany, which, kw_nt)
+end
+
+# solve with KrylovKit and matrix
+function _kk_eigsolve(s::Rimu.MatrixEDSolver{<:KrylovKitMatrix}, howmany, which, kw_nt)
+    # set up the starting vector
     T = eltype(s.basissetrep.sm)
     x0 = if isnothing(s.v0)
-        rand(T, dimension(s.basissetrep)) # random initial guess
-    else
-        # convert v0 to a DVec to use it like a dictionary
-        [DVec(s.v0)[a] for a in s.basissetrep.basis]
+            rand(T, dimension(s.basissetrep)) # random initial guess
+        else
+            # convert v0 to a DVec to use it like a dictionary
+            [DVec(s.v0)[a] for a in s.basissetrep.basis]
     end
-    vals, vecs, info = eigsolve(s.basissetrep.sm, x0, howmany, which; kwargs...)
-    dvecs = [DVec(zip(s.basissetrep.basis, v)) for v in vecs]
-    return KrylovKitResult{eltype(vals),eltype(dvecs),typeof(info)}(vals, dvecs, info)
+    # solve the problem
+    vals, vecs, info = eigsolve(s.basissetrep.sm, x0, howmany, which; kw_nt...)
+    return MatrixEDKrylovKitResult(s.problem, vals, vecs, s.basissetrep.basis, info)
+end
+
+# solve with KrylovKit direct
+function _kk_eigsolve(s::Rimu.KrylovKitDirectEDSolver, howmany, which, kw_nt)
+    vals, vecs, info = eigsolve(s.problem.h, s.v0, howmany, which; kw_nt...)
+    return KrylovKitResult(s.problem, vals, vecs, info)
 end
 
 end
