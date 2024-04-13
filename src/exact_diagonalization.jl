@@ -18,9 +18,9 @@ with [`solve`](@ref).
 - [`LinearAlgebraEigen()`](@ref): An algorithm for solving the problem using the dense-matrix
     eigensolver from the `LinearAlgebra` standard library.
 - [`KrylovKitMatrix()`](@ref): An algorithm for solving the problem after instantiating a
-    sparse matrix.
+    sparse matrix. Requires KrylovKit.jl.
 - [`KrylovKitDirect()`](@ref): An algorithm for solving the problem without instantiating a
-    sparse matrix.
+    sparse matrix. Requires KrylovKit.jl.
 
 
 # Keyword arguments for `init` for matrix-based algorithms
@@ -66,7 +66,7 @@ julia> values, vectors = solve(p);
 julia> round(values[1], digits=3) # ground state energy
 -5.096
 
-julia> using KrylovKit
+julia> using KrylovKit # the next example requires julia v1.9 or later
 
 julia> s = init(p; algorithm = KrylovKitDirect())
 KrylovKitDirectEDSolver

@@ -161,7 +161,7 @@ end
     @test default_logger() isa Logging.ConsoleLogger
 end
 
-@safetestset "doctests" begin
+VERSION ≥ v"1.9" && @safetestset "doctests" begin
     include("doctests.jl")
 end
 

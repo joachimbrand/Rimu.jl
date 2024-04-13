@@ -926,8 +926,8 @@ end
     @test @inferred diagonal_element(S2, uniform_state) == 0
 
     # Test return type for integer, and non-integer filling
-    @test @inferred diagonal_element(S0, localised_state) isa Float64
-    @test @inferred diagonal_element(S1, non_unital_localised_state) isa ComplexF64
+    @test (@inferred diagonal_element(S0, localised_state)) isa Float64
+    @test (@inferred diagonal_element(S1, non_unital_localised_state)) isa ComplexF64
 
     # Test show method
     d = 5
