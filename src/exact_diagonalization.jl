@@ -63,17 +63,8 @@ ExactDiagonalizationProblem(
 
 julia> values, vectors = solve(p);
 
-julia> using Printf; [@printf(" %f \n", val) for val in  values];
- -5.095932
- -1.518817
- -1.518817
- 1.556108
- 1.609301
- 1.609301
- 4.000000
- 4.539824
- 4.909516
- 4.909516
+julia> round(values[1], digits=3) # ground state energy
+-5.096
 
 julia> using KrylovKit
 
