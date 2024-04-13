@@ -61,10 +61,19 @@ ExactDiagonalizationProblem(
   NamedTuple()...
 )
 
-julia> values, vectors = solve(p)
-Rimu.MatrixEDEigenResult with 10 eigenvalue(s),
-  `values` = [-5.095932280272492, -1.5188166932722926, -1.5188166932722782, 1.556108403613981, 1.609300727116347, 1.6093007271163493, 4.000000000000002, 4.539823876658514, 4.909515966155951, 4.9095159661559515],
-  and `vectors` of length 10.
+julia> values, vectors = solve(p);
+
+julia> [@printf " %f \n" val for val in  values]; # print the eigenvalues with 7 digits
+ -5.095932
+ -1.518817
+ -1.518817
+ 1.556108
+ 1.609301
+ 1.609301
+ 4.000000
+ 4.539824
+ 4.909516
+ 4.909516
 
 julia> using KrylovKit
 
