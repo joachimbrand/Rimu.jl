@@ -23,9 +23,13 @@ VERSION ≥ v"1.9" && @testset "extension not loaded" begin
         @test_throws ErrorException KrylovKitMatrix()
         @test_throws ErrorException KrylovKitDirect()
     end
+    ext2 = Base.get_extension(Rimu, :ArpackExt)
+    if ext2 === nothing
+        @test_throws ErrorException ArpackEigs()
+    end
 end
 
-using KrylovKit
+using KrylovKit, Arpack
 
 VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     # KrylovKitMatrix
@@ -36,6 +40,11 @@ VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     kd = KrylovKitDirect(howmany=2, which=:LM)
     @test eval(Meta.parse(repr(kd))) == kd
 
+    # ArpackEigs
+    ae = ArpackEigs(howmany=2, which=:LM)
+    @test eval(Meta.parse(repr(ae))) == ae
+
+    # solve with KrylovKitMatrix
     p = ExactDiagonalizationProblem(HubbardReal1D(BoseFS(1,2,3)); which=:SR)
     @test eval(Meta.parse(repr(p))) == p
     solver = init(p, KrylovKitMatrix(); howmany=2)
@@ -45,6 +54,7 @@ VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     values, vectors, info = res_km
     @test length(values) == length(vectors) == info.converged ≥ 2
 
+    # solve with KrylovKitDirect
     solver = init(p, KrylovKitDirect(); howmany=2)
     va_kd, ve_kd, info_kd = solve(solver)
     @test values ≈ va_kd
@@ -52,7 +62,7 @@ VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     factor = vectors[1][addr] / ve_kd[1][addr]
     @test vectors[1] ≈ scale(ve_kd[1], factor)
 
-
+    # solve with LinearAlgebraEigen
     res = @test_logs((:warn, "Unused keyword arguments in `solve`: (which = :SR,)"),
         solve(p, LinearAlgebraEigen()))
     va_la, ve_la, info_la = res
@@ -60,6 +70,13 @@ VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     @test values[1:2] ≈ va_la[1:2]
     factor = vectors[1][addr] / ve_la[1][addr]
     @test vectors[1] ≈ scale(ve_la[1], factor)
+
+    # solve with ArpackEigs
+    solver = init(p, ArpackEigs(); howmany=2)
+    va_ae, ve_ae, info_ae = solve(solver)
+    @test values[1:2] ≈ va_ae[1:2]
+    factor = vectors[1][addr] / ve_ae[1][addr]
+    @test vectors[1] ≈ scale(ve_ae[1], factor)
 
     p2 = ExactDiagonalizationProblem(
         HubbardReal1D(BoseFS(1, 2, 3)), DVec(BoseFS(1, 2, 3) => 2.3)

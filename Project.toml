@@ -42,12 +42,15 @@ TupleTools = "9d95972d-f1c8-5527-a6e0-b4b365fa01f6"
 VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 
 [weakdeps]
+Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
 KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 
 [extensions]
+ArpackExt = "Arpack"
 KrylovKitExt = "KrylovKit"
 
 [compat]
+Arpack = "0.5"
 Arrow = "1.5, 2"
 BSON = "0.3"
 Combinatorics = "1"
@@ -83,6 +86,7 @@ VectorInterface = "0.2, 0.3, 0.4"
 julia = "1.7"
 
 [extras]
+Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
 KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 

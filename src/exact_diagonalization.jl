@@ -18,10 +18,11 @@ with [`solve`](@ref).
 - [`LinearAlgebraEigen()`](@ref): An algorithm for solving the problem using the dense-matrix
     eigensolver from the `LinearAlgebra` standard library.
 - [`KrylovKitMatrix()`](@ref): An algorithm for solving the problem after instantiating a
-    sparse matrix. Requires KrylovKit.jl.
+    sparse matrix. Requires `using KrylovKit`.
 - [`KrylovKitDirect()`](@ref): An algorithm for solving the problem without instantiating a
-    sparse matrix. Requires KrylovKit.jl.
-
+    sparse matrix. Requires `using KrylovKit`.
+- [`ArpackEigs()`](@ref): An algorithm for solving the problem without instantiating a
+    sparse matrix and using the Arpack Fortran library. Requires `using Arpack`.
 
 # Keyword arguments for `init` for matrix-based algorithms
 - `sizelim`: The maximum size of the basis set representation. The default is `10^6` for
@@ -141,7 +142,7 @@ function Base.show(io::IO, s::MatrixEDSolver)
 end
 
 """
-    KrylovKitMatrix()
+    KrylovKitMatrix(; kwargs...)
 
 Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a
 sparse matrix. This is faster than [`KrylovKitDirect()`](@ref), but it requires more memory
@@ -160,7 +161,7 @@ struct KrylovKitMatrix{K}
     function KrylovKitMatrix(; kwargs...)
         ext = Base.get_extension(@__MODULE__, :KrylovKitExt)
         if ext === nothing
-            error("KrylovKitMatrix requires that KrylovKit is loaded, i.e. `using KrylovKit`")
+            error("KrylovKitMatrix() requires that KrylovKit.jl is loaded, i.e. `using KrylovKit`")
         else
             kw_nt = NamedTuple(kwargs)
             return new{typeof(kw_nt)}(kw_nt)
@@ -173,6 +174,43 @@ function Base.show(io::IO, s::KrylovKitMatrix)
         print(io, "KrylovKitMatrix()")
     else
         print(io, "KrylovKitMatrix")
+        show(io, s.kw_nt)
+    end
+end
+
+"""
+    ArpackEigs(; kwargs...)
+
+Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a
+sparse matrix. This is faster than [`KrylovKitDirect()`](@ref), but it requires more memory
+and will only be useful if the matrix fits into memory.
+
+The `kwargs` are passed on to the function [`Arpack.eigs()`](
+https://arpack.julialinearalgebra.org/stable/eigs/).
+
+See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
+!!! note
+    Requires the Arpack.jl package to be loaded with `using Arpack`.
+"""
+struct ArpackEigs{K}
+    kw_nt::K # NamedTuple
+    # the inner constructor checks if KrylovKit is loaded
+    function ArpackEigs(; kwargs...)
+        ext = Base.get_extension(@__MODULE__, :ArpackExt)
+        if ext === nothing
+            error("ArpackEigs() requires that Arpack.jl is loaded, i.e. `using Arpack`")
+        else
+            kw_nt = NamedTuple(kwargs)
+            return new{typeof(kw_nt)}(kw_nt)
+        end
+    end
+end
+function Base.show(io::IO, s::ArpackEigs)
+    io = IOContext(io, :compact => true)
+    if isempty(s.kw_nt)
+        print(io, "ArpackEigs()")
+    else
+        print(io, "ArpackEigs")
         show(io, s.kw_nt)
     end
 end
@@ -233,10 +271,11 @@ function CommonSolve.init( # no algorithm specified as positional argument
     return init(p, algorithm; kw_nt...)
 end
 
+# init with matrix-based algorithms
 function CommonSolve.init(
     p::ExactDiagonalizationProblem, algorithm::ALG;
     kwargs...
-) where {ALG <: Union{KrylovKitMatrix, LinearAlgebraEigen}}
+) where {ALG<:Union{KrylovKitMatrix,LinearAlgebraEigen,ArpackEigs}}
     # set keyword arguments for BasisSetRep
     kw = (; p.kw_nt..., algorithm.kw_nt..., kwargs...) # remove duplicates
     if isdefined(kw, :sizelim)
