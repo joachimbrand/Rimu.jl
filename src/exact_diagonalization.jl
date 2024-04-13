@@ -63,7 +63,7 @@ ExactDiagonalizationProblem(
 
 julia> values, vectors = solve(p);
 
-julia> [@printf " %f \n" val for val in  values]; # print the eigenvalues with 7 digits
+julia> using Printf; [@printf " %f \n" val for val in  values];
  -5.095932
  -1.518817
  -1.518817
