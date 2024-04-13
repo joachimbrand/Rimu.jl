@@ -84,8 +84,9 @@ true
 See also [`init`](@ref), [`solve`](@ref), [`LinearAlgebraEigen`](@ref),
 [`KrylovKitMatrix`](@ref), [`KrylovKitDirect`](@ref).
 !!! note
-    Using the `KrylovKitMatrix()` or `KrylovKitDirect()` algorithms require the KrylovKit.jl
-    package. It can be loaded with `using KrylovKit`.
+    Using the `KrylovKitMatrix()` or `KrylovKitDirect()` algorithms require julia v1.9 or
+    later as well as the KrylovKit.jl package. The package can be loaded with
+    `using KrylovKit`.
 """
 struct ExactDiagonalizationProblem{H<:AbstractHamiltonian, V, K}
     h::H

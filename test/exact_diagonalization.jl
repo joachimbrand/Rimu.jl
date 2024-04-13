@@ -1,7 +1,22 @@
 using Rimu
 using Test
 
-@testset "extension not loaded" begin
+# first we do tests that don't require KrylovKit and the extension
+@testset "LinearAlgebraEigen" begin
+    # LinearAlgebraEigen
+    lae = LinearAlgebraEigen(; permute=true, scale=true)
+    @test eval(Meta.parse(repr(lae))) == lae
+
+    p = ExactDiagonalizationProblem(HubbardMom1D(BoseFS(1, 2, 3)))
+    @test eval(Meta.parse(repr(p))) == p
+    solver = init(p)
+    @test solver.algorithm isa LinearAlgebraEigen
+    @test dimension(solver.basissetrep) == size(solver.basissetrep.sm)[1] ≤ dimension(p.h)
+    res = solve(solver)
+    @test res.values[1] ≈ -3.045633163020568
+end
+
+VERSION ≥ v"1.9" && @testset "extension not loaded" begin
     # Can only test this when KrylovKit is not loaded
     ext = Base.get_extension(Rimu, :KrylovKitExt)
     if ext === nothing
@@ -12,7 +27,7 @@ end
 
 using KrylovKit
 
-@testset "ExactDiagonalizationProblem" begin
+VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     # KrylovKitMatrix
     km = KrylovKitMatrix(howmany=2, which=:LM)
     @test eval(Meta.parse(repr(km))) == km
@@ -20,10 +35,6 @@ using KrylovKit
     # KrylovKitDirect
     kd = KrylovKitDirect(howmany=2, which=:LM)
     @test eval(Meta.parse(repr(kd))) == kd
-
-    # LinearAlgebraEigen
-    lae = LinearAlgebraEigen(; permute = true, scale = true)
-    @test eval(Meta.parse(repr(lae))) == lae
 
     p = ExactDiagonalizationProblem(HubbardReal1D(BoseFS(1,2,3)); which=:SR)
     @test eval(Meta.parse(repr(p))) == p
