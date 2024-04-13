@@ -63,7 +63,7 @@ ExactDiagonalizationProblem(
 
 julia> values, vectors = solve(p);
 
-julia> using Printf; [@printf " %f \n" val for val in  values];
+julia> using Printf; [@printf(" %f \n", val) for val in  values];
  -5.095932
  -1.518817
  -1.518817
