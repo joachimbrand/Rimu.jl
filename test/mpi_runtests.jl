@@ -224,8 +224,9 @@ end
         dv = DVec(add => 1.0)
         pv = PDVec(add => 1.0)
 
-        res_dv = eigsolve(ham, dv, 1, :SR)
-        res_pv = eigsolve(ham, pv, 1, :SR)
+        res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
+        res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
+        # `issymmetric` kwarg only needed for pre v1.9 julia versions
 
         @test res_dv[1][1] ≈ res_pv[1][1] || res_dv[1][1] ≈ -res_pv[1][1]
 
