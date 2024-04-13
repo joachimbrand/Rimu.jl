@@ -8,7 +8,7 @@ using OrderedCollections: freeze
 
 @testset "FCIQMCProblem" begin
     h = HubbardReal1D(BoseFS(1,3))
-    p = FCIQMCProblem(h)
+    p = FCIQMCProblem(h; threading=true)
     @test p.hamiltonian == h
     sp = only(p.initial_shift_parameters)
     @test sp.shift == diagonal_element(h, starting_address(h))
