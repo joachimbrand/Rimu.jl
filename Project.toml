@@ -43,10 +43,12 @@ VectorInterface = "409d34a3-91d5-4945-b6ec-7529ddf182d8"
 
 [weakdeps]
 Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
+IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
 KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 
 [extensions]
 ArpackExt = "Arpack"
+IterativeSolversExt = "IterativeSolvers"
 KrylovKitExt = "KrylovKit"
 
 [compat]
@@ -62,6 +64,7 @@ Distributions = "0.25"
 FFTW = "1"
 Folds = "0.2"
 HypergeometricFunctions = "0.3"
+IterativeSolvers = "0.9"
 KrylovKit = "0.6, 0.7"
 MPI = "0.20"
 MacroTools = "0.5"
@@ -87,6 +90,7 @@ julia = "1.7"
 
 [extras]
 Arpack = "7d9fca2a-8960-54d3-9f78-7d1dccf2cb97"
+IterativeSolvers = "42fd0dbc-a981-5370-80f2-aaf504508153"
 KrylovKit = "0b1a1467-8014-51b9-945f-bf0ae24f4b77"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 

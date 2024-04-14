@@ -15,16 +15,16 @@ struct MatrixEDResult{A,P,VA<:Vector,VE<:Vector,B,I} <: AbstractEDResult
     success::Bool
 end
 function Base.getproperty(r::MatrixEDResult, key::Symbol)
-    vecs = getfield(r, :vecs)
     if key === :vectors
-        return [DVec(zip(getfield(r, :basis), v)) for v in vecs]
+        vecs = getfield(r, :vecs)
+        basis = getfield(r, :basis)
+        return [DVec(zip(basis, v)) for v in vecs]
     else
         return getfield(r, key)
     end
 end
 
 function Base.show(io::IO, r::MatrixEDResult)
-    # algs = string(Base.typename(typeof(r.algorithm)).type)
     io = IOContext(io, :compact => true)
     n = length(r.values)
     println(io, "MatrixEDResult for algorithm $(r.algorithm) with $n eigenvalue(s),")

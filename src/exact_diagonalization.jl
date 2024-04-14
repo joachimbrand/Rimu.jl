@@ -16,13 +16,15 @@ with [`solve`](@ref).
 
 # Algorithms
 - [`LinearAlgebraEigen()`](@ref): An algorithm for solving the problem using the dense-matrix
-    eigensolver from the `LinearAlgebra` standard library.
-- [`KrylovKitMatrix()`](@ref): An algorithm for solving the problem after instantiating a
-    sparse matrix. Requires `using KrylovKit`.
+    eigensolver from the `LinearAlgebra` standard library. Only suitable for small matrices.
 - [`KrylovKitDirect()`](@ref): An algorithm for solving the problem without instantiating a
     sparse matrix. Requires `using KrylovKit`.
-- [`ArpackEigs()`](@ref): An algorithm for solving the problem without instantiating a
+- [`KrylovKitMatrix()`](@ref): An algorithm for solving the problem after instantiating a
+    sparse matrix. Requires `using KrylovKit`.
+- [`ArpackEigs()`](@ref): An algorithm for solving the problem after instantiating a
     sparse matrix and using the Arpack Fortran library. Requires `using Arpack`.
+- [`LOBPCG()`](@ref): An algorithm for solving the problem without instantiating a
+    sparse matrix using the LOBPCG method. Requires `using IterativeSolvers`.
 
 # Keyword arguments for `init` for matrix-based algorithms
 - `sizelim`: The maximum size of the basis set representation. The default is `10^6` for
@@ -89,6 +91,8 @@ See also [`init`](@ref), [`solve`](@ref), [`KrylovKitDirect`](@ref),
     KrylovKit.jl package. The package can be loaded with `using KrylovKit`.
     Using the `ArpackEigs()` algorithm requires the Arpack.jl package. The package can be
     loaded with `using Arpack`.
+    Using the `LOBPCG()` algorithm requires the IterativeSolvers.jl package. The package
+    can be loaded with `using IterativeSolvers`.
     Algorithms with external packages require julia v1.9 or later.
 """
 struct ExactDiagonalizationProblem{H<:AbstractHamiltonian, V, K}
@@ -146,18 +150,21 @@ end
 """
     KrylovKitMatrix(; kwargs...)
 
-Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a
-sparse matrix. This is faster than [`KrylovKitDirect()`](@ref), but it requires more memory
-and will only be useful if the matrix fits into memory.
+Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) using the KrylovKit.jl
+package after instantiating a sparse matrix. This is faster than
+[`KrylovKitDirect()`](@ref), but it requires more memory and will only be useful if the
+matrix fits into memory.
 
-The `kwargs` are passed on to the function [`KrylovKit.eigsolve()`](
-https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
+The Lanczos method is used for hermitian matrices, and the Arnoldi method is used for
+non-hermitian matrices.
+The `kwargs` are passed on to the function
+[`KrylovKit.eigsolve()`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
 
 See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 !!! note
     Requires the KrylovKit.jl package to be loaded with `using KrylovKit`.
 """
-struct KrylovKitMatrix{K}
+struct KrylovKitMatrix{K<:NamedTuple}
     kw_nt::K # NamedTuple
     # the inner constructor checks if KrylovKit is loaded
     function KrylovKitMatrix(; kwargs...)
@@ -183,20 +190,22 @@ end
 """
     ArpackEigs(; kwargs...)
 
-Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a
-sparse matrix. This is faster than [`KrylovKitDirect()`](@ref), but it requires more memory
-and will only be useful if the matrix fits into memory.
+Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a sparse
+matrix. It uses the Lanzcos method for hermitian problems, and the Arnoldi method for
+non-hermitian problems, using the Arpack Fortran library. This is faster than
+[`KrylovKitDirect()`](@ref), but it requires more memory and will only be useful if the
+matrix fits into memory.
 
-The `kwargs` are passed on to the function [`Arpack.eigs()`](
-https://arpack.julialinearalgebra.org/stable/eigs/).
+The `kwargs` are passed on to the function
+[`Arpack.eigs()`](https://arpack.julialinearalgebra.org/stable/eigs/).
 
 See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 !!! note
     Requires the Arpack.jl package to be loaded with `using Arpack`.
 """
-struct ArpackEigs{K}
+struct ArpackEigs{K<:NamedTuple}
     kw_nt::K # NamedTuple
-    # the inner constructor checks if KrylovKit is loaded
+    # the inner constructor checks if Arpack is loaded
     function ArpackEigs(; kwargs...)
         ext = Base.get_extension(@__MODULE__, :ArpackExt)
         if ext === nothing
@@ -218,6 +227,46 @@ function Base.show(io::IO, s::ArpackEigs)
 end
 
 """
+    LOBPCG(; kwargs...)
+
+The Locally Optimal Block Preconditioned Conjugate Gradient Method (LOBPCG).
+Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a
+sparse matrix. This is faster than [`KrylovKitDirect()`](@ref), but it requires more memory
+and will only be useful if the matrix fits into memory.
+
+LOBPCG is not suitable for non-hermitian eigenvalue problems.
+
+The `kwargs` are passed on to the function
+[`IterativeSolvers.lobpcg()`](https://iterativesolvers.julialinearalgebra.org/dev/eigenproblems/lobpcg/).
+
+See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
+!!! note
+    Requires the IterativeSolvers.jl package to be loaded with `using IterativeSolvers`.
+"""
+struct LOBPCG{K<:NamedTuple}
+    kw_nt::K # NamedTuple
+    # the inner constructor checks if LinearSolvers is loaded
+    function LOBPCG(; kwargs...)
+        ext = Base.get_extension(@__MODULE__, :IterativeSolversExt)
+        if ext === nothing
+            error("LOBPCG() requires that IterativeSolvers.jl is loaded, i.e. `using IterativeSolvers`")
+        else
+            kw_nt = NamedTuple(kwargs)
+            return new{typeof(kw_nt)}(kw_nt)
+        end
+    end
+end
+function Base.show(io::IO, s::LOBPCG)
+    io = IOContext(io, :compact => true)
+    if isempty(s.kw_nt)
+        print(io, "LOBPCG()")
+    else
+        print(io, "LOBPCG")
+        show(io, s.kw_nt)
+    end
+end
+
+"""
     LinearAlgebraEigen(; kwargs...)
 
 Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) using the dense-matrix
@@ -234,7 +283,7 @@ https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen).
 
 See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 """
-struct LinearAlgebraEigen{K}
+struct LinearAlgebraEigen{K<:NamedTuple}
     kw_nt::K # NamedTuple
 end
 LinearAlgebraEigen(; kwargs...) = LinearAlgebraEigen(NamedTuple(kwargs))
@@ -277,7 +326,10 @@ end
 function CommonSolve.init(
     p::ExactDiagonalizationProblem, algorithm::ALG;
     kwargs...
-) where {ALG<:Union{KrylovKitMatrix,LinearAlgebraEigen,ArpackEigs}}
+) where {ALG <: Union{KrylovKitMatrix, LinearAlgebraEigen, ArpackEigs, LOBPCG}}
+    !ishermitian(p.h) && algorithm isa LOBPCG &&
+        @warn "LOBPCG() is not suitable for non-hermitian matrices."
+
     # set keyword arguments for BasisSetRep
     kw = (; p.kw_nt..., algorithm.kw_nt..., kwargs...) # remove duplicates
     if isdefined(kw, :sizelim)
@@ -370,13 +422,17 @@ end
 
 """
     KrylovKitDirect(; kwargs...)
-Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) without instantiating a
-sparse matrix. This is slower than [`KrylovKitMatrix()`](@ref), but it requires less memory
-and thus can be useful for large matrices that would not fit into memory.
-Will parallelise using threading and MPI if available.
 
-The `kwargs` are passed on to the function [`KrylovKit.eigsolve()`](
-https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
+Algorithm for solving a large [`ExactDiagonalizationProblem`](@ref) to find a few
+eigenvalues and vectors directly using the KrylovKit.jl package. The problem is solved
+without instantiating a sparse matrix. This is slower than [`KrylovKitMatrix()`](@ref),
+but it requires less memory and thus can be useful for large matrices that would not fit
+into memory. Will parallelise using threading and MPI if available.
+
+The Lanczos method is used for hermitian matrices, and the Arnoldi method is used for
+non-hermitian matrices.
+The `kwargs` are passed on to the function
+[`KrylovKit.eigsolve()`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
 
 See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 !!! note

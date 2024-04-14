@@ -27,22 +27,49 @@ VERSION ≥ v"1.9" && @testset "extension not loaded" begin
     if ext2 === nothing
         @test_throws ErrorException ArpackEigs()
     end
+    ext3 = Base.get_extension(Rimu, :IterativeSolversExt)
+    if ext3 === nothing
+        @test_throws ErrorException LOBPCG()
+    end
 end
 
-using KrylovKit, Arpack
+using KrylovKit, Arpack, IterativeSolvers
 
 VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     # KrylovKitMatrix
-    km = KrylovKitMatrix(howmany=2, which=:LM)
+    km = KrylovKitMatrix(howmany=2, which=:SR)
     @test eval(Meta.parse(repr(km))) == km
 
     # KrylovKitDirect
-    kd = KrylovKitDirect(howmany=2, which=:LM)
+    kd = KrylovKitDirect(howmany=2, which=:SR)
     @test eval(Meta.parse(repr(kd))) == kd
 
     # ArpackEigs
-    ae = ArpackEigs(howmany=2, which=:LM)
+    ae = ArpackEigs(howmany=2, which=:SR)
     @test eval(Meta.parse(repr(ae))) == ae
+
+    # LOBPCG
+    lobpcg = LOBPCG(howmany=2, which=:SR)
+    @test eval(Meta.parse(repr(lobpcg))) == lobpcg
+
+    algs = [km, kd, ae, lobpcg]
+    hamiltonians = [
+        HubbardReal1D(BoseFS(1, 2, 3)),
+        HubbardMom1D(BoseFS(1, 2, 3)),
+        FroehlichPolaron(OccupationNumberFS(0,0,0); mode_cutoff=3)
+    ]
+    for h in hamiltonians
+        p = ExactDiagonalizationProblem(h)
+        @test eval(Meta.parse(repr(p))) == p
+        energies = map(algs) do alg
+            solver = init(p, alg)
+            @test solver.problem == p
+            res = solve(solver)
+            @test res.success
+            res.values[1]
+        end
+        @test energies[1] ≈ energies[2] ≈ energies[3]
+    end
 
     # solve with KrylovKitMatrix
     p = ExactDiagonalizationProblem(HubbardReal1D(BoseFS(1,2,3)); which=:SR)
