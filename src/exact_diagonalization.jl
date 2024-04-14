@@ -62,14 +62,15 @@ ExactDiagonalizationProblem(
   NamedTuple()...
 )
 
-julia> values, vectors = solve(p);
-
-julia> round(values[1], digits=3) # ground state energy
--5.096
+julia> result = solve(p) # convert to dense matrix and solve with LinearAlgebra.eigen
+Rimu.MatrixEDEigenResult with 10 eigenvalue(s),
+  values = [-5.09593, -1.51882, -1.51882, 1.55611, 1.6093, 1.6093, 4.0, 4.53982, 4.90952, 4.90952],
+  and vectors of length 10.
+  sucess = true.
 
 julia> using KrylovKit # the next example requires julia v1.9 or later
 
-julia> s = init(p; algorithm = KrylovKitDirect())
+julia> s = init(p; algorithm = KrylovKitDirect()) # solve without building a matrix
 KrylovKitDirectEDSolver
   for h = HubbardReal1D(fs"|1 1 1⟩"; u=1.0, t=1.0),
   v0 = 1-element PDVec: style = IsDeterministic{Float64}()
@@ -77,17 +78,19 @@ KrylovKitDirectEDSolver
   kwargs = NamedTuple()
 )
 
-julia> result = solve(s);
+julia> values, vectors = solve(s);
 
 julia> result.values[1] ≈ values[1]
 true
 ```
-See also [`init`](@ref), [`solve`](@ref), [`LinearAlgebraEigen`](@ref),
-[`KrylovKitMatrix`](@ref), [`KrylovKitDirect`](@ref).
+See also [`init`](@ref), [`solve`](@ref), [`KrylovKitDirect`](@ref),
+[`KrylovKitMatrix`](@ref), [`ArpackEigs`](@ref), [`LinearAlgebraEigen`](@ref).
 !!! note
-    Using the `KrylovKitMatrix()` or `KrylovKitDirect()` algorithms require julia v1.9 or
-    later as well as the KrylovKit.jl package. The package can be loaded with
-    `using KrylovKit`.
+    Using the `KrylovKitMatrix()` or `KrylovKitDirect()` algorithms requires the
+    KrylovKit.jl package. The package can be loaded with `using KrylovKit`.
+    Using the `ArpackEigs()` algorithm requires the Arpack.jl package. The package can be
+    loaded with `using Arpack`.
+    Algorithms with external packages require julia v1.9 or later.
 """
 struct ExactDiagonalizationProblem{H<:AbstractHamiltonian, V, K}
     h::H
@@ -117,7 +120,7 @@ function Base.:(==)(p1::ExactDiagonalizationProblem, p2::ExactDiagonalizationPro
     return p1.h == p2.h && p1.v0 == p2.v0 && p1.kw_nt == p2.kw_nt
 end
 
-struct MatrixEDSolver{ALG, P, BSR<:BasisSetRep, V, K}
+struct MatrixEDSolver{ALG, P, BSR<:BasisSetRep, V<:Union{Nothing, FrozenDVec}, K<:NamedTuple}
     algorithm::ALG
     problem::P
     basissetrep::BSR
@@ -298,19 +301,24 @@ function CommonSolve.init(
     sort = get(kw, :sort, false)
 
     # determine the starting address or vector
-    addr_or_vec = if isnothing(p.v0)
-            starting_address(p.h)
-        elseif p.v0 isa Union{
-            NTuple{<:Any, <:AbstractFockAddress},
-            AbstractVector{<:AbstractFockAddress},
-            AbstractFockAddress
-        }
-            p.v0
-        elseif p.v0 isa DictVectors.FrozenDVec{<:AbstractFockAddress}
-            keys(p.v0)
-        else
-            throw(ArgumentError("Invalid starting vector in `ExactDiagonalizationProblem`."))
+    v0 = p.v0
+    if isnothing(p.v0)
+        addr_or_vec = starting_address(p.h)
+    elseif p.v0 isa Union{
+        NTuple{<:Any, <:AbstractFockAddress},
+        AbstractVector{<:AbstractFockAddress}
+    }
+        addr_or_vec = p.v0
+        v0 = FrozenDVec([addr => 1.0 for addr in p.v0])
+    elseif p.v0 isa AbstractFockAddress
+        addr_or_vec = p.v0
+        v0 = FrozenDVec([p.v0 => 1.0])
+    elseif p.v0 isa DictVectors.FrozenDVec{<:AbstractFockAddress}
+        addr_or_vec = keys(p.v0)
+    else
+        throw(ArgumentError("Invalid starting vector in `ExactDiagonalizationProblem`."))
     end
+    @assert v0 isa Union{FrozenDVec{<:AbstractFockAddress}, Nothing}
 
     # create the BasisSetRep
     bsr = BasisSetRep(p.h, addr_or_vec; sizelim, filter, nnzs, col_hint, sort)
@@ -319,7 +327,7 @@ function CommonSolve.init(
     kw = (; kw..., sizelim, cutoff, filter, nnzs, col_hint, sort)
     kw_nt = delete(kw, (:sizelim, :cutoff, :filter, :nnzs, :col_hint, :sort))
 
-    return MatrixEDSolver(algorithm, p, bsr, p.v0, kw_nt)
+    return MatrixEDSolver(algorithm, p, bsr, v0, kw_nt)
 end
 
 # solve directly on the ExactDiagonalizationProblem
@@ -437,12 +445,15 @@ struct MatrixEDEigenResult{P,B,F} <: AbstractEDResult
     problem::P
     basis::B
     eigen_factorization::F
+    success::Bool
 end
 function Base.show(io::IO, r::MatrixEDEigenResult)
+    io = IOContext(io, :compact => true)
     n = length(r.values)
-    print(io, "Rimu.MatrixEDEigenResult with $n eigenvalue(s),\n  `values` = ")
+    print(io, "Rimu.MatrixEDEigenResult with $n eigenvalue(s),\n  values = ")
     show(io, r.values)
-    print(io, ",\n  and `vectors` of length $n.")
+    print(io, ",\n  and vectors of length $n.")
+    print(io, "\n  sucess = $(r.success).")
 end
 function Base.getproperty(r::MatrixEDEigenResult, key::Symbol)
     vs = getfield(r, :eigen_factorization).vectors
@@ -479,5 +490,5 @@ function CommonSolve.solve(s::Rimu.MatrixEDSolver{<:LinearAlgebraEigen};
     !isempty(nt) && @warn "Unused keyword arguments in `solve`: $nt"
     # eigen_factorization = eigen(Matrix(s.basissetrep.sm); kw_nt...)
 
-    return MatrixEDEigenResult(s.problem, s.basissetrep.basis, eigen_factorization)
+    return MatrixEDEigenResult(s.problem, s.basissetrep.basis, eigen_factorization, true)
 end

@@ -88,4 +88,12 @@ VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     @test length(res.values) == length(res.vectors) == res.info.converged ≥ 3
     res_full = solve(p2)
     @test res.values[1:3] ≈ res_full.values[1:3]
+
+    p3 = ExactDiagonalizationProblem(
+        HubbardMom1D(BoseFS(1, 2, 3)), BoseFS(1, 2, 3)
+    )
+    @test eval(Meta.parse(repr(p3))) == p3
+    s3 = init(p3, KrylovKitDirect(); howmany=5)
+    r3 = solve(s3)
+    @test r3.success
 end

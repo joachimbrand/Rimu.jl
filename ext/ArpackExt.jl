@@ -11,6 +11,8 @@ struct MatrixEDResult{A,P,VA<:Vector,VE<:Vector,B,I} <: AbstractEDResult
     vecs::VE
     basis::B
     info::I
+    howmany::Int
+    success::Bool
 end
 function Base.getproperty(r::MatrixEDResult, key::Symbol)
     vecs = getfield(r, :vecs)
@@ -23,13 +25,16 @@ end
 
 function Base.show(io::IO, r::MatrixEDResult)
     # algs = string(Base.typename(typeof(r.algorithm)).type)
+    io = IOContext(io, :compact => true)
     n = length(r.values)
     println(io, "MatrixEDResult for algorithm $(r.algorithm) with $n eigenvalue(s),")
-    print(io, "  `values` = ")
+    print(io, "  values = ")
     show(io, r.values)
-    print(io, ",\n  and `vectors` of length $(length(r.vectors[1])).")
-    print(io, "\n  Convergence `info`: ")
+    print(io, ",\n  and vectors of length $(length(r.vectors[1])).")
+    print(io, "\n  Convergence info: ")
     show(io, r.info)
+    print(io, ", with howmany = $(r.howmany) eigenvalues requested.")
+    print(io, "\n  sucess = $(r.success).")
 end
 
 struct ArpackConvergenceInfo
@@ -42,8 +47,8 @@ function Base.show(io::IO, info::ArpackConvergenceInfo)
     print(io, "converged = $(info.converged), ")
     print(io, "numiter = $(info.numiter), ")
     print(io, "numops = $(info.numops), ")
-    println(io, "norm of residuals ≤ $(maximum(info.residuals))")
-    info.converged < 1 && println(io, "Arpack.eigs did not converge.")
+    print(io, "residuals ≤ ")
+    show(io, maximum(info.residuals))
 end
 
 function CommonSolve.solve(s::S; kwargs...
@@ -66,6 +71,7 @@ function CommonSolve.solve(s::S; kwargs...
     # Remove the `howmany` key from the kwargs.
     kw_nt = (; nev=kw_nt.howmany, kw_nt..., ritzvec=true)
     kw_nt = delete(kw_nt, (:howmany,))
+    howmany = kw_nt.nev
 
     # set up the starting vector
     v0 = if isnothing(s.v0)
@@ -77,11 +83,19 @@ function CommonSolve.solve(s::S; kwargs...
     # solve the problem
     vals, vec_matrix, nconv, niter, nmult, resid = eigs(s.basissetrep.sm; v0, kw_nt...)
 
-    verbose && @info "Arpack.eigs: $nconv converged eigenvalues, $niter iterations," *
+    verbose && @info "Arpack.eigs: $nconv converged out of $howmany requested eigenvalues,"*
+        " $niter iterations," *
         " $nmult matrix vector multiplications, norm of residuals ≤ $(maximum(resid))"
+    success = nconv ≥ howmany
     vecs = [view(vec_matrix, :, i) for i in 1:length(vals)] # convert to array of vectors
     info = ArpackConvergenceInfo(nconv, niter, nmult, resid)
-    return MatrixEDResult(s.algorithm, s.problem, vals, vecs, s.basissetrep.basis, info)
+    if !success
+        @warn "Arpack.eigs did not converge for all requested eigenvalues:" *
+              " $nconv converged out of $howmany requested value(s)."
+    end
+    return MatrixEDResult(
+        s.algorithm, s.problem, vals, vecs, s.basissetrep.basis, info, howmany, success
+    )
 end
 
 end # module

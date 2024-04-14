@@ -2,10 +2,12 @@ module KrylovKitExt
 
 using KrylovKit: KrylovKit, EigSorter, eigsolve
 using LinearAlgebra: LinearAlgebra, mul!, ishermitian, issymmetric
+using CommonSolve: CommonSolve
+using Setfield: Setfield, @set
+
 using Rimu: Rimu, AbstractDVec, AbstractHamiltonian, IsDeterministic, PDVec, DVec,
     PDWorkingMemory, scale!!, working_memory, zerovector, MatrixEDSolver,
     delete, KrylovKitMatrix, dimension, AbstractEDResult
-using CommonSolve: CommonSolve
 
 const U = Union{Symbol,EigSorter}
 
@@ -65,6 +67,8 @@ struct KrylovKitResult{P,VA<:Vector,VDV<:Vector,I} <: AbstractEDResult
     values::VA
     vectors::VDV
     info::I
+    howmany::Int
+    success::Bool
 end
 
 
@@ -74,6 +78,8 @@ struct MatrixEDKrylovKitResult{P,VA<:Vector,VE<:Vector,B,I} <: AbstractEDResult
     vecs::VE
     basis::B
     info::I
+    howmany::Int
+    success::Bool
 end
 function Base.getproperty(r::MatrixEDKrylovKitResult, key::Symbol)
     vecs = getfield(r, :vecs)
@@ -85,23 +91,24 @@ function Base.getproperty(r::MatrixEDKrylovKitResult, key::Symbol)
 end
 
 function Base.show(io::IO, r::R) where R<:Union{KrylovKitResult,MatrixEDKrylovKitResult}
+    io = IOContext(io, :compact => true)
     ts = R isa KrylovKitResult ? "KrylovKitResult" : "MatrixEDKrylovKitResult"
     n = length(r.values)
     info = r.info
-    print(io, "$ts with $n eigenvalue(s),\n  `values` = ")
+    print(io, "$ts with $n eigenvalue(s),\n  values = ")
     show(io, r.values)
-    print(io, ",\n  and `vectors` of length $(length(r.vectors[1])).")
-    print(io, "\n  Convergence `info`: ")
-    info.converged == 0 && print(io, "no converged values ")
-    info.converged == 1 && print(io, "one converged value ")
-    info.converged > 1 && print(io, "$(info.converged) converged values ")
+    print(io, ",\n  and vectors of length $(length(r.vectors[1])).")
+    print(io, "\n  Convergence info: ")
+    print(io, "$(info.converged) converged out of howmany = $(r.howmany) requested value(s) ")
     println(io,
         "after ",
         info.numiter,
         " iteration(s) and ",
         info.numops,
         " applications of the linear map.")
-    print(io, "  The norms of the residuals are ≤ $(maximum(info.normres)).")
+    print(io, "  The norms of the residuals are ≤ ")
+    show(io, maximum(info.normres))
+    print(io, ".\n  success = $(r.success).")
 end
 
 # solve for KrylovKit solvers: prepare arguments for `KrylovKit.eigsolve`
@@ -147,13 +154,25 @@ function _kk_eigsolve(s::Rimu.MatrixEDSolver{<:KrylovKitMatrix}, howmany, which,
     end
     # solve the problem
     vals, vecs, info = eigsolve(s.basissetrep.sm, x0, howmany, which; kw_nt...)
-    return MatrixEDKrylovKitResult(s.problem, vals, vecs, s.basissetrep.basis, info)
+    success = info.converged ≥ howmany
+    if !success
+        @warn "KrylovKit.eigsolve did not converge for all requested eigenvalues:" *
+              " $(info.converged) converged out of $howmany requested value(s)."
+    end
+    return MatrixEDKrylovKitResult(
+        s.problem, vals, vecs, s.basissetrep.basis, info, howmany, success
+    )
 end
 
 # solve with KrylovKit direct
 function _kk_eigsolve(s::Rimu.KrylovKitDirectEDSolver, howmany, which, kw_nt)
     vals, vecs, info = eigsolve(s.problem.h, s.v0, howmany, which; kw_nt...)
-    return KrylovKitResult(s.problem, vals, vecs, info)
+    success = info.converged ≥ howmany
+    if !success
+        @warn "KrylovKit.eigsolve did not converge for all requested eigenvalues:" *
+              " $(info.converged) converged out of $howmany requested value(s)."
+    end
+    return KrylovKitResult(s.problem, vals, vecs, info, howmany, success)
 end
 
 end
