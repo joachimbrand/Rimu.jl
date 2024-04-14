@@ -1,5 +1,8 @@
 using Rimu
 using Test
+using Random
+
+Random.seed!(1234) # for reproducibility, as some solvers start with random vectors
 
 # first we do tests that don't require KrylovKit and the extension
 @testset "LinearAlgebraEigen" begin
