@@ -63,10 +63,9 @@ ExactDiagonalizationProblem(
 )
 
 julia> result = solve(p) # convert to dense matrix and solve with LinearAlgebra.eigen
-Rimu.MatrixEDEigenResult with 10 eigenvalue(s),
+MatrixEDEigenResult with 10 eigenvalue(s),
   values = [-5.09593, -1.51882, -1.51882, 1.55611, 1.6093, 1.6093, 4.0, 4.53982, 4.90952, 4.90952],
   and vectors of length 10.
-  sucess = true.
 
 julia> using KrylovKit # the next example requires julia v1.9 or later
 
@@ -450,10 +449,9 @@ end
 function Base.show(io::IO, r::MatrixEDEigenResult)
     io = IOContext(io, :compact => true)
     n = length(r.values)
-    print(io, "Rimu.MatrixEDEigenResult with $n eigenvalue(s),\n  values = ")
+    print(io, "MatrixEDEigenResult with $n eigenvalue(s),\n  values = ")
     show(io, r.values)
     print(io, ",\n  and vectors of length $n.")
-    print(io, "\n  sucess = $(r.success).")
 end
 function Base.getproperty(r::MatrixEDEigenResult, key::Symbol)
     vs = getfield(r, :eigen_factorization).vectors
