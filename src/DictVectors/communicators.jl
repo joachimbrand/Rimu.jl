@@ -47,7 +47,10 @@ is_distributed(::Communicator) = true
 
 Merge the results of reductions over MPI. By default, it uses `MPI.Allreduce`.
 """
-merge_remote_reductions(c::Communicator, op, x) = MPI.Allreduce(x, op, mpi_comm(c))
+function merge_remote_reductions(c::Communicator, op, x)
+    @assert MPI.Is_thread_main()
+    return MPI.Allreduce(x, op, mpi_comm(c))
+end
 
 """
     total_num_segments(c::Communicator, n) -> Int
@@ -217,6 +220,7 @@ end
 Send the buffers to `dest`.
 """
 function mpi_send(buf::SegmentedBuffer, dest, comm)
+    @assert MPI.Is_thread_main()
     MPI.Isend(buf.offsets, comm; dest, tag=0)
     MPI.Isend(buf.buffer, comm; dest, tag=1)
     return buf
@@ -229,6 +233,7 @@ Find a source that is ready to send a buffer and receive from it. Return the ran
 sender.
 """
 function mpi_recv_any!(buf::SegmentedBuffer, comm)
+    @assert MPI.Is_thread_main()
     status = offset_status = MPI.Probe(MPI.ANY_SOURCE, 0, comm)
     source = status.source
     resize!(buf.offsets, MPI.Get_count(offset_status, Int))
@@ -409,6 +414,7 @@ end
 The `n`-th column from `src` will be sent to rank `n+1`. The data sent from rank `r` will be stored in the `(r-1)`-st column.
 """
 function mpi_exchange!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
+    @assert MPI.Is_thread_main()
     nrows = src.nrows
     if dst.nrows ≠ nrows
         throw(ArgumentError("mismatch in number of cols ($nrows and $(dst.nrows))."))
