@@ -16,7 +16,7 @@ jobs:
       - name: "Checkout"
         uses: actions/checkout@v4
       - name: "Setup Julia"
-        uses: julia-actions/setup-julia@v1
+        uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.julia-version }}
           arch: ${{ matrix.julia-arch }}
@@ -33,17 +33,14 @@ jobs:
           export JULIA_PROJECT=@.
           export JULIA_MPIEXEC=mpiexecjl
           export JULIA_NUM_THREADS=1
-          julia --project -e 'ENV["JULIA_MPI_BINARY"]=""; using Pkg; Pkg.add("MPI"); Pkg.build("MPI"; verbose=true); using MPI; MPI.install_mpiexecjl()'
-          julia --project=@. -e "using InteractiveUtils; versioninfo(verbose=true)"
-          julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.build()"
+
+          # We run MPI tests from the test project (Rimu/test/Project.toml) as that has
+          # access to KrylovKit. Because the test project does not include Rimu, we add it
+          # with Pkg.develop(path="."). using Rimu, KrylovKit, StaticArrays at the end
+          # ensures everything is precompiled before the MPI job starts.
+          julia --color=yes --project=test -e "using Pkg; Pkg.instantiate(); Pkg.develop(path=\".\"); Pkg.add(\"MPI\"); Pkg.build(); using MPI; MPI.install_mpiexecjl(); using Rimu, KrylovKit, StaticArrays"
           export PATH=$PATH:/home/runner/.julia/bin
 
-          # MPI tests need to run with the Rimu/test/Project.toml to have access to
-          # KrylovKit. Since it's not in the project, we need to first install there.
-          # Note: this messes up the test Project.toml, but we don't need it anymore,
-          # so testing Rimu will no longer work. This is fine if this step is done
-          # after the testing.
-          julia --color=yes --project=test -e 'import Pkg; Pkg.instantiate(); Pkg.develop(path="."); Pkg.build()'
           mpiexecjl -n 2 julia --code-coverage=user --depwarn=yes --project=test test/mpi_runtests.jl
 
       - name: "Process coverage"
