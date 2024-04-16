@@ -124,11 +124,5 @@ function diagonal_element(h::TimeReversalSymmetry, add)
     return diagonal_element(h.hamiltonian, add)
 end
 
-function BasisSetRep(
-    h::TimeReversalSymmetry, addr=starting_address(h);
-    kwargs...
-)
-    # For symmetry wrappers it is necessary to explicity symmetrise the matrix to
-    # avoid the loss of matrix symmetry due to floating point rounding errors
-    return _bsr_ensure_symmetry(LOStructure(h), h, addr; kwargs...)
-end
+# A special method for BasisSetRep with TimeReversalSymmetry lives with the
+# BasisSetRep definition

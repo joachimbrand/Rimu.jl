@@ -2,7 +2,8 @@ module ArpackExt
 
 using Arpack: Arpack, eigs
 using CommonSolve: CommonSolve, solve
-using Rimu: Rimu, ArpackEigs, MatrixEDSolver, DVec, AbstractEDResult, delete
+using Rimu: Rimu, DVec, delete
+using Rimu.ExactDiagonalization: ArpackEigs, MatrixEDSolver, AbstractEDResult
 
 struct MatrixEDResult{A,P,VA<:Vector,VE<:Vector,B,I} <: AbstractEDResult
     algorithm::A
@@ -52,7 +53,7 @@ function Base.show(io::IO, info::ArpackConvergenceInfo)
 end
 
 function CommonSolve.solve(s::S; kwargs...
-) where {S<:Rimu.MatrixEDSolver{<:ArpackEigs}}
+) where {S<:MatrixEDSolver{<:ArpackEigs}}
     # combine keyword arguments and set defaults for `howmany` and `which`
     kw_nt = (; howmany=1, which=:SR, s.kw_nt..., kwargs...)
     # check if universal keyword arguments are present

@@ -6,8 +6,10 @@ using CommonSolve: CommonSolve
 using Setfield: Setfield, @set
 
 using Rimu: Rimu, AbstractDVec, AbstractHamiltonian, IsDeterministic, PDVec, DVec,
-    PDWorkingMemory, scale!!, working_memory, zerovector, MatrixEDSolver,
-    delete, KrylovKitMatrix, dimension, AbstractEDResult
+    PDWorkingMemory, scale!!, working_memory, zerovector, delete, dimension
+
+using Rimu.ExactDiagonalization: MatrixEDSolver, KrylovKitMatrix, KrylovKitDirect,
+    AbstractEDResult, KrylovKitDirectEDSolver
 
 const U = Union{Symbol,EigSorter}
 
@@ -62,7 +64,8 @@ A struct that holds the results of an "ExactDiagonalizationProblem" solved with 
 - `vectors`: The eigenvectors as `DVec`s.
 - `info`: The convergence information.
 """
-struct KrylovKitResult{P,VA<:Vector,VDV<:Vector,I} <: AbstractEDResult
+struct KrylovKitResult{A<:KrylovKitDirect,P,VA<:Vector,VDV<:Vector,I} <: AbstractEDResult
+    algorithm::A
     problem::P
     values::VA
     vectors::VDV
@@ -72,7 +75,10 @@ struct KrylovKitResult{P,VA<:Vector,VDV<:Vector,I} <: AbstractEDResult
 end
 
 
-struct MatrixEDKrylovKitResult{P,VA<:Vector,VE<:Vector,B,I} <: AbstractEDResult
+struct MatrixEDKrylovKitResult{
+    A<:KrylovKitMatrix,P,VA<:Vector,VE<:Vector,B,I
+} <: AbstractEDResult
+    algorithm::A
     problem::P
     values::VA
     vecs::VE
@@ -95,7 +101,7 @@ function Base.show(io::IO, r::R) where R<:Union{KrylovKitResult,MatrixEDKrylovKi
     ts = R isa KrylovKitResult ? "KrylovKitResult" : "MatrixEDKrylovKitResult"
     n = length(r.values)
     info = r.info
-    print(io, "$ts with $n eigenvalue(s),\n  values = ")
+    print(io, "$ts for algorithm $(r.algorithm) with $n eigenvalue(s),\n  values = ")
     show(io, r.values)
     print(io, ",\n  and vectors of length $(length(r.vectors[1])).")
     print(io, "\n  Convergence info: ")
@@ -113,7 +119,7 @@ end
 
 # solve for KrylovKit solvers: prepare arguments for `KrylovKit.eigsolve`
 function CommonSolve.solve(s::S; kwargs...
-) where {S<:Union{Rimu.MatrixEDSolver{<:KrylovKitMatrix}, Rimu.KrylovKitDirectEDSolver}}
+) where {S<:Union{MatrixEDSolver{<:KrylovKitMatrix}, KrylovKitDirectEDSolver}}
     # combine keyword arguments and set defaults for `howmany` and `which`
     kw_nt = (; howmany = 1, which = :SR, s.kw_nt..., kwargs...)
     # check if universal keyword arguments are present
@@ -143,7 +149,7 @@ function CommonSolve.solve(s::S; kwargs...
 end
 
 # solve with KrylovKit and matrix
-function _kk_eigsolve(s::Rimu.MatrixEDSolver{<:KrylovKitMatrix}, howmany, which, kw_nt)
+function _kk_eigsolve(s::MatrixEDSolver{<:KrylovKitMatrix}, howmany, which, kw_nt)
     # set up the starting vector
     T = eltype(s.basissetrep.sm)
     x0 = if isnothing(s.v0)
@@ -160,19 +166,19 @@ function _kk_eigsolve(s::Rimu.MatrixEDSolver{<:KrylovKitMatrix}, howmany, which,
               " $(info.converged) converged out of $howmany requested value(s)."
     end
     return MatrixEDKrylovKitResult(
-        s.problem, vals, vecs, s.basissetrep.basis, info, howmany, success
+        s.algorithm, s.problem, vals, vecs, s.basissetrep.basis, info, howmany, success
     )
 end
 
 # solve with KrylovKit direct
-function _kk_eigsolve(s::Rimu.KrylovKitDirectEDSolver, howmany, which, kw_nt)
+function _kk_eigsolve(s::KrylovKitDirectEDSolver, howmany, which, kw_nt)
     vals, vecs, info = eigsolve(s.problem.h, s.v0, howmany, which; kw_nt...)
     success = info.converged ≥ howmany
     if !success
         @warn "KrylovKit.eigsolve did not converge for all requested eigenvalues:" *
               " $(info.converged) converged out of $howmany requested value(s)."
     end
-    return KrylovKitResult(s.problem, vals, vecs, info, howmany, success)
+    return KrylovKitResult(s.algorithm, s.problem, vals, vecs, info, howmany, success)
 end
 
 end

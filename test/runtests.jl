@@ -11,11 +11,6 @@ using Test
 using Rimu.StatsTools
 using ExplicitImports: check_no_implicit_imports
 
-# assuming VERSION ≥ v"1.6"
-# the following is needed because random numbers of collections are computed
-# differently after version 1.6, and thus the results of many tests change
-# for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
-@assert VERSION ≥ v"1.6"
 
 @test Rimu.PACKAGE_VERSION == VersionNumber(TOML.parsefile(pkgdir(Rimu, "Project.toml"))["version"])
 
@@ -23,8 +18,8 @@ using ExplicitImports: check_no_implicit_imports
     include("Interfaces.jl")
 end
 
-@safetestset "exact_diagonalization" begin
-    include("exact_diagonalization.jl")
+@safetestset "ExactDiagonalization" begin
+    include("ExactDiagonalization.jl")
 end
 
 @safetestset "BitStringAddresses" begin
@@ -128,9 +123,9 @@ end
     @test hp2cMom[1][1] == BoseFS2C(BoseFS((1,2,1,0)), BoseFS((0,4,0,0)))
     @test hp2cMom[1][2] ≈ 2.598076211353316
 
-    smat2cReal, adds2cReal = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cReal,aIni2cReal)
+    smat2cReal, adds2cReal = ExactDiagonalization.build_sparse_matrix_from_LO(Ĥ2cReal,aIni2cReal)
     eig2cReal = eigen(Matrix(smat2cReal))
-    smat2cMom, adds2cMom = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cMom,aIni2cMom)
+    smat2cMom, adds2cMom = ExactDiagonalization.build_sparse_matrix_from_LO(Ĥ2cMom, aIni2cMom)
     eig2cMom = eigen(Matrix(smat2cMom))
     @test eig2cReal.values[1] ≈ eig2cMom.values[1]
 end

@@ -52,6 +52,8 @@ include("StochasticStyles/StochasticStyles.jl")
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
 using .DictVectors: FrozenDVec
+include("ExactDiagonalization/ExactDiagonalization.jl")
+@reexport using .ExactDiagonalization
 include("RimuIO/RimuIO.jl")
 @reexport using .RimuIO
 include("StatsTools/StatsTools.jl")
@@ -70,8 +72,6 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export localpart, walkernumber
 export smart_logger, default_logger
 export FCIQMCProblem, SimulationPlan
-export ExactDiagonalizationProblem, KrylovKitMatrix, KrylovKitDirect, LinearAlgebraEigen
-export ArpackEigs, LOBPCG
 
 function __init__()
     # Turn on smart logging once at runtime. Turn off with `default_logger()`.
@@ -88,7 +88,7 @@ include("FCIQMCProblem.jl")
 
 include("lomc.jl")                  # top level
 include("QMCSimulation.jl")
-include("exact_diagonalization.jl")
+# include("exact_diagonalization.jl")
 
 include("RMPI/RMPI.jl")
 

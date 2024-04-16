@@ -117,11 +117,5 @@ function diagonal_element(h::ParitySymmetry, add)
     return diagonal_element(h.hamiltonian, add)
 end
 
-function BasisSetRep(
-    h::ParitySymmetry, addr=starting_address(h);
-    kwargs...
-)
-    # For symmetry wrappers it is necessary to explicity symmetrise the matrix to
-    # avoid the loss of matrix symmetry due to floating point rounding errors
-    return _bsr_ensure_symmetry(LOStructure(h), h, addr; kwargs...)
-end
+# a special case method for BasisSetRep with ParitySymmetry lives with the
+# BasisSetRep definition
