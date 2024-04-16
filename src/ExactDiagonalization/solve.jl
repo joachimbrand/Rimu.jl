@@ -2,8 +2,8 @@
 abstract type AbstractEDResult end
 # iteration for destructuring into components
 Base.iterate(S::AbstractEDResult) = (S.values, Val(:vectors))
-Base.iterate(S::AbstractEDResult, ::Val{:vectors}) = (S.vectors, Val(:info))
-Base.iterate(S::AbstractEDResult, ::Val{:info}) = (S.info, Val(:done))
+Base.iterate(S::AbstractEDResult, ::Val{:vectors}) = (S.vectors, Val(:success))
+Base.iterate(S::AbstractEDResult, ::Val{:success}) = (S.info, Val(:done))
 Base.iterate(::AbstractEDResult, ::Val{:done}) = nothing
 
 # solve directly on the ExactDiagonalizationProblem

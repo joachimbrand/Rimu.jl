@@ -50,10 +50,22 @@ with [`solve`](@ref).
 The `solve` function can be called directly on an `ExactDiagonalizationProblem` to solve it.
 Alternatively, the `init` function can be used to initialize a solver, which can then be
 solved with the `solve` function. The solve function returns a result type with the
-eigenvalues, eigenvectors, and convergence information. While the type and the fields of the
-result type depend on the algorithm it is guaranteed to have the fields `values`, `vectors`,
-and `info`. Iterating the result type will yield the eigenvalues, eigenvectors, and
-convergence information in that order.
+eigenvalues, eigenvectors, and convergence information.
+
+## Result type
+The result type for the `solve` function is determined by the algorithm used. The result
+type is guaranteed to have the following fields:
+- `values::Vector`: The eigenvalues.
+- `vectors::Vector{<:AbstractDVec}`: The eigenvectors.
+- `success::Bool`: A boolean flag indicating whether the solver was successful.
+- `info`: Convergence information.
+- `algorithm`: The algorithm used for the computation.
+- `problem`: The `ExactDiagonalizationProblem` that was solved.
+- Additional fields may be present depending on the algorithm used.
+
+Iterating the result type will
+yield the eigenvalues, eigenvectors, and a boolean flag `success` in that order.
+
 
 # Examples
 ```jldoctest
