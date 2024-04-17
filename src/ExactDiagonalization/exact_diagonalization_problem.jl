@@ -54,8 +54,8 @@ solved with the `solve` function. The solve function returns a result type with 
 eigenvalues, eigenvectors, and convergence information.
 
 ## Result type
-The result type for the `solve` function is determined by the algorithm used. The result
-type is guaranteed to have the following fields:
+The result type for the `solve` function is determined by the algorithm used. It has the
+following fields:
 - `values::Vector`: The eigenvalues.
 - `vectors::Vector{<:AbstractDVec}`: The eigenvectors.
 - `success::Bool`: A boolean flag indicating whether the solver was successful.
@@ -64,9 +64,8 @@ type is guaranteed to have the following fields:
 - `problem`: The `ExactDiagonalizationProblem` that was solved.
 - Additional fields may be present depending on the algorithm used.
 
-Iterating the result type will
-yield the eigenvalues, eigenvectors, and a boolean flag `success` in that order.
-
+Iterating the result type will yield the eigenvalues, eigenvectors, and a boolean flag
+`success` in that order.
 
 # Examples
 ```jldoctest
@@ -94,7 +93,7 @@ KrylovKitDirectEDSolver
   kwargs = NamedTuple()
 )
 
-julia> values, vectors = solve(s);
+julia> values, vectors, success = solve(s);
 
 julia> result.values[1] ≈ values[1]
 true

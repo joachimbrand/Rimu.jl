@@ -200,6 +200,13 @@ VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
             @test solver.problem == p
             res = solve(solver)
             @test res.success
+            @test res isa Rimu.ExactDiagonalization.EDResult
+            @test length(res.values) == length(res.vectors)
+            @test length(res.values) == length(res.coefficient_vectors) ≥ res.howmany
+            @test length(res.basis) == length(res.vectors[1]) ≤ dimension(p.h)
+            for (i, dv) in enumerate(res.vectors)
+                @test DVec(zip(res.basis, res.coefficient_vectors[i])) ≈ dv
+            end
             res.values[1]
         end
         @test all(energies[1] .≈ energies)

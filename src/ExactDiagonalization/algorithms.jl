@@ -1,5 +1,5 @@
-abstract type Algorithm{MatrixFree} end
-ismatrixfree(::Algorithm{MatrixFree}) where {MatrixFree} = MatrixFree
+abstract type AbstractAlgorithm{MatrixFree} end
+ismatrixfree(::AbstractAlgorithm{MatrixFree}) where {MatrixFree} = MatrixFree
 
 """
     KrylovKitSolver(matrix_free::Bool; kwargs...)
@@ -24,7 +24,7 @@ See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 !!! note
     Requires the KrylovKit.jl package to be loaded with `using KrylovKit`.
 """
-struct KrylovKitSolver{MatrixFree} <: Algorithm{MatrixFree}
+struct KrylovKitSolver{MatrixFree} <: AbstractAlgorithm{MatrixFree}
     kw_nt::NamedTuple
     # the inner constructor checks if KrylovKit is loaded
     function KrylovKitSolver{MF}(; kwargs...) where MF
@@ -64,7 +64,7 @@ See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 !!! note
     Requires the Arpack.jl package to be loaded with `using Arpack`.
 """
-struct ArpackSolver <: Algorithm{false}
+struct ArpackSolver <: AbstractAlgorithm{false}
     kw_nt::NamedTuple
     # the inner constructor checks if Arpack is loaded
     function ArpackSolver(; kwargs...)
@@ -103,7 +103,7 @@ See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 !!! note
     Requires the IterativeSolvers.jl package to be loaded with `using IterativeSolvers`.
 """
-struct LOBPCGSolver <: Algorithm{false}
+struct LOBPCGSolver <: AbstractAlgorithm{false}
     kw_nt::NamedTuple
     # the inner constructor checks if LinearSolvers is loaded
     function LOBPCGSolver(; kwargs...)
@@ -144,7 +144,7 @@ https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen).
 
 See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 """
-struct LinearAlgebraSolver <: Algorithm{false}
+struct LinearAlgebraSolver <: AbstractAlgorithm{false}
     kw_nt::NamedTuple
 end
 LinearAlgebraSolver(; kwargs...) = LinearAlgebraSolver(NamedTuple(kwargs))

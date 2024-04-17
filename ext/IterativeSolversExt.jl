@@ -3,7 +3,7 @@ module IterativeSolversExt
 using IterativeSolvers: IterativeSolvers, lobpcg, LOBPCGResults
 using CommonSolve: CommonSolve, solve
 using Rimu: Rimu, DVec, delete
-using Rimu.ExactDiagonalization: AbstractEDResult, MatrixEDSolver, LOBPCGSolver,
+using Rimu.ExactDiagonalization: MatrixEDSolver, LOBPCGSolver,
     LazyCoefficientVectors, LazyDVecs, EDResult
 
 struct LOBPCGConvergenceInfo
@@ -20,54 +20,6 @@ function Base.show(io::IO, info::LOBPCGConvergenceInfo)
     print(io, "maxiter = $(info.maxiter), ")
     print(io, "residual_norms ≤ ")
     show(io, maximum(info.residual_norms))
-end
-
-
-struct LOBPCGEDResult{A,P,R <: LOBPCGResults,B} <: AbstractEDResult
-    algorithm::A
-    problem::P
-    results::R
-    basis::B
-    howmany::Int
-    success::Bool
-end
-function Base.getproperty(r::LOBPCGEDResult, key::Symbol)
-    results = getfield(r, :results)
-    if key === :values
-        return results.λ
-    elseif key === :vectors
-        basis = getfield(r, :basis)
-        vec_matrix = results.X
-        return [DVec(zip(basis, @view vec_matrix[:, i])) for i in 1:size(vec_matrix, 2)]
-    elseif key === :info
-        return (;
-            tolerance = results.tolerance,
-            residual_norms = results.residual_norms,
-            iterations = results.iterations,
-            maxiter = results.maxiter,
-            converged = results.converged,
-            trace = results.trace
-        )
-    else
-        return getfield(r, key)
-    end
-end
-
-function Base.show(io::IO, r::LOBPCGEDResult)
-    io = IOContext(io, :compact => true)
-    n = length(r.values)
-    println(io, "LOBPCGEDResult for algorithm $(r.algorithm) with $n eigenvalue(s),")
-    print(io, "  values = ")
-    show(io, r.values)
-    print(io, ",\n  and vectors of length $(length(r.vectors[1])).")
-    print(io, "\n  Convergence info: ")
-    print(io, " iterations = ", r.info.iterations)
-    print(io, ", converged = ", all(r.info.converged))
-    print(io, ", maxiter = ", r.info.maxiter)
-    print(io, ", residual_norms ≤ ")
-    show(io, maximum(r.info.residual_norms))
-    print(io, ", with howmany = $(r.howmany) eigenvalues requested.")
-    print(io, "\n  success = $(r.success).")
 end
 
 function CommonSolve.solve(s::S; kwargs...) where {S<:MatrixEDSolver{<:LOBPCGSolver}}
@@ -122,8 +74,6 @@ function CommonSolve.solve(s::S; kwargs...) where {S<:MatrixEDSolver{<:LOBPCGSol
         results,
         success
     )
-
-    # return LOBPCGEDResult(s.algorithm, s.problem, results, s.basissetrep.basis, nev, success)
 end
 
 end # module

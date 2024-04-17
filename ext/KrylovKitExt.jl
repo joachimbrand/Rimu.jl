@@ -9,7 +9,8 @@ using Rimu: Rimu, AbstractDVec, AbstractHamiltonian, IsDeterministic, PDVec, DVe
     PDWorkingMemory, scale!!, working_memory, zerovector, delete, dimension
 
 using Rimu.ExactDiagonalization: MatrixEDSolver, KrylovKitSolver,
-    AbstractEDResult, KrylovKitDirectEDSolver
+    KrylovKitDirectEDSolver,
+    LazyCoefficientVectors, LazyDVecs, EDResult, LazyCoefficientVectorsDVecs
 
 const U = Union{Symbol,EigSorter}
 
@@ -51,70 +52,6 @@ function KrylovKit.eigsolve(
         ham::Any, vec::Any, howmany, which;
         ishermitian=ishermitian(ham), issymmetric=issymmetric(ham), kwargs...
     )
-end
-
-
-"""
-    KrylovKitResult
-
-A struct that holds the results of an "ExactDiagonalizationProblem" solved with KrylovKit.
-
-# Fields
-- `values`: The eigenvalues.
-- `vectors`: The eigenvectors as `DVec`s.
-- `info`: The convergence information.
-"""
-struct KrylovKitResult{A<:KrylovKitSolver,P,VA<:Vector,VDV<:Vector,I} <: AbstractEDResult
-    algorithm::A
-    problem::P
-    values::VA
-    vectors::VDV
-    info::I
-    howmany::Int
-    success::Bool
-end
-
-
-struct MatrixEDKrylovKitResult{
-    A<:KrylovKitSolver,P,VA<:Vector,VE<:Vector,B,I
-} <: AbstractEDResult
-    algorithm::A
-    problem::P
-    values::VA
-    vecs::VE
-    basis::B
-    info::I
-    howmany::Int
-    success::Bool
-end
-function Base.getproperty(r::MatrixEDKrylovKitResult, key::Symbol)
-    vecs = getfield(r, :vecs)
-    if key === :vectors
-        return [DVec(zip(getfield(r, :basis), v)) for v in vecs]
-    else
-        return getfield(r, key)
-    end
-end
-
-function Base.show(io::IO, r::R) where R<:Union{KrylovKitResult,MatrixEDKrylovKitResult}
-    io = IOContext(io, :compact => true)
-    ts = R isa KrylovKitResult ? "KrylovKitResult" : "MatrixEDKrylovKitResult"
-    n = length(r.values)
-    info = r.info
-    print(io, "$ts for algorithm $(r.algorithm) with $n eigenvalue(s),\n  values = ")
-    show(io, r.values)
-    print(io, ",\n  and vectors of length $(length(r.vectors[1])).")
-    print(io, "\n  Convergence info: ")
-    print(io, "$(info.converged) converged out of howmany = $(r.howmany) requested value(s) ")
-    println(io,
-        "after ",
-        info.numiter,
-        " iteration(s) and ",
-        info.numops,
-        " applications of the linear map.")
-    print(io, "  The norms of the residuals are ≤ ")
-    show(io, maximum(info.normres))
-    print(io, ".\n  success = $(r.success).")
 end
 
 # solve for KrylovKit solvers: prepare arguments for `KrylovKit.eigsolve`
@@ -165,20 +102,45 @@ function _kk_eigsolve(s::MatrixEDSolver{<:KrylovKitSolver}, howmany, which, kw_n
         @warn "KrylovKit.eigsolve did not converge for all requested eigenvalues:" *
               " $(info.converged) converged out of $howmany requested value(s)."
     end
-    return MatrixEDKrylovKitResult(
-        s.algorithm, s.problem, vals, vecs, s.basissetrep.basis, info, howmany, success
+
+    return EDResult(
+        s.algorithm,
+        s.problem,
+        vals,
+        LazyDVecs(vecs, s.basissetrep.basis),
+        vecs, # coefficient_vectors
+        s.basissetrep.basis,
+        info,
+        howmany,
+        nothing,
+        success
     )
 end
 
 # solve with KrylovKit direct
 function _kk_eigsolve(s::KrylovKitDirectEDSolver, howmany, which, kw_nt)
+
     vals, vecs, info = eigsolve(s.problem.h, s.v0, howmany, which; kw_nt...)
     success = info.converged ≥ howmany
     if !success
         @warn "KrylovKit.eigsolve did not converge for all requested eigenvalues:" *
               " $(info.converged) converged out of $howmany requested value(s)."
     end
-    return KrylovKitResult(s.algorithm, s.problem, vals, vecs, info, howmany, success)
+
+    basis = keys(vecs[1])
+
+    return EDResult(
+        s.algorithm,
+        s.problem,
+        vals,
+        vecs,
+        LazyCoefficientVectorsDVecs(vecs, basis),
+        basis,
+        info,
+        howmany,
+        nothing,
+        success
+    )
 end
 
-end
+end # module

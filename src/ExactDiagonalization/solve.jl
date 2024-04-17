@@ -1,12 +1,4 @@
-# result types for `solve(::ExactDiagonalizationProblem; ...)`
-abstract type AbstractEDResult end
-# iteration for destructuring into components
-Base.iterate(S::AbstractEDResult) = (S.values, Val(:vectors))
-Base.iterate(S::AbstractEDResult, ::Val{:vectors}) = (S.vectors, Val(:success))
-Base.iterate(S::AbstractEDResult, ::Val{:success}) = (S.info, Val(:done))
-Base.iterate(::AbstractEDResult, ::Val{:done}) = nothing
-
-# a lazy type for iterating over coefficient vectors
+# a lazy type for iterating over coefficient vectors starting from a matrix
 struct LazyCoefficientVectors{VT,T} <: AbstractVector{VT}
     m::Matrix{T}
 end
@@ -15,6 +7,20 @@ function LazyCoefficientVectors(m::Matrix{T}) where {T}
 end
 Base.size(lcv::LazyCoefficientVectors) = (size(lcv.m, 2), 1)
 Base.getindex(lcv::LazyCoefficientVectors, i::Int) = view(lcv.m, :, i)
+
+# a lazy type for iterating over coefficient vectors starting from a vector of DVecs
+struct LazyCoefficientVectorsDVecs{T,VDV<:Vector{<:AbstractDVec},B} <: AbstractVector{T}
+    vecs::VDV
+    basis::B
+end
+function LazyCoefficientVectorsDVecs(vecs, basis)
+    T = valtype(vecs[1])
+    return LazyCoefficientVectorsDVecs{T,typeof(vecs),typeof(basis)}(vecs, basis)
+end
+Base.size(v::LazyCoefficientVectorsDVecs) = (length(v.vecs),)
+function Base.getindex(lcv::LazyCoefficientVectorsDVecs{T}, i::Int) where {T}
+    return T[lcv.vecs[i][address] for address in lcv.basis]
+end
 
 # lazy type for iterating over constructed DVecs
 struct LazyDVecs{DV,LCV,B} <: AbstractVector{DV}
@@ -28,7 +34,7 @@ Base.size(lv::LazyDVecs) = size(lv.vs)
 Base.getindex(lv::LazyDVecs, i::Int) = DVec(zip(lv.basis, lv.vs[i]))
 
 # a generic result type for ExactDiagonalizationProblem
-struct EDResult{A,P,VA<:AbstractVector,VE<:AbstractVector,CV,B,I,R} <: AbstractEDResult
+struct EDResult{A,P,VA<:AbstractVector,VE<:AbstractVector,CV,B,I,R}
     algorithm::A
     problem::P
     values::VA
@@ -40,6 +46,11 @@ struct EDResult{A,P,VA<:AbstractVector,VE<:AbstractVector,CV,B,I,R} <: AbstractE
     raw::R # algorithm-specific raw result, e.g. the matrix of eigenvectors
     success::Bool
 end
+# iteration for destructuring into components
+Base.iterate(S::EDResult) = (S.values, Val(:vectors))
+Base.iterate(S::EDResult, ::Val{:vectors}) = (S.vectors, Val(:success))
+Base.iterate(S::EDResult, ::Val{:success}) = (S.info, Val(:done))
+Base.iterate(::EDResult, ::Val{:done}) = nothing
 
 function Base.show(io::IO, r::EDResult)
     io = IOContext(io, :compact => true)

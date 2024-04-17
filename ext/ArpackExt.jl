@@ -3,7 +3,7 @@ module ArpackExt
 using Arpack: Arpack, eigs
 using CommonSolve: CommonSolve, solve
 using Rimu: Rimu, DVec, delete
-using Rimu.ExactDiagonalization: ArpackSolver, MatrixEDSolver, AbstractEDResult,
+using Rimu.ExactDiagonalization: ArpackSolver, MatrixEDSolver,
     LazyCoefficientVectors, LazyDVecs, EDResult
 
 struct ArpackConvergenceInfo
