@@ -3,40 +3,8 @@ module ArpackExt
 using Arpack: Arpack, eigs
 using CommonSolve: CommonSolve, solve
 using Rimu: Rimu, DVec, delete
-using Rimu.ExactDiagonalization: ArpackSolver, MatrixEDSolver, AbstractEDResult
-
-struct MatrixEDResult{A,P,VA<:Vector,VE<:Vector,B,I} <: AbstractEDResult
-    algorithm::A
-    problem::P
-    values::VA
-    vecs::VE
-    basis::B
-    info::I
-    howmany::Int
-    success::Bool
-end
-function Base.getproperty(r::MatrixEDResult, key::Symbol)
-    if key === :vectors
-        vecs = getfield(r, :vecs)
-        basis = getfield(r, :basis)
-        return [DVec(zip(basis, v)) for v in vecs]
-    else
-        return getfield(r, key)
-    end
-end
-
-function Base.show(io::IO, r::MatrixEDResult)
-    io = IOContext(io, :compact => true)
-    n = length(r.values)
-    println(io, "MatrixEDResult for algorithm $(r.algorithm) with $n eigenvalue(s),")
-    print(io, "  values = ")
-    show(io, r.values)
-    print(io, ",\n  and vectors of length $(length(r.vectors[1])).")
-    print(io, "\n  Convergence info: ")
-    show(io, r.info)
-    print(io, ", with howmany = $(r.howmany) eigenvalues requested.")
-    print(io, "\n  sucess = $(r.success).")
-end
+using Rimu.ExactDiagonalization: ArpackSolver, MatrixEDSolver, AbstractEDResult,
+    LazyCoefficientVectors, LazyDVecs, EDResult
 
 struct ArpackConvergenceInfo
     converged::Int
@@ -88,14 +56,25 @@ function CommonSolve.solve(s::S; kwargs...
         " $niter iterations," *
         " $nmult matrix vector multiplications, norm of residuals ≤ $(maximum(resid))"
     success = nconv ≥ howmany
-    vecs = [view(vec_matrix, :, i) for i in 1:length(vals)] # convert to array of vectors
+    # vecs = [view(vec_matrix, :, i) for i in 1:length(vals)] # convert to array of vectors
+    coefficient_vectors = LazyCoefficientVectors(vec_matrix)
+    vectors = LazyDVecs(coefficient_vectors, s.basissetrep.basis)
     info = ArpackConvergenceInfo(nconv, niter, nmult, resid)
     if !success
         @warn "Arpack.eigs did not converge for all requested eigenvalues:" *
               " $nconv converged out of $howmany requested value(s)."
     end
-    return MatrixEDResult(
-        s.algorithm, s.problem, vals, vecs, s.basissetrep.basis, info, howmany, success
+    return EDResult(
+        s.algorithm,
+        s.problem,
+        vals,
+        vectors,
+        coefficient_vectors,
+        s.basissetrep.basis,
+        info,
+        howmany,
+        vec_matrix,
+        success
     )
 end
 
