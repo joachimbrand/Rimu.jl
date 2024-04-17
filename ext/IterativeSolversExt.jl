@@ -3,7 +3,25 @@ module IterativeSolversExt
 using IterativeSolvers: IterativeSolvers, lobpcg, LOBPCGResults
 using CommonSolve: CommonSolve, solve
 using Rimu: Rimu, DVec, delete
-using Rimu.ExactDiagonalization: AbstractEDResult, MatrixEDSolver, LOBPCGSolver
+using Rimu.ExactDiagonalization: AbstractEDResult, MatrixEDSolver, LOBPCGSolver,
+    LazyCoefficientVectors, LazyDVecs, EDResult
+
+struct LOBPCGConvergenceInfo
+    tolerance::Float64
+    iterations::Int
+    converged::Bool
+    maxiter::Int
+    residual_norms::Vector{Float64}
+end
+function Base.show(io::IO, info::LOBPCGConvergenceInfo)
+    print(io, "tolerance = $(info.tolerance), ")
+    print(io, "iterations = $(info.iterations), ")
+    print(io, "converged = $(info.converged), ")
+    print(io, "maxiter = $(info.maxiter), ")
+    print(io, "residual_norms ≤ ")
+    show(io, maximum(info.residual_norms))
+end
+
 
 struct LOBPCGEDResult{A,P,R <: LOBPCGResults,B} <: AbstractEDResult
     algorithm::A
@@ -34,6 +52,7 @@ function Base.getproperty(r::LOBPCGEDResult, key::Symbol)
         return getfield(r, key)
     end
 end
+
 function Base.show(io::IO, r::LOBPCGEDResult)
     io = IOContext(io, :compact => true)
     n = length(r.values)
@@ -81,8 +100,30 @@ function CommonSolve.solve(s::S; kwargs...) where {S<:MatrixEDSolver{<:LOBPCGSol
               " $(sum(results.converged)) converged out of $nev requested value(s)."
     end
 
+    coefficient_vectors = LazyCoefficientVectors(results.X)
+    vectors = LazyDVecs(coefficient_vectors, s.basissetrep.basis)
+    info = LOBPCGConvergenceInfo(
+        results.tolerance,
+        results.iterations,
+        results.converged,
+        results.maxiter,
+        results.residual_norms
+    )
     # create the result object
-    return LOBPCGEDResult(s.algorithm, s.problem, results, s.basissetrep.basis, nev, success)
+    return EDResult(
+        s.algorithm,
+        s.problem,
+        results.λ,
+        vectors,
+        coefficient_vectors,
+        s.basissetrep.basis,
+        info,
+        nev,
+        results,
+        success
+    )
+
+    # return LOBPCGEDResult(s.algorithm, s.problem, results, s.basissetrep.basis, nev, success)
 end
 
 end # module
