@@ -1,86 +1,55 @@
+abstract type Algorithm{MatrixFree} end
+ismatrixfree(::Algorithm{MatrixFree}) where {MatrixFree} = MatrixFree
+
 """
-    KrylovKitDirect(; kwargs...)
+    KrylovKitSolver(matrix_free::Bool; kwargs...)
+    KrylovKitSolver(; matrix_free = false, kwargs...)
 
 Algorithm for solving a large [`ExactDiagonalizationProblem`](@ref) to find a few
-eigenvalues and vectors directly using the KrylovKit.jl package. The problem is solved
-without instantiating a sparse matrix. This is slower than [`KrylovKitMatrix()`](@ref),
-but it requires less memory and thus can be useful for large matrices that would not fit
-into memory. Will parallelise using threading and MPI if available.
-
+eigenvalues and vectors using the KrylovKit.jl package.
 The Lanczos method is used for hermitian matrices, and the Arnoldi method is used for
 non-hermitian matrices.
-The `kwargs` are passed on to the function
-[`KrylovKit.eigsolve()`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
+
+# Arguments
+- `matrix_free = false`: Whether to use a matrix-free algorithm. If `false`, a sparse matrix
+    will be instantiated. This is typically faster and recommended for small matrices,
+    but requires more memory. If `true`, the matrix is not instantiated, which is useful for
+    large matrices that would not fit into memory. The calculation will parallelise using
+    threading and MPI if available by making use of [`PDVec`](@ref).
+- `kwargs`: Additional keyword arguments are passed on to the function
+    [`KrylovKit.eigsolve()`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
 
 See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
+
 !!! note
     Requires the KrylovKit.jl package to be loaded with `using KrylovKit`.
 """
-struct KrylovKitDirect{K<:NamedTuple}
-    kw_nt::K # NamedTuple
+struct KrylovKitSolver{MatrixFree} <: Algorithm{MatrixFree}
+    kw_nt::NamedTuple
     # the inner constructor checks if KrylovKit is loaded
-    function KrylovKitDirect(; kwargs...)
+    function KrylovKitSolver{MF}(; kwargs...) where MF
         ext = Base.get_extension(@__MODULE__, :KrylovKitExt)
         if ext === nothing
-            error("KrylovKitDirect requires that KrylovKit is loaded, i.e. `using KrylovKit`")
+            error("KrylovKitSolver requires that KrylovKit is loaded, i.e. `using KrylovKit`")
         else
             kw_nt = NamedTuple(kwargs)
-            return new{typeof(kw_nt)}(kw_nt)
+            return new{MF}(kw_nt)
         end
     end
 end
-function Base.show(io::IO, s::KrylovKitDirect)
+KrylovKitSolver(matrix_free::Bool; kwargs...) = KrylovKitSolver{matrix_free}(; kwargs...)
+KrylovKitSolver(; matrix_free=true, kwargs...) = KrylovKitSolver(matrix_free; kwargs...)
+
+function Base.show(io::IO, s::KrylovKitSolver)
+    nt = (; matrix_free=ismatrixfree(s), s.kw_nt...)
     io = IOContext(io, :compact => true)
-    if isempty(s.kw_nt)
-        print(io, "KrylovKitDirect()")
-    else
-        print(io, "KrylovKitDirect")
-        show(io, s.kw_nt)
-    end
+    print(io, "KrylovKitSolver")
+    show(io, nt)
 end
 
-"""
-    KrylovKitMatrix(; kwargs...)
-
-Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) using the KrylovKit.jl
-package after instantiating a sparse matrix. This is faster than
-[`KrylovKitDirect()`](@ref), but it requires more memory and will only be useful if the
-matrix fits into memory.
-
-The Lanczos method is used for hermitian matrices, and the Arnoldi method is used for
-non-hermitian matrices.
-The `kwargs` are passed on to the function
-[`KrylovKit.eigsolve()`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
-
-See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
-!!! note
-    Requires the KrylovKit.jl package to be loaded with `using KrylovKit`.
-"""
-struct KrylovKitMatrix{K<:NamedTuple}
-    kw_nt::K # NamedTuple
-    # the inner constructor checks if KrylovKit is loaded
-    function KrylovKitMatrix(; kwargs...)
-        ext = Base.get_extension(@__MODULE__, :KrylovKitExt)
-        if ext === nothing
-            error("KrylovKitMatrix() requires that KrylovKit.jl is loaded, i.e. `using KrylovKit`")
-        else
-            kw_nt = NamedTuple(kwargs)
-            return new{typeof(kw_nt)}(kw_nt)
-        end
-    end
-end
-function Base.show(io::IO, s::KrylovKitMatrix)
-    io = IOContext(io, :compact => true)
-    if isempty(s.kw_nt)
-        print(io, "KrylovKitMatrix()")
-    else
-        print(io, "KrylovKitMatrix")
-        show(io, s.kw_nt)
-    end
-end
 
 """
-    ArpackEigs(; kwargs...)
+    ArpackSolver(; kwargs...)
 
 Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a sparse
 matrix. It uses the Lanzcos method for hermitian problems, and the Arnoldi method for
@@ -95,36 +64,35 @@ See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 !!! note
     Requires the Arpack.jl package to be loaded with `using Arpack`.
 """
-struct ArpackEigs{K<:NamedTuple}
-    kw_nt::K # NamedTuple
+struct ArpackSolver <: Algorithm{false}
+    kw_nt::NamedTuple
     # the inner constructor checks if Arpack is loaded
-    function ArpackEigs(; kwargs...)
+    function ArpackSolver(; kwargs...)
         ext = Base.get_extension(@__MODULE__, :ArpackExt)
         if ext === nothing
-            error("ArpackEigs() requires that Arpack.jl is loaded, i.e. `using Arpack`")
+            error("ArpackSolver() requires that Arpack.jl is loaded, i.e. `using Arpack`")
         else
             kw_nt = NamedTuple(kwargs)
-            return new{typeof(kw_nt)}(kw_nt)
+            return new(kw_nt)
         end
     end
 end
-function Base.show(io::IO, s::ArpackEigs)
+function Base.show(io::IO, s::ArpackSolver)
     io = IOContext(io, :compact => true)
     if isempty(s.kw_nt)
-        print(io, "ArpackEigs()")
+        print(io, "ArpackSolver()")
     else
-        print(io, "ArpackEigs")
+        print(io, "ArpackSolver")
         show(io, s.kw_nt)
     end
 end
 
 """
-    LOBPCG(; kwargs...)
+    LOBPCGSolver(; kwargs...)
 
 The Locally Optimal Block Preconditioned Conjugate Gradient Method (LOBPCG).
 Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a
-sparse matrix. This is faster than [`KrylovKitDirect()`](@ref), but it requires more memory
-and will only be useful if the matrix fits into memory.
+sparse matrix.
 
 LOBPCG is not suitable for non-hermitian eigenvalue problems.
 
@@ -135,32 +103,32 @@ See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 !!! note
     Requires the IterativeSolvers.jl package to be loaded with `using IterativeSolvers`.
 """
-struct LOBPCG{K<:NamedTuple}
-    kw_nt::K # NamedTuple
+struct LOBPCGSolver <: Algorithm{false}
+    kw_nt::NamedTuple
     # the inner constructor checks if LinearSolvers is loaded
-    function LOBPCG(; kwargs...)
+    function LOBPCGSolver(; kwargs...)
         ext = Base.get_extension(@__MODULE__, :IterativeSolversExt)
         if ext === nothing
-            error("LOBPCG() requires that IterativeSolvers.jl is loaded, i.e. `using IterativeSolvers`")
+            error("LOBPCGSolver() requires that IterativeSolvers.jl is loaded, i.e. `using IterativeSolvers`")
         else
             kw_nt = NamedTuple(kwargs)
-            return new{typeof(kw_nt)}(kw_nt)
+            return new(kw_nt)
         end
     end
 end
-function Base.show(io::IO, s::LOBPCG)
+function Base.show(io::IO, s::LOBPCGSolver)
     io = IOContext(io, :compact => true)
     if isempty(s.kw_nt)
-        print(io, "LOBPCG()")
+        print(io, "LOBPCGSolver()")
     else
-        print(io, "LOBPCG")
+        print(io, "LOBPCGSolver")
         show(io, s.kw_nt)
     end
 end
 
 
 """
-    LinearAlgebraEigen(; kwargs...)
+    LinearAlgebraSolver(; kwargs...)
 
 Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) using the dense-matrix
 eigensolver from the `LinearAlgebra` standard library. This is only suitable for small
@@ -176,17 +144,17 @@ https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen).
 
 See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
 """
-struct LinearAlgebraEigen{K<:NamedTuple}
-    kw_nt::K # NamedTuple
+struct LinearAlgebraSolver <: Algorithm{false}
+    kw_nt::NamedTuple
 end
-LinearAlgebraEigen(; kwargs...) = LinearAlgebraEigen(NamedTuple(kwargs))
+LinearAlgebraSolver(; kwargs...) = LinearAlgebraSolver(NamedTuple(kwargs))
 
-function Base.show(io::IO, s::LinearAlgebraEigen)
+function Base.show(io::IO, s::LinearAlgebraSolver)
     io = IOContext(io, :compact => true)
     if isempty(s.kw_nt)
-        print(io, "LinearAlgebraEigen()")
+        print(io, "LinearAlgebraSolver()")
     else
-        print(io, "LinearAlgebraEigen")
+        print(io, "LinearAlgebraSolver")
         show(io, s.kw_nt)
     end
 end

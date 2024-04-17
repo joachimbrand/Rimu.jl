@@ -3,7 +3,7 @@ module IterativeSolversExt
 using IterativeSolvers: IterativeSolvers, lobpcg, LOBPCGResults
 using CommonSolve: CommonSolve, solve
 using Rimu: Rimu, DVec, delete
-using Rimu.ExactDiagonalization: AbstractEDResult, MatrixEDSolver, LOBPCG
+using Rimu.ExactDiagonalization: AbstractEDResult, MatrixEDSolver, LOBPCGSolver
 
 struct LOBPCGEDResult{A,P,R <: LOBPCGResults,B} <: AbstractEDResult
     algorithm::A
@@ -51,7 +51,7 @@ function Base.show(io::IO, r::LOBPCGEDResult)
     print(io, "\n  success = $(r.success).")
 end
 
-function CommonSolve.solve(s::S; kwargs...) where {S<:MatrixEDSolver{<:LOBPCG}}
+function CommonSolve.solve(s::S; kwargs...) where {S<:MatrixEDSolver{<:LOBPCGSolver}}
     # combine keyword arguments and set defaults for `howmany` and `which`
     kw_nt = (; howmany=1, which=:SR, s.kw_nt..., kwargs...)
     # check if universal keyword arguments are present

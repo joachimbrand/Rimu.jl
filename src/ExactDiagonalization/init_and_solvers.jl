@@ -16,14 +16,14 @@ function CommonSolve.init( # no algorithm specified as positional argument
         algorithm = kw_nt.algorithm
         kw_nt = delete(kw_nt, (:algorithm,))
     else
-        algorithm = LinearAlgebraEigen()
+        algorithm = LinearAlgebraSolver()
     end
 
     return init(p, algorithm; kw_nt...)
 end
 
 
-struct KrylovKitDirectEDSolver{A<:KrylovKitDirect,P,V<:PDVec,K<:NamedTuple}
+struct KrylovKitDirectEDSolver{A<:KrylovKitSolver,P,V<:PDVec,K<:NamedTuple}
     algorithm::A
     problem::P
     v0::V
@@ -41,7 +41,7 @@ function Base.show(io::IO, s::KrylovKitDirectEDSolver)
 end
 
 function CommonSolve.init(
-    p::ExactDiagonalizationProblem, algorithm::KrylovKitDirect;
+    p::ExactDiagonalizationProblem, algorithm::KrylovKitSolver{true};
     kwargs...
 )
     kw = (; p.kw_nt..., algorithm.kw_nt..., kwargs...) # remove duplicates
@@ -65,12 +65,12 @@ function CommonSolve.init(
     return KrylovKitDirectEDSolver(algorithm, p, svec, kw)
 end
 
-struct MatrixEDSolver{A,P,BSR<:BasisSetRep,V<:Union{Nothing,FrozenDVec},K<:NamedTuple}
+struct MatrixEDSolver{A,P,BSR<:BasisSetRep,V<:Union{Nothing,FrozenDVec}}
     algorithm::A
     problem::P
     basissetrep::BSR
     v0::V
-    kw_nt::K # NamedTuple
+    kw_nt::NamedTuple
 end
 
 function Base.show(io::IO, s::MatrixEDSolver)
@@ -93,15 +93,15 @@ end
 function CommonSolve.init(
     p::ExactDiagonalizationProblem, algorithm::ALG;
     kwargs...
-) where {ALG<:Union{KrylovKitMatrix,LinearAlgebraEigen,ArpackEigs,LOBPCG}}
-    !ishermitian(p.h) && algorithm isa LOBPCG &&
-        @warn "LOBPCG() is not suitable for non-hermitian matrices."
+) where {ALG<:Union{KrylovKitSolver{false},LinearAlgebraSolver,ArpackSolver,LOBPCGSolver}}
+    !ishermitian(p.h) && algorithm isa LOBPCGSolver &&
+        @warn "LOBPCGSolver() is not suitable for non-hermitian matrices."
 
     # set keyword arguments for BasisSetRep
     kw = (; p.kw_nt..., algorithm.kw_nt..., kwargs...) # remove duplicates
     if isdefined(kw, :sizelim)
         sizelim = kw.sizelim
-    elseif algorithm isa LinearAlgebraEigen
+    elseif algorithm isa LinearAlgebraSolver
         sizelim = 10^4 # default for dense matrices
     else
         sizelim = 10^6 # default for sparse matrices

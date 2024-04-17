@@ -28,13 +28,13 @@ end
 
 # The code for `CommonSolve.solve(::MatrixEDSolver{<:ALG}; ...)` for
 # - ALG<:KrylovKitMatrix is part of the `KrylovKitExt.jl` extension
-# - ALG<:ArpackEigs is part of the `ArpackExt.jl` extension
-# - ALG<:LOBPCG is part of the `IterativeSolversExt.jl` extension
+# - ALG<:ArpackSolver is part of the `ArpackExt.jl` extension
+# - ALG<:LOBPCGSolver is part of the `IterativeSolversExt.jl` extension
 
 # The code for `CommonSolve.solve(::KrylovKitDirectEDSolver; ...)` is part of the
 # `KrylovKitExt.jl` extension.
 
-function CommonSolve.solve(s::MatrixEDSolver{<:LinearAlgebraEigen};
+function CommonSolve.solve(s::MatrixEDSolver{<:LinearAlgebraSolver};
     kwargs...
 )
     # combine keyword arguments

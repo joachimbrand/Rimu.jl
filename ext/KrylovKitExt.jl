@@ -8,7 +8,7 @@ using Setfield: Setfield, @set
 using Rimu: Rimu, AbstractDVec, AbstractHamiltonian, IsDeterministic, PDVec, DVec,
     PDWorkingMemory, scale!!, working_memory, zerovector, delete, dimension
 
-using Rimu.ExactDiagonalization: MatrixEDSolver, KrylovKitMatrix, KrylovKitDirect,
+using Rimu.ExactDiagonalization: MatrixEDSolver, KrylovKitSolver,
     AbstractEDResult, KrylovKitDirectEDSolver
 
 const U = Union{Symbol,EigSorter}
@@ -64,7 +64,7 @@ A struct that holds the results of an "ExactDiagonalizationProblem" solved with 
 - `vectors`: The eigenvectors as `DVec`s.
 - `info`: The convergence information.
 """
-struct KrylovKitResult{A<:KrylovKitDirect,P,VA<:Vector,VDV<:Vector,I} <: AbstractEDResult
+struct KrylovKitResult{A<:KrylovKitSolver,P,VA<:Vector,VDV<:Vector,I} <: AbstractEDResult
     algorithm::A
     problem::P
     values::VA
@@ -76,7 +76,7 @@ end
 
 
 struct MatrixEDKrylovKitResult{
-    A<:KrylovKitMatrix,P,VA<:Vector,VE<:Vector,B,I
+    A<:KrylovKitSolver,P,VA<:Vector,VE<:Vector,B,I
 } <: AbstractEDResult
     algorithm::A
     problem::P
@@ -119,7 +119,7 @@ end
 
 # solve for KrylovKit solvers: prepare arguments for `KrylovKit.eigsolve`
 function CommonSolve.solve(s::S; kwargs...
-) where {S<:Union{MatrixEDSolver{<:KrylovKitMatrix}, KrylovKitDirectEDSolver}}
+) where {S<:Union{MatrixEDSolver{<:KrylovKitSolver},KrylovKitDirectEDSolver}}
     # combine keyword arguments and set defaults for `howmany` and `which`
     kw_nt = (; howmany = 1, which = :SR, s.kw_nt..., kwargs...)
     # check if universal keyword arguments are present
@@ -149,7 +149,7 @@ function CommonSolve.solve(s::S; kwargs...
 end
 
 # solve with KrylovKit and matrix
-function _kk_eigsolve(s::MatrixEDSolver{<:KrylovKitMatrix}, howmany, which, kw_nt)
+function _kk_eigsolve(s::MatrixEDSolver{<:KrylovKitSolver}, howmany, which, kw_nt)
     # set up the starting vector
     T = eltype(s.basissetrep.sm)
     x0 = if isnothing(s.v0)

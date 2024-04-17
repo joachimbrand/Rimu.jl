@@ -14,8 +14,8 @@ using ..DictVectors: FrozenDVec, PDVec, DVec
 using ..Hamiltonians: check_address_type, dimension, ParitySymmetry, TimeReversalSymmetry
 
 
-export ExactDiagonalizationProblem, KrylovKitMatrix, KrylovKitDirect, LinearAlgebraEigen
-export ArpackEigs, LOBPCG
+export ExactDiagonalizationProblem, KrylovKitSolver, LinearAlgebraSolver
+export ArpackSolver, LOBPCGSolver
 export BasisSetRep, build_basis
 
 export sparse # from SparseArrays

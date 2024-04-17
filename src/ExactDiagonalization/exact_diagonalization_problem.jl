@@ -9,21 +9,22 @@ collection of addresses can be passed as `v0`.
 with [`solve`](@ref).
 
 # Keyword arguments
-- `algorithm=LinearAlgebraEigen()`: The algorithm to use for solving the problem. The
+- `algorithm=LinearAlgebraSolver()`: The algorithm to use for solving the problem. The
     algorithm can also be specified as the second positional argument in the `init`
     function.
 - Optional keyword arguments will be passed on to the `init` and `solve` functions.
 
 # Algorithms
-- [`LinearAlgebraEigen()`](@ref): An algorithm for solving the problem using the dense-matrix
+- [`LinearAlgebraSolver()`](@ref): An algorithm for solving the problem using the dense-matrix
     eigensolver from the `LinearAlgebra` standard library. Only suitable for small matrices.
-- [`KrylovKitDirect()`](@ref): An algorithm for solving the problem without instantiating a
-    sparse matrix. Requires `using KrylovKit`.
-- [`KrylovKitMatrix()`](@ref): An algorithm for solving the problem after instantiating a
-    sparse matrix. Requires `using KrylovKit`.
-- [`ArpackEigs()`](@ref): An algorithm for solving the problem after instantiating a
+- [`KrylovKitSolver(matrix_free)`](@ref): An algorithm for finding a few eigenvalues and vectors.
+    With `matrix_free=true` the problem is solved without instatiating a matrix. This is
+    suitable for large dimensions. With `matrix_free=false` the problem is solved after
+    instantiating a sparse matrix. This is faster if sufficient memory is available.
+    Requires `using KrylovKit`.
+- [`ArpackSolver()`](@ref): An algorithm for solving the problem after instantiating a
     sparse matrix and using the Arpack Fortran library. Requires `using Arpack`.
-- [`LOBPCG()`](@ref): An algorithm for solving the problem without instantiating a
+- [`LOBPCGSolver()`](@ref): An algorithm for solving the problem after instantiating a
     sparse matrix using the LOBPCG method. Requires `using IterativeSolvers`.
 
 # Keyword arguments for `init` for matrix-based algorithms
@@ -83,7 +84,7 @@ MatrixEDEigenResult with 10 eigenvalue(s),
 
 julia> using KrylovKit # the next example requires julia v1.9 or later
 
-julia> s = init(p; algorithm = KrylovKitDirect()) # solve without building a matrix
+julia> s = init(p; algorithm = KrylovKitSolver(true)) # solve without building a matrix
 KrylovKitDirectEDSolver
  with algorithm KrylovKitDirect() for h = HubbardReal1D(fs"|1 1 1⟩"; u=1.0, t=1.0),
   v0 = 1-element PDVec: style = IsDeterministic{Float64}()
@@ -96,14 +97,14 @@ julia> values, vectors = solve(s);
 julia> result.values[1] ≈ values[1]
 true
 ```
-See also [`init`](@ref), [`solve`](@ref), [`KrylovKitDirect`](@ref),
-[`KrylovKitMatrix`](@ref), [`ArpackEigs`](@ref), [`LinearAlgebraEigen`](@ref).
+See also [`init`](@ref), [`solve`](@ref),
+[`KrylovKitSolver`](@ref), [`ArpackSolver`](@ref), [`LinearAlgebraSolver`](@ref).
 !!! note
-    Using the `KrylovKitMatrix()` or `KrylovKitDirect()` algorithms requires the
+    Using the `KrylovKitSolver()` algorithms requires the
     KrylovKit.jl package. The package can be loaded with `using KrylovKit`.
-    Using the `ArpackEigs()` algorithm requires the Arpack.jl package. The package can be
+    Using the `ArpackSolver()` algorithm requires the Arpack.jl package. The package can be
     loaded with `using Arpack`.
-    Using the `LOBPCG()` algorithm requires the IterativeSolvers.jl package. The package
+    Using the `LOBPCGSolver()` algorithm requires the IterativeSolvers.jl package. The package
     can be loaded with `using IterativeSolvers`.
     Algorithms with external packages require julia v1.9 or later.
 """
