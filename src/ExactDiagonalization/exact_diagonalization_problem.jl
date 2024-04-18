@@ -29,7 +29,7 @@ with [`solve`](@ref).
 
 # Keyword arguments for `init` for matrix-based algorithms
 - `sizelim`: The maximum size of the basis set representation. The default is `10^6` for
-    sparse matrices and `10^4` for dense matrices.
+    sparse matrices and `10^5` for dense matrices.
 - `cutoff`: A cutoff value for the basis set representation.
 - `filter`: A filter function for the basis set representation.
 - `nnzs = 0`: The number of non-zero elements in the basis set representation. Setting a
@@ -41,7 +41,6 @@ with [`solve`](@ref).
 - `verbose = false`: Whether to print additional information.
 - `abstol = nothing`: The absolute tolerance for the solver. If `nothing`, the solver
     chooses a default value.
-- `reltol = nothing`: The relative tolerance for the solver (if applicable).
 - `howmany = 1`: The minimum number of eigenvalues to compute.
 - `which = :SR`: Whether to compute the largest or smallest eigenvalues.
 - `maxiters = nothing`: The maximum number of iterations for the solver. If `nothing`, the

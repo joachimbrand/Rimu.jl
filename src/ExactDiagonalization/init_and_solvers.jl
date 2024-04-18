@@ -102,7 +102,7 @@ function CommonSolve.init(
     if isdefined(kw, :sizelim)
         sizelim = kw.sizelim
     elseif algorithm isa LinearAlgebraSolver
-        sizelim = 10^4 # default for dense matrices
+        sizelim = 10^5 # default for dense matrices
     else
         sizelim = 10^6 # default for sparse matrices
     end

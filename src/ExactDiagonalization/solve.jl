@@ -100,7 +100,7 @@ function CommonSolve.solve(s::MatrixEDSolver{<:LinearAlgebraSolver};
     kw_nt = (; s.kw_nt..., kwargs...)
     kw_nt = clean_and_warn_if_others_present(kw_nt, (:permute, :scale, :sortby))
 
-    eigen_factorization = eigen(Matrix(s.basissetrep.sm); kw_nt...)
+    eigen_factorization = eigen!(Matrix(s.basissetrep.sm); kw_nt...)
 
     coefficient_vectors = LazyCoefficientVectors(eigen_factorization.vectors)
     vectors = LazyDVecs(coefficient_vectors, s.basissetrep.basis)

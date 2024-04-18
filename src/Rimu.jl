@@ -89,7 +89,6 @@ include("FCIQMCProblem.jl")
 
 include("lomc.jl")                  # top level
 include("QMCSimulation.jl")
-# include("exact_diagonalization.jl")
 
 include("RMPI/RMPI.jl")
 

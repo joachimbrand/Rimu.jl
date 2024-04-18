@@ -130,7 +130,7 @@ using Random
 end
 
 
-Random.seed!(1234) # for reproducibility, as some solvers start with random vectors
+Random.seed!(12345) # for reproducibility, as some solvers start with random vectors
 
 # first we do tests that don't require KrylovKit and the extension
 @testset "LinearAlgebraSolver" begin
