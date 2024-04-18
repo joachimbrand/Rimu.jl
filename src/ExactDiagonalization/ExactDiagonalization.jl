@@ -1,6 +1,6 @@
 module ExactDiagonalization
 
-using LinearAlgebra: LinearAlgebra, eigen, ishermitian, Matrix
+using LinearAlgebra: LinearAlgebra, eigen!, ishermitian, Matrix
 using SparseArrays: SparseArrays, nnz, nzrange, sparse
 using CommonSolve: CommonSolve, solve, init
 using VectorInterface: VectorInterface, add
