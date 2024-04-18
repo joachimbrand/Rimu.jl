@@ -4,9 +4,10 @@ using KrylovKit: KrylovKit, EigSorter, eigsolve
 using LinearAlgebra: LinearAlgebra, mul!, ishermitian, issymmetric
 using CommonSolve: CommonSolve
 using Setfield: Setfield, @set
+using NamedTupleTools: NamedTupleTools, delete
 
 using Rimu: Rimu, AbstractDVec, AbstractHamiltonian, IsDeterministic, PDVec, DVec,
-    PDWorkingMemory, scale!!, working_memory, zerovector, delete, dimension
+    PDWorkingMemory, scale!!, working_memory, zerovector, dimension, replace_keys
 
 using Rimu.ExactDiagonalization: MatrixEDSolver, KrylovKitSolver,
     KrylovKitDirectEDSolver,
@@ -66,17 +67,9 @@ function CommonSolve.solve(s::S; kwargs...
         else
             kw_nt = (; kw_nt..., verbosity = 0)
         end
+        kw_nt = delete(kw_nt, (:verbose,))
     end
-    if isdefined(kw_nt, :reltol)
-        kw_nt = (; kw_nt..., tol = kw_nt.reltol)
-    end
-    if isdefined(kw_nt, :abstol) # abstol has precedence over reltol
-        kw_nt = (; kw_nt..., tol = kw_nt.abstol)
-    end
-    if isdefined(kw_nt, :maxiters)
-        kw_nt = (; kw_nt..., maxiter = kw_nt.maxiters)
-    end
-    kw_nt = delete(kw_nt, (:verbose, :reltol, :abstol, :maxiters))
+    kw_nt = replace_keys(kw_nt, (:abstol => :tol, :maxiters => :maxiter))
 
     # Remove the `howmany` and `which` keys from the kwargs.
     howmany, which = kw_nt.howmany, kw_nt.which

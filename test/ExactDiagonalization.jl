@@ -231,7 +231,7 @@ VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     @test vectors[1] ≈ scale(ve_kd[1], factor)
 
     # solve with LinearAlgebraSolver
-    res = @test_logs((:warn, "Unused keyword arguments in `solve`: (which = :SR,)"),
+    res = @test_logs((:warn, "The keyword(s) \"which\" are unused and will be ignored."),
         solve(p, LinearAlgebraSolver()))
     va_la, ve_la, info_la = res
 

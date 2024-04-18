@@ -15,6 +15,7 @@ using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
 using OrderedCollections: freeze
 using Random: Random, RandomDevice, seed!
+using NamedTupleTools: NamedTupleTools, namedtuple, delete
 import Tables
 import ConsoleProgressMonitor
 import TOML

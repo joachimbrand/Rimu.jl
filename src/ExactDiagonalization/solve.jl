@@ -98,21 +98,9 @@ function CommonSolve.solve(s::MatrixEDSolver{<:LinearAlgebraSolver};
 )
     # combine keyword arguments
     kw_nt = (; s.kw_nt..., kwargs...)
-    howmany = get(kw_nt, :howmany, dimension(s.basissetrep))
+    kw_nt = clean_and_warn_if_others_present(kw_nt, (:permute, :scale, :sortby))
 
-    # extract relevant keyword arguments
-    permute = get(kw_nt, :permute, true)
-    scale = get(kw_nt, :scale, true)
-
-    eigen_factorization = if isdefined(kw_nt, :sortby)
-        sortby = kw_nt.sortby
-        eigen(Matrix(s.basissetrep.sm); permute, scale, sortby)
-    else
-        eigen(Matrix(s.basissetrep.sm); permute, scale)
-    end
-    nt = delete(kw_nt, (:permute, :scale, :sortby))
-    !isempty(nt) && @warn "Unused keyword arguments in `solve`: $nt"
-    # eigen_factorization = eigen(Matrix(s.basissetrep.sm); kw_nt...)
+    eigen_factorization = eigen(Matrix(s.basissetrep.sm); kw_nt...)
 
     coefficient_vectors = LazyCoefficientVectors(eigen_factorization.vectors)
     vectors = LazyDVecs(coefficient_vectors, s.basissetrep.basis)
@@ -124,7 +112,7 @@ function CommonSolve.solve(s::MatrixEDSolver{<:LinearAlgebraSolver};
         coefficient_vectors,
         s.basissetrep.basis,
         "Dense matrix eigensolver solution from `LinearAlgebra.eigen`",
-        howmany,
+        dimension(s.basissetrep),
         eigen_factorization.vectors,
         true # successful if no exception was thrown
     )

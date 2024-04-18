@@ -2,7 +2,9 @@ module ArpackExt
 
 using Arpack: Arpack, eigs
 using CommonSolve: CommonSolve, solve
-using Rimu: Rimu, DVec, delete
+using NamedTupleTools: delete
+
+using Rimu: Rimu, DVec, replace_keys
 using Rimu.ExactDiagonalization: ArpackSolver, MatrixEDSolver,
     LazyCoefficientVectors, LazyDVecs, EDResult
 
@@ -25,17 +27,9 @@ function CommonSolve.solve(s::S; kwargs...
     # combine keyword arguments and set defaults for `howmany` and `which`
     kw_nt = (; howmany=1, which=:SR, s.kw_nt..., kwargs...)
     # check if universal keyword arguments are present
-    if isdefined(kw_nt, :reltol)
-        kw_nt = (; kw_nt..., tol=kw_nt.reltol)
-    end
-    if isdefined(kw_nt, :abstol) # abstol has precedence over reltol
-        kw_nt = (; kw_nt..., tol=kw_nt.abstol)
-    end
-    if isdefined(kw_nt, :maxiters)
-        kw_nt = (; kw_nt..., maxiter=kw_nt.maxiters)
-    end
+    kw_nt = replace_keys(kw_nt, (:abstol=>:tol, :maxiters=>:maxiter))
     verbose = get(kw_nt, :verbose, false)
-    kw_nt = delete(kw_nt, (:verbose, :reltol, :abstol, :maxiters))
+    kw_nt = delete(kw_nt, (:verbose,))
 
     # Remove the `howmany` key from the kwargs.
     kw_nt = (; nev=kw_nt.howmany, kw_nt..., ritzvec=true)

@@ -5,8 +5,10 @@ using SparseArrays: SparseArrays, nnz, nzrange, sparse
 using CommonSolve: CommonSolve, solve, init
 using VectorInterface: VectorInterface, add
 using OrderedCollections: freeze
+using NamedTupleTools: delete
 
-using Rimu: Rimu, DictVectors, Hamiltonians, Interfaces, BitStringAddresses, delete
+using Rimu: Rimu, DictVectors, Hamiltonians, Interfaces, BitStringAddresses, replace_keys,
+    clean_and_warn_if_others_present
 using ..Interfaces: AbstractDVec, AbstractHamiltonian, AdjointUnknown,
     diagonal_element, offdiagonals, starting_address, LOStructure, IsHermitian
 using ..BitStringAddresses: AbstractFockAddress

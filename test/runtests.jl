@@ -54,6 +54,7 @@ end
     include("StatsTools.jl")
 end
 
+using Rimu: replace_keys, delete_and_warn_if_present, clean_and_warn_if_others_present
 @testset "helpers" begin
     @testset "walkernumber" begin
         v = [1,2,3]
@@ -81,6 +82,18 @@ end
             @test op(a[2], b[2]) == c[2]
         end
         @test_throws MethodError a + Rimu.MultiScalar(1, 1, 1)
+    end
+
+    @testset "keyword helpers" begin
+        nt = (; a=1, b=2, c = 3, d = 4)
+        nt2 = replace_keys(nt, (:a => :x, :b => :y, :u => :v))
+        @test nt2 == (c=3, d=4, x=1, y=2)
+        nt3 = @test_logs((:warn, "The keyword(s) \"a\", \"b\" are unused and will be ignored."),
+            delete_and_warn_if_present(nt, (:a, :b, :u)))
+        @test nt3 == (; c = 3, d = 4)
+        nt4 = @test_logs((:warn, "The keyword(s) \"c\", \"d\" are unused and will be ignored."),
+            clean_and_warn_if_others_present(nt, (:a, :b, :u)))
+        @test nt4 == (; a = 1, b = 2)
     end
 end
 
