@@ -7,6 +7,10 @@ using Rimu.RMPI
 """
 module RMPI
 
+# The following is actually set by MPI.jl itself. See:
+# https://juliaparallel.org/MPI.jl/stable/knownissues/#Multi-threading-and-signal-handling
+# Despite that, in some cases it needs to be set manually _before_ loading MPI.
+ENV["UCX_ERROR_SIGNALS"] = "SIGILL,SIGBUS,SIGFPE"
 import MPI
 
 using LinearAlgebra: LinearAlgebra, I, dot, ⋅
