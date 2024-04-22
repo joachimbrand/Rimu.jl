@@ -31,7 +31,7 @@ export mpi_comm, mpi_root, mpi_size, mpi_seed!, mpi_allprintln
 
 function __init__()
     # Initialise the MPI library once at runtime.
-    MPI.Initialized() || MPI.Init()
+    MPI.Initialized() || MPI.Init(threadlevel=:funneled)
 end
 
 const mpi_registry = Dict{Int,Any}()
