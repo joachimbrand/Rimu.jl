@@ -129,7 +129,6 @@ using Random
     end
 end
 
-
 Random.seed!(123) # for reproducibility, as some solvers start with random vectors
 
 # first we do tests that don't require KrylovKit and the extension
