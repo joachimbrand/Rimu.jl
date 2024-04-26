@@ -292,3 +292,23 @@ function single_particle_density(add::Union{CompositeFS,BoseFS2C}; component=0)
         return float.(Tuple(onr(add)[component]))
     end
 end
+
+"""
+    PerAddressOnlineStats(addresses, stat) <: PostStepStrategy
+
+Collect a `stat` from OnlineStats.jl for the FCIQMC vector coefficient values at each
+address in `addresses`. To extract the stats, use `value(::PerAddressOnlineStats)`, which
+will return a `Dict` mapping the addresses to the stats.
+
+Note that OnlineStats.jl needs to be loaded for this to work.
+
+See also [`PostStepStrategy`](@ref).
+"""
+struct PerAddressOnlineStats{K,S} <: Rimu.PostStepStrategy
+    basis::Vector{K}
+    stats::Vector{S}
+end
+function Rimu.PerAddressOnlineStats(basis::Vector{K}, stat::S) where {K,S}
+    # check if package loaded
+    return PerAddressOnlineStats(basis, [deepcopy(stat) for _ in basis])
+end
