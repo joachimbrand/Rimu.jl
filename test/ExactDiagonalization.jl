@@ -1,6 +1,7 @@
 using Rimu
 using Test
 using Random
+using Suppressor
 
 @testset "BasisSetRepresentation" begin
     @testset "basics" begin
@@ -198,7 +199,7 @@ using KrylovKit, Arpack, IterativeSolvers
         energies = map(algs) do alg
             solver = init(p, alg)
             @test solver.problem == p
-            res = solve(solver)
+            res = @suppress solve(solver; verbose=false)
             @test res.success
             @test res isa Rimu.ExactDiagonalization.EDResult
             @test length(res.values) == length(res.vectors)
@@ -207,16 +208,37 @@ using KrylovKit, Arpack, IterativeSolvers
             for (i, dv) in enumerate(res.vectors)
                 @test DVec(zip(res.basis, res.coefficient_vectors[i])) ≈ dv
             end
+            # algorithm can take starting vector
+            p2 = ExactDiagonalizationProblem(h, starting_address(h))
+            res2 = @suppress solve(p, alg; verbose=true)
+            @test repr(res2.info) isa String
+            @test res.values[1] ≈ res2.values[1]
             res.values[1]
         end
         @test all(energies[1] .≈ energies)
     end
+
+    # wrong starting vector
+    h = HubbardReal1D(BoseFS(1, 2, 3))
+    p = ExactDiagonalizationProblem(h, [1, 2, 3])
+    @test_throws ArgumentError init(p, KrylovKitSolver(true))
+    @test_throws ArgumentError init(p, ArpackSolver())
+
+    # DVec starting vector
+    v = DVec(BoseFS(1, 2, 3) => 1.0)
+    p = ExactDiagonalizationProblem(h, v)
+    @test eval(Meta.parse(repr(p))) == p
+    solver = init(p, KrylovKitSolver(true))
+    @test solver.v0 == v
+    solver2 = init(p, ArpackSolver())
+    @test DVec(solver2.v0) == v
 
     # solve with KrylovKitSolver matrix
     p = ExactDiagonalizationProblem(HubbardReal1D(BoseFS(1,2,3)); which=:SR)
     @test eval(Meta.parse(repr(p))) == p
     solver = init(p, KrylovKitSolver(false); howmany=2)
     @test dimension(solver.basissetrep) == dimension(p.h) == size(solver.basissetrep.sm)[1]
+    @test startswith(repr(solver),"MatrixEDSolver")
 
     res_km = solve(solver)
     values, vectors, info = res_km
@@ -229,6 +251,7 @@ using KrylovKit, Arpack, IterativeSolvers
     addr = starting_address(res_km.problem.h)
     factor = vectors[1][addr] / ve_kd[1][addr]
     @test vectors[1] ≈ scale(ve_kd[1], factor)
+    @test startswith(repr(solver), "KrylovKitDirectEDSolver")
 
     # solve with LinearAlgebraSolver
     res = @test_logs((:warn, "The keyword(s) \"which\" are unused and will be ignored."),
