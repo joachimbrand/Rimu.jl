@@ -135,3 +135,5 @@ end
 function Base.:(==)(p1::ExactDiagonalizationProblem, p2::ExactDiagonalizationProblem)
     return p1.h == p2.h && p1.v0 == p2.v0 && p1.kw_nt == p2.kw_nt
 end
+
+Rimu.Hamiltonians.dimension(h::ExactDiagonalizationProblem) = dimension(h.h)

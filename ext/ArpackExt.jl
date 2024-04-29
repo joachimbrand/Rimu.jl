@@ -3,23 +3,24 @@ module ArpackExt
 using Arpack: Arpack, eigs
 using CommonSolve: CommonSolve, solve
 using NamedTupleTools: delete
+using LinearAlgebra: norm
 
 using Rimu: Rimu, DVec, replace_keys
 using Rimu.ExactDiagonalization: ArpackSolver, MatrixEDSolver,
-    LazyCoefficientVectors, LazyDVecs, EDResult
+    LazyDVecs, EDResult
 
 struct ArpackConvergenceInfo
     converged::Int
     numiter::Int
     numops::Int
-    residuals::Vector{Float64}
+    residual::Vector{Float64}
 end
 function Base.show(io::IO, info::ArpackConvergenceInfo)
     print(io, "converged = $(info.converged), ")
     print(io, "numiter = $(info.numiter), ")
     print(io, "numops = $(info.numops), ")
-    print(io, "residuals ≤ ")
-    show(io, maximum(info.residuals))
+    print(io, "residual norm = ")
+    show(io, norm(info.residual))
 end
 
 function CommonSolve.solve(s::S; kwargs...
@@ -48,10 +49,10 @@ function CommonSolve.solve(s::S; kwargs...
 
     verbose && @info "Arpack.eigs: $nconv converged out of $howmany requested eigenvalues,"*
         " $niter iterations," *
-        " $nmult matrix vector multiplications, norm of residuals ≤ $(maximum(resid))"
+        " $nmult matrix vector multiplications, norm of residual = $(norm(resid))"
     success = nconv ≥ howmany
     # vecs = [view(vec_matrix, :, i) for i in 1:length(vals)] # convert to array of vectors
-    coefficient_vectors = LazyCoefficientVectors(vec_matrix)
+    coefficient_vectors = eachcol(vec_matrix)
     vectors = LazyDVecs(coefficient_vectors, s.basissetrep.basis)
     info = ArpackConvergenceInfo(nconv, niter, nmult, resid)
     if !success

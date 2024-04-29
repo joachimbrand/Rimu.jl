@@ -5,7 +5,7 @@ using CommonSolve: CommonSolve, solve
 using NamedTupleTools: delete
 using Rimu: Rimu, DVec, replace_keys, delete_and_warn_if_present
 using Rimu.ExactDiagonalization: MatrixEDSolver, LOBPCGSolver,
-    LazyCoefficientVectors, LazyDVecs, EDResult
+    LazyDVecs, EDResult
 
 struct LOBPCGConvergenceInfo
     tolerance::Float64
@@ -45,7 +45,7 @@ function CommonSolve.solve(s::S; kwargs...) where {S<:MatrixEDSolver{<:LOBPCGSol
               " $(sum(results.converged)) converged out of $nev requested value(s)."
     end
 
-    coefficient_vectors = LazyCoefficientVectors(results.X)
+    coefficient_vectors = eachcol(results.X)
     vectors = LazyDVecs(coefficient_vectors, s.basissetrep.basis)
     info = LOBPCGConvergenceInfo(
         results.tolerance,

@@ -194,6 +194,7 @@ VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
     for h in hamiltonians
         p = ExactDiagonalizationProblem(h)
         @test eval(Meta.parse(repr(p))) == p
+        @test dimension(p) == dimension(h)
         energies = map(algs) do alg
             solver = init(p, alg)
             @test solver.problem == p

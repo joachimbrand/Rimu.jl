@@ -1,13 +1,3 @@
-# a lazy type for iterating over coefficient vectors starting from a matrix
-struct LazyCoefficientVectors{VT,T} <: AbstractVector{VT}
-    m::Matrix{T}
-end
-function LazyCoefficientVectors(m::Matrix{T}) where {T}
-    return LazyCoefficientVectors{typeof(view(m, :, 1)),T}(m)
-end
-Base.size(lcv::LazyCoefficientVectors) = (size(lcv.m, 2), 1)
-Base.getindex(lcv::LazyCoefficientVectors, i::Int) = view(lcv.m, :, i)
-
 # a lazy type for iterating over coefficient vectors starting from a vector of DVecs
 struct LazyCoefficientVectorsDVecs{T,VDV<:Vector{<:AbstractDVec},B} <: AbstractVector{T}
     vecs::VDV
@@ -23,15 +13,15 @@ function Base.getindex(lcv::LazyCoefficientVectorsDVecs{T}, i::Int) where {T}
 end
 
 # lazy type for iterating over constructed DVecs
-struct LazyDVecs{DV,LCV,B} <: AbstractVector{DV}
-    vs::LCV
+struct LazyDVecs{DV,C<:AbstractVector{<:AbstractVector},B} <: AbstractVector{DV}
+    coefficient_vecs::C
     basis::B
 end
 function LazyDVecs(vs::LCV, basis::B) where {LCV,B}
     return LazyDVecs{typeof(PDVec(zip(basis, vs[1]))),LCV,B}(vs, basis)
 end
-Base.size(lv::LazyDVecs) = size(lv.vs)
-Base.getindex(lv::LazyDVecs, i::Int) = PDVec(zip(lv.basis, lv.vs[i]))
+Base.size(lv::LazyDVecs) = size(lv.coefficient_vecs)
+Base.getindex(lv::LazyDVecs, i::Int) = PDVec(zip(lv.basis, lv.coefficient_vecs[i]))
 
 # a generic result type for ExactDiagonalizationProblem
 struct EDResult{A,P,VA<:AbstractVector,VE<:AbstractVector,CV,B,I,R}
@@ -102,7 +92,7 @@ function CommonSolve.solve(s::MatrixEDSolver{<:LinearAlgebraSolver};
 
     eigen_factorization = eigen!(Matrix(s.basissetrep.sm); kw_nt...)
 
-    coefficient_vectors = LazyCoefficientVectors(eigen_factorization.vectors)
+    coefficient_vectors = eachcol(eigen_factorization.vectors)
     vectors = LazyDVecs(coefficient_vectors, s.basissetrep.basis)
     return EDResult(
         s.algorithm,

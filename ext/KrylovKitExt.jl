@@ -11,7 +11,7 @@ using Rimu: Rimu, AbstractDVec, AbstractHamiltonian, IsDeterministic, PDVec, DVe
 
 using Rimu.ExactDiagonalization: MatrixEDSolver, KrylovKitSolver,
     KrylovKitDirectEDSolver,
-    LazyCoefficientVectors, LazyDVecs, EDResult, LazyCoefficientVectorsDVecs
+    LazyDVecs, EDResult, LazyCoefficientVectorsDVecs
 
 const U = Union{Symbol,EigSorter}
 
