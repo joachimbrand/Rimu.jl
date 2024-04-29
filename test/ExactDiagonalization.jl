@@ -165,6 +165,8 @@ end
 
 using KrylovKit, Arpack, IterativeSolvers
 
+Random.seed!(123) # for reproducibility, as some solvers start with random vectors
+
 @testset "ExactDiagonalizationProblem" begin
     # KrylovKitSolver matrix
     km = KrylovKitSolver(matrix_free=false, howmany=2, which=:SR)
