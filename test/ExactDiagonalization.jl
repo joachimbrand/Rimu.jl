@@ -165,7 +165,7 @@ end
 
 using KrylovKit, Arpack, IterativeSolvers
 
-Random.seed!(123) # for reproducibility, as some solvers start with random vectors
+Random.seed!(1234) # for reproducibility, as some solvers start with random vectors
 
 @testset "ExactDiagonalizationProblem" begin
     # KrylovKitSolver matrix
