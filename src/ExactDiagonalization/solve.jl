@@ -28,10 +28,10 @@ struct LazyDVecs{DV,LCV,B} <: AbstractVector{DV}
     basis::B
 end
 function LazyDVecs(vs::LCV, basis::B) where {LCV,B}
-    return LazyDVecs{typeof(DVec(zip(basis, vs[1]))),LCV,B}(vs, basis)
+    return LazyDVecs{typeof(PDVec(zip(basis, vs[1]))),LCV,B}(vs, basis)
 end
 Base.size(lv::LazyDVecs) = size(lv.vs)
-Base.getindex(lv::LazyDVecs, i::Int) = DVec(zip(lv.basis, lv.vs[i]))
+Base.getindex(lv::LazyDVecs, i::Int) = PDVec(zip(lv.basis, lv.vs[i]))
 
 # a generic result type for ExactDiagonalizationProblem
 struct EDResult{A,P,VA<:AbstractVector,VE<:AbstractVector,CV,B,I,R}

@@ -12,12 +12,8 @@ function CommonSolve.init( # no algorithm specified as positional argument
     kwargs...
 )
     kw_nt = (; p.kw_nt..., kwargs...) # remove duplicates
-    if isdefined(kw_nt, :algorithm)
-        algorithm = kw_nt.algorithm
-        kw_nt = delete(kw_nt, (:algorithm,))
-    else
-        algorithm = LinearAlgebraSolver()
-    end
+    algorithm = get(kw_nt, :algorithm, LinearAlgebraSolver())
+    kw_nt = delete(kw_nt, (:algorithm,))
 
     return init(p, algorithm; kw_nt...)
 end
