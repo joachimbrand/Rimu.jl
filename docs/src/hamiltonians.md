@@ -32,13 +32,13 @@ fh = Matrix(hubb)
 ```
 This functionality relies on
 ```@docs
-Hamiltonians.BasisSetRep
+ExactDiagonalization.BasisSetRepresentation
 sparse
 Matrix
 ```
 If only the basis is required and not the matrix representation it is more efficient to use
 ```@docs
-Hamiltonians.build_basis
+ExactDiagonalization.build_basis
 ```
 
 ## Model Hamiltonians

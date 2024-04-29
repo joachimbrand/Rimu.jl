@@ -732,7 +732,7 @@ end
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
     @test dim ≤ dimension(Int, starting_address(ham)) == dimension(starting_address(ham))
-    bsr = BasisSetRep(ham, starting_address(ham))
+    bsr = BasisSetRepresentation(ham, starting_address(ham))
     sm, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
 
@@ -1216,8 +1216,8 @@ end
         ham = HubbardRealSpace(
             CompositeFS(FermiFS((1,1,0)), FermiFS((1,0,0)), BoseFS((0,0,2)))
         )
-        even_b = BasisSetRep(ParitySymmetry(ham))
-        odd_b = BasisSetRep(ParitySymmetry(ham; odd=true))
+        even_b = BasisSetRepresentation(ParitySymmetry(ham))
+        odd_b = BasisSetRepresentation(ParitySymmetry(ham; odd=true))
 
         for add in even_b.basis
             @test add == min(add, reverse(add))
@@ -1239,7 +1239,7 @@ end
     @testset "Even Hamiltonian" begin
         # This Hamiltonian only has even addresses.
         ham = HubbardMom1D(BoseFS((0,0,0,2,0,0,0)); u=3)
-        even_b = BasisSetRep(ParitySymmetry(ham))
+        even_b = BasisSetRepresentation(ParitySymmetry(ham))
 
         ham_m = Matrix(ham)
         even_m = Matrix(even_b)
@@ -1425,7 +1425,7 @@ end
         @test length(H.vtable) == M÷2 + 1     # 5
         @test sum(H.vtable) ≈ -3.497817080215528
 
-        bsr = BasisSetRep(H; sizelim=Inf)
+        bsr = BasisSetRepresentation(H; sizelim=Inf)
         @test dimension(bsr) == 15  # dimension(bsr) < dimension(H)
         @test sum(bsr.sm) ≈ 142.6393438659114
 
@@ -1443,9 +1443,9 @@ end
         Ly = AxialAngularMomentumHO(S; z_dim=2, addr)
         Lx = AxialAngularMomentumHO(S; z_dim=1, addr)
 
-        Lz_vals = eigvals(Matrix(BasisSetRep(Lz)))
-        Ly_vals = eigvals(Matrix(BasisSetRep(Ly)))
-        Lx_vals = eigvals(Matrix(BasisSetRep(Lx)))
+        Lz_vals = eigvals(Matrix(BasisSetRepresentation(Lz)))
+        Ly_vals = eigvals(Matrix(BasisSetRepresentation(Ly)))
+        Lx_vals = eigvals(Matrix(BasisSetRepresentation(Lx)))
 
         expected = [-4, -2, 0, 0, 2, 4]
         @test Lz_vals ≈ expected

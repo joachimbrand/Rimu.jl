@@ -34,17 +34,17 @@ dimension(ham)
 # used as a guide to decide whether a Hamiltonian is amenable to exact diagonalisation and
 # to determine which algorithm would be best suited to diagonalising it.
 
-# ## The BasisSetRep
+# ## The BasisSetRepresentation
 
 # As we'll see later, there are two ways to construct the matrices from Hamiltonians
-# directly, but they both use [`BasisSetRep`](@ref) under the hood. The
-# [`BasisSetRep`](@ref), when called with a Hamiltonian and optionally a starting address,
+# directly, but they both use [`BasisSetRepresentation`](@ref) under the hood. The
+# [`BasisSetRepresentation`](@ref), when called with a Hamiltonian and optionally a starting address,
 # constructs the sparse matrix of the system, as well as its basis. The starting address
-# defaults to the one that was used to initialize the Hamiltonian. [`BasisSetRep`](@ref)
+# defaults to the one that was used to initialize the Hamiltonian. [`BasisSetRepresentation`](@ref)
 # only returns the part of the matrix that is accessible from this starting address through
 # non-zero offdiagonal elements.
 
-bsr = BasisSetRep(ham);
+bsr = BasisSetRepresentation(ham);
 
 # To access the matrix or basis, access the `sm` and `basis` fields, respectively.
 

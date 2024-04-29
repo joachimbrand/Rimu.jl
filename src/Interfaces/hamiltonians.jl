@@ -44,8 +44,10 @@ Provides the following functions and methods:
 * `mul!(w, H, v)`: mutating matrix-vector multiply.
 * [`dot(x, H, v)`](@ref Main.Hamiltonians.dot): compute `x⋅(H*v)` minimizing allocations.
 * `H[address1, address2]`: indexing with `getindex()` - mostly for testing purposes (slow!)
-* [`BasisSetRep`](@ref Main.Hamiltonians.sparse): construct a basis set repesentation
-* [`sparse`](@ref Main.Hamiltonians.sparse), [`Matrix`](@ref): construct a (sparse) matrix representation
+* [`BasisSetRepresentation`](@ref Main.ExactDiagonalization.BasisSetRepresentation):
+  construct a basis set repesentation
+* [`sparse`](@ref Main.ExactDiagonalization.sparse), [`Matrix`](@ref): construct a (sparse)
+  matrix representation
 
 Alternatively to the above, [`offdiagonals`](@ref) can be implemented instead of
 [`get_offdiagonal`](@ref). Sometimes this can be done efficiently. In this case

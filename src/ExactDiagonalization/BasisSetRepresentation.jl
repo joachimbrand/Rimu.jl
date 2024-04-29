@@ -22,7 +22,7 @@ Setting `sort` to `true` will sort the `basis` and order the matrix rows and col
 accordingly. This is useful when the order of the columns matters, e.g. when comparing
 matrices. Any additional keyword arguments are passed on to `Base.sortperm`.
 
-See [`BasisSetRep`](@ref).
+See [`BasisSetRepresentation`](@ref).
 """
 function build_sparse_matrix_from_LO(
     ham, addr_or_vec=starting_address(ham);
@@ -102,7 +102,7 @@ end
 Get all basis element of a linear operator `ham` that are reachable (via
 non-zero matrix elements) from the address `address`, returned as a vector.
 Instead of a single address, a vector of `addresses` can be passed.
-Does not return the matrix, for that purpose use [`BasisSetRep`](@ref).
+Does not return the matrix, for that purpose use [`BasisSetRepresentation`](@ref).
 
 Providing an energy cutoff will skip addresses with diagonal elements greater
 than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
@@ -153,11 +153,11 @@ function build_basis(
 end
 
 """
-    BasisSetRep(
+    BasisSetRepresentation(
         h::AbstractHamiltonian, addr=starting_address(h);
         sizelim=10^6, nnzs, cutoff, filter, sort=false, kwargs...
     )
-    BasisSetRep(h::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
+    BasisSetRepresentation(h::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
 
 Eagerly construct the basis set representation of the operator `h` with all addresses
 reachable from `addr`. Instead of a single address, a vector of `addresses` can be passed.
@@ -187,14 +187,14 @@ are passed on to `Base.sortperm`.
 ```jldoctest
 julia> h = HubbardReal1D(BoseFS(1,0,0));
 
-julia> bsr = BasisSetRep(h)
-BasisSetRep(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
+julia> bsr = BasisSetRepresentation(h)
+BasisSetRepresentation(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
 
-julia> BasisSetRep(h, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
-BasisSetRep(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
+julia> BasisSetRepresentation(h, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
+BasisSetRepresentation(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
   0.0  -1.0
  -1.0   0.0
 ```
@@ -222,20 +222,20 @@ Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 
 Part of the [`AbstractHamiltonian`](@ref) interface. See also [`build_basis`](@ref).
 """
-struct BasisSetRep{A,SM,H}
+struct BasisSetRepresentation{A,SM,H}
     sm::SM
     basis::Vector{A}
     h::H
 end
 
-function BasisSetRep(h::AbstractHamiltonian, addr_or_vec=starting_address(h); kwargs...)
+function BasisSetRepresentation(h::AbstractHamiltonian, addr_or_vec=starting_address(h); kwargs...)
     # In the default case we pass `AdjointUnknown()` in order to skip the
     # symmetrisation of the sparse matrix
     return _bsr_ensure_symmetry(AdjointUnknown(), h, addr_or_vec; kwargs...)
 end
 # special cases are needed for symmetry wrappers
 
-function BasisSetRep(
+function BasisSetRepresentation(
     h::ParitySymmetry, addr=starting_address(h);
     kwargs...
 )
@@ -244,7 +244,7 @@ function BasisSetRep(
     return _bsr_ensure_symmetry(LOStructure(h), h, addr; kwargs...)
 end
 
-function BasisSetRep(
+function BasisSetRepresentation(
     h::TimeReversalSymmetry, addr=starting_address(h);
     kwargs...
 )
@@ -265,10 +265,10 @@ function _bsr_ensure_symmetry(
     end
     check_address_type(h, addr_or_vec)
     sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
-    return BasisSetRep(sm, basis, h)
+    return BasisSetRepresentation(sm, basis, h)
 end
 
-# build the BasisSetRep while enforcing hermitian symmetry
+# build the BasisSetRepresentation while enforcing hermitian symmetry
 function _bsr_ensure_symmetry(
     ::IsHermitian, h::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
@@ -280,7 +280,7 @@ function _bsr_ensure_symmetry(
     check_address_type(h, addr_or_vec)
     sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
     fix_approx_hermitian!(sm; test_approx_symmetry) # enforce hermitian symmetry after building
-    return BasisSetRep(sm, basis, h)
+    return BasisSetRepresentation(sm, basis, h)
 end
 
 """
@@ -418,39 +418,39 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
     return true
 end
 
-function Base.show(io::IO, b::BasisSetRep)
-    print(io, "BasisSetRep($(b.h)) with dimension $(dimension(b)) and $(nnz(b.sm)) stored entries:")
+function Base.show(io::IO, b::BasisSetRepresentation)
+    print(io, "BasisSetRepresentation($(b.h)) with dimension $(dimension(b)) and $(nnz(b.sm)) stored entries:")
     show(io, MIME"text/plain"(), b.sm)
 end
 
-Interfaces.starting_address(bsr::BasisSetRep) = bsr.basis[1]
+Interfaces.starting_address(bsr::BasisSetRepresentation) = bsr.basis[1]
 
-Hamiltonians.dimension(bsr::BasisSetRep) = length(bsr.basis)
+Hamiltonians.dimension(bsr::BasisSetRepresentation) = length(bsr.basis)
 
 """
     sparse(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
-    sparse(bsr::BasisSetRep)
+    sparse(bsr::BasisSetRepresentation)
 
 Return a sparse matrix representation of `h` or `bsr`. `kwargs` are passed to
-[`BasisSetRep`](@ref).
+[`BasisSetRepresentation`](@ref).
 
-See [`BasisSetRep`](@ref).
+See [`BasisSetRepresentation`](@ref).
 """
 function SparseArrays.sparse(h::AbstractHamiltonian, args...; kwargs...)
-    return sparse(BasisSetRep(h, args...; kwargs...))
+    return sparse(BasisSetRepresentation(h, args...; kwargs...))
 end
-SparseArrays.sparse(bsr::BasisSetRep) = bsr.sm
+SparseArrays.sparse(bsr::BasisSetRepresentation) = bsr.sm
 
 """
     Matrix(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, kwargs...)
-    Matrix(bsr::BasisSetRep)
+    Matrix(bsr::BasisSetRepresentation)
 
 Return a dense matrix representation of `h` or `bsr`. `kwargs` are passed to
-[`BasisSetRep`](@ref).
+[`BasisSetRepresentation`](@ref).
 
-See [`BasisSetRep`](@ref).
+See [`BasisSetRepresentation`](@ref).
 """
 function Base.Matrix(h::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
-    return Matrix(BasisSetRep(h, args...; sizelim, kwargs...))
+    return Matrix(BasisSetRepresentation(h, args...; sizelim, kwargs...))
 end
-Base.Matrix(bsr::BasisSetRep) = Matrix(bsr.sm)
+Base.Matrix(bsr::BasisSetRepresentation) = Matrix(bsr.sm)

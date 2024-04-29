@@ -2,24 +2,24 @@ using Rimu
 using Test
 using Random
 
-@testset "BasisSetRep" begin
+@testset "BasisSetRepresentation" begin
     @testset "basics" begin
         m = 100
         n = 100
         addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
         ham = HubbardReal1D(addr)
-        @test_throws ArgumentError BasisSetRep(ham) # dimension too large
+        @test_throws ArgumentError BasisSetRepresentation(ham) # dimension too large
         m = 2
         n = 10
         addr = near_uniform(BoseFS{n,m})
         ham = HubbardReal1D(addr)
-        bsr = BasisSetRep(ham; nnzs=dimension(ham))
+        bsr = BasisSetRepresentation(ham; nnzs=dimension(ham))
         @test length(bsr.basis) == dimension(bsr) ≤ dimension(ham)
-        @test_throws ArgumentError BasisSetRep(ham, BoseFS((1, 2, 3))) # wrong address type
+        @test_throws ArgumentError BasisSetRepresentation(ham, BoseFS((1, 2, 3))) # wrong address type
         @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
         @test sparse(bsr) == bsr.sm == sparse(ham)
         addr2 = bsr.basis[2]
-        @test starting_address(BasisSetRep(ham, addr2)) == addr2
+        @test starting_address(BasisSetRepresentation(ham, addr2)) == addr2
         @test isreal(ham) == (eltype(ham) <: Real)
         @test isdiag(ham) == (LOStructure(ham) ≡ IsDiagonal())
         @test ishermitian(ham) == (LOStructure(ham) ≡ IsHermitian())
@@ -28,22 +28,22 @@ using Random
 
     @testset "filtering" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        bsr_orig = BasisSetRep(ham; sort=true)
+        bsr_orig = BasisSetRepresentation(ham; sort=true)
         mat_orig = Matrix(bsr_orig)
         mat_cut_index = diag(mat_orig) .< 30
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-        bsr = BasisSetRep(ham; cutoff=30, sort=true)
+        bsr = BasisSetRepresentation(ham; cutoff=30, sort=true)
         mat_cut = Matrix(bsr)
         @test mat_cut == mat_cut_manual
-        # pass a basis and generate truncated BasisSetRep
-        bsrt = BasisSetRep(ham, bsr.basis; filter=Returns(false), sort=true)
+        # pass a basis and generate truncated BasisSetRepresentation
+        bsrt = BasisSetRepresentation(ham, bsr.basis; filter=Returns(false), sort=true)
         @test bsrt.basis == bsr.basis
         @test bsr.sm == bsrt.sm
         # pass addresses and generate reachable basis
-        @test BasisSetRep(ham, bsr.basis, sort=true).basis == bsr_orig.basis
+        @test BasisSetRepresentation(ham, bsr.basis, sort=true).basis == bsr_orig.basis
 
         filterfun(fs) = maximum(onr(fs)) < 8
-        mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
+        mat_cut_index = filterfun.(BasisSetRepresentation(ham; sort=true).basis)
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
         mat_cut = Matrix(ham; filter=filterfun, sort=true)
         @test mat_cut == mat_cut_manual
@@ -51,7 +51,7 @@ using Random
 
     @testset "getindex" begin
         ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        bsr = BasisSetRep(ham; sort=true)
+        bsr = BasisSetRepresentation(ham; sort=true)
         b = bsr.basis
         @test [ham[i, j] for i in b, j in b] == Matrix(bsr)
     end
@@ -98,7 +98,7 @@ using Random
         odd = ParitySymmetry(ham; even=false)
 
         even_sm, _ = build_sparse_matrix_from_LO(even)
-        even_m = Matrix(even) # symmetrised version via BasisSetRep
+        even_m = Matrix(even) # symmetrised version via BasisSetRepresentation
 
         @test !issymmetric(even_sm) # not symmetric due to floating point errors
         @test issymmetric(even_m) # because it was passed through `fix_approx_hermitian!`
@@ -112,7 +112,7 @@ using Random
         ham = HubbardReal1D(add)
         @test_throws ArgumentError build_basis(ham, BoseFS((1, 2, 3))) # wrong address type
         # same basis as BSR
-        bsr = BasisSetRep(ham)
+        bsr = BasisSetRepresentation(ham)
         basis = build_basis(ham)
         @test basis == bsr.basis
         @test basis == build_basis(ham, basis) # passing multiple addresses
@@ -123,7 +123,7 @@ using Random
         @test_throws ArgumentError build_basis(ham, add; sizelim=100)
         @test length(build_basis(ham, add; cutoff=-1)) == 1 # no new addresses added
         cutoff = n * (n - 1) / 4  # half maximum energy
-        bsr = BasisSetRep(ham, add; cutoff)
+        bsr = BasisSetRepresentation(ham, add; cutoff)
         basis = build_basis(ham, add; cutoff)
         @test basis == bsr.basis
     end

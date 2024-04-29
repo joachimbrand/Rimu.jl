@@ -61,7 +61,7 @@ function CommonSolve.init(
     return KrylovKitDirectEDSolver(algorithm, p, svec, kw)
 end
 
-struct MatrixEDSolver{A,P,BSR<:BasisSetRep,V<:Union{Nothing,FrozenDVec}}
+struct MatrixEDSolver{A,P,BSR<:BasisSetRepresentation,V<:Union{Nothing,FrozenDVec}}
     algorithm::A
     problem::P
     basissetrep::BSR
@@ -93,7 +93,7 @@ function CommonSolve.init(
     !ishermitian(p.h) && algorithm isa LOBPCGSolver &&
         @warn "LOBPCGSolver() is not suitable for non-hermitian matrices."
 
-    # set keyword arguments for BasisSetRep
+    # set keyword arguments for BasisSetRepresentation
     kw = (; p.kw_nt..., algorithm.kw_nt..., kwargs...) # remove duplicates
     if isdefined(kw, :sizelim)
         sizelim = kw.sizelim
@@ -134,8 +134,8 @@ function CommonSolve.init(
     end
     @assert v0 isa Union{FrozenDVec{<:AbstractFockAddress},Nothing}
 
-    # create the BasisSetRep
-    bsr = BasisSetRep(p.h, addr_or_vec; sizelim, filter, nnzs, col_hint, sort)
+    # create the BasisSetRepresentation
+    bsr = BasisSetRepresentation(p.h, addr_or_vec; sizelim, filter, nnzs, col_hint, sort)
 
     # prepare kwargs for the solver
     kw = (; kw..., sizelim, cutoff, filter, nnzs, col_hint, sort)

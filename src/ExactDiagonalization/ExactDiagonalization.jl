@@ -18,15 +18,17 @@ using ..Hamiltonians: check_address_type, dimension, ParitySymmetry, TimeReversa
 
 export ExactDiagonalizationProblem, KrylovKitSolver, LinearAlgebraSolver
 export ArpackSolver, LOBPCGSolver
-export BasisSetRep, build_basis
+export BasisSetRepresentation, build_basis
 
 export sparse # from SparseArrays
 
 
-include("BasisSetRep.jl")
+include("BasisSetRepresentation.jl")
 include("algorithms.jl")
 include("exact_diagonalization_problem.jl")
 include("init_and_solvers.jl")
 include("solve.jl")
+
+include("deprecated.jl")
 
 end # module
