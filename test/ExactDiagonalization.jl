@@ -200,6 +200,10 @@ using KrylovKit, Arpack, IterativeSolvers
             solver = init(p, alg)
             @test solver.problem == p
             res = @suppress solve(solver; verbose=false)
+            if !res.success # print some information if a solver fails
+                @warn "Solver $(repr(alg)) failed for $(repr(h))"
+                @info res
+            end
             @test res.success
             @test res isa Rimu.ExactDiagonalization.EDResult
             @test length(res.values) == length(res.vectors)
