@@ -146,7 +146,7 @@ Random.seed!(123) # for reproducibility, as some solvers start with random vecto
     @test res.values[1] ≈ -3.045633163020568
 end
 
-VERSION ≥ v"1.9" && @testset "extension not loaded" begin
+@testset "extension not loaded" begin
     # Can only test this when KrylovKit is not loaded
     ext = Base.get_extension(Rimu, :KrylovKitExt)
     if ext === nothing
@@ -164,7 +164,7 @@ end
 
 using KrylovKit, Arpack, IterativeSolvers
 
-VERSION ≥ v"1.9" && @testset "ExactDiagonalizationProblem" begin
+@testset "ExactDiagonalizationProblem" begin
     # KrylovKitSolver matrix
     km = KrylovKitSolver(matrix_free=false, howmany=2, which=:SR)
     @test eval(Meta.parse(repr(km))) == km

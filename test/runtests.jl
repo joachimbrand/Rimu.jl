@@ -169,11 +169,11 @@ end
     @test default_logger() isa Logging.ConsoleLogger
 end
 
-VERSION ≥ v"1.9" && @safetestset "doctests" begin
+@safetestset "doctests" begin
     include("doctests.jl")
 end
 
-VERSION ≥ v"1.7" && @safetestset "ExplicitImports" begin
+@safetestset "ExplicitImports" begin
     using Rimu
     using ExplicitImports
     # Check that no implicit imports are used in the Rimu module.
