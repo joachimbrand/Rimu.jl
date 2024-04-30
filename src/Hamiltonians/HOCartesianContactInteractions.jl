@@ -31,7 +31,16 @@ function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
     p = sqrt(2 * gamma(i + 1) * gamma(j + 1) * gamma(k + 1) * gamma(l + 1)) * pi^2
     q = gamma(a/2) * gamma(b/2) * gamma(c/2) * gamma(k + 1) / gamma(k - l + 1)
     
-    f = _₃F₂(float(-l), b/2, c/2, float(1 + k - l), d/2, 1.0)
+    f1 = _₃F₂(float(-l), b/2, c/2, float(1 + k - l), d/2, 1.0)
+
+    if isnan(f1)
+        # workaround for some issues with large arguments
+        fp = _₃F₂(float(-l), b/2, c/2, float(1 + k - l), d/2, 1.0 + eps())
+        fm = _₃F₂(float(-l), b/2, c/2, float(1 + k - l), d/2, 1.0 - eps())
+        f = (fp + fm)/2
+    else
+        f = f1
+    end
     
     return f * q / p
 end
