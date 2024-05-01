@@ -196,7 +196,9 @@ end
         HOCartesianCentralImpurity(BoseFS((1,0,0,0,0))),
 
         FroehlichPolaron(OccupationNumberFS(1,1,1)),
-        FroehlichPolaron(OccupationNumberFS(1,1,1); momentum_cutoff = 10.0)
+        FroehlichPolaron(OccupationNumberFS(1,1,1); momentum_cutoff = 10.0),
+
+        ParticleNumberOperator(OccupationNumberFS(1, 1, 1))
     )
         test_hamiltonian_interface(H)
     end
