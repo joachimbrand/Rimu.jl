@@ -1,3 +1,4 @@
+using StaticArrays
 # TO-DO: add geometry for higher dimensions.
 """
     G2RealCorrelator(d::Int) <: AbstractHamiltonian{Float64}
@@ -251,9 +252,9 @@ Operator for extracting superfluid correlation between sites separated by a dist
 Assumes a one-dimensional lattice with ``M`` sites and periodic boundary conditions. ``M`` is also the number of modes in the Fock state address.
 
 # Usage
-Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping `SuperfluidCorrelator` with 
+Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping `SuperfluidCorrelator` with
 [`AllOverlaps`](@ref) and passing into [`lomc!`](@ref) with the `replica` keyword argument. For an example with a
-similar use of [`G2RealCorrelator`](@ref) see 
+similar use of [`G2RealCorrelator`](@ref) see
 [G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html).
 
 
@@ -291,15 +292,15 @@ end
 """
     StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
-Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice 
+Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice
 separated by a distance `d` with `0 ≤ d < M`
 
 ```math
     \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
 ```
-Here, ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling 
-number and ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` particles and 
-``M`` lattice sites (or modes). 
+Here, ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling
+number and ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` particles and
+``M`` lattice sites (or modes).
 
 Assumes a one-dimensional lattice with periodic boundary conditions. For usage
 see [`SuperfluidCorrelator`](@ref) and [`AllOverlaps`](@ref).
@@ -375,4 +376,84 @@ function _string_diagonal_real(d, add)
     end
 
     return result / M
+end
+
+"""
+    G2RealSpace(g::Geometry) <: AbstractHamiltonian{SArray}
+
+Two-body operator for density-density correlation for all displacements.
+
+```math
+    \\hat{G}^{(2)}(d) = \\frac{1}{M} ∑_i^M∑_v \\hat{n}_i (\\hat{n}_{i+v} - \\delta_{0d}).
+```
+
+# See also
+
+* [`HubbardReal1D`](@ref)
+* [`G2MomCorrelator`](@ref)
+* [`G2RealCorrelator`](@ref)
+* [`AbstractHamiltonian`](@ref)
+* [`AllOverlaps`](@ref)
+"""
+struct G2RealSpace{A,B,D,S} <: AbstractHamiltonian{S}
+    geometry::Geometry{D}
+    init::S
+end
+function G2RealSpace(geometry::Geometry{D}, source=1, target=source) where {D}
+    init = zeros(SArray{Tuple{geometry.dims...},Float64,D,length(geometry)})
+    return G2RealSpace{source,target,D,typeof(init)}(geometry, init)
+end
+
+LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
+
+num_offdiagonals(g2::G2RealSpace, _) = 0
+
+function diagonal_element(g2::G2RealSpace{1,1,D}, addr::SingleComponentFockAddress) where {D}
+    geo = g2.geometry
+    result = g2.init
+    v = onr(addr)
+
+    for i in eachindex(result)
+        res_i = 0.0
+        δ_vec = Offsets(geo)[i]
+        for p in eachindex(v)
+            p_vec = geo[p]
+            q = geo[add(p_vec, δ_vec)]
+            if q ≠ 0
+                res_i += v[p] * v[q] - (p == q)
+            end
+        end
+        result = setindex(result, res_i, i)
+    end
+    return result ./ length(geo)
+end
+
+function diagonal_element(
+    g2::G2RealSpace, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
+)
+    geo = g2.geometry
+    result = g2.init
+    v1 = onr(addr1)
+    v2 = onr(addr2)
+
+    for i in eachindex(result)
+        res_i = 0.0
+        δ_vec = Offsets(geo)[i]
+        for p in eachindex(v1)
+            p_vec = geo[p]
+            q = geo[add(p_vec, δ_vec)]
+            if q ≠ 0
+                res_i += v1[p] * v2[q]
+            end
+        end
+        result = setindex(result, res_i, i)
+    end
+    return result ./ length(geo)
+end
+
+function diagonal_element(g2::G2RealSpace{A,B}, addr::CompositeFS) where {A,B}
+    return diagonal_element(g2, addr.components[A], addr.components[B])
+end
+function diagonal_element(g2::G2RealSpace{A,A}, addr::CompositeFS) where {A}
+    return diagonal_element(g2, addr.components[A])
 end
