@@ -36,6 +36,7 @@ Other
 - [`Stoquastic`](@ref)
 
 ## [Observables](#Observables)
+- [`ParticleNumberOperator`](@ref)
 - [`G2MomCorrelator`](@ref)
 - [`G2RealCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
@@ -83,6 +84,7 @@ export Stoquastic
 export Transcorrelated1D
 export hubbard_dispersion, continuum_dispersion
 export FroehlichPolaron
+export ParticleNumberOperator
 
 export G2MomCorrelator, G2RealCorrelator, SuperfluidCorrelator, DensityMatrixDiagonal, Momentum
 export StringCorrelator
@@ -125,6 +127,7 @@ include("Transcorrelated1D.jl")
 include("correlation_functions.jl")
 include("DensityMatrixDiagonal.jl")
 include("Momentum.jl")
+include("particle_number.jl")
 
 include("HOCartesianContactInteractions.jl")
 include("HOCartesianEnergyConservedPerDim.jl")

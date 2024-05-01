@@ -252,6 +252,12 @@ LOStructure(op) = LOStructure(typeof(op))
 LOStructure(::Type) = AdjointUnknown()
 LOStructure(::AbstractMatrix) = AdjointKnown()
 
+# diagonal matrices have zero offdiagonal elements
+function num_offdiagonals(h::H, addr) where {H<:AbstractHamiltonian}
+    return num_offdiagonals(LOStructure(H), h, addr)
+end
+num_offdiagonals(::IsDiagonal, _, _) = 0
+
 """
     has_adjoint(op)
 
