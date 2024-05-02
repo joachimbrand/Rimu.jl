@@ -19,13 +19,13 @@ using OrderedCollections: freeze
 
     simulation = init(p)
     @test simulation.qmc_state.hamiltonian == h
-    @test simulation.qmc_state.replicas[1].v isa PDVec
+    @test simulation.qmc_state.replica_states[1].v isa PDVec
 
     ps = FCIQMCProblem(h; initial_shift_parameters=sp, threading=false)
     @test ps.initial_shift_parameters == (sp,)
     @test only(ps.starting_vectors) isa FrozenDVec
     sm = init(ps)
-    @test sm.qmc_state.replicas[1].v isa DVec
+    @test sm.qmc_state.replica_states[1].v isa DVec
 
     p = FCIQMCProblem(h; n_replicas = 3, threading=false, initiator=Initiator())
     @test Rimu.num_replicas(p) == 3
@@ -34,7 +34,7 @@ using OrderedCollections: freeze
     @test p.starting_vectors == FCIQMCProblem(h; start_at=dv, n_replicas = 3).starting_vectors
     sm = init(p)
     @test Rimu.num_replicas(sm) == 3
-    @test sm.qmc_state.replicas[1].v isa InitiatorDVec
+    @test sm.qmc_state.replica_states[1].v isa InitiatorDVec
 
 
     @test_throws ArgumentError FCIQMCProblem(h; start_at=[BoseFS(1, 3), BoseFS(2, 3)])
@@ -50,18 +50,18 @@ using OrderedCollections: freeze
     dv = PDVec(starting_address(h)=>3; style=IsDynamicSemistochastic())
     p = FCIQMCProblem(h; n_replicas=3, start_at=dv)
     sm = init(p)
-    @test sm.qmc_state.replicas[1].v == dv
-    @test sm.qmc_state.replicas[1].v !== dv
-    @test sm.qmc_state.replicas[1].pv !== dv
+    @test sm.qmc_state.replica_states[1].v == dv
+    @test sm.qmc_state.replica_states[1].v !== dv
+    @test sm.qmc_state.replica_states[1].pv !== dv
 
     # copy_vectors = false
     dv1 = deepcopy(dv)
     dv2 = deepcopy(dv)
     p = FCIQMCProblem(h; n_replicas=2, start_at = (dv1, dv2))
     sm = init(p; copy_vectors=false)
-    @test sm.qmc_state.replicas[1].v === dv1
-    @test sm.qmc_state.replicas[2].v === dv2
-    @test_throws BoundsError sm.qmc_state.replicas[3].v
+    @test sm.qmc_state.replica_states[1].v === dv1
+    @test sm.qmc_state.replica_states[2].v === dv2
+    @test_throws BoundsError sm.qmc_state.replica_states[3].v
 end
 
 @testset "QMCSimulation" begin

@@ -121,7 +121,7 @@ struct QMCState{
     PS<:NTuple{<:Any,PostStepStrategy},
 }
     hamiltonian::H
-    replicas::R
+    replica_states::R
     maxlength::Ref{Int}
     step::Ref{Int}
     # laststep::Ref{Int}
@@ -224,10 +224,10 @@ function QMCState(
         post_step = (post_step,)
     end
 
-    # Set up replicas
+    # Set up replica_states
     nreplicas = num_replicas(replica)
     if nreplicas > 1
-        replicas = ntuple(nreplicas) do i
+        replica_states = ntuple(nreplicas) do i
             SingleState(
                 hamiltonian,
                 deepcopy(v),
@@ -239,11 +239,11 @@ function QMCState(
                 "_$i")
         end
     else
-        replicas = (SingleState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),)
+        replica_states = (SingleState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),)
     end
 
     return QMCState(
-        hamiltonian, replicas, Ref(Int(maxlength)),
+        hamiltonian, replica_states, Ref(Int(maxlength)),
         Ref(simulation_plan.starting_step), # step
         simulation_plan,
         # Ref(Int(laststep)),
@@ -253,13 +253,13 @@ end
 
 function Base.show(io::IO, st::QMCState)
     print(io, "QMCState")
-    if length(st.replicas) > 1
-        print(io, " with ", length(st.replicas), " replicas")
+    if length(st.replica_states) > 1
+        print(io, " with ", length(st.replica_states), " replicas")
     end
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  replicas: ")
-    for (i, r) in enumerate(st.replicas)
+    for (i, r) in enumerate(st.replica_states)
         print(io, "\n    $i: ", r)
     end
 end
@@ -267,10 +267,10 @@ end
 function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
-    replica = state.replicas[1]
+    replica = state.replica_states[1]
     shift_parameters=replica.shift_parameters
     report_metadata!(report, "laststep", state.simulation_plan.last_step)
-    report_metadata!(report, "num_replicas", length(state.replicas))
+    report_metadata!(report, "num_replicas", length(state.replica_states))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
     report_metadata!(report, "r_strat", state.r_strat)
     report_metadata!(report, "s_strat", replica.s_strat)
@@ -280,8 +280,8 @@ function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "shift", shift_parameters.shift)
     report_metadata!(report, "maxlength", state.maxlength[])
     report_metadata!(report, "post_step", state.post_step)
-    report_metadata!(report, "v_summary", summary(state.replicas[1].v))
-    report_metadata!(report, "v_type", typeof(state.replicas[1].v))
+    report_metadata!(report, "v_summary", summary(state.replica_states[1].v))
+    report_metadata!(report, "v_type", typeof(state.replica_states[1].v))
     return report
 end
 
@@ -492,7 +492,7 @@ function advance!(report, state::QMCState, replica::SingleState)
     end
 
     if len == 0
-        if length(state.replicas) > 1
+        if length(state.replica_states) > 1
             @error "population in replica$(replica.id) is dead. Aborting."
         else
             @error "population is dead. Aborting."
@@ -500,7 +500,7 @@ function advance!(report, state::QMCState, replica::SingleState)
         return false
     end
     if len > state.maxlength[]
-        if length(state.replicas) > 1
+        if length(state.replica_states) > 1
             @error "`maxlength` reached in replica$(replica.id). Aborting."
         else
             @error "`maxlength` reached. Aborting."

@@ -29,14 +29,14 @@ Random.seed!(1234)
         v = copy(dv)
         wm = copy(dv)
         df, state = lomc!(H, v; wm, laststep=9)
-        @test state.replicas[1].wm === wm # after number of steps divisible by 3
-        @test state.replicas[1].v === v
-        @test state.replicas[1].pv !== v && state.replicas[1].pv !== wm
+        @test state.replica_states[1].wm === wm # after number of steps divisible by 3
+        @test state.replica_states[1].v === v
+        @test state.replica_states[1].pv !== v && state.replica_states[1].pv !== wm
 
         # @set state.simulation_plan.last_step = 10
         df = lomc!(state, df, laststep=10).df
-        @test state.replicas[1].v === wm
-        @test state.replicas[1].pv === v
+        @test state.replica_states[1].v === wm
+        @test state.replica_states[1].pv === v
 
         @test size(df, 1) == 10
         @test state.step[] == 10
@@ -57,8 +57,8 @@ Random.seed!(1234)
         H = HubbardReal1D(address; u=0.1)
         dv = DVec(address => 1; style=IsStochasticInteger())
         df, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
-        @test state.replicas[1].shift_parameters.time_step  == 0.002
-        @test state.replicas[1].shift_parameters.shift == 23.1
+        @test state.replica_states[1].shift_parameters.time_step  == 0.002
+        @test state.replica_states[1].shift_parameters.shift == 23.1
         @test state.replica == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
@@ -95,7 +95,7 @@ Random.seed!(1234)
         @test median(walkers) ≈ 1000 rtol=0.1
 
         _, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, copy(dv); targetwalkers=500, laststep=0)
-        @test state.replicas[1].s_strat.targetwalkers == 500
+        @test state.replica_states[1].s_strat.targetwalkers == 500
     end
 
     @testset "Replicas" begin
@@ -106,13 +106,13 @@ Random.seed!(1234)
             dv = DVec(address => 1, style=IsDynamicSemistochastic())
             df, state = lomc!(H, dv; replica=NoStats(1))
             @test state.replica == NoStats(1)
-            @test length(state.replicas) == 1
+            @test length(state.replica_states) == 1
             @test "shift" ∈ names(df)
             @test "shift_1" ∉ names(df)
 
             df, state = lomc!(H, dv; replica=NoStats(3))
             @test state.replica == NoStats(3)
-            @test length(state.replicas) == 3
+            @test length(state.replica_states) == 3
             @test df.shift_1 ≠ df.shift_2 && df.shift_2 ≠ df.shift_3
             @test "shift_4" ∉ names(df)
 
@@ -220,13 +220,13 @@ Random.seed!(1234)
         address = BoseFS{5,2}((2,3))
         H = HubbardReal1D(address; u=20)
         df, state = lomc!(H; laststep=100)
-        @test StochasticStyle(state.replicas[1].v) isa IsStochasticInteger
+        @test StochasticStyle(state.replica_states[1].v) isa IsStochasticInteger
 
         df, state = lomc!(H; laststep=100, style = IsDeterministic())
-        @test StochasticStyle(state.replicas[1].v) isa IsDeterministic
+        @test StochasticStyle(state.replica_states[1].v) isa IsDeterministic
 
         df, state = lomc!(H; laststep=1, threading=false, initiator=Initiator())
-        @test state.replicas[1].v isa InitiatorDVec
+        @test state.replica_states[1].v isa InitiatorDVec
     end
 
     @testset "ShiftStrategy" begin
@@ -250,7 +250,7 @@ Random.seed!(1234)
         df, state = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
 
-        v = state.replicas[1].v
+        v = state.replica_states[1].v
         step = state.step[]
         s_strat = LogUpdate()
         df = lomc!(H, v; df, step, s_strat, laststep=200).df
@@ -505,7 +505,7 @@ Random.seed!(1234)
             @test all(==(ntuple(_ -> 0, num_modes(address))), df.single_particle_density[1:2:end])
             @test all(≈(3), sum.(df.single_particle_density[2:2:end]))
 
-            @test df.single_particle_density[end] == single_particle_density(st.replicas[1].v)
+            @test df.single_particle_density[end] == single_particle_density(st.replica_states[1].v)
 
             for address in (
                 BoseFS2C((1,2,3), (0,1,0)),
