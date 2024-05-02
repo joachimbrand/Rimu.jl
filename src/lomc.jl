@@ -128,7 +128,7 @@ struct QMCState{
     simulation_plan::SimulationPlan
     r_strat::RS
     post_step::PS
-    replica::RRS
+    replica_strategy::RRS
 end
 
 """
@@ -163,7 +163,7 @@ function QMCState(
     r_strat::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     threading=nothing,
-    replica::ReplicaStrategy=NoStats(),
+    replica_strategy::ReplicaStrategy=NoStats(),
     post_step=(),
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
 )
@@ -225,7 +225,7 @@ function QMCState(
     end
 
     # Set up replica_states
-    nreplicas = num_replicas(replica)
+    nreplicas = num_replicas(replica_strategy)
     if nreplicas > 1
         replica_states = ntuple(nreplicas) do i
             SingleState(
@@ -247,7 +247,7 @@ function QMCState(
         Ref(simulation_plan.starting_step), # step
         simulation_plan,
         # Ref(Int(laststep)),
-        r_strat, post_step, replica
+        r_strat, post_step, replica_strategy
     )
 end
 
@@ -359,7 +359,7 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
 * `shift = diagonal_element(ham, address)` - initial value of shift.
 * `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
   [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
-* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
+* `replica_strategy::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
   [`ReplicaStrategy`](@ref).
 * `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see
   [`ReportingStrategy`](@ref)
@@ -493,7 +493,7 @@ function advance!(report, state::QMCState, replica::SingleState)
 
     if len == 0
         if length(state.replica_states) > 1
-            @error "population in replica$(replica.id) is dead. Aborting."
+            @error "population in replica $(replica.id) is dead. Aborting."
         else
             @error "population is dead. Aborting."
         end
@@ -501,7 +501,7 @@ function advance!(report, state::QMCState, replica::SingleState)
     end
     if len > state.maxlength[]
         if length(state.replica_states) > 1
-            @error "`maxlength` reached in replica$(replica.id). Aborting."
+            @error "`maxlength` reached in replica $(replica.id). Aborting."
         else
             @error "`maxlength` reached. Aborting."
         end

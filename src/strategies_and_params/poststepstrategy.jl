@@ -1,8 +1,8 @@
 """
     PostStepStrategy
 
-Subtypes of `PostStepStrategy` can be used to perform arbitrary computation on a replica
-after an FCIQMC step is finished and report the results.
+Subtypes of `PostStepStrategy` can be used to perform arbitrary computation on a single
+state after an FCIQMC step is finished and report the results.
 
 # Implemented strategies:
 
@@ -37,9 +37,9 @@ post_step_action
 function post_step_action(::Tuple{}, _, _)
     return ()
 end
-function post_step_action((t,ts...)::Tuple, replica, step)
-    head = post_step_action(t, replica, step)
-    rest = post_step_action(ts, replica, step)
+function post_step_action((t,ts...)::Tuple, single_state, step)
+    head = post_step_action(t, single_state, step)
+    rest = post_step_action(ts, single_state, step)
     return (head..., rest...)
 end
 
@@ -60,8 +60,8 @@ function Projector(;kwarg...)
     return Projector(only(keys(kwarg)), freeze(only(values(kwarg))))
 end
 
-function post_step_action(p::Projector, replica, _)
-    return (p.name => dot(p.projector, replica.v),)
+function post_step_action(p::Projector, single_state, _)
+    return (p.name => dot(p.projector, single_state.v),)
 end
 
 """
@@ -107,16 +107,16 @@ function compute_hproj(::LOStructure, ham, projector)
     return freeze(ham' * projector)
 end
 
-function post_step_action(p::ProjectedEnergy{<:Any,<:Any,Nothing}, replica, _)
+function post_step_action(p::ProjectedEnergy{<:Any,<:Any,Nothing}, single_state, _)
     return (
-        p.vproj_name => dot(p.vproj, replica.v),
-        p.hproj_name => dot(p.vproj, p.ham, replica.v),
+        p.vproj_name => dot(p.vproj, single_state.v),
+        p.hproj_name => dot(p.vproj, p.ham, single_state.v),
     )
 end
-function post_step_action(p::ProjectedEnergy, replica, _)
+function post_step_action(p::ProjectedEnergy, single_state, _)
     return (
-        p.vproj_name => dot(p.vproj, replica.v),
-        p.hproj_name => dot(p.hproj, replica.v),
+        p.vproj_name => dot(p.vproj, single_state.v),
+        p.hproj_name => dot(p.hproj, single_state.v),
     )
 end
 
@@ -132,8 +132,8 @@ struct SignCoherence{R} <: PostStepStrategy
 end
 SignCoherence(ref; name=:coherence) = SignCoherence(name, ref)
 
-function post_step_action(sc::SignCoherence, replica, _)
-    vector = replica.v
+function post_step_action(sc::SignCoherence, single_state, _)
+    vector = single_state.v
     return (sc.name => coherence(valtype(vector), sc.reference, vector),)
 end
 
@@ -167,8 +167,8 @@ struct WalkerLoneliness{T} <: PostStepStrategy
 end
 WalkerLoneliness() = WalkerLoneliness(1)
 
-function post_step_action(wl::WalkerLoneliness, replica, _)
-    vector = replica.v
+function post_step_action(wl::WalkerLoneliness, single_state, _)
+    vector = single_state.v
     return (:loneliness => loneliness(valtype(vector), vector, wl.threshold),)
 end
 
@@ -223,14 +223,14 @@ struct SingleParticleDensity <: PostStepStrategy
     SingleParticleDensity(;save_every=1, component=0) = new(save_every, component)
 end
 
-function post_step_action(d::SingleParticleDensity, replica, step)
+function post_step_action(d::SingleParticleDensity, single_state, step)
     component = d.component
     if component == 0
         name = :single_particle_density
     else
         name = Symbol("single_particle_density_", component)
     end
-    vector = replica.v
+    vector = single_state.v
     if step % d.save_every == 0
         return (name => single_particle_density(vector; component),)
     else

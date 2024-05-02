@@ -40,7 +40,7 @@ end
         dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic(abs_threshold=3.5))
         H = BoseHubbardMom1D2C(add)
 
-        _, state = lomc!(H, dv; replica=NoStats(2))
+        _, state = lomc!(H, dv; replica_strategy=NoStats(2))
         RimuIO.save_dvec(file1, state.replicas[1].v)
         RimuIO.save_dvec(file2, state.replicas[2].v)
 

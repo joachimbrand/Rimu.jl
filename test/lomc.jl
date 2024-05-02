@@ -59,7 +59,7 @@ Random.seed!(1234)
         df, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
         @test state.replica_states[1].shift_parameters.time_step  == 0.002
         @test state.replica_states[1].shift_parameters.shift == 23.1
-        @test state.replica == NoStats{1}() # uses getfield method
+        @test state.replica_strategy == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
         addr = BoseFS{5,2}((2,3))
@@ -104,14 +104,14 @@ Random.seed!(1234)
         G = GutzwillerSampling(H, g=1)
         @testset "NoStats" begin
             dv = DVec(address => 1, style=IsDynamicSemistochastic())
-            df, state = lomc!(H, dv; replica=NoStats(1))
-            @test state.replica == NoStats(1)
+            df, state = lomc!(H, dv; replica_strategy=NoStats(1))
+            @test state.replica_strategy == NoStats(1)
             @test length(state.replica_states) == 1
             @test "shift" ∈ names(df)
             @test "shift_1" ∉ names(df)
 
-            df, state = lomc!(H, dv; replica=NoStats(3))
-            @test state.replica == NoStats(3)
+            df, state = lomc!(H, dv; replica_strategy=NoStats(3))
+            @test state.replica_strategy == NoStats(3)
             @test length(state.replica_states) == 3
             @test df.shift_1 ≠ df.shift_2 && df.shift_2 ≠ df.shift_3
             @test "shift_4" ∉ names(df)
@@ -130,39 +130,39 @@ Random.seed!(1234)
             )
 
                 # No operator: N choose 2 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(4))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(4))
                 @test num_stats(df) == binomial(4, 2)
-                df, _ = lomc!(H, dv; replica=AllOverlaps(5))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(5))
                 @test num_stats(df) == binomial(5, 2)
 
                 # No vector norm: N choose 2 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H, vecnorm=false))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(4; operator=H, vecnorm=false))
                 @test num_stats(df) == binomial(4, 2)
-                df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H, vecnorm=false))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(5; operator=H, vecnorm=false))
                 @test num_stats(df) == binomial(5, 2)
 
                 # No operator, no vector norm: 0 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(4; vecnorm=false))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(4; vecnorm=false))
                 @test num_stats(df) == 0
-                df, _ = lomc!(H, dv; replica=AllOverlaps(5; vecnorm=false))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(5; vecnorm=false))
                 @test num_stats(df) == 0
 
                 # One operator: 2 * N choose 2 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(4; operator=H))
                 @test num_stats(df) == 2 * binomial(4, 2)
-                df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(5; operator=H))
                 @test num_stats(df) == 2 * binomial(5, 2)
 
                 # Two operators: 3 * N choose 2 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(2; operator=(G, H)))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(2; operator=(G, H)))
                 @test num_stats(df) == 3 * binomial(2, 2)
-                df, _ = lomc!(H, dv; replica=AllOverlaps(7; operator=(G, H)))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(7; operator=(G, H)))
                 @test num_stats(df) == 3 * binomial(7, 2)
 
                 # Transformed operators: (3 + 1) * N choose 2 reports.
-                df, _ = lomc!(G, dv; replica=AllOverlaps(2; operator=(H, G), transform=G))
+                df, _ = lomc!(G, dv; replica_strategy=AllOverlaps(2; operator=(H, G), transform=G))
                 @test num_stats(df) == 4 * binomial(2, 2)
-                df, _ = lomc!(G, dv; replica=AllOverlaps(7; operator=(H, G), transform=G))
+                df, _ = lomc!(G, dv; replica_strategy=AllOverlaps(7; operator=(H, G), transform=G))
                 @test num_stats(df) == 4 * binomial(7, 2)
 
                 # Check transformation
@@ -183,15 +183,15 @@ Random.seed!(1234)
             v = DVec(1 => 1)
             G = MatrixHamiltonian(rand(5, 5))
             O = MatrixHamiltonian(rand(ComplexF64, 5, 5))
-            df, _ = lomc!(G, v, replica=AllOverlaps(2; operator=O))
+            df, _ = lomc!(G, v, replica_strategy=AllOverlaps(2; operator=O))
             @test df.c1_dot_c2 isa Vector{ComplexF64}
             @test df.c1_Op1_c2 isa Vector{ComplexF64}
 
             # MPIData
             dv = DVec(address => 1, style=IsDynamicSemistochastic())
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4; operator=H))
+            df, _ = lomc!(H, MPIData(dv); replica_strategy=AllOverlaps(4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))
+            df, _ = lomc!(H, MPIData(dv); replica_strategy=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))
             @test num_stats(df) == 2 * binomial(5, 2)
         end
     end
@@ -212,7 +212,7 @@ Random.seed!(1234)
 
         # Populations in replicas are dead.
         params = RunTillLastStep(shift = 0.0)
-        df = @suppress_err lomc!(H, copy(dv); params, laststep=100, replica=NoStats(5)).df
+        df = @suppress_err lomc!(H, copy(dv); params, laststep=100, replica_strategy=NoStats(5)).df
         @test size(df, 1) < 100
     end
 
@@ -287,7 +287,7 @@ Random.seed!(1234)
         @test all(df.len[1:end-1] .≤ 10)
         @test df.len[end] > 10
 
-        df, state = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4, replica=NoStats(6))
+        df, state = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4, replica_strategy=NoStats(6))
         @test all(df.len_1[1:end-1] .≤ 10)
         @test all(df.len_2[1:end-1] .≤ 10)
         @test all(df.len_3[1:end-1] .≤ 10)
