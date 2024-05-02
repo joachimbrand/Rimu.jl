@@ -360,7 +360,8 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
 * `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
   [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
 * `replica_strategy::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
-  [`ReplicaStrategy`](@ref).
+  [`ReplicaStrategy`](@ref). (Deprecated: `replica` is accepted as an alias for
+  `replica_strategy`.)
 * `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see
   [`ReportingStrategy`](@ref)
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
@@ -419,8 +420,8 @@ The default choice for the starting vector is
 See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
 [`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
 """
-function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
-    state = QMCState(ham, v; kwargs...)
+function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, replica=NoStats(), kwargs...)
+    state = QMCState(ham, v; replica_strategy=replica, kwargs...)
     return lomc!(state, df; name, metadata)
 end
 function lomc!(
