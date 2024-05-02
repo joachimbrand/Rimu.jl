@@ -169,7 +169,7 @@ function QMCState(
 )
     Hamiltonians.check_address_type(hamiltonian, keytype(v))
     # Set up reporting_strategy and params
-    reporting_strategy = refine_r_strat(reporting_strategy)
+    reporting_strategy = refine_reporting_strategy(reporting_strategy)
 
     # eventually we want to deprecate the use of params
     if !isnothing(params)
