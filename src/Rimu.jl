@@ -84,6 +84,7 @@ include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
 include("FCIQMCProblem.jl")
 
+include("qmc_states.jl")
 include("lomc.jl")                  # top level
 include("QMCSimulation.jl")
 

@@ -7,7 +7,7 @@ Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 """
 struct QMCSimulation
     qmc_problem::FCIQMCProblem
-    qmc_state::QMCState
+    qmc_state::ReplicaState
     report::Report
     modified::Ref{Bool}
     aborted::Ref{Bool}
@@ -100,7 +100,7 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
     @assert replica_states isa NTuple{n_replicas, <:SingleState}
 
     # set up the initial state
-    qmc_state = QMCState(
+    qmc_state = ReplicaState(
         hamiltonian, # hamiltonian
         replica_states, # replica_states
         Ref(maxlength), # maxlength
@@ -345,7 +345,7 @@ function CommonSolve.solve!(sm::QMCSimulation;
 end
 
 # methods for backward compatibility
-function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
+function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
     if !iszero(laststep)
         state = @set state.simulation_plan.last_step = laststep
     end

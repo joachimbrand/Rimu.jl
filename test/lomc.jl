@@ -15,7 +15,7 @@ using Setfield
 import Tables
 
 Random.seed!(1234)
-@testset "lomc!/QMCState" begin
+@testset "lomc!/ReplicaState" begin
     @testset "AbstractMatrix" begin
         @test_throws ArgumentError lomc!([1 2; 3 4])
     end
