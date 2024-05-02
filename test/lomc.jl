@@ -325,14 +325,14 @@ Random.seed!(1234)
         dv = PDVec(address => 1, style=IsDeterministic())
 
         @testset "ReportDFAndInfo" begin
-            r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=devnull, writeinfo=true)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=devnull, writeinfo=true)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test size(df, 1) == 20
             @test metadata(df, "Rimu.PACKAGE_VERSION") == string(Rimu.PACKAGE_VERSION)
 
             out = @capture_out begin
-                r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=stdout, writeinfo=true)
-                lomc!(H, copy(dv); r_strat, laststep=100)
+                reporting_strategy = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=stdout, writeinfo=true)
+                lomc!(H, copy(dv); reporting_strategy, laststep=100)
             end
             @test length(split(out, '\n')) == 3 # (last line is empty)
         end
@@ -345,29 +345,29 @@ Random.seed!(1234)
             rm("test-report-nc.arrow"; force=true)
             rm("test-report-lz4.arrow"; force=true)
 
-            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, save_if=false)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", io=devnull, save_if=false)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test !isfile("test-report.arrow")
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
 
-            r_strat = ReportToFile(filename="test-report.arrow", io=devnull)
-            df = lomc!(H, copy(dv); r_strat, laststep=100, metadata=(;u=6.0)).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", io=devnull)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100, metadata=(;u=6.0)).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             df1 = RimuIO.load_df("test-report.arrow")
             @test metadata(df1, "u") == "6.0" # custom metadata is saved
             @test metadata(df1, "filename") == "test-report.arrow" # filename in metadata
 
-            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             df2 = RimuIO.load_df("test-report-1.arrow")
 
-            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, return_df=true)
-            df3 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", io=devnull, return_df=true)
+            df3 = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             df4 = RimuIO.load_df("test-report-2.arrow")
 
             @test df1.shift ≈ df2.shift
@@ -376,8 +376,8 @@ Random.seed!(1234)
 
             # ReportToFile with skipping interval
             df5 = df1[10:10:100,:]
-            r_strat = ReportToFile(filename="test-report.arrow", reporting_interval=10, io=devnull, chunk_size=10)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", reporting_interval=10, io=devnull, chunk_size=10)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
             df6 = RimuIO.load_df("test-report-3.arrow")
 
@@ -387,23 +387,23 @@ Random.seed!(1234)
             # ReportToFile with compression
             @test_throws ArgumentError ReportToFile(compress=false)
 
-            r_strat = ReportToFile(
+            reporting_strategy = ReportToFile(
                 filename="test-report-nc.arrow", io=devnull, return_df=true,
                 compress=nothing
             )
-            df7 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            df7 = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             @test df7 == RimuIO.load_df("test-report-nc.arrow")
 
 
-            r_strat = ReportToFile(
+            reporting_strategy = ReportToFile(
                 filename="test-report-lz4.arrow", io=devnull, return_df=true,
                 compress=:lz4
             )
-            df8 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            df8 = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             @test df8 == RimuIO.load_df("test-report-lz4.arrow")
 
             @test filesize("test-report-lz4.arrow") < filesize("test-report-nc.arrow")

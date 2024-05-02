@@ -126,7 +126,7 @@ struct QMCState{
     step::Ref{Int}
     # laststep::Ref{Int}
     simulation_plan::SimulationPlan
-    r_strat::RS
+    reporting_strategy::RS
     post_step::PS
     replica_strategy::RRS
 end
@@ -160,7 +160,7 @@ function QMCState(
         shift = float(valtype(v))(diagonal_element(hamiltonian, address))
     ),
     s_strat::ShiftStrategy=DoubleLogUpdate(; targetwalkers),
-    r_strat::ReportingStrategy=ReportDFAndInfo(),
+    reporting_strategy::ReportingStrategy=ReportDFAndInfo(),
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     threading=nothing,
     replica_strategy::ReplicaStrategy=NoStats(),
@@ -168,8 +168,8 @@ function QMCState(
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
 )
     Hamiltonians.check_address_type(hamiltonian, keytype(v))
-    # Set up r_strat and params
-    r_strat = refine_r_strat(r_strat)
+    # Set up reporting_strategy and params
+    reporting_strategy = refine_r_strat(reporting_strategy)
 
     # eventually we want to deprecate the use of params
     if !isnothing(params)
@@ -247,7 +247,7 @@ function QMCState(
         Ref(simulation_plan.starting_step), # step
         simulation_plan,
         # Ref(Int(laststep)),
-        r_strat, post_step, replica_strategy
+        reporting_strategy, post_step, replica_strategy
     )
 end
 
@@ -272,7 +272,7 @@ function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "laststep", state.simulation_plan.last_step)
     report_metadata!(report, "num_replicas", length(state.replica_states))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
-    report_metadata!(report, "r_strat", state.r_strat)
+    report_metadata!(report, "reporting_strategy", state.reporting_strategy)
     report_metadata!(report, "s_strat", replica.s_strat)
     report_metadata!(report, "τ_strat", replica.τ_strat)
     report_metadata!(report, "dτ", shift_parameters.time_step)
@@ -362,8 +362,9 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
 * `replica_strategy::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
   [`ReplicaStrategy`](@ref). (Deprecated: `replica` is accepted as an alias for
   `replica_strategy`.)
-* `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see
-  [`ReportingStrategy`](@ref)
+* `reporting_strategy::ReportingStrategy = ReportDFAndInfo()` - how and when to report
+  results, see [`ReportingStrategy`](@ref). (Deprecated: `r_strat` is accepted as an alias
+  for `reporting_strategy`.)
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
 * `metadata` - user-supplied metadata to be added to the report `df`. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
@@ -420,8 +421,19 @@ The default choice for the starting vector is
 See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
 [`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
 """
-function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, replica=NoStats(), kwargs...)
-    state = QMCState(ham, v; replica_strategy=replica, kwargs...)
+function lomc!(
+    ham, v;
+    df=DataFrame(),
+    name="lomc!",
+    metadata=nothing,
+    r_strat=ReportDFAndInfo(),
+    replica = NoStats(),
+    kwargs...
+)
+    state = QMCState(
+        ham, v;
+        reporting_strategy=r_strat, replica_strategy=replica, kwargs...
+    )
     return lomc!(state, df; name, metadata)
 end
 function lomc!(
@@ -452,7 +464,7 @@ it should terminate.
 """
 function advance!(report, state::QMCState, replica::SingleState)
 
-    @unpack hamiltonian, r_strat = state
+    @unpack hamiltonian, reporting_strategy = state
     @unpack v, pv, wm, id, s_strat, τ_strat, shift_parameters = replica
     @unpack shift, pnorm, time_step = shift_parameters
     step = state.step[]
@@ -480,16 +492,16 @@ function advance!(report, state::QMCState, replica::SingleState)
     @pack! replica = v, pv, wm
     ### TO HERE
 
-    if step % reporting_interval(state.r_strat) == 0
+    if step % reporting_interval(state.reporting_strategy) == 0
         # Note: post_step must be called after packing the values.
         post_step_stats = post_step_action(state.post_step, replica, step)
 
         # Reporting
-        report!(r_strat, step, report, (; dτ=time_step, len), id)
-        report!(r_strat, step, report, shift_stats, id) # shift, norm, shift_mode
+        report!(reporting_strategy, step, report, (; dτ=time_step, len), id)
+        report!(reporting_strategy, step, report, shift_stats, id) # shift, norm, shift_mode
 
-        report!(r_strat, step, report, step_stat_names, step_stat_values, id)
-        report!(r_strat, step, report, post_step_stats, id)
+        report!(reporting_strategy, step, report, step_stat_names, step_stat_values, id)
+        report!(reporting_strategy, step, report, post_step_stats, id)
     end
 
     if len == 0
