@@ -115,7 +115,7 @@ end
     sm = init(p)
     @test sm.modified[] == false == sm.aborted[] == sm.success[]
     @test is_finalized(sm.report) == false
-    @test sprint(show, sm) == "QMCSimulation\n  H:    HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  step: 0 / 100\n  modified = false, aborted = false, success = false\n  replicas: \n    1: ReplicaState(v: 1-element PDVec, wm: 0-element PDWorkingMemory)"
+    @test sprint(show, sm) == "QMCSimulation\n  H:    HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  step: 0 / 100\n  modified = false, aborted = false, success = false\n  replicas: \n    1: SingleState(v: 1-element PDVec, wm: 0-element PDWorkingMemory)"
 
     @test step!(sm) isa Rimu.QMCSimulation
     @test sm.modified[] == true

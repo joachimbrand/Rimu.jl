@@ -73,7 +73,7 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
 
     # set up the replicas
     if n_replicas == 1
-        replicas = (ReplicaState(
+        replicas = (SingleState(
             hamiltonian,
             only(vectors),
             zerovector(only(vectors)),
@@ -86,7 +86,7 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
         replicas = ntuple(n_replicas) do i
             v, sp = vectors[i], shift_parameters[i]
             rwm = (typeof(v) == typeof(first(vectors))) ? wm : working_memory(v)
-            ReplicaState(
+            SingleState(
                 hamiltonian,
                 v,
                 zerovector(v),
@@ -97,7 +97,7 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
                 "_$i")
         end
     end
-    @assert replicas isa NTuple{n_replicas, <:ReplicaState}
+    @assert replicas isa NTuple{n_replicas, <:SingleState}
 
     # set up the initial state
     qmc_state = QMCState(

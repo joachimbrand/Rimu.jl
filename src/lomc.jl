@@ -51,7 +51,7 @@ end
 
 
 """
-    ReplicaState(v, wm, pnorm, params, id)
+    SingleState(v, wm, pnorm, params, id)
 
 Struct that holds all information needed for an independent run of the algorithm.
 
@@ -73,7 +73,7 @@ Can be advanced a step forward with [`advance!`](@ref).
 See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
 [`lomc!`](@ref).
 """
-mutable struct ReplicaState{H,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy,SP}
+mutable struct SingleState{H,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy,SP}
     # Future TODO: rename these fields, add interface for accessing them.
     hamiltonian::H
     v::V       # vector
@@ -85,22 +85,22 @@ mutable struct ReplicaState{H,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy,SP}
     id::String # id is appended to column names
 end
 
-function ReplicaState(h, v, wm, s_strat, τ_strat, shift, dτ::Float64, id="")
+function SingleState(h, v, wm, s_strat, τ_strat, shift, dτ::Float64, id="")
     if isnothing(wm)
         wm = similar(v)
     end
     pv = zerovector(v)
     sp = initialise_shift_parameters(s_strat, shift, walkernumber(v), dτ)
-    return ReplicaState(h, v, pv, wm, s_strat, τ_strat, sp, id)
-    # return ReplicaState{
+    return SingleState(h, v, pv, wm, s_strat, τ_strat, sp, id)
+    # return SingleState{
     #     typeof(h),typeof(v),typeof(wm),typeof(s_strat),typeof(τ_strat),typeof(sp)
     # }(h, v, pv, wm, s_strat, τ_strat, sp, id)
 end
 
-function Base.show(io::IO, r::ReplicaState)
+function Base.show(io::IO, r::SingleState)
     print(
         io,
-        "ReplicaState(v: ", length(r.v), "-element ", nameof(typeof(r.v)),
+        "SingleState(v: ", length(r.v), "-element ", nameof(typeof(r.v)),
         ", wm: ", length(r.wm), "-element ", nameof(typeof(r.wm)), ")"
     )
 end
@@ -109,13 +109,13 @@ end
     QMCState
 
 Holds all information needed to run [`lomc!`](@ref), except the dataframe. Holds an
-`NTuple` of [`ReplicaState`](@ref)s, the Hamiltonian, and various strategies that control
+`NTuple` of [`SingleState`](@ref)s, the Hamiltonian, and various strategies that control
 the algorithm. Constructed and returned by [`lomc!`](@ref).
 """
 struct QMCState{
     H,
     N,
-    R<:NTuple{N,<:ReplicaState},
+    R<:NTuple{N,<:SingleState},
     RS<:ReportingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
@@ -228,7 +228,7 @@ function QMCState(
     nreplicas = num_replicas(replica)
     if nreplicas > 1
         replicas = ntuple(nreplicas) do i
-            ReplicaState(
+            SingleState(
                 hamiltonian,
                 deepcopy(v),
                 deepcopy(wm),
@@ -239,7 +239,7 @@ function QMCState(
                 "_$i")
         end
     else
-        replicas = (ReplicaState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),)
+        replicas = (SingleState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),)
     end
 
     return QMCState(
@@ -441,7 +441,7 @@ end
 
 
 """
-    advance!(report::Report, state::QMCState, replica::ReplicaState)
+    advance!(report::Report, state::QMCState, replica::SingleState)
 
 Advance the `replica` by one step. The `state` is used only to access the various strategies
 involved. Steps, stats, and computed quantities are written to the `report`.
@@ -449,7 +449,7 @@ involved. Steps, stats, and computed quantities are written to the `report`.
 Returns `true` if the step was successful and calculation should proceed, `false` when
 it should terminate.
 """
-function advance!(report, state::QMCState, replica::ReplicaState)
+function advance!(report, state::QMCState, replica::SingleState)
 
     @unpack hamiltonian, r_strat = state
     @unpack v, pv, wm, id, s_strat, τ_strat, shift_parameters = replica

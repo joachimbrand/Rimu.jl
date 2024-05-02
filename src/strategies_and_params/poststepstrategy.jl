@@ -18,12 +18,12 @@ reported column names must be distinct.
 # Interface:
 
 A subtype of this type must implement
-[`post_step_action(::PostStepStrategy, ::ReplicaState, step::Int)`](@ref).
+[`post_step_action(::PostStepStrategy, ::SingleState, step::Int)`](@ref).
 """
 abstract type PostStepStrategy end
 
 """
-    post_step_action(::PostStepStrategy, ::ReplicaState, step) -> kvpairs
+    post_step_action(::PostStepStrategy, ::SingleState, step) -> kvpairs
 
 Compute statistics after FCIQMC step. Should return a tuple of `:key => value` pairs.
 This function is only called every [`reporting_interval`](@ref) steps, as defined by the
