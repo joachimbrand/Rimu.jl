@@ -440,20 +440,20 @@ Random.seed!(1234)
         @testset "Projector, ProjectedEnergy" begin
             Random.seed!(1337)
 
-            post_step = (
+            post_step_strategy = (
                 Projector(p1=NormProjector()),
                 Projector(p2=copy(dv)),
                 ProjectedEnergy(H, dv),
                 ProjectedEnergy(H, dv, vproj=:vproj2, hproj=:hproj2),
                 ProjectedEnergy(H, UniformProjector(), vproj=:vproj3, hproj=:hproj3),
             )
-            df, _ = lomc!(H, copy(dv); post_step)
+            df, _ = lomc!(H, copy(dv); post_step_strategy)
             @test df.vproj == df.vproj2 == df.p2
             @test df.norm ≈ df.p1
             @test df.norm ≥ df.vproj3
 
             @test_throws ArgumentError lomc!(
-                H, dv; post_step=(Projector(a=dv), Projector(a=dv))
+                H, dv; post_step_strategy=(Projector(a=dv), Projector(a=dv))
             )
             @test_throws ArgumentError Projector(a=dv, b=dv)
             @test_throws ArgumentError Projector()
@@ -463,34 +463,34 @@ Random.seed!(1234)
             Random.seed!(1337)
 
             ref = eigsolve(H, dv, 1, :SR; issymmetric=true)[2][1]
-            post_step = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
-            df, _ = lomc!(H, copy(dv); post_step)
+            post_step_strategy = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
+            df, _ = lomc!(H, copy(dv); post_step_strategy)
             @test df.coherence[1] == 1.0
             @test all(-1.0 .≤ df.coherence .≤ 1.0)
             @test all(in.(df.single_coherence, Ref((-1, 0, 1))))
 
             cdv = DVec(address => 1 + im)
-            df, _ = lomc!(H, cdv; post_step)
+            df, _ = lomc!(H, cdv; post_step_strategy)
             @test df.coherence isa Vector{ComplexF64}
         end
 
         @testset "WalkerLoneliness" begin
             Random.seed!(1337)
 
-            post_step = WalkerLoneliness()
-            df, _ = lomc!(H, copy(dv); post_step)
+            post_step_strategy = WalkerLoneliness()
+            df, _ = lomc!(H, copy(dv); post_step_strategy)
             @test df.loneliness[1] == 1
             @test all(1 .≥ df.loneliness .≥ 0)
 
             cdv = DVec(address => 1 + im)
-            df, _ = lomc!(H, cdv; post_step)
+            df, _ = lomc!(H, cdv; post_step_strategy)
             @test df.loneliness isa Vector{ComplexF64}
         end
 
         @testset "Timer" begin
-            post_step = Rimu.Timer()
+            post_step_strategy = Rimu.Timer()
             time_before = time()
-            df, _ = lomc!(H, copy(dv); post_step)
+            df, _ = lomc!(H, copy(dv); post_step_strategy)
             time_after = time()
             @test df.time[1] > time_before
             @test df.time[end] < time_after
@@ -498,10 +498,10 @@ Random.seed!(1234)
         end
 
         @testset "SingleParticleDensity" begin
-            post_step = (
+            post_step_strategy = (
                 SingleParticleDensity(save_every=2),
             )
-            df, st = lomc!(H, copy(dv); post_step)
+            df, st = lomc!(H, copy(dv); post_step_strategy)
             @test all(==(ntuple(_ -> 0, num_modes(address))), df.single_particle_density[1:2:end])
             @test all(≈(3), sum.(df.single_particle_density[2:2:end]))
 
@@ -528,11 +528,11 @@ end
     )
         @testset "$H" begin
             dv = DVec(starting_address(H) => 2; style=IsDynamicSemistochastic())
-            post_step = ProjectedEnergy(H, dv)
+            post_step_strategy = ProjectedEnergy(H, dv)
 
             E0 = eigsolve(H, copy(dv), 1, :SR; issymmetric=true)[1][1]
 
-            df = lomc!(H, dv; post_step, laststep=3000).df
+            df = lomc!(H, dv; post_step_strategy, laststep=3000).df
 
             # Shift estimate.
             Es, σs = mean_and_se(df.shift)

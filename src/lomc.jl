@@ -127,7 +127,7 @@ struct QMCState{
     # laststep::Ref{Int}
     simulation_plan::SimulationPlan
     reporting_strategy::RS
-    post_step::PS
+    post_step_strategy::PS
     replica_strategy::RRS
 end
 
@@ -164,7 +164,7 @@ function QMCState(
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     threading=nothing,
     replica_strategy::ReplicaStrategy=NoStats(),
-    post_step=(),
+    post_step_strategy=(),
     maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
 )
     Hamiltonians.check_address_type(hamiltonian, keytype(v))
@@ -219,9 +219,9 @@ function QMCState(
     end
     wm = isnothing(wm) ? working_memory(v) : wm
 
-    # Set up post_step
-    if !(post_step isa Tuple)
-        post_step = (post_step,)
+    # Set up post_step_strategy
+    if !(post_step_strategy isa Tuple)
+        post_step_strategy = (post_step_strategy,)
     end
 
     # Set up replica_states
@@ -247,7 +247,7 @@ function QMCState(
         Ref(simulation_plan.starting_step), # step
         simulation_plan,
         # Ref(Int(laststep)),
-        reporting_strategy, post_step, replica_strategy
+        reporting_strategy, post_step_strategy, replica_strategy
     )
 end
 
@@ -279,7 +279,7 @@ function report_default_metadata!(report::Report, state::QMCState)
     report_metadata!(report, "step", state.step[])
     report_metadata!(report, "shift", shift_parameters.shift)
     report_metadata!(report, "maxlength", state.maxlength[])
-    report_metadata!(report, "post_step", state.post_step)
+    report_metadata!(report, "post_step_strategy", state.post_step_strategy)
     report_metadata!(report, "v_summary", summary(state.replica_states[1].v))
     report_metadata!(report, "v_type", typeof(state.replica_states[1].v))
     return report
@@ -357,8 +357,9 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
   `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
   unused if `v` is specified.
 * `shift = diagonal_element(ham, address)` - initial value of shift.
-* `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
-  [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
+* `post_step_strategy::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
+  [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref). (Deprecated: `post_step` is
+  accepted as an alias for `post_step_strategy`.)
 * `replica_strategy::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
   [`ReplicaStrategy`](@ref). (Deprecated: `replica` is accepted as an alias for
   `replica_strategy`.)
@@ -428,11 +429,15 @@ function lomc!(
     metadata=nothing,
     r_strat=ReportDFAndInfo(),
     replica = NoStats(),
+    post_step = (),
     kwargs...
 )
     state = QMCState(
         ham, v;
-        reporting_strategy=r_strat, replica_strategy=replica, kwargs...
+        reporting_strategy = r_strat, # deprecations
+        replica_strategy = replica,
+        post_step_strategy = post_step,
+        kwargs...
     )
     return lomc!(state, df; name, metadata)
 end
@@ -493,8 +498,8 @@ function advance!(report, state::QMCState, replica::SingleState)
     ### TO HERE
 
     if step % reporting_interval(state.reporting_strategy) == 0
-        # Note: post_step must be called after packing the values.
-        post_step_stats = post_step_action(state.post_step, replica, step)
+        # Note: post_step_stats must be called after packing the values.
+        post_step_stats = post_step_action(state.post_step_strategy, replica, step)
 
         # Reporting
         report!(reporting_strategy, step, report, (; dτ=time_step, len), id)

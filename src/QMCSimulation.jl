@@ -107,7 +107,7 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
         Ref(simulation_plan.starting_step), # step
         simulation_plan, # simulation_plan
         reporting_strategy, # reporting_strategy
-        post_step_strategy, # post_step
+        post_step_strategy, # post_step_strategy
         replica_strategy # replica_strategy
     )
     report = Report()
@@ -350,7 +350,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
         state = @set state.simulation_plan.last_step = laststep
     end
     @unpack hamiltonian, replica_states, maxlength, step, simulation_plan,
-        reporting_strategy, post_step, replica_strategy = state
+        reporting_strategy, post_step_strategy, replica_strategy = state
     first_replica = first(replica_states)
     @assert step[] ≥ simulation_plan.starting_step
     problem = FCIQMCProblem(hamiltonian;
@@ -360,7 +360,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
         time_step_strategy = first_replica.τ_strat,
         replica_strategy ,
         reporting_strategy,
-        post_step_strategy = post_step,
+        post_step_strategy,
         maxlength = maxlength[],
         simulation_plan,
         metadata,

@@ -62,9 +62,9 @@ initial_vector = default_starting_vector(initial_address; style=IsDynamicSemisto
 # improves the sign problem.
 
 # Observables that can be calculated by projection of the fluctuating quantum state onto
-# a constant vector are passed into the [`lomc!`](@ref) function with the `post_step`
+# a constant vector are passed into the [`lomc!`](@ref) function with the `post_step_strategy`
 # keyword argument.
-post_step = ProjectedEnergy(H, initial_vector)
+post_step_strategy = ProjectedEnergy(H, initial_vector)
 
 # ## Running the calculation
 
@@ -79,7 +79,7 @@ df, state = lomc!(
     laststep,
     dτ,
     targetwalkers,
-    post_step,
+    post_step_strategy,
 );
 
 # Here, `df` is a `DataFrame` containing the time series data, while `state` contains the

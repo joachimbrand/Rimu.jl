@@ -330,13 +330,13 @@ end
                     )
                 end
 
-                post_step = (
+                post_step_strategy = (
                     ProjectedEnergy(H, dv),
                     SignCoherence(copy(localpart(dv))),
                     WalkerLoneliness(),
                     Projector(proj_1=Norm2Projector()),
                 )
-                df = lomc!(H, dv; post_step, laststep=5000).df
+                df = lomc!(H, dv; post_step_strategy, laststep=5000).df
 
                 # Shift estimate.
                 Es, σs = mean_and_se(df.shift[2000:end])
