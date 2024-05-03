@@ -82,6 +82,8 @@ include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
+include("strategies_and_params/spectralstrategy.jl")
+
 include("FCIQMCProblem.jl")
 
 include("qmc_states.jl")

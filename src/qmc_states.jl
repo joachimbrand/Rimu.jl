@@ -39,6 +39,28 @@ function Base.show(io::IO, r::SingleState)
     )
 end
 
+struct SpectralState{
+    N,
+    NS<:NTuple{N,SingleState},
+    SS<:SpectralStrategy{N}
+}
+    spectral_states::NS # Tuple of SingleState
+    spectral_strategy::SS # SpectralStrategy
+    id::String # id is appended to column names
+end
+function SpectralState(t::Tuple, ss::SpectralStrategy, id="")
+    return SpectralState(t, ss, id)
+end
+
+function Base.show(io::IO, s::SpectralState)
+    print(io, "SpectralState")
+    print(io, " with ", length(s.spectral_states), " spectral states")
+    print(io, "\n    spectral_strategy: ", s.spectral_strategy)
+    for (i, r) in enumerate(s.spectral_states)
+        print(io, "\n      $i: ", r)
+    end
+end
+
 """
     _n_walkers(v, s_strat)
 Returns an estimate of the expected number of walkers as an integer.
@@ -60,7 +82,7 @@ Holds information about multiple replicas.
 struct ReplicaState{
     H,
     N,
-    R<:NTuple{N,<:SingleState},
+    R<:NTuple{N,<:SpectralState},
     RS<:ReportingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
@@ -96,6 +118,7 @@ function ReplicaState(
     τ_strat::TimeStepStrategy=ConstantTimeStep(),
     threading=nothing,
     replica_strategy::ReplicaStrategy=NoStats(),
+    spectral_strategy::SpectralStrategy=GramSchmidt(),
     post_step_strategy=(),
     maxlength=2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
 )
@@ -156,22 +179,33 @@ function ReplicaState(
         post_step_strategy = (post_step_strategy,)
     end
 
+    # set up spectral_states
+    n_spectral_states = num_spectral_states(spectral_strategy)
+    n_spectral_states == 1 || throw(ArgumentError("Only one spectral state is supported."))
+
     # Set up replica_states
     nreplicas = num_replicas(replica_strategy)
     if nreplicas > 1
         replica_states = ntuple(nreplicas) do i
-            SingleState(
-                hamiltonian,
-                deepcopy(v),
-                deepcopy(wm),
-                deepcopy(s_strat),
-                deepcopy(τ_strat),
-                shift,
-                dτ,
-                "_$i")
+            SpectralState(
+                (SingleState(
+                    hamiltonian,
+                    deepcopy(v),
+                    wm,
+                    deepcopy(s_strat),
+                    deepcopy(τ_strat),
+                    shift,
+                    dτ,
+                    "_$i"),
+                ),
+                spectral_strategy
+            )
         end
     else
-        replica_states = (SingleState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),)
+        replica_states = (SpectralState(
+            (SingleState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),),
+            spectral_strategy
+        ),)
     end
 
     return ReplicaState(
@@ -185,9 +219,7 @@ end
 
 function Base.show(io::IO, st::ReplicaState)
     print(io, "ReplicaState")
-    if length(st.replica_states) > 1
-        print(io, " with ", length(st.replica_states), " replicas")
-    end
+    print(io, " with ", length(st.replica_states), " replicas")
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  replicas: ")
@@ -199,7 +231,7 @@ end
 function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
-    replica = state.replica_states[1]
+    replica = state.replica_states[1].spectral_states[1]
     shift_parameters = replica.shift_parameters
     report_metadata!(report, "laststep", state.simulation_plan.last_step)
     report_metadata!(report, "num_replicas", length(state.replica_states))
@@ -212,8 +244,8 @@ function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "shift", shift_parameters.shift)
     report_metadata!(report, "maxlength", state.maxlength[])
     report_metadata!(report, "post_step_strategy", state.post_step_strategy)
-    report_metadata!(report, "v_summary", summary(state.replica_states[1].v))
-    report_metadata!(report, "v_type", typeof(state.replica_states[1].v))
+    report_metadata!(report, "v_summary", summary(replica.v))
+    report_metadata!(report, "v_type", typeof(replica.v))
     return report
 end
 

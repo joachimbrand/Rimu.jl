@@ -91,6 +91,7 @@ struct FCIQMCProblem{N} # is not type stable but does not matter
     reporting_strategy::ReportingStrategy
     post_step_strategy::Tuple
     time_step_strategy::TimeStepStrategy
+    spectral_strategy::SpectralStrategy
     maxlength::Int
     metadata::LittleDict{String,String} # user-supplied metadata + display_name
     random_seed::Union{Nothing,UInt64}
@@ -120,6 +121,7 @@ function FCIQMCProblem(
     reporting_strategy = ReportDFAndInfo(),
     post_step_strategy = (),
     time_step_strategy = ConstantTimeStep(),
+    spectral_strategy=GramSchmidt(),
     maxlength = nothing,
     metadata = nothing,
     display_name = "QMCSimulation",
@@ -202,6 +204,7 @@ function FCIQMCProblem(
         reporting_strategy,
         post_step_strategy,
         time_step_strategy,
+        spectral_strategy,
         maxlength,
         metadata,
         random_seed

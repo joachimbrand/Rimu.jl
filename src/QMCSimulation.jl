@@ -41,7 +41,7 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
     @unpack hamiltonian, starting_vectors, style, threading, simulation_plan,
         replica_strategy, shift_strategy, initial_shift_parameters,
         reporting_strategy, post_step_strategy, time_step_strategy,
-        maxlength, metadata, initiator, random_seed = problem
+        maxlength, metadata, initiator, random_seed, spectral_strategy = problem
 
     n_replicas = num_replicas(replica_strategy)
 
@@ -73,31 +73,39 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
 
     # set up the replica_states
     if n_replicas == 1
-        replica_states = (SingleState(
-            hamiltonian,
-            only(vectors),
-            zerovector(only(vectors)),
-            wm,
-            deepcopy(shift_strategy),
-            deepcopy(time_step_strategy),
-            only(shift_parameters),
-            ""),)
+        replica_states =  (SpectralState(
+            (SingleState(
+                hamiltonian,
+                only(vectors),
+                zerovector(only(vectors)),
+                wm,
+                deepcopy(shift_strategy),
+                deepcopy(time_step_strategy),
+                only(shift_parameters),
+                ""),
+            ),
+            spectral_strategy
+        ),)
     else
         replica_states = ntuple(n_replicas) do i
             v, sp = vectors[i], shift_parameters[i]
             rwm = (typeof(v) == typeof(first(vectors))) ? wm : working_memory(v)
-            SingleState(
-                hamiltonian,
-                v,
-                zerovector(v),
-                rwm,
-                deepcopy(shift_strategy),
-                deepcopy(time_step_strategy),
-                sp,
-                "_$i")
+            SpectralState(
+                (SingleState(
+                    hamiltonian,
+                    v,
+                    zerovector(v),
+                    rwm,
+                    deepcopy(shift_strategy),
+                    deepcopy(time_step_strategy),
+                    sp,
+                    "_$i"),
+                ),
+                spectral_strategy
+            )
         end
     end
-    @assert replica_states isa NTuple{n_replicas, <:SingleState}
+    @assert replica_states isa NTuple{n_replicas, <:SpectralState}
 
     # set up the initial state
     qmc_state = ReplicaState(

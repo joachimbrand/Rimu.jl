@@ -243,3 +243,8 @@ function advance!(report, state::ReplicaState, replica::SingleState)
     end
     return proceed # Bool
 end
+
+function advance!(report, state::ReplicaState, replica::SpectralState{1})
+    return advance!(report, state, only(replica.spectral_states))
+end
+# TODO: add advance! for SpectralState{N} where N > 1
