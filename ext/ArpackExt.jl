@@ -46,11 +46,11 @@ function CommonSolve.solve(s::S; kwargs...
         [dvec[a] for a in s.basissetrep.basis]
     end
     # solve the problem
-    vals, vec_matrix, nconv, niter, nmult, resid = eigs(s.basissetrep.sm; v0, kw_nt...)
+    vals, vec_matrix, nconv, niter, nmult, resid = eigs(s.basissetrep.sparse_matrix; v0, kw_nt...)
 
     verbose && @info "Arpack.eigs: $nconv converged out of $howmany requested eigenvalues,"*
         " $niter iterations," *
-        " $nmult matrix vector multiplications, norm of residuals = $(norm(resid))"
+        " $nmult matrix vector multiplications, norm of residual = $(norm(resid))"
     success = nconv ≥ howmany
     # vecs = [view(vec_matrix, :, i) for i in 1:length(vals)] # convert to array of vectors
     coefficient_vectors = eachcol(vec_matrix)

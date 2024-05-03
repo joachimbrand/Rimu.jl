@@ -46,9 +46,9 @@ dimension(ham)
 
 bsr = BasisSetRepresentation(ham);
 
-# To access the matrix or basis, access the `sm` and `basis` fields, respectively.
+# To access the matrix or basis, access the `sparse_matrix` and `basis` fields, respectively.
 
-bsr.sm
+bsr.sparse_matrix
 
 #
 
@@ -114,8 +114,8 @@ using Arpack
 
 num_eigvals = 3
 
-sm = sparse(ham)
-vals_ar, vecs_ar = eigs(sm; which=:SR, nev=num_eigvals)
+sparse_matrix = sparse(ham)
+vals_ar, vecs_ar = eigs(sparse_matrix; which=:SR, nev=num_eigvals)
 vals_ar
 
 # Using KrylovKit's
@@ -125,7 +125,7 @@ vals_ar
 
 using KrylovKit
 
-vals_kk, vecs_kk = eigsolve(sm, num_eigvals, :SR)
+vals_kk, vecs_kk = eigsolve(sparse_matrix, num_eigvals, :SR)
 vals_kk
 
 # Both solvers use variants of the [Lanczos

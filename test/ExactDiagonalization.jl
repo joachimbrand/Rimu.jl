@@ -17,8 +17,8 @@ using Suppressor
         bsr = BasisSetRepresentation(ham; nnzs=dimension(ham))
         @test length(bsr.basis) == dimension(bsr) ≤ dimension(ham)
         @test_throws ArgumentError BasisSetRepresentation(ham, BoseFS((1, 2, 3))) # wrong address type
-        @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
-        @test sparse(bsr) == bsr.sm == sparse(ham)
+        @test Matrix(bsr) == Matrix(bsr.sparse_matrix) == Matrix(ham)
+        @test sparse(bsr) == bsr.sparse_matrix == sparse(ham)
         addr2 = bsr.basis[2]
         @test starting_address(BasisSetRepresentation(ham, addr2)) == addr2
         @test isreal(ham) == (eltype(ham) <: Real)
@@ -39,7 +39,7 @@ using Suppressor
         # pass a basis and generate truncated BasisSetRepresentation
         bsrt = BasisSetRepresentation(ham, bsr.basis; filter=Returns(false), sort=true)
         @test bsrt.basis == bsr.basis
-        @test bsr.sm == bsrt.sm
+        @test bsr.sparse_matrix == bsrt.sparse_matrix
         # pass addresses and generate reachable basis
         @test BasisSetRepresentation(ham, bsr.basis, sort=true).basis == bsr_orig.basis
 
@@ -142,7 +142,7 @@ Random.seed!(123) # for reproducibility, as some solvers start with random vecto
     @test eval(Meta.parse(repr(p))) == p
     solver = init(p)
     @test solver.algorithm isa LinearAlgebraSolver
-    @test dimension(solver.basissetrep) == size(solver.basissetrep.sm)[1] ≤ dimension(p.h)
+    @test dimension(solver.basissetrep) == size(solver.basissetrep.sparse_matrix)[1] ≤ dimension(p.hamiltonian)
     res = solve(solver)
     @test res.values[1] ≈ -3.045633163020568
 end
@@ -210,7 +210,7 @@ Random.seed!(1234) # for reproducibility, as some solvers start with random vect
             @test res isa Rimu.ExactDiagonalization.EDResult
             @test length(res.values) == length(res.vectors)
             @test length(res.values) == length(res.coefficient_vectors) ≥ res.howmany
-            @test length(res.basis) == length(res.vectors[1]) ≤ dimension(p.h)
+            @test length(res.basis) == length(res.vectors[1]) ≤ dimension(p.hamiltonian)
             for (i, dv) in enumerate(res.vectors)
                 @test DVec(zip(res.basis, res.coefficient_vectors[i])) ≈ dv
             end
@@ -243,7 +243,7 @@ Random.seed!(1234) # for reproducibility, as some solvers start with random vect
     p = ExactDiagonalizationProblem(HubbardReal1D(BoseFS(1,2,3)); which=:SR)
     @test eval(Meta.parse(repr(p))) == p
     solver = init(p, KrylovKitSolver(false); howmany=2)
-    @test dimension(solver.basissetrep) == dimension(p.h) == size(solver.basissetrep.sm)[1]
+    @test dimension(solver.basissetrep) == dimension(p.hamiltonian) == size(solver.basissetrep.sparse_matrix)[1]
     @test startswith(repr(solver),"MatrixEDSolver")
 
     res_km = solve(solver)
@@ -254,7 +254,7 @@ Random.seed!(1234) # for reproducibility, as some solvers start with random vect
     solver = init(p, KrylovKitSolver(true); howmany=2)
     va_kd, ve_kd, info_kd = solve(solver)
     @test values ≈ va_kd
-    addr = starting_address(res_km.problem.h)
+    addr = starting_address(res_km.problem.hamiltonian)
     factor = vectors[1][addr] / ve_kd[1][addr]
     @test vectors[1] ≈ scale(ve_kd[1], factor)
     @test startswith(repr(solver), "KrylovKitDirectEDSolver")

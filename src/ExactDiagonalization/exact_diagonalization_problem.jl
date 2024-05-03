@@ -1,7 +1,7 @@
 """
-    ExactDiagonalizationProblem(h::AbstractHamiltonian, [v0]; kwargs...)
+    ExactDiagonalizationProblem(hamiltonian::AbstractHamiltonian, [v0]; kwargs...)
 
-Defines an exact diagonalization problem with an [`AbstractHamiltonian`](@ref) `h`.
+Defines an exact diagonalization problem with an [`AbstractHamiltonian`](@ref) `hamiltonian`.
 Optionally, a starting vector of type [`AbstractDVec`](@ref), or a single address or a
 collection of addresses can be passed as `v0`.
 
@@ -86,7 +86,7 @@ julia> using KrylovKit # the next example requires julia v1.9 or later
 
 julia> s = init(p; algorithm = KrylovKitSolver(true)) # solve without building a matrix
 KrylovKitDirectEDSolver
- with algorithm KrylovKitSolver(matrix_free = true,) for h = HubbardReal1D(fs"|1 1 1⟩"; u=1.0, t=1.0),
+ with algorithm KrylovKitSolver(matrix_free = true,) for hamiltonian = HubbardReal1D(fs"|1 1 1⟩"; u=1.0, t=1.0),
   v0 = 1-element PDVec: style = IsDeterministic{Float64}()
   fs"|1 1 1⟩" => 1.0,
   kwargs = NamedTuple()
@@ -109,23 +109,23 @@ See also [`init`](@ref), [`solve`](@ref),
     Algorithms with external packages require julia v1.9 or later.
 """
 struct ExactDiagonalizationProblem{H<:AbstractHamiltonian, V, K<:NamedTuple}
-    h::H
+    hamiltonian::H
     v0::V
     kw_nt::K # NamedTuple
 
-    function ExactDiagonalizationProblem(h::AbstractHamiltonian, v0=nothing; kwargs...)
+    function ExactDiagonalizationProblem(hamiltonian::AbstractHamiltonian, v0=nothing; kwargs...)
         kw_nt = NamedTuple(kwargs)
-        return new{typeof(h),typeof(v0),typeof(kw_nt)}(h, v0, kw_nt)
+        return new{typeof(hamiltonian),typeof(v0),typeof(kw_nt)}(hamiltonian, v0, kw_nt)
     end
 end
-function ExactDiagonalizationProblem(h::AbstractHamiltonian, v0::AbstractDVec; kwargs...)
-    return ExactDiagonalizationProblem(h, freeze(v0); kwargs...)
+function ExactDiagonalizationProblem(hamiltonian::AbstractHamiltonian, v0::AbstractDVec; kwargs...)
+    return ExactDiagonalizationProblem(hamiltonian, freeze(v0); kwargs...)
 end
 
 function Base.show(io::IO, p::ExactDiagonalizationProblem)
     io = IOContext(io, :compact => true)
     print(io, "ExactDiagonalizationProblem(\n  ")
-    show(io, p.h)
+    show(io, p.hamiltonian)
     print(io, ",\n  ")
     show(io, p.v0)
     print(io, ";\n  ")
@@ -133,7 +133,7 @@ function Base.show(io::IO, p::ExactDiagonalizationProblem)
     print(io, "...\n)")
 end
 function Base.:(==)(p1::ExactDiagonalizationProblem, p2::ExactDiagonalizationProblem)
-    return p1.h == p2.h && p1.v0 == p2.v0 && p1.kw_nt == p2.kw_nt
+    return p1.hamiltonian == p2.hamiltonian && p1.v0 == p2.v0 && p1.kw_nt == p2.kw_nt
 end
 
-Rimu.Hamiltonians.dimension(h::ExactDiagonalizationProblem) = dimension(h.h)
+Rimu.Hamiltonians.dimension(p::ExactDiagonalizationProblem) = dimension(p.hamiltonian)

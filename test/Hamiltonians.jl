@@ -733,7 +733,7 @@ end
     dim = dimension(ham)
     @test dim ≤ dimension(Int, starting_address(ham)) == dimension(starting_address(ham))
     bsr = BasisSetRepresentation(ham, starting_address(ham))
-    sm, basis = sparse(bsr), bsr.basis
+    sparse_matrix, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
 
     # run lomc! in deterministic mode with Hamiltonian and DVec
@@ -742,14 +742,14 @@ end
 
     # MatrixHamiltonian
     @test_throws ArgumentError MatrixHamiltonian([1 2 3; 4 5 6])
-    @test_throws ArgumentError MatrixHamiltonian(sm, starting_address = dim+1)
+    @test_throws ArgumentError MatrixHamiltonian(sparse_matrix, starting_address = dim+1)
     # adjoint nonhermitian
     nonhermitian = MatrixHamiltonian([1 2; 4 5])
     @test LOStructure(nonhermitian) == AdjointKnown()
     @test get_offdiagonal(nonhermitian,2,1)[2] == get_offdiagonal(nonhermitian',1,1)[2]
 
     # wrap sparse matrix as MatrixHamiltonian
-    mh =  MatrixHamiltonian(sm)
+    mh =  MatrixHamiltonian(sparse_matrix)
     # adjoint IsHermitian
     @test LOStructure(mh) == IsHermitian()
     @test mh' == mh
@@ -766,7 +766,7 @@ end
     e = lomc!(mh, DVec(pairs(ones(Int,dim)))).df
     @test ≈(e.shift[end], a.shift[end], atol=0.3)
     # wrap full matrix as MatrixHamiltonian
-    fmh =  MatrixHamiltonian(Matrix(sm))
+    fmh =  MatrixHamiltonian(Matrix(sparse_matrix))
     f = lomc!(fmh, DVec(pairs(ones(dim)))).df
     @test f.shift ≈ a.shift
 end
@@ -1427,7 +1427,7 @@ end
 
         bsr = BasisSetRepresentation(H; sizelim=Inf)
         @test dimension(bsr) == 15  # dimension(bsr) < dimension(H)
-        @test sum(bsr.sm) ≈ 142.6393438659114
+        @test sum(bsr.sparse_matrix) ≈ 142.6393438659114
 
         @test eval(Meta.parse(repr(H))) == H
     end

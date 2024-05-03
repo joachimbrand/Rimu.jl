@@ -81,7 +81,7 @@ end
 # solve with KrylovKit and matrix
 function _kk_eigsolve(s::MatrixEDSolver{<:KrylovKitSolver}, howmany, which, kw_nt)
     # set up the starting vector
-    T = eltype(s.basissetrep.sm)
+    T = eltype(s.basissetrep.sparse_matrix)
     x0 = if isnothing(s.v0)
             rand(T, dimension(s.basissetrep)) # random initial guess
     else
@@ -90,7 +90,7 @@ function _kk_eigsolve(s::MatrixEDSolver{<:KrylovKitSolver}, howmany, which, kw_n
             [dvec[a] for a in s.basissetrep.basis]
     end
     # solve the problem
-    vals, vecs, info = eigsolve(s.basissetrep.sm, x0, howmany, which; kw_nt...)
+    vals, vecs, info = eigsolve(s.basissetrep.sparse_matrix, x0, howmany, which; kw_nt...)
     success = info.converged ≥ howmany
     if !success
         @warn "KrylovKit.eigsolve did not converge for all requested eigenvalues:" *
@@ -114,7 +114,7 @@ end
 # solve with KrylovKit direct
 function _kk_eigsolve(s::KrylovKitDirectEDSolver, howmany, which, kw_nt)
 
-    vals, vecs, info = eigsolve(s.problem.h, s.v0, howmany, which; kw_nt...)
+    vals, vecs, info = eigsolve(s.problem.hamiltonian, s.v0, howmany, which; kw_nt...)
     success = info.converged ≥ howmany
     if !success
         @warn "KrylovKit.eigsolve did not converge for all requested eigenvalues:" *

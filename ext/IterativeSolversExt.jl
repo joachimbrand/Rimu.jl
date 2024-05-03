@@ -37,7 +37,7 @@ function CommonSolve.solve(s::S; kwargs...) where {S<:MatrixEDSolver{<:LOBPCGSol
     kw_nt = delete(kw_nt, (:howmany, :which, :nev))
 
     # solve the problem
-    results = lobpcg(s.basissetrep.sm, largest, nev; kw_nt...)
+    results = lobpcg(s.basissetrep.sparse_matrix, largest, nev; kw_nt...)
 
     success = all(results.converged)
     if !success

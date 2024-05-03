@@ -2,10 +2,10 @@
     build_sparse_matrix_from_LO(
         ham, address=starting_address(ham);
         cutoff, filter=nothing, nnzs, col_hint, sort=false, kwargs...
-    ) -> sm, basis
+    ) -> sparse_matrix, basis
     build_sparse_matrix_from_LO(ham, addresses::AbstractVector; kwargs...)
 
-Create a sparse matrix `sm` of all reachable matrix elements of a linear operator `ham`
+Create a sparse matrix `sparse_matrix` of all reachable matrix elements of a linear operator `ham`
 starting from `address`. Instead of a single address, a vector of `addresses` can be passed.
 The vector `basis` contains the addresses of basis configurations.
 
@@ -154,15 +154,15 @@ end
 
 """
     BasisSetRepresentation(
-        h::AbstractHamiltonian, addr=starting_address(h);
+        hamiltonian::AbstractHamiltonian, addr=starting_address(hamiltonian);
         sizelim=10^6, nnzs, cutoff, filter, sort=false, kwargs...
     )
-    BasisSetRepresentation(h::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
+    BasisSetRepresentation(hamiltonian::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
 
-Eagerly construct the basis set representation of the operator `h` with all addresses
+Eagerly construct the basis set representation of the operator `hamiltonian` with all addresses
 reachable from `addr`. Instead of a single address, a vector of `addresses` can be passed.
 
-An `ArgumentError` is thrown if `dimension(h) > sizelim` in order to prevent memory
+An `ArgumentError` is thrown if `dimension(hamiltonian) > sizelim` in order to prevent memory
 overflow. Set `sizelim = Inf` in order to disable this behaviour.
 
 Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
@@ -179,21 +179,21 @@ order of the columns matters, e.g. when comparing matrices. Any additional keywo
 are passed on to `Base.sortperm`.
 
 ## Fields
-* `sm`: sparse matrix representing `h` in the basis `basis`
+* `sparse_matrix`: sparse matrix representing `hamiltonian` in the basis `basis`
 * `basis`: vector of addresses
-* `h`: the Hamiltonian
+* `hamiltonian`: the Hamiltonian `hamiltonian`
 
 ## Example
 ```jldoctest
-julia> h = HubbardReal1D(BoseFS(1,0,0));
+julia> hamiltonian = HubbardReal1D(BoseFS(1,0,0));
 
-julia> bsr = BasisSetRepresentation(h)
+julia> bsr = BasisSetRepresentation(hamiltonian)
 BasisSetRepresentation(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
 
-julia> BasisSetRepresentation(h, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
+julia> BasisSetRepresentation(hamiltonian, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
 BasisSetRepresentation(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
   0.0  -1.0
  -1.0   0.0
@@ -223,64 +223,67 @@ Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 Part of the [`AbstractHamiltonian`](@ref) interface. See also [`build_basis`](@ref).
 """
 struct BasisSetRepresentation{A,SM,H}
-    sm::SM
+    sparse_matrix::SM
     basis::Vector{A}
-    h::H
+    hamiltonian::H
 end
 
-function BasisSetRepresentation(h::AbstractHamiltonian, addr_or_vec=starting_address(h); kwargs...)
+function BasisSetRepresentation(
+    hamiltonian::AbstractHamiltonian, addr_or_vec=starting_address(hamiltonian);
+    kwargs...
+)
     # In the default case we pass `AdjointUnknown()` in order to skip the
     # symmetrisation of the sparse matrix
-    return _bsr_ensure_symmetry(AdjointUnknown(), h, addr_or_vec; kwargs...)
+    return _bsr_ensure_symmetry(AdjointUnknown(), hamiltonian, addr_or_vec; kwargs...)
 end
 # special cases are needed for symmetry wrappers
 
 function BasisSetRepresentation(
-    h::ParitySymmetry, addr=starting_address(h);
+    hamiltonian::ParitySymmetry, addr=starting_address(hamiltonian);
     kwargs...
 )
     # For symmetry wrappers it is necessary to explicity symmetrise the matrix to
     # avoid the loss of matrix symmetry due to floating point rounding errors
-    return _bsr_ensure_symmetry(LOStructure(h), h, addr; kwargs...)
+    return _bsr_ensure_symmetry(LOStructure(hamiltonian), hamiltonian, addr; kwargs...)
 end
 
 function BasisSetRepresentation(
-    h::TimeReversalSymmetry, addr=starting_address(h);
+    hamiltonian::TimeReversalSymmetry, addr=starting_address(hamiltonian);
     kwargs...
 )
     # For symmetry wrappers it is necessary to explicity symmetrise the matrix to
     # avoid the loss of matrix symmetry due to floating point rounding errors
-    return _bsr_ensure_symmetry(LOStructure(h), h, addr; kwargs...)
+    return _bsr_ensure_symmetry(LOStructure(hamiltonian), hamiltonian, addr; kwargs...)
 end
 
 # default, does not enforce symmetries
 function _bsr_ensure_symmetry(
-    ::LOStructure, h::AbstractHamiltonian, addr_or_vec;
+    ::LOStructure, hamiltonian::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
     single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    d = dimension(h, single_addr)
+    d = dimension(hamiltonian, single_addr)
     if d > sizelim
         throw(ArgumentError("Dimension = $d larger than sizelim = $sizelim. Set a larger `sizelim` if this is safe."))
     end
-    check_address_type(h, addr_or_vec)
-    sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
-    return BasisSetRepresentation(sm, basis, h)
+    check_address_type(hamiltonian, addr_or_vec)
+    sparse_matrix, basis = build_sparse_matrix_from_LO(hamiltonian, addr_or_vec; kwargs...)
+    return BasisSetRepresentation(sparse_matrix, basis, hamiltonian)
 end
 
 # build the BasisSetRepresentation while enforcing hermitian symmetry
 function _bsr_ensure_symmetry(
-    ::IsHermitian, h::AbstractHamiltonian, addr_or_vec;
+    ::IsHermitian, hamiltonian::AbstractHamiltonian, addr_or_vec;
     sizelim=10^6, test_approx_symmetry=true, kwargs...
 )
     single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    if dimension(h, single_addr) > sizelim
+    if dimension(hamiltonian, single_addr) > sizelim
         throw(ArgumentError("dimension larger than sizelim"))
     end
-    check_address_type(h, addr_or_vec)
-    sm, basis = build_sparse_matrix_from_LO(h, addr_or_vec; kwargs...)
-    fix_approx_hermitian!(sm; test_approx_symmetry) # enforce hermitian symmetry after building
-    return BasisSetRepresentation(sm, basis, h)
+    check_address_type(hamiltonian, addr_or_vec)
+    sparse_matrix, basis = build_sparse_matrix_from_LO(hamiltonian, addr_or_vec; kwargs...)
+    fix_approx_hermitian!(sparse_matrix; test_approx_symmetry) # enforce hermitian symmetry after building
+    return BasisSetRepresentation(sparse_matrix, basis, hamiltonian)
 end
 
 """
@@ -419,8 +422,9 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
 end
 
 function Base.show(io::IO, b::BasisSetRepresentation)
-    print(io, "BasisSetRepresentation($(b.h)) with dimension $(dimension(b)) and $(nnz(b.sm)) stored entries:")
-    show(io, MIME"text/plain"(), b.sm)
+    print(io, "BasisSetRepresentation($(b.hamiltonian)) with dimension $(dimension(b))" *
+        " and $(nnz(b.sparse_matrix)) stored entries:")
+    show(io, MIME"text/plain"(), b.sparse_matrix)
 end
 
 Interfaces.starting_address(bsr::BasisSetRepresentation) = bsr.basis[1]
@@ -428,29 +432,32 @@ Interfaces.starting_address(bsr::BasisSetRepresentation) = bsr.basis[1]
 Hamiltonians.dimension(bsr::BasisSetRepresentation) = length(bsr.basis)
 
 """
-    sparse(h::AbstractHamiltonian, addr=starting_address(h); kwargs...)
+    sparse(hamiltonian::AbstractHamiltonian, addr=starting_address(hamiltonian); kwargs...)
     sparse(bsr::BasisSetRepresentation)
 
-Return a sparse matrix representation of `h` or `bsr`. `kwargs` are passed to
+Return a sparse matrix representation of `hamiltonian` or `bsr`. `kwargs` are passed to
 [`BasisSetRepresentation`](@ref).
 
 See [`BasisSetRepresentation`](@ref).
 """
-function SparseArrays.sparse(h::AbstractHamiltonian, args...; kwargs...)
-    return sparse(BasisSetRepresentation(h, args...; kwargs...))
+function SparseArrays.sparse(hamiltonian::AbstractHamiltonian, args...; kwargs...)
+    return sparse(BasisSetRepresentation(hamiltonian, args...; kwargs...))
 end
-SparseArrays.sparse(bsr::BasisSetRepresentation) = bsr.sm
+SparseArrays.sparse(bsr::BasisSetRepresentation) = bsr.sparse_matrix
 
 """
-    Matrix(h::AbstractHamiltonian, addr=starting_address(h); sizelim=10^4, kwargs...)
+    Matrix(
+        hamiltonian::AbstractHamiltonian, addr=starting_address(hamiltonian);
+        sizelim=10^4, kwargs...
+    )
     Matrix(bsr::BasisSetRepresentation)
 
-Return a dense matrix representation of `h` or `bsr`. `kwargs` are passed to
+Return a dense matrix representation of `hamiltonian` or `bsr`. `kwargs` are passed to
 [`BasisSetRepresentation`](@ref).
 
 See [`BasisSetRepresentation`](@ref).
 """
-function Base.Matrix(h::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
-    return Matrix(BasisSetRepresentation(h, args...; sizelim, kwargs...))
+function Base.Matrix(hamiltonian::AbstractHamiltonian, args...; sizelim=1e4, kwargs...)
+    return Matrix(BasisSetRepresentation(hamiltonian, args...; sizelim, kwargs...))
 end
-Base.Matrix(bsr::BasisSetRepresentation) = Matrix(bsr.sm)
+Base.Matrix(bsr::BasisSetRepresentation) = Matrix(bsr.sparse_matrix)
