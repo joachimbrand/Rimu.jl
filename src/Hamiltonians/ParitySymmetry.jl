@@ -117,5 +117,3 @@ function diagonal_element(h::ParitySymmetry, add)
     return diagonal_element(h.hamiltonian, add)
 end
 
-# a special case method for BasisSetRep with ParitySymmetry lives with the
-# BasisSetRep definition

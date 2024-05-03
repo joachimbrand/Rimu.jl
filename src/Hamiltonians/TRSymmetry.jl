@@ -124,5 +124,3 @@ function diagonal_element(h::TimeReversalSymmetry, add)
     return diagonal_element(h.hamiltonian, add)
 end
 
-# A special method for BasisSetRep with TimeReversalSymmetry lives with the
-# BasisSetRep definition

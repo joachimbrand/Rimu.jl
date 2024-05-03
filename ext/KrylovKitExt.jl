@@ -86,7 +86,8 @@ function _kk_eigsolve(s::MatrixEDSolver{<:KrylovKitSolver}, howmany, which, kw_n
             rand(T, dimension(s.basissetrep)) # random initial guess
     else
             # convert v0 to a DVec to use it like a dictionary
-            [DVec(s.v0)[a] for a in s.basissetrep.basis]
+            dvec = DVec(s.v0)
+            [dvec[a] for a in s.basissetrep.basis]
     end
     # solve the problem
     vals, vecs, info = eigsolve(s.basissetrep.sm, x0, howmany, which; kw_nt...)
