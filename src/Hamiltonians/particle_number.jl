@@ -5,7 +5,7 @@ The number operator in Fock space. This operator is diagonal in the Fock basis a
 returns the number of particles in the Fock state. Passing an address is optional.
 
 ```jldoctest
-julia> h = FroehlichPolaron(fs"|0 0⟩{}"; mode_cutoff=5, v=3); bsr = BasisSetRep(h);
+julia> h = FroehlichPolaron(fs"|0 0⟩{}"; mode_cutoff=5, v=3); bsr = BasisSetRepresentation(h);
 
 julia> gs = DVec(zip(bsr.basis, eigen(Matrix(bsr)).vectors[:,1])); # ground state
 
