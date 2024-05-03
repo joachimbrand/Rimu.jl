@@ -33,7 +33,7 @@ G2list = ((G2RealCorrelator(d) for d in dvals)...,)
 #     \sum_{d=0}^{M-1} \langle \hat{G}^{(2)}(d) \rangle = \frac{N (N-1)}{M}.
 # ```
 
-# Observables that are defined by expectation values are calculated using the 
+# Observables that are defined by expectation values are calculated using the
 # "replica trick". Thereby several independent copies or "replicas"
 # of the state vector are propagated simultaneously. The reason is to have two (or more)
 # stochastically independent copies of the state vector available such that we can
@@ -48,7 +48,7 @@ G2list = ((G2RealCorrelator(d) for d in dvals)...,)
 # than two to improve the statistics. This is particularly helpful when the walker number is
 # low.
 num_replicas = 3
-replica = AllOverlaps(num_replicas; operator = G2list)
+replica_strategy = AllOverlaps(num_replicas; operator = G2list)
 
 # Other FCIQMC parameters and strategies can be set in the same way as before.
 steps_equilibrate = 1_000
@@ -65,7 +65,7 @@ df, state = lomc!(
     dτ,
     laststep = steps_equilibrate + steps_measure,
     targetwalkers,
-    replica,
+    replica_strategy,
 );
 
 # The output `DataFrame` has FCIQMC statistics for each replica (e.g. shift, norm),

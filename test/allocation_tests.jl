@@ -3,7 +3,7 @@ using Rimu.Interfaces: apply_operator!
 using Test
 
 """
-    apply_operator_wrap!(r::ReplicaState)
+    apply_operator_wrap!(r::SingleState)
 
 Returning the vectors is tracked as an allocation. This wrapper takes care of that.
 """
@@ -105,7 +105,7 @@ end
                         laststep=1,
                     )
 
-                    r = only(st.replicas)
+                    r = only(st.replica_states)
 
                     # Warmup for step!
                     apply_operator_wrap!(r)

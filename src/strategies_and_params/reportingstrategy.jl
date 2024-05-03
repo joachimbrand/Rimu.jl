@@ -186,7 +186,7 @@ Abstract type for strategies for reporting data in a DataFrame with [`report!()`
 
 A `ReportingStrategy` can define any of the following:
 
-* [`refine_r_strat`](@ref)
+* [`refine_reporting_strategy`](@ref)
 * [`report!`](@ref)
 * [`report_after_step!`](@ref)
 * [`finalize_report!`](@ref)
@@ -196,12 +196,12 @@ A `ReportingStrategy` can define any of the following:
 abstract type ReportingStrategy end
 
 """
-    refine_r_strat(r_strat::ReportingStrategy) -> r_strat
+    refine_reporting_strategy(reporting_strategy::ReportingStrategy) -> reporting_strategy
 
 Initialize the reporting strategy. This can be used to set up filenames or other attributes
 that need to be unique for a run of FCIQMC.
 """
-refine_r_strat(r_strat::ReportingStrategy) = r_strat
+refine_reporting_strategy(reporting_strategy::ReportingStrategy) = reporting_strategy
 
 """
      report!(::ReportingStrategy, step, report::Report, keys, values, id="")
@@ -252,8 +252,8 @@ end
 
 function print_stats(io::IO, step, state)
     print(io, "[ ", lpad(step, 11), " | ")
-    shift = lpad(round(state.replicas[1].shift_parameters.shift, digits=4), 10)
-    norm = lpad(round(state.replicas[1].shift_parameters.pnorm, digits=4), 10)
+    shift = lpad(round(state.replica_states[1].shift_parameters.shift, digits=4), 10)
+    norm = lpad(round(state.replica_states[1].shift_parameters.pnorm, digits=4), 10)
     println(io, "shift: ", shift, " | norm: ", norm)
     flush(io)
 end
@@ -353,7 +353,7 @@ end
 # helper function to check if the writer is open
 _isopen(s::ReportToFile) = !isnothing(s.writer) && !s.writer.isclosed
 
-function refine_r_strat(s::ReportToFile)
+function refine_reporting_strategy(s::ReportToFile)
     if s.save_if
         # If filename exists, add -1 to the end of it. If that exists as well,
         # increment the number after the dash

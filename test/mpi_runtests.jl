@@ -331,13 +331,13 @@ end
                     )
                 end
 
-                post_step = (
+                post_step_strategy = (
                     ProjectedEnergy(H, dv),
                     SignCoherence(copy(localpart(dv))),
                     WalkerLoneliness(),
                     Projector(proj_1=Norm2Projector()),
                 )
-                df = lomc!(H, dv; post_step, laststep=5000).df
+                df = lomc!(H, dv; post_step_strategy, laststep=5000).df
 
                 # Shift estimate.
                 Es, σs = mean_and_se(df.shift[2000:end])
@@ -392,8 +392,8 @@ end
                     end
 
                     # Diagonal
-                    replica = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
-                    df,_ = lomc!(H, dv; replica, laststep=10_000)
+                    replica_strategy = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
+                    df,_ = lomc!(H, dv; replica_strategy, laststep=10_000)
 
                     density_sum = sum(1:M) do i
                         top = df[!, Symbol("c1_Op", i, "_c2")]
@@ -404,8 +404,8 @@ end
 
                     # Not Diagonal
                     ops = ntuple(x -> G2MomCorrelator(x - cld(M, 2)), M)
-                    replica = AllOverlaps(2; operator=ops)
-                    df,_ = lomc!(H, dv; replica, laststep=10_000)
+                    replica_strategy = AllOverlaps(2; operator=ops)
+                    df,_ = lomc!(H, dv; replica_strategy, laststep=10_000)
 
                     g2s = map(1:M) do i
                         top = df[!, Symbol("c1_Op", i, "_c2")]

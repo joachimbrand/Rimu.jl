@@ -47,19 +47,19 @@ end
     # rephrase with MatrixHamiltonian
     mh = MatrixHamiltonian(ham)
     sv = DVec(pairs(vector))
-    post_step = ProjectedEnergy(mh, sv)
+    post_step_strategy = ProjectedEnergy(mh, sv)
 
     # solve with new API
-    p = FCIQMCProblem(mh; start_at=sv, last_step=10_000, post_step_strategy=post_step)
+    p = FCIQMCProblem(mh; start_at=sv, last_step=10_000, post_step_strategy)
     sm = solve(p)
     last_shift = DataFrame(sm).shift[end]
 
     # solve with old API
-    df, _ = lomc!(mh, sv; laststep=10_000, post_step)
+    df, _ = lomc!(mh, sv; laststep=10_000, post_step_strategy)
     eigs = eigen(ham)
 
     @test eigs.values[1] ≈ last_shift rtol = 0.01
     @test df.shift[end] ≈ eigs.values[1] rtol=0.01
     @test df.hproj[end] / df.vproj[end] ≈ eigs.values[1] rtol=0.01
-    @test normalize(sm.qmc_state.replicas[1].v) ≈ DVec(pairs(eigs.vectors[:, 1])) rtol = 0.01
+    @test normalize(sm.qmc_state.replica_states[1].v) ≈ DVec(pairs(eigs.vectors[:, 1])) rtol = 0.01
 end

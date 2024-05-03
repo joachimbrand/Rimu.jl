@@ -24,15 +24,15 @@ abstract type ReplicaStrategy{N} end
 num_replicas(::ReplicaStrategy{N}) where {N} = N
 
 """
-    replica_stats(RS::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
+    replica_stats(RS::ReplicaStrategy{N}, replica_states::NTuple{N,SingleState}) -> (names, values)
 
-Return the names and values of statistics related to `N` replicas consistent with the
+Return the names and values of statistics related to `N` replica states consistent with the
 [`ReplicaStrategy`](@ref) `RS`. `names`
 should be a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same
 length. This function will be called every [`reporting_interval`](@ref) steps from [`lomc!`](@ref),
 or once per time step if `reporting_interval` is not defined.
 
-Part of the [`ReplicaStrategy`](@ref) interface. See also [`ReplicaState`](@ref).
+Part of the [`ReplicaStrategy`](@ref) interface. See also [`SingleState`](@ref).
 """
 replica_stats
 
@@ -124,10 +124,10 @@ function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnor
 end
 @deprecate AllOverlaps(num_replicas, operator) AllOverlaps(num_replicas; operator)
 
-function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replicas::NTuple{N}) where {N,B}
+function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replica_states::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.
-    vecs = ntuple(i -> replicas[i].v, Val(N))
-    wms = ntuple(i -> replicas[i].wm, Val(N))
+    vecs = ntuple(i -> replica_states[i].v, Val(N))
+    wms = ntuple(i -> replica_states[i].wm, Val(N))
     return all_overlaps(rs.operators, vecs, wms, Val(B))
 end
 

@@ -7,7 +7,7 @@ Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 """
 struct QMCSimulation
     qmc_problem::FCIQMCProblem
-    qmc_state::QMCState
+    qmc_state::ReplicaState
     report::Report
     modified::Ref{Bool}
     aborted::Ref{Bool}
@@ -71,9 +71,9 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
     end
     wm = working_memory(first(vectors))
 
-    # set up the replicas
+    # set up the replica_states
     if n_replicas == 1
-        replicas = (ReplicaState(
+        replica_states = (SingleState(
             hamiltonian,
             only(vectors),
             zerovector(only(vectors)),
@@ -83,10 +83,10 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
             only(shift_parameters),
             ""),)
     else
-        replicas = ntuple(n_replicas) do i
+        replica_states = ntuple(n_replicas) do i
             v, sp = vectors[i], shift_parameters[i]
             rwm = (typeof(v) == typeof(first(vectors))) ? wm : working_memory(v)
-            ReplicaState(
+            SingleState(
                 hamiltonian,
                 v,
                 zerovector(v),
@@ -97,24 +97,24 @@ function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
                 "_$i")
         end
     end
-    @assert replicas isa NTuple{n_replicas, <:ReplicaState}
+    @assert replica_states isa NTuple{n_replicas, <:SingleState}
 
     # set up the initial state
-    qmc_state = QMCState(
+    qmc_state = ReplicaState(
         hamiltonian, # hamiltonian
-        replicas, # replicas
+        replica_states, # replica_states
         Ref(maxlength), # maxlength
         Ref(simulation_plan.starting_step), # step
         simulation_plan, # simulation_plan
-        reporting_strategy, # r_strat
-        post_step_strategy, # post_step
-        replica_strategy # replica
+        reporting_strategy, # reporting_strategy
+        post_step_strategy, # post_step_strategy
+        replica_strategy # replica_strategy
     )
     report = Report()
     report_default_metadata!(report, qmc_state)
     report_metadata!(report, metadata) # add user metadata
     # Sanity checks.
-    check_transform(qmc_state.replica, qmc_state.hamiltonian)
+    check_transform(qmc_state.replica_strategy, qmc_state.hamiltonian)
 
     return QMCSimulation(
         problem, qmc_state, report, Ref(false), Ref(false), Ref(false), Ref(""), Ref(0.0)
@@ -124,15 +124,15 @@ end
 function Base.show(io::IO, sm::QMCSimulation)
     print(io, "QMCSimulation")
     st = sm.qmc_state
-    if length(st.replicas) > 1
-        print(io, " with ", length(st.replicas), " replicas")
+    if length(st.replica_states) > 1
+        print(io, " with ", length(st.replica_states), " replicas")
     end
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  modified = $(sm.modified[]), aborted = $(sm.aborted[]), success = $(sm.success[])")
     sm.message[] == "" || print(io, "\n  message: ", sm.message[])
     print(io, "\n  replicas: ")
-    for (i, r) in enumerate(st.replicas)
+    for (i, r) in enumerate(st.replica_states)
         print(io, "\n    $i: ", r)
     end
 end
@@ -211,8 +211,8 @@ See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`solve`](@r
 """
 function CommonSolve.step!(sm::QMCSimulation)
     @unpack qmc_state, report, modified, aborted, success, message = sm
-    @unpack replicas, simulation_plan, step, r_strat,
-        replica = qmc_state
+    @unpack replica_states, simulation_plan, step, reporting_strategy,
+        replica_strategy = qmc_state
 
     if aborted[] || success[]
         @warn "Simulation is already aborted or finished."
@@ -226,22 +226,22 @@ function CommonSolve.step!(sm::QMCSimulation)
     step[] += 1
 
     # report step number
-    if step[] % reporting_interval(r_strat) == 0
-        report!(r_strat, step[], report, :steps, step[])
+    if step[] % reporting_interval(reporting_strategy) == 0
+        report!(reporting_strategy, step[], report, :steps, step[])
     end
 
     proceed = true
-    # advance all replicas
-    for replica in replicas
+    # advance all replica_states
+    for replica in replica_states
         proceed &= advance!(report, qmc_state, replica)
     end
     modified[] = true
 
     # report replica stats
-    if step[] % reporting_interval(r_strat) == 0
-        replica_names, replica_values = replica_stats(replica, replicas)
-        report!(r_strat, step[], report, replica_names, replica_values)
-        report_after_step!(r_strat, step[], report, qmc_state)
+    if step[] % reporting_interval(reporting_strategy) == 0
+        replica_names, replica_values = replica_stats(replica_strategy, replica_states)
+        report!(reporting_strategy, step[], report, replica_names, replica_values)
+        report_after_step!(reporting_strategy, step[], report, qmc_state)
         ensure_correct_lengths(report)
     end
 
@@ -296,7 +296,7 @@ function CommonSolve.solve!(sm::QMCSimulation;
     end
 
     @unpack aborted, success, message, elapsed_time, report = sm
-    @unpack simulation_plan, step, r_strat = sm.qmc_state
+    @unpack simulation_plan, step, reporting_strategy = sm.qmc_state
 
     last_step = simulation_plan.last_step
     initial_step = step[]
@@ -340,30 +340,30 @@ function CommonSolve.solve!(sm::QMCSimulation;
     end
     elapsed_time[] = time() - starting_time
     report_simulation_status_metadata!(report, sm) # potentially overwrite values
-    finalize_report!(r_strat, report)
+    finalize_report!(reporting_strategy, report)
     return sm
 end
 
 # methods for backward compatibility
-function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
+function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
     if !iszero(laststep)
         state = @set state.simulation_plan.last_step = laststep
     end
-    @unpack hamiltonian, replicas, maxlength, step, simulation_plan, r_strat, post_step,
-        replica = state
-    first_replica = first(replicas)
+    @unpack hamiltonian, replica_states, maxlength, step, simulation_plan,
+        reporting_strategy, post_step_strategy, replica_strategy = state
+    first_replica = first(replica_states)
     @assert step[] ≥ simulation_plan.starting_step
     problem = FCIQMCProblem(hamiltonian;
         start_at = first_replica.v,
         initial_shift_parameters = first_replica.shift_parameters,
         shift_strategy = first_replica.s_strat,
         time_step_strategy = first_replica.τ_strat,
-        replica_strategy = replica,
-        reporting_strategy = r_strat,
-        post_step_strategy = post_step,
+        replica_strategy ,
+        reporting_strategy,
+        post_step_strategy,
         maxlength = maxlength[],
-        simulation_plan = simulation_plan,
-        metadata = metadata,
+        simulation_plan,
+        metadata,
         display_name = name,
         random_seed = false
     )
@@ -371,7 +371,7 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
     report_default_metadata!(report, state)
     report_metadata!(report, problem.metadata) # add user metadata
     # Sanity checks.
-    check_transform(state.replica, state.hamiltonian)
+    check_transform(state.replica_strategy, state.hamiltonian)
 
     simulation = QMCSimulation(
         problem, state, report, Ref(false), Ref(false), Ref(false), "", Ref(0.0)
