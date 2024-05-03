@@ -8,7 +8,7 @@ using OrderedCollections: freeze
 
 @testset "FCIQMCProblem" begin
     h = HubbardReal1D(BoseFS(1,3))
-    p = FCIQMCProblem(h)
+    p = FCIQMCProblem(h; threading=true)
     @test p.hamiltonian == h
     sp = only(p.initial_shift_parameters)
     @test sp.shift == diagonal_element(h, starting_address(h))
@@ -111,7 +111,7 @@ end
 
 @testset "step! and solve!" begin
     h = HubbardReal1D(BoseFS(1, 3))
-    p = FCIQMCProblem(h)
+    p = FCIQMCProblem(h; threading=true)
     sm = init(p)
     @test sm.modified[] == false == sm.aborted[] == sm.success[]
     @test is_finalized(sm.report) == false
@@ -143,7 +143,7 @@ end
     @test sm.success[] == true == parse(Bool, (Rimu.get_metadata(sm.report, "success")))
 
     # time out
-    p = FCIQMCProblem(h; last_step=100, walltime=1e-3)
+    p = FCIQMCProblem(h; last_step=500, walltime=1e-3)
     sm = init(p)
     @test_logs (:warn, Regex("(Walltime)")) solve!(sm)
     @test sm.success[] == false
@@ -152,5 +152,5 @@ end
 
     solve!(sm; walltime=1.0)
     @test sm.success[] == true
-    @test sm.qmc_state.step[] == 100
+    @test sm.qmc_state.step[] == 500
 end

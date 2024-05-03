@@ -57,7 +57,7 @@ using LinearAlgebra: LinearAlgebra, I, diag, dot, ishermitian, issymmetric,
     mul!, norm
 using Parameters: Parameters, @unpack
 using Setfield: Setfield
-using SparseArrays: SparseArrays, nnz, nzrange, sparse
+using SparseArrays: SparseArrays, rowvals, nzrange, nonzeros
 using SpecialFunctions: SpecialFunctions, gamma
 using StaticArrays: StaticArrays, SA, SMatrix, SVector
 using TupleTools: TupleTools
@@ -67,10 +67,7 @@ using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
     offdiagonals, random_offdiagonal, LOStructure, allowed_address_type
 
-export AbstractHamiltonian
-# export TwoComponentHamiltonian
 export dimension, rayleigh_quotient, momentum
-export BasisSetRep, build_basis
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
@@ -91,8 +88,6 @@ export StringCorrelator
 
 export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export num_neighbours, neighbour_site, num_dimensions
-
-export sparse # from SparseArrays
 
 export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, HOCartesianCentralImpurity
 export AxialAngularMomentumHO

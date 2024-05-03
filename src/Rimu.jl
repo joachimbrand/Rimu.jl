@@ -15,6 +15,7 @@ using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
 using OrderedCollections: freeze
 using Random: Random, RandomDevice, seed!
+using NamedTupleTools: NamedTupleTools, namedtuple, delete
 import Tables
 import ConsoleProgressMonitor
 import TOML
@@ -52,6 +53,8 @@ include("StochasticStyles/StochasticStyles.jl")
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
 using .DictVectors: FrozenDVec
+include("ExactDiagonalization/ExactDiagonalization.jl")
+@reexport using .ExactDiagonalization
 include("RimuIO/RimuIO.jl")
 @reexport using .RimuIO
 include("StatsTools/StatsTools.jl")
