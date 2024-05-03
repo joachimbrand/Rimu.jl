@@ -83,3 +83,48 @@ function default_logger(args...; kwargs...)
     Base.global_logger(ConsoleLogger(args...; kwargs...)) # disable terminal progress bar
     return Base.global_logger()
 end
+
+# small functions for handling keyword arguments
+"""
+    replace_keys(nt::NamedTuple, (:old1 => :new1, :old2 => :new2, ...))
+
+Replace keys in a `NamedTuple` with new keys. This is useful for renaming fields in a
+`NamedTuple`. Ignores keys that are not present in the `NamedTuple`.
+"""
+function replace_keys(nt::NamedTuple, pairs)
+    for (old, new) in pairs
+        if isdefined(nt, old)
+            nt = (; nt..., namedtuple((new,), (nt[old],))...)
+            nt = delete(nt, old)
+        end
+    end
+    return nt
+end
+
+"""
+    delete_and_warn_if_present(nt::NamedTuple, keys)
+
+Delete keys from a `NamedTuple` and issue a warning if they are present. This is useful for
+removing unused keyword arguments.
+"""
+function delete_and_warn_if_present(nt::NamedTuple{names}, keys) where {names}
+    unused = names ∩ keys
+    if !isempty(unused)
+        @warn "The keyword(s) \"$(join(unused, "\", \""))\" are unused and will be ignored."
+    end
+    return delete(nt, keys)
+end
+
+"""
+    clean_and_warn_if_others_present(nt::NamedTuple{names}, keys) where {names}
+
+Remove keys from a `NamedTuple` that are not in `keys` and issue a warning if they are
+present.
+"""
+function clean_and_warn_if_others_present(nt::NamedTuple{names}, keys) where {names}
+    unused = setdiff(names, keys)
+    if !isempty(unused)
+        @warn "The keyword(s) \"$(join(unused, "\", \""))\" are unused and will be ignored."
+    end
+    return NamedTuple{filter(x -> x ∈ keys, names)}(nt)
+end

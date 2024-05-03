@@ -422,3 +422,16 @@ using Rimu.DictVectors: num_segments, is_distributed
         test_dvec_interface(PDVec; initiator=true)
     end
 end
+
+# tests for FrozenDVec
+@testset "FrozenDVec" begin
+    dv = DVec(BoseFS(1, 2) => 2.3, BoseFS(2, 1) => 2.2)
+    fdv = freeze(dv)
+    @test collect(fdv) == collect(pairs(fdv)) == collect(pairs(dv))
+    @test walkernumber(fdv) == walkernumber(dv)
+    @test collect(keys(fdv)) == collect(keys(dv))
+    @test collect(values(fdv)) == collect(values(dv))
+    @test length(fdv) == length(dv)
+    @test fdv == freeze(fdv)
+    @test inner(fdv, dv) ≈ norm(dv, 2)^2
+end

@@ -34,21 +34,21 @@ dimension(ham)
 # used as a guide to decide whether a Hamiltonian is amenable to exact diagonalisation and
 # to determine which algorithm would be best suited to diagonalising it.
 
-# ## The BasisSetRep
+# ## The BasisSetRepresentation
 
 # As we'll see later, there are two ways to construct the matrices from Hamiltonians
-# directly, but they both use [`BasisSetRep`](@ref) under the hood. The
-# [`BasisSetRep`](@ref), when called with a Hamiltonian and optionally a starting address,
+# directly, but they both use [`BasisSetRepresentation`](@ref) under the hood. The
+# [`BasisSetRepresentation`](@ref), when called with a Hamiltonian and optionally a starting address,
 # constructs the sparse matrix of the system, as well as its basis. The starting address
-# defaults to the one that was used to initialize the Hamiltonian. [`BasisSetRep`](@ref)
+# defaults to the one that was used to initialize the Hamiltonian. [`BasisSetRepresentation`](@ref)
 # only returns the part of the matrix that is accessible from this starting address through
 # non-zero offdiagonal elements.
 
-bsr = BasisSetRep(ham);
+bsr = BasisSetRepresentation(ham);
 
-# To access the matrix or basis, access the `sm` and `basis` fields, respectively.
+# To access the matrix or basis, access the `sparse_matrix` and `basis` fields, respectively.
 
-bsr.sm
+bsr.sparse_matrix
 
 #
 
@@ -114,8 +114,8 @@ using Arpack
 
 num_eigvals = 3
 
-sm = sparse(ham)
-vals_ar, vecs_ar = eigs(sm; which=:SR, nev=num_eigvals)
+sparse_matrix = sparse(ham)
+vals_ar, vecs_ar = eigs(sparse_matrix; which=:SR, nev=num_eigvals)
 vals_ar
 
 # Using KrylovKit's
@@ -125,7 +125,7 @@ vals_ar
 
 using KrylovKit
 
-vals_kk, vecs_kk = eigsolve(sm, num_eigvals, :SR)
+vals_kk, vecs_kk = eigsolve(sparse_matrix, num_eigvals, :SR)
 vals_kk
 
 # Both solvers use variants of the [Lanczos

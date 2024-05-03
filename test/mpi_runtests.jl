@@ -224,16 +224,17 @@ end
         dv = DVec(add => 1.0)
         pv = PDVec(add => 1.0)
 
-        res_dv = eigsolve(ham, dv, 1, :SR)
-        res_pv = eigsolve(ham, pv, 1, :SR)
+        res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
+        res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
+        # `issymmetric` kwarg only needed for pre v1.9 julia versions
 
-        @test res_dv[1][1] ≈ res_pv[1][1]
+        @test res_dv[1][1] ≈ res_pv[1][1] || res_dv[1][1] ≈ -res_pv[1][1]
 
         dv = copy(res_dv[2][1])
         pv = copy(res_pv[2][1])
         @test norm(pv) ≈ 1
         @test length(pv) == length(dv)
-        @test sum(values(pv)) ≈ sum(values(dv))
+        @test sum(values(pv)) ≈ sum(values(dv)) || sum(values(pv)) ≈ -sum(values(dv))
         normalize!(pv, 1)
         @test norm(pv, 1) ≈ 1
         rmul!(pv, 2)
