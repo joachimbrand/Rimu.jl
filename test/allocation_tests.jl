@@ -1,4 +1,5 @@
 using Rimu
+using Rimu: SingleState
 using Rimu.Interfaces: apply_operator!
 using Test
 
@@ -7,7 +8,7 @@ using Test
 
 Returning the vectors is tracked as an allocation. This wrapper takes care of that.
 """
-function apply_operator_wrap!(r)
+function apply_operator_wrap!(r::SingleState)
     transition = Rimu.FirstOrderTransitionOperator(r.shift_parameters, r.hamiltonian)
     apply_operator!(r.wm, r.pv, r.v, transition)
     return nothing
@@ -105,7 +106,7 @@ end
                         laststep=1,
                     )
 
-                    r = only(st.replica_states)
+                    r = only(only(st.replica_states).spectral_states)
 
                     # Warmup for step!
                     apply_operator_wrap!(r)
