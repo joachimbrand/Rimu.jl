@@ -1,11 +1,12 @@
 """
     SingleState(v, wm, pnorm, params, id)
 
-Struct that holds all information needed for an independent run of the algorithm.
-Can be advanced a step forward with [`advance!`](@ref).
+Struct that holds a single state vector and all information needed for an independent run
+of the algorithm. Can be advanced a step forward with [`advance!`](@ref).
 
-See also [`ReplicaState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
-[`lomc!`](@ref).
+See also [`SpectralState`](@ref), [`SpectralStrategy`](@ref),
+[`ReplicaState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
+[`QMCSimulation`](@ref).
 """
 mutable struct SingleState{H,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy,SP}
     # Future TODO: rename these fields, add interface for accessing them.
@@ -39,6 +40,37 @@ function Base.show(io::IO, r::SingleState)
     )
 end
 
+"""
+    state_vectors(state)
+Returns a collection of configuration vectors from the `state`.
+
+See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
+[`SpectralState`](@ref), [`QMCSimulation`](@ref).
+"""
+function state_vectors(state::SingleState)
+    return SVector(state.v,)
+end
+
+"""
+    single_states(state)
+
+Returns a collection of `SingleState`s from the `state`.
+
+See also [`state_vectors`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
+[`SpectralState`](@ref), [`QMCSimulation`](@ref).
+"""
+function single_states(state::SingleState)
+    return SVector(state,)
+end
+
+"""
+    SpectralState
+Holds one or several [`SingleState`](@ref)s representing the ground state and excited
+states of a single replica.
+
+See also [`SpectralStrategy`](@ref), [`ReplicaState`](@ref), [`SingleState`](@ref),
+[`QMCSimulation`](@ref).
+"""
 struct SpectralState{
     N,
     NS<:NTuple{N,SingleState},
@@ -61,6 +93,14 @@ function Base.show(io::IO, s::SpectralState)
     end
 end
 
+function state_vectors(state::SpectralState)
+    return mapreduce(state_vectors, vcat, state.spectral_states)
+end
+
+function single_states(state::SpectralState)
+    return mapreduce(single_states, vcat, state.spectral_states)
+end
+
 """
     _n_walkers(v, s_strat)
 Returns an estimate of the expected number of walkers as an integer.
@@ -77,7 +117,10 @@ end
 """
     ReplicaState
 
-Holds information about multiple replicas.
+Holds information about multiple replicas of [`SpectralState`](@ref)s.
+
+See also [`ReplicaStrategy`](@ref), [`SpectralState`](@ref)s, [`SingleState`](@ref),
+[`QMCSimulation`](@ref).
 """
 struct ReplicaState{
     H,
@@ -226,6 +269,32 @@ function Base.show(io::IO, st::ReplicaState)
     for (i, r) in enumerate(st.replica_states)
         print(io, "\n    $i: ", r)
     end
+end
+
+"""
+    state_vectors(state::ReplicaState)
+Returns a collection of configuration vectors from the `state`.
+The vectors can be accessed by indexing the resulting collection, where the row index
+corresponds to the spectral state index and the column index corresponds to the row index.
+
+See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
+[`SpectralState`](@ref), [`QMCSimulation`](@ref).
+"""
+function state_vectors(state::ReplicaState)
+    return mapreduce(state_vectors, hcat, state.replica_states)
+end
+
+"""
+    single_states(state::ReplicaState)
+Returns a collection of `SingleState`s from the `state`.
+The `SingleState`s can be accessed by indexing the resulting collection, where the row index
+corresponds to the spectral state index and the column index corresponds to the row index.
+
+See also [`state_vectors`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
+[`SpectralState`](@ref), [`QMCSimulation`](@ref).
+"""
+function single_states(state::ReplicaState)
+    return mapreduce(single_states, hcat, state.replica_states)
 end
 
 function report_default_metadata!(report::Report, state::ReplicaState)

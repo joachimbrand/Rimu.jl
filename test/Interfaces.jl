@@ -61,5 +61,5 @@ end
     @test eigs.values[1] ≈ last_shift rtol = 0.01
     @test df.shift[end] ≈ eigs.values[1] rtol=0.01
     @test df.hproj[end] / df.vproj[end] ≈ eigs.values[1] rtol=0.01
-    @test normalize(sm.qmc_state.replica_states[1].v) ≈ DVec(pairs(eigs.vectors[:, 1])) rtol = 0.01
+    @test normalize(state_vectors(sm)[1]) ≈ DVec(pairs(eigs.vectors[:, 1])) rtol = 0.01
 end

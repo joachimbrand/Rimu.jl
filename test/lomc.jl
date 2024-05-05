@@ -29,14 +29,15 @@ Random.seed!(1234)
         v = copy(dv)
         wm = copy(dv)
         df, state = lomc!(H, v; wm, laststep=9)
-        @test state.replica_states[1].wm === wm # after number of steps divisible by 3
-        @test state.replica_states[1].v === v
-        @test state.replica_states[1].pv !== v && state.replica_states[1].pv !== wm
+        @test state.replica_states[1].spectral_states[1].wm === wm # after number of steps divisible by 3
+        @test state_vectors(state)[1] === v
+        @test state.replica_states[1].spectral_states[1].pv !== v
+        @test state.replica_states[1].spectral_states[1].pv !== wm
 
         # @set state.simulation_plan.last_step = 10
         df = lomc!(state, df, laststep=10).df
-        @test state.replica_states[1].v === wm
-        @test state.replica_states[1].pv === v
+        @test state.replica_states[1].spectral_states[1].v === wm
+        @test state.replica_states[1].spectral_states[1].pv === v
 
         @test size(df, 1) == 10
         @test state.step[] == 10
@@ -57,8 +58,8 @@ Random.seed!(1234)
         H = HubbardReal1D(address; u=0.1)
         dv = DVec(address => 1; style=IsStochasticInteger())
         df, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
-        @test state.replica_states[1].shift_parameters.time_step  == 0.002
-        @test state.replica_states[1].shift_parameters.shift == 23.1
+        @test state.replica_states[1].spectral_states[1].shift_parameters.time_step  == 0.002
+        @test state.replica_states[1].spectral_states[1].shift_parameters.shift == 23.1
         @test state.replica_strategy == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
@@ -95,7 +96,7 @@ Random.seed!(1234)
         @test median(walkers) ≈ 1000 rtol=0.1
 
         _, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, copy(dv); targetwalkers=500, laststep=0)
-        @test state.replica_states[1].s_strat.targetwalkers == 500
+        @test state.replica_states[1].spectral_states[1].s_strat.targetwalkers == 500
     end
 
     @testset "Replicas" begin
@@ -220,13 +221,13 @@ Random.seed!(1234)
         address = BoseFS{5,2}((2,3))
         H = HubbardReal1D(address; u=20)
         df, state = lomc!(H; laststep=100)
-        @test StochasticStyle(state.replica_states[1].v) isa IsStochasticInteger
+        @test StochasticStyle(state_vectors(state)[1]) isa IsStochasticInteger
 
         df, state = lomc!(H; laststep=100, style = IsDeterministic())
-        @test StochasticStyle(state.replica_states[1].v) isa IsDeterministic
+        @test StochasticStyle(state_vectors(state)[1]) isa IsDeterministic
 
         df, state = lomc!(H; laststep=1, threading=false, initiator=Initiator())
-        @test state.replica_states[1].v isa InitiatorDVec
+        @test state_vectors(state)[1] isa InitiatorDVec
     end
 
     @testset "ShiftStrategy" begin
@@ -250,7 +251,7 @@ Random.seed!(1234)
         df, state = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
 
-        v = state.replica_states[1].v
+        v = state_vectors(state)[1]
         step = state.step[]
         s_strat = LogUpdate()
         df = lomc!(H, v; df, step, s_strat, laststep=200).df
@@ -505,7 +506,9 @@ Random.seed!(1234)
             @test all(==(ntuple(_ -> 0, num_modes(address))), df.single_particle_density[1:2:end])
             @test all(≈(3), sum.(df.single_particle_density[2:2:end]))
 
-            @test df.single_particle_density[end] == single_particle_density(st.replica_states[1].v)
+            @test df.single_particle_density[end] == single_particle_density(
+                st.replica_states[1].spectral_states[1].v
+            )
 
             for address in (
                 BoseFS2C((1,2,3), (0,1,0)),

@@ -4,6 +4,9 @@ Holds the state and the results of a QMC simulation. Initialise with
 [`init(::FCIQMCProblem)`](@ref) and solve with [`solve!(::QMCSimulation)`](@ref).
 
 Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
+
+See also [`state_vectors`](@ref), [`single_states`](@ref), [`FCIQMCProblem`](@ref),
+[`init`](@ref), [`solve!`](@ref).
 """
 struct QMCSimulation
     qmc_problem::FCIQMCProblem
@@ -187,6 +190,8 @@ Tables.columnaccess(::Type{<:QMCSimulation}) = true
 Tables.columns(sm::QMCSimulation) = Tables.columns(sm.report.data)
 Tables.schema(sm::QMCSimulation) = Tables.schema(sm.report.data)
 
+state_vectors(sim::QMCSimulation) = state_vectors(sim.qmc_state)
+single_states(sim::QMCSimulation) = single_states(sim.qmc_state)
 
 # TODO: interface for reading results
 
@@ -359,7 +364,7 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     end
     @unpack hamiltonian, replica_states, maxlength, step, simulation_plan,
         reporting_strategy, post_step_strategy, replica_strategy = state
-    first_replica = first(replica_states)
+    first_replica = only(first(replica_states).spectral_states) # SingleState
     @assert step[] ≥ simulation_plan.starting_step
     problem = FCIQMCProblem(hamiltonian;
         start_at = first_replica.v,

@@ -91,7 +91,7 @@ where
 ```
 is the (right) eigenvector of ``\\hat{G}`` and ``| \\psi \\rangle`` is an eigenvector of ``\\hat{H}``.
 
-For a K-tuple of input operators `(\\hat{A}_1, ..., \\hat{A}_K)`, overlaps of
+For a K-tuple of input operators ``(\\hat{A}_1, ..., \\hat{A}_K)``, overlaps of
 ``\\langle \\phi | f^{-1} \\hat{A} f^{-1} | \\phi \\rangle`` are reported as `c{i}_Op{k}_c{j}`.
 The correct vector-vector overlap ``\\langle \\phi | f^{-2} | \\phi \\rangle`` is reported *last*
 as `c{i}_Op{K+1}_c{j}`. This is in addition to the *bare* vector-vector overlap
@@ -126,8 +126,9 @@ end
 
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replica_states::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.
-    vecs = ntuple(i -> replica_states[i].v, Val(N))
-    wms = ntuple(i -> replica_states[i].wm, Val(N))
+    # For now implement this assuming only a single spectral state; generalise later
+    vecs = ntuple(i -> only(replica_states[i].spectral_states).v, Val(N))
+    wms = ntuple(i -> only(replica_states[i].spectral_states).wm, Val(N))
     return all_overlaps(rs.operators, vecs, wms, Val(B))
 end
 
