@@ -1,10 +1,8 @@
 """
-    module Hamiltonians
-
-This module defines Hamiltonian types and functions for working with
+The module `Rimu.Hamiltonians` defines types and functions for working with
 Hamiltonians.
 
-## [Exported concrete Hamiltonian types](#Model-Hamiltonians)
+## Exported concrete Hamiltonian types
 
 Real space Hubbard models
  - [`HubbardReal1D`](@ref)
