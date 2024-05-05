@@ -54,8 +54,8 @@ end
 Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) after instantiating a sparse
 matrix. It uses the Lanzcos method for hermitian problems, and the Arnoldi method for
 non-hermitian problems, using the Arpack Fortran library. This is faster than
-[`KrylovKitDirect()`](@ref), but it requires more memory and will only be useful if the
-matrix fits into memory.
+[`KrylovKitSolver(; matrix_free=true)`](@ref), but it requires more memory and will only be
+useful if the matrix fits into memory.
 
 The `kwargs` are passed on to the function
 [`Arpack.eigs()`](https://arpack.julialinearalgebra.org/stable/eigs/).
@@ -134,8 +134,7 @@ Algorithm for solving an [`ExactDiagonalizationProblem`](@ref) using the dense-m
 eigensolver from the `LinearAlgebra` standard library. This is only suitable for small
 matrices.
 
-The `kwargs` are passed on to function [`LinearAlgebra.eigen`](@ref
-https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen).
+The `kwargs` are passed on to function [`LinearAlgebra.eigen`](https://docs.julialang.org/en/v1/stdlib/LinearAlgebra/#LinearAlgebra.eigen).
 
 # Keyword arguments
 - `permute = true`: Whether to permute the matrix before diagonalization.

@@ -6,6 +6,10 @@ Modules = [Rimu]
 ```
 # Reexported Submodules
 
+## ExactDiagonalization
+
+See [Exact Diagonalization](@ref)
+
 ## Interfaces
 
 See [Module `Interfaces`](@ref)
@@ -28,7 +32,7 @@ See [Module `DictVectors`](@ref)
 
 ## StatsTools
 
-See [Module `Rimu/StatsTools`](@ref)
+See [Module `StatsTools`](@ref)
 
 ## RMPI
 

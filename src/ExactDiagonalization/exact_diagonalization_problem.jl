@@ -15,19 +15,20 @@ with [`solve`](@ref).
 - Optional keyword arguments will be passed on to the `init` and `solve` functions.
 
 # Algorithms
-- [`LinearAlgebraSolver()`](@ref): An algorithm for solving the problem using the dense-matrix
-    eigensolver from the `LinearAlgebra` standard library. Only suitable for small matrices.
-- [`KrylovKitSolver(matrix_free)`](@ref): An algorithm for finding a few eigenvalues and vectors.
-    With `matrix_free=true` the problem is solved without instatiating a matrix. This is
-    suitable for large dimensions. With `matrix_free=false` the problem is solved after
-    instantiating a sparse matrix. This is faster if sufficient memory is available.
-    Requires `using KrylovKit`.
+- [`LinearAlgebraSolver()`](@ref): An algorithm for solving the problem using the
+    dense-matrix eigensolver from the `LinearAlgebra` standard library (eventually using
+    LAPACK). Only suitable for small matrices.
+- [`KrylovKitSolver(matrix_free=true)`](@ref): An algorithm for finding a few eigenvalues
+    and vectors. With `matrix_free=true` the problem is solved without instatiating a
+    matrix. This is suitable for large dimensions. With `matrix_free=false` the problem is
+    solved after instantiating a sparse matrix. This is faster if sufficient memory is
+    available. Requires `using KrylovKit`.
 - [`ArpackSolver()`](@ref): An algorithm for solving the problem after instantiating a
     sparse matrix and using the Arpack Fortran library. Requires `using Arpack`.
 - [`LOBPCGSolver()`](@ref): An algorithm for solving the problem after instantiating a
     sparse matrix using the LOBPCG method. Requires `using IterativeSolvers`.
 
-# Keyword arguments for `init` for matrix-based algorithms
+# Keyword arguments for [`init`](@ref) for matrix-based algorithms
 - `sizelim`: The maximum size of the basis set representation. The default is `10^6` for
     sparse matrices and `10^5` for dense matrices.
 - `cutoff`: A cutoff value for the basis set representation.
@@ -37,7 +38,7 @@ with [`solve`](@ref).
 - `col_hint = 0`: A hint for the number of columns in the basis set representation.
 - `sort = false`: Whether to sort the basis set representation.
 
-# Keyword arguments for `solve` for iterative algorithms
+# Keyword arguments for [`solve`](@ref) for iterative algorithms
 - `verbose = false`: Whether to print additional information.
 - `abstol = nothing`: The absolute tolerance for the solver. If `nothing`, the solver
     chooses a default value.
@@ -47,14 +48,14 @@ with [`solve`](@ref).
     solver chooses a default value.
 
 # Solving an `ExactDiagonalizationProblem`
-The `solve` function can be called directly on an `ExactDiagonalizationProblem` to solve it.
-Alternatively, the `init` function can be used to initialize a solver, which can then be
-solved with the `solve` function. The solve function returns a result type with the
-eigenvalues, eigenvectors, and convergence information.
+The [`solve`](@ref) function can be called directly on an `ExactDiagonalizationProblem` to
+solve it. Alternatively, the [`init`](@ref) function can be used to initialize a solver,
+which can then be solved with [`solve`](@ref). The [`solve`](@ref) function returns a result
+type with the eigenvalues, eigenvectors, and convergence information.
 
 ## Result type
-The result type for the `solve` function is determined by the algorithm used. It has the
-following fields:
+The result type for the [`solve`](@ref) function is determined by the algorithm used. It has
+the following fields:
 - `values::Vector`: The eigenvalues.
 - `vectors::Vector{<:AbstractDVec}`: The eigenvectors.
 - `success::Bool`: A boolean flag indicating whether the solver was successful.
@@ -82,7 +83,7 @@ EDResult for algorithm LinearAlgebraSolver() with 10 eigenvalue(s),
   Convergence info: "Dense matrix eigensolver solution from `LinearAlgebra.eigen`", with howmany = 10 eigenvalues requested.
   success = true.
 
-julia> using KrylovKit # the next example requires julia v1.9 or later
+julia> using KrylovKit # an external package has to be installed and loaded
 
 julia> s = init(p; algorithm = KrylovKitSolver(true)) # solve without building a matrix
 KrylovKitDirectEDSolver
@@ -106,7 +107,6 @@ See also [`init`](@ref), [`solve`](@ref),
     loaded with `using Arpack`.
     Using the `LOBPCGSolver()` algorithm requires the IterativeSolvers.jl package. The package
     can be loaded with `using IterativeSolvers`.
-    Algorithms with external packages require julia v1.9 or later.
 """
 struct ExactDiagonalizationProblem{H<:AbstractHamiltonian, V, K<:NamedTuple}
     hamiltonian::H

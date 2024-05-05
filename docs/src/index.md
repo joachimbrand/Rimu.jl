@@ -118,7 +118,7 @@ Rimu.RMPI).
 
 ## Compatibility
 
-We receommend using `Rimu` with the latest Julia release version. Regular testing is done with older versions down to `v1.7`, but note that full features (e.g. interacting with external solver packages for exact diagonalization) requires at least `v1.9`.
+We recommend using `Rimu` with the latest Julia release version. Rimu requires at least julia `v1.9`.
 
 ## References
 The code implements the FCIQMC algorithm originally described in
