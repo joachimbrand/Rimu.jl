@@ -36,14 +36,11 @@ julia> geo[(3,4)] # returns nothing if out of bounds
 
 ```
 """
-struct Geometry{D}
-    dims::NTuple{D,Int}
-    fold::NTuple{D,Bool}
-
+struct Geometry{D,Dims,Fold}
     function Geometry(
         dims::NTuple{D,Int}, fold::NTuple{D,Bool}=ntuple(Returns(true), Val(D))
     ) where {D}
-        return new{D}(dims, fold)
+        return new{D,dims,fold}()
     end
 end
 
@@ -57,8 +54,10 @@ function LadderBoundaries(dims::Vararg{Int,D}) where {D}
     return Geometry(dims, ntuple(>(1), Val(D)))
 end
 
-Base.length(g::Geometry) = prod(g.dims)
-Base.size(g::Geometry) = g.dims
+Base.size(g::Geometry{<:Any,Dims}) where {Dims} = Dims
+Base.size(g::Geometry{<:Any,Dims}, i) where {Dims} = Dims[i]
+Base.length(g::Geometry) = prod(size(g))
+fold(g::Geometry{<:Any,<:Any,Fold}) where {Fold} = Fold
 
 """
     num_dimensions(geom::LatticeGeometry)
@@ -84,7 +83,7 @@ julia> fold_vec(geo, (3,4))
 (1, 4)
 ```
 """
-fold_vec(g::Geometry{D}, vec::NTuple{D,Int}) where {D} = _fold_vec(vec, g.fold, g.dims)
+fold_vec(g::Geometry{D}, vec::NTuple{D,Int}) where {D} = _fold_vec(vec, fold(g), size(g))
 @inline _fold_vec(::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
 @inline function _fold_vec((x, xs...), (f, fs...), (d, ds...))
     x = f ? mod1(x, d) : x
@@ -92,9 +91,9 @@ fold_vec(g::Geometry{D}, vec::NTuple{D,Int}) where {D} = _fold_vec(vec, g.fold, 
 end
 
 function Base.getindex(g::Geometry{D}, vec::NTuple{D,Int}) where {D}
-    return get(LinearIndices(g.dims), fold_vec(g, vec), 0)
+    return get(LinearIndices(size(g)), fold_vec(g, vec), 0)
 end
-Base.getindex(g::Geometry, i::Int) = Tuple(CartesianIndices(g.dims)[i])
+Base.getindex(g::Geometry, i::Int) = Tuple(CartesianIndices(size(g))[i])
 
 """
     UnitVectors{D} <: AbstractVector{NTuple{D,Int}}
@@ -139,7 +138,7 @@ Base.size(off::Offsets) = (length(off.geometry),)
 @inline function Base.getindex(off::Offsets{D}, i) where {D}
     geo = off.geometry
     vec = geo[i]
-    return add(vec, ntuple(i -> -cld(geo.dims[i], 2), Val(D)))
+    return add(vec, ntuple(i -> -cld(size(geo, i), 2), Val(D)))
 end
 
 """
@@ -151,8 +150,8 @@ function neighbor_site(g::Geometry{D}, mode, chosen) where {D}
     return g[add(g[mode], UnitVectors(D)[chosen])]
 end
 
-function BitStringAddresses.onr(add, geom::Geometry)
-    return reshape(onr(add), size(geom))
+function BitStringAddresses.onr(add, geom::Geometry{D,S}) where {D,S}
+    return SArray{Tuple{S...}}(onr(add))
 end
 function BitStringAddresses.onr(add::CompositeFS, geom::Geometry)
     return map(fs -> onr(fs, geom), add.components)

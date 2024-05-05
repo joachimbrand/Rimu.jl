@@ -395,19 +395,20 @@ Two-body operator for density-density correlation for all displacements.
 * [`AbstractHamiltonian`](@ref)
 * [`AllOverlaps`](@ref)
 """
-struct G2RealSpace{A,B,D,S} <: AbstractHamiltonian{S}
-    geometry::Geometry{D}
+struct G2RealSpace{A,B,G<:Geometry,S} <: AbstractHamiltonian{S}
+    geometry::G
     init::S
 end
-function G2RealSpace(geometry::Geometry{D}, source=1, target=source) where {D}
-    init = zeros(SArray{Tuple{geometry.dims...},Float64,D,length(geometry)})
-    return G2RealSpace{source,target,D,typeof(init)}(geometry, init)
+function G2RealSpace(geometry::Geometry, source=1, target=source)
+    init = zeros(SArray{Tuple{size(geometry)...}})
+    return G2RealSpace{source,target,typeof(geometry),typeof(init)}(geometry, init)
 end
 
 LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
 
 num_offdiagonals(g2::G2RealSpace, _) = 0
 
+#=
 function diagonal_element(g2::G2RealSpace{1,1,D}, addr::SingleComponentFockAddress) where {D}
     geo = g2.geometry
     result = g2.init
@@ -427,14 +428,19 @@ function diagonal_element(g2::G2RealSpace{1,1,D}, addr::SingleComponentFockAddre
     end
     return result ./ length(geo)
 end
+=#
 
-function diagonal_element(
-    g2::G2RealSpace, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
-)
+function diagonal_element2(
+    g2::G2RealSpace{A,B}, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
+) where {A,B}
     geo = g2.geometry
     result = g2.init
-    v1 = onr(addr1)
-    v2 = onr(addr2)
+    if addr1 ≡ addr2
+        v1 = v2 = onr(addr1)
+    else
+        v1 = onr(addr1)
+        v2 = onr(addr2)
+    end
 
     for i in eachindex(result)
         res_i = 0.0
@@ -443,7 +449,9 @@ function diagonal_element(
             p_vec = geo[p]
             q = geo[add(p_vec, δ_vec)]
             if q ≠ 0
-                res_i += v1[p] * v2[q]
+                # A = B implies addr1 and addr2 are the same address, in which case we need
+                # to subtract δ_{p,q}
+                res_i += v1[p] * v2[q] - (A == B) * (p == q)
             end
         end
         result = setindex(result, res_i, i)
@@ -451,9 +459,61 @@ function diagonal_element(
     return result ./ length(geo)
 end
 
+function diagonal_element(
+    g2::G2RealSpace{A,B}, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
+) where {A, B}
+    geo = g2.geometry
+    result = g2.init
+    if addr1 ≡ addr2
+        v1 = v2 = onr(addr1, geo)
+    else
+        v1 = onr(geo, addr1)
+        v2 = onr(geo, addr2)
+    end
+
+    @inbounds for i in eachindex(result)
+        res_i = 0.0
+        δ_vec = Offsets(geo)[i]
+
+        # Case of n_i(n_i - 1)
+        if A == B && all(==(0), δ_vec)
+            v2_offset = max.(v2 .- 1, 0)
+            result = setindex(result, dot(v1, v2_offset), i)
+        else
+            #circshift!(v2_offset, v2, δ_vec)
+            result = setindex(result, csh(v2, δ_vec), i)
+        end
+    end
+    return result ./ length(geo)
+end
+
+function diagonal_element(g2::G2RealSpace{A,A}, addr::SingleComponentFockAddress) where {A}
+    return diagonal_element(g2, addr, addr)
+end
 function diagonal_element(g2::G2RealSpace{A,B}, addr::CompositeFS) where {A,B}
     return diagonal_element(g2, addr.components[A], addr.components[B])
 end
-function diagonal_element(g2::G2RealSpace{A,A}, addr::CompositeFS) where {A}
-    return diagonal_element(g2, addr.components[A])
+
+
+# TODO: clean up!
+function csh(arr, inds)
+    _circshift_dot!((), arr, (), axes(arr), inds)
+end
+
+
+@inline function _circshift_dot!(rdest, src, rsrc,
+                             inds::Tuple{AbstractUnitRange,Vararg{Any}},
+                             shiftamt::Tuple{Integer,Vararg{Any}})
+    ind1, d = inds[1], shiftamt[1]
+    s = mod(d, length(ind1))
+    sf, sl = first(ind1)+s, last(ind1)-s
+    r1, r2 = first(ind1):sf-1, sf:last(ind1)
+    r3, r4 = first(ind1):sl, sl+1:last(ind1)
+    tinds, tshiftamt = Base.tail(inds), Base.tail(shiftamt)
+    _circshift_dot!((rdest..., r1), src, (rsrc..., r4), tinds, tshiftamt) +
+    _circshift_dot!((rdest..., r2), src, (rsrc..., r3), tinds, tshiftamt)
+end
+@inline function _circshift_dot!(rdest, src, rsrc, inds, shiftamt)
+    dot(view(src, rdest...), view(src, rsrc...))
+    #copyto!(CartesianIndices(rdest), src, CartesianIndices(rsrc))
 end
