@@ -234,7 +234,7 @@ function ReplicaState(
                 (SingleState(
                     hamiltonian,
                     deepcopy(v),
-                    wm,
+                    deepcopy(wm),
                     deepcopy(s_strat),
                     deepcopy(τ_strat),
                     shift,
