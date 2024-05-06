@@ -102,8 +102,9 @@ Observables are [`AbstractHamiltonian`](@ref)s that represent a physical
 observable. Their ground state expectation values can be sampled by passing
 them into [`AllOverlaps`](@ref).
 ```@docs
-G2MomCorrelator
 G2RealCorrelator
+G2RealSpace
+G2MomCorrelator
 SuperfluidCorrelator
 StringCorrelator
 DensityMatrixDiagonal
@@ -155,20 +156,18 @@ Hamiltonians.number_conserving_fermi_dimension
 ```
 
 ## Geometry
-Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref).
+Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref) and [`G2RealSpace`](@ref).
 
 ```@docs
-LatticeGeometry
-PeriodicBoundaries
-HardwallBoundaries
-LadderBoundaries
-num_neighbours
+Geometry
 num_dimensions
-neighbour_site
+Hamiltonians.UnitVectors
+Hamiltonians.Offsets
+Hamiltonians.neighbor_site
 ```
 
 ## Harmonic Oscillator
-Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesianContactInteractions`](@ref) 
+Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesianContactInteractions`](@ref)
 and [`HOCartesianEnergyConservedPerDim`](@ref).
 ```@docs
 get_all_blocks

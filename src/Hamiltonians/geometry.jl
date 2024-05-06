@@ -1,12 +1,12 @@
 """
     Geometry(dims::NTuple{D,Int}, fold::NTuple{D,Bool})
 
-Represents a D-dimensional grid. Used to convert between cartesian vector indices (tuples)
-and linear indices (integers).
+Represents a `D`-dimensional grid. Used to convert between cartesian vector indices (tuples
+or `SVector`s) and linear indices (integers).
 
-* `dims` controls the size of the grid in each dimension
+* `dims` controls the size of the grid in each dimension.
 * `fold` controls whether the boundaries in each dimension are periodic (or folded in the
-  case of momentum space)
+  case of momentum space).
 
 `Base.getindex` can be used to convert between linear indices and vectors.
 
@@ -32,7 +32,8 @@ julia> geo[(3,2)] # 3 is folded back into 1
 julia> geo[(3,3)]
 5
 
-julia> geo[(3,4)] # returns nothing if out of bounds
+julia> geo[(3,4)] # returns 0 if out of bounds
+0
 
 ```
 """
@@ -43,6 +44,7 @@ struct Geometry{D,Dims,Fold}
         return new{D,dims,fold}()
     end
 end
+Geometry(args::Vararg{Int}) = Geometry(args)
 
 function PeriodicBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(Returns(true), Val(D)))
@@ -170,7 +172,7 @@ Base.size(off::Offsets) = (length(off.geometry),)
     @boundscheck 0 < i ≤ length(off) || throw(BoundsError(off, i))
     geo = off.geometry
     vec = geo[i]
-    return vec + SVector(ntuple(i -> -cld(size(geo, i), 2), Val(D)))
+    return vec - ones(SVector{D,Int})#+ SVector(ntuple(i -> -cld(size(geo, i), 2), Val(D)))
 end
 
 """

@@ -154,10 +154,10 @@ num_offdiagonals(g2::G2RealSpace, _) = 0
 
         # Case of n_i(n_i - 1) on the same component
         if A == B && all(==(0), δ_vec)
-            v2_offset = max.(v2 .- 1, 0)
-            result = setindex(result, dot(v1, v2_offset), i)
+            v1_offset = max.(v1 .- 1, 0)
+            result = setindex(result, dot(v2, v1_offset), i)
         else
-            result = setindex(result, circshift_dot(v1, v2, δ_vec), i)
+            result = setindex(result, circshift_dot(v2, v1, δ_vec), i)
         end
     end
     return result ./ length(geo)

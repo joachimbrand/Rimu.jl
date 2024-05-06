@@ -808,15 +808,40 @@ using Rimu.Hamiltonians: circshift_dot
     end
 
     @testset "G2RealSpace" begin
-        @testset "1D" begin
+        @testset "1D G2RealCorrelator comparison" begin
+            addr = near_uniform(BoseFS{6,6})
+            H = HubbardReal1D(addr)
+            v = normalize!(H * (H * (H * DVec(addr => 1.0))))
 
+            g2 = dot(v, G2RealSpace(Geometry(6)), v)
+            for d in 0:5
+                @test g2[d + 1] ≈ dot(v, G2RealCorrelator(d), v)
+            end
+        end
+
+        @testset "2-component" begin
+            c1 = BoseFS(1, 0, 0, 0, 0, 0)
+            c2 = BoseFS(1, 2, 3, 4, 5, 6)
+            addr = CompositeFS(c1, c2)
+            geom = Geometry((3, 2))
+
+            g2_11 = G2RealSpace(geom, 1, 1)
+            g2_12 = G2RealSpace(geom, 1, 2)
+            g2_21 = G2RealSpace(geom, 2, 1)
+            g2_22 = G2RealSpace(geom, 2, 2)
+
+            @test sum(diagonal_element(g2_11, addr)) == 0
+            @test sum(diagonal_element(g2_12, addr)) == 3.5
+            @test sum(diagonal_element(g2_21, addr)) == 3.5
+            @test sum(diagonal_element(g2_22, addr)) == 70
+            @test diagonal_element(g2_12, addr) == [1 4; 2 5; 3 6] ./ 6
         end
     end
 
     @testset "G2MomCorrelator" begin
         # v0 is the exact ground state from BoseHubbardMom1D2C(aIni;ua=0,ub=0,v=0.1)
-        bfs1=BoseFS([0,2,0])
-        bfs2=BoseFS([0,1,0])
+        bfs1 = BoseFS([0, 2, 0])
+        bfs2 = BoseFS([0, 1, 0])
         aIni = BoseFS2C(bfs1,bfs2)
         v0 = DVec(
             BoseFS2C((0, 2, 0), (0, 1, 0)) => 0.9999389545691221,
