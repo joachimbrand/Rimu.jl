@@ -50,7 +50,7 @@ end
     post_step_strategy = ProjectedEnergy(mh, sv)
 
     # solve with new API
-    p = FCIQMCProblem(mh; start_at=sv, last_step=10_000, post_step_strategy)
+    p = ProjectorMonteCarloProblem(mh; start_at=sv, last_step=10_000, post_step_strategy)
     sm = solve(p)
     last_shift = DataFrame(sm).shift[end]
 

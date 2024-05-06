@@ -5,7 +5,7 @@ physical models of interest. These are organised by means of an interface
 around the abstract type [`AbstractHamiltonian`](@ref), in the spirit of the
 `AbstractArray` interface as discussed in the [Julia Documentation](https://docs.julialang.org/en/v1/manual/interfaces/).
 
-The Hamiltonians can be used for projector quantum Monte Carlo with [`FCIQMCProblem`](@ref) or for exact diagonalization with [`ExactDiagonalizationProblem`](@ref), see [Exact Diagonalization](@ref).
+The Hamiltonians can be used for projector quantum Monte Carlo with [`ProjectorMonteCarloProblem`](@ref) or for exact diagonalization with [`ExactDiagonalizationProblem`](@ref), see [Exact Diagonalization](@ref).
 
 ```@docs
 Hamiltonians

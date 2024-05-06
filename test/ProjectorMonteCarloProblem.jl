@@ -6,9 +6,9 @@ using Rimu: is_finalized
 using Rimu.DictVectors: FrozenDVec
 using OrderedCollections: freeze
 
-@testset "FCIQMCProblem" begin
+@testset "ProjectorMonteCarloProblem" begin
     h = HubbardReal1D(BoseFS(1,3))
-    p = FCIQMCProblem(h; threading=true)
+    p = ProjectorMonteCarloProblem(h; threading=true)
     @test p.hamiltonian == h
     sp = only(p.initial_shift_parameters)
     @test sp.shift == diagonal_element(h, starting_address(h))
@@ -21,34 +21,34 @@ using OrderedCollections: freeze
     @test simulation.qmc_state.hamiltonian == h
     @test only(state_vectors(simulation)) isa PDVec
 
-    ps = FCIQMCProblem(h; initial_shift_parameters=sp, threading=false)
+    ps = ProjectorMonteCarloProblem(h; initial_shift_parameters=sp, threading=false)
     @test ps.initial_shift_parameters == (sp,)
     @test only(ps.starting_vectors) isa FrozenDVec
     sm = init(ps)
     @test only(state_vectors(sm)) isa DVec
 
-    p = FCIQMCProblem(h; n_replicas = 3, threading=false, initiator=Initiator())
+    p = ProjectorMonteCarloProblem(h; n_replicas = 3, threading=false, initiator=Initiator())
     @test Rimu.num_replicas(p) == 3
     dv = p.starting_vectors[1]
     @test pairs(dv) == [starting_address(h) => 1.0]
-    @test p.starting_vectors == FCIQMCProblem(h; start_at=dv, n_replicas = 3).starting_vectors
+    @test p.starting_vectors == ProjectorMonteCarloProblem(h; start_at=dv, n_replicas = 3).starting_vectors
     sm = init(p)
     @test Rimu.num_replicas(sm) == 3
     @test first(state_vectors(sm)) isa InitiatorDVec
 
 
-    @test_throws ArgumentError FCIQMCProblem(h; start_at=[BoseFS(1, 3), BoseFS(2, 3)])
-    @test_throws ArgumentError FCIQMCProblem(h; start_at=[dv, dv, dv])
-    p = FCIQMCProblem(h; start_at=[BoseFS(1, 3)=>1, BoseFS(2, 2)=>3])
+    @test_throws ArgumentError ProjectorMonteCarloProblem(h; start_at=[BoseFS(1, 3), BoseFS(2, 3)])
+    @test_throws ArgumentError ProjectorMonteCarloProblem(h; start_at=[dv, dv, dv])
+    p = ProjectorMonteCarloProblem(h; start_at=[BoseFS(1, 3)=>1, BoseFS(2, 2)=>3])
     @test p.starting_vectors isa Tuple{FrozenDVec}
-    @test_throws ArgumentError FCIQMCProblem(h; start_at=(1,2,3))
-    @test_throws ArgumentError FCIQMCProblem(h; shift=(1, 2, 3))
-    @test FCIQMCProblem(h; shift=2).initial_shift_parameters[1].shift == 2
-    @test FCIQMCProblem(h; shift=(2,)).initial_shift_parameters[1].shift == 2
+    @test_throws ArgumentError ProjectorMonteCarloProblem(h; start_at=(1,2,3))
+    @test_throws ArgumentError ProjectorMonteCarloProblem(h; shift=(1, 2, 3))
+    @test ProjectorMonteCarloProblem(h; shift=2).initial_shift_parameters[1].shift == 2
+    @test ProjectorMonteCarloProblem(h; shift=(2,)).initial_shift_parameters[1].shift == 2
 
-    # passing PDVec to FCIQMCProblem
+    # passing PDVec to ProjectorMonteCarloProblem
     dv = PDVec(starting_address(h)=>3; style=IsDynamicSemistochastic())
-    p = FCIQMCProblem(h; n_replicas=3, start_at=dv)
+    p = ProjectorMonteCarloProblem(h; n_replicas=3, start_at=dv)
     sm = init(p)
     @test first(state_vectors(sm)) == dv
     @test first(state_vectors(sm)) !== dv
@@ -57,7 +57,7 @@ using OrderedCollections: freeze
     # copy_vectors = false
     dv1 = deepcopy(dv)
     dv2 = deepcopy(dv)
-    p = FCIQMCProblem(h; n_replicas=2, start_at = (dv1, dv2))
+    p = ProjectorMonteCarloProblem(h; n_replicas=2, start_at = (dv1, dv2))
     sm = init(p; copy_vectors=false)
     @test state_vectors(sm)[1] === dv1
     @test state_vectors(sm)[2] === dv2
@@ -66,7 +66,7 @@ end
 
 @testset "QMCSimulation" begin
     h = HubbardReal1D(BoseFS(1, 3))
-    p = FCIQMCProblem(h) # generates random_seed
+    p = ProjectorMonteCarloProblem(h) # generates random_seed
     @test p.random_seed isa UInt64
 
     # default gives reproducible random numbers
@@ -75,33 +75,33 @@ end
     init(p) # re-seeds RNG with same seed
     @test r == rand(Int)
 
-    # but FCIQMCProblem will re-seed
+    # but ProjectorMonteCarloProblem will re-seed
     Random.seed!(127)
-    p = FCIQMCProblem(h)
+    p = ProjectorMonteCarloProblem(h)
     sm = init(p)
     r = rand(Int)
     Random.seed!(127)
-    p = FCIQMCProblem(h)
+    p = ProjectorMonteCarloProblem(h)
     sm = init(p)
     @test r ≠ rand(Int)
 
-    # unless seeding in FCIQMCProblem is disabled
+    # unless seeding in ProjectorMonteCarloProblem is disabled
     Random.seed!(127)
-    p = FCIQMCProblem(h; random_seed=false)
+    p = ProjectorMonteCarloProblem(h; random_seed=false)
     @test isnothing(p.random_seed)
     sm = init(p)
     r = rand(Int)
     Random.seed!(127)
-    p = FCIQMCProblem(h; random_seed=false)
+    p = ProjectorMonteCarloProblem(h; random_seed=false)
     sm = init(p)
     @test r == rand(Int)
 
     # or if the seed is provided
-    p = FCIQMCProblem(h; random_seed=123)
+    p = ProjectorMonteCarloProblem(h; random_seed=123)
     @test p.random_seed == 123
     sm = init(p)
     r = rand(Int)
-    p = FCIQMCProblem(h; random_seed=123)
+    p = ProjectorMonteCarloProblem(h; random_seed=123)
     sm = init(p)
     @test r == rand(Int)
 
@@ -111,7 +111,7 @@ end
 
 @testset "step! and solve!" begin
     h = HubbardReal1D(BoseFS(1, 3))
-    p = FCIQMCProblem(h; threading=true)
+    p = ProjectorMonteCarloProblem(h; threading=true)
     sm = init(p)
     @test sm.modified[] == false == sm.aborted[] == sm.success[]
     @test is_finalized(sm.report) == false
@@ -143,7 +143,7 @@ end
     @test sm.success[] == true == parse(Bool, (Rimu.get_metadata(sm.report, "success")))
 
     # time out
-    p = FCIQMCProblem(h; last_step=500, walltime=1e-3)
+    p = ProjectorMonteCarloProblem(h; last_step=500, walltime=1e-3)
     sm = init(p)
     @test_logs (:warn, Regex("(Walltime)")) solve!(sm)
     @test sm.success[] == false

@@ -3,7 +3,7 @@
 Defines the duration of the simulation. The simulation ends when the `last_step` is reached
 or the `walltime` is exceeded.
 
-See [`FCIQMCProblem`](@ref), [`QMCSimulation`](@ref).
+See [`ProjectorMonteCarloProblem`](@ref), [`QMCSimulation`](@ref).
 """
 Base.@kwdef struct SimulationPlan
     starting_step::Int = 0
@@ -12,7 +12,7 @@ Base.@kwdef struct SimulationPlan
 end
 
 """
-    FCIQMCProblem(hamiltonian::AbstractHamiltonian; kwargs...)
+    ProjectorMonteCarloProblem(hamiltonian::AbstractHamiltonian; kwargs...)
 Defines a problem to be solved by the FCIQMC algorithm.
 
 # Common keyword arguments and defaults:
@@ -43,7 +43,7 @@ Defines a problem to be solved by the FCIQMC algorithm.
 ```jldoctest
 julia> hamiltonian = HubbardReal1D(BoseFS(1,2,3));
 
-julia> problem = FCIQMCProblem(hamiltonian; targetwalkers = 500, last_step = 100);
+julia> problem = ProjectorMonteCarloProblem(hamiltonian; targetwalkers = 500, last_step = 100);
 
 julia> simulation = solve(problem);
 
@@ -78,7 +78,7 @@ julia> size(DataFrame(simulation))
 
 See also [`init`](@ref), [`solve`](@ref).
 """
-struct FCIQMCProblem{N} # is not type stable but does not matter
+struct ProjectorMonteCarloProblem{N} # is not type stable but does not matter
     hamiltonian::AbstractHamiltonian
     starting_vectors
     style::StochasticStyle
@@ -99,7 +99,7 @@ end
 # could be extended later with
 # - `spectral_strategy = NoStats(n_spectral_states)`: strategy for handling excited states
 
-function FCIQMCProblem(
+function ProjectorMonteCarloProblem(
     hamiltonian::AbstractHamiltonian;
     n_replicas = 1,
     start_at = starting_address(hamiltonian),
@@ -191,7 +191,7 @@ function FCIQMCProblem(
         post_step_strategy = (post_step_strategy,)
     end
 
-    return FCIQMCProblem{n_replicas}(
+    return ProjectorMonteCarloProblem{n_replicas}(
         hamiltonian,
         starting_vectors,
         style,
@@ -223,4 +223,4 @@ function _determine_initial_shift(hamiltonian, starting_vectors)
     return shifts
 end
 
-num_replicas(::FCIQMCProblem{N}) where N = N
+num_replicas(::ProjectorMonteCarloProblem{N}) where N = N

@@ -1,15 +1,16 @@
 """
     QMCSimulation
 Holds the state and the results of a QMC simulation. Initialise with
-[`init(::FCIQMCProblem)`](@ref) and solve with [`solve!(::QMCSimulation)`](@ref).
+[`init(::ProjectorMonteCarloProblem)`](@ref) and solve with
+[`solve!(::QMCSimulation)`](@ref).
 
 Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 
-See also [`state_vectors`](@ref), [`single_states`](@ref), [`FCIQMCProblem`](@ref),
-[`init`](@ref), [`solve!`](@ref).
+See also [`state_vectors`](@ref), [`single_states`](@ref),
+[`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref).
 """
 struct QMCSimulation
-    qmc_problem::FCIQMCProblem
+    qmc_problem::ProjectorMonteCarloProblem
     qmc_state::ReplicaState
     report::Report
     modified::Ref{Bool}
@@ -40,7 +41,7 @@ function _set_up_v(fdv::FrozenDVec, _, style, initiator, threading)
     return v
 end
 
-function QMCSimulation(problem::FCIQMCProblem; copy_vectors=true)
+function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     @unpack hamiltonian, starting_vectors, style, threading, simulation_plan,
         replica_strategy, shift_strategy, initial_shift_parameters,
         reporting_strategy, post_step_strategy, time_step_strategy,
@@ -199,14 +200,14 @@ num_replicas(s::QMCSimulation) = num_replicas(s.qmc_problem)
 DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
 
 """
-    init(problem::FCIQMCProblem; copy_vectors=true)::QMCSimulation
+    init(problem::ProjectorMonteCarloProblem; copy_vectors=true)::QMCSimulation
 
 Initialise a [`Rimu.QMCSimulation`](@ref).
 
-See also [`FCIQMCProblem`](@ref), [`solve!`](@ref), [`solve`](@ref), [`step!`](@ref),
-[`Rimu.QMCSimulation`](@ref).
+See also [`ProjectorMonteCarloProblem`](@ref), [`solve!`](@ref), [`solve`](@ref),
+[`step!`](@ref), [`Rimu.QMCSimulation`](@ref).
 """
-function CommonSolve.init(problem::FCIQMCProblem; copy_vectors=true)
+function CommonSolve.init(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     return QMCSimulation(problem; copy_vectors)
 end
 
@@ -219,7 +220,7 @@ Calling [`solve!`](@ref) will advance the simulation until the last step or the 
 exceeded. When completing the simulation without calling [`solve!`](@ref), the simulation
 report needs to be finalised by calling [`Rimu.finalize_report!`](@ref).
 
-See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`solve`](@ref),
+See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`solve`](@ref),
 [`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::QMCSimulation)
@@ -270,12 +271,12 @@ function CommonSolve.step!(sm::QMCSimulation)
 end
 
 """
-    CommonSolve.solve(::FCIQMCProblem)::QMCSimulation
+    CommonSolve.solve(::ProjectorMonteCarloProblem)::QMCSimulation
 
 Initialize and solve the simulation until the last step or the walltime is exceeded.
 
-See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`step!`](@ref),
-[`Rimu.QMCSimulation`](@ref).
+See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref),
+[`step!`](@ref), [`Rimu.QMCSimulation`](@ref).
 """
 CommonSolve.solve
 
@@ -289,7 +290,7 @@ Solve the simulation until the last step or the walltime is exceeded.
 * `walltime = nothing`: Set the allowed walltime to a new value and continue the simulation.
 * `reset_time = false`: Reset the `elapsed_time` counter and continue the simulation.
 
-See also [`FCIQMCProblem`](@ref), [`init`](@ref), [`solve`](@ref), [`step!`](@ref),
+See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve`](@ref), [`step!`](@ref),
 [`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.solve!(sm::QMCSimulation;
@@ -366,7 +367,7 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
         reporting_strategy, post_step_strategy, replica_strategy = state
     first_replica = only(first(replica_states).spectral_states) # SingleState
     @assert step[] ≥ simulation_plan.starting_step
-    problem = FCIQMCProblem(hamiltonian;
+    problem = ProjectorMonteCarloProblem(hamiltonian;
         start_at = first_replica.v,
         initial_shift_parameters = first_replica.shift_parameters,
         shift_strategy = first_replica.s_strat,

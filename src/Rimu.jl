@@ -72,7 +72,7 @@ export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneli
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export localpart, walkernumber
 export smart_logger, default_logger
-export FCIQMCProblem, SimulationPlan, state_vectors, single_states
+export ProjectorMonteCarloProblem, SimulationPlan, state_vectors, single_states
 
 function __init__()
     # Turn on smart logging once at runtime. Turn off with `default_logger()`.
@@ -87,7 +87,7 @@ include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
 include("strategies_and_params/spectralstrategy.jl")
 
-include("FCIQMCProblem.jl")
+include("ProjectorMonteCarloProblem.jl")
 
 include("qmc_states.jl")
 include("lomc.jl")                  # top level
