@@ -16,7 +16,7 @@ jobs:
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1'
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v2
       - name: Install dependencies
         run: |
           export JULIA_PROJECT=@.
