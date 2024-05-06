@@ -84,7 +84,7 @@ function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress
     M = num_modes(add)
     d = mod(D, M)
     v = onr(add)
-    return circshift_dot(v, v, (d,))
+    return circshift_dot(v, v, (d,)) / M
 end
 
 function diagonal_element(::G2RealCorrelator{0}, add::CompositeFS)
@@ -96,7 +96,7 @@ function diagonal_element(::G2RealCorrelator{D}, add::CompositeFS) where {D}
     M = num_modes(add)
     d = mod(D, M)
     v = sum(map(onr, add.components))
-    return circshift_dot(v, v, (d,))
+    return circshift_dot(v, v, (d,)) / M
 end
 
 num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0

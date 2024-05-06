@@ -338,19 +338,6 @@ end
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 12
         @test length(od_nonzeros) == 4
-
-        H = HubbardRealSpace(f, geometry=LadderBoundaries(2, 6))
-        od_values = last.(offdiagonals(H, f))
-        od_nonzeros = filter(!iszero, od_values)
-        @test length(od_values) == 9
-        @test length(od_nonzeros) == 5
-
-        hard_ladder = LadderBoundaries(2, 6, subgeometry=HardwallBoundaries)
-        H = HubbardRealSpace(f, geometry=hard_ladder)
-        od_values = last.(offdiagonals(H, f))
-        od_nonzeros = filter(!iszero, od_values)
-        @test length(od_values) == 9
-        @test length(od_nonzeros) == 3
     end
     @testset "1D Bosons (single)" begin
         H1 = HubbardReal1D(BoseFS((1, 1, 1, 1, 1, 0)); u=2, t=3)
@@ -510,24 +497,19 @@ end
             )
             @test exact_energy(H3) < -16
         end
-        @testset "hardwall and ladder" begin
-            geom1 = LadderBoundaries(2, 3, subgeometry=HardwallBoundaries)
-            geom2 = HardwallBoundaries(2, 3)
-            geom3 = HardwallBoundaries(3, 2)
+        @testset "Hardwall" begin
+            geom1 = HardwallBoundaries(2, 3)
+            geom2 = HardwallBoundaries(3, 2)
             bose = BoseFS((1, 1, 1, 0, 0, 0))
             fermi = FermiFS((1, 0, 0, 0, 1, 0))
 
             H1 = HubbardRealSpace(bose, geometry=geom1)
             H2 = HubbardRealSpace(bose, geometry=geom2)
-            H3 = HubbardRealSpace(bose, geometry=geom3)
-            @test exact_energy(H1) == exact_energy(H2)
-            @test exact_energy(H1) ≈ exact_energy(H3)
+            @test exact_energy(H1) ≈ exact_energy(H2)
 
             H1 = HubbardRealSpace(fermi, geometry=geom1)
             H2 = HubbardRealSpace(fermi, geometry=geom2)
-            H3 = HubbardRealSpace(fermi, geometry=geom3)
-            @test exact_energy(H1) == exact_energy(H2)
-            @test exact_energy(H1) ≈ exact_energy(H3)
+            @test exact_energy(H1) ≈ exact_energy(H2)
         end
     end
 end

@@ -92,7 +92,9 @@ julia> fold_vec(geo, (3,4))
 (1, 4)
 ```
 """
-fold_vec(g::Geometry{D}, vec::NTuple{D,Int}) where {D} = _fold_vec(vec, fold(g), size(g))
+function fold_vec(g::Geometry{D}, vec::NTuple{D,Int}) where {D}
+    return SVector(_fold_vec(vec, fold(g), size(g)))
+end
 @inline _fold_vec(::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
 @inline function _fold_vec((x, xs...), (f, fs...), (d, ds...))
     x = f ? mod1(x, d) : x
@@ -110,7 +112,7 @@ Base.getindex(g::Geometry, i::Int) = Tuple(CartesianIndices(size(g))[i])
 
 Iterate over unit vectors in `D` dimensions.
 
-```jldoctest
+```jldoctest; setup=:(using Rimu.Hamiltonians: UnitVectors)
 julia> UnitVectors(3)
 6-element UnitVectors{3}:
  (1, 0, 0)
@@ -146,7 +148,7 @@ end
 """
     Offsets(geometry::Geometry) <: AbstractVector{NTuple{D,Int}}
 
-```jldoctest
+```jldoctest; setup=:(using Rimu.Hamiltonians: Offsets)
 julia> geometry = Geometry((3,4));
 
 julia> reshape(Offsets(geometry), (3,4))
