@@ -76,7 +76,7 @@ Return the number of dimensions of the lattice in this geometry.
 num_dimensions(::Geometry{D}) where {D} = D
 
 """
-    fold_vec(g::Geometry{D}, vec::NTuple{D,Int}) -> NTuple{D,Int}
+    fold_vec(g::Geometry{D}, vec::SVector{D,Int}) -> SVector{D,Int}
 
 Use the Geometry to fold the `vec` in each dimension. If folding is disabled in a
 dimension, and the vector is allowed to go out of bounds.
@@ -92,8 +92,8 @@ julia> fold_vec(geo, (3,4))
 (1, 4)
 ```
 """
-function fold_vec(g::Geometry{D}, vec::NTuple{D,Int}) where {D}
-    return SVector(_fold_vec(vec, fold(g), size(g)))
+function fold_vec(g::Geometry{D}, vec::SVector{D,Int}) where {D}
+    (_fold_vec(Tuple(vec), fold(g), size(g)))
 end
 @inline _fold_vec(::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
 @inline function _fold_vec((x, xs...), (f, fs...), (d, ds...))
@@ -101,29 +101,30 @@ end
     return (x, _fold_vec(xs, fs, ds)...)
 end
 
-function Base.getindex(g::Geometry{D}, vec::NTuple{D,Int}) where {D}
-    return get(LinearIndices(size(g)), fold_vec(g, vec), 0)
+function Base.getindex(g::Geometry{D}, vec::Union{NTuple{D,Int},SVector{D,Int}}) where {D}
+    return get(LinearIndices(size(g)), fold_vec(g, SVector(vec)), 0)
 end
-Base.getindex(g::Geometry, i::Int) = Tuple(CartesianIndices(size(g))[i])
+Base.getindex(g::Geometry, i::Int) = SVector(Tuple(CartesianIndices(size(g))[i]))
 
 """
-    UnitVectors(D) <: AbstractVector{NTuple{D,Int}}
-    UnitVectors(geometry::Geometry) <: AbstractVector{NTuple{D,Int}}
+    UnitVectors(D) <: AbstractVector{SVector{D,Int}}
+    UnitVectors(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
 
 Iterate over unit vectors in `D` dimensions.
 
 ```jldoctest; setup=:(using Rimu.Hamiltonians: UnitVectors)
 julia> UnitVectors(3)
 6-element UnitVectors{3}:
- (1, 0, 0)
- (0, 1, 0)
- (0, 0, 1)
- (-1, 0, 0)
- (0, -1, 0)
- (0, 0, -1)
+ [1, 0, 0]
+ [0, 1, 0]
+ [0, 0, 1]
+ [-1, 0, 0]
+ [0, -1, 0]
+ [0, 0, -1]
+
 ```
 """
-struct UnitVectors{D} <: AbstractVector{NTuple{D,Int}} end
+struct UnitVectors{D} <: AbstractVector{SVector{D,Int}} end
 
 UnitVectors(D) = UnitVectors{D}()
 UnitVectors(::Geometry{D}) where {D} = UnitVectors{D}()
@@ -133,9 +134,9 @@ Base.size(::UnitVectors{D}) where {D} = (2D,)
 function Base.getindex(uv::UnitVectors{D}, i) where {D}
     @boundscheck 0 < i ≤ length(uv) || throw(BoundsError(uv, i))
     if i ≤ D
-        return _unit_vec(Val(D), i, 1)
+        return SVector(_unit_vec(Val(D), i, 1))
     else
-        return _unit_vec(Val(D), i - D, -1)
+        return SVector(_unit_vec(Val(D), i - D, -1))
     end
 end
 
@@ -146,20 +147,20 @@ end
 end
 
 """
-    Offsets(geometry::Geometry) <: AbstractVector{NTuple{D,Int}}
+    Offsets(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
 
 ```jldoctest; setup=:(using Rimu.Hamiltonians: Offsets)
 julia> geometry = Geometry((3,4));
 
 julia> reshape(Offsets(geometry), (3,4))
-3×4 reshape(::Offsets{2}, 3, 4) with eltype Tuple{Int64, Int64}:
- (-1, -1)  (-1, 0)  (-1, 1)  (-1, 2)
- (0, -1)   (0, 0)   (0, 1)   (0, 2)
- (1, -1)   (1, 0)   (1, 1)   (1, 2)
+3×4 reshape(::Offsets{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
+ [-1, -1]  [-1, 0]  [-1, 1]  [-1, 2]
+ [0, -1]   [0, 0]   [0, 1]   [0, 2]
+ [1, -1]   [1, 0]   [1, 1]   [1, 2]
 
 ```
 """
-struct Offsets{D} <: AbstractVector{NTuple{D,Int}}
+struct Offsets{D} <: AbstractVector{SVector{D,Int}}
     geometry::Geometry{D}
 end
 
@@ -169,7 +170,7 @@ Base.size(off::Offsets) = (length(off.geometry),)
     @boundscheck 0 < i ≤ length(off) || throw(BoundsError(off, i))
     geo = off.geometry
     vec = geo[i]
-    return add(vec, ntuple(i -> -cld(size(geo, i), 2), Val(D)))
+    return vec + SVector(ntuple(i -> -cld(size(geo, i), 2), Val(D)))
 end
 
 """
@@ -178,7 +179,7 @@ end
 Find the `i`-th neighbor of `site` in the geometry. If the move is illegal, return 0.
 """
 function neighbor_site(g::Geometry{D}, mode, chosen) where {D}
-    return g[add(g[mode], UnitVectors(D)[chosen])]
+    return g[g[mode] + UnitVectors(D)[chosen]]
 end
 
 function BitStringAddresses.onr(add, geom::Geometry{<:Any,S}) where {S}

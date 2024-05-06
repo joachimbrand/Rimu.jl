@@ -8,7 +8,7 @@ dot(arr1, circshift(arr2, inds))
 ```
 """
 function circshift_dot(arr1, arr2, inds)
-    _circshift_dot!(arr1, (), arr2, (), axes(arr2), inds)
+    _circshift_dot!(arr1, (), arr2, (), axes(arr2), Tuple(inds))
 end
 
 # The following is taken from Julia's implementation of circshift.
@@ -136,7 +136,7 @@ LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
 
 num_offdiagonals(g2::G2RealSpace, _) = 0
 
-function diagonal_element(
+@inline function diagonal_element(
     g2::G2RealSpace{A,B}, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
 ) where {A, B}
     geo = g2.geometry
