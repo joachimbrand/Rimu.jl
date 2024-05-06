@@ -88,7 +88,6 @@ export G2MomCorrelator, G2RealCorrelator, G2RealSpace, SuperfluidCorrelator, Den
 export StringCorrelator
 
 export Geometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
-export num_neighbours, neighbour_site, num_dimensions
 
 export sparse # from SparseArrays
 

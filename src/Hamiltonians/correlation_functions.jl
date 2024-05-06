@@ -1,5 +1,36 @@
-using StaticArrays
-# TO-DO: add geometry for higher dimensions.
+"""
+    circshift_dot(arr1, arr2, inds)
+
+Fast, non-allocation version of
+
+```julia
+dot(arr1, circshift(arr2, inds))
+```
+"""
+function circshift_dot(arr1, arr2, inds)
+    _circshift_dot!(arr1, (), arr2, (), axes(arr2), inds)
+end
+
+# The following is taken from Julia's implementation of circshift.
+@inline function _circshift_dot!(
+    dst, rdest, src, rsrc,
+    inds::Tuple{AbstractUnitRange,Vararg{Any}},
+    shiftamt::Tuple{Integer,Vararg{Any}}
+)
+    ind1, d = inds[1], shiftamt[1]
+    s = mod(d, length(ind1))
+    sf, sl = first(ind1)+s, last(ind1)-s
+    r1, r2 = first(ind1):sf-1, sf:last(ind1)
+    r3, r4 = first(ind1):sl, sl+1:last(ind1)
+    tinds, tshiftamt = Base.tail(inds), Base.tail(shiftamt)
+
+    return _circshift_dot!(dst, (rdest..., r1), src, (rsrc..., r4), tinds, tshiftamt) +
+        _circshift_dot!(dst, (rdest..., r2), src, (rsrc..., r3), tinds, tshiftamt)
+end
+@inline function _circshift_dot!(dst, rdest, src, rsrc, inds, shiftamt)
+    return dot(view(dst, rdest...), view(src, rsrc...))
+end
+
 """
     G2RealCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
@@ -53,11 +84,7 @@ function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress
     M = num_modes(add)
     d = mod(D, M)
     v = onr(add)
-    result = 0
-    for i in eachindex(v)
-        result += v[i] * v[mod1(i + d, M)]
-    end
-    return result / M
+    return circshift_dot(v, v, (d,))
 end
 
 function diagonal_element(::G2RealCorrelator{0}, add::CompositeFS)
@@ -69,22 +96,79 @@ function diagonal_element(::G2RealCorrelator{D}, add::CompositeFS) where {D}
     M = num_modes(add)
     d = mod(D, M)
     v = sum(map(onr, add.components))
-    result = 0
-    for i in eachindex(v)
-        result += v[i] * v[mod1(i + d, M)]
-    end
-    return result / M
+    return circshift_dot(v, v, (d,))
 end
 
 num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0
 num_offdiagonals(::G2RealCorrelator, ::CompositeFS) = 0
 
-# not needed:
-# get_offdiagonal(::G2RealCorrelator, add)
-# starting_address(::G2RealCorrelator)
+"""
+    G2RealSpace(g::Geometry) <: AbstractHamiltonian{SArray}
 
-# Methods that need to be implemented:
-#   •  starting_address(::AbstractHamiltonian) - not needed
+Two-body operator for density-density correlation for all displacements.
+
+```math
+    \\hat{G}^{(2)}(d) = \\frac{1}{M} ∑_i^M∑_v \\hat{n}_i (\\hat{n}_{i+v} - \\delta_{0d}).
+```
+
+# See also
+
+* [`HubbardReal1D`](@ref)
+* [`G2MomCorrelator`](@ref)
+* [`G2RealCorrelator`](@ref)
+* [`AbstractHamiltonian`](@ref)
+* [`AllOverlaps`](@ref)
+"""
+struct G2RealSpace{A,B,G<:Geometry,S} <: AbstractHamiltonian{S}
+    geometry::G
+    init::S
+end
+function G2RealSpace(geometry::Geometry, source=1, target=source)
+    init = zeros(SArray{Tuple{size(geometry)...}})
+    return G2RealSpace{source,target,typeof(geometry),typeof(init)}(geometry, init)
+end
+
+function Base.show(io::IO, g2::G2RealSpace{A,B}) where {A,B}
+    print(io, "G2RealSpace($(g2.geometry), $A,$B)")
+end
+
+LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
+
+num_offdiagonals(g2::G2RealSpace, _) = 0
+
+function diagonal_element(
+    g2::G2RealSpace{A,B}, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
+) where {A, B}
+    geo = g2.geometry
+    result = g2.init
+    if addr1 ≡ addr2
+        v1 = v2 = onr(addr1, geo)
+    else
+        v1 = onr(addr1, geo)
+        v2 = onr(addr2, geo)
+    end
+
+    @inbounds for i in eachindex(result)
+        res_i = 0.0
+        δ_vec = Offsets(geo)[i]
+
+        # Case of n_i(n_i - 1) on the same component
+        if A == B && all(==(0), δ_vec)
+            v2_offset = max.(v2 .- 1, 0)
+            result = setindex(result, dot(v1, v2_offset), i)
+        else
+            result = setindex(result, circshift_dot(v1, v2, δ_vec), i)
+        end
+    end
+    return result ./ length(geo)
+end
+function diagonal_element(g2::G2RealSpace{A,A}, addr::SingleComponentFockAddress) where {A}
+    return diagonal_element(g2, addr, addr)
+end
+function diagonal_element(g2::G2RealSpace{A,B}, addr::CompositeFS) where {A,B}
+    return diagonal_element(g2, addr.components[A], addr.components[B])
+end
+
 """
     G2MomCorrelator(d::Int,c=:cross) <: AbstractHamiltonian{ComplexF64}
 
@@ -166,7 +250,6 @@ function num_offdiagonals(g::G2MomCorrelator{3}, add::BoseFS2C)
     sa = num_occupied_modes(add.bsa)
     sb = num_occupied_modes(add.bsb)
     return sa*(m-1)*sb
-    # number of excitations that can be made
 end
 
 function num_offdiagonals(g::G2MomCorrelator, add::SingleComponentFockAddress)
@@ -376,144 +459,4 @@ function _string_diagonal_real(d, add)
     end
 
     return result / M
-end
-
-"""
-    G2RealSpace(g::Geometry) <: AbstractHamiltonian{SArray}
-
-Two-body operator for density-density correlation for all displacements.
-
-```math
-    \\hat{G}^{(2)}(d) = \\frac{1}{M} ∑_i^M∑_v \\hat{n}_i (\\hat{n}_{i+v} - \\delta_{0d}).
-```
-
-# See also
-
-* [`HubbardReal1D`](@ref)
-* [`G2MomCorrelator`](@ref)
-* [`G2RealCorrelator`](@ref)
-* [`AbstractHamiltonian`](@ref)
-* [`AllOverlaps`](@ref)
-"""
-struct G2RealSpace{A,B,G<:Geometry,S} <: AbstractHamiltonian{S}
-    geometry::G
-    init::S
-end
-function G2RealSpace(geometry::Geometry, source=1, target=source)
-    init = zeros(SArray{Tuple{size(geometry)...}})
-    return G2RealSpace{source,target,typeof(geometry),typeof(init)}(geometry, init)
-end
-
-LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
-
-num_offdiagonals(g2::G2RealSpace, _) = 0
-
-#=
-function diagonal_element(g2::G2RealSpace{1,1,D}, addr::SingleComponentFockAddress) where {D}
-    geo = g2.geometry
-    result = g2.init
-    v = onr(addr)
-
-    for i in eachindex(result)
-        res_i = 0.0
-        δ_vec = Offsets(geo)[i]
-        for p in eachindex(v)
-            p_vec = geo[p]
-            q = geo[add(p_vec, δ_vec)]
-            if q ≠ 0
-                res_i += v[p] * v[q] - (p == q)
-            end
-        end
-        result = setindex(result, res_i, i)
-    end
-    return result ./ length(geo)
-end
-=#
-
-function diagonal_element2(
-    g2::G2RealSpace{A,B}, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
-) where {A,B}
-    geo = g2.geometry
-    result = g2.init
-    if addr1 ≡ addr2
-        v1 = v2 = onr(addr1)
-    else
-        v1 = onr(addr1)
-        v2 = onr(addr2)
-    end
-
-    for i in eachindex(result)
-        res_i = 0.0
-        δ_vec = Offsets(geo)[i]
-        for p in eachindex(v1)
-            p_vec = geo[p]
-            q = geo[add(p_vec, δ_vec)]
-            if q ≠ 0
-                # A = B implies addr1 and addr2 are the same address, in which case we need
-                # to subtract δ_{p,q}
-                res_i += v1[p] * v2[q] - (A == B) * (p == q)
-            end
-        end
-        result = setindex(result, res_i, i)
-    end
-    return result ./ length(geo)
-end
-
-function diagonal_element(
-    g2::G2RealSpace{A,B}, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
-) where {A, B}
-    geo = g2.geometry
-    result = g2.init
-    if addr1 ≡ addr2
-        v1 = v2 = onr(addr1, geo)
-    else
-        v1 = onr(geo, addr1)
-        v2 = onr(geo, addr2)
-    end
-
-    @inbounds for i in eachindex(result)
-        res_i = 0.0
-        δ_vec = Offsets(geo)[i]
-
-        # Case of n_i(n_i - 1)
-        if A == B && all(==(0), δ_vec)
-            v2_offset = max.(v2 .- 1, 0)
-            result = setindex(result, dot(v1, v2_offset), i)
-        else
-            #circshift!(v2_offset, v2, δ_vec)
-            result = setindex(result, csh(v2, δ_vec), i)
-        end
-    end
-    return result ./ length(geo)
-end
-
-function diagonal_element(g2::G2RealSpace{A,A}, addr::SingleComponentFockAddress) where {A}
-    return diagonal_element(g2, addr, addr)
-end
-function diagonal_element(g2::G2RealSpace{A,B}, addr::CompositeFS) where {A,B}
-    return diagonal_element(g2, addr.components[A], addr.components[B])
-end
-
-
-# TODO: clean up!
-function csh(arr, inds)
-    _circshift_dot!((), arr, (), axes(arr), inds)
-end
-
-
-@inline function _circshift_dot!(rdest, src, rsrc,
-                             inds::Tuple{AbstractUnitRange,Vararg{Any}},
-                             shiftamt::Tuple{Integer,Vararg{Any}})
-    ind1, d = inds[1], shiftamt[1]
-    s = mod(d, length(ind1))
-    sf, sl = first(ind1)+s, last(ind1)-s
-    r1, r2 = first(ind1):sf-1, sf:last(ind1)
-    r3, r4 = first(ind1):sl, sl+1:last(ind1)
-    tinds, tshiftamt = Base.tail(inds), Base.tail(shiftamt)
-    _circshift_dot!((rdest..., r1), src, (rsrc..., r4), tinds, tshiftamt) +
-    _circshift_dot!((rdest..., r2), src, (rsrc..., r3), tinds, tshiftamt)
-end
-@inline function _circshift_dot!(rdest, src, rsrc, inds, shiftamt)
-    dot(view(src, rdest...), view(src, rsrc...))
-    #copyto!(CartesianIndices(rdest), src, CartesianIndices(rsrc))
 end

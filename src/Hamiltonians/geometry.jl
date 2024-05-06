@@ -44,14 +44,23 @@ struct Geometry{D,Dims,Fold}
     end
 end
 
-function PeriodicBoundaries(dims::Vararg{Int,D}) where {D}
+function PeriodicBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(Returns(true), Val(D)))
 end
-function HardwallBoundaries(dims::Vararg{Int,D}) where {D}
+PeriodicBoundaries(dims::Vararg{Int}) = PeriodicBoundaries(dims)
+
+function HardwallBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(Returns(false), Val(D)))
 end
-function LadderBoundaries(dims::Vararg{Int,D}) where {D}
+HardwallBoundaries(dims::Vararg{Int}) = HardwallBoundaries(dims)
+
+function LadderBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(>(1), Val(D)))
+end
+LadderBoundaries(dims::Vararg{Int}) = LadderBoundaries(dims)
+
+function Base.show(io::IO, g::Geometry{<:Any,Dims,Fold}) where {Dims,Fold}
+    print(io, "Geometry($Dims, $Fold)")
 end
 
 Base.size(g::Geometry{<:Any,Dims}) where {Dims} = Dims
@@ -96,7 +105,8 @@ end
 Base.getindex(g::Geometry, i::Int) = Tuple(CartesianIndices(size(g))[i])
 
 """
-    UnitVectors{D} <: AbstractVector{NTuple{D,Int}}
+    UnitVectors(D) <: AbstractVector{NTuple{D,Int}}
+    UnitVectors(geometry::Geometry) <: AbstractVector{NTuple{D,Int}}
 
 Iterate over unit vectors in `D` dimensions.
 
@@ -114,10 +124,12 @@ julia> UnitVectors(3)
 struct UnitVectors{D} <: AbstractVector{NTuple{D,Int}} end
 
 UnitVectors(D) = UnitVectors{D}()
+UnitVectors(::Geometry{D}) where {D} = UnitVectors{D}()
 
 Base.size(::UnitVectors{D}) where {D} = (2D,)
+
 function Base.getindex(uv::UnitVectors{D}, i) where {D}
-    @boundscheck 0 < i ≤ 2D || throw(BoundsError(uv, i))
+    @boundscheck 0 < i ≤ length(uv) || throw(BoundsError(uv, i))
     if i ≤ D
         return _unit_vec(Val(D), i, 1)
     else
@@ -131,26 +143,43 @@ end
     return (_unit_vec(Val(I-1), i, x)..., val)
 end
 
+"""
+    Offsets(geometry::Geometry) <: AbstractVector{NTuple{D,Int}}
+
+```jldoctest
+julia> geometry = Geometry((3,4));
+
+julia> reshape(Offsets(geometry), (3,4))
+3×4 reshape(::Offsets{2}, 3, 4) with eltype Tuple{Int64, Int64}:
+ (-1, -1)  (-1, 0)  (-1, 1)  (-1, 2)
+ (0, -1)   (0, 0)   (0, 1)   (0, 2)
+ (1, -1)   (1, 0)   (1, 1)   (1, 2)
+
+```
+"""
 struct Offsets{D} <: AbstractVector{NTuple{D,Int}}
     geometry::Geometry{D}
 end
+
 Base.size(off::Offsets) = (length(off.geometry),)
+
 @inline function Base.getindex(off::Offsets{D}, i) where {D}
+    @boundscheck 0 < i ≤ length(off) || throw(BoundsError(off, i))
     geo = off.geometry
     vec = geo[i]
     return add(vec, ntuple(i -> -cld(size(geo, i), 2), Val(D)))
 end
 
 """
-    neighbour_site(geom::Geometry, site, i)
+    neighbor_site(geom::Geometry, site, i)
 
-Find the `i`-th neighbour of `site` in the geometry. If the move is illegal, return 0.
+Find the `i`-th neighbor of `site` in the geometry. If the move is illegal, return 0.
 """
 function neighbor_site(g::Geometry{D}, mode, chosen) where {D}
     return g[add(g[mode], UnitVectors(D)[chosen])]
 end
 
-function BitStringAddresses.onr(add, geom::Geometry{D,S}) where {D,S}
+function BitStringAddresses.onr(add, geom::Geometry{<:Any,S}) where {S}
     return SArray{Tuple{S...}}(onr(add))
 end
 function BitStringAddresses.onr(add::CompositeFS, geom::Geometry)
