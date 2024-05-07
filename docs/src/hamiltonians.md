@@ -164,6 +164,9 @@ Geometry
 Hamiltonians.UnitVectors
 Hamiltonians.Offsets
 Hamiltonians.neighbor_site
+PeriodicBoundaries
+HardwallBoundaries
+LadderBoundaries
 ```
 
 ## Harmonic Oscillator
