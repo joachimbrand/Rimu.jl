@@ -46,16 +46,36 @@ struct Geometry{D,Dims,Fold}
 end
 Geometry(args::Vararg{Int}) = Geometry(args)
 
+"""
+    PeriodicBoundaries(dims...) -> Geometry
+    PeriodicBoundaries(dims) -> Geometry
+
+Return `Geometry` with all dimensions periodic. Equivalent to `Geometry(dims)`.
+"""
 function PeriodicBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(Returns(true), Val(D)))
 end
 PeriodicBoundaries(dims::Vararg{Int}) = PeriodicBoundaries(dims)
 
+"""
+    HardwallBoundaries(dims...) -> Geometry
+    HardwallBoundaries(dims) -> Geometry
+
+Return `Geometry` with all dimensions non-periodic. Equivalent to
+`Geometry(dims, (false, false, ...))`.
+"""
 function HardwallBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(Returns(false), Val(D)))
 end
 HardwallBoundaries(dims::Vararg{Int}) = HardwallBoundaries(dims)
 
+"""
+    LadderBoundaries(dims...) -> Geometry
+    LadderBoundaries(dims) -> Geometry
+
+Return `Geometry` where the first dimension is dimensions non-periodic and the rest are
+periodic. Equivalent to `Geometry(dims, (true, false, ...))`.
+"""
 function LadderBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(>(1), Val(D)))
 end

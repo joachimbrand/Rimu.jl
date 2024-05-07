@@ -867,9 +867,9 @@ using Rimu.Hamiltonians: circshift_dot
     @testset "G2RealSpace" begin
         @testset "1D G2RealCorrelator comparison" begin
             @testset "constructors" begin
-                g2_1 = G2RealSpace(Geometry(2, 2, 3), 1, 3) isa G2RealSpace{1,3}
-                g2_2 = G2RealSpace(Geometry(2, 2), 2) isa G2RealSpace{2,2}
-                g2_3 = G2RealSpace(Geometry(2, 2); sum_components=true) isa G2RealSpace{0,0}
+                g2_1 = G2RealSpace(Geometry(2, 2, 3), 1, 3)
+                g2_2 = G2RealSpace(Geometry(2, 2), 2)
+                g2_3 = G2RealSpace(Geometry(2, 2); sum_components=true)
                 @test g2_1 isa G2RealSpace{1,3}
                 @test g2_2 isa G2RealSpace{2,2}
                 @test g2_3 isa G2RealSpace{0,0}
