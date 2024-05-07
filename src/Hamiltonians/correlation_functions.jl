@@ -147,6 +147,9 @@ end
 function Base.show(io::IO, g2::G2RealSpace{A,B}) where {A,B}
     print(io, "G2RealSpace($(g2.geometry), $A,$B)")
 end
+function Base.show(io::IO, g2::G2RealSpace{0,0})
+    print(io, "G2RealSpace($(g2.geometry); sum_components=true)")
+end
 
 LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
 
