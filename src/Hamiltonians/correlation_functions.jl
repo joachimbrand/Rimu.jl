@@ -123,7 +123,21 @@ struct G2RealSpace{A,B,G<:Geometry,S} <: AbstractHamiltonian{S}
     geometry::G
     init::S
 end
-function G2RealSpace(geometry::Geometry, source=1, target=source)
+function G2RealSpace(
+    geometry::Geometry, source::Int=1, target::Int=source; sum_components=false
+)
+    if source < 1 || target < 1
+        throw(ArgumentError("`source` and `target` must be positive integers"))
+    end
+    if sum_components
+        if source ≠ 1 || target ≠ 1
+            throw(
+                ArgumentError("`source` or `target` can't be set if `sum_components=true`")
+            )
+        end
+        source = target = 0
+    end
+
     init = zeros(SArray{Tuple{size(geometry)...}})
     return G2RealSpace{source,target,typeof(geometry),typeof(init)}(geometry, init)
 end
@@ -136,17 +150,11 @@ LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
 
 num_offdiagonals(g2::G2RealSpace, _) = 0
 
-@inline function diagonal_element(
-    g2::G2RealSpace{A,B}, addr1::SingleComponentFockAddress, addr2::SingleComponentFockAddress
+@inline function _g2_diagonal_element(
+    g2::G2RealSpace{A,B}, onr1::SArray, onr2::SArray
 ) where {A, B}
     geo = g2.geometry
     result = g2.init
-    if addr1 ≡ addr2
-        v1 = v2 = onr(addr1, geo)
-    else
-        v1 = onr(addr1, geo)
-        v2 = onr(addr2, geo)
-    end
 
     @inbounds for i in eachindex(result)
         res_i = 0.0
@@ -154,19 +162,26 @@ num_offdiagonals(g2::G2RealSpace, _) = 0
 
         # Case of n_i(n_i - 1) on the same component
         if A == B && all(==(0), δ_vec)
-            v1_offset = max.(v1 .- 1, 0)
-            result = setindex(result, dot(v2, v1_offset), i)
+            onr1_offset = max.(onr1 .- 1, 0)
+            result = setindex(result, dot(onr2, onr1_offset), i)
         else
-            result = setindex(result, circshift_dot(v2, v1, δ_vec), i)
+            result = setindex(result, circshift_dot(onr2, onr1, δ_vec), i)
         end
     end
     return result ./ length(geo)
 end
 function diagonal_element(g2::G2RealSpace{A,A}, addr::SingleComponentFockAddress) where {A}
-    return diagonal_element(g2, addr, addr)
+    onr1 = onr(addr, g2.geometry)
+    return _g2_diagonal_element(g2, onr1, onr1)
 end
 function diagonal_element(g2::G2RealSpace{A,B}, addr::CompositeFS) where {A,B}
-    return diagonal_element(g2, addr.components[A], addr.components[B])
+    onr1 = onr(addr.components[A], g2.geometry)
+    onr2 = onr(addr.components[B], g2.geometry)
+    return _g2_diagonal_element(g2, onr1, onr2)
+end
+function diagonal_element(g2::G2RealSpace{0,0}, addr::CompositeFS)
+    onr1 = sum(onr, addr.components)
+    return _g2_diagonal_element(g2, onr1, onr1)
 end
 
 """

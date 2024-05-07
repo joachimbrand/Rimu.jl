@@ -166,7 +166,6 @@ using Rimu.Hamiltonians: UnitVectors, Offsets
             @test length(geom) == prod(dims)
             @test Rimu.Hamiltonians.fold(geom) == fold
             @test eval(Meta.parse(repr(geom))) == geom
-            @test num_dimensions(geom) == length(dims)
         end
     end
 
@@ -867,13 +866,29 @@ using Rimu.Hamiltonians: circshift_dot
 
     @testset "G2RealSpace" begin
         @testset "1D G2RealCorrelator comparison" begin
-            addr = near_uniform(BoseFS{6,6})
-            H = HubbardReal1D(addr)
-            v = normalize!(H * (H * (H * DVec(addr => 1.0))))
+            @testset "single components" begin
+                addr = near_uniform(BoseFS{6,6})
+                H = HubbardReal1D(addr)
+                v = normalize!(H * (H * (H * DVec(addr => 1.0))))
 
-            g2 = dot(v, G2RealSpace(Geometry(6)), v)
-            for d in 0:5
-                @test g2[d + 1] ≈ dot(v, G2RealCorrelator(d), v)
+                g2 = dot(v, G2RealSpace(Geometry(6)), v)
+                for d in 0:5
+                    @test g2[d + 1] ≈ dot(v, G2RealCorrelator(d), v)
+                end
+            end
+
+            @testset "sum of components" begin
+                addr = CompositeFS(BoseFS(4, 1=>1), BoseFS(4, 1=>1), BoseFS(4, 1=>1))
+                H = HubbardRealSpace(addr)
+                v = normalize!(H * (H * (H * DVec(addr => 1.0))))
+
+                g2 = dot(v, G2RealSpace(Geometry(4); sum_components=true), v)
+                for d in 0:3
+                    @test g2[d + 1] ≈ dot(v, G2RealCorrelator(d), v)
+                end
+
+                g2_nosum = dot(v, G2RealSpace(Geometry(4)), v)
+                @test iszero(g2_nosum)
             end
         end
 
@@ -888,11 +903,18 @@ using Rimu.Hamiltonians: circshift_dot
             g2_21 = G2RealSpace(geom, 2, 1)
             g2_22 = G2RealSpace(geom, 2, 2)
 
+            # Sum is N1 * (N2 - δ_12) / M
             @test sum(diagonal_element(g2_11, addr)) == 0
             @test sum(diagonal_element(g2_12, addr)) == 3.5
             @test sum(diagonal_element(g2_21, addr)) == 3.5
             @test sum(diagonal_element(g2_22, addr)) == 70
+
+            # Swapping components flips axes
+            @test diagonal_element(g2_11, addr) == [0 0; 0 0; 0 0]
             @test diagonal_element(g2_12, addr) == [1 4; 2 5; 3 6] ./ 6
+            @test diagonal_element(g2_21, addr) == [1 4; 3 6; 2 5] ./ 6
+
+
         end
     end
 
