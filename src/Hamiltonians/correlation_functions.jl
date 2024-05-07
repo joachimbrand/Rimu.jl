@@ -166,7 +166,7 @@ num_offdiagonals(g2::G2RealSpace, _) = 0
         displacement = Offsets(geo)[i]
 
         # Case of n_i(n_i - 1) on the same component
-        if A == B && is_zero(displacement)
+        if A == B && iszero(displacement)
             onr1_minus_1 = max.(onr1 .- 1, 0)
             result = setindex(result, dot(onr2, onr1_minus_1), i)
         else
