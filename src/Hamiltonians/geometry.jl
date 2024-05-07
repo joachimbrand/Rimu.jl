@@ -2,13 +2,13 @@
     Geometry(dims::NTuple{D,Int}, fold::NTuple{D,Bool})
 
 Represents a `D`-dimensional grid. Used to convert between cartesian vector indices (tuples
-or `SVector`s) and linear indices (integers).
+or `SVector`s) and linear indices (integers). When indexed with vectors, it folds them back
+into the grid if the out-of-bounds dimension is periodic and 0 otherwise (see example
+below).
 
 * `dims` controls the size of the grid in each dimension.
 * `fold` controls whether the boundaries in each dimension are periodic (or folded in the
   case of momentum space).
-
-`Base.getindex` can be used to convert between linear indices and vectors.
 
 ```julia
 julia> geo = Geometry((2,3), (true,false))
