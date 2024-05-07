@@ -21,6 +21,11 @@ function:
 """
 abstract type ReplicaStrategy{N} end
 
+"""
+    num_replicas(state_or_strategy)
+
+Return the number of replicas used in the simulation.
+"""
 num_replicas(::ReplicaStrategy{N}) where {N} = N
 
 """

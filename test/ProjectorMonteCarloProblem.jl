@@ -109,24 +109,29 @@ end
     @test size(DataFrame(sm)) == (0, 0)
 end
 
+using Rimu: num_replicas, num_spectral_states
 @testset "step! and solve!" begin
     h = HubbardReal1D(BoseFS(1, 3))
     p = ProjectorMonteCarloProblem(h; threading=true)
     sm = init(p)
-    @test sm.modified[] == false == sm.aborted[] == sm.success[]
+    @test sm.modified == false == sm.aborted == sm.success
     @test is_finalized(sm.report) == false
     @test sprint(show, sm) == "QMCSimulation\n  H:    HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  step: 0 / 100\n  modified = false, aborted = false, success = false\n  replicas: \n    1: SpectralState with 1 spectral states\n    spectral_strategy: Rimu.GramSchmidt{1}()\n      1: SingleState(v: 1-element PDVec, wm: 0-element PDWorkingMemory)"
 
     @test step!(sm) isa Rimu.QMCSimulation
-    @test sm.modified[] == true
+    @test sm.modified == true
     @test is_finalized(sm.report) == false
     @test size(DataFrame(sm))[1] == sm.qmc_state.step[]
 
     @test solve!(sm) isa Rimu.QMCSimulation
-    @test sm.modified[] == true
-    @test sm.success[] == true
+    @test sm.modified == true
+    @test sm.success == true
     @test is_finalized(sm.report) == true
     @test size(DataFrame(sm))[1] == sm.qmc_state.step[]
+    @test num_replicas(sm) == num_replicas(p) == num_replicas(sm.qmc_state)
+    @test num_spectral_states(sm) == num_spectral_states(p) == num_spectral_states(sm.qmc_state)
+    @test size(state_vectors(sm)) == (num_replicas(sm), num_spectral_states(sm))
+    @test size(single_states(sm)) == (num_replicas(sm), num_spectral_states(sm))
 
     df, state = sm # deconstruction for backward compatibility
     @test df == DataFrame(sm) == sm.df
@@ -140,17 +145,18 @@ end
     @test sm.qmc_state.step[] == 100
     solve!(sm; last_step=200)
     @test sm.qmc_state.step[] == 200
-    @test sm.success[] == true == parse(Bool, (Rimu.get_metadata(sm.report, "success")))
+    @test sm.success == true == parse(Bool, (Rimu.get_metadata(sm.report, "success")))
 
     # time out
     p = ProjectorMonteCarloProblem(h; last_step=500, walltime=1e-3)
     sm = init(p)
     @test_logs (:warn, Regex("(Walltime)")) solve!(sm)
-    @test sm.success[] == false
-    @test sm.aborted[] == true
-    @test sm.message[] == "Walltime limit reached."
+    @test sm.success == false
+    @test sm.aborted == true
+    @test sm.message == "Walltime limit reached."
 
-    solve!(sm; walltime=1.0)
-    @test sm.success[] == true
+    sm2 = solve!(sm; walltime=1.0)
+    @test sm2 === sm
+    @test sm.success == true
     @test sm.qmc_state.step[] == 500
 end

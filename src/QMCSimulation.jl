@@ -9,15 +9,15 @@ Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 See also [`state_vectors`](@ref), [`single_states`](@ref),
 [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref).
 """
-struct QMCSimulation
+mutable struct QMCSimulation
     qmc_problem::ProjectorMonteCarloProblem
     qmc_state::ReplicaState
     report::Report
-    modified::Ref{Bool}
-    aborted::Ref{Bool}
-    success::Ref{Bool}
-    message::Ref{String}
-    elapsed_time::Ref{Float64}
+    modified::Bool
+    aborted::Bool
+    success::Bool
+    message::String
+    elapsed_time::Float64
 end
 
 function _set_up_v(dv::AbstractDVec, copy_vectors, _...)
@@ -129,7 +129,7 @@ function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     check_transform(qmc_state.replica_strategy, qmc_state.hamiltonian)
 
     return QMCSimulation(
-        problem, qmc_state, report, Ref(false), Ref(false), Ref(false), Ref(""), Ref(0.0)
+        problem, qmc_state, report, false, false, false, "", 0.0
     )
 end
 
@@ -141,22 +141,25 @@ function Base.show(io::IO, sm::QMCSimulation)
     end
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
-    print(io, "\n  modified = $(sm.modified[]), aborted = $(sm.aborted[]), success = $(sm.success[])")
-    sm.message[] == "" || print(io, "\n  message: ", sm.message[])
+    print(io, "\n  modified = $(sm.modified), aborted = $(sm.aborted), success = $(sm.success)")
+    sm.message == "" || print(io, "\n  message: ", sm.message)
     print(io, "\n  replicas: ")
     for (i, r) in enumerate(st.replica_states)
         print(io, "\n    $i: ", r)
     end
 end
 
+num_spectral_states(sm::QMCSimulation) = num_spectral_states(sm.qmc_state)
+num_replicas(sm::QMCSimulation) = num_replicas(sm.qmc_state)
+
 function report_simulation_status_metadata!(report::Report, sm::QMCSimulation)
     @unpack modified, aborted, success, message, elapsed_time = sm
 
-    report_metadata!(report, "modified", modified[])
-    report_metadata!(report, "aborted", aborted[])
-    report_metadata!(report, "success", success[])
-    report_metadata!(report, "message", message[])
-    report_metadata!(report, "elapsed_time", elapsed_time[])
+    report_metadata!(report, "modified", modified)
+    report_metadata!(report, "aborted", aborted)
+    report_metadata!(report, "success", success)
+    report_metadata!(report, "message", message)
+    report_metadata!(report, "elapsed_time", elapsed_time)
     return report
 end
 
@@ -196,7 +199,6 @@ single_states(sim::QMCSimulation) = single_states(sim.qmc_state)
 
 # TODO: interface for reading results
 
-num_replicas(s::QMCSimulation) = num_replicas(s.qmc_problem)
 DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
 
 """
@@ -224,11 +226,11 @@ See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref),
 [`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::QMCSimulation)
-    @unpack qmc_state, report, modified, aborted, success, message = sm
+    @unpack qmc_state, report = sm
     @unpack replica_states, simulation_plan, step, reporting_strategy,
         replica_strategy = qmc_state
 
-    if aborted[] || success[]
+    if sm.aborted || sm.success
         @warn "Simulation is already aborted or finished."
         return sm
     end
@@ -249,7 +251,7 @@ function CommonSolve.step!(sm::QMCSimulation)
     for replica in replica_states
         proceed &= advance!(report, qmc_state, replica)
     end
-    modified[] = true
+    sm.modified = true
 
     # report replica stats
     if step[] % reporting_interval(reporting_strategy) == 0
@@ -260,12 +262,12 @@ function CommonSolve.step!(sm::QMCSimulation)
     end
 
     if !proceed
-        aborted[] = true
-        message[] = "Aborted in step $(step[])."
+        sm.aborted = true
+        sm.message = "Aborted in step $(step[])."
         return sm
     end
     if step[] == simulation_plan.last_step
-        success[] = true
+        sm.success = true
     end
     return sm
 end
@@ -298,18 +300,20 @@ function CommonSolve.solve!(sm::QMCSimulation;
     walltime = nothing,
     reset_time = false,
 )
+    @unpack qmc_state = sm
+
     reset_flags = reset_time # reset flags if resetting time
     if !isnothing(last_step)
-        sm = @set sm.qmc_state.simulation_plan.last_step = last_step
+        sm.qmc_state = @set qmc_state.simulation_plan.last_step = last_step
         report_metadata!(sm.report, "laststep", last_step)
         reset_flags = true
     end
     if !isnothing(walltime)
-        sm = @set sm.qmc_state.simulation_plan.walltime = walltime
+        sm.qmc_state = @set qmc_state.simulation_plan.walltime = walltime
         reset_flags = true
     end
 
-    @unpack aborted, success, message, elapsed_time, report = sm
+    @unpack report = sm
     @unpack simulation_plan, step, reporting_strategy = sm.qmc_state
 
     last_step = simulation_plan.last_step
@@ -321,28 +325,28 @@ function CommonSolve.solve!(sm::QMCSimulation;
     end
 
     if reset_flags # reset the flags
-        aborted[] = false
-        success[] = false
-        message[] = ""
+        sm.aborted = false
+        sm.success = false
+        sm.message = ""
     end
     if reset_time # reset the elapsed time
-        elapsed_time[] = 0.0
+        sm.elapsed_time = 0.0
     end
 
-    if aborted[] || success[]
+    if sm.aborted || sm.success
         @warn "Simulation is already aborted or finished."
         return sm
     end
     un_finalize!(report)
 
-    starting_time = time() + elapsed_time[] # simulation time accumulates
+    starting_time = time() + sm.elapsed_time # simulation time accumulates
     update_steps = max((last_step - initial_step) ÷ 200, 100) # log often but not too often
     name = get_metadata(sm.report, "display_name")
 
-    @withprogress name = while !aborted[] && !success[]
+    @withprogress name = while !sm.aborted && !sm.success
         if time() - starting_time > simulation_plan.walltime
-            aborted[] = true
-            message[] = "Walltime limit reached."
+            sm.aborted = true
+            sm.message = "Walltime limit reached."
             @warn "Walltime limit reached. Aborting simulation."
         else
             step!(sm)
@@ -352,7 +356,7 @@ function CommonSolve.solve!(sm::QMCSimulation;
         end
 
     end
-    elapsed_time[] = time() - starting_time
+    sm.elapsed_time = time() - starting_time
     report_simulation_status_metadata!(report, sm) # potentially overwrite values
     finalize_report!(reporting_strategy, report)
     return sm
@@ -388,7 +392,7 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     check_transform(state.replica_strategy, state.hamiltonian)
 
     simulation = QMCSimulation(
-        problem, state, report, Ref(false), Ref(false), Ref(false), "", Ref(0.0)
+        problem, state, report, false, false, false, "", 0.0
     )
     solve!(simulation)
 

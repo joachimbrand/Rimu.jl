@@ -9,7 +9,7 @@ using Parameters: Parameters, @pack!, @unpack, @with_kw
 using ProgressLogging: ProgressLogging, @logprogress, @withprogress
 using Reexport: Reexport, @reexport
 using Setfield: Setfield, @set
-using StaticArrays: StaticArrays, SVector
+using StaticArrays: StaticArrays, SVector, SMatrix
 using StatsBase: StatsBase
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger

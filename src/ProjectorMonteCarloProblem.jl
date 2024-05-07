@@ -78,7 +78,7 @@ julia> size(DataFrame(simulation))
 
 See also [`init`](@ref), [`solve`](@ref).
 """
-struct ProjectorMonteCarloProblem{N} # is not type stable but does not matter
+struct ProjectorMonteCarloProblem{N,S} # is not type stable but does not matter
     hamiltonian::AbstractHamiltonian
     starting_vectors
     style::StochasticStyle
@@ -91,13 +91,32 @@ struct ProjectorMonteCarloProblem{N} # is not type stable but does not matter
     reporting_strategy::ReportingStrategy
     post_step_strategy::Tuple
     time_step_strategy::TimeStepStrategy
-    spectral_strategy::SpectralStrategy
+    spectral_strategy::SpectralStrategy{S}
     maxlength::Int
     metadata::LittleDict{String,String} # user-supplied metadata + display_name
     random_seed::Union{Nothing,UInt64}
 end
-# could be extended later with
-# - `spectral_strategy = NoStats(n_spectral_states)`: strategy for handling excited states
+
+function Base.show(io::IO, p::ProjectorMonteCarloProblem)
+    nr = num_replicas(p)
+    ns = num_spectral_states(p)
+    println(io, "ProjectorMonteCarloProblem with $nr replica(s) and $ns spectral state(s):")
+    println(io, "  Hamiltonian: ", p.hamiltonian)
+    println(io, "  Style: ", p.style)
+    println(io, "  Initiator: ", p.initiator)
+    println(io, "  Threading: ", p.threading)
+    println(io, "  Simulation Plan: ", p.simulation_plan)
+    println(io, "  Replica Strategy: ", p.replica_strategy)
+    println(io, "  Shift Strategy: ", p.shift_strategy)
+    print(io, "  Reporting Strategy: ", p.reporting_strategy)
+    println(io, "  Post Step Strategy: ", p.post_step_strategy)
+    println(io, "  Time Step Strategy: ", p.time_step_strategy)
+    println(io, "  Spectral Strategy: ", p.spectral_strategy)
+    println(io, "  Maxlength: ", p.maxlength)
+    println(io, "  Metadata: ", p.metadata)
+    print(io, "  Random Seed: ", p.random_seed)
+end
+
 
 function ProjectorMonteCarloProblem(
     hamiltonian::AbstractHamiltonian;
@@ -121,7 +140,7 @@ function ProjectorMonteCarloProblem(
     reporting_strategy = ReportDFAndInfo(),
     post_step_strategy = (),
     time_step_strategy = ConstantTimeStep(),
-    spectral_strategy=GramSchmidt(),
+    spectral_strategy = GramSchmidt(),
     maxlength = nothing,
     metadata = nothing,
     display_name = "QMCSimulation",
@@ -191,7 +210,7 @@ function ProjectorMonteCarloProblem(
         post_step_strategy = (post_step_strategy,)
     end
 
-    return ProjectorMonteCarloProblem{n_replicas}(
+    return ProjectorMonteCarloProblem{n_replicas,num_spectral_states(spectral_strategy)}(
         hamiltonian,
         starting_vectors,
         style,
@@ -224,3 +243,4 @@ function _determine_initial_shift(hamiltonian, starting_vectors)
 end
 
 num_replicas(::ProjectorMonteCarloProblem{N}) where N = N
+num_spectral_states(::ProjectorMonteCarloProblem{<:Any,S}) where {S} = S

@@ -83,10 +83,11 @@ end
 function SpectralState(t::Tuple, ss::SpectralStrategy, id="")
     return SpectralState(t, ss, id)
 end
+num_spectral_states(::SpectralState{N}) where {N} = N
 
 function Base.show(io::IO, s::SpectralState)
     print(io, "SpectralState")
-    print(io, " with ", length(s.spectral_states), " spectral states")
+    print(io, " with ", num_spectral_states(s), " spectral states")
     print(io, "\n    spectral_strategy: ", s.spectral_strategy)
     for (i, r) in enumerate(s.spectral_states)
         print(io, "\n      $i: ", r)
@@ -123,9 +124,10 @@ See also [`ReplicaStrategy`](@ref), [`SpectralState`](@ref)s, [`SingleState`](@r
 [`QMCSimulation`](@ref).
 """
 struct ReplicaState{
+    N, # number of replicas
+    S, # number of spectral states
     H,
-    N,
-    R<:NTuple{N,<:SpectralState},
+    R<:NTuple{N,<:SpectralState{S}},
     RS<:ReportingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
@@ -134,7 +136,6 @@ struct ReplicaState{
     replica_states::R
     maxlength::Ref{Int}
     step::Ref{Int}
-    # laststep::Ref{Int}
     simulation_plan::SimulationPlan
     reporting_strategy::RS
     post_step_strategy::PS
@@ -260,9 +261,13 @@ function ReplicaState(
     )
 end
 
+num_replicas(::ReplicaState{N}) where {N} = N
+num_spectral_states(::ReplicaState{<:Any, S}) where {S} = S
+
 function Base.show(io::IO, st::ReplicaState)
     print(io, "ReplicaState")
-    print(io, " with ", length(st.replica_states), " replicas")
+    print(io, " with ", num_replicas(st), " replicas  and ")
+    print(io, num_spectral_states(st), " spectral states")
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  replicas: ")
@@ -280,8 +285,9 @@ corresponds to the spectral state index and the column index corresponds to the 
 See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
 [`SpectralState`](@ref), [`QMCSimulation`](@ref).
 """
-function state_vectors(state::ReplicaState)
-    return mapreduce(state_vectors, hcat, state.replica_states)
+function state_vectors(state::ReplicaState{N,S}) where {N,S}
+    # Annoyingly this function is allocating if N > 1
+    return SMatrix{S,N}(mapreduce(state_vectors, hcat, state.replica_states))
 end
 
 """
@@ -293,8 +299,8 @@ corresponds to the spectral state index and the column index corresponds to the 
 See also [`state_vectors`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
 [`SpectralState`](@ref), [`QMCSimulation`](@ref).
 """
-function single_states(state::ReplicaState)
-    return mapreduce(single_states, hcat, state.replica_states)
+function single_states(state::ReplicaState{N,S}) where {N,S}
+    return SMatrix{S,N}(mapreduce(single_states, hcat, state.replica_states))
 end
 
 function report_default_metadata!(report::Report, state::ReplicaState)
