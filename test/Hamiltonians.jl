@@ -5,6 +5,7 @@ using Rimu
 using Test
 using DataFrames
 using Suppressor
+using StaticArrays
 
 function exact_energy(ham)
     dv = DVec(starting_address(ham) => 1.0)
@@ -146,6 +147,61 @@ using Rimu.Hamiltonians: momentum_transfer_excitation
             num_nonzero += ex[3] == 1
         end
         @test num_nonzero == 1
+    end
+end
+
+using Rimu.Hamiltonians: UnitVectors, Offsets
+
+@testset "Geometry" begin
+    @testset "construtors and basic properties" begin
+        @test PeriodicBoundaries(3, 3) == Geometry(3, 3)
+        @test HardwallBoundaries(3, 4, 5) == Geometry((3, 4, 5), (false, false, false))
+        @test LadderBoundaries(2, 3, 4) == Geometry((2, 3, 4), (false, true, true))
+
+        for (dims, fold) in (
+            ((4,), (false,)), ((2, 5), (true, false)), ((5, 6, 7), (true, true, false))
+        )
+            geom = Geometry(dims, fold)
+            @test size(geom) == dims
+            @test length(geom) == prod(dims)
+            @test Rimu.Hamiltonians.fold(geom) == fold
+            @test eval(Meta.parse(repr(geom))) == geom
+            @test num_dimensions(geom) == length(dims)
+        end
+    end
+
+    @testset "getindex" begin
+        g = Geometry((2,3,4), (false,true,false))
+        for i in 1:length(g)
+            v = SVector(Tuple(CartesianIndices((2,3,4))[i])...)
+            @test g[i] == v
+            @test g[v] == i
+        end
+
+        @test g[SVector(3, 1, 1)] == 0
+        @test g[SVector(1,4,1)] == 1
+        @test g[SVector(2,0,4)] == 24
+        @test g[SVector(2,3,0)] == 0
+    end
+
+    @testset "UnitVectors" begin
+        @test UnitVectors(1) == [[1], [-1]]
+        @test UnitVectors(Geometry(2,3)) == [[1,0], [0,1], [-1,0], [0,-1]]
+        @test UnitVectors(3) == [[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1]]
+        @test_throws BoundsError UnitVectors(3)[0]
+        @test_throws BoundsError UnitVectors(2)[5]
+        @test_throws BoundsError UnitVectors(1)[15]
+    end
+
+    @testset "Offsets" begin
+        @test collect(Offsets(Geometry(3), center=false)) == [[0], [1], [2]]
+        @test collect(Offsets(Geometry(3), center=true)) == [[-1], [0], [1]]
+
+        @test collect(Offsets(Geometry(2,2))) == [[0,0], [1,0], [0,1], [1,1]]
+        @test collect(Offsets(Geometry(2,3))) == [[0,0], [1,0], [0,1], [1,1], [0,2], [1,2]]
+        @test collect(Offsets(Geometry(2,3); center=true)) == [
+            [0,-1], [1,-1], [0,0], [1,0], [0,1], [1,1]
+        ]
     end
 end
 

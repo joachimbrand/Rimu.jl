@@ -164,7 +164,9 @@ julia> reshape(Offsets(geometry), (3,4))
 """
 struct Offsets{D} <: AbstractVector{SVector{D,Int}}
     geometry::Geometry{D}
+    center::Bool
 end
+Offsets(geometry; center=false) = Offsets(geometry, center)
 
 Base.size(off::Offsets) = (length(off.geometry),)
 
@@ -172,7 +174,11 @@ Base.size(off::Offsets) = (length(off.geometry),)
     @boundscheck 0 < i ≤ length(off) || throw(BoundsError(off, i))
     geo = off.geometry
     vec = geo[i]
-    return vec - ones(SVector{D,Int})#+ SVector(ntuple(i -> -cld(size(geo, i), 2), Val(D)))
+    if !off.center
+        return vec - ones(SVector{D,Int})
+    else
+        return vec - SVector(ntuple(i -> cld(size(geo, i), 2), Val(D)))
+    end
 end
 
 """
