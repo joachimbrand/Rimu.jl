@@ -92,7 +92,7 @@ include("ProjectorMonteCarloProblem.jl")
 
 include("qmc_states.jl")
 include("lomc.jl")                  # top level
-include("QMCSimulation.jl")
+include("PMCSimulation.jl")
 
 include("RMPI/RMPI.jl")
 

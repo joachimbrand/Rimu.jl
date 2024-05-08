@@ -10,7 +10,7 @@ struct FCIQMC end
 Defines the duration of the simulation. The simulation ends when the `last_step` is reached
 or the `walltime` is exceeded.
 
-See [`ProjectorMonteCarloProblem`](@ref), [`QMCSimulation`](@ref).
+See [`ProjectorMonteCarloProblem`](@ref), [`PMCSimulation`](@ref).
 """
 Base.@kwdef struct SimulationPlan
     starting_step::Int = 0
@@ -80,7 +80,7 @@ julia> size(DataFrame(simulation))
 - `time_step_strategy = ConstantTimeStep()`: Adjust time step or not, see
   [`TimeStepStrategy`](@ref).
 - `maxlength = 2 * targetwalkers + 100`: Maximum length of the vectors.
-- `display_name = "QMCSimulation"`: Name displayed in progress bar (via `ProgressLogging`).
+- `display_name = "PMCSimulation"`: Name displayed in progress bar (via `ProgressLogging`).
 - `metadata`: User-supplied metadata to be added to the report. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
   All metadata is converted to strings.
@@ -157,7 +157,7 @@ function ProjectorMonteCarloProblem(
     spectral_strategy = GramSchmidt(),
     maxlength = nothing,
     metadata = nothing,
-    display_name = "QMCSimulation",
+    display_name = "PMCSimulation",
     random_seed = true
 )
     n_replicas = num_replicas(replica_strategy) # replica_strategy may override n_replicas

@@ -6,7 +6,7 @@ of the algorithm. Can be advanced a step forward with [`advance!`](@ref).
 
 See also [`SpectralState`](@ref), [`SpectralStrategy`](@ref),
 [`ReplicaState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
-[`QMCSimulation`](@ref).
+[`PMCSimulation`](@ref).
 """
 mutable struct SingleState{H,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy,SP}
     # Future TODO: rename these fields, add interface for accessing them.
@@ -45,7 +45,7 @@ end
 Returns a collection of configuration vectors from the `state`.
 
 See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
-[`SpectralState`](@ref), [`QMCSimulation`](@ref).
+[`SpectralState`](@ref), [`PMCSimulation`](@ref).
 """
 function state_vectors(state::SingleState)
     return SVector(state.v,)
@@ -57,7 +57,7 @@ end
 Returns a collection of `SingleState`s from the `state`.
 
 See also [`state_vectors`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
-[`SpectralState`](@ref), [`QMCSimulation`](@ref).
+[`SpectralState`](@ref), [`PMCSimulation`](@ref).
 """
 function single_states(state::SingleState)
     return SVector(state,)
@@ -69,7 +69,7 @@ Holds one or several [`SingleState`](@ref)s representing the ground state and ex
 states of a single replica.
 
 See also [`SpectralStrategy`](@ref), [`ReplicaState`](@ref), [`SingleState`](@ref),
-[`QMCSimulation`](@ref).
+[`PMCSimulation`](@ref).
 """
 struct SpectralState{
     N,
@@ -121,7 +121,7 @@ end
 Holds information about multiple replicas of [`SpectralState`](@ref)s.
 
 See also [`ReplicaStrategy`](@ref), [`SpectralState`](@ref)s, [`SingleState`](@ref),
-[`QMCSimulation`](@ref).
+[`PMCSimulation`](@ref).
 """
 struct ReplicaState{
     N, # number of replicas
@@ -283,7 +283,7 @@ The vectors can be accessed by indexing the resulting collection, where the row 
 corresponds to the spectral state index and the column index corresponds to the row index.
 
 See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
-[`SpectralState`](@ref), [`QMCSimulation`](@ref).
+[`SpectralState`](@ref), [`PMCSimulation`](@ref).
 """
 @inline function state_vectors(state::ReplicaState{N,S}) where {N,S}
     # Annoyingly this function is allocating if N > 1
@@ -300,7 +300,7 @@ The `SingleState`s can be accessed by indexing the resulting collection, where t
 corresponds to the spectral state index and the column index corresponds to the row index.
 
 See also [`state_vectors`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
-[`SpectralState`](@ref), [`QMCSimulation`](@ref).
+[`SpectralState`](@ref), [`PMCSimulation`](@ref).
 """
 function single_states(state::ReplicaState{N,S}) where {N,S}
     return SMatrix{S,N}(mapreduce(single_states, hcat, state.spectral_states))

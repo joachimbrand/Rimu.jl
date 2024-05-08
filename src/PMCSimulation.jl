@@ -1,15 +1,15 @@
 """
-    QMCSimulation
-Holds the state and the results of a QMC simulation. Initialise with
-[`init(::ProjectorMonteCarloProblem)`](@ref) and solve with
-[`solve!(::QMCSimulation)`](@ref).
+    PMCSimulation
+Holds the state and the results of a projector quantum Monte Carlo (PMC) simulation.
+Initialise with [`init(::ProjectorMonteCarloProblem)`](@ref) and solve with
+[`solve!(::PMCSimulation)`](@ref).
 
 Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 
 See also [`state_vectors`](@ref), [`single_states`](@ref),
 [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref).
 """
-mutable struct QMCSimulation
+mutable struct PMCSimulation
     problem::ProjectorMonteCarloProblem
     algorithm # currently only FCIQMC() is implemented
     state::ReplicaState
@@ -42,7 +42,7 @@ function _set_up_v(fdv::FrozenDVec, _, style, initiator, threading)
     return v
 end
 
-function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
+function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     @unpack algorithm, hamiltonian, starting_vectors, style, threading, simulation_plan,
         replica_strategy, shift_strategy, initial_shift_parameters,
         reporting_strategy, post_step_strategy, time_step_strategy,
@@ -130,13 +130,13 @@ function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     # Sanity checks.
     check_transform(state.replica_strategy, state.hamiltonian)
 
-    return QMCSimulation(
+    return PMCSimulation(
         problem, algorithm, state, report, false, false, false, "", 0.0
     )
 end
 
-function Base.show(io::IO, sm::QMCSimulation)
-    print(io, "QMCSimulation")
+function Base.show(io::IO, sm::PMCSimulation)
+    print(io, "PMCSimulation")
     st = sm.state
     print(io, " with ", num_replicas(st), " replica(s) and ")
     print(io, num_spectral_states(st), " spectral state(s).")
@@ -147,10 +147,10 @@ function Base.show(io::IO, sm::QMCSimulation)
     sm.message == "" || print(io, "\n  message: ", sm.message)
 end
 
-num_spectral_states(sm::QMCSimulation) = num_spectral_states(sm.state)
-num_replicas(sm::QMCSimulation) = num_replicas(sm.state)
+num_spectral_states(sm::PMCSimulation) = num_spectral_states(sm.state)
+num_replicas(sm::PMCSimulation) = num_replicas(sm.state)
 
-function report_simulation_status_metadata!(report::Report, sm::QMCSimulation)
+function report_simulation_status_metadata!(report::Report, sm::PMCSimulation)
     @unpack modified, aborted, success, message, elapsed_time = sm
 
     report_metadata!(report, "modified", modified)
@@ -163,7 +163,7 @@ end
 
 # iteration for backward compatibility
 # undocumented; may be removed in the future
-function Base.iterate(sm::QMCSimulation, state=1)
+function Base.iterate(sm::PMCSimulation, state=1)
     if state == 1
         return DataFrame(sm), 2
     elseif state == 2
@@ -174,7 +174,7 @@ function Base.iterate(sm::QMCSimulation, state=1)
 end
 # getproperty access to :df and :state fields for backward compatibility
 # undocumented; may be removed in the future
-function Base.getproperty(sm::QMCSimulation, key::Symbol)
+function Base.getproperty(sm::PMCSimulation, key::Symbol)
     if key == :df
         return DataFrame(sm)
     else
@@ -185,32 +185,32 @@ end
 # Tables.jl integration: provide access to report.data
 # Note that using the `Tables` interface will not include metadata in the output.
 # To include metadata, use the `DataFrame` constructor.
-Tables.istable(::Type{<:QMCSimulation}) = true
-Tables.columnaccess(::Type{<:QMCSimulation}) = true
-Tables.columns(sm::QMCSimulation) = Tables.columns(sm.report.data)
-Tables.schema(sm::QMCSimulation) = Tables.schema(sm.report.data)
+Tables.istable(::Type{<:PMCSimulation}) = true
+Tables.columnaccess(::Type{<:PMCSimulation}) = true
+Tables.columns(sm::PMCSimulation) = Tables.columns(sm.report.data)
+Tables.schema(sm::PMCSimulation) = Tables.schema(sm.report.data)
 
-state_vectors(sim::QMCSimulation) = state_vectors(sim.state)
-single_states(sim::QMCSimulation) = single_states(sim.state)
+state_vectors(sim::PMCSimulation) = state_vectors(sim.state)
+single_states(sim::PMCSimulation) = single_states(sim.state)
 
 # TODO: interface for reading results
 
-DataFrames.DataFrame(s::QMCSimulation) = DataFrame(s.report)
+DataFrames.DataFrame(s::PMCSimulation) = DataFrame(s.report)
 
 """
-    init(problem::ProjectorMonteCarloProblem; copy_vectors=true)::QMCSimulation
+    init(problem::ProjectorMonteCarloProblem; copy_vectors=true)::PMCSimulation
 
-Initialise a [`Rimu.QMCSimulation`](@ref).
+Initialise a [`Rimu.PMCSimulation`](@ref).
 
 See also [`ProjectorMonteCarloProblem`](@ref), [`solve!`](@ref), [`solve`](@ref),
-[`step!`](@ref), [`Rimu.QMCSimulation`](@ref).
+[`step!`](@ref), [`Rimu.PMCSimulation`](@ref).
 """
 function CommonSolve.init(problem::ProjectorMonteCarloProblem; copy_vectors=true)
-    return QMCSimulation(problem; copy_vectors)
+    return PMCSimulation(problem; copy_vectors)
 end
 
 """
-    step!(sm::QMCSimulation)::QMCSimulation
+    step!(sm::PMCSimulation)::PMCSimulation
 
 Advance the simulation by one step.
 
@@ -219,9 +219,9 @@ exceeded. When completing the simulation without calling [`solve!`](@ref), the s
 report needs to be finalised by calling [`Rimu.finalize_report!`](@ref).
 
 See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref), [`solve`](@ref),
-[`Rimu.QMCSimulation`](@ref).
+[`Rimu.PMCSimulation`](@ref).
 """
-function CommonSolve.step!(sm::QMCSimulation)
+function CommonSolve.step!(sm::PMCSimulation)
     @unpack state, report, algorithm = sm
     @unpack spectral_states, simulation_plan, step, reporting_strategy,
         replica_strategy = state
@@ -269,17 +269,17 @@ function CommonSolve.step!(sm::QMCSimulation)
 end
 
 """
-    CommonSolve.solve(::ProjectorMonteCarloProblem)::QMCSimulation
+    CommonSolve.solve(::ProjectorMonteCarloProblem)::PMCSimulation
 
 Initialize and solve the simulation until the last step or the walltime is exceeded.
 
 See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref),
-[`step!`](@ref), [`Rimu.QMCSimulation`](@ref).
+[`step!`](@ref), [`Rimu.PMCSimulation`](@ref).
 """
 CommonSolve.solve
 
 """
-    CommonSolve.solve!(sm::QMCSimulation; kwargs...)::QMCSimulation
+    CommonSolve.solve!(sm::PMCSimulation; kwargs...)::PMCSimulation
 
 Solve the simulation until the last step or the walltime is exceeded.
 
@@ -289,9 +289,9 @@ Solve the simulation until the last step or the walltime is exceeded.
 * `reset_time = false`: Reset the `elapsed_time` counter and continue the simulation.
 
 See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve`](@ref), [`step!`](@ref),
-[`Rimu.QMCSimulation`](@ref).
+[`Rimu.PMCSimulation`](@ref).
 """
-function CommonSolve.solve!(sm::QMCSimulation;
+function CommonSolve.solve!(sm::PMCSimulation;
     last_step = nothing,
     walltime = nothing,
     reset_time = false,
@@ -387,7 +387,7 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     # Sanity checks.
     check_transform(state.replica_strategy, state.hamiltonian)
 
-    simulation = QMCSimulation(
+    simulation = PMCSimulation(
         problem, FCIQMC(), state, report, false, false, false, "", 0.0
     )
     solve!(simulation)

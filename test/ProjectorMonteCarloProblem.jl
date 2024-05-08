@@ -64,7 +64,7 @@ using OrderedCollections: freeze
     @test_throws BoundsError sm.state.spectral_states[3]
 end
 
-@testset "QMCSimulation" begin
+@testset "PMCSimulation" begin
     h = HubbardReal1D(BoseFS(1, 3))
     p = ProjectorMonteCarloProblem(h) # generates random_seed
     @test p.random_seed isa UInt64
@@ -116,14 +116,14 @@ using Rimu: num_replicas, num_spectral_states
     sm = init(p)
     @test sm.modified == false == sm.aborted == sm.success
     @test is_finalized(sm.report) == false
-    @test sprint(show, sm) == "QMCSimulation with 1 replica(s) and 1 spectral state(s).\n  Algorithm:   FCIQMC()\n  Hamiltonian: HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  Step:        0 / 100\n  modified = false, aborted = false, success = false"
+    @test sprint(show, sm) == "PMCSimulation with 1 replica(s) and 1 spectral state(s).\n  Algorithm:   FCIQMC()\n  Hamiltonian: HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  Step:        0 / 100\n  modified = false, aborted = false, success = false"
 
-    @test step!(sm) isa Rimu.QMCSimulation
+    @test step!(sm) isa Rimu.PMCSimulation
     @test sm.modified == true
     @test is_finalized(sm.report) == false
     @test size(DataFrame(sm))[1] == sm.state.step[]
 
-    @test solve!(sm) isa Rimu.QMCSimulation
+    @test solve!(sm) isa Rimu.PMCSimulation
     @test sm.modified == true
     @test sm.success == true
     @test is_finalized(sm.report) == true
