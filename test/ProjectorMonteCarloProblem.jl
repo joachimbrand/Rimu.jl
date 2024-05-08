@@ -16,6 +16,7 @@ using OrderedCollections: freeze
     @test sp.pnorm isa Float64
     @test p.maxlength == 2 * p.shift_strategy.targetwalkers + 100
     @test Rimu.num_replicas(p) == 1
+    @test startswith(sprint(show, p), "ProjectorMonteCarloProblem with 1 replica(s)")
 
     simulation = init(p)
     @test simulation.state.hamiltonian == h

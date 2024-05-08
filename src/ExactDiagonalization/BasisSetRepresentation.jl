@@ -302,7 +302,6 @@ function fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
         passed = isapprox(A, A'; kwargs...)
         if !passed
             throw(ArgumentError("Matrix is not approximately hermitian."))
-            return A
         end
     end
     @. A = 1 / 2 * (A + A')
