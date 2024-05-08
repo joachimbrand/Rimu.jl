@@ -106,7 +106,7 @@ end
                         laststep=1,
                     )
 
-                    r = only(only(st.replica_states).spectral_states)
+                    r = only(only(st.spectral_states).single_states)
 
                     # Warmup for step!
                     apply_operator_wrap!(r)

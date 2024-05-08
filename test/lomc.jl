@@ -29,15 +29,15 @@ Random.seed!(1234)
         v = copy(dv)
         wm = copy(dv)
         df, state = lomc!(H, v; wm, laststep=9)
-        @test state.replica_states[1].spectral_states[1].wm === wm # after number of steps divisible by 3
+        @test state.spectral_states[1].single_states[1].wm === wm # after number of steps divisible by 3
         @test state_vectors(state)[1] === v
-        @test state.replica_states[1].spectral_states[1].pv !== v
-        @test state.replica_states[1].spectral_states[1].pv !== wm
+        @test state.spectral_states[1].single_states[1].pv !== v
+        @test state.spectral_states[1].single_states[1].pv !== wm
 
         # @set state.simulation_plan.last_step = 10
         df = lomc!(state, df, laststep=10).df
-        @test state.replica_states[1].spectral_states[1].v === wm
-        @test state.replica_states[1].spectral_states[1].pv === v
+        @test state.spectral_states[1].single_states[1].v === wm
+        @test state.spectral_states[1].single_states[1].pv === v
 
         @test size(df, 1) == 10
         @test state.step[] == 10
@@ -58,8 +58,8 @@ Random.seed!(1234)
         H = HubbardReal1D(address; u=0.1)
         dv = DVec(address => 1; style=IsStochasticInteger())
         df, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
-        @test state.replica_states[1].spectral_states[1].shift_parameters.time_step  == 0.002
-        @test state.replica_states[1].spectral_states[1].shift_parameters.shift == 23.1
+        @test state.spectral_states[1].single_states[1].shift_parameters.time_step  == 0.002
+        @test state.spectral_states[1].single_states[1].shift_parameters.shift == 23.1
         @test state.replica_strategy == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
@@ -96,7 +96,7 @@ Random.seed!(1234)
         @test median(walkers) ≈ 1000 rtol=0.1
 
         _, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, copy(dv); targetwalkers=500, laststep=0)
-        @test state.replica_states[1].spectral_states[1].s_strat.targetwalkers == 500
+        @test state.spectral_states[1].single_states[1].s_strat.targetwalkers == 500
     end
 
     @testset "Replicas" begin
@@ -107,13 +107,13 @@ Random.seed!(1234)
             dv = DVec(address => 1, style=IsDynamicSemistochastic())
             df, state = lomc!(H, dv; replica_strategy=NoStats(1))
             @test state.replica_strategy == NoStats(1)
-            @test length(state.replica_states) == 1
+            @test length(state.spectral_states) == 1
             @test "shift" ∈ names(df)
             @test "shift_1" ∉ names(df)
 
             df, state = lomc!(H, dv; replica_strategy=NoStats(3))
             @test state.replica_strategy == NoStats(3)
-            @test length(state.replica_states) == 3
+            @test length(state.spectral_states) == 3
             @test df.shift_1 ≠ df.shift_2 && df.shift_2 ≠ df.shift_3
             @test "shift_4" ∉ names(df)
 
@@ -507,7 +507,7 @@ Random.seed!(1234)
             @test all(≈(3), sum.(df.single_particle_density[2:2:end]))
 
             @test df.single_particle_density[end] == single_particle_density(
-                st.replica_states[1].spectral_states[1].v
+                st.spectral_states[1].single_states[1].v
             )
 
             for address in (

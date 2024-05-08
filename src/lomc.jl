@@ -230,7 +230,7 @@ function advance!(::FCIQMC, report, state::ReplicaState, replica::SingleState)
     end
 
     if len == 0
-        if length(state.replica_states) > 1
+        if length(state.spectral_states) > 1
             @error "population in replica $(replica.id) is dead. Aborting."
         else
             @error "population is dead. Aborting."
@@ -238,7 +238,7 @@ function advance!(::FCIQMC, report, state::ReplicaState, replica::SingleState)
         return false
     end
     if len > state.maxlength[]
-        if length(state.replica_states) > 1
+        if length(state.spectral_states) > 1
             @error "`maxlength` reached in replica $(replica.id). Aborting."
         else
             @error "`maxlength` reached. Aborting."
@@ -249,6 +249,6 @@ function advance!(::FCIQMC, report, state::ReplicaState, replica::SingleState)
 end
 
 function advance!(algorithm, report, state::ReplicaState, replica::SpectralState{1})
-    return advance!(algorithm, report, state, only(replica.spectral_states))
+    return advance!(algorithm, report, state, only(replica.single_states))
 end
 # TODO: add advance! for SpectralState{N} where N > 1

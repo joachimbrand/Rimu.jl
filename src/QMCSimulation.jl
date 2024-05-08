@@ -10,9 +10,9 @@ See also [`state_vectors`](@ref), [`single_states`](@ref),
 [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref).
 """
 mutable struct QMCSimulation
-    qmc_problem::ProjectorMonteCarloProblem
+    problem::ProjectorMonteCarloProblem
     algorithm # currently only FCIQMC() is implemented
-    qmc_state::ReplicaState
+    state::ReplicaState
     report::Report
     modified::Bool
     aborted::Bool
@@ -76,9 +76,9 @@ function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     end
     wm = working_memory(first(vectors))
 
-    # set up the replica_states
+    # set up the spectral_states
     if n_replicas == 1
-        replica_states =  (SpectralState(
+        spectral_states =  (SpectralState(
             (SingleState(
                 hamiltonian,
                 only(vectors),
@@ -92,7 +92,7 @@ function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
             spectral_strategy
         ),)
     else
-        replica_states = ntuple(n_replicas) do i
+        spectral_states = ntuple(n_replicas) do i
             v, sp = vectors[i], shift_parameters[i]
             rwm = (typeof(v) == typeof(first(vectors))) ? wm : working_memory(v)
             SpectralState(
@@ -110,12 +110,12 @@ function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
             )
         end
     end
-    @assert replica_states isa NTuple{n_replicas, <:SpectralState}
+    @assert spectral_states isa NTuple{n_replicas, <:SpectralState}
 
     # set up the initial state
-    qmc_state = ReplicaState(
+    state = ReplicaState(
         hamiltonian, # hamiltonian
-        replica_states, # replica_states
+        spectral_states, # spectral_states
         Ref(maxlength), # maxlength
         Ref(simulation_plan.starting_step), # step
         simulation_plan, # simulation_plan
@@ -125,19 +125,19 @@ function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     )
     report = Report()
     report_metadata!(report, "algorithm", algorithm)
-    report_default_metadata!(report, qmc_state)
+    report_default_metadata!(report, state)
     report_metadata!(report, metadata) # add user metadata
     # Sanity checks.
-    check_transform(qmc_state.replica_strategy, qmc_state.hamiltonian)
+    check_transform(state.replica_strategy, state.hamiltonian)
 
     return QMCSimulation(
-        problem, algorithm, qmc_state, report, false, false, false, "", 0.0
+        problem, algorithm, state, report, false, false, false, "", 0.0
     )
 end
 
 function Base.show(io::IO, sm::QMCSimulation)
     print(io, "QMCSimulation")
-    st = sm.qmc_state
+    st = sm.state
     print(io, " with ", num_replicas(st), " replica(s) and ")
     print(io, num_spectral_states(st), " spectral state(s).")
     print(io, "\n  Algorithm:   ", sm.algorithm)
@@ -147,8 +147,8 @@ function Base.show(io::IO, sm::QMCSimulation)
     sm.message == "" || print(io, "\n  message: ", sm.message)
 end
 
-num_spectral_states(sm::QMCSimulation) = num_spectral_states(sm.qmc_state)
-num_replicas(sm::QMCSimulation) = num_replicas(sm.qmc_state)
+num_spectral_states(sm::QMCSimulation) = num_spectral_states(sm.state)
+num_replicas(sm::QMCSimulation) = num_replicas(sm.state)
 
 function report_simulation_status_metadata!(report::Report, sm::QMCSimulation)
     @unpack modified, aborted, success, message, elapsed_time = sm
@@ -167,7 +167,7 @@ function Base.iterate(sm::QMCSimulation, state=1)
     if state == 1
         return DataFrame(sm), 2
     elseif state == 2
-        return sm.qmc_state, 3
+        return sm.state, 3
     else
         return nothing
     end
@@ -177,8 +177,6 @@ end
 function Base.getproperty(sm::QMCSimulation, key::Symbol)
     if key == :df
         return DataFrame(sm)
-    elseif key == :state
-        return sm.qmc_state
     else
         return getfield(sm, key)
     end
@@ -192,8 +190,8 @@ Tables.columnaccess(::Type{<:QMCSimulation}) = true
 Tables.columns(sm::QMCSimulation) = Tables.columns(sm.report.data)
 Tables.schema(sm::QMCSimulation) = Tables.schema(sm.report.data)
 
-state_vectors(sim::QMCSimulation) = state_vectors(sim.qmc_state)
-single_states(sim::QMCSimulation) = single_states(sim.qmc_state)
+state_vectors(sim::QMCSimulation) = state_vectors(sim.state)
+single_states(sim::QMCSimulation) = single_states(sim.state)
 
 # TODO: interface for reading results
 
@@ -224,9 +222,9 @@ See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref),
 [`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::QMCSimulation)
-    @unpack qmc_state, report, algorithm = sm
-    @unpack replica_states, simulation_plan, step, reporting_strategy,
-        replica_strategy = qmc_state
+    @unpack state, report, algorithm = sm
+    @unpack spectral_states, simulation_plan, step, reporting_strategy,
+        replica_strategy = state
 
     if sm.aborted || sm.success
         @warn "Simulation is already aborted or finished."
@@ -245,17 +243,17 @@ function CommonSolve.step!(sm::QMCSimulation)
     end
 
     proceed = true
-    # advance all replica_states
-    for replica in replica_states
-        proceed &= advance!(algorithm, report, qmc_state, replica)
+    # advance all spectral_states
+    for replica in spectral_states
+        proceed &= advance!(algorithm, report, state, replica)
     end
     sm.modified = true
 
     # report replica stats
     if step[] % reporting_interval(reporting_strategy) == 0
-        replica_names, replica_values = replica_stats(replica_strategy, replica_states)
+        replica_names, replica_values = replica_stats(replica_strategy, spectral_states)
         report!(reporting_strategy, step[], report, replica_names, replica_values)
-        report_after_step!(reporting_strategy, step[], report, qmc_state)
+        report_after_step!(reporting_strategy, step[], report, state)
         ensure_correct_lengths(report)
     end
 
@@ -298,21 +296,21 @@ function CommonSolve.solve!(sm::QMCSimulation;
     walltime = nothing,
     reset_time = false,
 )
-    @unpack qmc_state = sm
+    @unpack state = sm
 
     reset_flags = reset_time # reset flags if resetting time
     if !isnothing(last_step)
-        sm.qmc_state = @set qmc_state.simulation_plan.last_step = last_step
+        sm.state = @set state.simulation_plan.last_step = last_step
         report_metadata!(sm.report, "laststep", last_step)
         reset_flags = true
     end
     if !isnothing(walltime)
-        sm.qmc_state = @set qmc_state.simulation_plan.walltime = walltime
+        sm.state = @set state.simulation_plan.walltime = walltime
         reset_flags = true
     end
 
     @unpack report = sm
-    @unpack simulation_plan, step, reporting_strategy = sm.qmc_state
+    @unpack simulation_plan, step, reporting_strategy = sm.state
 
     last_step = simulation_plan.last_step
     initial_step = step[]
@@ -365,9 +363,9 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     if !iszero(laststep)
         state = @set state.simulation_plan.last_step = laststep
     end
-    @unpack hamiltonian, replica_states, maxlength, step, simulation_plan,
+    @unpack hamiltonian, spectral_states, maxlength, step, simulation_plan,
         reporting_strategy, post_step_strategy, replica_strategy = state
-    first_replica = only(first(replica_states).spectral_states) # SingleState
+    first_replica = only(first(spectral_states).single_states) # SingleState
     @assert step[] ≥ simulation_plan.starting_step
     problem = ProjectorMonteCarloProblem(hamiltonian;
         start_at = first_replica.v,

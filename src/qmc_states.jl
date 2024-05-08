@@ -76,7 +76,7 @@ struct SpectralState{
     NS<:NTuple{N,SingleState},
     SS<:SpectralStrategy{N}
 }
-    spectral_states::NS # Tuple of SingleState
+    single_states::NS # Tuple of SingleState
     spectral_strategy::SS # SpectralStrategy
     id::String # id is appended to column names
 end
@@ -89,17 +89,17 @@ function Base.show(io::IO, s::SpectralState)
     print(io, "SpectralState")
     print(io, " with ", num_spectral_states(s), " spectral states")
     print(io, "\n    spectral_strategy: ", s.spectral_strategy)
-    for (i, r) in enumerate(s.spectral_states)
+    for (i, r) in enumerate(s.single_states)
         print(io, "\n      $i: ", r)
     end
 end
 
 function state_vectors(state::SpectralState)
-    return mapreduce(state_vectors, vcat, state.spectral_states)
+    return mapreduce(state_vectors, vcat, state.single_states)
 end
 
 function single_states(state::SpectralState)
-    return mapreduce(single_states, vcat, state.spectral_states)
+    return mapreduce(single_states, vcat, state.single_states)
 end
 
 """
@@ -133,7 +133,7 @@ struct ReplicaState{
     PS<:NTuple{<:Any,PostStepStrategy},
 }
     hamiltonian::H
-    replica_states::R
+    spectral_states::R
     maxlength::Ref{Int}
     step::Ref{Int}
     simulation_plan::SimulationPlan
@@ -223,14 +223,14 @@ function ReplicaState(
         post_step_strategy = (post_step_strategy,)
     end
 
-    # set up spectral_states
+    # set up single_states
     n_spectral_states = num_spectral_states(spectral_strategy)
     n_spectral_states == 1 || throw(ArgumentError("Only one spectral state is supported."))
 
-    # Set up replica_states
+    # Set up spectral_states
     nreplicas = num_replicas(replica_strategy)
     if nreplicas > 1
-        replica_states = ntuple(nreplicas) do i
+        spectral_states = ntuple(nreplicas) do i
             SpectralState(
                 (SingleState(
                     hamiltonian,
@@ -246,14 +246,14 @@ function ReplicaState(
             )
         end
     else
-        replica_states = (SpectralState(
+        spectral_states = (SpectralState(
             (SingleState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),),
             spectral_strategy
         ),)
     end
 
     return ReplicaState(
-        hamiltonian, replica_states, Ref(Int(maxlength)),
+        hamiltonian, spectral_states, Ref(Int(maxlength)),
         Ref(simulation_plan.starting_step), # step
         simulation_plan,
         # Ref(Int(laststep)),
@@ -271,7 +271,7 @@ function Base.show(io::IO, st::ReplicaState)
     print(io, "\n  H:    ", st.hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  replicas: ")
-    for (i, r) in enumerate(st.replica_states)
+    for (i, r) in enumerate(st.spectral_states)
         print(io, "\n    $i: ", r)
     end
 end
@@ -288,9 +288,9 @@ See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
 @inline function state_vectors(state::ReplicaState{N,S}) where {N,S}
     # Annoyingly this function is allocating if N > 1
     return SMatrix{S,N}(
-        state.replica_states[fld1(i,S)].spectral_states[mod1(i,S)].v for i in 1:N*S
+        state.spectral_states[fld1(i,S)].single_states[mod1(i,S)].v for i in 1:N*S
     )
-    # return SMatrix{S,N}(mapreduce(state_vectors, hcat, state.replica_states))
+    # return SMatrix{S,N}(mapreduce(state_vectors, hcat, state.spectral_states))
 end
 
 """
@@ -303,13 +303,13 @@ See also [`state_vectors`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
 [`SpectralState`](@ref), [`QMCSimulation`](@ref).
 """
 function single_states(state::ReplicaState{N,S}) where {N,S}
-    return SMatrix{S,N}(mapreduce(single_states, hcat, state.replica_states))
+    return SMatrix{S,N}(mapreduce(single_states, hcat, state.spectral_states))
 end
 
 function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
-    replica = state.replica_states[1].spectral_states[1]
+    replica = state.spectral_states[1].single_states[1]
     shift_parameters = replica.shift_parameters
     report_metadata!(report, "laststep", state.simulation_plan.last_step)
     report_metadata!(report, "num_replicas", num_replicas(state))

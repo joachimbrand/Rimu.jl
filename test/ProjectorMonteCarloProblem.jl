@@ -18,7 +18,7 @@ using OrderedCollections: freeze
     @test Rimu.num_replicas(p) == 1
 
     simulation = init(p)
-    @test simulation.qmc_state.hamiltonian == h
+    @test simulation.state.hamiltonian == h
     @test only(state_vectors(simulation)) isa PDVec
 
     ps = ProjectorMonteCarloProblem(h; initial_shift_parameters=sp, threading=false)
@@ -61,7 +61,7 @@ using OrderedCollections: freeze
     sm = init(p; copy_vectors=false)
     @test state_vectors(sm)[1] === dv1
     @test state_vectors(sm)[2] === dv2
-    @test_throws BoundsError sm.qmc_state.replica_states[3]
+    @test_throws BoundsError sm.state.spectral_states[3]
 end
 
 @testset "QMCSimulation" begin
@@ -121,30 +121,30 @@ using Rimu: num_replicas, num_spectral_states
     @test step!(sm) isa Rimu.QMCSimulation
     @test sm.modified == true
     @test is_finalized(sm.report) == false
-    @test size(DataFrame(sm))[1] == sm.qmc_state.step[]
+    @test size(DataFrame(sm))[1] == sm.state.step[]
 
     @test solve!(sm) isa Rimu.QMCSimulation
     @test sm.modified == true
     @test sm.success == true
     @test is_finalized(sm.report) == true
-    @test size(DataFrame(sm))[1] == sm.qmc_state.step[]
-    @test num_replicas(sm) == num_replicas(p) == num_replicas(sm.qmc_state)
-    @test num_spectral_states(sm) == num_spectral_states(p) == num_spectral_states(sm.qmc_state)
+    @test size(DataFrame(sm))[1] == sm.state.step[]
+    @test num_replicas(sm) == num_replicas(p) == num_replicas(sm.state)
+    @test num_spectral_states(sm) == num_spectral_states(p) == num_spectral_states(sm.state)
     @test size(state_vectors(sm)) == (num_replicas(sm), num_spectral_states(sm))
     @test size(single_states(sm)) == (num_replicas(sm), num_spectral_states(sm))
 
     df, state = sm # deconstruction for backward compatibility
     @test df == DataFrame(sm) == sm.df
-    @test state == sm.qmc_state == sm.state
+    @test state == sm.state
 
     # Tables.jl interface
     @test Tables.istable(sm)
     @test map(NamedTuple, Tables.rows(sm)) == map(NamedTuple, Tables.rows(df))
 
     # continue simulation
-    @test sm.qmc_state.step[] == 100
+    @test sm.state.step[] == 100
     solve!(sm; last_step=200)
-    @test sm.qmc_state.step[] == 200
+    @test sm.state.step[] == 200
     @test sm.success == true == parse(Bool, (Rimu.get_metadata(sm.report, "success")))
 
     # time out
@@ -158,5 +158,5 @@ using Rimu: num_replicas, num_spectral_states
     sm2 = solve!(sm; walltime=1.0)
     @test sm2 === sm
     @test sm.success == true
-    @test sm.qmc_state.step[] == 500
+    @test sm.state.step[] == 500
 end

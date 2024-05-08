@@ -29,7 +29,7 @@ Return the number of replicas used in the simulation.
 num_replicas(::ReplicaStrategy{N}) where {N} = N
 
 """
-    replica_stats(RS::ReplicaStrategy{N}, replica_states::NTuple{N,SingleState}) -> (names, values)
+    replica_stats(RS::ReplicaStrategy{N}, spectral_states::NTuple{N,SingleState}) -> (names, values)
 
 Return the names and values of statistics related to `N` replica states consistent with the
 [`ReplicaStrategy`](@ref) `RS`. `names`
@@ -129,11 +129,11 @@ function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnor
 end
 @deprecate AllOverlaps(num_replicas, operator) AllOverlaps(num_replicas; operator)
 
-function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replica_states::NTuple{N}) where {N,B}
+function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, spectral_states::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.
     # For now implement this assuming only a single spectral state; generalise later
-    vecs = ntuple(i -> only(replica_states[i].spectral_states).v, Val(N))
-    wms = ntuple(i -> only(replica_states[i].spectral_states).wm, Val(N))
+    vecs = ntuple(i -> only(spectral_states[i].single_states).v, Val(N))
+    wms = ntuple(i -> only(spectral_states[i].single_states).wm, Val(N))
     return all_overlaps(rs.operators, vecs, wms, Val(B))
 end
 
