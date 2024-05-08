@@ -285,9 +285,12 @@ corresponds to the spectral state index and the column index corresponds to the 
 See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
 [`SpectralState`](@ref), [`QMCSimulation`](@ref).
 """
-function state_vectors(state::ReplicaState{N,S}) where {N,S}
+@inline function state_vectors(state::ReplicaState{N,S}) where {N,S}
     # Annoyingly this function is allocating if N > 1
-    return SMatrix{S,N}(mapreduce(state_vectors, hcat, state.replica_states))
+    return SMatrix{S,N}(
+        state.replica_states[fld1(i,S)].spectral_states[mod1(i,S)].v for i in 1:N*S
+    )
+    # return SMatrix{S,N}(mapreduce(state_vectors, hcat, state.replica_states))
 end
 
 """
