@@ -171,6 +171,9 @@ end
 """
     Offsets(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
 
+Return all valid offset vectors in a `Geometry`. If `center=true` the (0,0) displacement is
+palced at the centre of the array.
+
 ```jldoctest; setup=:(using Rimu.Hamiltonians: Offsets)
 julia> geometry = Geometry((3,4));
 
