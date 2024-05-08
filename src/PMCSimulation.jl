@@ -370,8 +370,8 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     problem = ProjectorMonteCarloProblem(hamiltonian;
         start_at = first_replica.v,
         initial_shift_parameters = first_replica.shift_parameters,
-        shift_strategy = first_replica.s_strat,
-        time_step_strategy = first_replica.τ_strat,
+        shift_strategy = first_replica.shift_strategy,
+        time_step_strategy = first_replica.time_step_strategy,
         replica_strategy ,
         reporting_strategy,
         post_step_strategy,

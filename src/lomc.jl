@@ -143,19 +143,55 @@ See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
 """
 function lomc!(
     ham, v;
-    df=DataFrame(),
-    name="lomc!",
-    metadata=nothing,
-    r_strat=ReportDFAndInfo(),
+    df = DataFrame(),
+    name = "lomc!",
+    metadata = nothing,
+    r_strat = ReportDFAndInfo(),
+    targetwalkers = 1000,
+    s_strat = DoubleLogUpdate(; targetwalkers),
+    τ_strat = ConstantTimeStep(),
     replica = NoStats(),
     post_step = (),
+    step=nothing,
+    laststep=nothing,
+    dτ=nothing,
+    shift=nothing,
+    address=starting_address(ham),
+    params::FciqmcRunStrategy=RunTillLastStep(
+        laststep=100,
+        shift=float(valtype(v))(diagonal_element(ham, address))
+    ),
     kwargs...
 )
+    # eventually we want to deprecate the use of params
+    if !isnothing(step)
+        params.step = step
+    end
+    if !isnothing(laststep)
+        params.laststep = laststep
+    end
+    if !isnothing(dτ)
+        params.dτ = dτ
+    end
+    if !isnothing(shift)
+        params.shift = shift
+    end
+    starting_step = params.step
+    time_step = params.dτ
+    shift = params.shift
+    last_step = params.laststep
+
     state = ReplicaState(
         ham, v;
         reporting_strategy = r_strat, # deprecations
+        shift_strategy = s_strat,
+        time_step_strategy = τ_strat,
         replica_strategy = replica,
         post_step_strategy = post_step,
+        starting_step,
+        last_step,
+        time_step,
+        shift,
         kwargs...
     )
     return lomc!(state, df; name, metadata)
@@ -190,7 +226,7 @@ it should terminate.
 function advance!(::FCIQMC, report, state::ReplicaState, replica::SingleState)
 
     @unpack hamiltonian, reporting_strategy = state
-    @unpack v, pv, wm, id, s_strat, τ_strat, shift_parameters = replica
+    @unpack v, pv, wm, id, shift_strategy, time_step_strategy, shift_parameters = replica
     @unpack shift, pnorm, time_step = shift_parameters
     step = state.step[]
 
@@ -208,10 +244,10 @@ function advance!(::FCIQMC, report, state::ReplicaState, replica::SingleState)
     len = length(v)
 
     # Updates
-    time_step = update_dτ(τ_strat, time_step, tnorm)
+    time_step = update_dτ(time_step_strategy, time_step, tnorm)
 
     shift_stats, proceed = update_shift_parameters!(
-        s_strat, shift_parameters, tnorm, v, pv, step, report
+        shift_strategy, shift_parameters, tnorm, v, pv, step, report
     )
 
     @pack! replica = v, pv, wm

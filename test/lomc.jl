@@ -96,7 +96,7 @@ Random.seed!(1234)
         @test median(walkers) ≈ 1000 rtol=0.1
 
         _, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, copy(dv); targetwalkers=500, laststep=0)
-        @test state.spectral_states[1].single_states[1].s_strat.targetwalkers == 500
+        @test state.spectral_states[1].single_states[1].shift_strategy.targetwalkers == 500
     end
 
     @testset "Replicas" begin

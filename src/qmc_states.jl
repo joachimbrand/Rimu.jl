@@ -14,22 +14,19 @@ mutable struct SingleState{H,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy,SP}
     v::V       # vector
     pv::V      # previous vector.
     wm::W      # working memory. Maybe working memories could be shared among replicas?
-    s_strat::SS # shift strategy
-    τ_strat::TS # time step strategy
+    shift_strategy::SS # shift strategy
+    time_step_strategy::TS # time step strategy
     shift_parameters::SP # norm, shift, time_step; is mutable
     id::String # id is appended to column names
 end
 
-function SingleState(h, v, wm, s_strat, τ_strat, shift, dτ::Float64, id="")
+function SingleState(h, v, wm, shift_strategy, time_step_strategy, shift, dτ::Float64, id="")
     if isnothing(wm)
         wm = similar(v)
     end
     pv = zerovector(v)
-    sp = initialise_shift_parameters(s_strat, shift, walkernumber(v), dτ)
-    return SingleState(h, v, pv, wm, s_strat, τ_strat, sp, id)
-    # return SingleState{
-    #     typeof(h),typeof(v),typeof(wm),typeof(s_strat),typeof(τ_strat),typeof(sp)
-    # }(h, v, pv, wm, s_strat, τ_strat, sp, id)
+    sp = initialise_shift_parameters(shift_strategy, shift, walkernumber(v), dτ)
+    return SingleState(h, v, pv, wm, shift_strategy, time_step_strategy, sp, id)
 end
 
 function Base.show(io::IO, r::SingleState)
@@ -103,12 +100,12 @@ function single_states(state::SpectralState)
 end
 
 """
-    _n_walkers(v, s_strat)
+    _n_walkers(v, shift_strategy)
 Returns an estimate of the expected number of walkers as an integer.
 """
-function _n_walkers(v, s_strat)
-    n = if hasfield(typeof(s_strat), :targetwalkers)
-        s_strat.targetwalkers
+function _n_walkers(v, shift_strategy)
+    n = if hasfield(typeof(shift_strategy), :targetwalkers)
+        shift_strategy.targetwalkers
     else # e.g. for LogUpdate()
         walkernumber(v)
     end
@@ -142,73 +139,31 @@ struct ReplicaState{
     replica_strategy::RRS
 end
 
+# This constructor is currently only used by lomc! and should not be used.
+# It may be removed in the future.
 function ReplicaState(
     hamiltonian, v;
-    step=nothing,
-    laststep=nothing,
-    simulation_plan=nothing,
-    dτ=nothing,
-    shift=nothing,
-    wm=nothing,
-    style=nothing,
-    targetwalkers=1000,
-    address=starting_address(hamiltonian),
-    params::FciqmcRunStrategy=RunTillLastStep(
-        laststep=100,
-        shift=float(valtype(v))(diagonal_element(hamiltonian, address))
-    ),
-    s_strat::ShiftStrategy=DoubleLogUpdate(; targetwalkers),
-    reporting_strategy::ReportingStrategy=ReportDFAndInfo(),
-    τ_strat::TimeStepStrategy=ConstantTimeStep(),
-    threading=nothing,
-    replica_strategy::ReplicaStrategy=NoStats(),
-    spectral_strategy::SpectralStrategy=GramSchmidt(),
-    post_step_strategy=(),
-    maxlength=2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
+    starting_step = 0,
+    last_step = 100,
+    simulation_plan = SimulationPlan(; starting_step, last_step),
+    time_step = 0.01,
+    address = starting_address(hamiltonian),
+    shift = float(valtype(v))(diagonal_element(hamiltonian, address)),
+    wm = nothing,
+    style = nothing,
+    targetwalkers = 1000,
+    shift_strategy::ShiftStrategy = DoubleLogUpdate(; targetwalkers),
+    reporting_strategy::ReportingStrategy = ReportDFAndInfo(),
+    time_step_strategy::TimeStepStrategy = ConstantTimeStep(),
+    threading = nothing,
+    replica_strategy::ReplicaStrategy = NoStats(),
+    spectral_strategy::SpectralStrategy = GramSchmidt(),
+    post_step_strategy = (),
+    maxlength=2 * _n_walkers(v, shift_strategy) + 100, # padding for small walker numbers
 )
     Hamiltonians.check_address_type(hamiltonian, keytype(v))
     # Set up reporting_strategy and params
     reporting_strategy = refine_reporting_strategy(reporting_strategy)
-
-    # eventually we want to deprecate the use of params
-    if !isnothing(params)
-        if !isnothing(step)
-            params.step = step
-        end
-        if !isnothing(laststep)
-            params.laststep = laststep
-        end
-        if !isnothing(dτ)
-            params.dτ = dτ
-        end
-        if !isnothing(shift)
-            params.shift = shift
-        end
-        step = params.step
-        dτ = params.dτ
-        shift = params.shift
-        laststep = params.laststep
-    else
-        if isnothing(step)
-            step = 0
-        end
-        if isnothing(laststep)
-            laststep = 100
-        end
-        if isnothing(dτ)
-            dτ = 0.01
-        end
-        if isnothing(shift)
-            shift = float(valtype(v))(diagonal_element(hamiltonian, address))
-        end
-    end
-
-    if isnothing(simulation_plan)
-        simulation_plan = SimulationPlan(;
-            starting_step=step,
-            last_step=laststep
-        )
-    end
 
     if threading ≠ nothing
         @warn "Starting vector is provided. Ignoring `threading=$threading`."
@@ -236,10 +191,10 @@ function ReplicaState(
                     hamiltonian,
                     deepcopy(v),
                     deepcopy(wm),
-                    deepcopy(s_strat),
-                    deepcopy(τ_strat),
+                    deepcopy(shift_strategy),
+                    deepcopy(time_step_strategy),
                     shift,
-                    dτ,
+                    time_step,
                     "_$i"),
                 ),
                 spectral_strategy
@@ -247,7 +202,7 @@ function ReplicaState(
         end
     else
         spectral_states = (SpectralState(
-            (SingleState(hamiltonian, v, wm, s_strat, τ_strat, shift, dτ),),
+            (SingleState(hamiltonian, v, wm, shift_strategy, time_step_strategy, shift, time_step),),
             spectral_strategy
         ),)
     end
@@ -316,9 +271,9 @@ function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "num_spectral_states", num_spectral_states(state))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
     report_metadata!(report, "reporting_strategy", state.reporting_strategy)
-    report_metadata!(report, "s_strat", replica.s_strat)
-    report_metadata!(report, "τ_strat", replica.τ_strat)
-    report_metadata!(report, "dτ", shift_parameters.time_step)
+    report_metadata!(report, "shift_strategy", replica.shift_strategy)
+    report_metadata!(report, "time_step_strategy", replica.time_step_strategy)
+    report_metadata!(report, "time_step", shift_parameters.time_step)
     report_metadata!(report, "step", state.step[])
     report_metadata!(report, "shift", shift_parameters.shift)
     report_metadata!(report, "maxlength", state.maxlength[])
