@@ -11,6 +11,7 @@ See also [`state_vectors`](@ref), [`single_states`](@ref),
 """
 mutable struct QMCSimulation
     qmc_problem::ProjectorMonteCarloProblem
+    algorithm # currently only FCIQMC() is implemented
     qmc_state::ReplicaState
     report::Report
     modified::Bool
@@ -42,7 +43,7 @@ function _set_up_v(fdv::FrozenDVec, _, style, initiator, threading)
 end
 
 function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
-    @unpack hamiltonian, starting_vectors, style, threading, simulation_plan,
+    @unpack algorithm, hamiltonian, starting_vectors, style, threading, simulation_plan,
         replica_strategy, shift_strategy, initial_shift_parameters,
         reporting_strategy, post_step_strategy, time_step_strategy,
         maxlength, metadata, initiator, random_seed, spectral_strategy = problem
@@ -123,30 +124,27 @@ function QMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
         replica_strategy # replica_strategy
     )
     report = Report()
+    report_metadata!(report, "algorithm", algorithm)
     report_default_metadata!(report, qmc_state)
     report_metadata!(report, metadata) # add user metadata
     # Sanity checks.
     check_transform(qmc_state.replica_strategy, qmc_state.hamiltonian)
 
     return QMCSimulation(
-        problem, qmc_state, report, false, false, false, "", 0.0
+        problem, algorithm, qmc_state, report, false, false, false, "", 0.0
     )
 end
 
 function Base.show(io::IO, sm::QMCSimulation)
     print(io, "QMCSimulation")
     st = sm.qmc_state
-    if length(st.replica_states) > 1
-        print(io, " with ", length(st.replica_states), " replicas")
-    end
-    print(io, "\n  H:    ", st.hamiltonian)
-    print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
+    print(io, " with ", num_replicas(st), " replica(s) and ")
+    print(io, num_spectral_states(st), " spectral state(s).")
+    print(io, "\n  Algorithm:   ", sm.algorithm)
+    print(io, "\n  Hamiltonian: ", st.hamiltonian)
+    print(io, "\n  Step:        ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  modified = $(sm.modified), aborted = $(sm.aborted), success = $(sm.success)")
     sm.message == "" || print(io, "\n  message: ", sm.message)
-    print(io, "\n  replicas: ")
-    for (i, r) in enumerate(st.replica_states)
-        print(io, "\n    $i: ", r)
-    end
 end
 
 num_spectral_states(sm::QMCSimulation) = num_spectral_states(sm.qmc_state)
@@ -226,7 +224,7 @@ See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref),
 [`Rimu.QMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::QMCSimulation)
-    @unpack qmc_state, report = sm
+    @unpack qmc_state, report, algorithm = sm
     @unpack replica_states, simulation_plan, step, reporting_strategy,
         replica_strategy = qmc_state
 
@@ -249,7 +247,7 @@ function CommonSolve.step!(sm::QMCSimulation)
     proceed = true
     # advance all replica_states
     for replica in replica_states
-        proceed &= advance!(report, qmc_state, replica)
+        proceed &= advance!(algorithm, report, qmc_state, replica)
     end
     sm.modified = true
 
@@ -392,7 +390,7 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     check_transform(state.replica_strategy, state.hamiltonian)
 
     simulation = QMCSimulation(
-        problem, state, report, false, false, false, "", 0.0
+        problem, FCIQMC(), state, report, false, false, false, "", 0.0
     )
     solve!(simulation)
 

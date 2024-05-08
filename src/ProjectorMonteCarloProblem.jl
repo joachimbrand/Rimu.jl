@@ -1,4 +1,11 @@
 """
+    FCIQMC()
+Algorithm for the full configuration interaction quantum Monte Carlo (FCIQMC) method.
+To be passed as the `algorithm` keyword argument to [`ProjectorMonteCarloProblem`](@ref).
+"""
+struct FCIQMC end
+
+"""
     SimulationPlan(; starting_step = 1, last_step = 100, walltime = Inf)
 Defines the duration of the simulation. The simulation ends when the `last_step` is reached
 or the `walltime` is exceeded.
@@ -13,7 +20,8 @@ end
 
 """
     ProjectorMonteCarloProblem(hamiltonian::AbstractHamiltonian; kwargs...)
-Defines a problem to be solved by the FCIQMC algorithm.
+Defines a problem to be solved by projector quantum Monte Carlo (QMC) methods, such as the
+the [`FCIQMC`](@ref) algorithm.
 
 # Common keyword arguments and defaults:
 - `time_step = 0.01`: Initial time step size.
@@ -55,6 +63,8 @@ julia> size(DataFrame(simulation))
 ```
 
 # Further keyword arguments:
+- `algorithm = FCIQMC()`: The algorithm to use. Currenlty only [`FCIQMC`](@ref) is
+    implemented.
 - `starting_step = 1`: Starting step of the simulation.
 - `walltime = Inf`: Maximum time allowed for the simulation.
 - `simulation_plan = SimulationPlan(; starting_step, last_step, walltime)`: Defines the
@@ -79,6 +89,8 @@ julia> size(DataFrame(simulation))
 See also [`init`](@ref), [`solve`](@ref).
 """
 struct ProjectorMonteCarloProblem{N,S} # is not type stable but does not matter
+    # N is the number of replicas, S is the number of spectral states
+    algorithm
     hamiltonian::AbstractHamiltonian
     starting_vectors
     style::StochasticStyle
@@ -101,6 +113,7 @@ function Base.show(io::IO, p::ProjectorMonteCarloProblem)
     nr = num_replicas(p)
     ns = num_spectral_states(p)
     println(io, "ProjectorMonteCarloProblem with $nr replica(s) and $ns spectral state(s):")
+    isnothing(p.algorithm) || println(io, "  Algorithm: ", p.algorithm)
     println(io, "  Hamiltonian: ", p.hamiltonian)
     println(io, "  Style: ", p.style)
     println(io, "  Initiator: ", p.initiator)
@@ -120,6 +133,7 @@ end
 
 function ProjectorMonteCarloProblem(
     hamiltonian::AbstractHamiltonian;
+    algorithm = FCIQMC(),
     n_replicas = 1,
     start_at = starting_address(hamiltonian),
     shift = nothing,
@@ -211,6 +225,7 @@ function ProjectorMonteCarloProblem(
     end
 
     return ProjectorMonteCarloProblem{n_replicas,num_spectral_states(spectral_strategy)}(
+        algorithm,
         hamiltonian,
         starting_vectors,
         style,

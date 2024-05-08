@@ -116,7 +116,7 @@ using Rimu: num_replicas, num_spectral_states
     sm = init(p)
     @test sm.modified == false == sm.aborted == sm.success
     @test is_finalized(sm.report) == false
-    @test sprint(show, sm) == "QMCSimulation\n  H:    HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  step: 0 / 100\n  modified = false, aborted = false, success = false\n  replicas: \n    1: SpectralState with 1 spectral states\n    spectral_strategy: Rimu.GramSchmidt{1}()\n      1: SingleState(v: 1-element PDVec, wm: 0-element PDWorkingMemory)"
+    @test sprint(show, sm) == "QMCSimulation with 1 replica(s) and 1 spectral state(s).\n  Algorithm:   FCIQMC()\n  Hamiltonian: HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  Step:        0 / 100\n  modified = false, aborted = false, success = false"
 
     @test step!(sm) isa Rimu.QMCSimulation
     @test sm.modified == true

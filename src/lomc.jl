@@ -137,6 +137,9 @@ The default choice for the starting vector is
 `v = default_starting_vector(; address, style, threading, initiator)`.
 See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
 [`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
+!!! warning
+    The use of this `lomc!` is deprecated. Use
+    [`ProjectorMonteCarloProblem`](@ref) and [`solve`](@ref) instead.
 """
 function lomc!(
     ham, v;
@@ -175,15 +178,16 @@ end
 
 
 """
-    advance!(report::Report, state::ReplicaState, replica::SingleState)
+    advance!(algorithm, report::Report, state::ReplicaState, replica::SingleState)
 
-Advance the `replica` by one step. The `state` is used only to access the various strategies
-involved. Steps, stats, and computed quantities are written to the `report`.
+Advance the `replica` by one step according to the `algorithm`. The `state` is used only
+to access the various strategies involved. Steps, stats, and computed quantities are written
+to the `report`.
 
 Returns `true` if the step was successful and calculation should proceed, `false` when
 it should terminate.
 """
-function advance!(report, state::ReplicaState, replica::SingleState)
+function advance!(::FCIQMC, report, state::ReplicaState, replica::SingleState)
 
     @unpack hamiltonian, reporting_strategy = state
     @unpack v, pv, wm, id, s_strat, τ_strat, shift_parameters = replica
@@ -244,7 +248,7 @@ function advance!(report, state::ReplicaState, replica::SingleState)
     return proceed # Bool
 end
 
-function advance!(report, state::ReplicaState, replica::SpectralState{1})
-    return advance!(report, state, only(replica.spectral_states))
+function advance!(algorithm, report, state::ReplicaState, replica::SpectralState{1})
+    return advance!(algorithm, report, state, only(replica.spectral_states))
 end
 # TODO: add advance! for SpectralState{N} where N > 1

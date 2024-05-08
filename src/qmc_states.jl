@@ -312,7 +312,8 @@ function report_default_metadata!(report::Report, state::ReplicaState)
     replica = state.replica_states[1].spectral_states[1]
     shift_parameters = replica.shift_parameters
     report_metadata!(report, "laststep", state.simulation_plan.last_step)
-    report_metadata!(report, "num_replicas", length(state.replica_states))
+    report_metadata!(report, "num_replicas", num_replicas(state))
+    report_metadata!(report, "num_spectral_states", num_spectral_states(state))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
     report_metadata!(report, "reporting_strategy", state.reporting_strategy)
     report_metadata!(report, "s_strat", replica.s_strat)

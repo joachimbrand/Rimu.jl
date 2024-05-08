@@ -10,7 +10,7 @@ Implemented strategies:
 
 !!! warning
     The use of this strategy is deprecated. Pass the relevant arguments directly to
-    [`lomc!()`](@ref) instead.
+    [`ProjectorMonteCarloProblem`](@ref) or to [`lomc!()`](@ref) instead.
 """
 abstract type FciqmcRunStrategy{T} end
 
@@ -26,7 +26,7 @@ For alternative strategies, see [`FciqmcRunStrategy`](@ref).
 
 !!! warning
     The use of this strategy is deprecated. Pass the relevant arguments directly to
-    [`lomc!()`](@ref) instead.
+    [`ProjectorMonteCarloProblem`](@ref) or to [`lomc!()`](@ref) instead.
 """
 @with_kw mutable struct RunTillLastStep{T} <: FciqmcRunStrategy{T}
     step::Int = 0 # number of current/starting timestep
