@@ -60,6 +60,7 @@ equivalent to stacking all components into a single Fock state.
 # See also
 
 * [`HubbardReal1D`](@ref)
+* [`G2RealSpace`](@ref)
 * [`G2MomCorrelator`](@ref)
 * [`AbstractHamiltonian`](@ref)
 * [`AllOverlaps`](@ref)
@@ -103,17 +104,22 @@ num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0
 num_offdiagonals(::G2RealCorrelator, ::CompositeFS) = 0
 
 """
-    G2RealSpace(g::Geometry) <: AbstractHamiltonian{SArray}
+    G2RealSpace(::Geometry, σ=1, τ=1; sum_components=false) <: AbstractHamiltonian{SArray}
 
-Two-body operator for density-density correlation for all displacements.
+Two-body operator for density-density correlation for all displacements ``d`` in the
+specified geometry.
 
 ```math
-    \\hat{G}^{(2)}(d) = \\frac{1}{M} ∑_i^M∑_v \\hat{n}_i (\\hat{n}_{i+v} - \\delta_{0d}).
+    \\hat{G}^{(2)}_{σ,τ}(d) = \\frac{1}{M} ∑_i^M \\hat{n}_{σ,i} (\\hat{n}_{τ,i+d} - δ_{0,d}δ_{σ,τ}).
 ```
+
+For multicomponent addresses, `σ` and `τ` control the components involved. Alternatively, `sum_components` can be set to `true`, which treats all particles as
+belonging to the same component.
 
 # See also
 
-* [`HubbardReal1D`](@ref)
+* [`Geometry`](@ref)
+* [`HubbardRealSpace`](@ref)
 * [`G2MomCorrelator`](@ref)
 * [`G2RealCorrelator`](@ref)
 * [`AbstractHamiltonian`](@ref)
@@ -123,27 +129,26 @@ struct G2RealSpace{A,B,G<:Geometry,S} <: AbstractHamiltonian{S}
     geometry::G
     init::S
 end
-function G2RealSpace(
-    geometry::Geometry, source::Int=1, target::Int=source; sum_components=false
-)
-    if source < 1 || target < 1
-        throw(ArgumentError("`source` and `target` must be positive integers"))
+function G2RealSpace(geometry::Geometry, σ::Int=1, τ::Int=σ; sum_components=false)
+    if σ < 1 || τ < 1
+        throw(ArgumentError("`σ` and `τ` must be positive integers"))
     end
     if sum_components
-        if source ≠ 1 || target ≠ 1
-            throw(
-                ArgumentError("`source` or `target` can't be set if `sum_components=true`")
-            )
+        if σ ≠ 1 || τ ≠ 1
+            throw(ArgumentError("`σ` or `τ` can't be set if `sum_components=true`"))
         end
-        source = target = 0
+        σ = τ = 0
     end
 
     init = zeros(SArray{Tuple{size(geometry)...}})
-    return G2RealSpace{source,target,typeof(geometry),typeof(init)}(geometry, init)
+    return G2RealSpace{σ,τ,typeof(geometry),typeof(init)}(geometry, init)
 end
 
 function Base.show(io::IO, g2::G2RealSpace{A,B}) where {A,B}
     print(io, "G2RealSpace($(g2.geometry), $A,$B)")
+end
+function Base.show(io::IO, g2::G2RealSpace{0,0})
+    print(io, "G2RealSpace($(g2.geometry); sum_components=true)")
 end
 
 LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
@@ -158,14 +163,14 @@ num_offdiagonals(g2::G2RealSpace, _) = 0
 
     @inbounds for i in eachindex(result)
         res_i = 0.0
-        δ_vec = Offsets(geo)[i]
+        displacement = Offsets(geo)[i]
 
         # Case of n_i(n_i - 1) on the same component
-        if A == B && all(==(0), δ_vec)
-            onr1_offset = max.(onr1 .- 1, 0)
-            result = setindex(result, dot(onr2, onr1_offset), i)
+        if A == B && iszero(displacement)
+            onr1_minus_1 = max.(onr1 .- 1, 0)
+            result = setindex(result, dot(onr2, onr1_minus_1), i)
         else
-            result = setindex(result, circshift_dot(onr2, onr1, δ_vec), i)
+            result = setindex(result, circshift_dot(onr2, onr1, displacement), i)
         end
     end
     return result ./ length(geo)
@@ -225,6 +230,7 @@ and let it be the default value.
 * [`BoseHubbardMom1D2C`](@ref)
 * [`BoseFS2C`](@ref)
 * [`G2RealCorrelator`](@ref)
+* [`G2RealSpace`](@ref)
 * [`AbstractHamiltonian`](@ref)
 * [`AllOverlaps`](@ref)
 """

@@ -1,14 +1,15 @@
 """
     Geometry(dims::NTuple{D,Int}, fold::NTuple{D,Bool})
 
-Represents a `D`-dimensional grid. Used to convert between cartesian vector indices (tuples
-or `SVector`s) and linear indices (integers).
+Represents a `D`-dimensional grid. Used to define a cubic lattice and boundary conditions 
+for some [`AbstractHamiltonian`](@ref)s. The type instance can be used to convert between 
+cartesian vector indices (tuples or `SVector`s) and linear indices (integers). When indexed 
+with vectors, it folds them back into the grid if the out-of-bounds dimension is periodic and 
+0 otherwise (see example below).
 
 * `dims` controls the size of the grid in each dimension.
 * `fold` controls whether the boundaries in each dimension are periodic (or folded in the
   case of momentum space).
-
-`Base.getindex` can be used to convert between linear indices and vectors.
 
 ```julia
 julia> geo = Geometry((2,3), (true,false))
@@ -46,16 +47,36 @@ struct Geometry{D,Dims,Fold}
 end
 Geometry(args::Vararg{Int}) = Geometry(args)
 
+"""
+    PeriodicBoundaries(dims...) -> Geometry
+    PeriodicBoundaries(dims) -> Geometry
+
+Return `Geometry` with all dimensions periodic. Equivalent to `Geometry(dims)`.
+"""
 function PeriodicBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(Returns(true), Val(D)))
 end
 PeriodicBoundaries(dims::Vararg{Int}) = PeriodicBoundaries(dims)
 
+"""
+    HardwallBoundaries(dims...) -> Geometry
+    HardwallBoundaries(dims) -> Geometry
+
+Return `Geometry` with all dimensions non-periodic. Equivalent to
+`Geometry(dims, (false, false, ...))`.
+"""
 function HardwallBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(Returns(false), Val(D)))
 end
 HardwallBoundaries(dims::Vararg{Int}) = HardwallBoundaries(dims)
 
+"""
+    LadderBoundaries(dims...) -> Geometry
+    LadderBoundaries(dims) -> Geometry
+
+Return `Geometry` where the first dimension is dimensions non-periodic and the rest are
+periodic. Equivalent to `Geometry(dims, (true, false, ...))`.
+"""
 function LadderBoundaries(dims::NTuple{D,Int}) where {D}
     return Geometry(dims, ntuple(>(1), Val(D)))
 end
@@ -151,10 +172,19 @@ end
 """
     Offsets(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
 
+Return all valid offset vectors in a [`Geometry`](@ref). If `center=true` the (0,0) displacement is
+placed at the centre of the array.
+
 ```jldoctest; setup=:(using Rimu.Hamiltonians: Offsets)
 julia> geometry = Geometry((3,4));
 
 julia> reshape(Offsets(geometry), (3,4))
+3×4 reshape(::Offsets{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
+ [0, 0]  [0, 1]  [0, 2]  [0, 3]
+ [1, 0]  [1, 1]  [1, 2]  [1, 3]
+ [2, 0]  [2, 1]  [2, 2]  [2, 3]
+
+julia> reshape(Offsets(geometry; center=true), (3,4))
 3×4 reshape(::Offsets{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
  [-1, -1]  [-1, 0]  [-1, 1]  [-1, 2]
  [0, -1]   [0, 0]   [0, 1]   [0, 2]
@@ -190,9 +220,9 @@ function neighbor_site(g::Geometry{D}, mode, chosen) where {D}
     return g[g[mode] + UnitVectors(D)[chosen]]
 end
 
-function BitStringAddresses.onr(add, geom::Geometry{<:Any,S}) where {S}
-    return SArray{Tuple{S...}}(onr(add))
+function BitStringAddresses.onr(address, geom::Geometry{<:Any,S}) where {S}
+    return SArray{Tuple{S...}}(onr(address))
 end
-function BitStringAddresses.onr(add::CompositeFS, geom::Geometry)
-    return map(fs -> onr(fs, geom), add.components)
+function BitStringAddresses.onr(address::CompositeFS, geom::Geometry)
+    return map(fs -> onr(fs, geom), address.components)
 end

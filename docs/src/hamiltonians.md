@@ -161,10 +161,12 @@ Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref) an
 
 ```@docs
 Geometry
-num_dimensions
 Hamiltonians.UnitVectors
 Hamiltonians.Offsets
 Hamiltonians.neighbor_site
+PeriodicBoundaries
+HardwallBoundaries
+LadderBoundaries
 ```
 
 ## Harmonic Oscillator

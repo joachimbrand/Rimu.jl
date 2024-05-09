@@ -866,6 +866,23 @@ using Rimu.Hamiltonians: circshift_dot
 
     @testset "G2RealSpace" begin
         @testset "1D G2RealCorrelator comparison" begin
+            @testset "constructors" begin
+                g2_1 = G2RealSpace(Geometry(2, 2, 3), 1, 3)
+                g2_2 = G2RealSpace(Geometry(2, 2), 2)
+                g2_3 = G2RealSpace(Geometry(2, 2); sum_components=true)
+                @test g2_1 isa G2RealSpace{1,3}
+                @test g2_2 isa G2RealSpace{2,2}
+                @test g2_3 isa G2RealSpace{0,0}
+
+                @test eval(Meta.parse(repr(g2_1))) == g2_1
+                @test eval(Meta.parse(repr(g2_2))) == g2_2
+                @test eval(Meta.parse(repr(g2_3))) == g2_3
+
+                @test_throws ArgumentError G2RealSpace(Geometry(3), 1, 0)
+                @test_throws ArgumentError G2RealSpace(Geometry(2, 2), 0, 0)
+                @test_throws ArgumentError G2RealSpace(Geometry(1, 2, 3), -1, 2)
+                @test_throws ArgumentError G2RealSpace(Geometry(12), 3; sum_components=true)
+            end
             @testset "single components" begin
                 addr = near_uniform(BoseFS{6,6})
                 H = HubbardReal1D(addr)
