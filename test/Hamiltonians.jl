@@ -892,29 +892,44 @@ using Rimu.Hamiltonians: circshift_dot
             end
         end
 
-        @testset "2-component" begin
+        @testset "2-component, 2D" begin
             c1 = BoseFS(1, 0, 0, 0, 0, 0)
             c2 = BoseFS(1, 2, 3, 4, 5, 6)
             addr = CompositeFS(c1, c2)
             geom = Geometry((3, 2))
 
-            g2_11 = G2RealSpace(geom, 1, 1)
-            g2_12 = G2RealSpace(geom, 1, 2)
-            g2_21 = G2RealSpace(geom, 2, 1)
-            g2_22 = G2RealSpace(geom, 2, 2)
+            g2_11 = diagonal_element(G2RealSpace(geom, 1, 1), addr)
+            g2_12 = diagonal_element(G2RealSpace(geom, 1, 2), addr)
+            g2_21 = diagonal_element(G2RealSpace(geom, 2, 1), addr)
+            g2_22 = diagonal_element(G2RealSpace(geom, 2, 2), addr)
 
             # Sum is N1 * (N2 - δ_12) / M
-            @test sum(diagonal_element(g2_11, addr)) == 0
-            @test sum(diagonal_element(g2_12, addr)) == 3.5
-            @test sum(diagonal_element(g2_21, addr)) == 3.5
-            @test sum(diagonal_element(g2_22, addr)) == 70
+            @test sum(g2_11) == 0
+            @test sum(g2_12) == 3.5
+            @test sum(g2_21) == 3.5
+            @test sum(g2_22) == 70
 
             # Swapping components flips axes
-            @test diagonal_element(g2_11, addr) == [0 0; 0 0; 0 0]
-            @test diagonal_element(g2_12, addr) == [1 4; 2 5; 3 6] ./ 6
-            @test diagonal_element(g2_21, addr) == [1 4; 3 6; 2 5] ./ 6
+            @test g2_11 == [0 0; 0 0; 0 0]
+            @test g2_12 == [1 4; 2 5; 3 6] ./ 6
+            @test g2_21 == [1 4; 3 6; 2 5] ./ 6
+            @test g2_22[1, 1] == sum(n -> n * (n-1), onr(c2)) / 6
+            @test g2_22[3, 2] == dot(onr(c2, geom), circshift(onr(c2, geom), (2, 1))) / 6
+        end
 
+        @testset "G2 is symmetric for translationally invariant ground states" begin
+            addr = near_uniform(BoseFS{3,18})
+            geom = Geometry((2,3,3), (false, true, true))
+            H = HubbardRealSpace(addr; geometry=geom)
+            bsr = BasisSetRep(H)
+            v0 = PDVec(zip(bsr.basis, eigen(Matrix(bsr)).vectors[:,1]))
 
+            g2 = dot(v0, G2RealSpace(geom), v0)
+
+            @test sum(g2) == 3 * 2 / 18
+            @test g2[:,2,:] == g2[:,3,:]
+            @test g2[:,:,2] == g2[:,:,3]
+            @test minimum(g2) == first(g2)
         end
     end
 
