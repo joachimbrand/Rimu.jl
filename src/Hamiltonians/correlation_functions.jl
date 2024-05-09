@@ -110,7 +110,7 @@ Two-body operator for density-density correlation for all displacements ``d`` in
 specified geometry.
 
 ```math
-    \\hat{G}^{(2)}(d) = \\frac{1}{M} ∑_i^M \\hat{n}_{σ,i} (\\hat{n}_{τ,i+d} - δ_{0,d}δ_{σ,τ}).
+    \\hat{G}^{(2)}_{σ,τ}(d) = \\frac{1}{M} ∑_i^M \\hat{n}_{σ,i} (\\hat{n}_{τ,i+d} - δ_{0,d}δ_{σ,τ}).
 ```
 
 For multicomponent addresses, `σ` and `τ` control the components involved. Alternatively, `sum_components` can be set to `true`, which treats all particles as

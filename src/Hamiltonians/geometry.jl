@@ -1,10 +1,11 @@
 """
     Geometry(dims::NTuple{D,Int}, fold::NTuple{D,Bool})
 
-Represents a `D`-dimensional grid. Used to convert between cartesian vector indices (tuples
-or `SVector`s) and linear indices (integers). When indexed with vectors, it folds them back
-into the grid if the out-of-bounds dimension is periodic and 0 otherwise (see example
-below).
+Represents a `D`-dimensional grid. Used to define a cubic lattice and boundary conditions 
+for some [`AbstractHamiltonian`](@ref)s. The type instance can be used to convert between 
+cartesian vector indices (tuples or `SVector`s) and linear indices (integers). When indexed 
+with vectors, it folds them back into the grid if the out-of-bounds dimension is periodic and 
+0 otherwise (see example below).
 
 * `dims` controls the size of the grid in each dimension.
 * `fold` controls whether the boundaries in each dimension are periodic (or folded in the
@@ -171,8 +172,8 @@ end
 """
     Offsets(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
 
-Return all valid offset vectors in a `Geometry`. If `center=true` the (0,0) displacement is
-palced at the centre of the array.
+Return all valid offset vectors in a [`Geometry`](@ref). If `center=true` the (0,0) displacement is
+placed at the centre of the array.
 
 ```jldoctest; setup=:(using Rimu.Hamiltonians: Offsets)
 julia> geometry = Geometry((3,4));
@@ -219,9 +220,9 @@ function neighbor_site(g::Geometry{D}, mode, chosen) where {D}
     return g[g[mode] + UnitVectors(D)[chosen]]
 end
 
-function BitStringAddresses.onr(add, geom::Geometry{<:Any,S}) where {S}
-    return SArray{Tuple{S...}}(onr(add))
+function BitStringAddresses.onr(address, geom::Geometry{<:Any,S}) where {S}
+    return SArray{Tuple{S...}}(onr(address))
 end
-function BitStringAddresses.onr(add::CompositeFS, geom::Geometry)
-    return map(fs -> onr(fs, geom), add.components)
+function BitStringAddresses.onr(address::CompositeFS, geom::Geometry)
+    return map(fs -> onr(fs, geom), address.components)
 end
