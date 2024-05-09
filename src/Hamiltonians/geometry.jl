@@ -1,10 +1,10 @@
 """
     Geometry(dims::NTuple{D,Int}, fold::NTuple{D,Bool})
 
-Represents a `D`-dimensional grid. Used to define a cubic lattice and boundary conditions 
-for some [`AbstractHamiltonian`](@ref)s. The type instance can be used to convert between 
-cartesian vector indices (tuples or `SVector`s) and linear indices (integers). When indexed 
-with vectors, it folds them back into the grid if the out-of-bounds dimension is periodic and 
+Represents a `D`-dimensional grid. Used to define a cubic lattice and boundary conditions
+for some [`AbstractHamiltonian`](@ref)s. The type instance can be used to convert between
+cartesian vector indices (tuples or `SVector`s) and linear indices (integers). When indexed
+with vectors, it folds them back into the grid if the out-of-bounds dimension is periodic and
 0 otherwise (see example below).
 
 * `dims` controls the size of the grid in each dimension.
@@ -35,8 +35,10 @@ julia> geo[(3,3)]
 
 julia> geo[(3,4)] # returns 0 if out of bounds
 0
-
 ```
+
+See also [`PeriodicBoundaries`](@ref), [`HardwallBoundaries`](@ref) and
+[`LadderBoundaries`](@ref) for special-case constructors.
 """
 struct Geometry{D,Dims,Fold}
     function Geometry(
@@ -130,14 +132,14 @@ end
 Base.getindex(g::Geometry, i::Int) = SVector(Tuple(CartesianIndices(size(g))[i]))
 
 """
-    UnitVectors(D) <: AbstractVector{SVector{D,Int}}
-    UnitVectors(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
+    DirectionVectors(D) <: AbstractVector{SVector{D,Int}}
+    DirectionVectors(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
 
-Iterate over unit vectors in `D` dimensions.
+Iterate over axis-aligned direction vectors in `D` dimensions.
 
-```jldoctest; setup=:(using Rimu.Hamiltonians: UnitVectors)
-julia> UnitVectors(3)
-6-element UnitVectors{3}:
+```jldoctest; setup=:(using Rimu.Hamiltonians: DirectionVectors)
+julia> DirectionVectors(3)
+6-element DirectionVectors{3}:
  [1, 0, 0]
  [0, 1, 0]
  [0, 0, 1]
@@ -146,15 +148,17 @@ julia> UnitVectors(3)
  [0, 0, -1]
 
 ```
+
+See also [`Geometry`](@ref).
 """
-struct UnitVectors{D} <: AbstractVector{SVector{D,Int}} end
+struct DirectionVectors{D} <: AbstractVector{SVector{D,Int}} end
 
-UnitVectors(D) = UnitVectors{D}()
-UnitVectors(::Geometry{D}) where {D} = UnitVectors{D}()
+DirectionVectors(D) = DirectionVectors{D}()
+DirectionVectors(::Geometry{D}) where {D} = DirectionVectors{D}()
 
-Base.size(::UnitVectors{D}) where {D} = (2D,)
+Base.size(::DirectionVectors{D}) where {D} = (2D,)
 
-function Base.getindex(uv::UnitVectors{D}, i) where {D}
+function Base.getindex(uv::DirectionVectors{D}, i) where {D}
     @boundscheck 0 < i ≤ length(uv) || throw(BoundsError(uv, i))
     if i ≤ D
         return SVector(_unit_vec(Val(D), i, 1))
@@ -217,7 +221,7 @@ end
 Find the `i`-th neighbor of `site` in the geometry. If the move is illegal, return 0.
 """
 function neighbor_site(g::Geometry{D}, mode, chosen) where {D}
-    return g[g[mode] + UnitVectors(D)[chosen]]
+    return g[g[mode] + DirectionVectors(D)[chosen]]
 end
 
 function BitStringAddresses.onr(address, geom::Geometry{<:Any,S}) where {S}

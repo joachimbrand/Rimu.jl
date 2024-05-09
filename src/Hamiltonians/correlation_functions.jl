@@ -107,14 +107,15 @@ num_offdiagonals(::G2RealCorrelator, ::CompositeFS) = 0
     G2RealSpace(::Geometry, σ=1, τ=1; sum_components=false) <: AbstractHamiltonian{SArray}
 
 Two-body operator for density-density correlation for all displacements ``d`` in the
-specified geometry.
+specified geometry (see [`Offsets`](@ref)).
 
 ```math
     \\hat{G}^{(2)}_{σ,τ}(d) = \\frac{1}{M} ∑_i^M \\hat{n}_{σ,i} (\\hat{n}_{τ,i+d} - δ_{0,d}δ_{σ,τ}).
 ```
 
-For multicomponent addresses, `σ` and `τ` control the components involved. Alternatively, `sum_components` can be set to `true`, which treats all particles as
-belonging to the same component.
+For multicomponent addresses, `σ` and `τ` control the components involved. Alternatively,
+`sum_components` can be set to `true`, which treats all particles as belonging to the same
+component.
 
 # See also
 
