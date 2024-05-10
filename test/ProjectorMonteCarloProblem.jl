@@ -14,7 +14,7 @@ using OrderedCollections: freeze
     @test sp.shift == diagonal_element(h, starting_address(h))
     @test sp.pnorm == walkernumber(only(p.starting_vectors))
     @test sp.pnorm isa Float64
-    @test p.maxlength == 2 * p.shift_strategy.targetwalkers + 100
+    @test p.maxlength == 2 * p.algorithm.shift_strategy.targetwalkers + 100
     @test Rimu.num_replicas(p) == 1
     @test startswith(sprint(show, p), "ProjectorMonteCarloProblem with 1 replica(s)")
 
@@ -117,7 +117,7 @@ using Rimu: num_replicas, num_spectral_states
     sm = init(p)
     @test sm.modified == false == sm.aborted == sm.success
     @test is_finalized(sm.report) == false
-    @test sprint(show, sm) == "PMCSimulation with 1 replica(s) and 1 spectral state(s).\n  Algorithm:   FCIQMC()\n  Hamiltonian: HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  Step:        0 / 100\n  modified = false, aborted = false, success = false"
+    @test sprint(show, sm) == "PMCSimulation with 1 replica(s) and 1 spectral state(s).\n  Algorithm:   FCIQMC(DoubleLogUpdate{Int64}(1000, 0.08, 0.0016), ConstantTimeStep())\n  Hamiltonian: HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  Step:        0 / 100\n  modified = false, aborted = false, success = false"
 
     @test step!(sm) isa Rimu.PMCSimulation
     @test sm.modified == true

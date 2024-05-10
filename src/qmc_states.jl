@@ -8,25 +8,26 @@ See also [`SpectralState`](@ref), [`SpectralStrategy`](@ref),
 [`ReplicaState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
 [`PMCSimulation`](@ref).
 """
-mutable struct SingleState{H,V,W,SS<:ShiftStrategy,TS<:TimeStepStrategy,SP}
+mutable struct SingleState{H,A,V,W,SP}
     # Future TODO: rename these fields, add interface for accessing them.
     hamiltonian::H
+    algorithm::A
     v::V       # vector
     pv::V      # previous vector.
     wm::W      # working memory. Maybe working memories could be shared among replicas?
-    shift_strategy::SS # shift strategy
-    time_step_strategy::TS # time step strategy
     shift_parameters::SP # norm, shift, time_step; is mutable
     id::String # id is appended to column names
 end
 
+# This constructor is currently only used by lomc! and should not be used for new code.
 function SingleState(h, v, wm, shift_strategy, time_step_strategy, shift, dτ::Float64, id="")
     if isnothing(wm)
         wm = similar(v)
     end
     pv = zerovector(v)
     sp = initialise_shift_parameters(shift_strategy, shift, walkernumber(v), dτ)
-    return SingleState(h, v, pv, wm, shift_strategy, time_step_strategy, sp, id)
+    alg = FCIQMC(; shift_strategy, time_step_strategy)
+    return SingleState(h, alg, v, pv, wm, sp, id)
 end
 
 function Base.show(io::IO, r::SingleState)
@@ -139,7 +140,7 @@ struct ReplicaState{
     replica_strategy::RRS
 end
 
-# This constructor is currently only used by lomc! and should not be used.
+# This constructor is currently only used by lomc! and should not be used for new code.
 # It may be removed in the future.
 function ReplicaState(
     hamiltonian, v;
@@ -265,14 +266,15 @@ function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
     replica = state.spectral_states[1].single_states[1]
+    algorithm = replica.algorithm
     shift_parameters = replica.shift_parameters
     report_metadata!(report, "laststep", state.simulation_plan.last_step)
     report_metadata!(report, "num_replicas", num_replicas(state))
     report_metadata!(report, "num_spectral_states", num_spectral_states(state))
     report_metadata!(report, "hamiltonian", state.hamiltonian)
     report_metadata!(report, "reporting_strategy", state.reporting_strategy)
-    report_metadata!(report, "shift_strategy", replica.shift_strategy)
-    report_metadata!(report, "time_step_strategy", replica.time_step_strategy)
+    report_metadata!(report, "shift_strategy", algorithm.shift_strategy)
+    report_metadata!(report, "time_step_strategy", algorithm.time_step_strategy)
     report_metadata!(report, "time_step", shift_parameters.time_step)
     report_metadata!(report, "step", state.step[])
     report_metadata!(report, "shift", shift_parameters.shift)

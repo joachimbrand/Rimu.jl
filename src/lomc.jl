@@ -214,20 +214,23 @@ end
 
 
 """
-    advance!(algorithm, report::Report, state::ReplicaState, replica::SingleState)
+    advance!(report::Report, state::ReplicaState, replica::SingleState)
 
-Advance the `replica` by one step according to the `algorithm`. The `state` is used only
-to access the various strategies involved. Steps, stats, and computed quantities are written
-to the `report`.
+Advance the `replica` by one step. The `state` is used only to access the various strategies
+involved. Steps, stats, and computed quantities are written to the `report`.
 
 Returns `true` if the step was successful and calculation should proceed, `false` when
 it should terminate.
 """
-function advance!(::FCIQMC, report, state::ReplicaState, replica::SingleState)
+function advance!(report, state::ReplicaState, replica::SingleState)
+    return advance!(replica.algorithm, report, state, replica)
+end
+function advance!(algorithm::FCIQMC, report, state::ReplicaState, replica::SingleState)
 
     @unpack hamiltonian, reporting_strategy = state
-    @unpack v, pv, wm, id, shift_strategy, time_step_strategy, shift_parameters = replica
+    @unpack v, pv, wm, id, shift_parameters = replica
     @unpack shift, pnorm, time_step = shift_parameters
+    @unpack shift_strategy, time_step_strategy = algorithm
     step = state.step[]
 
     ### PROPAGATOR ACTS
@@ -284,7 +287,7 @@ function advance!(::FCIQMC, report, state::ReplicaState, replica::SingleState)
     return proceed # Bool
 end
 
-function advance!(algorithm, report, state::ReplicaState, replica::SpectralState{1})
-    return advance!(algorithm, report, state, only(replica.single_states))
+function advance!(report, state::ReplicaState, replica::SpectralState{1})
+    return advance!(report, state, only(replica.single_states))
 end
 # TODO: add advance! for SpectralState{N} where N > 1

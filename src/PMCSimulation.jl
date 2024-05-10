@@ -44,8 +44,8 @@ end
 
 function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     @unpack algorithm, hamiltonian, starting_vectors, style, threading, simulation_plan,
-        replica_strategy, shift_strategy, initial_shift_parameters,
-        reporting_strategy, post_step_strategy, time_step_strategy,
+        replica_strategy, initial_shift_parameters,
+        reporting_strategy, post_step_strategy,
         maxlength, metadata, initiator, random_seed, spectral_strategy = problem
 
     n_replicas = num_replicas(replica_strategy)
@@ -59,7 +59,6 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     if length(starting_vectors) == 1 && n_replicas > 1
         vectors = ntuple(n_replicas) do i
             v = _set_up_v(only(starting_vectors), copy_vectors, style, initiator, threading)
-            sizehint!(v, maxlength)
             return v
         end
         shift_parameters = ntuple(n_replicas) do i
@@ -69,7 +68,6 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
         @assert length(starting_vectors) == n_replicas == length(initial_shift_parameters)
         vectors = map(starting_vectors) do dv
             v = _set_up_v(dv, copy_vectors, style, initiator, threading)
-            sizehint!(v, maxlength)
             return v
         end
         shift_parameters = deepcopy(initial_shift_parameters)
@@ -81,11 +79,10 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
         spectral_states =  (SpectralState(
             (SingleState(
                 hamiltonian,
+                algorithm,
                 only(vectors),
                 zerovector(only(vectors)),
                 wm,
-                deepcopy(shift_strategy),
-                deepcopy(time_step_strategy),
                 only(shift_parameters),
                 ""),
             ),
@@ -98,11 +95,10 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
             SpectralState(
                 (SingleState(
                     hamiltonian,
+                    algorithm,
                     v,
                     zerovector(v),
                     rwm,
-                    deepcopy(shift_strategy),
-                    deepcopy(time_step_strategy),
                     sp,
                     "_$i"),
                 ),
@@ -222,7 +218,7 @@ See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref),
 [`Rimu.PMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::PMCSimulation)
-    @unpack state, report, algorithm = sm
+    @unpack state, report = sm
     @unpack spectral_states, simulation_plan, step, reporting_strategy,
         replica_strategy = state
 
@@ -245,7 +241,7 @@ function CommonSolve.step!(sm::PMCSimulation)
     proceed = true
     # advance all spectral_states
     for replica in spectral_states
-        proceed &= advance!(algorithm, report, state, replica)
+        proceed &= advance!(report, state, replica)
     end
     sm.modified = true
 
@@ -416,10 +412,9 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     first_replica = only(first(spectral_states).single_states) # SingleState
     @assert step[] ≥ simulation_plan.starting_step
     problem = ProjectorMonteCarloProblem(hamiltonian;
+        algorithm = first_replica.algorithm,
         start_at = first_replica.v,
         initial_shift_parameters = first_replica.shift_parameters,
-        shift_strategy = first_replica.shift_strategy,
-        time_step_strategy = first_replica.time_step_strategy,
         replica_strategy ,
         reporting_strategy,
         post_step_strategy,
