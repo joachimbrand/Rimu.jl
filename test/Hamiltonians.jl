@@ -183,13 +183,13 @@ using Rimu.Hamiltonians: Directions, Offsets
         @test g[SVector(2,3,0)] == 0
     end
 
-    @testset "UnitVectors" begin
-        @test UnitVectors(1) == [[1], [-1]]
-        @test UnitVectors(CubicGrid(2,3)) == [[1,0], [0,1], [-1,0], [0,-1]]
-        @test UnitVectors(3) == [[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1]]
-        @test_throws BoundsError UnitVectors(3)[0]
-        @test_throws BoundsError UnitVectors(2)[5]
-        @test_throws BoundsError UnitVectors(1)[15]
+    @testset "Directions" begin
+        @test Directions(1) == [[1], [-1]]
+        @test Directions(Geometry(2,3)) == [[1,0], [0,1], [-1,0], [0,-1]]
+        @test Directions(3) == [[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1]]
+        @test_throws BoundsError Directions(3)[0]
+        @test_throws BoundsError Directions(2)[5]
+        @test_throws BoundsError Directions(1)[15]
     end
 
     @testset "Offsets" begin
