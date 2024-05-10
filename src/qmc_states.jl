@@ -1,5 +1,5 @@
 """
-    SingleState(v, wm, pnorm, params, id)
+    SingleState(hamiltonian, algorithm, v, wm, pnorm, params, id)
 
 Struct that holds a single state vector and all information needed for an independent run
 of the algorithm. Can be advanced a step forward with [`advance!`](@ref).

@@ -2,10 +2,11 @@
     FCIQMC(; kwargs...)
 
 Algorithm for the full configuration interaction quantum Monte Carlo (FCIQMC) method.
-To be passed as the `algorithm` keyword argument to [`ProjectorMonteCarloProblem`](@ref).
+The default algorithm for [`ProjectorMonteCarloProblem`](@ref).
 
 # Keyword arguments and defaults:
-- `shift_strategy = DoubleLogUpdate()`: How to update the `shift`.
+- `shift_strategy = DoubleLogUpdate(; targetwalkers = 1_000, ζ = 0.08,
+    ξ = ζ^2/4)`: How to update the `shift`.
 - `time_step_strategy = ConstantTimeStep()`: Adjust time step or not.
 
 See also [`ProjectorMonteCarloProblem`](@ref), [`ShiftStrategy`](@ref),
@@ -119,8 +120,6 @@ julia> size(DataFrame(simulation))
 ```
 
 # Further keyword arguments:
-- `algorithm = FCIQMC()`: The algorithm to use. Currenlty only [`FCIQMC`](@ref) is
-    implemented.
 - `starting_step = 1`: Starting step of the simulation.
 - `walltime = Inf`: Maximum time allowed for the simulation.
 - `simulation_plan = SimulationPlan(; starting_step, last_step, walltime)`: Defines the
@@ -129,12 +128,14 @@ julia> size(DataFrame(simulation))
 - `ξ = ζ^2/4`: Forcing parameter for the shift update.
 - `shift_strategy = DoubleLogUpdate(; targetwalkers, ζ, ξ)`: How to update the `shift`,
     see [`ShiftStrategy`](@ref).
+- `time_step_strategy = ConstantTimeStep()``: Adjust time step or not, see
+    `TimeStepStrategy`.
+- `algorithm = FCIQMC(; shift_strategy, time_step_strategy)`: The algorithm to use.
+    Currenlty only [`FCIQMC`](@ref) is implemented.
 - `shift`: Initial shift value or collection of shift values. Determined by default from the
     Hamiltonian and the starting vectors.
 - `initial_shift_parameters`: Initial shift parameters or collection of initial shift
     parameters. Overrides `shift` if provided.
-- `time_step_strategy = ConstantTimeStep()`: Adjust time step or not, see
-  [`TimeStepStrategy`](@ref).
 - `maxlength = 2 * targetwalkers + 100`: Maximum length of the vectors.
 - `display_name = "PMCSimulation"`: Name displayed in progress bar (via `ProgressLogging`).
 - `metadata`: User-supplied metadata to be added to the report. Must be an iterable of
