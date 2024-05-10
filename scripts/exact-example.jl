@@ -1,7 +1,7 @@
-# # Example 4: Exact diagonalisation
+# # Example 4: Exact diagonalization
 
 # When working with smaller systems or when multiple eigenvalues of a system are required,
-# one can use an exact diagonalisation method. There are a few ways to go about
+# one can use an exact diagonalization method. There are a few ways to go about
 # this, each with its pros and cons. The purpose of this tutorial is to show off the methods
 # as well as provide a few tips regarding them.
 
@@ -24,14 +24,14 @@ N = 4
 add = BoseFS(M, cld(M, 2) => N)
 ham = HubbardMom1D(add)
 
-# Before performing exact diagonalisation, it is a good idea to check the dimension of the
+# Before performing exact diagonalization, it is a good idea to check the dimension of the
 # Hamiltonian.
 
 dimension(ham)
 
 # Keep in mind that this is an estimate of the number of Fock states the Hamiltonian can act
 # on, not the actual matrix size - the matrix size can sometimes be smaller. It can still be
-# used as a guide to decide whether a Hamiltonian is amenable to exact diagonalisation and
+# used as a guide to decide whether a Hamiltonian is amenable to exact diagonalization and
 # to determine which algorithm would be best suited to diagonalising it.
 
 # ## The BasisSetRepresentation
@@ -133,7 +133,7 @@ vals_kk
 # [Arnoldi algorithm](https://en.wikipedia.org/wiki/Arnoldi_iteration) for non-Hermitian
 # ones. These may in some cases miss degenerate eigenpairs.
 
-# If diagonalisation takes too long, you can reduce the tolerance by setting the `tol`
+# If diagonalization takes too long, you can reduce the tolerance by setting the `tol`
 # keyword argument to `eigs` or `eigsolve`. Using drastically lower tolerances than the
 # default can still produce good results in practice. This, however, should be checked on a
 # case-by-case basis.
@@ -151,7 +151,7 @@ vals_kk
 # less memory. This allows us to diagonalise much larger Hamiltonians.
 
 # To use this method, you first need a starting vector. It's best to use [`PDVec`](@ref)
-# here as it leverages threading during the diagonalisation.
+# here as it leverages threading during the diagonalization.
 
 dvec = PDVec(add => 1.0)
 

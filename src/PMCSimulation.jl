@@ -269,47 +269,95 @@ function CommonSolve.step!(sm::PMCSimulation)
 end
 
 """
-    CommonSolve.solve(::ProjectorMonteCarloProblem)::PMCSimulation
+    solve(::ProjectorMonteCarloProblem)::PMCSimulation
 
-Initialize and solve the simulation until the last step or the walltime is exceeded.
+Initialize and solve a [`ProjectorMonteCarloProblem`](@ref) until the last step is completed
+or the walltime limit is reached.
 
-See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref),
-[`step!`](@ref), [`Rimu.PMCSimulation`](@ref).
+See also [`init`](@ref), [`solve!`](@ref), [`step!`](@ref), [`Rimu.PMCSimulation`](@ref).
 """
 CommonSolve.solve
 
 """
-    CommonSolve.solve!(sm::PMCSimulation; kwargs...)::PMCSimulation
+    solve!(sm::PMCSimulation; kwargs...)::PMCSimulation
 
-Solve the simulation until the last step or the walltime is exceeded.
+Solve a [`Rimu.PMCSimulation`](@ref) until the last step is completed or the walltime limit
+is reached.
 
-# Keyword arguments:
+To continue a previously completed simulation, set a new `last_step` or `walltime` using the
+keyword arguments. Optionally, changes can be made to the `replica_strategy`, the
+`post_step_strategy`, or the `reporting_strategy`.
+
+# Optional keyword arguments:
 * `last_step = nothing`: Set the last step to a new value and continue the simulation.
 * `walltime = nothing`: Set the allowed walltime to a new value and continue the simulation.
 * `reset_time = false`: Reset the `elapsed_time` counter and continue the simulation.
+* `empty_report = false`: Empty the report before continuing the simulation.
+* `replica_strategy = nothing`: Change the replica strategy. Requires the number of replicas
+    to match the number of replicas in the simulation `sm`. Implies `empty_report = true`.
+* `post_step_strategy = nothing`: Change the post-step strategy. Implies
+    `empty_report = true`.
+* `reporting_strategy = nothing`: Change the reporting strategy. Implies
+    `empty_report = true`.
+* `metadata = nothing`: Add metadata to the report.
 
-See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve`](@ref), [`step!`](@ref),
-[`Rimu.PMCSimulation`](@ref).
+See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve`](@ref),
+[`step!`](@ref), [`Rimu.PMCSimulation`](@ref).
 """
 function CommonSolve.solve!(sm::PMCSimulation;
     last_step = nothing,
     walltime = nothing,
     reset_time = false,
+    replica_strategy=nothing,
+    post_step_strategy=nothing,
+    reporting_strategy=nothing,
+    empty_report=false,
+    metadata=nothing,
 )
-    @unpack state = sm
-
     reset_flags = reset_time # reset flags if resetting time
     if !isnothing(last_step)
+        state = sm.state
         sm.state = @set state.simulation_plan.last_step = last_step
         report_metadata!(sm.report, "laststep", last_step)
         reset_flags = true
     end
     if !isnothing(walltime)
+        state = sm.state
         sm.state = @set state.simulation_plan.walltime = walltime
+        reset_flags = true
+    end
+    if !isnothing(replica_strategy)
+        if num_replicas(sm) ≠ num_replicas(replica_strategy)
+            throw(ArgumentError("Number of replicas in the strategy must match the number of replicas in the simulation."))
+        end
+        state = sm.state
+        sm.state = @set state.replica_strategy = replica_strategy
+        reset_flags = true
+        empty_report = true
+    end
+    if !isnothing(post_step_strategy)
+        # set up post_step_strategy as a tuple
+        if post_step_strategy isa PostStepStrategy
+            post_step_strategy = (post_step_strategy,)
+        end
+        state = sm.state
+        sm.state = @set state.post_step_strategy = post_step_strategy
+        reset_flags = true
+        empty_report = true
+    end
+    if !isnothing(reporting_strategy)
+        state = sm.state
+        sm.state = @set state.reporting_strategy = reporting_strategy
         reset_flags = true
     end
 
     @unpack report = sm
+    if empty_report
+        empty!(report)
+        report_default_metadata!(report, sm.state)
+    end
+    isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
+
     @unpack simulation_plan, step, reporting_strategy = sm.state
 
     last_step = simulation_plan.last_step

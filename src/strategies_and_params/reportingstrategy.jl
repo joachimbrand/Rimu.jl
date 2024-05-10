@@ -168,7 +168,7 @@ end
 function ensure_correct_lengths(report::Report)
     lens = length.(values(report.data))
     for i in 1:length(report.data)
-        lens[i] == lens[1] || throw(ArgumentError("duplicate keys reported to `DataFrame`"))
+        lens[i] == lens[1] || throw(ArgumentError("Inconsistency in `Report` detected. Consider calling `empty!(report)`."))
     end
 end
 

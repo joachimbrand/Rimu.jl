@@ -159,5 +159,29 @@ using Rimu: num_replicas, num_spectral_states
     sm2 = solve!(sm; walltime=1.0)
     @test sm2 === sm
     @test sm.success == true
-    @test sm.state.step[] == 500
+    @test sm.state.step[] == 500 == size(sm.df)[1]
+
+    # continue simulation and change strategies
+    sm3 = solve!(sm;
+        last_step = 600,
+        post_step_strategy = Rimu.Timer(),
+        metadata = Dict(:test => 1)
+    )
+    @test sm3 === sm
+    @test sm.success == true
+    @test sm.state.step[] == 600
+    @test size(sm.df)[1] == 100 # the report was emptied
+    @test parse(Int, Rimu.get_metadata(sm.report, "test")) == 1
+    @test Rimu.get_metadata(sm.report, "post_step_strategy") == "(Rimu.Timer(),)"
+
+    # continue simulation and change replica strategy
+    @test_throws ArgumentError solve!(sm; replica_strategy = NoStats(3))
+
+    p = ProjectorMonteCarloProblem(h; last_step=100, replica_strategy=NoStats(3))
+    sm = init(p)
+    @test solve!(sm) === sm
+    @test solve!(sm; last_step=200, replica_strategy=AllOverlaps(3)) === sm
+    @test size(sm.df)[1] == 100 # the report was emptied
+    @test solve!(sm; last_step=300, reporting_strategy=ReportDFAndInfo()) === sm
+    @test size(sm.df)[1] == 200 # the report was not emptied
 end
