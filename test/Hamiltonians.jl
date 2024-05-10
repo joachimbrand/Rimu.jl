@@ -185,7 +185,7 @@ using Rimu.Hamiltonians: Directions, Offsets
 
     @testset "Directions" begin
         @test Directions(1) == [[1], [-1]]
-        @test Directions(Geometry(2,3)) == [[1,0], [0,1], [-1,0], [0,-1]]
+        @test Directions(CubicGrid(2,3)) == [[1,0], [0,1], [-1,0], [0,-1]]
         @test Directions(3) == [[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1]]
         @test_throws BoundsError Directions(3)[0]
         @test_throws BoundsError Directions(2)[5]
