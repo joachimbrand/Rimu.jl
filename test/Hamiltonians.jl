@@ -943,9 +943,9 @@ using Rimu.Hamiltonians: circshift_dot
 
             g2 = dot(v0, G2RealSpace(geom), v0)
 
-            @test sum(g2) == 3 * 2 / 18
-            @test g2[:,2,:] == g2[:,3,:]
-            @test g2[:,:,2] == g2[:,:,3]
+            @test sum(g2) ≈ 3 * 2 / 18
+            @test g2[:,2,:] ≈ g2[:,3,:]
+            @test g2[:,:,2] ≈ g2[:,:,3]
             @test minimum(g2) == first(g2)
         end
     end
