@@ -150,18 +150,18 @@ using Rimu.Hamiltonians: momentum_transfer_excitation
     end
 end
 
-using Rimu.Hamiltonians: UnitVectors, Offsets
+using Rimu.Hamiltonians: Directions, Offsets
 
-@testset "Geometry" begin
+@testset "CubicGrid" begin
     @testset "construtors and basic properties" begin
-        @test PeriodicBoundaries(3, 3) == Geometry(3, 3)
-        @test HardwallBoundaries(3, 4, 5) == Geometry((3, 4, 5), (false, false, false))
-        @test LadderBoundaries(2, 3, 4) == Geometry((2, 3, 4), (false, true, true))
+        @test PeriodicBoundaries(3, 3) == CubicGrid(3, 3)
+        @test HardwallBoundaries(3, 4, 5) == CubicGrid((3, 4, 5), (false, false, false))
+        @test LadderBoundaries(2, 3, 4) == CubicGrid((2, 3, 4), (false, true, true))
 
         for (dims, fold) in (
             ((4,), (false,)), ((2, 5), (true, false)), ((5, 6, 7), (true, true, false))
         )
-            geom = Geometry(dims, fold)
+            geom = CubicGrid(dims, fold)
             @test size(geom) == dims
             @test length(geom) == prod(dims)
             @test Rimu.Hamiltonians.fold(geom) == fold
@@ -170,7 +170,7 @@ using Rimu.Hamiltonians: UnitVectors, Offsets
     end
 
     @testset "getindex" begin
-        g = Geometry((2,3,4), (false,true,false))
+        g = CubicGrid((2,3,4), (false,true,false))
         for i in 1:length(g)
             v = SVector(Tuple(CartesianIndices((2,3,4))[i])...)
             @test g[i] == v
@@ -185,7 +185,7 @@ using Rimu.Hamiltonians: UnitVectors, Offsets
 
     @testset "UnitVectors" begin
         @test UnitVectors(1) == [[1], [-1]]
-        @test UnitVectors(Geometry(2,3)) == [[1,0], [0,1], [-1,0], [0,-1]]
+        @test UnitVectors(CubicGrid(2,3)) == [[1,0], [0,1], [-1,0], [0,-1]]
         @test UnitVectors(3) == [[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1]]
         @test_throws BoundsError UnitVectors(3)[0]
         @test_throws BoundsError UnitVectors(2)[5]
@@ -193,12 +193,12 @@ using Rimu.Hamiltonians: UnitVectors, Offsets
     end
 
     @testset "Offsets" begin
-        @test collect(Offsets(Geometry(3), center=false)) == [[0], [1], [2]]
-        @test collect(Offsets(Geometry(3), center=true)) == [[-1], [0], [1]]
+        @test collect(Offsets(CubicGrid(3), center=false)) == [[0], [1], [2]]
+        @test collect(Offsets(CubicGrid(3), center=true)) == [[-1], [0], [1]]
 
-        @test collect(Offsets(Geometry(2,2))) == [[0,0], [1,0], [0,1], [1,1]]
-        @test collect(Offsets(Geometry(2,3))) == [[0,0], [1,0], [0,1], [1,1], [0,2], [1,2]]
-        @test collect(Offsets(Geometry(2,3); center=true)) == [
+        @test collect(Offsets(CubicGrid(2,2))) == [[0,0], [1,0], [0,1], [1,1]]
+        @test collect(Offsets(CubicGrid(2,3))) == [[0,0], [1,0], [0,1], [1,1], [0,2], [1,2]]
+        @test collect(Offsets(CubicGrid(2,3); center=true)) == [
             [0,-1], [1,-1], [0,0], [1,0], [0,1], [1,1]
         ]
     end
@@ -867,9 +867,9 @@ using Rimu.Hamiltonians: circshift_dot
     @testset "G2RealSpace" begin
         @testset "1D G2RealCorrelator comparison" begin
             @testset "constructors" begin
-                g2_1 = G2RealSpace(Geometry(2, 2, 3), 1, 3)
-                g2_2 = G2RealSpace(Geometry(2, 2), 2)
-                g2_3 = G2RealSpace(Geometry(2, 2); sum_components=true)
+                g2_1 = G2RealSpace(CubicGrid(2, 2, 3), 1, 3)
+                g2_2 = G2RealSpace(CubicGrid(2, 2), 2)
+                g2_3 = G2RealSpace(CubicGrid(2, 2); sum_components=true)
                 @test g2_1 isa G2RealSpace{1,3}
                 @test g2_2 isa G2RealSpace{2,2}
                 @test g2_3 isa G2RealSpace{0,0}
@@ -878,17 +878,17 @@ using Rimu.Hamiltonians: circshift_dot
                 @test eval(Meta.parse(repr(g2_2))) == g2_2
                 @test eval(Meta.parse(repr(g2_3))) == g2_3
 
-                @test_throws ArgumentError G2RealSpace(Geometry(3), 1, 0)
-                @test_throws ArgumentError G2RealSpace(Geometry(2, 2), 0, 0)
-                @test_throws ArgumentError G2RealSpace(Geometry(1, 2, 3), -1, 2)
-                @test_throws ArgumentError G2RealSpace(Geometry(12), 3; sum_components=true)
+                @test_throws ArgumentError G2RealSpace(CubicGrid(3), 1, 0)
+                @test_throws ArgumentError G2RealSpace(CubicGrid(2, 2), 0, 0)
+                @test_throws ArgumentError G2RealSpace(CubicGrid(1, 2, 3), -1, 2)
+                @test_throws ArgumentError G2RealSpace(CubicGrid(12), 3; sum_components=true)
             end
             @testset "single components" begin
                 addr = near_uniform(BoseFS{6,6})
                 H = HubbardReal1D(addr)
                 v = normalize!(H * (H * (H * DVec(addr => 1.0))))
 
-                g2 = dot(v, G2RealSpace(Geometry(6)), v)
+                g2 = dot(v, G2RealSpace(CubicGrid(6)), v)
                 for d in 0:5
                     @test g2[d + 1] ≈ dot(v, G2RealCorrelator(d), v)
                 end
@@ -899,12 +899,12 @@ using Rimu.Hamiltonians: circshift_dot
                 H = HubbardRealSpace(addr)
                 v = normalize!(H * (H * (H * DVec(addr => 1.0))))
 
-                g2 = dot(v, G2RealSpace(Geometry(4); sum_components=true), v)
+                g2 = dot(v, G2RealSpace(CubicGrid(4); sum_components=true), v)
                 for d in 0:3
                     @test g2[d + 1] ≈ dot(v, G2RealCorrelator(d), v)
                 end
 
-                g2_nosum = dot(v, G2RealSpace(Geometry(4)), v)
+                g2_nosum = dot(v, G2RealSpace(CubicGrid(4)), v)
                 @test iszero(g2_nosum)
             end
         end
@@ -913,7 +913,7 @@ using Rimu.Hamiltonians: circshift_dot
             c1 = BoseFS(1, 0, 0, 0, 0, 0)
             c2 = BoseFS(1, 2, 3, 4, 5, 6)
             addr = CompositeFS(c1, c2)
-            geom = Geometry((3, 2))
+            geom = CubicGrid((3, 2))
 
             g2_11 = diagonal_element(G2RealSpace(geom, 1, 1), addr)
             g2_12 = diagonal_element(G2RealSpace(geom, 1, 2), addr)
@@ -936,7 +936,7 @@ using Rimu.Hamiltonians: circshift_dot
 
         @testset "G2 is symmetric for translationally invariant ground states" begin
             addr = near_uniform(BoseFS{3,18})
-            geom = Geometry((2,3,3), (false, true, true))
+            geom = CubicGrid((2,3,3), (false, true, true))
             H = HubbardRealSpace(addr; geometry=geom)
             bsr = BasisSetRep(H)
             v0 = PDVec(zip(bsr.basis, eigen(Matrix(bsr)).vectors[:,1]))

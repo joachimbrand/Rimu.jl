@@ -89,7 +89,7 @@ export ParticleNumberOperator
 export G2MomCorrelator, G2RealCorrelator, G2RealSpace, SuperfluidCorrelator, DensityMatrixDiagonal, Momentum
 export StringCorrelator
 
-export Geometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
+export CubicGrid, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 
 export sparse # from SparseArrays
 

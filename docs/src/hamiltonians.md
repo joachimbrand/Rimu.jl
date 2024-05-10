@@ -157,11 +157,12 @@ Hamiltonians.number_conserving_fermi_dimension
 ```
 
 ## Geometry
+
 Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref) and [`G2RealSpace`](@ref).
 
 ```@docs
-Geometry
-Hamiltonians.UnitVectors
+CubicGrid
+Hamiltonians.Directions
 Hamiltonians.Offsets
 Hamiltonians.neighbor_site
 PeriodicBoundaries

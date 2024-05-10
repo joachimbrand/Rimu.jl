@@ -104,7 +104,7 @@ num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0
 num_offdiagonals(::G2RealCorrelator, ::CompositeFS) = 0
 
 """
-    G2RealSpace(::Geometry, σ=1, τ=1; sum_components=false) <: AbstractHamiltonian{SArray}
+    G2RealSpace(::CubicGrid, σ=1, τ=1; sum_components=false) <: AbstractHamiltonian{SArray}
 
 Two-body operator for density-density correlation for all displacements ``d`` in the
 specified geometry (see [`Offsets`](@ref)).
@@ -119,18 +119,18 @@ component.
 
 # See also
 
-* [`Geometry`](@ref)
+* [`CubicGrid`](@ref)
 * [`HubbardRealSpace`](@ref)
 * [`G2MomCorrelator`](@ref)
 * [`G2RealCorrelator`](@ref)
 * [`AbstractHamiltonian`](@ref)
 * [`AllOverlaps`](@ref)
 """
-struct G2RealSpace{A,B,G<:Geometry,S} <: AbstractHamiltonian{S}
+struct G2RealSpace{A,B,G<:CubicGrid,S} <: AbstractHamiltonian{S}
     geometry::G
     init::S
 end
-function G2RealSpace(geometry::Geometry, σ::Int=1, τ::Int=σ; sum_components=false)
+function G2RealSpace(geometry::CubicGrid, σ::Int=1, τ::Int=σ; sum_components=false)
     if σ < 1 || τ < 1
         throw(ArgumentError("`σ` and `τ` must be positive integers"))
     end

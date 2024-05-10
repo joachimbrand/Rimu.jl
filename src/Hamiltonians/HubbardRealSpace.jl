@@ -140,7 +140,7 @@ is produced if `address`is incompatible with the interaction parameters `u`.
 
 ## Geometries
 
-Implemented [`Geometry`](@ref)s for keyword `geometry`
+Implemented [`CubicGrid`](@ref)s for keyword `geometry`
 
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
@@ -163,7 +163,7 @@ number of sites `M` inferred from the number of modes in `address`.
 struct HubbardRealSpace{
     C, # components
     A<:AbstractFockAddress,
-    G<:Geometry,
+    G<:CubicGrid,
     D, # dimension
     # The following need to be type params.
     T<:SVector{C,Float64},
@@ -181,7 +181,7 @@ end
 
 function HubbardRealSpace(
     address::AbstractFockAddress;
-    geometry::Geometry=PeriodicBoundaries((num_modes(address),)),
+    geometry::CubicGrid=PeriodicBoundaries((num_modes(address),)),
     t=ones(num_components(address)),
     u=ones(num_components(address), num_components(address)),
     v=zeros(num_components(address), num_dimensions(geometry))

@@ -1,5 +1,5 @@
 """
-    Geometry(dims::NTuple{D,Int}, fold::NTuple{D,Bool})
+    CubicGrid(dims::NTuple{D,Int}, fold::NTuple{D,Bool})
 
 Represents a `D`-dimensional grid. Used to define a cubic lattice and boundary conditions
 for some [`AbstractHamiltonian`](@ref)s. The type instance can be used to convert between
@@ -12,8 +12,8 @@ with vectors, it folds them back into the grid if the out-of-bounds dimension is
   case of momentum space).
 
 ```julia
-julia> geo = Geometry((2,3), (true,false))
-Geometry{2}((2, 3), (true, false))
+julia> geo = CubicGrid((2,3), (true,false))
+CubicGrid{2}((2, 3), (true, false))
 
 julia> geo[1]
 (1, 1)
@@ -40,75 +40,75 @@ julia> geo[(3,4)] # returns 0 if out of bounds
 See also [`PeriodicBoundaries`](@ref), [`HardwallBoundaries`](@ref) and
 [`LadderBoundaries`](@ref) for special-case constructors.
 """
-struct Geometry{D,Dims,Fold}
-    function Geometry(
+struct CubicGrid{D,Dims,Fold}
+    function CubicGrid(
         dims::NTuple{D,Int}, fold::NTuple{D,Bool}=ntuple(Returns(true), Val(D))
     ) where {D}
         return new{D,dims,fold}()
     end
 end
-Geometry(args::Vararg{Int}) = Geometry(args)
+CubicGrid(args::Vararg{Int}) = CubicGrid(args)
 
 """
-    PeriodicBoundaries(dims...) -> Geometry
-    PeriodicBoundaries(dims) -> Geometry
+    PeriodicBoundaries(dims...) -> CubicGrid
+    PeriodicBoundaries(dims) -> CubicGrid
 
-Return `Geometry` with all dimensions periodic. Equivalent to `Geometry(dims)`.
+Return `CubicGrid` with all dimensions periodic. Equivalent to `CubicGrid(dims)`.
 """
 function PeriodicBoundaries(dims::NTuple{D,Int}) where {D}
-    return Geometry(dims, ntuple(Returns(true), Val(D)))
+    return CubicGrid(dims, ntuple(Returns(true), Val(D)))
 end
 PeriodicBoundaries(dims::Vararg{Int}) = PeriodicBoundaries(dims)
 
 """
-    HardwallBoundaries(dims...) -> Geometry
-    HardwallBoundaries(dims) -> Geometry
+    HardwallBoundaries(dims...) -> CubicGrid
+    HardwallBoundaries(dims) -> CubicGrid
 
-Return `Geometry` with all dimensions non-periodic. Equivalent to
-`Geometry(dims, (false, false, ...))`.
+Return `CubicGrid` with all dimensions non-periodic. Equivalent to
+`CubicGrid(dims, (false, false, ...))`.
 """
 function HardwallBoundaries(dims::NTuple{D,Int}) where {D}
-    return Geometry(dims, ntuple(Returns(false), Val(D)))
+    return CubicGrid(dims, ntuple(Returns(false), Val(D)))
 end
 HardwallBoundaries(dims::Vararg{Int}) = HardwallBoundaries(dims)
 
 """
-    LadderBoundaries(dims...) -> Geometry
-    LadderBoundaries(dims) -> Geometry
+    LadderBoundaries(dims...) -> CubicGrid
+    LadderBoundaries(dims) -> CubicGrid
 
-Return `Geometry` where the first dimension is dimensions non-periodic and the rest are
-periodic. Equivalent to `Geometry(dims, (true, false, ...))`.
+Return `CubicGrid` where the first dimension is dimensions non-periodic and the rest are
+periodic. Equivalent to `CubicGrid(dims, (true, false, ...))`.
 """
 function LadderBoundaries(dims::NTuple{D,Int}) where {D}
-    return Geometry(dims, ntuple(>(1), Val(D)))
+    return CubicGrid(dims, ntuple(>(1), Val(D)))
 end
 LadderBoundaries(dims::Vararg{Int}) = LadderBoundaries(dims)
 
-function Base.show(io::IO, g::Geometry{<:Any,Dims,Fold}) where {Dims,Fold}
-    print(io, "Geometry($Dims, $Fold)")
+function Base.show(io::IO, g::CubicGrid{<:Any,Dims,Fold}) where {Dims,Fold}
+    print(io, "CubicGrid($Dims, $Fold)")
 end
 
-Base.size(g::Geometry{<:Any,Dims}) where {Dims} = Dims
-Base.size(g::Geometry{<:Any,Dims}, i) where {Dims} = Dims[i]
-Base.length(g::Geometry) = prod(size(g))
-fold(g::Geometry{<:Any,<:Any,Fold}) where {Fold} = Fold
+Base.size(g::CubicGrid{<:Any,Dims}) where {Dims} = Dims
+Base.size(g::CubicGrid{<:Any,Dims}, i) where {Dims} = Dims[i]
+Base.length(g::CubicGrid) = prod(size(g))
+fold(g::CubicGrid{<:Any,<:Any,Fold}) where {Fold} = Fold
 
 """
-    num_dimensions(geom::LatticeGeometry)
+    num_dimensions(geom::LatticeCubicGrid)
 
 Return the number of dimensions of the lattice in this geometry.
 """
-num_dimensions(::Geometry{D}) where {D} = D
+num_dimensions(::CubicGrid{D}) where {D} = D
 
 """
-    fold_vec(g::Geometry{D}, vec::SVector{D,Int}) -> SVector{D,Int}
+    fold_vec(g::CubicGrid{D}, vec::SVector{D,Int}) -> SVector{D,Int}
 
-Use the Geometry to fold the `vec` in each dimension. If folding is disabled in a
+Use the CubicGrid to fold the `vec` in each dimension. If folding is disabled in a
 dimension, and the vector is allowed to go out of bounds.
 
 ```julia
-julia> geo = Geometry((2,3), (true,false))
-Geometry{2}((2, 3), (true, false))
+julia> geo = CubicGrid((2,3), (true,false))
+CubicGrid{2}((2, 3), (true, false))
 
 julia> fold_vec(geo, (3,1))
 (1, 1)
@@ -117,7 +117,7 @@ julia> fold_vec(geo, (3,4))
 (1, 4)
 ```
 """
-function fold_vec(g::Geometry{D}, vec::SVector{D,Int}) where {D}
+function fold_vec(g::CubicGrid{D}, vec::SVector{D,Int}) where {D}
     (_fold_vec(Tuple(vec), fold(g), size(g)))
 end
 @inline _fold_vec(::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
@@ -126,20 +126,20 @@ end
     return (x, _fold_vec(xs, fs, ds)...)
 end
 
-function Base.getindex(g::Geometry{D}, vec::Union{NTuple{D,Int},SVector{D,Int}}) where {D}
+function Base.getindex(g::CubicGrid{D}, vec::Union{NTuple{D,Int},SVector{D,Int}}) where {D}
     return get(LinearIndices(size(g)), fold_vec(g, SVector(vec)), 0)
 end
-Base.getindex(g::Geometry, i::Int) = SVector(Tuple(CartesianIndices(size(g))[i]))
+Base.getindex(g::CubicGrid, i::Int) = SVector(Tuple(CartesianIndices(size(g))[i]))
 
 """
-    DirectionVectors(D) <: AbstractVector{SVector{D,Int}}
-    DirectionVectors(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
+    Directions(D) <: AbstractVector{SVector{D,Int}}
+    Directions(geometry::CubicGrid) <: AbstractVector{SVector{D,Int}}
 
 Iterate over axis-aligned direction vectors in `D` dimensions.
 
-```jldoctest; setup=:(using Rimu.Hamiltonians: DirectionVectors)
-julia> DirectionVectors(3)
-6-element DirectionVectors{3}:
+```jldoctest; setup=:(using Rimu.Hamiltonians: Directions)
+julia> Directions(3)
+6-element Directions{3}:
  [1, 0, 0]
  [0, 1, 0]
  [0, 0, 1]
@@ -149,16 +149,16 @@ julia> DirectionVectors(3)
 
 ```
 
-See also [`Geometry`](@ref).
+See also [`CubicGrid`](@ref).
 """
-struct DirectionVectors{D} <: AbstractVector{SVector{D,Int}} end
+struct Directions{D} <: AbstractVector{SVector{D,Int}} end
 
-DirectionVectors(D) = DirectionVectors{D}()
-DirectionVectors(::Geometry{D}) where {D} = DirectionVectors{D}()
+Directions(D) = Directions{D}()
+Directions(::CubicGrid{D}) where {D} = Directions{D}()
 
-Base.size(::DirectionVectors{D}) where {D} = (2D,)
+Base.size(::Directions{D}) where {D} = (2D,)
 
-function Base.getindex(uv::DirectionVectors{D}, i) where {D}
+function Base.getindex(uv::Directions{D}, i) where {D}
     @boundscheck 0 < i ≤ length(uv) || throw(BoundsError(uv, i))
     if i ≤ D
         return SVector(_unit_vec(Val(D), i, 1))
@@ -174,13 +174,13 @@ end
 end
 
 """
-    Offsets(geometry::Geometry) <: AbstractVector{SVector{D,Int}}
+    Offsets(geometry::CubicGrid) <: AbstractVector{SVector{D,Int}}
 
-Return all valid offset vectors in a [`Geometry`](@ref). If `center=true` the (0,0) displacement is
+Return all valid offset vectors in a [`CubicGrid`](@ref). If `center=true` the (0,0) displacement is
 placed at the centre of the array.
 
 ```jldoctest; setup=:(using Rimu.Hamiltonians: Offsets)
-julia> geometry = Geometry((3,4));
+julia> geometry = CubicGrid((3,4));
 
 julia> reshape(Offsets(geometry), (3,4))
 3×4 reshape(::Offsets{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
@@ -197,7 +197,7 @@ julia> reshape(Offsets(geometry; center=true), (3,4))
 ```
 """
 struct Offsets{D} <: AbstractVector{SVector{D,Int}}
-    geometry::Geometry{D}
+    geometry::CubicGrid{D}
     center::Bool
 end
 Offsets(geometry; center=false) = Offsets(geometry, center)
@@ -216,17 +216,17 @@ Base.size(off::Offsets) = (length(off.geometry),)
 end
 
 """
-    neighbor_site(geom::Geometry, site, i)
+    neighbor_site(geom::CubicGrid, site, i)
 
 Find the `i`-th neighbor of `site` in the geometry. If the move is illegal, return 0.
 """
-function neighbor_site(g::Geometry{D}, mode, chosen) where {D}
-    return g[g[mode] + DirectionVectors(D)[chosen]]
+function neighbor_site(g::CubicGrid{D}, mode, chosen) where {D}
+    return g[g[mode] + Directions(D)[chosen]]
 end
 
-function BitStringAddresses.onr(address, geom::Geometry{<:Any,S}) where {S}
+function BitStringAddresses.onr(address, geom::CubicGrid{<:Any,S}) where {S}
     return SArray{Tuple{S...}}(onr(address))
 end
-function BitStringAddresses.onr(address::CompositeFS, geom::Geometry)
+function BitStringAddresses.onr(address::CompositeFS, geom::CubicGrid)
     return map(fs -> onr(fs, geom), address.components)
 end
