@@ -13,6 +13,7 @@ using OrderedCollections: freeze
 
     @test Rimu.num_replicas(p) == 1
     @test startswith(sprint(show, p), "ProjectorMonteCarloProblem with 1 replica(s)")
+    @test eval(Meta.parse(repr(p.simulation_plan))) == p.simulation_plan
 
     simulation = init(p)
     @test simulation.state.hamiltonian == h

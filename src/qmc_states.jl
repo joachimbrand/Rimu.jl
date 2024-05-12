@@ -19,17 +19,6 @@ mutable struct SingleState{H,A,V,W,SP}
     id::String # id is appended to column names
 end
 
-# This constructor is currently only used by lomc! and should not be used for new code.
-function SingleState(h, v, wm, shift_strategy, time_step_strategy, shift, dτ::Float64, id="")
-    if isnothing(wm)
-        wm = similar(v)
-    end
-    pv = zerovector(v)
-    sp = initialise_shift_parameters(shift_strategy, shift, walkernumber(v), dτ)
-    alg = FCIQMC(; shift_strategy, time_step_strategy)
-    return SingleState(h, alg, v, pv, wm, sp, id)
-end
-
 function Base.show(io::IO, r::SingleState)
     print(
         io,
@@ -142,82 +131,6 @@ struct ReplicaState{
     replica_strategy::RRS
 end
 
-# # This constructor is currently only used by lomc! and should not be used for new code.
-# # It may be removed in the future.
-# function ReplicaState(
-#     hamiltonian, v;
-#     starting_step = 0,
-#     last_step = 100,
-#     simulation_plan = SimulationPlan(; starting_step, last_step),
-#     time_step = 0.01,
-#     address = starting_address(hamiltonian),
-#     shift = float(valtype(v))(diagonal_element(hamiltonian, address)),
-#     wm = nothing,
-#     style = nothing,
-#     targetwalkers = 1000,
-#     shift_strategy::ShiftStrategy = DoubleLogUpdate(; targetwalkers),
-#     reporting_strategy::ReportingStrategy = ReportDFAndInfo(),
-#     time_step_strategy::TimeStepStrategy = ConstantTimeStep(),
-#     threading = nothing,
-#     replica_strategy::ReplicaStrategy = NoStats(),
-#     spectral_strategy::SpectralStrategy = GramSchmidt(),
-#     post_step_strategy = (),
-#     maxlength=2 * _n_walkers(v, shift_strategy) + 100, # padding for small walker numbers
-# )
-#     Hamiltonians.check_address_type(hamiltonian, keytype(v))
-#     # Set up reporting_strategy and params
-#     reporting_strategy = refine_reporting_strategy(reporting_strategy)
-
-#     if threading ≠ nothing
-#         @warn "Starting vector is provided. Ignoring `threading=$threading`."
-#     end
-#     if style ≠ nothing
-#         @warn "Starting vector is provided. Ignoring `style=$style`."
-#     end
-#     wm = isnothing(wm) ? working_memory(v) : wm
-
-#     # Set up post_step_strategy
-#     if !(post_step_strategy isa Tuple)
-#         post_step_strategy = (post_step_strategy,)
-#     end
-
-#     # set up single_states
-#     n_spectral_states = num_spectral_states(spectral_strategy)
-#     n_spectral_states == 1 || throw(ArgumentError("Only one spectral state is supported."))
-
-#     # Set up spectral_states
-#     nreplicas = num_replicas(replica_strategy)
-#     if nreplicas > 1
-#         spectral_states = ntuple(nreplicas) do i
-#             SpectralState(
-#                 (SingleState(
-#                     hamiltonian,
-#                     deepcopy(v),
-#                     deepcopy(wm),
-#                     deepcopy(shift_strategy),
-#                     deepcopy(time_step_strategy),
-#                     shift,
-#                     time_step,
-#                     "_$i"),
-#                 ),
-#                 spectral_strategy
-#             )
-#         end
-#     else
-#         spectral_states = (SpectralState(
-#             (SingleState(hamiltonian, v, wm, shift_strategy, time_step_strategy, shift, time_step),),
-#             spectral_strategy
-#         ),)
-#     end
-
-#     return ReplicaState(
-#         hamiltonian, spectral_states, Ref(Int(maxlength)),
-#         Ref(simulation_plan.starting_step), # step
-#         simulation_plan,
-#         # Ref(Int(laststep)),
-#         reporting_strategy, post_step_strategy, replica_strategy
-#     )
-# end
 
 num_replicas(::ReplicaState{N}) where {N} = N
 num_spectral_states(::ReplicaState{<:Any, S}) where {S} = S

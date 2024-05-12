@@ -18,6 +18,12 @@ Base.@kwdef struct SimulationPlan
     last_step::Int = 100
     walltime::Float64 = Inf
 end
+function Base.show(io::IO, plan::SimulationPlan)
+    print(
+        io, "SimulationPlan(starting_step=", plan.starting_step,
+        ", last_step=", plan.last_step, ", walltime=", plan.walltime, ")"
+    )
+end
 
 """
     ProjectorMonteCarloProblem(hamiltonian::AbstractHamiltonian; kwargs...)
@@ -32,9 +38,10 @@ the [`FCIQMC`](@ref) algorithm.
     If multiple starting vectors are passed, their number must match the product of the
     number of replicas and the number of spectral states.
 - `style = IsDynamicSemistochastic()`: The [`StochasticStyle`](@ref) of the simulation.
-- `initiator = NonInitiator()`: Whether to use initiators. See [`InitiatorRule`](@ref).
-- `threading`: Default is to use multithreading and
-  [MPI](https://juliaparallel.org/MPI.jl/latest/) if multiple threads are available. Set to
+- `initiator = false`: Whether to use initiators. Can be `true`, `false`, or a valid
+    [`InitiatorRule`](@ref).
+- `threading`: Default is to use multithreading and/or
+  [MPI](https://juliaparallel.org/MPI.jl/latest/) if available. Set to
   `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
   may be overridden by `start_at`.
 - `reporting_strategy = ReportDFAndInfo()`: How and when to report results, see
@@ -132,8 +139,8 @@ function ProjectorMonteCarloProblem(
     start_at = starting_address(hamiltonian),
     shift = nothing,
     style = IsDynamicSemistochastic(),
-    initiator = NonInitiator(),
-    threading = Threads.nthreads()>1,
+    initiator = false,
+    threading = nothing,
     time_step = 0.01,
     starting_step = 0,
     last_step = 100,
@@ -163,6 +170,19 @@ function ProjectorMonteCarloProblem(
         random_seed = nothing
     elseif !isnothing(random_seed)
         random_seed = UInt64(random_seed)
+    end
+
+    if initiator isa Bool
+        initiator = initiator ? Initiator() : NonInitiator()
+    end
+
+    if isnothing(threading)
+        s_strat = algorithm.shift_strategy
+        if !hasfield(typeof(s_strat), :targetwalkers) || abs(s_strat.targetwalkers) > 1_000
+            threading = Threads.nthreads() > 1
+        else
+            threading = false
+        end
     end
 
     # a proper setup of initial_shift_parameters is done in PMCSimulation

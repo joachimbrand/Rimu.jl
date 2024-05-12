@@ -5,8 +5,7 @@ Defines an exact diagonalization problem with an [`AbstractHamiltonian`](@ref) `
 Optionally, a starting vector of type [`AbstractDVec`](@ref), or a single address or a
 collection of addresses can be passed as `v0`.
 
-`ExactDiagonalizationProblem`s can be initialized with [`init`](@ref), and solved
-with [`solve`](@ref).
+`ExactDiagonalizationProblem`s can be solved with [`solve`](@ref).
 
 # Keyword arguments
 - `algorithm=LinearAlgebraSolver()`: The algorithm to use for solving the problem. The
@@ -28,7 +27,7 @@ with [`solve`](@ref).
 - [`LOBPCGSolver()`](@ref): An algorithm for solving the problem after instantiating a
     sparse matrix using the LOBPCG method. Requires `using IterativeSolvers`.
 
-# Keyword arguments for [`init`](@ref) for matrix-based algorithms
+# Keyword arguments for matrix-based algorithms (also accepted by [`init`](@ref))
 - `sizelim`: The maximum size of the basis set representation. The default is `10^6` for
     sparse matrices and `10^5` for dense matrices.
 - `cutoff`: A cutoff value for the basis set representation.
@@ -38,7 +37,7 @@ with [`solve`](@ref).
 - `col_hint = 0`: A hint for the number of columns in the basis set representation.
 - `sort = false`: Whether to sort the basis set representation.
 
-# Keyword arguments for [`solve`](@ref) for iterative algorithms
+# Keyword arguments for iterative algorithms (also accepted by [`solve`](@ref))
 - `verbose = false`: Whether to print additional information.
 - `abstol = nothing`: The absolute tolerance for the solver. If `nothing`, the solver
     chooses a default value.
@@ -98,7 +97,7 @@ julia> values, vectors, success = solve(s);
 julia> result.values[1] ≈ values[1]
 true
 ```
-See also [`init`](@ref), [`solve`](@ref),
+See also [`solve`](@ref), [`init`](@ref),
 [`KrylovKitSolver`](@ref), [`ArpackSolver`](@ref), [`LinearAlgebraSolver`](@ref).
 !!! note
     Using the `KrylovKitSolver()` algorithms requires the

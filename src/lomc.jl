@@ -242,3 +242,13 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
         return (; df=result_df, state)
     end
 end
+# This constructor is currently only used by lomc! and should not be used for new code.
+function SingleState(h, v, wm, shift_strategy, time_step_strategy, shift, dτ::Float64, id="")
+    if isnothing(wm)
+        wm = similar(v)
+    end
+    pv = zerovector(v)
+    sp = initialise_shift_parameters(shift_strategy, shift, walkernumber(v), dτ)
+    alg = FCIQMC(; shift_strategy, time_step_strategy)
+    return SingleState(h, alg, v, pv, wm, sp, id)
+end
