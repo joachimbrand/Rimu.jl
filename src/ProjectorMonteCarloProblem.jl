@@ -28,11 +28,9 @@ the [`FCIQMC`](@ref) algorithm.
 - `time_step = 0.01`: Initial time step size.
 - `last_step = 100`: Controls the number of steps.
 - `targetwalkers = 1_000`: Target for the 1-norm of the coefficient vector.
-- `start_at = starting_address(hamiltonian)`: Define the initial state vector. This can be a
-    single address, a collection of addresses, a single starting vector, or a collection of
-    starting vectors. If multiple starting vectors are passed, their number must match the
-    number of replicas. If (a collection of) [`AbstractDVec`](@ref)(s) is passed, the
-    keyword arguments `style`, `initiator`, and `threading` are ignored.
+- `start_at = starting_address(hamiltonian)`: Define the initial state vector(s).
+    If multiple starting vectors are passed, their number must match the product of the
+    number of replicas and the number of spectral states.
 - `style = IsDynamicSemistochastic()`: The [`StochasticStyle`](@ref) of the simulation.
 - `initiator = NonInitiator()`: Whether to use initiators. See [`InitiatorRule`](@ref).
 - `threading`: Default is to use multithreading and
@@ -93,13 +91,13 @@ struct ProjectorMonteCarloProblem{N,S} # is not type stable but does not matter
     # N is the number of replicas, S is the number of spectral states
     algorithm::PMCAlgorithm
     hamiltonian::AbstractHamiltonian
-    starting_vectors
+    start_at  # starting_vectors
     style::StochasticStyle
     initiator::InitiatorRule
     threading::Bool
     simulation_plan::SimulationPlan
     replica_strategy::ReplicaStrategy{N}
-    initial_shift_parameters::Tuple
+    initial_shift_parameters
     reporting_strategy::ReportingStrategy
     post_step_strategy::Tuple
     spectral_strategy::SpectralStrategy{S}
@@ -167,31 +165,12 @@ function ProjectorMonteCarloProblem(
         random_seed = UInt64(random_seed)
     end
 
-    # set up starting_vectors
-    if start_at isa AbstractFockAddress # single address
-        starting_vectors = (freeze(DVec(start_at => 1,)),) # tuple of length 1
-    elseif eltype(start_at) <: AbstractFockAddress # multiple addresses
-        starting_vectors = (freeze(DVec(address => 1 for address in start_at)),)
-    elseif start_at isa Union{AbstractDVec, RMPI.MPIData} # single starting vector
-        starting_vectors = (start_at,) # tuple of length 1
-    elseif eltype(start_at) <: Pair{<:AbstractFockAddress} # single starting vector
-        starting_vectors = (freeze(DVec(start_at)),) # tuple of length 1
-    elseif eltype(start_at) <: AbstractDVec # multiple starting vectors
-        starting_vectors = Tuple(sv for sv in start_at)
-    else
-        throw(ArgumentError("`start_at` has invalid format."))
+    # a proper setup of initial_shift_parameters is done in PMCSimulation
+    # here we just store the initial shift and time_step if initial_shift_parameters is not
+    # provided
+    if isnothing(initial_shift_parameters)
+        initial_shift_parameters = (; shift, time_step)
     end
-    @assert starting_vectors isa NTuple{<:Any,<:Union{AbstractDVec,FrozenDVec,RMPI.MPIData}}
-    length(starting_vectors) == 1 || length(starting_vectors) == n_replicas ||
-        throw(ArgumentError("The number of starting vectors must match the number of replicas."))
-    all(v -> keytype(v) <: allowed_address_type(hamiltonian), starting_vectors) ||
-        throw(ArgumentError("The address type is not allowed for the Hamiltonian."))
-
-    # set up initial_shift_parameters
-    initial_shift_parameters = set_up_initial_shift_parameters(algorithm, hamiltonian,
-        starting_vectors, shift, time_step, initial_shift_parameters)
-
-    @assert length(initial_shift_parameters) == length(starting_vectors)
 
     shift_strategy = algorithm.shift_strategy
     if isnothing(maxlength)
@@ -213,7 +192,7 @@ function ProjectorMonteCarloProblem(
     return ProjectorMonteCarloProblem{n_replicas,num_spectral_states(spectral_strategy)}(
         algorithm,
         hamiltonian,
-        starting_vectors,
+        start_at, # starting_vectors,
         style,
         initiator,
         threading,

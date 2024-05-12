@@ -25,29 +25,27 @@ end
     starting_vectors, shift, time_step, initial_shift_parameters
 )
 
-Set up the initial shift parameters for the FCIQMC algorithm.
+Set up the initial shift parameters for the [`FCIQMC`](@ref) algorithm.
 """
 function set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
-    starting_vectors, shift, time_step, initial_shift_parameters
-)
+    starting_vectors::SMatrix{S,R}, shift, time_step
+) where {S,R}
     shift_strategy = algorithm.shift_strategy
-    if isnothing(initial_shift_parameters)
-        if shift === nothing
-            initial_shifts = _determine_initial_shift(hamiltonian, starting_vectors)
-        elseif shift isa Number
-            initial_shifts = [float(shift) for _ in 1:length(starting_vectors)]
-        elseif length(shift) == length(starting_vectors)
-            initial_shifts = float.(shift)
-        else
-            throw(ArgumentError("The number of shifts must match the number of starting vectors."))
-        end
-        initial_shift_parameters = Tuple(map(zip(starting_vectors, initial_shifts)) do (sv, s)
-            initialise_shift_parameters(shift_strategy, s, walkernumber(sv), time_step)
-        end)
-    elseif !(initial_shift_parameters isa Tuple)
-        initial_shift_parameters = Tuple(initial_shift_parameters for _ in 1:length(starting_vectors))
+
+    if shift === nothing
+        initial_shifts = _determine_initial_shift(hamiltonian, starting_vectors)
+    elseif shift isa Number
+        initial_shifts = [float(shift) for _ in 1 : S*R] # not great for excited states
+    elseif length(shift) == n_spectral
+        initial_shifts = float.(shift)
+    else
+        throw(ArgumentError("The number of shifts must match the number of starting vectors."))
     end
-    return initial_shift_parameters
+    initial_shift_parameters = Tuple(map(zip(starting_vectors, initial_shifts)) do (sv, s)
+        initialise_shift_parameters(shift_strategy, s, walkernumber(sv), time_step)
+    end)
+    @assert length(initial_shift_parameters) == S * R
+    return SMatrix{S,R}(initial_shift_parameters)
 end
 
 function _determine_initial_shift(hamiltonian, starting_vectors)

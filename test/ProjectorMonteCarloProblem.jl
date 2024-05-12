@@ -10,42 +10,48 @@ using OrderedCollections: freeze
     h = HubbardReal1D(BoseFS(1,3))
     p = ProjectorMonteCarloProblem(h; threading=true)
     @test p.hamiltonian == h
-    sp = only(p.initial_shift_parameters)
-    @test sp.shift == diagonal_element(h, starting_address(h))
-    @test sp.pnorm == walkernumber(only(p.starting_vectors))
-    @test sp.pnorm isa Float64
-    @test p.maxlength == 2 * p.algorithm.shift_strategy.targetwalkers + 100
+
     @test Rimu.num_replicas(p) == 1
     @test startswith(sprint(show, p), "ProjectorMonteCarloProblem with 1 replica(s)")
 
     simulation = init(p)
     @test simulation.state.hamiltonian == h
     @test only(state_vectors(simulation)) isa PDVec
+    sp = only(single_states(simulation)).shift_parameters
+    @test sp.shift == diagonal_element(h, starting_address(h))
+    @test sp.pnorm == walkernumber(only(state_vectors(simulation)))
+    @test sp.pnorm isa Float64
+    @test p.maxlength == 2 * p.algorithm.shift_strategy.targetwalkers + 100
 
     ps = ProjectorMonteCarloProblem(h; initial_shift_parameters=sp, threading=false)
-    @test ps.initial_shift_parameters == (sp,)
-    @test only(ps.starting_vectors) isa FrozenDVec
+    @test ps.initial_shift_parameters === sp
+    @test ps.start_at isa AbstractFockAddress
     sm = init(ps)
     @test only(state_vectors(sm)) isa DVec
 
     p = ProjectorMonteCarloProblem(h; n_replicas = 3, threading=false, initiator=Initiator())
     @test Rimu.num_replicas(p) == 3
-    dv = p.starting_vectors[1]
-    @test pairs(dv) == [starting_address(h) => 1.0]
-    @test p.starting_vectors == ProjectorMonteCarloProblem(h; start_at=dv, n_replicas = 3).starting_vectors
     sm = init(p)
     @test Rimu.num_replicas(sm) == 3
-    @test first(state_vectors(sm)) isa InitiatorDVec
+    dv = first(state_vectors(sm))
+    @test dv isa InitiatorDVec
+    @test collect(pairs(dv)) == [starting_address(h) => 10.0]
+    sm2 = init(ProjectorMonteCarloProblem(h; start_at=dv, n_replicas=3))
+    @test state_vectors(sm) == state_vectors(sm2)
+    sv = state_vectors(sm2)
+    @test sv[1] !== sv[2] !== sv[3] !== sv[1]
+    sm3 = init(ProjectorMonteCarloProblem(h; start_at=dv), copy_vectors=false)
+    @test state_vectors(sm3)[1] === dv
+    p4 = ProjectorMonteCarloProblem(h; start_at=sv, n_replicas=3)
+    sm4 = init(p4, copy_vectors=false)
+    sv4 = state_vectors(sm4)
+    @test sv4[1] === sv[1] && sv4[2] === sv[2] && sv4[3] === sv[3]
 
-
-    @test_throws ArgumentError ProjectorMonteCarloProblem(h; start_at=[BoseFS(1, 3), BoseFS(2, 3)])
-    @test_throws ArgumentError ProjectorMonteCarloProblem(h; start_at=[dv, dv, dv])
-    p = ProjectorMonteCarloProblem(h; start_at=[BoseFS(1, 3)=>1, BoseFS(2, 2)=>3])
-    @test p.starting_vectors isa Tuple{FrozenDVec}
-    @test_throws ArgumentError ProjectorMonteCarloProblem(h; start_at=(1,2,3))
-    @test_throws ArgumentError ProjectorMonteCarloProblem(h; shift=(1, 2, 3))
-    @test ProjectorMonteCarloProblem(h; shift=2).initial_shift_parameters[1].shift == 2
-    @test ProjectorMonteCarloProblem(h; shift=(2,)).initial_shift_parameters[1].shift == 2
+    dv = DVec(BoseFS(1, 3) => 1, BoseFS(2, 2) => 3)
+    p = ProjectorMonteCarloProblem(h; start_at=freeze(dv), n_replicas=3)
+    sm = init(p)
+    @test state_vectors(sm)[1] == dv
+    @test ProjectorMonteCarloProblem(h; shift=2).initial_shift_parameters.shift == 2
 
     # passing PDVec to ProjectorMonteCarloProblem
     dv = PDVec(starting_address(h)=>3; style=IsDynamicSemistochastic())
@@ -58,7 +64,7 @@ using OrderedCollections: freeze
     # copy_vectors = false
     dv1 = deepcopy(dv)
     dv2 = deepcopy(dv)
-    p = ProjectorMonteCarloProblem(h; n_replicas=2, start_at = (dv1, dv2))
+    p = ProjectorMonteCarloProblem(h; n_replicas=2, start_at = [dv1 dv2])
     sm = init(p; copy_vectors=false)
     @test state_vectors(sm)[1] === dv1
     @test state_vectors(sm)[2] === dv2

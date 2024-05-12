@@ -317,20 +317,33 @@ function default_starting_vector(
 )
     return default_starting_vector(address; kwargs...)
 end
-function default_starting_vector(address;
-    style=IsStochasticInteger(),
-    threading=nothing,
-    initiator=NonInitiator(),
+
+function default_starting_vector(address::AbstractFockAddress; population=10, kwargs...)
+    return default_starting_vector(address=>population; kwargs...)
+end
+
+function default_starting_vector(fdv::Union{FrozenDVec,Pair};
+    style = IsStochasticInteger(),
+    threading = nothing,
+    initiator = NonInitiator(),
+    mpi = RMPI.mpi_size() > 1,
 )
-    if isnothing(threading)
-        threading = Threads.nthreads() > 1
-    end
+    threading === nothing && (threading = Threads.nthreads() > 1)
+    return _setup_dvec(fdv, style, initiator, threading, mpi)
+end
+
+function _setup_dvec(fdv::Union{FrozenDVec,Pair}, style, initiator, threading, mpi)
+    # we are allocating new memory
     if threading
-        v = PDVec(address => 10; style, initiator)
-    elseif initiator isa NonInitiator
-        v = DVec(address => 10; style)
+        return PDVec(fdv; style, initiator)
+    end
+    if initiator isa NonInitiator
+        v = DVec(fdv; style)
     else
-        v = InitiatorDVec(address => 10; style, initiator)
+        v = InitiatorDVec(fdv; style, initiator)
+    end
+    if mpi
+        return RMPI.MPIData(v)
     end
     return v
 end

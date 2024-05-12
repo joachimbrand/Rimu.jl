@@ -21,29 +21,50 @@ mutable struct PMCSimulation
     elapsed_time::Float64
 end
 
-function _set_up_v(dv::AbstractDVec, copy_vectors, _...)
-    # we are not changing type, style or initiator because an AbstractDVec is passed
-    if copy_vectors
-        return deepcopy(dv)
-    else
-        return dv
+function _set_up_starting_vectors(
+    start_at, n_replicas, n_spectral, style, initiator, threading, copy_vectors
+)
+    if start_at isa AbstractMatrix && size(start_at) == (n_spectral, n_replicas)
+        if eltype(start_at) <: Union{AbstractDVec, RMPI.MPIData} # already dvecs
+            if copy_vectors
+                return SMatrix{n_spectral, n_replicas}(deepcopy(v) for v in start_at)
+            else
+                return SMatrix{n_spectral, n_replicas}(v for v in start_at)
+            end
+        else
+            return SMatrix{n_spectral, n_replicas}(
+                default_starting_vector(sa; style, initiator, threading) for sa in start_at
+            )
+        end
     end
-end
-
-function _set_up_v(fdv::FrozenDVec, _, style, initiator, threading)
-    # we are allocating new memory
-    if threading
-        v = PDVec(fdv; style, initiator)
-    elseif initiator isa NonInitiator
-        v = DVec(fdv; style)
-    else
-        v = InitiatorDVec(fdv; style, initiator)
+    n_spectral == 1 || throw(ArgumentError("The number of spectral states must match the number of starting vectors."))
+    if start_at isa AbstractVector && length(start_at) == n_replicas
+        if eltype(start_at) <: Union{AbstractDVec, RMPI.MPIData} # already dvecs
+            if copy_vectors
+                return SMatrix{n_spectral, n_replicas}(deepcopy(v) for v in start_at)
+            else
+                return SMatrix{n_spectral, n_replicas}(v for v in start_at)
+            end
+        else
+            return SMatrix{n_spectral, n_replicas}(
+                default_starting_vector(sa; style, initiator, threading) for sa in start_at
+            )
+        end
+    elseif start_at isa Union{AbstractDVec, RMPI.MPIData}
+        if n_replicas == 1 && !copy_vectors
+            return SMatrix{n_spectral, n_replicas}(start_at)
+        else
+            return SMatrix{n_spectral, n_replicas}(deepcopy(start_at) for _ in 1:n_replicas)
+        end
     end
-    return v
+    return SMatrix{n_spectral,n_replicas}(
+        default_starting_vector(start_at; style, initiator, threading) for _ in 1:n_replicas
+    )
 end
 
 function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
-    @unpack algorithm, hamiltonian, starting_vectors, style, threading, simulation_plan,
+    # @unpack algorithm, hamiltonian, starting_vectors, style, threading, simulation_plan,
+    @unpack algorithm, hamiltonian, start_at, style, threading, simulation_plan,
         replica_strategy, initial_shift_parameters,
         reporting_strategy, post_step_strategy,
         maxlength, metadata, initiator, random_seed, spectral_strategy = problem
@@ -51,46 +72,49 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     reporting_strategy = refine_reporting_strategy(reporting_strategy)
 
     n_replicas = num_replicas(replica_strategy)
+    n_spectral = num_spectral_states(spectral_strategy)
 
     # seed the random number generator
     if !isnothing(random_seed)
         Random.seed!(random_seed + hash(RMPI.mpi_rank()))
     end
 
-    # set up the starting vectors and shift parameters
-    if length(starting_vectors) == 1 && n_replicas > 1
-        # in this case we always make new copies of the starting vector
-        vectors = ntuple(n_replicas) do i
-            v = _set_up_v(only(starting_vectors), true, style, initiator, threading)
-            return v
-        end
-        shift_parameters = ntuple(n_replicas) do i
-            deepcopy(only(initial_shift_parameters))
-        end
+    start_at = isnothing(start_at) ? starting_address(hamiltonian) : start_at
+    vectors = _set_up_starting_vectors(
+        start_at, n_replicas, n_spectral, style, initiator,
+        threading, copy_vectors
+    )
+    @assert vectors isa SMatrix{n_spectral,n_replicas}
+
+    # set up initial_shift_parameters
+    shift, time_step = nothing, nothing
+
+    shift_parameters = if initial_shift_parameters isa Union{NamedTuple, DefaultShiftParameters}
+        # we have previously stored shift and time_step
+        @unpack shift, time_step = initial_shift_parameters
+        set_up_initial_shift_parameters(algorithm, hamiltonian, vectors, shift, time_step)
     else
-        @assert length(starting_vectors) == n_replicas == length(initial_shift_parameters)
-        vectors = map(starting_vectors) do dv
-            v = _set_up_v(dv, copy_vectors, style, initiator, threading)
-            return v
-        end
-        shift_parameters = deepcopy(initial_shift_parameters)
+        initial_shift_parameters
     end
+    @assert shift_parameters isa SMatrix{n_spectral,n_replicas}
 
     # set up the spectral_states
     spectral_states = ntuple(n_replicas) do i
-        v, sp = vectors[i], shift_parameters[i]
         SpectralState(
-            (SingleState(
-                hamiltonian,
-                algorithm,
-                v,
-                zerovector(v),
-                working_memory(v),
-                sp,
-                n_replicas == 1 ? "" : "_$i"
-            ),),
-            spectral_strategy
-        )
+            ntuple(n_spectral) do j
+                v = vectors[j, i]
+                sp = shift_parameters[j, i]
+                id = if n_replicas * n_spectral == 1
+                    ""
+                elseif n_spectral == 1
+                    "_$(i)"
+                else
+                    "_s$(j)_$(i)" # j is the spectral state index, i is the replica index
+                end # we have to think about how to label the spectral states
+                SingleState(
+                    hamiltonian, algorithm, v, zerovector(v), working_memory(v), sp, id
+                )
+            end, spectral_strategy)
     end
     @assert spectral_states isa NTuple{n_replicas, <:SpectralState}
 

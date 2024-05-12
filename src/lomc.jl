@@ -178,23 +178,6 @@ function lomc!(
     end
 end
 
-
-
-#     state = ReplicaState(
-#         ham, v;
-#         reporting_strategy = r_strat, # deprecations
-#         shift_strategy = s_strat,
-#         time_step_strategy = τ_strat,
-#         replica_strategy = replica,
-#         post_step_strategy = post_step,
-#         starting_step,
-#         last_step,
-#         time_step,
-#         shift,
-#         kwargs...
-#     )
-#     return lomc!(state, df; name, metadata)
-# end
 function lomc!(
     ham;
     style=IsStochasticInteger(),
@@ -210,24 +193,6 @@ end
 function lomc!(::AbstractMatrix, v=nothing; kwargs...)
     throw(ArgumentError("Using lomc! with a matrix is no longer supported. Use `MatrixHamiltonian` instead."))
 end
-
-# # continuation run
-# function lomc!(sm::PMCSimulation, df=DataFrame(); laststep=0, name="lomc!", kwargs...)
-#     solve!(sm; last_step=laststep, display_name=name, kwargs...)
-
-#     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
-#     # compatible, which should be the case if the run is an actual continuation. Maybe the
-#     # DataFrames should be merged in a more permissive manner?
-#     result_df = DataFrame(sm)
-
-#     if !isempty(df)
-#         result_df = vcat(df, result_df) # metadata is not propagated
-#         for (key, val) in get_metadata(report) # add metadata
-#             DataFrames.metadata!(result_df, key, val)
-#         end
-#     end
-#     return (; df=result_df, state=sm)
-# end
 
 # methods for backward compatibility
 function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)

@@ -66,15 +66,6 @@ function Base.similar(md::MPIData)
     return MPIData(similar(md.data), md.comm, md.root, md.s)
 end
 
-function Rimu._set_up_v(dv::MPIData, copy_vectors, _...)
-    # we are not changing type, style or initiator because a wrapped AbstractDVec is passed
-    if copy_vectors
-        return deepcopy(dv)
-    else
-        return dv
-    end
-end
-
 ###
 ### Iterators
 ###
