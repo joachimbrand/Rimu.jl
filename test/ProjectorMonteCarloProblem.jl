@@ -178,7 +178,10 @@ using Rimu: num_replicas, num_spectral_states
     @test_throws ArgumentError solve!(sm; replica_strategy = NoStats(3))
 
     p = ProjectorMonteCarloProblem(h; last_step=100, replica_strategy=NoStats(3))
-    sm = init(p)
+    sm = init(p; copy_vectors=false)
+    sv = state_vectors(sm)
+    @test sv[1] !== sv[2] !== sv[3] !== sv[1]
+
     @test solve!(sm) === sm
     @test solve!(sm; last_step=200, replica_strategy=AllOverlaps(3)) === sm
     @test size(sm.df)[1] == 100 # the report was emptied

@@ -91,8 +91,10 @@ include("strategies_and_params/spectralstrategy.jl")
 include("ProjectorMonteCarloProblem.jl")
 
 include("qmc_states.jl")
-include("lomc.jl")                  # top level
+include("fciqmc.jl")
 include("PMCSimulation.jl")
+
+include("lomc.jl")                  # top level
 
 include("RMPI/RMPI.jl")
 

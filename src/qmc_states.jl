@@ -124,13 +124,15 @@ See also [`ReplicaStrategy`](@ref), [`SpectralState`](@ref)s, [`SingleState`](@r
 struct ReplicaState{
     N, # number of replicas
     S, # number of spectral states
-    H,
+    H <: AbstractHamiltonian,
+    A <: PMCAlgorithm,
     R<:NTuple{N,<:SpectralState{S}},
     RS<:ReportingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
 }
     hamiltonian::H
+    algorithm::A
     spectral_states::R
     maxlength::Ref{Int}
     step::Ref{Int}
@@ -140,82 +142,82 @@ struct ReplicaState{
     replica_strategy::RRS
 end
 
-# This constructor is currently only used by lomc! and should not be used for new code.
-# It may be removed in the future.
-function ReplicaState(
-    hamiltonian, v;
-    starting_step = 0,
-    last_step = 100,
-    simulation_plan = SimulationPlan(; starting_step, last_step),
-    time_step = 0.01,
-    address = starting_address(hamiltonian),
-    shift = float(valtype(v))(diagonal_element(hamiltonian, address)),
-    wm = nothing,
-    style = nothing,
-    targetwalkers = 1000,
-    shift_strategy::ShiftStrategy = DoubleLogUpdate(; targetwalkers),
-    reporting_strategy::ReportingStrategy = ReportDFAndInfo(),
-    time_step_strategy::TimeStepStrategy = ConstantTimeStep(),
-    threading = nothing,
-    replica_strategy::ReplicaStrategy = NoStats(),
-    spectral_strategy::SpectralStrategy = GramSchmidt(),
-    post_step_strategy = (),
-    maxlength=2 * _n_walkers(v, shift_strategy) + 100, # padding for small walker numbers
-)
-    Hamiltonians.check_address_type(hamiltonian, keytype(v))
-    # Set up reporting_strategy and params
-    reporting_strategy = refine_reporting_strategy(reporting_strategy)
+# # This constructor is currently only used by lomc! and should not be used for new code.
+# # It may be removed in the future.
+# function ReplicaState(
+#     hamiltonian, v;
+#     starting_step = 0,
+#     last_step = 100,
+#     simulation_plan = SimulationPlan(; starting_step, last_step),
+#     time_step = 0.01,
+#     address = starting_address(hamiltonian),
+#     shift = float(valtype(v))(diagonal_element(hamiltonian, address)),
+#     wm = nothing,
+#     style = nothing,
+#     targetwalkers = 1000,
+#     shift_strategy::ShiftStrategy = DoubleLogUpdate(; targetwalkers),
+#     reporting_strategy::ReportingStrategy = ReportDFAndInfo(),
+#     time_step_strategy::TimeStepStrategy = ConstantTimeStep(),
+#     threading = nothing,
+#     replica_strategy::ReplicaStrategy = NoStats(),
+#     spectral_strategy::SpectralStrategy = GramSchmidt(),
+#     post_step_strategy = (),
+#     maxlength=2 * _n_walkers(v, shift_strategy) + 100, # padding for small walker numbers
+# )
+#     Hamiltonians.check_address_type(hamiltonian, keytype(v))
+#     # Set up reporting_strategy and params
+#     reporting_strategy = refine_reporting_strategy(reporting_strategy)
 
-    if threading ≠ nothing
-        @warn "Starting vector is provided. Ignoring `threading=$threading`."
-    end
-    if style ≠ nothing
-        @warn "Starting vector is provided. Ignoring `style=$style`."
-    end
-    wm = isnothing(wm) ? working_memory(v) : wm
+#     if threading ≠ nothing
+#         @warn "Starting vector is provided. Ignoring `threading=$threading`."
+#     end
+#     if style ≠ nothing
+#         @warn "Starting vector is provided. Ignoring `style=$style`."
+#     end
+#     wm = isnothing(wm) ? working_memory(v) : wm
 
-    # Set up post_step_strategy
-    if !(post_step_strategy isa Tuple)
-        post_step_strategy = (post_step_strategy,)
-    end
+#     # Set up post_step_strategy
+#     if !(post_step_strategy isa Tuple)
+#         post_step_strategy = (post_step_strategy,)
+#     end
 
-    # set up single_states
-    n_spectral_states = num_spectral_states(spectral_strategy)
-    n_spectral_states == 1 || throw(ArgumentError("Only one spectral state is supported."))
+#     # set up single_states
+#     n_spectral_states = num_spectral_states(spectral_strategy)
+#     n_spectral_states == 1 || throw(ArgumentError("Only one spectral state is supported."))
 
-    # Set up spectral_states
-    nreplicas = num_replicas(replica_strategy)
-    if nreplicas > 1
-        spectral_states = ntuple(nreplicas) do i
-            SpectralState(
-                (SingleState(
-                    hamiltonian,
-                    deepcopy(v),
-                    deepcopy(wm),
-                    deepcopy(shift_strategy),
-                    deepcopy(time_step_strategy),
-                    shift,
-                    time_step,
-                    "_$i"),
-                ),
-                spectral_strategy
-            )
-        end
-    else
-        spectral_states = (SpectralState(
-            (SingleState(hamiltonian, v, wm, shift_strategy, time_step_strategy, shift, time_step),),
-            spectral_strategy
-        ),)
-    end
+#     # Set up spectral_states
+#     nreplicas = num_replicas(replica_strategy)
+#     if nreplicas > 1
+#         spectral_states = ntuple(nreplicas) do i
+#             SpectralState(
+#                 (SingleState(
+#                     hamiltonian,
+#                     deepcopy(v),
+#                     deepcopy(wm),
+#                     deepcopy(shift_strategy),
+#                     deepcopy(time_step_strategy),
+#                     shift,
+#                     time_step,
+#                     "_$i"),
+#                 ),
+#                 spectral_strategy
+#             )
+#         end
+#     else
+#         spectral_states = (SpectralState(
+#             (SingleState(hamiltonian, v, wm, shift_strategy, time_step_strategy, shift, time_step),),
+#             spectral_strategy
+#         ),)
+#     end
 
-    return ReplicaState(
-        hamiltonian, spectral_states, Ref(Int(maxlength)),
-        Ref(simulation_plan.starting_step), # step
-        simulation_plan,
-        # Ref(Int(laststep)),
-        reporting_strategy, post_step_strategy, replica_strategy
-    )
-end
+#     return ReplicaState(
+#         hamiltonian, spectral_states, Ref(Int(maxlength)),
+#         Ref(simulation_plan.starting_step), # step
+#         simulation_plan,
+#         # Ref(Int(laststep)),
+#         reporting_strategy, post_step_strategy, replica_strategy
+#     )
+# end
 
 num_replicas(::ReplicaState{N}) where {N} = N
 num_spectral_states(::ReplicaState{<:Any, S}) where {S} = S

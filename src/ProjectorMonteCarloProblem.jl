@@ -1,66 +1,10 @@
 """
-    FCIQMC(; kwargs...)
+    PMCAlgorithm
+Abstract type for projector Monte Carlo algorithms.
 
-Algorithm for the full configuration interaction quantum Monte Carlo (FCIQMC) method.
-The default algorithm for [`ProjectorMonteCarloProblem`](@ref).
-
-# Keyword arguments and defaults:
-- `shift_strategy = DoubleLogUpdate(; targetwalkers = 1_000, ζ = 0.08,
-    ξ = ζ^2/4)`: How to update the `shift`.
-- `time_step_strategy = ConstantTimeStep()`: Adjust time step or not.
-
-See also [`ProjectorMonteCarloProblem`](@ref), [`ShiftStrategy`](@ref),
-[`TimeStepStrategy`](@ref), [`DoubleLogUpdate`](@ref), [`ConstantTimeStep`](@ref).
+See [`ProjectorMonteCarloProblem`](@ref), [`FCIQMC`](@ref).
 """
-Base.@kwdef struct FCIQMC{SS<:ShiftStrategy,TS<:TimeStepStrategy}
-    shift_strategy::SS = DoubleLogUpdate()
-    time_step_strategy::TS = ConstantTimeStep()
-end
-function Base.show(io::IO, a::FCIQMC)
-    print(io, "FCIQMC($(a.shift_strategy), $(a.time_step_strategy))")
-end
-
-"""
-    set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
-    starting_vectors, shift, time_step, initial_shift_parameters
-)
-
-Set up the initial shift parameters for the FCIQMC algorithm.
-"""
-function set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
-    starting_vectors, shift, time_step, initial_shift_parameters
-)
-    shift_strategy = algorithm.shift_strategy
-    if isnothing(initial_shift_parameters)
-        if shift === nothing
-            initial_shifts = _determine_initial_shift(hamiltonian, starting_vectors)
-        elseif shift isa Number
-            initial_shifts = [float(shift) for _ in 1:length(starting_vectors)]
-        elseif length(shift) == length(starting_vectors)
-            initial_shifts = float.(shift)
-        else
-            throw(ArgumentError("The number of shifts must match the number of starting vectors."))
-        end
-        initial_shift_parameters = Tuple(map(zip(starting_vectors, initial_shifts)) do (sv, s)
-            initialise_shift_parameters(shift_strategy, s, walkernumber(sv), time_step)
-        end)
-    elseif !(initial_shift_parameters isa Tuple)
-        initial_shift_parameters = Tuple(initial_shift_parameters for _ in 1:length(starting_vectors))
-    end
-    return initial_shift_parameters
-end
-
-function _determine_initial_shift(hamiltonian, starting_vectors)
-    shifts = map(starting_vectors) do v
-        if v isa FrozenDVec
-            v = DVec(v)
-        end
-        dot(v, hamiltonian, v) / (v ⋅ v)
-        ## or
-        # minimum(a -> diagonal_element(hamiltonian, a), keys(v))
-    end
-    return shifts
-end
+abstract type PMCAlgorithm end
 
 """
     SimulationPlan(; starting_step = 1, last_step = 100, walltime = Inf)
@@ -147,7 +91,7 @@ See also [`init`](@ref), [`solve`](@ref).
 """
 struct ProjectorMonteCarloProblem{N,S} # is not type stable but does not matter
     # N is the number of replicas, S is the number of spectral states
-    algorithm
+    algorithm::PMCAlgorithm
     hamiltonian::AbstractHamiltonian
     starting_vectors
     style::StochasticStyle
@@ -251,7 +195,8 @@ function ProjectorMonteCarloProblem(
 
     shift_strategy = algorithm.shift_strategy
     if isnothing(maxlength)
-        maxlength = 2 * shift_strategy.targetwalkers + 100 # padding for small walkernumbers
+        maxlength = round(Int, 2 * abs(shift_strategy.targetwalkers) + 100)
+        # padding for small walkernumbers
     end
 
     # convert metadata to LittleDict

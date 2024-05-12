@@ -1,55 +1,4 @@
 """
-    FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
-    FirstOrderTransitionOperator(sp::DefaultShiftParameters, hamiltonian)
-
-First order transition operator
-```math
-𝐓 = 1 + dτ(S - 𝐇)
-```
-where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`.
-
-``𝐓`` represents the first order expansion of the exponential evolution operator
-of the imaginary-time Schrödinger equation (Euler step) and repeated application
-will project out the ground state eigenvector of the `hamiltonian`.  It is the
-transition operator used in FCIQMC.
-"""
-struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
-    hamiltonian::H
-    shift::S
-    dτ::Float64
-
-    function FirstOrderTransitionOperator(hamiltonian::H, shift::S, dτ) where {H,S}
-        T = eltype(hamiltonian)
-        return new{T,S,H}(hamiltonian, shift, Float64(dτ))
-    end
-end
-
-function FirstOrderTransitionOperator(sp::DefaultShiftParameters, hamiltonian)
-    return FirstOrderTransitionOperator(hamiltonian, sp.shift, sp.time_step)
-end
-
-function Hamiltonians.diagonal_element(t::FirstOrderTransitionOperator, add)
-    diag = diagonal_element(t.hamiltonian, add)
-    return 1 - t.dτ * (diag - t.shift)
-end
-
-struct FirstOrderOffdiagonals{
-    A,V,O<:AbstractVector{Tuple{A,V}}
-} <: AbstractVector{Tuple{A,V}}
-    dτ::Float64
-    offdiagonals::O
-end
-function Hamiltonians.offdiagonals(t::FirstOrderTransitionOperator, add)
-    return FirstOrderOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
-end
-Base.size(o::FirstOrderOffdiagonals) = size(o.offdiagonals)
-
-function Base.getindex(o::FirstOrderOffdiagonals, i)
-    add, val = o.offdiagonals[i]
-    return add, -val * o.dτ
-end
-
-"""
     lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
     lomc!(state::ReplicaState, [df]; kwargs...) -> df, state
 
@@ -146,12 +95,15 @@ function lomc!(
     df = DataFrame(),
     name = "lomc!",
     metadata = nothing,
-    r_strat = ReportDFAndInfo(),
+    reporting_strategy = ReportDFAndInfo(),
+    r_strat = reporting_strategy,
     targetwalkers = 1000,
     s_strat = DoubleLogUpdate(; targetwalkers),
     τ_strat = ConstantTimeStep(),
-    replica = NoStats(),
-    post_step = (),
+    replica_strategy = NoStats(),
+    replica = replica_strategy,
+    post_step_strategy = (),
+    post_step = post_step_strategy,
     step=nothing,
     laststep=nothing,
     dτ=nothing,
@@ -161,8 +113,19 @@ function lomc!(
         laststep=100,
         shift=float(valtype(v))(diagonal_element(ham, address))
     ),
-    kwargs...
+    maxlength = nothing,
+    wm = nothing
 )
+    if !isnothing(wm)
+        @warn "The `wm` argument has been removed and will be ignored."
+    end
+    if hasfield(typeof(s_strat), :targetwalkers)
+        targetwalkers = s_strat.targetwalkers
+    end
+    if isnothing(maxlength)
+        maxlength = round(Int, 2 * abs(targetwalkers) + 100)
+    end
+
     # eventually we want to deprecate the use of params
     if !isnothing(step)
         params.step = step
@@ -181,21 +144,57 @@ function lomc!(
     shift = params.shift
     last_step = params.laststep
 
-    state = ReplicaState(
-        ham, v;
-        reporting_strategy = r_strat, # deprecations
-        shift_strategy = s_strat,
-        time_step_strategy = τ_strat,
-        replica_strategy = replica,
-        post_step_strategy = post_step,
+    p = ProjectorMonteCarloProblem(ham;
+        algorithm=FCIQMC(s_strat, τ_strat),
+        start_at = v,
         starting_step,
         last_step,
         time_step,
         shift,
-        kwargs...
+        replica_strategy = replica,
+        reporting_strategy = r_strat,
+        post_step_strategy = post_step,
+        maxlength,
+        metadata,
+        display_name = name,
+        random_seed = false
     )
-    return lomc!(state, df; name, metadata)
+    simulation = init(p; copy_vectors=false)
+    solve!(simulation)
+
+    # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
+    # compatible, which should be the case if the run is an actual continuation. Maybe the
+    # DataFrames should be merged in a more permissive manner?
+    result_df = DataFrame(simulation)
+
+    if !isempty(df)
+        df = vcat(df, result_df) # metadata is not propagated
+        for (key, val) in get_metadata(simulation.report) # add metadata
+            DataFrames.metadata!(df, key, val)
+        end
+        return (; df, state=simulation.state)
+    else
+        return (; df=result_df, state=simulation.state)
+    end
 end
+
+
+
+#     state = ReplicaState(
+#         ham, v;
+#         reporting_strategy = r_strat, # deprecations
+#         shift_strategy = s_strat,
+#         time_step_strategy = τ_strat,
+#         replica_strategy = replica,
+#         post_step_strategy = post_step,
+#         starting_step,
+#         last_step,
+#         time_step,
+#         shift,
+#         kwargs...
+#     )
+#     return lomc!(state, df; name, metadata)
+# end
 function lomc!(
     ham;
     style=IsStochasticInteger(),
@@ -212,82 +211,69 @@ function lomc!(::AbstractMatrix, v=nothing; kwargs...)
     throw(ArgumentError("Using lomc! with a matrix is no longer supported. Use `MatrixHamiltonian` instead."))
 end
 
+# # continuation run
+# function lomc!(sm::PMCSimulation, df=DataFrame(); laststep=0, name="lomc!", kwargs...)
+#     solve!(sm; last_step=laststep, display_name=name, kwargs...)
 
-"""
-    advance!(report::Report, state::ReplicaState, replica::SingleState)
+#     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
+#     # compatible, which should be the case if the run is an actual continuation. Maybe the
+#     # DataFrames should be merged in a more permissive manner?
+#     result_df = DataFrame(sm)
 
-Advance the `replica` by one step. The `state` is used only to access the various strategies
-involved. Steps, stats, and computed quantities are written to the `report`.
+#     if !isempty(df)
+#         result_df = vcat(df, result_df) # metadata is not propagated
+#         for (key, val) in get_metadata(report) # add metadata
+#             DataFrames.metadata!(result_df, key, val)
+#         end
+#     end
+#     return (; df=result_df, state=sm)
+# end
 
-Returns `true` if the step was successful and calculation should proceed, `false` when
-it should terminate.
-"""
-function advance!(report, state::ReplicaState, replica::SingleState)
-    return advance!(replica.algorithm, report, state, replica)
-end
-function advance!(algorithm::FCIQMC, report, state::ReplicaState, replica::SingleState)
-
-    @unpack hamiltonian, reporting_strategy = state
-    @unpack v, pv, wm, id, shift_parameters = replica
-    @unpack shift, pnorm, time_step = shift_parameters
-    @unpack shift_strategy, time_step_strategy = algorithm
-    step = state.step[]
-
-    ### PROPAGATOR ACTS
-    ### FROM HERE
-    transition_op = FirstOrderTransitionOperator(shift_parameters, hamiltonian)
-
-    # Step
-    step_stat_names, step_stat_values, wm, pv = apply_operator!(wm, pv, v, transition_op)
-    # pv was mutated and now contains the new vector.
-    v, pv = (pv, v)
-
-    # Stats
-    tnorm = walkernumber(v)
-    len = length(v)
-
-    # Updates
-    time_step = update_dτ(time_step_strategy, time_step, tnorm)
-
-    shift_stats, proceed = update_shift_parameters!(
-        shift_strategy, shift_parameters, tnorm, v, pv, step, report
+# methods for backward compatibility
+function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
+    if !iszero(laststep)
+        state = @set state.simulation_plan.last_step = laststep
+    end
+    @unpack hamiltonian, spectral_states, maxlength, step, simulation_plan,
+    reporting_strategy, post_step_strategy, replica_strategy = state
+    first_replica = only(first(spectral_states).single_states) # SingleState
+    @assert step[] ≥ simulation_plan.starting_step
+    problem = ProjectorMonteCarloProblem(hamiltonian;
+        algorithm=first_replica.algorithm,
+        start_at=first_replica.v,
+        initial_shift_parameters=first_replica.shift_parameters,
+        replica_strategy,
+        reporting_strategy,
+        post_step_strategy,
+        maxlength=maxlength[],
+        simulation_plan,
+        metadata,
+        display_name=name,
+        random_seed=false
     )
+    report = Report()
+    report_default_metadata!(report, state)
+    report_metadata!(report, problem.metadata) # add user metadata
+    # Sanity checks.
+    check_transform(state.replica_strategy, state.hamiltonian)
 
-    @pack! replica = v, pv, wm
-    ### TO HERE
+    simulation = PMCSimulation(
+        problem, FCIQMC(), state, report, false, false, false, "", 0.0
+    )
+    solve!(simulation)
 
-    if step % reporting_interval(state.reporting_strategy) == 0
-        # Note: post_step_stats must be called after packing the values.
-        post_step_stats = post_step_action(state.post_step_strategy, replica, step)
+    # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
+    # compatible, which should be the case if the run is an actual continuation. Maybe the
+    # DataFrames should be merged in a more permissive manner?
+    result_df = DataFrame(simulation)
 
-        # Reporting
-        report!(reporting_strategy, step, report, (; dτ=time_step, len), id)
-        report!(reporting_strategy, step, report, shift_stats, id) # shift, norm, shift_mode
-
-        report!(reporting_strategy, step, report, step_stat_names, step_stat_values, id)
-        report!(reporting_strategy, step, report, post_step_stats, id)
-    end
-
-    if len == 0
-        if length(state.spectral_states) > 1
-            @error "population in replica $(replica.id) is dead. Aborting."
-        else
-            @error "population is dead. Aborting."
+    if !isempty(df)
+        df = vcat(df, result_df) # metadata is not propagated
+        for (key, val) in get_metadata(report) # add metadata
+            DataFrames.metadata!(df, key, val)
         end
-        return false
+        return (; df, state)
+    else
+        return (; df=result_df, state)
     end
-    if len > state.maxlength[]
-        if length(state.spectral_states) > 1
-            @error "`maxlength` reached in replica $(replica.id). Aborting."
-        else
-            @error "`maxlength` reached. Aborting."
-        end
-        return false
-    end
-    return proceed # Bool
 end
-
-function advance!(report, state::ReplicaState, replica::SpectralState{1})
-    return advance!(report, state, only(replica.single_states))
-end
-# TODO: add advance! for SpectralState{N} where N > 1

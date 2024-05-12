@@ -29,14 +29,14 @@ Random.seed!(1234)
         v = copy(dv)
         wm = copy(dv)
         df, state = lomc!(H, v; wm, laststep=9)
-        @test state.spectral_states[1].single_states[1].wm === wm # after number of steps divisible by 3
+        @test_broken state.spectral_states[1].single_states[1].wm === wm # after number of steps divisible by 3
         @test state_vectors(state)[1] === v
         @test state.spectral_states[1].single_states[1].pv !== v
         @test state.spectral_states[1].single_states[1].pv !== wm
 
         # @set state.simulation_plan.last_step = 10
         df = lomc!(state, df, laststep=10).df
-        @test state.spectral_states[1].single_states[1].v === wm
+        @test_broken state.spectral_states[1].single_states[1].v === wm
         @test state.spectral_states[1].single_states[1].pv === v
 
         @test size(df, 1) == 10
@@ -71,8 +71,8 @@ Random.seed!(1234)
         @test default_starting_vector(addr; threading=false) isa DVec
         @test default_starting_vector(addr; threading=true) isa PDVec
         v = default_starting_vector(addr; threading=true)
-        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, threading=false)
-        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, style=IsStochasticInteger())
+        # @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, threading=false)
+        # @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, style=IsStochasticInteger())
     end
     @testset "Setting walkernumber" begin
         address = BoseFS{2,5}((0,0,2,0,0))

@@ -151,7 +151,7 @@ end
 function determine_h_range(df, skip, correlation_estimate, h_values)
     n_data = size(df)[1] - skip
     if n_data < 2correlation_estimate
-        @info "Not enough data" n_data correlation_estimate
+        @warn "Not enough data" n_data correlation_estimate
     end
     length = min(2correlation_estimate, h_values)
     stop = min(n_data, 2correlation_estimate)
@@ -579,6 +579,7 @@ function rayleigh_replica_estimator_analysis(
     else
         df.dτ_1[end]
     end
+    # estimate the correlation time by blocking the shift data
     T = eltype(df[!, Symbol(shift_name, "_1")])
     shift_v = Vector{T}[]
     E_r = T[]

@@ -11,7 +11,7 @@ See also [`state_vectors`](@ref), [`single_states`](@ref),
 """
 mutable struct PMCSimulation
     problem::ProjectorMonteCarloProblem
-    algorithm # currently only FCIQMC() is implemented
+    algorithm::PMCAlgorithm # currently only FCIQMC() is implemented
     state::ReplicaState
     report::Report
     modified::Bool
@@ -48,6 +48,8 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
         reporting_strategy, post_step_strategy,
         maxlength, metadata, initiator, random_seed, spectral_strategy = problem
 
+    reporting_strategy = refine_reporting_strategy(reporting_strategy)
+
     n_replicas = num_replicas(replica_strategy)
 
     # seed the random number generator
@@ -57,8 +59,9 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
 
     # set up the starting vectors and shift parameters
     if length(starting_vectors) == 1 && n_replicas > 1
+        # in this case we always make new copies of the starting vector
         vectors = ntuple(n_replicas) do i
-            v = _set_up_v(only(starting_vectors), copy_vectors, style, initiator, threading)
+            v = _set_up_v(only(starting_vectors), true, style, initiator, threading)
             return v
         end
         shift_parameters = ntuple(n_replicas) do i
@@ -72,52 +75,36 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
         end
         shift_parameters = deepcopy(initial_shift_parameters)
     end
-    wm = working_memory(first(vectors))
 
     # set up the spectral_states
-    if n_replicas == 1
-        spectral_states =  (SpectralState(
+    spectral_states = ntuple(n_replicas) do i
+        v, sp = vectors[i], shift_parameters[i]
+        SpectralState(
             (SingleState(
                 hamiltonian,
                 algorithm,
-                only(vectors),
-                zerovector(only(vectors)),
-                wm,
-                only(shift_parameters),
-                ""),
-            ),
+                v,
+                zerovector(v),
+                working_memory(v),
+                sp,
+                n_replicas == 1 ? "" : "_$i"
+            ),),
             spectral_strategy
-        ),)
-    else
-        spectral_states = ntuple(n_replicas) do i
-            v, sp = vectors[i], shift_parameters[i]
-            rwm = (typeof(v) == typeof(first(vectors))) ? wm : working_memory(v)
-            SpectralState(
-                (SingleState(
-                    hamiltonian,
-                    algorithm,
-                    v,
-                    zerovector(v),
-                    rwm,
-                    sp,
-                    "_$i"),
-                ),
-                spectral_strategy
-            )
-        end
+        )
     end
     @assert spectral_states isa NTuple{n_replicas, <:SpectralState}
 
     # set up the initial state
     state = ReplicaState(
-        hamiltonian, # hamiltonian
-        spectral_states, # spectral_states
-        Ref(maxlength), # maxlength
-        Ref(simulation_plan.starting_step), # step
-        simulation_plan, # simulation_plan
-        reporting_strategy, # reporting_strategy
-        post_step_strategy, # post_step_strategy
-        replica_strategy # replica_strategy
+        hamiltonian,
+        algorithm,
+        spectral_states,
+        Ref(maxlength),
+        Ref(simulation_plan.starting_step),
+        simulation_plan,
+        reporting_strategy,
+        post_step_strategy,
+        replica_strategy
     )
     report = Report()
     report_metadata!(report, "algorithm", algorithm)
@@ -218,7 +205,7 @@ See also [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref),
 [`Rimu.PMCSimulation`](@ref).
 """
 function CommonSolve.step!(sm::PMCSimulation)
-    @unpack state, report = sm
+    @unpack state, report, algorithm = sm
     @unpack spectral_states, simulation_plan, step, reporting_strategy,
         replica_strategy = state
 
@@ -241,7 +228,7 @@ function CommonSolve.step!(sm::PMCSimulation)
     proceed = true
     # advance all spectral_states
     for replica in spectral_states
-        proceed &= advance!(report, state, replica)
+        proceed &= advance!(algorithm, report, state, replica)
     end
     sm.modified = true
 
@@ -309,6 +296,7 @@ function CommonSolve.solve!(sm::PMCSimulation;
     reporting_strategy=nothing,
     empty_report=false,
     metadata=nothing,
+    display_name=nothing,
 )
     reset_flags = reset_time # reset flags if resetting time
     if !isnothing(last_step)
@@ -353,6 +341,7 @@ function CommonSolve.solve!(sm::PMCSimulation;
         report_default_metadata!(report, sm.state)
     end
     isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
+    isnothing(display_name) || report_metadata!(report, "display_name", display_name)
 
     @unpack simulation_plan, step, reporting_strategy = sm.state
 
@@ -400,53 +389,4 @@ function CommonSolve.solve!(sm::PMCSimulation;
     report_simulation_status_metadata!(report, sm) # potentially overwrite values
     finalize_report!(reporting_strategy, report)
     return sm
-end
-
-# methods for backward compatibility
-function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
-    if !iszero(laststep)
-        state = @set state.simulation_plan.last_step = laststep
-    end
-    @unpack hamiltonian, spectral_states, maxlength, step, simulation_plan,
-        reporting_strategy, post_step_strategy, replica_strategy = state
-    first_replica = only(first(spectral_states).single_states) # SingleState
-    @assert step[] ≥ simulation_plan.starting_step
-    problem = ProjectorMonteCarloProblem(hamiltonian;
-        algorithm = first_replica.algorithm,
-        start_at = first_replica.v,
-        initial_shift_parameters = first_replica.shift_parameters,
-        replica_strategy ,
-        reporting_strategy,
-        post_step_strategy,
-        maxlength = maxlength[],
-        simulation_plan,
-        metadata,
-        display_name = name,
-        random_seed = false
-    )
-    report = Report()
-    report_default_metadata!(report, state)
-    report_metadata!(report, problem.metadata) # add user metadata
-    # Sanity checks.
-    check_transform(state.replica_strategy, state.hamiltonian)
-
-    simulation = PMCSimulation(
-        problem, FCIQMC(), state, report, false, false, false, "", 0.0
-    )
-    solve!(simulation)
-
-    # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
-    # compatible, which should be the case if the run is an actual continuation. Maybe the
-    # DataFrames should be merged in a more permissive manner?
-    result_df = DataFrame(simulation)
-
-    if !isempty(df)
-        df = vcat(df, result_df) # metadata is not propagated
-        for (key, val) in get_metadata(report) # add metadata
-            DataFrames.metadata!(df, key, val)
-        end
-        return (; df, state)
-    else
-        return (; df=result_df, state)
-    end
 end
