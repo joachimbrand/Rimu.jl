@@ -44,6 +44,9 @@ struct CubicGrid{D,Dims,Fold}
     function CubicGrid(
         dims::NTuple{D,Int}, fold::NTuple{D,Bool}=ntuple(Returns(true), Val(D))
     ) where {D}
+        if any(≤(1), dims)
+            throw(ArgumentError("All dimensions must be at least 2 in size"))
+        end
         return new{D,dims,fold}()
     end
 end
@@ -221,6 +224,7 @@ end
 Find the `i`-th neighbor of `site` in the geometry. If the move is illegal, return 0.
 """
 function neighbor_site(g::CubicGrid{D}, mode, chosen) where {D}
+    # TODO: reintroduce LadderBoundaries small dimensions
     return g[g[mode] + Directions(D)[chosen]]
 end
 
