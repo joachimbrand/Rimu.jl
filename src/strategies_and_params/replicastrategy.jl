@@ -109,6 +109,7 @@ struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},B} <: ReplicaStrategy{N}
 end
 
 function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
+    num_replicas isa Integer || throw(ArgumentError("num_replicas must be an integer"))
     if isnothing(operator)
         operators = ()
     elseif operator isa Tuple
@@ -127,7 +128,6 @@ function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnor
     end
     return AllOverlaps{num_replicas,length(ops),typeof(ops),vecnorm}(ops)
 end
-@deprecate AllOverlaps(num_replicas, operator) AllOverlaps(num_replicas; operator)
 
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, spectral_states::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.
