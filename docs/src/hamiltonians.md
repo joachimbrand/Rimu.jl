@@ -163,7 +163,7 @@ Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref) an
 ```@docs
 CubicGrid
 Hamiltonians.Directions
-Hamiltonians.Offsets
+Hamiltonians.Displacements
 Hamiltonians.neighbor_site
 PeriodicBoundaries
 HardwallBoundaries

@@ -37,8 +37,9 @@ Other
 
 ## [Observables](#Observables)
 - [`ParticleNumberOperator`](@ref)
-- [`G2MomCorrelator`](@ref)
 - [`G2RealCorrelator`](@ref)
+- [`G2RealSpace`](@ref)
+- [`G2MomCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
 - [`Momentum`](@ref)
 - [`AxialAngularMomentumHO`](@ref)

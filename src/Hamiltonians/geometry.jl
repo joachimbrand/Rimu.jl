@@ -174,37 +174,37 @@ end
 end
 
 """
-    Offsets(geometry::CubicGrid) <: AbstractVector{SVector{D,Int}}
+    Displacements(geometry::CubicGrid) <: AbstractVector{SVector{D,Int}}
 
 Return all valid offset vectors in a [`CubicGrid`](@ref). If `center=true` the (0,0) displacement is
 placed at the centre of the array.
 
-```jldoctest; setup=:(using Rimu.Hamiltonians: Offsets)
+```jldoctest; setup=:(using Rimu.Hamiltonians: Displacements)
 julia> geometry = CubicGrid((3,4));
 
-julia> reshape(Offsets(geometry), (3,4))
-3×4 reshape(::Offsets{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
+julia> reshape(Displacements(geometry), (3,4))
+3×4 reshape(::Displacements{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
  [0, 0]  [0, 1]  [0, 2]  [0, 3]
  [1, 0]  [1, 1]  [1, 2]  [1, 3]
  [2, 0]  [2, 1]  [2, 2]  [2, 3]
 
-julia> reshape(Offsets(geometry; center=true), (3,4))
-3×4 reshape(::Offsets{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
+julia> reshape(Displacements(geometry; center=true), (3,4))
+3×4 reshape(::Displacements{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
  [-1, -1]  [-1, 0]  [-1, 1]  [-1, 2]
  [0, -1]   [0, 0]   [0, 1]   [0, 2]
  [1, -1]   [1, 0]   [1, 1]   [1, 2]
 
 ```
 """
-struct Offsets{D} <: AbstractVector{SVector{D,Int}}
+struct Displacements{D} <: AbstractVector{SVector{D,Int}}
     geometry::CubicGrid{D}
     center::Bool
 end
-Offsets(geometry; center=false) = Offsets(geometry, center)
+Displacements(geometry; center=false) = Displacements(geometry, center)
 
-Base.size(off::Offsets) = (length(off.geometry),)
+Base.size(off::Displacements) = (length(off.geometry),)
 
-@inline function Base.getindex(off::Offsets{D}, i) where {D}
+@inline function Base.getindex(off::Displacements{D}, i) where {D}
     @boundscheck 0 < i ≤ length(off) || throw(BoundsError(off, i))
     geo = off.geometry
     vec = geo[i]

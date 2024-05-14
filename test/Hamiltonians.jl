@@ -150,7 +150,7 @@ using Rimu.Hamiltonians: momentum_transfer_excitation
     end
 end
 
-using Rimu.Hamiltonians: Directions, Offsets
+using Rimu.Hamiltonians: Directions, Displacements
 
 @testset "CubicGrid" begin
     @testset "construtors and basic properties" begin
@@ -192,13 +192,13 @@ using Rimu.Hamiltonians: Directions, Offsets
         @test_throws BoundsError Directions(1)[15]
     end
 
-    @testset "Offsets" begin
-        @test collect(Offsets(CubicGrid(3), center=false)) == [[0], [1], [2]]
-        @test collect(Offsets(CubicGrid(3), center=true)) == [[-1], [0], [1]]
+    @testset "Displacements" begin
+        @test collect(Displacements(CubicGrid(3), center=false)) == [[0], [1], [2]]
+        @test collect(Displacements(CubicGrid(3), center=true)) == [[-1], [0], [1]]
 
-        @test collect(Offsets(CubicGrid(2,2))) == [[0,0], [1,0], [0,1], [1,1]]
-        @test collect(Offsets(CubicGrid(2,3))) == [[0,0], [1,0], [0,1], [1,1], [0,2], [1,2]]
-        @test collect(Offsets(CubicGrid(2,3); center=true)) == [
+        @test collect(Displacements(CubicGrid(2,2))) == [[0,0], [1,0], [0,1], [1,1]]
+        @test collect(Displacements(CubicGrid(2,3))) == [[0,0], [1,0], [0,1], [1,1], [0,2], [1,2]]
+        @test collect(Displacements(CubicGrid(2,3); center=true)) == [
             [0,-1], [1,-1], [0,0], [1,0], [0,1], [1,1]
         ]
     end
