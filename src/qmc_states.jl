@@ -31,7 +31,7 @@ end
     state_vectors(state)
 Returns a collection of configuration vectors from the `state`.
 
-See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
+See also [`SingleState`](@ref), [`ReplicaState`](@ref),
 [`SpectralState`](@ref), [`PMCSimulation`](@ref).
 """
 function state_vectors(state::SingleState)
@@ -39,21 +39,11 @@ function state_vectors(state::SingleState)
 end
 
 """
-    single_states(state)
-
-Returns a collection of `SingleState`s from the `state`.
-
-See also [`state_vectors`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
-[`SpectralState`](@ref), [`PMCSimulation`](@ref).
-"""
-function single_states(state::SingleState)
-    return SVector(state,)
-end
-
-"""
-    SpectralState
+    SpectralState <: AbstractVector{SingleState}
 Holds one or several [`SingleState`](@ref)s representing the ground state and excited
 states of a single replica.
+
+Indexing the `SpectralState` `state[i]` returns the `i`th `SingleState`.
 
 See also [`SpectralStrategy`](@ref), [`ReplicaState`](@ref), [`SingleState`](@ref),
 [`PMCSimulation`](@ref).
@@ -62,7 +52,7 @@ struct SpectralState{
     N,
     NS<:NTuple{N,SingleState},
     SS<:SpectralStrategy{N}
-}
+} <: AbstractVector{SingleState}
     single_states::NS # Tuple of SingleState
     spectral_strategy::SS # SpectralStrategy
     id::String # id is appended to column names
@@ -71,6 +61,9 @@ function SpectralState(t::Tuple, ss::SpectralStrategy, id="")
     return SpectralState(t, ss, id)
 end
 num_spectral_states(::SpectralState{N}) where {N} = N
+
+Base.size(s::SpectralState) = (num_spectral_states(s),)
+Base.getindex(s::SpectralState, i::Int) = s.single_states[i]
 
 function Base.show(io::IO, s::SpectralState)
     print(io, "SpectralState")
@@ -85,9 +78,6 @@ function state_vectors(state::SpectralState)
     return mapreduce(state_vectors, vcat, state.single_states)
 end
 
-function single_states(state::SpectralState)
-    return mapreduce(single_states, vcat, state.single_states)
-end
 
 """
     _n_walkers(v, shift_strategy)
@@ -103,9 +93,12 @@ function _n_walkers(v, shift_strategy)
 end
 
 """
-    ReplicaState
+    ReplicaState <: AbstractMatrix{SingleState}
 
 Holds information about multiple replicas of [`SpectralState`](@ref)s.
+
+Indexing the `ReplicaState` `state[i, j]` returns a `SingleState` from the `i`th replica
+and `j`th spectral state.
 
 See also [`ReplicaStrategy`](@ref), [`SpectralState`](@ref)s, [`SingleState`](@ref),
 [`PMCSimulation`](@ref).
@@ -119,7 +112,7 @@ struct ReplicaState{
     RS<:ReportingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
-}
+} <: AbstractMatrix{SingleState}
     hamiltonian::H
     algorithm::A
     spectral_states::R
@@ -147,13 +140,17 @@ function Base.show(io::IO, st::ReplicaState)
     end
 end
 
+Base.size(st::ReplicaState) = (num_replicas(st), num_spectral_states(st))
+Base.getindex(st::ReplicaState, i::Int, j::Int) = st.spectral_states[i].single_states[j]
+Base.IndexStyle(::Type{<:ReplicaState}) = IndexCartesian()
+
 """
     state_vectors(state::ReplicaState)
 Returns a collection of configuration vectors from the `state`.
 The vectors can be accessed by indexing the resulting collection, where the row index
 corresponds to the spectral state index and the column index corresponds to the row index.
 
-See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
+See also [`SingleState`](@ref), [`ReplicaState`](@ref),
 [`SpectralState`](@ref), [`PMCSimulation`](@ref).
 """
 @inline function state_vectors(state::ReplicaState{N,S}) where {N,S}
@@ -162,19 +159,6 @@ See also [`single_states`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
         state.spectral_states[fld1(i,S)].single_states[mod1(i,S)].v for i in 1:N*S
     )
     # return SMatrix{S,N}(mapreduce(state_vectors, hcat, state.spectral_states))
-end
-
-"""
-    single_states(state::ReplicaState)
-Returns a collection of `SingleState`s from the `state`.
-The `SingleState`s can be accessed by indexing the resulting collection, where the row index
-corresponds to the spectral state index and the column index corresponds to the row index.
-
-See also [`state_vectors`](@ref), [`SingleState`](@ref), [`ReplicaState`](@ref),
-[`SpectralState`](@ref), [`PMCSimulation`](@ref).
-"""
-function single_states(state::ReplicaState{N,S}) where {N,S}
-    return SMatrix{S,N}(mapreduce(single_states, hcat, state.spectral_states))
 end
 
 function report_default_metadata!(report::Report, state::ReplicaState)

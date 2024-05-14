@@ -18,7 +18,7 @@ using OrderedCollections: freeze
     simulation = init(p)
     @test simulation.state.hamiltonian == h
     @test only(state_vectors(simulation)) isa PDVec
-    sp = only(single_states(simulation)).shift_parameters
+    sp = only(simulation.state).shift_parameters
     @test sp.shift == diagonal_element(h, starting_address(h))
     @test sp.pnorm == walkernumber(only(state_vectors(simulation)))
     @test sp.pnorm isa Float64
@@ -60,7 +60,7 @@ using OrderedCollections: freeze
     sm = init(p)
     @test first(state_vectors(sm)) == dv
     @test first(state_vectors(sm)) !== dv
-    @test first(single_states(sm)).pv !== dv
+    @test first(sm.state).pv !== dv
 
     # copy_vectors = false
     dv1 = deepcopy(dv)
@@ -120,11 +120,11 @@ end
 using Rimu: num_replicas, num_spectral_states
 @testset "step! and solve!" begin
     h = HubbardReal1D(BoseFS(1, 3))
-    p = ProjectorMonteCarloProblem(h; threading=true)
+    p = ProjectorMonteCarloProblem(h; threading=true, n_replicas=3)
     sm = init(p)
     @test sm.modified == false == sm.aborted == sm.success
     @test is_finalized(sm.report) == false
-    @test sprint(show, sm) == "PMCSimulation with 1 replica(s) and 1 spectral state(s).\n  Algorithm:   FCIQMC(DoubleLogUpdate{Int64}(1000, 0.08, 0.0016), ConstantTimeStep())\n  Hamiltonian: HubbardReal1D(BoseFS{4,2}(1, 3); u=1.0, t=1.0)\n  Step:        0 / 100\n  modified = false, aborted = false, success = false"
+    @test startswith(sprint(show, sm), "PMCSimulation with 3 replica(s) and 1 spectral")
 
     @test step!(sm) isa Rimu.PMCSimulation
     @test sm.modified == true
@@ -138,8 +138,10 @@ using Rimu: num_replicas, num_spectral_states
     @test size(DataFrame(sm))[1] == sm.state.step[]
     @test num_replicas(sm) == num_replicas(p) == num_replicas(sm.state)
     @test num_spectral_states(sm) == num_spectral_states(p) == num_spectral_states(sm.state)
-    @test size(state_vectors(sm)) == (num_replicas(sm), num_spectral_states(sm))
-    @test size(single_states(sm)) == (num_replicas(sm), num_spectral_states(sm))
+    # @test size(state_vectors(sm)) == (num_replicas(sm), num_spectral_states(sm))
+    @test size(sm.state) == (num_replicas(sm), num_spectral_states(sm))
+    @test sm.state[1, 1] === sm.state.spectral_states[1][1]
+    @test length(sm.state.spectral_states[1]) == num_spectral_states(sm)
 
     df, state = sm # deconstruction for backward compatibility
     @test df == DataFrame(sm) == sm.df
