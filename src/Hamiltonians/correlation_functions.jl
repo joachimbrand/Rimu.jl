@@ -1,4 +1,36 @@
-# TO-DO: add geometry for higher dimensions.
+"""
+    circshift_dot(arr1, arr2, inds)
+
+Fast, non-allocation version of
+
+```julia
+dot(arr1, circshift(arr2, inds))
+```
+"""
+function circshift_dot(arr1, arr2, inds)
+    _circshift_dot!(arr1, (), arr2, (), axes(arr2), Tuple(inds))
+end
+
+# The following is taken from Julia's implementation of circshift.
+@inline function _circshift_dot!(
+    dst, rdest, src, rsrc,
+    inds::Tuple{AbstractUnitRange,Vararg{Any}},
+    shiftamt::Tuple{Integer,Vararg{Any}}
+)
+    ind1, d = inds[1], shiftamt[1]
+    s = mod(d, length(ind1))
+    sf, sl = first(ind1)+s, last(ind1)-s
+    r1, r2 = first(ind1):sf-1, sf:last(ind1)
+    r3, r4 = first(ind1):sl, sl+1:last(ind1)
+    tinds, tshiftamt = Base.tail(inds), Base.tail(shiftamt)
+
+    return _circshift_dot!(dst, (rdest..., r1), src, (rsrc..., r4), tinds, tshiftamt) +
+        _circshift_dot!(dst, (rdest..., r2), src, (rsrc..., r3), tinds, tshiftamt)
+end
+@inline function _circshift_dot!(dst, rdest, src, rsrc, inds, shiftamt)
+    return dot(view(dst, rdest...), view(src, rsrc...))
+end
+
 """
     G2RealCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
@@ -28,6 +60,7 @@ equivalent to stacking all components into a single Fock state.
 # See also
 
 * [`HubbardReal1D`](@ref)
+* [`G2RealSpace`](@ref)
 * [`G2MomCorrelator`](@ref)
 * [`AbstractHamiltonian`](@ref)
 * [`AllOverlaps`](@ref)
@@ -52,11 +85,7 @@ function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress
     M = num_modes(add)
     d = mod(D, M)
     v = onr(add)
-    result = 0
-    for i in eachindex(v)
-        result += v[i] * v[mod1(i + d, M)]
-    end
-    return result / M
+    return circshift_dot(v, v, (d,)) / M
 end
 
 function diagonal_element(::G2RealCorrelator{0}, add::CompositeFS)
@@ -68,22 +97,133 @@ function diagonal_element(::G2RealCorrelator{D}, add::CompositeFS) where {D}
     M = num_modes(add)
     d = mod(D, M)
     v = sum(map(onr, add.components))
-    result = 0
-    for i in eachindex(v)
-        result += v[i] * v[mod1(i + d, M)]
-    end
-    return result / M
+    return circshift_dot(v, v, (d,)) / M
 end
 
 num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0
 num_offdiagonals(::G2RealCorrelator, ::CompositeFS) = 0
 
-# not needed:
-# get_offdiagonal(::G2RealCorrelator, add)
-# starting_address(::G2RealCorrelator)
+"""
+    G2RealSpace(geometry::CubicGrid, σ=1, τ=1; sum_components=false) <: AbstractHamiltonian{SArray}
 
-# Methods that need to be implemented:
-#   •  starting_address(::AbstractHamiltonian) - not needed
+Two-body operator for density-density correlation for all [`Displacements`](@ref) ``d⃗`` in the specified `geometry`.
+
+```math
+    \\hat{G}^{(2)}_{σ,τ}(d⃗) = \\frac{1}{M} ∑_{i⃗} n̂_{σ,i⃗} (n̂_{τ,i⃗+d⃗} - δ_{0⃗,d⃗}δ_{σ,τ}).
+```
+
+For multicomponent addresses, `σ` and `τ` control the components involved. Alternatively,
+`sum_components` can be set to `true`, which treats all particles as belonging to the same
+component.
+
+# Examples
+
+```jldoctest
+julia> geom = CubicGrid(2, 2);
+
+julia> g2 = G2RealSpace(geom)
+G2RealSpace(CubicGrid((2, 2), (true, true)), 1,1)
+
+julia> diagonal_element(g2, BoseFS(2,0,1,1))
+2×2 StaticArraysCore.SMatrix{2, 2, Float64, 4} with indices SOneTo(2)×SOneTo(2):
+ 0.5  1.0
+ 0.5  1.0
+
+julia> g2_cross = G2RealSpace(geom, 1, 2)
+G2RealSpace(CubicGrid((2, 2), (true, true)), 1,2)
+
+julia> g2_sum = G2RealSpace(geom, sum_components=true)
+G2RealSpace(CubicGrid((2, 2), (true, true)); sum_components=true)
+
+julia> diagonal_element(g2, fs"|⇅⋅↓↑⟩")
+2×2 StaticArraysCore.SMatrix{2, 2, Float64, 4} with indices SOneTo(2)×SOneTo(2):
+ 0.0  0.0
+ 0.0  0.5
+
+julia> diagonal_element(g2_cross, fs"|⇅⋅↓↑⟩")
+2×2 StaticArraysCore.SMatrix{2, 2, Float64, 4} with indices SOneTo(2)×SOneTo(2):
+ 0.25  0.25
+ 0.25  0.25
+
+julia> diagonal_element(g2_sum, fs"|⇅⋅↓↑⟩")
+2×2 StaticArraysCore.SMatrix{2, 2, Float64, 4} with indices SOneTo(2)×SOneTo(2):
+ 0.5  1.0
+ 0.5  1.0
+```
+
+# See also
+
+* [`CubicGrid`](@ref)
+* [`HubbardRealSpace`](@ref)
+* [`G2RealCorrelator`](@ref)
+* [`G2MomCorrelator`](@ref)
+* [`AbstractHamiltonian`](@ref)
+* [`AllOverlaps`](@ref)
+"""
+struct G2RealSpace{A,B,G<:CubicGrid,S} <: AbstractHamiltonian{S}
+    geometry::G
+    init::S
+end
+function G2RealSpace(geometry::CubicGrid, σ::Int=1, τ::Int=σ; sum_components=false)
+    if σ < 1 || τ < 1
+        throw(ArgumentError("`σ` and `τ` must be positive integers"))
+    end
+    if sum_components
+        if σ ≠ 1 || τ ≠ 1
+            throw(ArgumentError("`σ` or `τ` can't be set if `sum_components=true`"))
+        end
+        σ = τ = 0
+    end
+
+    init = zeros(SArray{Tuple{size(geometry)...}})
+    return G2RealSpace{σ,τ,typeof(geometry),typeof(init)}(geometry, init)
+end
+
+function Base.show(io::IO, g2::G2RealSpace{A,B}) where {A,B}
+    print(io, "G2RealSpace($(g2.geometry), $A,$B)")
+end
+function Base.show(io::IO, g2::G2RealSpace{0,0})
+    print(io, "G2RealSpace($(g2.geometry); sum_components=true)")
+end
+
+LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
+
+num_offdiagonals(g2::G2RealSpace, _) = 0
+
+@inline function _g2_diagonal_element(
+    g2::G2RealSpace{A,B}, onr1::SArray, onr2::SArray
+) where {A, B}
+    geo = g2.geometry
+    result = g2.init
+
+    @inbounds for i in eachindex(result)
+        res_i = 0.0
+        displacement = Displacements(geo)[i]
+
+        # Case of n_i(n_i - 1) on the same component
+        if A == B && iszero(displacement)
+            onr1_minus_1 = max.(onr1 .- 1, 0)
+            result = setindex(result, dot(onr2, onr1_minus_1), i)
+        else
+            result = setindex(result, circshift_dot(onr2, onr1, displacement), i)
+        end
+    end
+    return result ./ length(geo)
+end
+function diagonal_element(g2::G2RealSpace{A,A}, addr::SingleComponentFockAddress) where {A}
+    onr1 = onr(addr, g2.geometry)
+    return _g2_diagonal_element(g2, onr1, onr1)
+end
+function diagonal_element(g2::G2RealSpace{A,B}, addr::CompositeFS) where {A,B}
+    onr1 = onr(addr.components[A], g2.geometry)
+    onr2 = onr(addr.components[B], g2.geometry)
+    return _g2_diagonal_element(g2, onr1, onr2)
+end
+function diagonal_element(g2::G2RealSpace{0,0}, addr::CompositeFS)
+    onr1 = sum(x -> onr(x, g2.geometry), addr.components)
+    return _g2_diagonal_element(g2, onr1, onr1)
+end
+
 """
     G2MomCorrelator(d::Int,c=:cross) <: AbstractHamiltonian{ComplexF64}
 
@@ -125,6 +265,7 @@ and let it be the default value.
 * [`BoseHubbardMom1D2C`](@ref)
 * [`BoseFS2C`](@ref)
 * [`G2RealCorrelator`](@ref)
+* [`G2RealSpace`](@ref)
 * [`AbstractHamiltonian`](@ref)
 * [`AllOverlaps`](@ref)
 """
@@ -165,7 +306,6 @@ function num_offdiagonals(g::G2MomCorrelator{3}, add::BoseFS2C)
     sa = num_occupied_modes(add.bsa)
     sb = num_occupied_modes(add.bsb)
     return sa*(m-1)*sb
-    # number of excitations that can be made
 end
 
 function num_offdiagonals(g::G2MomCorrelator, add::SingleComponentFockAddress)
@@ -251,9 +391,9 @@ Operator for extracting superfluid correlation between sites separated by a dist
 Assumes a one-dimensional lattice with ``M`` sites and periodic boundary conditions. ``M`` is also the number of modes in the Fock state address.
 
 # Usage
-Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping `SuperfluidCorrelator` with 
+Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping `SuperfluidCorrelator` with
 [`AllOverlaps`](@ref) and passing into [`lomc!`](@ref) with the `replica` keyword argument. For an example with a
-similar use of [`G2RealCorrelator`](@ref) see 
+similar use of [`G2RealCorrelator`](@ref) see
 [G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html).
 
 
@@ -291,15 +431,15 @@ end
 """
     StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
 
-Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice 
+Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice
 separated by a distance `d` with `0 ≤ d < M`
 
 ```math
     \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
 ```
-Here, ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling 
-number and ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` particles and 
-``M`` lattice sites (or modes). 
+Here, ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling
+number and ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` particles and
+``M`` lattice sites (or modes).
 
 Assumes a one-dimensional lattice with periodic boundary conditions. For usage
 see [`SuperfluidCorrelator`](@ref) and [`AllOverlaps`](@ref).

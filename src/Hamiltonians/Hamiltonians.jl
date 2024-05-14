@@ -37,8 +37,9 @@ Other
 
 ## [Observables](#Observables)
 - [`ParticleNumberOperator`](@ref)
-- [`G2MomCorrelator`](@ref)
 - [`G2RealCorrelator`](@ref)
+- [`G2RealSpace`](@ref)
+- [`G2MomCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
 - [`Momentum`](@ref)
 - [`AxialAngularMomentumHO`](@ref)
@@ -59,7 +60,7 @@ using Parameters: Parameters, @unpack
 using Setfield: Setfield
 using SparseArrays: SparseArrays, nnz, nzrange, sparse
 using SpecialFunctions: SpecialFunctions, gamma
-using StaticArrays: StaticArrays, SA, SMatrix, SVector
+using StaticArrays: StaticArrays, SA, SMatrix, SVector, SArray, setindex
 using TupleTools: TupleTools
 
 using ..BitStringAddresses
@@ -86,11 +87,10 @@ export hubbard_dispersion, continuum_dispersion
 export FroehlichPolaron
 export ParticleNumberOperator
 
-export G2MomCorrelator, G2RealCorrelator, SuperfluidCorrelator, DensityMatrixDiagonal, Momentum
+export G2MomCorrelator, G2RealCorrelator, G2RealSpace, SuperfluidCorrelator, DensityMatrixDiagonal, Momentum
 export StringCorrelator
 
-export LatticeGeometry, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
-export num_neighbours, neighbour_site, num_dimensions
+export CubicGrid, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 
 export sparse # from SparseArrays
 

@@ -266,6 +266,7 @@ end
             add = BoseFS((0,0,10,0,0))
             H = HubbardMom1D(add)
             D = DensityMatrixDiagonal(1)
+            G2 = G2RealSpace(PeriodicBoundaries(5))
 
             # Need to seed here to get the same random vectors on all ranks.
             Random.seed!(1)
@@ -300,6 +301,12 @@ end
                 @test norm(u, 2) ≈ norm(pu, 2)
                 @test norm(u, Inf) ≈ norm(pu, Inf)
             end
+            # dot only for G2
+            @test dot(v, G2, w) ≈ dot(pv, G2, pw)
+            @test dot(w, G2, v) ≈ dot(pw, G2, pv)
+
+            @test dot(v, G2, w) ≈ dot(pv, G2, pw, wm)
+            @test dot(w, G2, v) ≈ dot(pw, G2, pv, wm)
 
             @test dot(pv, (H, D), pw, wm) == (dot(pv, H, pw), dot(pv, D, pw))
             @test dot(pv, (H, D), pw) == (dot(pv, H, pw), dot(pv, D, pw))

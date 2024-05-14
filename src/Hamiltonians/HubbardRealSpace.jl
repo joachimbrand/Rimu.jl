@@ -18,10 +18,10 @@ See also [`BoseFS`](@ref), [`FermiFS`](@ref), [`CompositeFS`](@ref).
 local_interaction(b::SingleComponentFockAddress, u) = u * bose_hubbard_interaction(b) / 2
 local_interaction(f::FermiFS, _) = 0
 function local_interaction(a::SingleComponentFockAddress, b::SingleComponentFockAddress, u)
-    u * dot(occupied_modes(a), occupied_modes(b))
+    return u * dot(occupied_modes(a), occupied_modes(b))
 end
 function local_interaction(fs::CompositeFS, u)
-    _interactions(fs.components, u)
+    return _interactions(fs.components, u)
 end
 
 """
@@ -140,7 +140,7 @@ is produced if `address`is incompatible with the interaction parameters `u`.
 
 ## Geometries
 
-Implemented [`LatticeGeometry`](@ref)s for keyword `geometry`
+Implemented [`CubicGrid`](@ref)s for keyword `geometry`
 
 * [`PeriodicBoundaries`](@ref)
 * [`HardwallBoundaries`](@ref)
@@ -163,7 +163,7 @@ number of sites `M` inferred from the number of modes in `address`.
 struct HubbardRealSpace{
     C, # components
     A<:AbstractFockAddress,
-    G<:LatticeGeometry,
+    G<:CubicGrid,
     D, # dimension
     # The following need to be type params.
     T<:SVector{C,Float64},
@@ -181,7 +181,7 @@ end
 
 function HubbardRealSpace(
     address::AbstractFockAddress;
-    geometry::LatticeGeometry=PeriodicBoundaries((num_modes(address),)),
+    geometry::CubicGrid=PeriodicBoundaries((num_modes(address),)),
     t=ones(num_components(address)),
     u=ones(num_components(address), num_components(address)),
     v=zeros(num_components(address), num_dimensions(geometry))
@@ -313,7 +313,7 @@ struct HubbardRealSpaceCompOffdiagonals{G,A} <: AbstractOffdiagonals{A,Float64}
 end
 
 function offdiagonals(h::HubbardRealSpace, comp, add)
-    neighbours = num_neighbours(h.geometry)
+    neighbours = 2 * num_dimensions(h.geometry)
     return HubbardRealSpaceCompOffdiagonals(
         h.geometry, add, h.t[comp], num_occupied_modes(add) * neighbours
     )
@@ -322,10 +322,10 @@ end
 Base.size(o::HubbardRealSpaceCompOffdiagonals) = (o.length,)
 
 @inline function Base.getindex(o::HubbardRealSpaceCompOffdiagonals, chosen)
-    neighbours = num_neighbours(o.geometry)
+    neighbours = 2 * num_dimensions(o.geometry)
     particle, neigh = fldmod1(chosen, neighbours)
     src_index = find_occupied_mode(o.address, particle)
-    neigh = neighbour_site(o.geometry, src_index.mode, neigh)
+    neigh = neighbor_site(o.geometry, src_index.mode, neigh)
 
     if neigh == 0
         return o.address, 0.0
