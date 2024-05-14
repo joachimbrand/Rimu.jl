@@ -250,10 +250,10 @@ function finalize_report!(::ReportingStrategy, report)
     return report
 end
 
-function print_stats(io::IO, step, state)
+function print_stats(io::IO, step, state::ReplicaState)
     print(io, "[ ", lpad(step, 11), " | ")
-    shift = lpad(round(single_states(state)[1].shift_parameters.shift, digits=4), 10)
-    norm = lpad(round(single_states(state)[1].shift_parameters.pnorm, digits=4), 10)
+    shift = lpad(round(first(state).shift_parameters.shift, digits=4), 10)
+    norm = lpad(round(first(state).shift_parameters.pnorm, digits=4), 10)
     println(io, "shift: ", shift, " | norm: ", norm)
     flush(io)
 end

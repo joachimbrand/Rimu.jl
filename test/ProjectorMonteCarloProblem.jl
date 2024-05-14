@@ -17,10 +17,10 @@ using OrderedCollections: freeze
 
     simulation = init(p)
     @test simulation.state.hamiltonian == h
-    @test only(state_vectors(simulation)) isa PDVec
+    @test only(StateVectors(simulation)) isa PDVec
     sp = only(simulation.state).shift_parameters
     @test sp.shift == diagonal_element(h, starting_address(h))
-    @test sp.pnorm == walkernumber(only(state_vectors(simulation)))
+    @test sp.pnorm == walkernumber(only(StateVectors(simulation)))
     @test sp.pnorm isa Float64
     @test p.maxlength == 2 * p.algorithm.shift_strategy.targetwalkers + 100
 
@@ -28,47 +28,47 @@ using OrderedCollections: freeze
     @test ps.initial_shift_parameters === sp
     @test ps.start_at isa AbstractFockAddress
     sm = init(ps)
-    @test only(state_vectors(sm)) isa DVec
+    @test only(StateVectors(sm)) isa DVec
 
     p = ProjectorMonteCarloProblem(h; n_replicas = 3, threading=false, initiator=Initiator())
     @test Rimu.num_replicas(p) == 3
     sm = init(p)
     @test Rimu.num_replicas(sm) == 3
-    dv = first(state_vectors(sm))
+    dv = first(StateVectors(sm))
     @test dv isa InitiatorDVec
     @test collect(pairs(dv)) == [starting_address(h) => 10.0]
     sm2 = init(ProjectorMonteCarloProblem(h; start_at=dv, n_replicas=3))
-    @test state_vectors(sm) == state_vectors(sm2)
-    sv = state_vectors(sm2)
+    @test StateVectors(sm) == StateVectors(sm2)
+    sv = StateVectors(sm2)
     @test sv[1] !== sv[2] !== sv[3] !== sv[1]
     sm3 = init(ProjectorMonteCarloProblem(h; start_at=dv), copy_vectors=false)
-    @test state_vectors(sm3)[1] === dv
+    @test StateVectors(sm3)[1] === dv
     p4 = ProjectorMonteCarloProblem(h; start_at=sv, n_replicas=3)
     sm4 = init(p4, copy_vectors=false)
-    sv4 = state_vectors(sm4)
+    sv4 = StateVectors(sm4)
     @test sv4[1] === sv[1] && sv4[2] === sv[2] && sv4[3] === sv[3]
 
     dv = DVec(BoseFS(1, 3) => 1, BoseFS(2, 2) => 3)
     p = ProjectorMonteCarloProblem(h; start_at=freeze(dv), n_replicas=3)
     sm = init(p)
-    @test state_vectors(sm)[1] == dv
+    @test StateVectors(sm)[1] == dv
     @test ProjectorMonteCarloProblem(h; shift=2).initial_shift_parameters.shift == 2
 
     # passing PDVec to ProjectorMonteCarloProblem
     dv = PDVec(starting_address(h)=>3; style=IsDynamicSemistochastic())
     p = ProjectorMonteCarloProblem(h; n_replicas=3, start_at=dv)
     sm = init(p)
-    @test first(state_vectors(sm)) == dv
-    @test first(state_vectors(sm)) !== dv
+    @test first(StateVectors(sm)) == dv
+    @test first(StateVectors(sm)) !== dv
     @test first(sm.state).pv !== dv
 
     # copy_vectors = false
     dv1 = deepcopy(dv)
     dv2 = deepcopy(dv)
-    p = ProjectorMonteCarloProblem(h; n_replicas=2, start_at = [dv1 dv2])
+    p = ProjectorMonteCarloProblem(h; n_replicas=2, start_at = [dv1, dv2])
     sm = init(p; copy_vectors=false)
-    @test state_vectors(sm)[1] === dv1
-    @test state_vectors(sm)[2] === dv2
+    @test StateVectors(sm)[1] === dv1
+    @test StateVectors(sm)[2] === dv2
     @test_throws BoundsError sm.state.spectral_states[3]
 end
 
@@ -138,7 +138,7 @@ using Rimu: num_replicas, num_spectral_states
     @test size(DataFrame(sm))[1] == sm.state.step[]
     @test num_replicas(sm) == num_replicas(p) == num_replicas(sm.state)
     @test num_spectral_states(sm) == num_spectral_states(p) == num_spectral_states(sm.state)
-    # @test size(state_vectors(sm)) == (num_replicas(sm), num_spectral_states(sm))
+    @test size(StateVectors(sm)) == (num_replicas(sm), num_spectral_states(sm))
     @test size(sm.state) == (num_replicas(sm), num_spectral_states(sm))
     @test sm.state[1, 1] === sm.state.spectral_states[1][1]
     @test length(sm.state.spectral_states[1]) == num_spectral_states(sm)
@@ -188,7 +188,7 @@ using Rimu: num_replicas, num_spectral_states
 
     p = ProjectorMonteCarloProblem(h; last_step=100, replica_strategy=NoStats(3))
     sm = init(p; copy_vectors=false)
-    sv = state_vectors(sm)
+    sv = StateVectors(sm)
     @test sv[1] !== sv[2] !== sv[3] !== sv[1]
 
     @test solve!(sm) === sm

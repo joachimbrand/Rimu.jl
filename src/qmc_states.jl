@@ -145,21 +145,26 @@ Base.getindex(st::ReplicaState, i::Int, j::Int) = st.spectral_states[i].single_s
 Base.IndexStyle(::Type{<:ReplicaState}) = IndexCartesian()
 
 """
-    state_vectors(state::ReplicaState)
-Returns a collection of configuration vectors from the `state`.
+    StateVectors(state::ReplicaState) <: AbstractMatrix{V}
+    StateVectors(sim::PMCSimulation)
+Represents a matrix of configuration vectors from the `state`.
 The vectors can be accessed by indexing the resulting collection, where the row index
-corresponds to the spectral state index and the column index corresponds to the row index.
+corresponds to the replica index and the column index corresponds to the spectral state
+index.
 
 See also [`SingleState`](@ref), [`ReplicaState`](@ref),
 [`SpectralState`](@ref), [`PMCSimulation`](@ref).
 """
-@inline function state_vectors(state::ReplicaState{N,S}) where {N,S}
-    # Annoyingly this function is allocating if N > 1
-    return SMatrix{S,N}(
-        state.spectral_states[fld1(i,S)].single_states[mod1(i,S)].v for i in 1:N*S
-    )
-    # return SMatrix{S,N}(mapreduce(state_vectors, hcat, state.spectral_states))
+struct StateVectors{V,R} <: AbstractMatrix{V}
+    state::R
+
+    function StateVectors(state::R) where R <: ReplicaState
+        V = typeof(first(state).v)
+        return new{V, R}(state)
+    end
 end
+Base.size(sv::StateVectors) = size(sv.state)
+Base.getindex(sv::StateVectors, i::Int, j::Int) = sv.state[i, j].v
 
 function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)

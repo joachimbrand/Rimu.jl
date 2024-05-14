@@ -1,12 +1,12 @@
 """
     PMCSimulation
 Holds the state and the results of a projector quantum Monte Carlo (PMC) simulation.
-Initialise with [`init(::ProjectorMonteCarloProblem)`](@ref) and solve with
+Is returned by [`init(::ProjectorMonteCarloProblem)`](@ref) and solved with
 [`solve!(::PMCSimulation)`](@ref).
 
 Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 
-See also [`state_vectors`](@ref),
+See also [`StateVectors`](@ref),
 [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref).
 """
 mutable struct PMCSimulation
@@ -24,7 +24,7 @@ end
 function _set_up_starting_vectors(
     start_at, n_replicas, n_spectral, style, initiator, threading, copy_vectors
 )
-    if start_at isa AbstractMatrix && size(start_at) == (n_spectral, n_replicas)
+    if start_at isa AbstractMatrix && size(start_at) == (n_replicas, n_spectral)
         if eltype(start_at) <: Union{AbstractDVec, RMPI.MPIData} # already dvecs
             if copy_vectors
                 return SMatrix{n_spectral, n_replicas}(deepcopy(v) for v in start_at)
@@ -197,7 +197,7 @@ Tables.columnaccess(::Type{<:PMCSimulation}) = true
 Tables.columns(sm::PMCSimulation) = Tables.columns(sm.report.data)
 Tables.schema(sm::PMCSimulation) = Tables.schema(sm.report.data)
 
-state_vectors(sim::PMCSimulation) = state_vectors(sim.state)
+StateVectors(sim::PMCSimulation) = StateVectors(sim.state)
 
 # TODO: interface for reading results
 

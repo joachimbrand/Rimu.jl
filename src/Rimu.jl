@@ -72,7 +72,7 @@ export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneli
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export localpart, walkernumber
 export smart_logger, default_logger
-export ProjectorMonteCarloProblem, SimulationPlan, state_vectors, single_states
+export ProjectorMonteCarloProblem, SimulationPlan, StateVectors
 export FCIQMC, num_replicas, num_spectral_states
 
 function __init__()
