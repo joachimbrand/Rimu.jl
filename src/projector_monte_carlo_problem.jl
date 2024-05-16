@@ -90,7 +90,10 @@ julia> size(DataFrame(simulation))
 - `metadata`: User-supplied metadata to be added to the report. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
   All metadata is converted to strings.
-- `random_seed = true`: Provide and store a seed for the random number generator.
+- `random_seed = true`: Provide and store a seed for the random number generator. If set to
+    `true`, a random seed is generated. If set to number, this number is used as the seed.
+    The seed is used by `solve` such that `solve`ing the problem twice will yield identical
+    results. If set to `false`, no seed is used and results are not reproducible.
 
 See also [`init`](@ref), [`solve`](@ref).
 """

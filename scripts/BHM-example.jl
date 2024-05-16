@@ -36,14 +36,14 @@ targetwalkers = 1_000;
 # and take an additional 2000 steps for measurement.
 steps_equilibrate = 1_000;
 steps_measure = 2_000;
-laststep = steps_equilibrate + steps_measure
+last_step = steps_equilibrate + steps_measure
 
 # Next, we pick a time step size. FCIQMC does not have a time step error, but the
 # time step needs to be small enough, or the computation might diverge. If the time step is
 # too small, however, the computation might take a long time to equilibrate. The
 # appropriate time step size is problem-dependent and is best determined through
 # experimentation.
-dτ = 0.001;
+time_step = 0.001;
 
 # ## Defining an observable
 
@@ -68,22 +68,24 @@ post_step_strategy = ProjectedEnergy(H, initial_vector)
 
 # ## Running the calculation
 
-# In this example, we seed the random number generator in order to get reproducible results.
-# This should not be done for actual computations.
-using Random
-Random.seed!(17);
-
-# Finally, we can start the FCIQMC run.
-df, state = lomc!(
-    H, initial_vector;
-    laststep,
-    dτ,
+# This is a two-step process:
+# First we define a `ProjectorMonteCarloProblem` with all the parameters needed for the
+# simulation
+problem = ProjectorMonteCarloProblem(
+    H;
+    start_at = initial_vector,
+    last_step,
+    time_step,
     targetwalkers,
-    post_step_strategy,
+    post_step_strategy
 );
 
-# Here, `df` is a `DataFrame` containing the time series data, while `state` contains the
-# internal state of FCIQMC, which can be used to continue computations.
+# To run the simulation we simply call `solve` on the `problem`
+simulation = solve(problem);
+
+# The `simulation` object contains the results of the simulation as well as state vectors
+# and strategies. We can extract the time series data for further analysis:
+df = DataFrame(simulation);
 
 # ## Analysing the results
 
@@ -136,8 +138,8 @@ dimension(H)
 # using standard linear algebra. Read more about Rimu's capabilities for exact
 # diagonalisation in the example "Exact diagonalisation".
 
-using LinearAlgebra
-exact_energy = eigvals(Matrix(H))[1]
+edp = ExactDiagonalizationProblem(H)
+exact_energy = solve(edp).values[1]
 
 # We finish by comparing our FCIQMC results with the exact computation.
 
