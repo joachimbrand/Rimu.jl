@@ -126,7 +126,7 @@ plot!(
     x -> v.val, df.steps[steps_equilibrate+1:end], ribbon=(v.val_l,v.val_u),
     label="projected energy",
 )
-lens!([steps_equilibrate, laststep], [-5.1, -2.9]; inset=(1, bbox(0.2, 0.25, 0.6, 0.4)))
+lens!([steps_equilibrate, last_step], [-5.1, -2.9]; inset=(1, bbox(0.2, 0.25, 0.6, 0.4)))
 
 # In this case the projected energy and the shift are close to each other and the error bars
 # are hard to see.
