@@ -88,11 +88,11 @@ include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
 include("strategies_and_params/spectralstrategy.jl")
 
-include("ProjectorMonteCarloProblem.jl")
+include("projector_monte_carlo_problem.jl")
 
 include("qmc_states.jl")
 include("fciqmc.jl")
-include("PMCSimulation.jl")
+include("pmc_simulation.jl")
 
 include("lomc.jl")                  # top level
 

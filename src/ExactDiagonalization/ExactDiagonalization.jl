@@ -41,7 +41,7 @@ export BasisSetRepresentation, build_basis
 export sparse # from SparseArrays
 
 
-include("BasisSetRepresentation.jl")
+include("basis_set_representation.jl")
 include("algorithms.jl")
 include("exact_diagonalization_problem.jl")
 include("init_and_solvers.jl")

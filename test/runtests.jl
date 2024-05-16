@@ -38,8 +38,8 @@ end
     include("Hamiltonians.jl")
 end
 
-@safetestset "ProjectorMonteCarloProblem" begin
-    include("ProjectorMonteCarloProblem.jl")
+@safetestset "projector_monte_carlo_problem" begin
+    include("projector_monte_carlo_problem.jl")
 end
 
 @safetestset "lomc!" begin
