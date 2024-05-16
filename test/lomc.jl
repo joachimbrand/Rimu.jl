@@ -34,7 +34,6 @@ Random.seed!(1234)
         @test state.spectral_states[1].single_states[1].pv !== v
         @test state.spectral_states[1].single_states[1].pv !== wm
 
-        # @set state.simulation_plan.last_step = 10
         df = lomc!(state, df, laststep=10).df
         @test_broken state.spectral_states[1].single_states[1].v === wm
         @test state.spectral_states[1].single_states[1].pv === v
@@ -42,12 +41,10 @@ Random.seed!(1234)
         @test size(df, 1) == 10
         @test state.step[] == 10
 
-        # @set state.simulation_plan.last_step = 100
         df, state = lomc!(state, df, laststep=100)
         @test size(df, 1) == 100
 
         state.step[] = 0
-        # state = @set state.simulation_plan.starting_step = 0
         df, state = lomc!(state, df)
         @test size(df, 1) == 200
         @test df.steps == [1:100; 1:100]

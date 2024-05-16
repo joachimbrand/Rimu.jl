@@ -21,4 +21,8 @@ Use the Gram-Schmidt procedure to orthogonalize the excited states. A total of `
 states are used in the simulation.
 """
 struct GramSchmidt{S} <: SpectralStrategy{S} end
-GramSchmidt(num_spectral_states = 1) = GramSchmidt{num_spectral_states}()
+
+function GramSchmidt(num_spectral_states = 1)
+    num_spectral_states > 1 && throw(ArgumentError("num_spectral_states > 1 is currently not supported."))
+    GramSchmidt{num_spectral_states}()
+end

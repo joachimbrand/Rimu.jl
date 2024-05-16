@@ -73,7 +73,7 @@ export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export localpart, walkernumber
 export smart_logger, default_logger
 export ProjectorMonteCarloProblem, SimulationPlan, StateVectors
-export FCIQMC, num_replicas, num_spectral_states
+export FCIQMC, num_replicas, num_spectral_states, GramSchmidt
 
 function __init__()
     # Turn on smart logging once at runtime. Turn off with `default_logger()`.

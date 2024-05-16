@@ -1,3 +1,5 @@
+# This file contains deprecated code. This code will be removed in a future release.
+
 """
     lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
     lomc!(state::ReplicaState, [df]; kwargs...) -> df, state
