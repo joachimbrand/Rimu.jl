@@ -112,9 +112,9 @@ function Base.getindex(o::FirstOrderOffdiagonals, i)
 end
 
 """
-    advance!(algorithm::PMCAlgorithm, report::Report, state::ReplicaState, replica::SingleState)
+    advance!(algorithm::PMCAlgorithm, report::Report, state::ReplicaState, s_state::SingleState)
 
-Advance the `replica` by one step according to the `algorithm`. The `state` is used only to
+Advance the `s_state` by one step according to the `algorithm`. The `state` is used only to
 access the various strategies involved. Steps, stats, and computed quantities are written
 to the `report`.
 
@@ -123,10 +123,10 @@ it should terminate.
 
 See also [`solve!`](@ref), [`step!`](@ref).
 """
-function advance!(algorithm::FCIQMC, report, state::ReplicaState, replica::SingleState)
+function advance!(algorithm::FCIQMC, report, state::ReplicaState, s_state::SingleState)
 
-    @unpack hamiltonian, reporting_strategy = state
-    @unpack v, pv, wm, id, shift_parameters = replica
+    @unpack reporting_strategy = state
+    @unpack hamiltonian, v, pv, wm, id, shift_parameters = s_state
     @unpack shift, pnorm, time_step = shift_parameters
     @unpack shift_strategy, time_step_strategy = algorithm
     step = state.step[]
@@ -151,12 +151,12 @@ function advance!(algorithm::FCIQMC, report, state::ReplicaState, replica::Singl
         shift_strategy, shift_parameters, tnorm, v, pv, step, report
     )
 
-    @pack! replica = v, pv, wm
+    @pack! s_state = v, pv, wm
     ### TO HERE
 
     if step % reporting_interval(state.reporting_strategy) == 0
         # Note: post_step_stats must be called after packing the values.
-        post_step_stats = post_step_action(state.post_step_strategy, replica, step)
+        post_step_stats = post_step_action(state.post_step_strategy, s_state, step)
 
         # Reporting
         report!(reporting_strategy, step, report, (; dτ=time_step, len), id)
@@ -168,7 +168,7 @@ function advance!(algorithm::FCIQMC, report, state::ReplicaState, replica::Singl
 
     if len == 0
         if length(state.spectral_states) > 1
-            @error "population in replica $(replica.id) is dead. Aborting."
+            @error "population in single state $(s_state.id) is dead. Aborting."
         else
             @error "population is dead. Aborting."
         end
@@ -176,7 +176,7 @@ function advance!(algorithm::FCIQMC, report, state::ReplicaState, replica::Singl
     end
     if len > state.maxlength[]
         if length(state.spectral_states) > 1
-            @error "`maxlength` reached in replica $(replica.id). Aborting."
+            @error "`maxlength` reached in single state $(s_state.id). Aborting."
         else
             @error "`maxlength` reached. Aborting."
         end

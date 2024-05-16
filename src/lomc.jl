@@ -199,9 +199,10 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     if !iszero(laststep)
         state = @set state.simulation_plan.last_step = laststep
     end
-    @unpack hamiltonian, spectral_states, maxlength, step, simulation_plan,
+    @unpack spectral_states, maxlength, step, simulation_plan,
     reporting_strategy, post_step_strategy, replica_strategy = state
-    first_replica = only(first(spectral_states).single_states) # SingleState
+    first_replica = first(state) # SingleState
+    @unpack hamiltonian = first_replica
     @assert step[] ≥ simulation_plan.starting_step
     problem = ProjectorMonteCarloProblem(hamiltonian;
         algorithm=first_replica.algorithm,
@@ -220,10 +221,10 @@ function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", me
     report_default_metadata!(report, state)
     report_metadata!(report, problem.metadata) # add user metadata
     # Sanity checks.
-    check_transform(state.replica_strategy, state.hamiltonian)
+    check_transform(state.replica_strategy, hamiltonian)
 
     simulation = PMCSimulation(
-        problem, FCIQMC(), state, report, false, false, false, "", 0.0
+        problem, state, report, false, false, false, "", 0.0
     )
     solve!(simulation)
 

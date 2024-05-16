@@ -16,7 +16,7 @@ using OrderedCollections: freeze
     @test eval(Meta.parse(repr(p.simulation_plan))) == p.simulation_plan
 
     simulation = init(p)
-    @test simulation.state.hamiltonian == h
+    @test simulation.hamiltonian == h
     @test only(StateVectors(simulation)) isa PDVec
     sp = only(simulation.state).shift_parameters
     @test sp.shift == diagonal_element(h, starting_address(h))

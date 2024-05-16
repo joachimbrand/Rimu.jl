@@ -106,15 +106,11 @@ See also [`ReplicaStrategy`](@ref), [`SpectralState`](@ref)s, [`SingleState`](@r
 struct ReplicaState{
     N, # number of replicas
     S, # number of spectral states
-    H <: AbstractHamiltonian,
-    A <: PMCAlgorithm,
     R<:NTuple{N,<:SpectralState{S}},
     RS<:ReportingStrategy,
     RRS<:ReplicaStrategy,
     PS<:NTuple{<:Any,PostStepStrategy},
 } <: AbstractMatrix{SingleState}
-    hamiltonian::H
-    algorithm::A
     spectral_states::R
     maxlength::Ref{Int}
     step::Ref{Int}
@@ -132,7 +128,7 @@ function Base.show(io::IO, st::ReplicaState)
     print(io, "ReplicaState")
     print(io, " with ", num_replicas(st), " replicas  and ")
     print(io, num_spectral_states(st), " spectral states")
-    print(io, "\n  H:    ", st.hamiltonian)
+    print(io, "\n  H:    ", first(st).hamiltonian)
     print(io, "\n  step: ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  replicas: ")
     for (i, r) in enumerate(st.spectral_states)
@@ -169,13 +165,14 @@ Base.getindex(sv::StateVectors, i::Int, j::Int) = sv.state[i, j].v
 function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
     # add metadata from state
-    replica = state.spectral_states[1].single_states[1]
-    algorithm = replica.algorithm
-    shift_parameters = replica.shift_parameters
+    s_state = first(state)
+    algorithm = s_state.algorithm
+    shift_parameters = s_state.shift_parameters
+    report_metadata!(report, "algorithm", algorithm)
     report_metadata!(report, "laststep", state.simulation_plan.last_step)
     report_metadata!(report, "num_replicas", num_replicas(state))
     report_metadata!(report, "num_spectral_states", num_spectral_states(state))
-    report_metadata!(report, "hamiltonian", state.hamiltonian)
+    report_metadata!(report, "hamiltonian", s_state.hamiltonian)
     report_metadata!(report, "reporting_strategy", state.reporting_strategy)
     report_metadata!(report, "shift_strategy", algorithm.shift_strategy)
     report_metadata!(report, "time_step_strategy", algorithm.time_step_strategy)
@@ -184,8 +181,8 @@ function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "shift", shift_parameters.shift)
     report_metadata!(report, "maxlength", state.maxlength[])
     report_metadata!(report, "post_step_strategy", state.post_step_strategy)
-    report_metadata!(report, "v_summary", summary(replica.v))
-    report_metadata!(report, "v_type", typeof(replica.v))
+    report_metadata!(report, "v_summary", summary(s_state.v))
+    report_metadata!(report, "v_type", typeof(s_state.v))
     return report
 end
 

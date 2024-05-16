@@ -11,7 +11,6 @@ See also [`StateVectors`](@ref),
 """
 mutable struct PMCSimulation
     problem::ProjectorMonteCarloProblem
-    algorithm::PMCAlgorithm # currently only FCIQMC() is implemented
     state::ReplicaState
     report::Report
     modified::Bool
@@ -120,8 +119,6 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
 
     # set up the initial state
     state = ReplicaState(
-        hamiltonian,
-        algorithm,
         spectral_states,
         Ref(maxlength),
         Ref(simulation_plan.starting_step),
@@ -131,14 +128,18 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
         replica_strategy
     )
     report = Report()
-    report_metadata!(report, "algorithm", algorithm)
     report_default_metadata!(report, state)
     report_metadata!(report, metadata) # add user metadata
     # Sanity checks.
-    check_transform(state.replica_strategy, state.hamiltonian)
+    check_transform(state.replica_strategy, hamiltonian)
+
+    @assert allequal(i->state[i].algorithm, n_replicas * n_spectral) &&
+        first(state).algorithm == algorithm
+    @assert allequal(i -> state[i].hamiltonian, n_replicas * n_spectral) &&
+        first(state).hamiltonian == hamiltonian
 
     return PMCSimulation(
-        problem, algorithm, state, report, false, false, false, "", 0.0
+        problem, state, report, false, false, false, "", 0.0
     )
 end
 
@@ -148,7 +149,7 @@ function Base.show(io::IO, sm::PMCSimulation)
     print(io, " with ", num_replicas(st), " replica(s) and ")
     print(io, num_spectral_states(st), " spectral state(s).")
     print(io, "\n  Algorithm:   ", sm.algorithm)
-    print(io, "\n  Hamiltonian: ", st.hamiltonian)
+    print(io, "\n  Hamiltonian: ", sm.hamiltonian)
     print(io, "\n  Step:        ", st.step[], " / ", st.simulation_plan.last_step)
     print(io, "\n  modified = $(sm.modified), aborted = $(sm.aborted), success = $(sm.success)")
     sm.message == "" || print(io, "\n  message: ", sm.message)
@@ -179,11 +180,15 @@ function Base.iterate(sm::PMCSimulation, state=1)
         return nothing
     end
 end
-# getproperty access to :df and :state fields for backward compatibility
+# getproperty access to :df, :algorithm and :hamiltonian fields
 # undocumented; may be removed in the future
 function Base.getproperty(sm::PMCSimulation, key::Symbol)
     if key == :df
         return DataFrame(sm)
+    elseif key == :algorithm
+        return first(sm.state).algorithm
+    elseif key == :hamiltonian
+        return first(sm.state).hamiltonian
     else
         return getfield(sm, key)
     end
