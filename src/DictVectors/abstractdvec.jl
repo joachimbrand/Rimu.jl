@@ -296,7 +296,8 @@ Internal function evaluates the 3-argument `dot()` function in order from right
 to left.
 """
 function dot_from_right(w, op, v::AbstractDVec)
-    result = zero(promote_type(valtype(w), eltype(op), valtype(v)))
+    T = typeof(zero(valtype(w)) * zero(eltype(op)) * zero(valtype(v)))
+    result = zero(T)
     for (key, val) in pairs(v)
         result += conj(w[key]) * diagonal_element(op, key) * val
         for (add, elem) in offdiagonals(op, key)

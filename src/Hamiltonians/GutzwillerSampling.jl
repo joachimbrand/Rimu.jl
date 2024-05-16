@@ -135,7 +135,7 @@ function TransformUndoer(k::GutzwillerSampling, op::Union{Nothing,AbstractHamilt
     if isnothing(op)
         T = eltype(k)
     else
-        T = promote_type(eltype(k), eltype(op))
+        T = typeof(zero(eltype(k)) * zero(eltype(op)))
     end
     return TransformUndoer{T,typeof(k),typeof(op)}(k, op)
 end
