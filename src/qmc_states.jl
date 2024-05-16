@@ -208,7 +208,7 @@ if `initiator == NonInitiator()`, and
 v = InitiatorDVec(address => 10; style, initiator)
 ```
 if not. See [`PDVec`](@ref), [`DVec`](@ref), [`InitiatorDVec`](@ref),
-[`StochasticStyle`](@ref), and [`InitiatorRule`].
+[`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
 """
 function default_starting_vector(
     hamiltonian::AbstractHamiltonian;
