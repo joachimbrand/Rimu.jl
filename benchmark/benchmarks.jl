@@ -68,7 +68,7 @@ const SUITE = @benchmarkset "Rimu" begin
             ham = BoseHubbardMom1D2C(addr, v=0.1)
             dv = PDVec(addr => 1.0f0; style=IsDynamicSemistochastic{Float32}())
             s_strat = DoubleLogUpdate(targetwalkers=10_000)
-            replica_strategy = AllOverlaps(2, ntuple(i -> G2Correlator(i - 1), 7))
+            replica_strategy = AllOverlaps(2; operator = ntuple(i -> G2Correlator(i - 1), 7))
 
             lomc!(ham, dv; s_strat, replica_strategy, laststep=2000)
         end seconds=150
