@@ -98,6 +98,7 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
     @assert shift_parameters isa SMatrix{n_spectral,n_replicas}
 
     # set up the spectral_states
+    wm = working_memory(vectors[1, 1])
     spectral_states = ntuple(n_replicas) do i
         SpectralState(
             ntuple(n_spectral) do j
@@ -111,7 +112,9 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
                     "_s$(j)_$(i)" # j is the spectral state index, i is the replica index
                 end # we have to think about how to label the spectral states
                 SingleState(
-                    hamiltonian, algorithm, v, zerovector(v), working_memory(v), sp, id
+                    hamiltonian, algorithm, v, zerovector(v),
+                    wm isa PDWorkingMemory ? wm : working_memory(v), # reuse for PDVec
+                    sp, id
                 )
             end, spectral_strategy)
     end
