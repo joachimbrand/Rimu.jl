@@ -36,7 +36,8 @@ the [`FCIQMC`](@ref) algorithm.
 - `targetwalkers = 1_000`: Target for the 1-norm of the coefficient vector.
 - `start_at = starting_address(hamiltonian)`: Define the initial state vector(s).
     An ``r × s`` matrix of state vectors can be passed where ``r`` is the
-    number of replicas and ``s`` the number of spectral states.
+    number of replicas and ``s`` the number of spectral states. See also
+    [`default_starting_vector`](@ref).
 - `style = IsDynamicSemistochastic()`: The [`StochasticStyle`](@ref) of the simulation.
 - `initiator = false`: Whether to use initiators. Can be `true`, `false`, or a valid
     [`InitiatorRule`](@ref).

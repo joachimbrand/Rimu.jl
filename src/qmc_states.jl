@@ -183,22 +183,23 @@ end
     default_starting_vector(hamiltonian::AbstractHamiltonian; kwargs...)
     default_starting_vector(
         address=starting_address(hamiltonian);
-        style=IsStochasticInteger(),
+        style=IsDynamicSemistochastic(),
         initiator=NonInitiator(),
-        threading=nothing
+        threading=nothing,
+        population=10
     )
-Return a default starting vector for [`lomc!`](@ref). The default choice for the starting
-vector is
+Return a default starting vector for [`ProjectorMonteCarloProblem`](@ref). The default
+choice for the starting vector is
 ```julia
-v = PDVec(address => 10; style, initiator)
+v = PDVec(address => population; style, initiator)
 ```
 if threading is available, or otherwise
 ```julia
-v = DVec(address => 10; style)
+v = DVec(address => population; style)
 ```
 if `initiator == NonInitiator()`, and
 ```julia
-v = InitiatorDVec(address => 10; style, initiator)
+v = InitiatorDVec(address => population; style, initiator)
 ```
 if not. See [`PDVec`](@ref), [`DVec`](@ref), [`InitiatorDVec`](@ref),
 [`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
@@ -215,7 +216,7 @@ function default_starting_vector(address::AbstractFockAddress; population=10, kw
 end
 
 function default_starting_vector(fdv::Union{FrozenDVec,Pair};
-    style = IsStochasticInteger(),
+    style = IsDynamicSemistochastic(),
     threading = nothing,
     initiator = NonInitiator(),
     mpi = RMPI.mpi_size() > 1,
