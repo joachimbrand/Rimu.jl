@@ -28,6 +28,7 @@ collection of addresses can be passed as `v0`.
     sparse matrix using the LOBPCG method. Requires `using IterativeSolvers`.
 
 # Keyword arguments for matrix-based algorithms (also accepted by [`init`](@ref))
+See [`BasisSetRepresentation`](@ref) for more information.
 - `sizelim`: The maximum size of the basis set representation. The default is `10^6` for
     sparse matrices and `10^5` for dense matrices.
 - `cutoff`: A cutoff value for the basis set representation.

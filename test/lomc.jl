@@ -30,7 +30,7 @@ Random.seed!(1234)
         wm = copy(dv)
         df, state = lomc!(H, v; wm, laststep=9)
         @test_broken state.spectral_states[1].single_states[1].wm === wm # after number of steps divisible by 3
-        @test StateVectors(state)[1] === v
+        @test state_vectors(state)[1] === v
         @test state.spectral_states[1].single_states[1].pv !== v
         @test state.spectral_states[1].single_states[1].pv !== wm
 
@@ -218,13 +218,13 @@ Random.seed!(1234)
         address = BoseFS{5,2}((2,3))
         H = HubbardReal1D(address; u=20)
         df, state = lomc!(H; laststep=100)
-        @test StochasticStyle(StateVectors(state)[1]) isa IsStochasticInteger
+        @test StochasticStyle(state_vectors(state)[1]) isa IsStochasticInteger
 
         df, state = lomc!(H; laststep=100, style = IsDeterministic())
-        @test StochasticStyle(StateVectors(state)[1]) isa IsDeterministic
+        @test StochasticStyle(state_vectors(state)[1]) isa IsDeterministic
 
         df, state = lomc!(H; laststep=1, threading=false, initiator=Initiator())
-        @test StateVectors(state)[1] isa InitiatorDVec
+        @test state_vectors(state)[1] isa InitiatorDVec
     end
 
     @testset "ShiftStrategy" begin
@@ -248,7 +248,7 @@ Random.seed!(1234)
         df, state = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
 
-        v = StateVectors(state)[1]
+        v = state_vectors(state)[1]
         step = state.step[]
         s_strat = LogUpdate()
         df = lomc!(H, v; df, step, s_strat, laststep=200).df

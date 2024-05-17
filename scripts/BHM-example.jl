@@ -136,7 +136,7 @@ dimension(H)
 
 # In this case, it's easy (and more efficient) to calculate the exact ground state energy
 # using standard linear algebra. Read more about Rimu's capabilities for exact
-# diagonalisation in the example "Exact diagonalization".
+# diagonalization in the example "Exact diagonalization".
 
 edp = ExactDiagonalizationProblem(H)
 exact_energy = solve(edp).values[1]

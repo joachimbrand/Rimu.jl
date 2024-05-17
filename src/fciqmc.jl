@@ -21,9 +21,9 @@ function Base.show(io::IO, a::FCIQMC)
 end
 
 """
-    set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
-    starting_vectors, shift, time_step, initial_shift_parameters
-)
+    set_up_initial_shift_parameters(
+        algorithm::FCIQMC, hamiltonian, starting_vectors, shift, time_step, initial_shift_parameters
+    )
 
 Set up the initial shift parameters for the [`FCIQMC`](@ref) algorithm.
 """

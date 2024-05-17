@@ -6,7 +6,7 @@ Is returned by [`init(::ProjectorMonteCarloProblem)`](@ref) and solved with
 
 Obtain the results of a simulation `sm` as a DataFrame with `DataFrame(sm)`.
 
-See also [`StateVectors`](@ref),
+See also [`state_vectors`](@ref),
 [`ProjectorMonteCarloProblem`](@ref), [`init`](@ref), [`solve!`](@ref).
 """
 mutable struct PMCSimulation
@@ -202,7 +202,7 @@ Tables.columnaccess(::Type{<:PMCSimulation}) = true
 Tables.columns(sm::PMCSimulation) = Tables.columns(sm.report.data)
 Tables.schema(sm::PMCSimulation) = Tables.schema(sm.report.data)
 
-StateVectors(sim::PMCSimulation) = StateVectors(sim.state)
+state_vectors(sim::PMCSimulation) = state_vectors(sim.state)
 
 # TODO: interface for reading results
 

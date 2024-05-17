@@ -28,17 +28,6 @@ function Base.show(io::IO, r::SingleState)
 end
 
 """
-    state_vectors(state)
-Returns a collection of configuration vectors from the `state`.
-
-See also [`SingleState`](@ref), [`ReplicaState`](@ref),
-[`SpectralState`](@ref), [`PMCSimulation`](@ref).
-"""
-function state_vectors(state::SingleState)
-    return SVector(state.v,)
-end
-
-"""
     SpectralState <: AbstractVector{SingleState}
 Holds one or several [`SingleState`](@ref)s representing the ground state and excited
 states of a single replica.
@@ -75,9 +64,8 @@ function Base.show(io::IO, s::SpectralState)
 end
 
 function state_vectors(state::SpectralState)
-    return mapreduce(state_vectors, vcat, state.single_states)
+    return SMatrix{1, num_spectral_states(state)}(s.v for s in state.single_states)
 end
-
 
 """
     _n_walkers(v, shift_strategy)
@@ -141,26 +129,31 @@ Base.getindex(st::ReplicaState, i::Int, j::Int) = st.spectral_states[i].single_s
 Base.IndexStyle(::Type{<:ReplicaState}) = IndexCartesian()
 
 """
-    StateVectors(state::ReplicaState) <: AbstractMatrix{V}
-    StateVectors(sim::PMCSimulation)
+    StateVectors <: AbstractMatrix{V}
 Represents a matrix of configuration vectors from the `state`.
+Construct this object with [`state_vectors`](@ref).
+"""
+struct StateVectors{V,R} <: AbstractMatrix{V}
+    state::R
+end
+Base.size(sv::StateVectors) = size(sv.state)
+Base.getindex(sv::StateVectors, i::Int, j::Int) = sv.state[i, j].v
+
+"""
+    state_vectors(state::ReplicaState)
+    state_vectors(sim::PMCSimulation)
+Return an `AbstractMatrix` of configuration vectors from the `state`.
 The vectors can be accessed by indexing the resulting collection, where the row index
 corresponds to the replica index and the column index corresponds to the spectral state
 index.
 
-See also [`SingleState`](@ref), [`ReplicaState`](@ref),
-[`SpectralState`](@ref), [`PMCSimulation`](@ref).
+See also [`SingleState`](@ref), [`ReplicaState`](@ref), [`SpectralState`](@ref),
+[`PMCSimulation`](@ref).
 """
-struct StateVectors{V,R} <: AbstractMatrix{V}
-    state::R
-
-    function StateVectors(state::R) where R <: ReplicaState
-        V = typeof(first(state).v)
-        return new{V, R}(state)
-    end
+function state_vectors(state::R) where {R<:ReplicaState}
+    V = typeof(first(state).v)
+    return StateVectors{V,R}(state)
 end
-Base.size(sv::StateVectors) = size(sv.state)
-Base.getindex(sv::StateVectors, i::Int, j::Int) = sv.state[i, j].v
 
 function report_default_metadata!(report::Report, state::ReplicaState)
     report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
