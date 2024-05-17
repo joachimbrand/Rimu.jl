@@ -62,15 +62,15 @@ initial_vector = default_starting_vector(initial_address; style=IsDynamicSemisto
 # improves the sign problem.
 
 # Observables that can be calculated by projection of the fluctuating quantum state onto
-# a constant vector are passed into the [`lomc!`](@ref) function with the `post_step_strategy`
-# keyword argument.
+# a constant vector are passed into the [`ProjectorMonteCarloProblem`](@ref) with the
+# `post_step_strategy` keyword argument.
 post_step_strategy = ProjectedEnergy(H, initial_vector)
 
 # ## Running the calculation
 
 # This is a two-step process:
-# First we define a `ProjectorMonteCarloProblem` with all the parameters needed for the
-# simulation
+# First we define a [`ProjectorMonteCarloProblem`](@ref) with all the parameters needed for
+# the simulation
 problem = ProjectorMonteCarloProblem(
     H;
     start_at = initial_vector,
@@ -80,7 +80,7 @@ problem = ProjectorMonteCarloProblem(
     post_step_strategy
 );
 
-# To run the simulation we simply call `solve` on the `problem`
+# To run the simulation we simply call [`solve`](@ref) on the `problem`
 simulation = solve(problem);
 
 # The `simulation` object contains the results of the simulation as well as state vectors
@@ -103,15 +103,16 @@ plot!(df.steps, df.norm, label="norm", color=1)
 # Now, let's look at using the shift to estimate the ground state energy of `H`. The mean of
 # the shift is a useful estimator of the energy. Calculating the error bars is a bit more
 # involved as autocorrelations have to be removed from the time series. This can be done
-# with the function [`shift_estimator`](@ref), which performs a blocking analysis.
+# with the function [`shift_estimator`](@ref), which performs a blocking analysis on the
+# `shift` column of the dataframe.
 se = shift_estimator(df; skip=steps_equilibrate)
 
 # Here, `se` contains the calculated mean and standard errors of the shift, as well as some
 # additional information related to the blocking analysis.
 
 # Computing the error of the projected energy is a bit more complicated, as it's a ratio of
-# fluctuating variables. Thankfully, the complications are handled by the following
-# function.
+# fluctuating variables contained in the `hproj` and `vproj` columns in the dataframe.
+# Thankfully, the complications are handled by the function [`projected_energy`](@ref).
 pe = projected_energy(df; skip=steps_equilibrate)
 
 # The result is a ratio distribution. We extract its median and the edges of the 95%
