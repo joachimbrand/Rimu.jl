@@ -88,7 +88,7 @@ Holds information about multiple replicas of [`SpectralState`](@ref)s.
 Indexing the `ReplicaState` `state[i, j]` returns a `SingleState` from the `i`th replica
 and `j`th spectral state.
 
-See also [`ReplicaStrategy`](@ref), [`SpectralState`](@ref)s, [`SingleState`](@ref),
+See also [`ReplicaStrategy`](@ref), [`SpectralState`](@ref), [`SingleState`](@ref),
 [`PMCSimulation`](@ref).
 """
 struct ReplicaState{

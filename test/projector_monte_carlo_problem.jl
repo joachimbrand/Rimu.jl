@@ -34,6 +34,8 @@ using OrderedCollections: freeze
     @test Rimu.num_replicas(p) == 3
     sm = init(p)
     @test Rimu.num_replicas(sm) == 3
+    @test size(state_vectors(sm)) == (3, 1)
+    @test only(state_vectors(sm.state.spectral_states[1])) == first(state_vectors(sm))
     dv = first(state_vectors(sm))
     @test dv isa InitiatorDVec
     @test collect(pairs(dv)) == [starting_address(h) => 10.0]
