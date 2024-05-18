@@ -1,5 +1,5 @@
 """
-    BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, kwargs...)
+    BoseHubbardMom1D2C(address::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, kwargs...)
 
 Implements a one-dimensional Bose Hubbard chain in momentum space with a two-component
 Bose gas.
@@ -10,7 +10,7 @@ Bose gas.
 
 # Arguments
 
-* `add`: the starting address.
+* `address`: the starting address.
 * `ua`: the `u` parameter for Hamiltonian a.
 * `ub`: the `u` parameter for Hamiltonian b.
 * `ta`: the `t` parameter for Hamiltonian a.
@@ -29,9 +29,9 @@ struct BoseHubbardMom1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
     hb::HB
 end
 
-function BoseHubbardMom1D2C(add::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, args...)
-    ha = HubbardMom1D(add.bsa; u=ua, t=ta, args...)
-    hb = HubbardMom1D(add.bsb; u=ub, t=tb, args...)
+function BoseHubbardMom1D2C(address::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, args...)
+    ha = HubbardMom1D(address.bsa; u=ua, t=ta, args...)
+    hb = HubbardMom1D(address.bsb; u=ub, t=tb, args...)
     T = promote_type(eltype(ha), eltype(hb))
     return BoseHubbardMom1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
@@ -59,18 +59,18 @@ Base.getproperty(h::BoseHubbardMom1D2C, ::Val{:ha}) = getfield(h, :ha)
 Base.getproperty(h::BoseHubbardMom1D2C, ::Val{:hb}) = getfield(h, :hb)
 Base.getproperty(h::BoseHubbardMom1D2C{<:Any,<:Any,<:Any,V}, ::Val{:v}) where {V} = V
 
-function num_offdiagonals(ham::BoseHubbardMom1D2C, add::BoseFS2C)
-    M = num_modes(add)
-    sa = num_occupied_modes(add.bsa)
-    sb = num_occupied_modes(add.bsb)
-    return num_offdiagonals(ham.ha, add.bsa) + num_offdiagonals(ham.hb, add.bsb) + sa*(M-1)*sb
+function num_offdiagonals(ham::BoseHubbardMom1D2C, address::BoseFS2C)
+    M = num_modes(address)
+    sa = num_occupied_modes(address.bsa)
+    sb = num_occupied_modes(address.bsb)
+    return num_offdiagonals(ham.ha, address.bsa) + num_offdiagonals(ham.hb, address.bsb) + sa*(M-1)*sb
     # number of excitations that can be made
 end
 
-function diagonal_element(ham::BoseHubbardMom1D2C, add::BoseFS2C)
-    M = num_modes(add)
-    onrep_a = onr(add.bsa)
-    onrep_b = onr(add.bsb)
+function diagonal_element(ham::BoseHubbardMom1D2C, address::BoseFS2C)
+    M = num_modes(address)
+    onrep_a = onr(address.bsa)
+    onrep_b = onr(address.bsb)
     interaction2c = Int32(0)
     for p in 1:M
         iszero(onrep_b[p]) && continue
@@ -79,14 +79,14 @@ function diagonal_element(ham::BoseHubbardMom1D2C, add::BoseFS2C)
         end
     end
     return (
-        diagonal_element(ham.ha, add.bsa) +
-        diagonal_element(ham.hb, add.bsb) +
+        diagonal_element(ham.ha, address.bsa) +
+        diagonal_element(ham.hb, address.bsb) +
         ham.v/M*interaction2c
     )
 end
 
-function get_offdiagonal(ham::BoseHubbardMom1D2C, add::BoseFS2C, chosen)
-    return offdiagonals(ham, add)[chosen]
+function get_offdiagonal(ham::BoseHubbardMom1D2C, address::BoseFS2C, chosen)
+    return offdiagonals(ham, address)[chosen]
 end
 
 """

@@ -29,6 +29,7 @@ function HubbardReal1D(addr; u=1.0, t=1.0)
 end
 
 function Base.show(io::IO, h::HubbardReal1D)
+    io = IOContext(io, :compact => true)
     print(io, "HubbardReal1D(")
     show(io, h.add)
     print(io, "; u=$(h.u), t=$(h.t))")
