@@ -45,21 +45,22 @@ lattice.
 
 """
 struct HubbardReal1DEP{TT,A<:AbstractFockAddress,U,T,M} <: AbstractHamiltonian{TT}
-    add::A
+    address::A
     ep::SVector{M,TT}
 end
 
-function HubbardReal1DEP(addr::SingleComponentFockAddress{<:Any,M}; u=1.0, t=1.0, v_ho=1.0) where M
+function HubbardReal1DEP(address::SingleComponentFockAddress{<:Any,M}; u=1.0, t=1.0, v_ho=1.0) where M
     U, T, V = promote(float(u), float(t), float(v_ho))
     # js = range(1-cld(M,2); length=M)
     is = range(-fld(M,2); length=M) # [-M÷2, M÷2) including left boundary
     js = shift_lattice(is) # shifted such that js[1] = 0
     potential = SVector{M}(V*j^2 for j in js)
-    return HubbardReal1DEP{typeof(U),typeof(addr),U,T,M}(addr, potential)
+    return HubbardReal1DEP{typeof(U),typeof(address),U,T,M}(address, potential)
 end
 
 function Base.show(io::IO, h::HubbardReal1DEP)
-    print(io, "HubbardReal1DEP($(h.add); u=$(h.u), t=$(h.t), v_ho=$(h.ep[2]))")
+    compact_addr = repr(h.address, context=:compact => true) # compact print address
+    print(io, "HubbardReal1DEP($(compact_addr); u=$(h.u), t=$(h.t), v_ho=$(h.ep[2]))")
 end
 
 LOStructure(::Type{<:HubbardReal1DEP{<:Real}}) = IsHermitian()
@@ -67,10 +68,10 @@ LOStructure(::Type{<:HubbardReal1DEP{<:Real}}) = IsHermitian()
 Base.getproperty(h::HubbardReal1DEP, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::HubbardReal1DEP{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::HubbardReal1DEP{<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
-Base.getproperty(h::HubbardReal1DEP, ::Val{:add}) = getfield(h, :add)
+Base.getproperty(h::HubbardReal1DEP, ::Val{:address}) = getfield(h, :address)
 Base.getproperty(h::HubbardReal1DEP, ::Val{:ep}) = getfield(h, :ep)
 
-starting_address(h::HubbardReal1DEP) = h.add
+starting_address(h::HubbardReal1DEP) = h.address
 
 dimension(::HubbardReal1DEP, address) = number_conserving_dimension(address)
 
@@ -85,7 +86,7 @@ function diagonal_element(h::HubbardReal1DEP, address::SingleComponentFockAddres
     end
 end
 
-function get_offdiagonal(h::HubbardReal1DEP, add::SingleComponentFockAddress, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen)
+function get_offdiagonal(h::HubbardReal1DEP, address::SingleComponentFockAddress, chosen)
+    naddress, onproduct = hopnextneighbour(address, chosen)
     return naddress, - h.t * onproduct
 end

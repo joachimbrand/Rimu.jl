@@ -51,9 +51,9 @@ Some metadata is automatically added to the report `df` including
 # Example
 
 ```jldoctest
-julia> add = BoseFS(1,2,3);
+julia> address = BoseFS(1,2,3);
 
-julia> hamiltonian = HubbardReal1D(add);
+julia> hamiltonian = HubbardReal1D(address);
 
 julia> df1, state = lomc!(hamiltonian; targetwalkers=500, laststep=100);
 
@@ -69,7 +69,7 @@ julia> using DataFrames; metadata(df2, "info") # retrieve custom metadata
 "cont"
 
 julia> metadata(df2, "hamiltonian") # some metadata is automatically added
-"HubbardReal1D(BoseFS{6,3}(1, 2, 3); u=1.0, t=1.0)"
+"HubbardReal1D(fs\\"|1 2 3⟩\\"; u=1.0, t=1.0)"
 ```
 
 # Further keyword arguments and defaults:
