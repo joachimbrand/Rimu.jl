@@ -10,6 +10,8 @@ ExactDiagonalization
 
 ```@docs
 ExactDiagonalizationProblem
+solve(::ExactDiagonalizationProblem)
+init(::ExactDiagonalizationProblem)
 ```
 
 ## Solver algorithms

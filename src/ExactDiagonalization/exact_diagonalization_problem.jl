@@ -5,7 +5,8 @@ Defines an exact diagonalization problem with an [`AbstractHamiltonian`](@ref) `
 Optionally, a starting vector of type [`AbstractDVec`](@ref), or a single address or a
 collection of addresses can be passed as `v0`.
 
-`ExactDiagonalizationProblem`s can be solved with [`solve`](@ref).
+`ExactDiagonalizationProblem`s can be solved with
+[`solve`](@ref solve(::ExactDiagonalizationProblem)).
 
 # Keyword arguments
 - `algorithm=LinearAlgebraSolver()`: The algorithm to use for solving the problem. The
@@ -27,7 +28,7 @@ collection of addresses can be passed as `v0`.
 - [`LOBPCGSolver()`](@ref): An algorithm for solving the problem after instantiating a
     sparse matrix using the LOBPCG method. Requires `using IterativeSolvers`.
 
-# Keyword arguments for matrix-based algorithms (also accepted by [`init`](@ref))
+# Keyword arguments for matrix-based algorithms (also accepted by [`init`](@ref init(::ExactDiagonalizationProblem)))
 See [`BasisSetRepresentation`](@ref) for more information.
 - `sizelim`: The maximum size of the basis set representation. The default is `10^6` for
     sparse matrices and `10^5` for dense matrices.
@@ -38,7 +39,7 @@ See [`BasisSetRepresentation`](@ref) for more information.
 - `col_hint = 0`: A hint for the number of columns in the basis set representation.
 - `sort = false`: Whether to sort the basis set representation.
 
-# Keyword arguments for iterative algorithms (also accepted by [`solve`](@ref))
+# Keyword arguments for iterative algorithms (also accepted by [`solve`](@ref solve(::ExactDiagonalizationProblem)))
 - `verbose = false`: Whether to print additional information.
 - `abstol = nothing`: The absolute tolerance for the solver. If `nothing`, the solver
     chooses a default value.
@@ -48,14 +49,16 @@ See [`BasisSetRepresentation`](@ref) for more information.
     solver chooses a default value.
 
 # Solving an `ExactDiagonalizationProblem`
-The [`solve`](@ref) function can be called directly on an `ExactDiagonalizationProblem` to
-solve it. Alternatively, the [`init`](@ref) function can be used to initialize a solver,
-which can then be solved with [`solve`](@ref). The [`solve`](@ref) function returns a result
+The [`solve`](@ref solve(::ExactDiagonalizationProblem)) function can be called directly on
+an `ExactDiagonalizationProblem` to solve it. Alternatively, the
+[`init`](@ref init(::ExactDiagonalizationProblem)) function can be used to initialize a
+solver, which can then be solved with [`solve`](@ref solve(::ExactDiagonalizationProblem)).
+The [`solve`](@ref solve(::ExactDiagonalizationProblem)) function returns a result
 type with the eigenvalues, eigenvectors, and convergence information.
 
 ## Result type
-The result type for the [`solve`](@ref) function is determined by the algorithm used. It has
-the following fields:
+The result type for the [`solve`](@ref solve(::ExactDiagonalizationProblem)) function is
+determined by the algorithm used. It has the following fields:
 - `values::Vector`: The eigenvalues.
 - `vectors::Vector{<:AbstractDVec}`: The eigenvectors.
 - `success::Bool`: A boolean flag indicating whether the solver was successful.
@@ -98,7 +101,8 @@ julia> values, vectors, success = solve(s);
 julia> result.values[1] ≈ values[1]
 true
 ```
-See also [`solve`](@ref), [`init`](@ref),
+See also [`solve(::ExactDiagonalizationProblem)`](@ref),
+[`init(::ExactDiagonalizationProblem)`](@ref),
 [`KrylovKitSolver`](@ref), [`ArpackSolver`](@ref), [`LinearAlgebraSolver`](@ref).
 !!! note
     Using the `KrylovKitSolver()` algorithms requires the

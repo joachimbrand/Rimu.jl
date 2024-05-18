@@ -19,7 +19,8 @@ non-hermitian matrices.
 - `kwargs`: Additional keyword arguments are passed on to the function
     [`KrylovKit.eigsolve()`](https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve).
 
-See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
+See also [`ExactDiagonalizationProblem`](@ref),
+[`solve`](@ref solve(::ExactDiagonalizationProblem)).
 
 !!! note
     Requires the KrylovKit.jl package to be loaded with `using KrylovKit`.
@@ -60,7 +61,8 @@ useful if the matrix fits into memory.
 The `kwargs` are passed on to the function
 [`Arpack.eigs()`](https://arpack.julialinearalgebra.org/stable/eigs/).
 
-See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
+See also [`ExactDiagonalizationProblem`](@ref),
+[`solve`](@ref solve(::ExactDiagonalizationProblem)).
 !!! note
     Requires the Arpack.jl package to be loaded with `using Arpack`.
 """
@@ -99,7 +101,8 @@ LOBPCG is not suitable for non-hermitian eigenvalue problems.
 The `kwargs` are passed on to the function
 [`IterativeSolvers.lobpcg()`](https://iterativesolvers.julialinearalgebra.org/dev/eigenproblems/lobpcg/).
 
-See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
+See also [`ExactDiagonalizationProblem`](@ref),
+[`solve`](@ref solve(::ExactDiagonalizationProblem)).
 !!! note
     Requires the IterativeSolvers.jl package to be loaded with `using IterativeSolvers`.
 """
@@ -141,7 +144,8 @@ The `kwargs` are passed on to function [`LinearAlgebra.eigen`](https://docs.juli
 - `scale = true`: Whether to scale the matrix before diagonalization.
 - `sortby`: The sorting order for the eigenvalues.
 
-See also [`ExactDiagonalizationProblem`](@ref), [`solve`](@ref).
+See also [`ExactDiagonalizationProblem`](@ref),
+[`solve`](@ref solve(::ExactDiagonalizationProblem)).
 """
 struct LinearAlgebraSolver <: AbstractAlgorithm{false}
     kw_nt::NamedTuple
