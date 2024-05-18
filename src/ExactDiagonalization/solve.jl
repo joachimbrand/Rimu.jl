@@ -65,6 +65,9 @@ information.
 
 For a description of the keyword arguments, see the documentation for
 [`ExactDiagonalizationProblem`](@ref).
+
+See also
+[`solve(::ProjectorMonteCarloProblem)`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem)).
 """
 function CommonSolve.solve(p::ExactDiagonalizationProblem; kwargs...)
     s = init(p; kwargs...)
