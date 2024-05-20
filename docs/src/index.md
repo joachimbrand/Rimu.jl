@@ -37,7 +37,7 @@ Didier Adrien, Chris Scott (NeSI), Alexander Pletzer (NeSI).
 
 `Rimu` is a registered package and can be installed with the package manager.
 Hit the `]` key at the Julia REPL to get into `Pkg` mode and type
-```julia-repl
+```
 pkg> add Rimu
 ```
 Alternatively, use
@@ -53,7 +53,7 @@ etc.,
 clone the git repository with `git clone` to a convenient location, e.g.
 `~/mygitpackagefolder/`. Then
 hit the `]` key at the Julia REPL to get into `Pkg` mode and type
-```julia-repl
+```
 pkg> develop ~/mygitpackagefolder/rimu.jl
 ```
 where the file path has to be adjusted to the location of the cloned git
@@ -115,6 +115,10 @@ enabled automatically if [`PDVec`](@ref) is used to store a vector. In that case
 be stored in a distributed fashion among the MPI ranks and only communicated between ranks
 when necessary. Additional MPI-related functionality is provided by the module [`RMPI`](@ref
 Rimu.RMPI).
+
+## Compatibility
+
+We recommend using `Rimu` with the latest Julia release version. Rimu requires at least julia `v1.9`.
 
 ## References
 The code implements the FCIQMC algorithm originally described in

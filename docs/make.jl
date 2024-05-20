@@ -53,6 +53,7 @@ makedocs(;
         "Guide" => "index.md",
         "Examples" => EXAMPLES_PAIRS[sortperm(EXAMPLES_NUMS)],
         "User documentation" => [
+            "Exact Diagonalization" => "exactdiagonalization.md",
             "StatsTools" => "statstools.md",
             "Using MPI" => "mpi.md",
         ],
@@ -74,6 +75,7 @@ makedocs(;
     authors="Joachim Brand <j.brand@massey.ac.nz>",
     checkdocs=:exports,
     doctest=false, # Doctests are done while testing.
+    # warnonly = true, # should be diabled for a release
 )
 
 deploydocs(

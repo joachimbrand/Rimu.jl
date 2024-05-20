@@ -1,15 +1,26 @@
 """
     Report()
+    Report(df::DataFrame)
 
 Internal structure that holds the temporary reported values as well as metadata.
+It can be converted to a `DataFrame` with [`DataFrame(report::Report)`](@ref).
 
 See [`report!`](@ref), [`report_metadata!`](@ref), [`get_metadata`](@ref).
 """
 struct Report
     data::LittleDict{Symbol,Vector}
     meta::LittleDict{String,String} # `String`s are required for Arrow metadata
+    is_finalized::Ref{Bool}
 
-    Report() = new(LittleDict{Symbol,Vector}(), LittleDict{String,String}())
+    Report() = new(LittleDict{Symbol,Vector}(), LittleDict{String,String}(), Ref(false))
+end
+
+function is_finalized(report::Report)
+    return report.is_finalized[]
+end
+function un_finalize!(report::Report)
+    report.is_finalized[] = false
+    return report
 end
 
 function Base.show(io::IO, report::Report)
@@ -21,11 +32,32 @@ function Base.show(io::IO, report::Report)
             print(io, "\n  $(lpad(k, keywidth)) => $v")
         end
     end
+    print(io, "\n metadata")
+    if !isempty(report.meta)
+        print(io, ":")
+        keywidth = maximum(length.(string.(keys(report.meta))))
+        for (k, v) in report.meta
+            print(io, "\n  $(lpad(k, keywidth)) => $v")
+        end
+    end
 end
 
 Base.empty!(report::Report) = foreach(empty!, values(report.data)) # does not empty metadata
 Base.isempty(report::Report) = all(isempty, values(report.data))
 
+# Tables.jl integration
+Tables.istable(::Type{<:Report}) = true
+Tables.columnaccess(::Type{<:Report}) = true
+Tables.columns(report::Report) = Tables.columns(report.data)
+Tables.schema(report::Report) = Tables.schema(report.data)
+# Note that using the `Tables` interface will not include metadata in the output.
+# To include metadata, use the `DataFrame` constructor.
+
+"""
+    DataFrame(report::Report)
+Convert the [`Report`](@ref) to a `DataFrame`. Metadata is added as metadata to the
+`DataFrame`.
+"""
 function DataFrames.DataFrame(report::Report)
     df = DataFrame(report.data; copycols=false)
     for (key, val) in get_metadata(report) # add metadata
@@ -41,13 +73,10 @@ end
 Set metadata `key` to `value` in `report`. `key` and `value` are converted to `String`s.
 Alternatively, an iterable of key-value pairs or a `NamedTuple` can be passed.
 
-Throws an error if `key` already exists.
-
 See also [`get_metadata`](@ref), [`report!`](@ref), [`Report`](@ref).
 """
 function report_metadata!(report::Report, key, value)
     key = string(key)
-    haskey(report.meta, key) && throw(ArgumentError("duplicate metadata key: $key"))
     report.meta[key] = string(value)
     return report
 end
@@ -119,10 +148,27 @@ function report!(report::Report, kvpairs, postfix::SymbolOrString="")
     return report
 end
 
+"""
+    report!(report::Report, df::DataFrame)
+
+Convert the `DataFrame` `df` to a `Report`. This function does not copy the data.
+"""
+function report!(report::Report, df::DataFrame)
+    empty!(report)
+    empty!(report.meta) # clear metadata as well
+    for n in propertynames(df)
+        report.data[n] = df[!, n] # does not copy the data
+    end
+    for (k, v) in DataFrames.metadata(df)
+        report.meta[k] = v
+    end
+    return report
+end
+
 function ensure_correct_lengths(report::Report)
     lens = length.(values(report.data))
     for i in 1:length(report.data)
-        lens[i] == lens[1] || throw(ArgumentError("duplicate keys reported to `DataFrame`"))
+        lens[i] == lens[1] || throw(ArgumentError("Inconsistency in `Report` detected. Consider calling `empty!(report)`."))
     end
 end
 
@@ -140,9 +186,9 @@ Abstract type for strategies for reporting data in a DataFrame with [`report!()`
 
 A `ReportingStrategy` can define any of the following:
 
-* [`refine_r_strat`](@ref)
+* [`refine_reporting_strategy`](@ref)
 * [`report!`](@ref)
-* [`report_after_step`](@ref)
+* [`report_after_step!`](@ref)
 * [`finalize_report!`](@ref)
 * [`reporting_interval`](@ref)
 
@@ -150,12 +196,12 @@ A `ReportingStrategy` can define any of the following:
 abstract type ReportingStrategy end
 
 """
-    refine_r_strat(r_strat::ReportingStrategy) -> r_strat
+    refine_reporting_strategy(reporting_strategy::ReportingStrategy) -> reporting_strategy
 
 Initialize the reporting strategy. This can be used to set up filenames or other attributes
 that need to be unique for a run of FCIQMC.
 """
-refine_r_strat(r_strat::ReportingStrategy) = r_strat
+refine_reporting_strategy(reporting_strategy::ReportingStrategy) = reporting_strategy
 
 """
      report!(::ReportingStrategy, step, report::Report, keys, values, id="")
@@ -176,13 +222,13 @@ function report!(::ReportingStrategy, _, args...)
 end
 
 """
-    report_after_step(::ReportingStrategy, step, report, state)
+    report_after_step!(::ReportingStrategy, step, report, state) -> report
 
 This function is called at the very end of a step, after [`reporting_interval`](@ref) steps.
-For example, it can be used to print some information to `stdout`.
+It may modify the `report`.
 """
-function report_after_step(::ReportingStrategy, args...)
-    return nothing
+function report_after_step!(::ReportingStrategy, _, report, args...)
+    return report
 end
 
 """
@@ -199,12 +245,15 @@ reporting_interval(::ReportingStrategy) = 1
 Finalize the report. This function is called after all steps in [`lomc!`](@ref) have
 finished.
 """
-finalize_report!(::ReportingStrategy, report) = DataFrame(report)
+function finalize_report!(::ReportingStrategy, report)
+    report.is_finalized[] = true
+    return report
+end
 
 function print_stats(io::IO, step, state)
     print(io, "[ ", lpad(step, 11), " | ")
-    shift = lpad(round(state.replicas[1].params.shift, digits=4), 10)
-    norm = lpad(round(state.replicas[1].pnorm, digits=4), 10)
+    shift = lpad(round(first(state).shift_parameters.shift, digits=4), 10)
+    norm = lpad(round(first(state).shift_parameters.pnorm, digits=4), 10)
     println(io, "shift: ", shift, " | norm: ", norm)
     flush(io)
 end
@@ -226,10 +275,11 @@ end
 function report!(s::ReportDFAndInfo, _, args...)
     report!(args...)
 end
-function report_after_step(s::ReportDFAndInfo, step, _, state)
+function report_after_step!(s::ReportDFAndInfo, step, report, state)
     if s.writeinfo && step % (s.info_interval * s.reporting_interval) == 0
         print_stats(s.io, step, state)
     end
+    return report
 end
 function reporting_interval(s::ReportDFAndInfo)
     return s.reporting_interval
@@ -303,7 +353,7 @@ end
 # helper function to check if the writer is open
 _isopen(s::ReportToFile) = !isnothing(s.writer) && !s.writer.isclosed
 
-function refine_r_strat(s::ReportToFile)
+function refine_reporting_strategy(s::ReportToFile)
     if s.save_if
         # If filename exists, add -1 to the end of it. If that exists as well,
         # increment the number after the dash
@@ -330,13 +380,14 @@ function report!(s::ReportToFile, _, args...)
         report!(args...)
     end
 end
-function report_after_step(s::ReportToFile, step, report, state)
+function report_after_step!(s::ReportToFile, step, report, state)
     if s.save_if && step % (s.chunk_size * s.reporting_interval) == 0
         # Report some stats:
         print_stats(s.io, step, state)
 
         if !_isopen(s)
             # If the writer is closed or absent, we need to create a new one
+            # Simulation status metadata will be absent in the Arrow file
             s.writer = open(
                 Arrow.Writer, s.filename;
                 compress=s.compress, metadata=report.meta
@@ -345,9 +396,11 @@ function report_after_step(s::ReportToFile, step, report, state)
         Arrow.write(s.writer, report.data)
         empty!(report)
     end
+    return report
 end
 # We rely on this function to be called to close the writer.
 function finalize_report!(s::ReportToFile, report)
+    is_finalized(report) && return report
     if s.save_if
         println(s.io, "Finalizing.")
         if !isempty(report)
@@ -361,11 +414,15 @@ function finalize_report!(s::ReportToFile, report)
             Arrow.write(s.writer, report.data)
         end
         close(s.writer) # close the writer
+        empty!(report)
+        report.is_finalized[] = true
         if s.return_df
-            return RimuIO.load_df(s.filename)
+            return report!(report, RimuIO.load_df(s.filename))
         end
     end
-    return DataFrame()
+    report.is_finalized[] = true
+    empty!(report) # retains the metadata
+    return report # return the report
 end
 function reporting_interval(s::ReportToFile)
     return s.reporting_interval

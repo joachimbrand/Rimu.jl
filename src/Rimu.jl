@@ -8,16 +8,22 @@ using OrderedCollections: OrderedCollections, LittleDict, freeze
 using Parameters: Parameters, @pack!, @unpack, @with_kw
 using ProgressLogging: ProgressLogging, @logprogress, @withprogress
 using Reexport: Reexport, @reexport
-using Setfield: Setfield
-using StaticArrays: StaticArrays, SVector
+using Setfield: Setfield, @set
+using StaticArrays: StaticArrays, SVector, SMatrix
 using StatsBase: StatsBase
 using TerminalLoggers: TerminalLogger
 using Logging: ConsoleLogger
+using OrderedCollections: freeze
+using Random: Random, RandomDevice, seed!
+using NamedTupleTools: NamedTupleTools, namedtuple, delete
+import Tables
 import ConsoleProgressMonitor
 import TOML
 
 @reexport using LinearAlgebra
 @reexport using VectorInterface
+@reexport using CommonSolve: CommonSolve, init, step!, solve, solve!
+@reexport using DataFrames
 
 """
     Rimu.PACKAGE_VERSION
@@ -46,6 +52,9 @@ include("StochasticStyles/StochasticStyles.jl")
 @reexport using .StochasticStyles
 include("DictVectors/DictVectors.jl")
 @reexport using .DictVectors
+using .DictVectors: FrozenDVec
+include("ExactDiagonalization/ExactDiagonalization.jl")
+@reexport using .ExactDiagonalization
 include("RimuIO/RimuIO.jl")
 @reexport using .RimuIO
 include("StatsTools/StatsTools.jl")
@@ -63,6 +72,8 @@ export PostStepStrategy, Projector, ProjectedEnergy, SignCoherence, WalkerLoneli
 export TimeStepStrategy, ConstantTimeStep, OvershootControl
 export localpart, walkernumber
 export smart_logger, default_logger
+export ProjectorMonteCarloProblem, SimulationPlan, state_vectors
+export FCIQMC, num_replicas, num_spectral_states, GramSchmidt
 
 function __init__()
     # Turn on smart logging once at runtime. Turn off with `default_logger()`.
@@ -75,7 +86,13 @@ include("strategies_and_params/replicastrategy.jl")
 include("strategies_and_params/reportingstrategy.jl")
 include("strategies_and_params/shiftstrategy.jl")
 include("strategies_and_params/timestepstrategy.jl")
-include("strategies_and_params/deprecated.jl")
+include("strategies_and_params/spectralstrategy.jl")
+
+include("projector_monte_carlo_problem.jl")
+
+include("qmc_states.jl")
+include("fciqmc.jl")
+include("pmc_simulation.jl")
 
 include("lomc.jl")                  # top level
 

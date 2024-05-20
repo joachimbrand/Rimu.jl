@@ -11,16 +11,15 @@ using Test
 using Rimu.StatsTools
 using ExplicitImports: check_no_implicit_imports
 
-# assuming VERSION ≥ v"1.6"
-# the following is needed because random numbers of collections are computed
-# differently after version 1.6, and thus the results of many tests change
-# for Golden Master Testing (@https://en.wikipedia.org/wiki/Characterization_test)
-@assert VERSION ≥ v"1.6"
 
 @test Rimu.PACKAGE_VERSION == VersionNumber(TOML.parsefile(pkgdir(Rimu, "Project.toml"))["version"])
 
 @safetestset "Interfaces" begin
     include("Interfaces.jl")
+end
+
+@safetestset "ExactDiagonalization" begin
+    include("ExactDiagonalization.jl")
 end
 
 @safetestset "BitStringAddresses" begin
@@ -39,6 +38,10 @@ end
     include("Hamiltonians.jl")
 end
 
+@safetestset "projector_monte_carlo_problem" begin
+    include("projector_monte_carlo_problem.jl")
+end
+
 @safetestset "lomc!" begin
     include("lomc.jl")
 end
@@ -51,6 +54,7 @@ end
     include("StatsTools.jl")
 end
 
+using Rimu: replace_keys, delete_and_warn_if_present, clean_and_warn_if_others_present
 @testset "helpers" begin
     @testset "walkernumber" begin
         v = [1,2,3]
@@ -78,6 +82,18 @@ end
             @test op(a[2], b[2]) == c[2]
         end
         @test_throws MethodError a + Rimu.MultiScalar(1, 1, 1)
+    end
+
+    @testset "keyword helpers" begin
+        nt = (; a=1, b=2, c = 3, d = 4)
+        nt2 = replace_keys(nt, (:a => :x, :b => :y, :u => :v))
+        @test nt2 == (c=3, d=4, x=1, y=2)
+        nt3 = @test_logs((:warn, "The keyword(s) \"a\", \"b\" are unused and will be ignored."),
+            delete_and_warn_if_present(nt, (:a, :b, :u)))
+        @test nt3 == (; c = 3, d = 4)
+        nt4 = @test_logs((:warn, "The keyword(s) \"c\", \"d\" are unused and will be ignored."),
+            clean_and_warn_if_others_present(nt, (:a, :b, :u)))
+        @test nt4 == (; a = 1, b = 2)
     end
 end
 
@@ -120,9 +136,9 @@ end
     @test hp2cMom[1][1] == BoseFS2C(BoseFS((1,2,1,0)), BoseFS((0,4,0,0)))
     @test hp2cMom[1][2] ≈ 2.598076211353316
 
-    smat2cReal, adds2cReal = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cReal,aIni2cReal)
+    smat2cReal, adds2cReal = ExactDiagonalization.build_sparse_matrix_from_LO(Ĥ2cReal,aIni2cReal)
     eig2cReal = eigen(Matrix(smat2cReal))
-    smat2cMom, adds2cMom = Hamiltonians.build_sparse_matrix_from_LO(Ĥ2cMom,aIni2cMom)
+    smat2cMom, adds2cMom = ExactDiagonalization.build_sparse_matrix_from_LO(Ĥ2cMom, aIni2cMom)
     eig2cMom = eigen(Matrix(smat2cMom))
     @test eig2cReal.values[1] ≈ eig2cMom.values[1]
 end
@@ -157,7 +173,7 @@ end
     include("doctests.jl")
 end
 
-VERSION ≥ v"1.7" && @safetestset "ExplicitImports" begin
+@safetestset "ExplicitImports" begin
     using Rimu
     using ExplicitImports
     # Check that no implicit imports are used in the Rimu module.

@@ -764,33 +764,31 @@ end
     end
 end
 
-@testset "AbstractMatrix and MatrixHamiltonian" begin
-    # lomc!() with AbstractMatrix
+@testset "MatrixHamiltonian" begin
+    # using lomc! with an `AbstractMatrix` was removed in Rimu.jl v0.12.0
+
+    # generate matrix
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
     @test dim ≤ dimension(Int, starting_address(ham)) == dimension(starting_address(ham))
-    bsr = BasisSetRep(ham, starting_address(ham))
-    sm, basis = sparse(bsr), bsr.basis
+    bsr = BasisSetRepresentation(ham, starting_address(ham))
+    sparse_matrix, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
-    # run lomc! in deterministic mode with Matrix and Vector
-    a = lomc!(sm, ones(dim)).df
-    b = lomc!(sm, ones(dim)).df
-    @test a.shift ≈ b.shift
+
     # run lomc! in deterministic mode with Hamiltonian and DVec
     v = DVec(k=>1.0 for k in basis; style=IsDeterministic()) # corresponds to `ones(dim)`
-    c = lomc!(ham, v).df
-    @test a.shift ≈ c.shift
+    a = lomc!(ham, v).df
 
     # MatrixHamiltonian
     @test_throws ArgumentError MatrixHamiltonian([1 2 3; 4 5 6])
-    @test_throws ArgumentError MatrixHamiltonian(sm, starting_address = dim+1)
+    @test_throws ArgumentError MatrixHamiltonian(sparse_matrix, starting_address = dim+1)
     # adjoint nonhermitian
     nonhermitian = MatrixHamiltonian([1 2; 4 5])
     @test LOStructure(nonhermitian) == AdjointKnown()
     @test get_offdiagonal(nonhermitian,2,1)[2] == get_offdiagonal(nonhermitian',1,1)[2]
 
     # wrap sparse matrix as MatrixHamiltonian
-    mh =  MatrixHamiltonian(sm)
+    mh =  MatrixHamiltonian(sparse_matrix)
     # adjoint IsHermitian
     @test LOStructure(mh) == IsHermitian()
     @test mh' == mh
@@ -800,15 +798,15 @@ end
 
     # lomc!
     # float walkernumber triggers IsDeterministic algorithm
-    d = lomc!(mh, ones(dim)).df
+    d = lomc!(mh, DVec(pairs(ones(dim)))).df
     @test d.shift ≈ a.shift
     # integer walkernumber triggers IsStochasticInteger algorithm
     Random.seed!(15)
-    e = lomc!(mh, ones(Int,dim)).df
+    e = lomc!(mh, DVec(pairs(ones(Int,dim)))).df
     @test ≈(e.shift[end], a.shift[end], atol=0.3)
     # wrap full matrix as MatrixHamiltonian
-    fmh =  MatrixHamiltonian(Matrix(sm))
-    f = lomc!(fmh, ones(dim)).df
+    fmh =  MatrixHamiltonian(Matrix(sparse_matrix))
+    f = lomc!(fmh, DVec(pairs(ones(dim)))).df
     @test f.shift ≈ a.shift
 end
 
@@ -1356,8 +1354,8 @@ end
         ham = HubbardRealSpace(
             CompositeFS(FermiFS((1,1,0)), FermiFS((1,0,0)), BoseFS((0,0,2)))
         )
-        even_b = BasisSetRep(ParitySymmetry(ham))
-        odd_b = BasisSetRep(ParitySymmetry(ham; odd=true))
+        even_b = BasisSetRepresentation(ParitySymmetry(ham))
+        odd_b = BasisSetRepresentation(ParitySymmetry(ham; odd=true))
 
         for add in even_b.basis
             @test add == min(add, reverse(add))
@@ -1379,7 +1377,7 @@ end
     @testset "Even Hamiltonian" begin
         # This Hamiltonian only has even addresses.
         ham = HubbardMom1D(BoseFS((0,0,0,2,0,0,0)); u=3)
-        even_b = BasisSetRep(ParitySymmetry(ham))
+        even_b = BasisSetRepresentation(ParitySymmetry(ham))
 
         ham_m = Matrix(ham)
         even_m = Matrix(even_b)
@@ -1427,133 +1425,6 @@ end
         @test LOStructure(odd) isa IsHermitian
     end
 
-end
-
-@testset "BasisSetRep" begin
-    @testset "basics" begin
-        m = 100
-        n = 100
-        addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
-        ham = HubbardReal1D(addr)
-        @test_throws ArgumentError BasisSetRep(ham) # dimension too large
-        m = 2
-        n = 10
-        addr = near_uniform(BoseFS{n,m})
-        ham = HubbardReal1D(addr)
-        bsr = BasisSetRep(ham; nnzs = dimension(ham))
-        @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
-        @test_throws ArgumentError BasisSetRep(ham, BoseFS((1,2,3))) # wrong address type
-        @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
-        @test sparse(bsr) == bsr.sm == sparse(ham)
-        addr2 = bsr.basis[2]
-        @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
-        @test isreal(ham) == (eltype(ham) <: Real)
-        @test isdiag(ham) == (LOStructure(ham) ≡ IsDiagonal())
-        @test ishermitian(ham) == (LOStructure(ham) ≡ IsHermitian())
-        @test issymmetric(ham) == (ishermitian(ham) && isreal(ham))
-    end
-
-    @testset "filtering" begin
-        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        bsr_orig = BasisSetRep(ham; sort=true)
-        mat_orig = Matrix(bsr_orig)
-        mat_cut_index = diag(mat_orig) .< 30
-        mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-        bsr = BasisSetRep(ham; cutoff=30, sort=true)
-        mat_cut = Matrix(bsr)
-        @test mat_cut == mat_cut_manual
-        # pass a basis and generate truncated BasisSetRep
-        bsrt = BasisSetRep(ham, bsr.basis; filter= Returns(false), sort=true)
-        @test bsrt.basis == bsr.basis
-        @test bsr.sm == bsrt.sm
-        # pass addresses and generate reachable basis
-        @test BasisSetRep(ham, bsr.basis, sort=true).basis == bsr_orig.basis
-
-        filterfun(fs) = maximum(onr(fs)) < 8
-        mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
-        mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-        mat_cut = Matrix(ham; filter=filterfun, sort=true)
-        @test mat_cut == mat_cut_manual
-    end
-
-    @testset "getindex" begin
-        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        bsr = BasisSetRep(ham; sort=true)
-        b = bsr.basis
-        @test [ham[i, j] for i in b, j in b] == Matrix(bsr)
-    end
-
-    @testset "momentum blocking" begin
-        add1 = BoseFS((2,0,0,0))
-        add2 = BoseFS((0,1,0,1))
-        ham = HubbardMom1D(add1)
-
-        @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
-        @test Matrix(ham, add1) ≠ Matrix(ham, add2)
-
-        add1 = BoseFS((2,0,0,0,0))
-        add2 = BoseFS((0,1,0,0,1))
-        ham = HubbardMom1D(add1)
-
-        @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
-        @test Matrix(ham, add1) ≠ Matrix(ham, add2)
-    end
-
-    using Rimu.Hamiltonians: fix_approx_hermitian!, isapprox_enforce_hermitian!
-    using Rimu.Hamiltonians: build_sparse_matrix_from_LO
-    using Random
-    @testset "fix_approx_hermitian!" begin
-        # generic `Matrix`
-        Random.seed!(17)
-        mat = rand(5,5)
-        @test !ishermitian(mat)
-        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
-        @test !ishermitian(mat) # still not hermitian
-        fix_approx_hermitian!(mat; test_approx_symmetry=false)
-        @test ishermitian(mat) # now it is hermitian
-
-        # sparse matrix
-        Random.seed!(17)
-        mat = sparse(rand(5,5))
-        @test !ishermitian(mat)
-        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
-        @test !ishermitian(mat) # still not hermitian
-
-        # subtle symmetry violation due to `ParitySymmetry` wrapper
-        ham = HubbardMom1D(BoseFS((1, 0, 1, 2, 0)))
-        even = ParitySymmetry(ham; odd=false)
-        odd = ParitySymmetry(ham; even=false)
-
-        even_sm, _ = build_sparse_matrix_from_LO(even)
-        even_m = Matrix(even) # symmetrised version via BasisSetRep
-
-        @test !issymmetric(even_sm) # not symmetric due to floating point errors
-        @test issymmetric(even_m) # because it was passed through `fix_approx_hermitian!`
-        @test even_sm ≈ even_m # still approximately the same!
-    end
-
-    @testset "basis-only" begin
-        m = 5
-        n = 5
-        add = near_uniform(BoseFS{n,m})
-        ham = HubbardReal1D(add)
-        @test_throws ArgumentError build_basis(ham, BoseFS((1,2,3))) # wrong address type
-        # same basis as BSR
-        bsr = BasisSetRep(ham)
-        basis = build_basis(ham)
-        @test basis == bsr.basis
-        @test basis == build_basis(ham, basis) # passing multiple addresses
-        # sorting
-        basis = build_basis(ham, add; sort = true)
-        @test basis == sort!(bsr.basis)
-        # filtering
-        @test_throws ArgumentError build_basis(ham, add; sizelim = 100)
-        @test length(build_basis(ham, add; cutoff = -1)) == 1 # no new addresses added
-        cutoff = n * (n-1) / 4  # half maximum energy
-        bsr = BasisSetRep(ham, add; cutoff)
-        basis = build_basis(ham, add; cutoff)
-        @test basis == bsr.basis
-    end
 end
 
 @testset "Stoquastic" begin
@@ -1692,9 +1563,9 @@ end
         @test length(H.vtable) == M÷2 + 1     # 5
         @test sum(H.vtable) ≈ -3.497817080215528
 
-        bsr = BasisSetRep(H; sizelim=Inf)
+        bsr = BasisSetRepresentation(H; sizelim=Inf)
         @test dimension(bsr) == 15  # dimension(bsr) < dimension(H)
-        @test sum(bsr.sm) ≈ 142.6393438659114
+        @test sum(bsr.sparse_matrix) ≈ 142.6393438659114
 
         @test eval(Meta.parse(repr(H))) == H
     end
@@ -1710,9 +1581,9 @@ end
         Ly = AxialAngularMomentumHO(S; z_dim=2, addr)
         Lx = AxialAngularMomentumHO(S; z_dim=1, addr)
 
-        Lz_vals = eigvals(Matrix(BasisSetRep(Lz)))
-        Ly_vals = eigvals(Matrix(BasisSetRep(Ly)))
-        Lx_vals = eigvals(Matrix(BasisSetRep(Lx)))
+        Lz_vals = eigvals(Matrix(BasisSetRepresentation(Lz)))
+        Ly_vals = eigvals(Matrix(BasisSetRepresentation(Ly)))
+        Lx_vals = eigvals(Matrix(BasisSetRepresentation(Lx)))
 
         expected = [-4, -2, 0, 0, 2, 4]
         @test Lz_vals ≈ expected

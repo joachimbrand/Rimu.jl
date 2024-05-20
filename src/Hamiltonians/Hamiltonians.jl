@@ -1,10 +1,8 @@
 """
-    module Hamiltonians
-
-This module defines Hamiltonian types and functions for working with
+The module `Rimu.Hamiltonians` defines types and functions for working with
 Hamiltonians.
 
-## [Exported concrete Hamiltonian types](#Model-Hamiltonians)
+## Exported concrete Hamiltonian types
 
 Real space Hubbard models
  - [`HubbardReal1D`](@ref)
@@ -58,7 +56,7 @@ using LinearAlgebra: LinearAlgebra, I, diag, dot, ishermitian, issymmetric,
     mul!, norm
 using Parameters: Parameters, @unpack
 using Setfield: Setfield
-using SparseArrays: SparseArrays, nnz, nzrange, sparse
+using SparseArrays: SparseArrays, rowvals, nzrange, nonzeros
 using SpecialFunctions: SpecialFunctions, gamma
 using StaticArrays: StaticArrays, SA, SMatrix, SVector, SArray, setindex
 using TupleTools: TupleTools
@@ -68,10 +66,7 @@ using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
     offdiagonals, random_offdiagonal, LOStructure, allowed_address_type
 
-export AbstractHamiltonian
-# export TwoComponentHamiltonian
 export dimension, rayleigh_quotient, momentum
-export BasisSetRep, build_basis
 
 export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
@@ -91,8 +86,6 @@ export G2MomCorrelator, G2RealCorrelator, G2RealSpace, SuperfluidCorrelator, Den
 export StringCorrelator
 
 export CubicGrid, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
-
-export sparse # from SparseArrays
 
 export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, HOCartesianCentralImpurity
 export AxialAngularMomentumHO

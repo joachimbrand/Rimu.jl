@@ -268,7 +268,7 @@ end
     G2list = ([G2RealCorrelator(i) for i in dvals]...,)
 
     Random.seed!(174)
-    df = lomc!(ham, dv; params, s_strat, replica = AllOverlaps(num_reps; operator = G2list)).df
+    df = lomc!(ham, dv; params, s_strat, replica_strategy = AllOverlaps(num_reps; operator = G2list)).df
 
     for d in dvals
         # without reweighting
@@ -311,7 +311,7 @@ using Rimu.StatsTools: replica_fidelity
 
     # run replica fciqmc
     Random.seed!(170)
-    rr = lomc!(ham, v; params=p, s_strat, post_step, replica=AllOverlaps()).df
+    rr = lomc!(ham, v; params=p, s_strat, post_step, replica_strategy=AllOverlaps()).df
 
     # check fidelity with ground state
     fid_gs = replica_fidelity(rr; p_field=:vproj, skip=steps_equi)

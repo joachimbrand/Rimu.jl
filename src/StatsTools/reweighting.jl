@@ -71,10 +71,10 @@ w_lin(shift, h, dτ; kwargs...) = w_lin(Vector(shift), h, dτ; kwargs...)
         kwargs...
     ) -> r::RatioBlockingResult
     growth_estimator(
-        df::DataFrame, h; 
-        shift_name=:shift, 
-        norm_name=:norm, 
-        dτ=df.dτ[end], 
+        df::DataFrame, h;
+        shift_name=:shift,
+        norm_name=:norm,
+        dτ=df.dτ[end],
         kwargs...
     ) -> r::RatioBlockingResult
 Compute the growth estimator with reference energy `E_r` by the reweighting
@@ -103,7 +103,7 @@ If `success==true` the
 blocking analysis was successful in `k-1` steps, using `blocks` uncorrelated data points.
 
 The second method calculates the growth estimator directly from a `DataFrame` returned by
-[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name` and `norm_name` can be used to change the names 
+[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name` and `norm_name` can be used to change the names
 of the relevant columns.
 
 See also [`mixed_estimator()`](@ref) and [`RatioBlockingResult`](@ref).
@@ -151,7 +151,7 @@ end
 function determine_h_range(df, skip, correlation_estimate, h_values)
     n_data = size(df)[1] - skip
     if n_data < 2correlation_estimate
-        @info "Not enough data" n_data correlation_estimate
+        @warn "Not enough data" n_data correlation_estimate
     end
     length = min(2correlation_estimate, h_values)
     stop = min(n_data, 2correlation_estimate)
@@ -262,10 +262,10 @@ end
     ) -> r::RatioBlockingResult
     mixed_estimator(
         df::DataFrame, h;
-        hproj_name=:hproj, 
-        vproj_name=:vproj, 
-        shift_name=:shift, 
-        dτ=df.dτ[end], 
+        hproj_name=:hproj,
+        vproj_name=:vproj,
+        shift_name=:shift,
+        dτ=df.dτ[end],
         kwargs...
     )
 Compute the mixed estimator by the reweighting
@@ -291,8 +291,8 @@ compared to the unweighted ratio.
 Error propagation is done with [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 Results are returned as [`RatioBlockingResult`](@ref).
 
-The second method calculates the mixed energy estimator directly from a `DataFrame` 
-returned by [`lomc!`](@ref Main.lomc!). The keyword arguments `hproj_name`, `vproj_name`, and 
+The second method calculates the mixed energy estimator directly from a `DataFrame`
+returned by [`lomc!`](@ref Main.lomc!). The keyword arguments `hproj_name`, `vproj_name`, and
 `shift_name` can be used to change the names of the relevant columns.
 
 See also [`growth_estimator()`](@ref).
@@ -424,39 +424,39 @@ end
     rayleigh_replica_estimator(
         df::DataFrame;
         shift_name="shift",
-        op_name="Op1", 
-        vec_name="dot", 
+        op_name="Op1",
+        vec_name="dot",
         h=0,
-        skip=0, 
+        skip=0,
         Anorm=1,
         kwargs...
     ) -> r::RatioBlockingResult
 Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` with reweighting,
 ```math
-A_\\mathrm{est}(h) = \\frac{\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)}  
+A_\\mathrm{est}(h) = \\frac{\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)}
     \\mathbf{c}_a^{(n)} \\cdot \\hat{A} \\cdot \\mathbf{c}_b^{(n)}}
     {\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)} \\mathbf{c}_a^{(n)} \\cdot \\mathbf{c}_b^{(n)}},
 ```
-using data from multiple replicas. 
+using data from multiple replicas.
 
-Argument `op_ol` holds data for the operator overlap ``\\mathbf{c}_a^{(n)} \\hat{A} \\mathbf{c}_b^{(n)}`` 
+Argument `op_ol` holds data for the operator overlap ``\\mathbf{c}_a^{(n)} \\hat{A} \\mathbf{c}_b^{(n)}``
 and `vec_ol` holds data for the vector overlap ``\\mathbf{c}_a^{(n)} \\mathbf{c}_b^{(n)}``.
-They are of type `Vector{Vector}`, with each element `Vector` 
+They are of type `Vector{Vector}`, with each element `Vector`
 holding the data for a pair of replicas.
-Argument `shift` is of type `Vector{Vector}`, with each element `Vector` 
+Argument `shift` is of type `Vector{Vector}`, with each element `Vector`
 holding the shift data for each individual replica.
 
-The second method computes the Rayleigh quotient directly from a `DataFrame` returned by 
-[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name`, `op_name` and `vec_name` can be used to 
-change the names of the relevant columns, see [`AllOverlaps`](@ref Main.AllOverlaps) for default 
-formatting. The operator overlap data can be scaled by a prefactor `Anorm`. A specific 
-reweighting depth can be set with keyword argument `h`. The default is `h = 0` which 
+The second method computes the Rayleigh quotient directly from a `DataFrame` returned by
+[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name`, `op_name` and `vec_name` can be used to
+change the names of the relevant columns, see [`AllOverlaps`](@ref Main.AllOverlaps) for default
+formatting. The operator overlap data can be scaled by a prefactor `Anorm`. A specific
+reweighting depth can be set with keyword argument `h`. The default is `h = 0` which
 calculates the Rayleigh quotient without reweighting.
 
-The reweighting is an extension of the mixed estimator using the reweighting technique 
-described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195). 
-Reweighting is done over `h` time steps and `length(shift) - skip` time steps are used 
-for the blocking analysis done with [`ratio_of_means()`](@ref). 
+The reweighting is an extension of the mixed estimator using the reweighting technique
+described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195).
+Reweighting is done over `h` time steps and `length(shift) - skip` time steps are used
+for the blocking analysis done with [`ratio_of_means()`](@ref).
 `dτ` is the time step and `weights` a function that
 calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).
 Additional keyword arguments are passed on to [`ratio_of_means()`](@ref).
@@ -467,16 +467,16 @@ Results are returned as [`RatioBlockingResult`](@ref).
 See also [`mixed_estimator`](@ref), [`growth_estimator()`](@ref).
 """
 function rayleigh_replica_estimator(
-    op_ol::Vector, 
-    vec_ol::Vector, 
-    shift::Vector, 
-    h, 
+    op_ol::Vector,
+    vec_ol::Vector,
+    shift::Vector,
+    h,
     dτ;
     skip=0,
     E_r::Vector=[mean(view(s, skip+1:length(s))) for s in shift],
     weights=w_exp,
     kwargs...
-)   
+)
     num_reps = length(shift)
     pair_idx = 0
     T = promote_type(eltype(shift[1]), eltype(op_ol[1]), eltype(vec_ol[1]), eltype(E_r))
@@ -488,7 +488,7 @@ function rayleigh_replica_estimator(
             ones(length(num))
         else
             weights(shift[a], h, dτ; E_r=E_r[a], skip) .* weights(shift[b], h, dτ; E_r=E_r[b], skip)
-        end        
+        end
         @views num .+= wts .* op_ol[pair_idx][skip+1:end]
         @views denom .+= wts .* vec_ol[pair_idx][skip+1:end]
     end
@@ -497,8 +497,8 @@ end
 function rayleigh_replica_estimator(
     df::DataFrame;
     shift_name="shift",
-    op_name="Op1", 
-    vec_name="dot", 
+    op_name="Op1",
+    vec_name="dot",
     h=0,
     skip=0,
     Anorm=1,
@@ -544,7 +544,7 @@ Returns a `NamedTuple` with the fields
 * `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
 * `shift_name = "shift"`: shift data corresponding to column in `df` with names `<shift>_1`, ...
 * `op_name = "Op1"`: name of operator overlap corresponding to column in `df` with names `c1_<op_ol>_c2`, ...
-* `vec_name = "dot"`: name of vector-vector overlap corresponding to column in `df` with names `c1_<vec_ol>_c2`, ... 
+* `vec_name = "dot"`: name of vector-vector overlap corresponding to column in `df` with names `c1_<vec_ol>_c2`, ...
 * `Anorm = 1`: a scalar prefactor to scale the operator overlap data
 * `warn = true`: whether to log warning messages when blocking fails or denominators are small
 
@@ -567,8 +567,8 @@ function rayleigh_replica_estimator_analysis(
     skip=0,
     threading=Threads.nthreads() > 1,
     shift_name="shift",
-    op_name="Op1", 
-    vec_name="dot", 
+    op_name="Op1",
+    vec_name="dot",
     Anorm=1,
     warn=true,
     kwargs...
@@ -579,6 +579,7 @@ function rayleigh_replica_estimator_analysis(
     else
         df.dτ_1[end]
     end
+    # estimate the correlation time by blocking the shift data
     T = eltype(df[!, Symbol(shift_name, "_1")])
     shift_v = Vector{T}[]
     E_r = T[]
@@ -615,7 +616,7 @@ function rayleigh_replica_estimator_analysis(
             @warn "Large coefficient of variation in `rayleigh_replica_estimator_analysis`. |δ_y| ≥ 0.1. Don't trust linear error propagation!" df_rre.val_δ_y
         end
     end
-    
+
     return (; df_rre, df_se)
 end
 
@@ -649,8 +650,8 @@ E_\\mathrm{p} = \\frac{\\sum_n  \\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}}
 ```
 where the time series `df.hproj ==` ``\\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}`` and
 `df.vproj ==` ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` are taken from `df`, skipping the first
-`skip` entries (use `post_step = `[`ProjectedEnergy()`](@ref Main.ProjectedEnergy) to set these up in
-[`lomc!()`](@ref Main.lomc!)).
+`skip` entries (use `post_step_strategy = `[`ProjectedEnergy()`](@ref Main.ProjectedEnergy)
+to set these up in [`lomc!()`](@ref Main.lomc!)).
 `projected_energy` is equivalent to [`mixed_estimator`](@ref) with `h=0`.
 
 The keyword arguments `hproj` and `vproj`
