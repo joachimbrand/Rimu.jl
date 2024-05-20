@@ -293,4 +293,15 @@ Random.seed!(1234) # for reproducibility, as some solvers start with random vect
     s3 = init(p3, KrylovKitSolver(); howmany=5)
     r3 = solve(s3)
     @test r3.success
+
+    # specify algorithm in ExactDiagonalizationProblem
+    p4 = ExactDiagonalizationProblem(
+        HubbardReal1D(BoseFS(1, 2, 3)), DVec(BoseFS(1, 2, 3) => 2.3),
+        algorithm=KrylovKitSolver(; howmany=3)
+    )
+    solver = init(p4)
+    @test solver.algorithm isa KrylovKitSolver
+    @test solver.kw_nt == (howmany=3,)
+    res = solve(solver)
+    @test res.success
 end
