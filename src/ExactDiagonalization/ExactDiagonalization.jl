@@ -25,6 +25,7 @@ using CommonSolve: CommonSolve, solve, init
 using VectorInterface: VectorInterface, add
 using OrderedCollections: freeze
 using NamedTupleTools: delete
+using Setfield: @set
 
 using Rimu: Rimu, DictVectors, Hamiltonians, Interfaces, BitStringAddresses, replace_keys,
     clean_and_warn_if_others_present

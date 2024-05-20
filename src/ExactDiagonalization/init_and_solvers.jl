@@ -15,8 +15,8 @@ function CommonSolve.init( # no algorithm specified as positional argument
     kw_nt = (; p.kw_nt..., kwargs...) # remove duplicates
     algorithm = get(kw_nt, :algorithm, LinearAlgebraSolver())
     kw_nt = delete(kw_nt, (:algorithm,))
-
-    return init(p, algorithm; kw_nt...)
+    new_prp = ExactDiagonalizationProblem(p.hamiltonian, p.v0; kw_nt...)
+    return init(new_prp, algorithm)
 end
 
 
