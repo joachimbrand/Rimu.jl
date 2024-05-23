@@ -22,7 +22,8 @@ where `v` is the projector specified by `p_field`, which is assumed to be normal
 unity with the two-norm (i.e. `v⋅v == 1`), and ``\\mathbf{c}_1`` and ``\\mathbf{c}_2``
 are two replica coefficient vectors.
 """
-function replica_fidelity(df::DataFrame; p_field = :hproj, skip = 0,  args...)
+function replica_fidelity(sim; p_field = :hproj, skip = 0,  args...)
+    df = DataFrame(sim)
     p_field_1 = Symbol(p_field, :_1)
     p_field_2 = Symbol(p_field, :_2)
     fid_num = conj(getproperty(df, p_field_1)) .* getproperty(df, p_field_2)

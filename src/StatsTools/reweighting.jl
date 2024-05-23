@@ -139,9 +139,10 @@ function growth_estimator(
     # return (; E_gr, k=rbr.k, blocks = rbr.blocks, success = rbr.success)
 end
 function growth_estimator(
-    df::DataFrame, h;
+    sim, h;
     shift_name=:shift, norm_name=:norm, dτ=df.dτ[end], kwargs...
 )
+    df = DataFrame(sim)
     shift_vec = Vector(getproperty(df, Symbol(shift_name)))
     norm_vec = Vector(getproperty(df, Symbol(norm_name)))
     # converting to Vector here because this works fastest with `growth_estimator`
@@ -193,7 +194,7 @@ xlabel!("h")
 See also: [`growth_estimator`](@ref), [`mixed_estimator_analysis`](@ref).
 """
 function growth_estimator_analysis(
-    df::DataFrame;
+    sim;
     h_range=nothing,
     h_values=100,
     skip=0,
@@ -203,6 +204,7 @@ function growth_estimator_analysis(
     warn=true,
     kwargs...
 )
+    df = DataFrame(sim)
     shift_v = Vector(getproperty(df, Symbol(shift_name))) # casting to `Vector` to make SIMD loops efficient
     norm_v = Vector(getproperty(df, Symbol(norm_name)))
     num_reps = length(filter(startswith("dτ"), names(df)))
@@ -298,7 +300,7 @@ returned by [`lomc!`](@ref Main.lomc!). The keyword arguments `hproj_name`, `vpr
 See also [`growth_estimator()`](@ref).
 """
 function mixed_estimator(
-    hproj, vproj, shift, h, dτ;
+    hproj::AbstractVector, vproj::AbstractVector, shift::AbstractVector, h, dτ;
     skip=0,
     E_r=mean(view(shift, skip+1:length(shift))),
     weights=w_exp,
@@ -310,9 +312,10 @@ function mixed_estimator(
     return ratio_of_means(num, denom; kwargs...)
 end
 function mixed_estimator(
-    df::DataFrame, h;
+    sim, h;
     hproj_name=:hproj, vproj_name=:vproj, shift_name=:shift, dτ=df.dτ[end], kwargs...
 )
+    df = DataFrame(sim)
     hproj_vec = Vector(getproperty(df, Symbol(hproj_name)))
     vproj_vec = Vector(getproperty(df, Symbol(vproj_name)))
     shift_vec = Vector(getproperty(df, Symbol(shift_name)))
@@ -561,7 +564,7 @@ xlabel!("h")
 See also: [`rayleigh_replica_estimator`](@ref), [`mixed_estimator_analysis`](@ref), [`AllOverlaps`](@ref Main.AllOverlaps).
 """
 function rayleigh_replica_estimator_analysis(
-    df::DataFrame;
+    sim,
     h_range=nothing,
     h_values=100,
     skip=0,
@@ -573,6 +576,7 @@ function rayleigh_replica_estimator_analysis(
     warn=true,
     kwargs...
 )
+    df = DataFrame(sim)
     num_reps = length(filter(startswith("dτ"), names(df)))
     dτ = if num_reps == 1
         df.dτ[end]
@@ -662,7 +666,8 @@ Returns a [`RatioBlockingResult`](@ref).
 See [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref) for
 processing results.
 """
-function projected_energy(df::DataFrame; skip=0, hproj=:hproj, vproj=:vproj, kwargs...)
+function projected_energy(sim; skip=0, hproj=:hproj, vproj=:vproj, kwargs...)
+    df = DataFrame(sim)
     hproj_vec = Vector(getproperty(df, Symbol(hproj)))
     vproj_vec = Vector(getproperty(df, Symbol(vproj)))
     return @views ratio_of_means(hproj_vec[skip+1:end], vproj_vec[skip+1:end]; kwargs...)
@@ -676,7 +681,8 @@ on to [`blocking_analysis`](@ref). Returns a [`BlockingResult`](@ref).
 
 See also [`growth_estimator`](@ref), [`projected_energy`](@ref).
 """
-function shift_estimator(df::DataFrame; shift=:shift, kwargs...)
+function shift_estimator(sim; shift=:shift, kwargs...)
+    df = DataFrame(sim)
     shift_vec = Vector(getproperty(df, Symbol(shift)))
     return blocking_analysis(shift_vec; kwargs...)
 end

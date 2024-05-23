@@ -46,7 +46,8 @@ function variational_energy_estimator(shifts, overlaps; kwargs...)
     return ratio_of_means(numerator, denominator; kwargs...)
 end
 
-function variational_energy_estimator(df::DataFrame; max_replicas=:all, kwargs...)
+function variational_energy_estimator(sim; max_replicas=:all, kwargs...)
+    df = DataFrame(sim)
     num_replicas = length(filter(startswith("norm_"), names(df))) # number of replicas
     if iszero(num_replicas)
         throw(ArgumentError(

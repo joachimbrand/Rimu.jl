@@ -41,9 +41,10 @@ Calculate the growth witness directly from a `DataFrame` returned by
 can be used to change the names of the relevant columns.
 """
 function growth_witness(
-    df::DataFrame, b=Val(0);
+    sim, b=Val(0);
     shift=:shift, norm=:norm, dτ=df.dτ[end], kwargs...
 )
+    df = DataFrame(sim)
     shift_vec = getproperty(df, Symbol(shift))
     norm_vec = getproperty(df, Symbol(norm))
     return growth_witness(shift_vec, norm_vec, dτ, b; kwargs...)
