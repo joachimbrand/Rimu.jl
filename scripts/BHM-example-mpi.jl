@@ -46,9 +46,8 @@ reporting_strategy = ReportToFile(
 
 # For running parallel computations with MPI, it is important that a compatible state vector
 # is used. Here we explicitly set up an MPI-enabled state vector, [`PDVec`](@ref),
-# which is automatically MPI-distributed if MPI is available. We set the vector's stochastic
-# style to [`IsDynamicSemistochastic`](@ref), which improves statistics and reduces the sign
-# problem.
+# which is automatically MPI-distributed over the available number of MPI ranks. In
+# addition, threading will be used with all threads available to Julia.
 initial_vector = PDVec(address => 1.0; style=IsDynamicSemistochastic())
 
 # Now, we can set other parameters as usual. We will perform the computation with 10000
