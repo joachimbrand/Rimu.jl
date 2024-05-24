@@ -38,16 +38,16 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 * [`ExtendedHubbardReal1D`](@ref)
 """
 struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
-    add::AD # default starting address, should have N particles and M modes
+    address::AD # default starting address, should have N particles and M modes
     ks::SVector{M,TT} # values for k
     kes::SVector{M,TT} # values for kinetic energy
 end
 
 function HubbardMom1D(
-    add::Union{SingleComponentFockAddress,FermiFS2C};
+    address::Union{SingleComponentFockAddress,FermiFS2C};
     u=1.0, t=1.0, dispersion = hubbard_dispersion,
 )
-    M = num_modes(add)
+    M = num_modes(address)
     U, T = promote(float(u), float(t))
     step = 2π/M
     if isodd(M)
@@ -59,15 +59,16 @@ function HubbardMom1D(
     ks = SVector{M}(kr)
     # kes = SVector{M}(-2T*cos.(kr))
     kes = SVector{M}(T .* dispersion.(kr))
-    return HubbardMom1D{typeof(U),M,typeof(add),U,T}(add, ks, kes)
+    return HubbardMom1D{typeof(U),M,typeof(address),U,T}(address, ks, kes)
 end
 
 function Base.show(io::IO, h::HubbardMom1D)
-    print(io, "HubbardMom1D($(h.add); u=$(h.u), t=$(h.t))")
+    compact_addr = repr(h.address, context=:compact => true) # compact print address
+    print(io, "HubbardMom1D($(compact_addr); u=$(h.u), t=$(h.t))")
 end
 
 function starting_address(h::HubbardMom1D)
-    return h.add
+    return h.address
 end
 
 dimension(::HubbardMom1D, address) = number_conserving_dimension(address)
@@ -77,7 +78,7 @@ LOStructure(::Type{<:HubbardMom1D{<:Real}}) = IsHermitian()
 Base.getproperty(h::HubbardMom1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::HubbardMom1D, ::Val{:ks}) = getfield(h, :ks)
 Base.getproperty(h::HubbardMom1D, ::Val{:kes}) = getfield(h, :kes)
-Base.getproperty(h::HubbardMom1D, ::Val{:add}) = getfield(h, :add)
+Base.getproperty(h::HubbardMom1D, ::Val{:address}) = getfield(h, :address)
 Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,U}, ::Val{:u}) where {U} = U
 Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where {T} = T
 
@@ -125,9 +126,9 @@ function num_singly_doubly_occupied_sites(onrep::AbstractArray)
 end
 
 # standard interface function
-function num_offdiagonals(ham::HubbardMom1D, add::SingleComponentFockAddress)
-    singlies, doublies = num_singly_doubly_occupied_sites(add)
-    return num_offdiagonals(ham, add, singlies, doublies)
+function num_offdiagonals(ham::HubbardMom1D, address::SingleComponentFockAddress)
+    singlies, doublies = num_singly_doubly_occupied_sites(address)
+    return num_offdiagonals(ham, address, singlies, doublies)
 end
 
 # 4-argument version
@@ -168,28 +169,29 @@ end
     return h.u / 2M * momentum_transfer_diagonal(map_a, map_b)
 end
 
-@inline function diagonal_element(h::HubbardMom1D, add::SingleComponentFockAddress)
-    map = OccupiedModeMap(add)
+@inline function diagonal_element(h::HubbardMom1D, address::SingleComponentFockAddress)
+    map = OccupiedModeMap(address)
     return dot(h.kes, map) + momentum_transfer_diagonal(h, map)
 end
-@inline function diagonal_element(h::HubbardMom1D, add::FermiFS2C)
-    map_a = OccupiedModeMap(add.components[1])
-    map_b = OccupiedModeMap(add.components[2])
+@inline function diagonal_element(h::HubbardMom1D, address::FermiFS2C)
+    map_a = OccupiedModeMap(address.components[1])
+    map_b = OccupiedModeMap(address.components[2])
     return dot(h.kes, map_a) + dot(h.kes, map_b) +
         momentum_transfer_diagonal(h, map_a, map_b)
 end
 
 @inline function get_offdiagonal(
-    ham::HubbardMom1D{<:Any,M,A}, add::A, chosen, map=OccupiedModeMap(add)
+    ham::HubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
 ) where {M,A<:SingleComponentFockAddress}
-    add, onproduct = momentum_transfer_excitation(add, chosen, map)
-    return add, ham.u/(2*M)*onproduct
+    address, onproduct = momentum_transfer_excitation(address, chosen, map)
+    return address, ham.u/(2*M)*onproduct
 end
 @inline function get_offdiagonal(
-    ham::HubbardMom1D{<:Any,M,A}, add::A, chosen,
-    map_a=OccupiedModeMap(add.components[1]), map_b=OccupiedModeMap(add.components[2])
+    ham::HubbardMom1D{<:Any,M,A}, address::A, chosen,
+    map_a=OccupiedModeMap(address.components[1]),
+    map_b=OccupiedModeMap(address.components[2])
 ) where {M,A<:FermiFS2C}
-    add_a, add_b = add.components
+    add_a, add_b = address.components
     new_add_a, new_add_b, onproduct = momentum_transfer_excitation(
         add_a, add_b, chosen, map_a, map_b
     )
@@ -269,8 +271,8 @@ struct MomentumMom1D{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
     ham::H
 end
 LOStructure(::Type{MomentumMom1D{H,T}}) where {H,T <: Real} = IsDiagonal()
-num_offdiagonals(ham::MomentumMom1D, add) = 0
-diagonal_element(mom::MomentumMom1D, add) = mod1(onr(add)⋅ks(mom.ham) + π, 2π) - π
+num_offdiagonals(ham::MomentumMom1D, _) = 0
+diagonal_element(mom::MomentumMom1D, address) = mod1(onr(address)⋅ks(mom.ham) + π, 2π) - π
 # fold into (-π, π]
 starting_address(mom::MomentumMom1D) = starting_address(mom.ham)
 
