@@ -328,11 +328,11 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
     end
     return BoseFS{N,M,A}(new_address), √prod
 end
-function hopnextneighbour(b::SingleComponentFockAddress, i; pi_twisted::Bool = false, HardwallBoundaries::Bool = false)
+function hopnextneighbour(b::SingleComponentFockAddress, i; pitwisted::Bool = false, hardwallboundaries::Bool = false)
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
     new_b, val = excitation(b, (dst,), (src,))
-    if pi_twisted == true
+    if pitwisted == true
         if src.mode==num_modes(b) && dst.mode !=1
             return new_b, val
         elseif src.mode == num_modes(b) && dst.mode ==1
@@ -344,7 +344,7 @@ function hopnextneighbour(b::SingleComponentFockAddress, i; pi_twisted::Bool = f
         elseif src.mode !=num_modes(b) && src.mode !=num_modes(b)
             return new_b, val
         end
-    elseif HardwallBoundaries == true
+    elseif hardwallboundaries == true
         if src.mode==num_modes(b) && dst.mode !=1
             return new_b, val
         elseif src.mode == num_modes(b) && dst.mode ==1
