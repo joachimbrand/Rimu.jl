@@ -328,51 +328,40 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
     end
     return BoseFS{N,M,A}(new_address), √prod
 end
-function hopnextneighbour(b::SingleComponentFockAddress, i, pi_twisted = false, Box_BC= false)
+function hopnextneighbour(b::SingleComponentFockAddress, i; pi_twisted = false, HardwallBoundaries= false)
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
-
     new_b, val = excitation(b, (dst,), (src,))
-    return new_b, val
-end
-
-function hopnextneighbour(b::SingleComponentFockAddress, i, Box_BC = true)
-    src = find_occupied_mode(b, (i + 1) >>> 0x1)
-    dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
-
-    new_b, val = excitation(b, (dst,), (src,))
-
-    if src.mode==num_modes(b) && dst.mode !=1
-        return new_b, val
-    elseif src.mode == num_modes(b) && dst.mode ==1
-        return new_b, 0.0
-    elseif src.mode ==1 && dst.mode!=num_modes(b)
-        return new_b, val
-    elseif src.mode == 1 && dst.mode==num_modes(b)
-        return new_b, 0.0
-    elseif src.mode !=num_modes(b) && src.mode !=num_modes(b)
+    if pi_twisted
+        if src.mode==num_modes(b) && dst.mode !=1
+            return new_b, val
+        elseif src.mode == num_modes(b) && dst.mode ==1
+            return new_b, -val
+        elseif src.mode ==1 && dst.mode!=num_modes(b)
+            return new_b, val
+        elseif src.mode == 1 && dst.mode==num_modes(b)
+            return new_b, -val
+        elseif src.mode !=num_modes(b) && src.mode !=num_modes(b)
+            return new_b, val
+        end
+    elseif HardwallBoundaries
+        if src.mode==num_modes(b) && dst.mode !=1
+            return new_b, val
+        elseif src.mode == num_modes(b) && dst.mode ==1
+            return new_b, 0.0
+        elseif src.mode ==1 && dst.mode!=num_modes(b)
+            return new_b, val
+        elseif src.mode == 1 && dst.mode==num_modes(b)
+            return new_b, 0.0
+        elseif src.mode !=num_modes(b) && src.mode !=num_modes(b)
+            return new_b, val
+        end
+    else
         return new_b, val
     end
 end
 
-function hopnextneighbour(b::SingleComponentFockAddress, i, pi_twisted= true)
-    src = find_occupied_mode(b, (i + 1) >>> 0x1)
-    dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
 
-    new_b, val = excitation(b, (dst,), (src,))
-
-    if src.mode==num_modes(b) && dst.mode !=1
-        return new_b, val
-    elseif src.mode == num_modes(b) && dst.mode ==1
-        return new_b, -val
-    elseif src.mode ==1 && dst.mode!=num_modes(b)
-        return new_b, val
-    elseif src.mode == 1 && dst.mode==num_modes(b)
-        return new_b, -val
-    elseif src.mode !=num_modes(b) && src.mode !=num_modes(b)
-        return new_b, val
-    end
-end
 
 
 
