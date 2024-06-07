@@ -155,7 +155,7 @@ using Rimu.Hamiltonians: Directions, Displacements
 @testset "CubicGrid" begin
     @testset "construtors and basic properties" begin
         @test PeriodicBoundaries(3, 3) == CubicGrid(3, 3)
-        @test HardwallBoundaries(3, 4, 5) == CubicGrid((3, 4, 5), (false, false, false))
+        @test hardwallboundaries(3, 4, 5) == CubicGrid((3, 4, 5), (false, false, false))
         @test LadderBoundaries(2, 3, 4) == CubicGrid((2, 3, 4), (false, true, true))
 
         for (dims, fold) in (
@@ -384,13 +384,13 @@ end
         @test length(od_values) == 12
         @test length(od_nonzeros) == 8
 
-        H = HubbardRealSpace(f, geometry=HardwallBoundaries(3, 4))
+        H = HubbardRealSpace(f, geometry=hardwallboundaries(3, 4))
         od_values = last.(offdiagonals(H, f))
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 12
         @test length(od_nonzeros) == 3
 
-        H = HubbardRealSpace(f, geometry=HardwallBoundaries(4, 3))
+        H = HubbardRealSpace(f, geometry=hardwallboundaries(4, 3))
         od_values = last.(offdiagonals(H, f))
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 12
@@ -555,8 +555,8 @@ end
             @test exact_energy(H3) < -16
         end
         @testset "Hardwall" begin
-            geom1 = HardwallBoundaries(2, 3)
-            geom2 = HardwallBoundaries(3, 2)
+            geom1 = hardwallboundaries(2, 3)
+            geom2 = hardwallboundaries(3, 2)
             bose = BoseFS((1, 1, 1, 0, 0, 0))
             fermi = FermiFS((1, 0, 0, 0, 1, 0))
 
@@ -1674,11 +1674,11 @@ end
     @testset "Gutzwiller" begin
         @testset "Gutzwiller transformation" begin
             for H in (
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pi_twisted=true),
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,HardwallBoundaries=true),
+                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pitwisted=true),
+                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,hardwallboundaries=true),
                 ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pi_twisted=true),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,HardwallBoundaries=true),
+                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
+                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwallboundaries=true),
                 ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0))
                 # GutzwillerSampling with parameter zero is exactly equal to the original H
                 G = GutzwillerSampling(H, 0.0)
@@ -1706,11 +1706,11 @@ end
         end
         @testset "Gutzwiller observables" begin
             for H in (
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pi_twisted=true),
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,HardwallBoundaries=true),
+                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pitwisted=true),
+                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,hardwallboundaries=true),
                 ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pi_twisted=true),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,HardwallBoundaries=true),
+                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
+                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwallboundaries=true),
                 ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0))
                 # energy
                 g = rand()
@@ -1741,11 +1741,11 @@ end
 
         @testset "supported transformations" begin
             for H in (
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pi_twisted=true),
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,HardwallBoundaries=true),
+                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pitwisted=true),
+                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,hardwallboundaries=true),
                 ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pi_twisted=true),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,HardwallBoundaries=true),
+                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
+                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwallboundaries=true),
                 ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0))
                 
                 @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H)
@@ -1755,8 +1755,8 @@ end
 
         @testset "extended_hubbard_interaction" begin
             for H in (
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pi_twisted=true),
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,HardwallBoundaries=true),
+                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
+                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwallboundaries=true),
                 ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0))
 
                 addr = starting_address(H)
