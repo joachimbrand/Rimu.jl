@@ -42,9 +42,12 @@ can be used to change the names of the relevant columns.
 """
 function growth_witness(
     sim, b=Val(0);
-    shift=:shift, norm=:norm, dτ=df.dτ[end], kwargs...
+    shift=:shift, norm=:norm, dτ=nothing, kwargs...
 )
     df = DataFrame(sim)
+    if isnothing(dτ)
+        dτ = df.dτ[end]
+    end
     shift_vec = getproperty(df, Symbol(shift))
     norm_vec = getproperty(df, Symbol(norm))
     return growth_witness(shift_vec, norm_vec, dτ, b; kwargs...)

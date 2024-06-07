@@ -140,9 +140,12 @@ function growth_estimator(
 end
 function growth_estimator(
     sim, h;
-    shift_name=:shift, norm_name=:norm, dτ=df.dτ[end], kwargs...
+    shift_name=:shift, norm_name=:norm, dτ=nothing, kwargs...
 )
     df = DataFrame(sim)
+    if isnothing(dτ)
+        dτ = df.dτ[end]
+    end
     shift_vec = Vector(getproperty(df, Symbol(shift_name)))
     norm_vec = Vector(getproperty(df, Symbol(norm_name)))
     # converting to Vector here because this works fastest with `growth_estimator`
@@ -313,9 +316,12 @@ function mixed_estimator(
 end
 function mixed_estimator(
     sim, h;
-    hproj_name=:hproj, vproj_name=:vproj, shift_name=:shift, dτ=df.dτ[end], kwargs...
+    hproj_name=:hproj, vproj_name=:vproj, shift_name=:shift, dτ=nothing, kwargs...
 )
     df = DataFrame(sim)
+    if isnothing(dτ)
+        dτ = df.dτ[end]
+    end
     hproj_vec = Vector(getproperty(df, Symbol(hproj_name)))
     vproj_vec = Vector(getproperty(df, Symbol(vproj_name)))
     shift_vec = Vector(getproperty(df, Symbol(shift_name)))
@@ -565,7 +571,7 @@ xlabel!("h")
 See also: [`rayleigh_replica_estimator`](@ref), [`mixed_estimator_analysis`](@ref), [`AllOverlaps`](@ref Main.AllOverlaps).
 """
 function rayleigh_replica_estimator_analysis(
-    sim,
+    sim;
     h_range=nothing,
     h_values=100,
     skip=0,
