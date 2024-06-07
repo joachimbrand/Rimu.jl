@@ -36,14 +36,14 @@ targetwalkers = 1_000;
 # and take an additional 2000 steps for measurement.
 steps_equilibrate = 1_000;
 steps_measure = 2_000;
-laststep = steps_equilibrate + steps_measure
+last_step = steps_equilibrate + steps_measure
 
 # Next, we pick a time step size. FCIQMC does not have a time step error, but the
 # time step needs to be small enough, or the computation might diverge. If the time step is
 # too small, however, the computation might take a long time to equilibrate. The
 # appropriate time step size is problem-dependent and is best determined through
 # experimentation.
-dτ = 0.001;
+time_step = 0.001;
 
 # ## Defining an observable
 
@@ -62,28 +62,30 @@ initial_vector = default_starting_vector(initial_address; style=IsDynamicSemisto
 # improves the sign problem.
 
 # Observables that can be calculated by projection of the fluctuating quantum state onto
-# a constant vector are passed into the [`lomc!`](@ref) function with the `post_step`
-# keyword argument.
-post_step = ProjectedEnergy(H, initial_vector)
+# a constant vector are passed into the [`ProjectorMonteCarloProblem`](@ref) with the
+# `post_step_strategy` keyword argument.
+post_step_strategy = ProjectedEnergy(H, initial_vector)
 
 # ## Running the calculation
 
-# In this example, we seed the random number generator in order to get reproducible results.
-# This should not be done for actual computations.
-using Random
-Random.seed!(17);
-
-# Finally, we can start the FCIQMC run.
-df, state = lomc!(
-    H, initial_vector;
-    laststep,
-    dτ,
+# This is a two-step process:
+# First we define a [`ProjectorMonteCarloProblem`](@ref) with all the parameters needed for
+# the simulation
+problem = ProjectorMonteCarloProblem(
+    H;
+    start_at = initial_vector,
+    last_step,
+    time_step,
     targetwalkers,
-    post_step,
+    post_step_strategy
 );
 
-# Here, `df` is a `DataFrame` containing the time series data, while `state` contains the
-# internal state of FCIQMC, which can be used to continue computations.
+# To run the simulation we simply call [`solve`](@ref) on the `problem`
+simulation = solve(problem);
+
+# The `simulation` object contains the results of the simulation as well as state vectors
+# and strategies. We can extract the time series data for further analysis:
+df = DataFrame(simulation);
 
 # ## Analysing the results
 
@@ -101,15 +103,16 @@ plot!(df.steps, df.norm, label="norm", color=1)
 # Now, let's look at using the shift to estimate the ground state energy of `H`. The mean of
 # the shift is a useful estimator of the energy. Calculating the error bars is a bit more
 # involved as autocorrelations have to be removed from the time series. This can be done
-# with the function [`shift_estimator`](@ref), which performs a blocking analysis.
+# with the function [`shift_estimator`](@ref), which performs a blocking analysis on the
+# `shift` column of the dataframe.
 se = shift_estimator(df; skip=steps_equilibrate)
 
 # Here, `se` contains the calculated mean and standard errors of the shift, as well as some
 # additional information related to the blocking analysis.
 
 # Computing the error of the projected energy is a bit more complicated, as it's a ratio of
-# fluctuating variables. Thankfully, the complications are handled by the following
-# function.
+# fluctuating variables contained in the `hproj` and `vproj` columns in the dataframe.
+# Thankfully, the complications are handled by the function [`projected_energy`](@ref).
 pe = projected_energy(df; skip=steps_equilibrate)
 
 # The result is a ratio distribution. We extract its median and the edges of the 95%
@@ -124,7 +127,7 @@ plot!(
     x -> v.val, df.steps[steps_equilibrate+1:end], ribbon=(v.val_l,v.val_u),
     label="projected energy",
 )
-lens!([steps_equilibrate, laststep], [-5.1, -2.9]; inset=(1, bbox(0.2, 0.25, 0.6, 0.4)))
+lens!([steps_equilibrate, last_step], [-5.1, -2.9]; inset=(1, bbox(0.2, 0.25, 0.6, 0.4)))
 
 # In this case the projected energy and the shift are close to each other and the error bars
 # are hard to see.
@@ -134,10 +137,10 @@ dimension(H)
 
 # In this case, it's easy (and more efficient) to calculate the exact ground state energy
 # using standard linear algebra. Read more about Rimu's capabilities for exact
-# diagonalisation in the example "Exact diagonalisation".
+# diagonalization in the example "Exact diagonalization".
 
-using LinearAlgebra
-exact_energy = eigvals(Matrix(H))[1]
+edp = ExactDiagonalizationProblem(H)
+exact_energy = solve(edp).values[1]
 
 # We finish by comparing our FCIQMC results with the exact computation.
 

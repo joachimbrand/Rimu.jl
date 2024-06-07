@@ -5,41 +5,12 @@ physical models of interest. These are organised by means of an interface
 around the abstract type [`AbstractHamiltonian`](@ref), in the spirit of the
 `AbstractArray` interface as discussed in the [Julia Documentation](https://docs.julialang.org/en/v1/manual/interfaces/).
 
+The Hamiltonians can be used for projector quantum Monte Carlo with [`ProjectorMonteCarloProblem`](@ref) or for exact diagonalization with [`ExactDiagonalizationProblem`](@ref), see [Exact Diagonalization](@ref).
+
 ```@docs
 Hamiltonians
 ```
 
-## Usage with FCIQMC and exact diagonalisation
-
-In order to define a specific model Hamiltonian with relevant parameters
-for the model, instantiate the model like this in the input file:
-
-```julia-repl
-hubb = HubbardReal1D(BoseFS((1,2,0,3)); u=1.0, t=1.0)
-```
-
-The Hamiltonian `hubb` is now ready to be used for FCIQMC in [`lomc!`](@ref)
-and for exact diagonalisation with [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl) directly, or after
-transforming into a sparse matrix first with
-```julia-repl
-using SparseArrays
-sh = sparse(hubb)
-```
-or into a full matrix with
-```julia-repl
-using LinearAlgebra
-fh = Matrix(hubb)
-```
-This functionality relies on
-```@docs
-Hamiltonians.BasisSetRep
-sparse
-Matrix
-```
-If only the basis is required and not the matrix representation it is more efficient to use
-```@docs
-Hamiltonians.build_basis
-```
 
 ## Model Hamiltonians
 
@@ -102,8 +73,10 @@ Observables are [`AbstractHamiltonian`](@ref)s that represent a physical
 observable. Their ground state expectation values can be sampled by passing
 them into [`AllOverlaps`](@ref).
 ```@docs
-G2MomCorrelator
+ParticleNumberOperator
 G2RealCorrelator
+G2RealSpace
+G2MomCorrelator
 SuperfluidCorrelator
 StringCorrelator
 DensityMatrixDiagonal
@@ -155,20 +128,21 @@ Hamiltonians.number_conserving_fermi_dimension
 ```
 
 ## Geometry
-Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref).
+
+Lattices in higher dimensions are defined here for [`HubbardRealSpace`](@ref) and [`G2RealSpace`](@ref).
 
 ```@docs
-LatticeGeometry
+CubicGrid
+Hamiltonians.Directions
+Hamiltonians.Displacements
+Hamiltonians.neighbor_site
 PeriodicBoundaries
 HardwallBoundaries
 LadderBoundaries
-num_neighbours
-num_dimensions
-neighbour_site
 ```
 
 ## Harmonic Oscillator
-Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesianContactInteractions`](@ref) 
+Useful utilities for harmonic oscillator in Cartesian basis, see [`HOCartesianContactInteractions`](@ref)
 and [`HOCartesianEnergyConservedPerDim`](@ref).
 ```@docs
 get_all_blocks

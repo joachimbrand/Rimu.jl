@@ -224,16 +224,17 @@ end
         dv = DVec(add => 1.0)
         pv = PDVec(add => 1.0)
 
-        res_dv = eigsolve(ham, dv, 1, :SR)
-        res_pv = eigsolve(ham, pv, 1, :SR)
+        res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
+        res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
+        # `issymmetric` kwarg only needed for pre v1.9 julia versions
 
-        @test res_dv[1][1] ≈ res_pv[1][1]
+        @test res_dv[1][1] ≈ res_pv[1][1] || res_dv[1][1] ≈ -res_pv[1][1]
 
         dv = copy(res_dv[2][1])
         pv = copy(res_pv[2][1])
         @test norm(pv) ≈ 1
         @test length(pv) == length(dv)
-        @test sum(values(pv)) ≈ sum(values(dv))
+        @test sum(values(pv)) ≈ sum(values(dv)) || sum(values(pv)) ≈ -sum(values(dv))
         normalize!(pv, 1)
         @test norm(pv, 1) ≈ 1
         rmul!(pv, 2)
@@ -266,6 +267,7 @@ end
             add = BoseFS((0,0,10,0,0))
             H = HubbardMom1D(add)
             D = DensityMatrixDiagonal(1)
+            G2 = G2RealSpace(PeriodicBoundaries(5))
 
             # Need to seed here to get the same random vectors on all ranks.
             Random.seed!(1)
@@ -300,6 +302,12 @@ end
                 @test norm(u, 2) ≈ norm(pu, 2)
                 @test norm(u, Inf) ≈ norm(pu, Inf)
             end
+            # dot only for G2
+            @test dot(v, G2, w) ≈ dot(pv, G2, pw)
+            @test dot(w, G2, v) ≈ dot(pw, G2, pv)
+
+            @test dot(v, G2, w) ≈ dot(pv, G2, pw, wm)
+            @test dot(w, G2, v) ≈ dot(pw, G2, pv, wm)
 
             @test dot(pv, (H, D), pw, wm) == (dot(pv, H, pw), dot(pv, D, pw))
             @test dot(pv, (H, D), pw) == (dot(pv, H, pw), dot(pv, D, pw))
@@ -330,13 +338,13 @@ end
                     )
                 end
 
-                post_step = (
+                post_step_strategy = (
                     ProjectedEnergy(H, dv),
                     SignCoherence(copy(localpart(dv))),
                     WalkerLoneliness(),
                     Projector(proj_1=Norm2Projector()),
                 )
-                df = lomc!(H, dv; post_step, laststep=5000).df
+                df = lomc!(H, dv; post_step_strategy, laststep=5000).df
 
                 # Shift estimate.
                 Es, σs = mean_and_se(df.shift[2000:end])
@@ -391,8 +399,8 @@ end
                     end
 
                     # Diagonal
-                    replica = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
-                    df,_ = lomc!(H, dv; replica, laststep=10_000)
+                    replica_strategy = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
+                    df,_ = lomc!(H, dv; replica_strategy, laststep=10_000)
 
                     density_sum = sum(1:M) do i
                         top = df[!, Symbol("c1_Op", i, "_c2")]
@@ -403,8 +411,8 @@ end
 
                     # Not Diagonal
                     ops = ntuple(x -> G2MomCorrelator(x - cld(M, 2)), M)
-                    replica = AllOverlaps(2; operator=ops)
-                    df,_ = lomc!(H, dv; replica, laststep=10_000)
+                    replica_strategy = AllOverlaps(2; operator=ops)
+                    df,_ = lomc!(H, dv; replica_strategy, laststep=10_000)
 
                     g2s = map(1:M) do i
                         top = df[!, Symbol("c1_Op", i, "_c2")]

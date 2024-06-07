@@ -1,6 +1,6 @@
-# Module `Rimu/StatsTools`
+# Module `StatsTools`
 
-The  module `Rimu/StatsTools` contains helper function for analysis and post
+The  module `StatsTools` contains helper function for analysis and post
 processing of Monte Carlo data.
 
 ## Blocking analysis

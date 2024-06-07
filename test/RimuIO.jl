@@ -28,34 +28,7 @@ tmpdir = mktempdir()
     rm(file)
     @test compressed < uncompressed
 end
-@testset "save_dvec, load_dvec" begin
-    # BSON is currently broken on 1.8
-    if VERSION ≤ v"1.7"
-        file1 = joinpath(tmpdir, "tmp1.bson")
-        file2 = joinpath(tmpdir, "tmp2.bson")
-        rm(file1; force=true)
-        rm(file2; force=true)
 
-        add = BoseFS2C((1,1,0,1), (1,1,0,0))
-        dv = InitiatorDVec(add => 1.0, style=IsDynamicSemistochastic(abs_threshold=3.5))
-        H = BoseHubbardMom1D2C(add)
-
-        _, state = lomc!(H, dv; replica=NoStats(2))
-        RimuIO.save_dvec(file1, state.replicas[1].v)
-        RimuIO.save_dvec(file2, state.replicas[2].v)
-
-        dv1 = RimuIO.load_dvec(file1)
-        dv2 = RimuIO.load_dvec(file2)
-
-        @test dv1 == state.replicas[1].v
-        @test typeof(dv2) == typeof(state.replicas[1].v)
-        @test StochasticStyle(dv1) == StochasticStyle(state.replicas[1].v)
-        @test storage(dv2) == storage(state.replicas[2].v)
-
-        rm(file1; force=true)
-        rm(file2; force=true)
-    end
-end
 @testset "Addresses" begin
     for addr in (
         BitString{10}(0b1100110011),

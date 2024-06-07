@@ -1,8 +1,8 @@
 """
     PostStepStrategy
 
-Subtypes of `PostStepStrategy` can be used to perform arbitrary computation on a replica
-after an FCIQMC step is finished and report the results.
+Subtypes of `PostStepStrategy` can be used to perform arbitrary computation on a single
+state after an FCIQMC step is finished and report the results.
 
 # Implemented strategies:
 
@@ -17,12 +17,13 @@ reported column names must be distinct.
 
 # Interface:
 
-A subtype of this type must implement [`post_step(::PostStepStrategy, ::ReplicaState)`](@ref).
+A subtype of this type must implement
+[`post_step_action(::PostStepStrategy, ::SingleState, step::Int)`](@ref).
 """
 abstract type PostStepStrategy end
 
 """
-    post_step(::PostStepStrategy, ::ReplicaState) -> kvpairs
+    post_step_action(::PostStepStrategy, ::SingleState, step) -> kvpairs
 
 Compute statistics after FCIQMC step. Should return a tuple of `:key => value` pairs.
 This function is only called every [`reporting_interval`](@ref) steps, as defined by the
@@ -30,15 +31,15 @@ This function is only called every [`reporting_interval`](@ref) steps, as define
 
 See also [`PostStepStrategy`](@ref), [`ReportingStrategy`](@ref).
 """
-post_step
+post_step_action
 
 # When startegies are a Tuple, apply all of them.
-function post_step(t::Tuple{}, replica)
+function post_step_action(::Tuple{}, _, _)
     return ()
 end
-function post_step((t,ts...)::Tuple, replica)
-    head = post_step(t, replica)
-    rest = post_step(ts, replica)
+function post_step_action((t,ts...)::Tuple, single_state, step)
+    head = post_step_action(t, single_state, step)
+    rest = post_step_action(ts, single_state, step)
     return (head..., rest...)
 end
 
@@ -59,8 +60,8 @@ function Projector(;kwarg...)
     return Projector(only(keys(kwarg)), freeze(only(values(kwarg))))
 end
 
-function post_step(p::Projector, replica)
-    return (p.name => dot(p.projector, replica.v),)
+function post_step_action(p::Projector, single_state, _)
+    return (p.name => dot(p.projector, single_state.v),)
 end
 
 """
@@ -106,16 +107,16 @@ function compute_hproj(::LOStructure, ham, projector)
     return freeze(ham' * projector)
 end
 
-function post_step(p::ProjectedEnergy{<:Any,<:Any,Nothing}, replica)
+function post_step_action(p::ProjectedEnergy{<:Any,<:Any,Nothing}, single_state, _)
     return (
-        p.vproj_name => dot(p.vproj, replica.v),
-        p.hproj_name => dot(p.vproj, p.ham, replica.v),
+        p.vproj_name => dot(p.vproj, single_state.v),
+        p.hproj_name => dot(p.vproj, p.ham, single_state.v),
     )
 end
-function post_step(p::ProjectedEnergy, replica)
+function post_step_action(p::ProjectedEnergy, single_state, _)
     return (
-        p.vproj_name => dot(p.vproj, replica.v),
-        p.hproj_name => dot(p.hproj, replica.v),
+        p.vproj_name => dot(p.vproj, single_state.v),
+        p.hproj_name => dot(p.hproj, single_state.v),
     )
 end
 
@@ -131,8 +132,8 @@ struct SignCoherence{R} <: PostStepStrategy
 end
 SignCoherence(ref; name=:coherence) = SignCoherence(name, ref)
 
-function post_step(sc::SignCoherence, replica)
-    vector = replica.v
+function post_step_action(sc::SignCoherence, single_state, _)
+    vector = single_state.v
     return (sc.name => coherence(valtype(vector), sc.reference, vector),)
 end
 
@@ -166,8 +167,8 @@ struct WalkerLoneliness{T} <: PostStepStrategy
 end
 WalkerLoneliness() = WalkerLoneliness(1)
 
-function post_step(wl::WalkerLoneliness, replica)
-    vector = replica.v
+function post_step_action(wl::WalkerLoneliness, single_state, _)
+    vector = single_state.v
     return (:loneliness => loneliness(valtype(vector), vector, wl.threshold),)
 end
 
@@ -193,7 +194,7 @@ is recorded.
 """
 struct Timer <: PostStepStrategy end
 
-post_step(::Timer, _) = (:time => time(),)
+post_step_action(::Timer, _, _) = (:time => time(),)
 
 """
     SingleParticleDensity(; save_every=1, component) <: PostStepStrategy
@@ -222,15 +223,15 @@ struct SingleParticleDensity <: PostStepStrategy
     SingleParticleDensity(;save_every=1, component=0) = new(save_every, component)
 end
 
-function post_step(d::SingleParticleDensity, replica)
+function post_step_action(d::SingleParticleDensity, single_state, step)
     component = d.component
     if component == 0
         name = :single_particle_density
     else
         name = Symbol("single_particle_density_", component)
     end
-    vector = replica.v
-    if replica.params.step % d.save_every == 0
+    vector = single_state.v
+    if step % d.save_every == 0
         return (name => single_particle_density(vector; component),)
     else
         V = valtype(vector)

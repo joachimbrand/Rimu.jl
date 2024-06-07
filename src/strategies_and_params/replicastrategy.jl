@@ -21,18 +21,23 @@ function:
 """
 abstract type ReplicaStrategy{N} end
 
+"""
+    num_replicas(state_or_strategy)
+
+Return the number of replicas used in the simulation.
+"""
 num_replicas(::ReplicaStrategy{N}) where {N} = N
 
 """
-    replica_stats(RS::ReplicaStrategy{N}, replicas::NTuple{N,ReplicaState}) -> (names, values)
+    replica_stats(RS::ReplicaStrategy{N}, spectral_states::NTuple{N,SingleState}) -> (names, values)
 
-Return the names and values of statistics related to `N` replicas consistent with the
+Return the names and values of statistics related to `N` replica states consistent with the
 [`ReplicaStrategy`](@ref) `RS`. `names`
 should be a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same
 length. This function will be called every [`reporting_interval`](@ref) steps from [`lomc!`](@ref),
 or once per time step if `reporting_interval` is not defined.
 
-Part of the [`ReplicaStrategy`](@ref) interface. See also [`ReplicaState`](@ref).
+Part of the [`ReplicaStrategy`](@ref) interface. See also [`SingleState`](@ref).
 """
 replica_stats
 
@@ -91,7 +96,7 @@ where
 ```
 is the (right) eigenvector of ``\\hat{G}`` and ``| \\psi \\rangle`` is an eigenvector of ``\\hat{H}``.
 
-For a K-tuple of input operators `(\\hat{A}_1, ..., \\hat{A}_K)`, overlaps of
+For a K-tuple of input operators ``(\\hat{A}_1, ..., \\hat{A}_K)``, overlaps of
 ``\\langle \\phi | f^{-1} \\hat{A} f^{-1} | \\phi \\rangle`` are reported as `c{i}_Op{k}_c{j}`.
 The correct vector-vector overlap ``\\langle \\phi | f^{-2} | \\phi \\rangle`` is reported *last*
 as `c{i}_Op{K+1}_c{j}`. This is in addition to the *bare* vector-vector overlap
@@ -104,6 +109,7 @@ struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},B} <: ReplicaStrategy{N}
 end
 
 function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
+    num_replicas isa Integer || throw(ArgumentError("num_replicas must be an integer"))
     if isnothing(operator)
         operators = ()
     elseif operator isa Tuple
@@ -122,12 +128,12 @@ function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnor
     end
     return AllOverlaps{num_replicas,length(ops),typeof(ops),vecnorm}(ops)
 end
-@deprecate AllOverlaps(num_replicas, operator) AllOverlaps(num_replicas; operator)
 
-function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, replicas::NTuple{N}) where {N,B}
+function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, spectral_states::NTuple{N}) where {N,B}
     # Not using broadcasting because it wasn't inferred properly.
-    vecs = ntuple(i -> replicas[i].v, Val(N))
-    wms = ntuple(i -> replicas[i].wm, Val(N))
+    # For now implement this assuming only a single spectral state; generalise later
+    vecs = ntuple(i -> only(spectral_states[i]).v, Val(N))
+    wms = ntuple(i -> only(spectral_states[i]).wm, Val(N))
     return all_overlaps(rs.operators, vecs, wms, Val(B))
 end
 

@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v2
         with:
           version: 1
-      - uses: julia-actions/cache@v1
+      - uses: julia-actions/cache@v2
       - uses: julia-actions/julia-buildpkg@v1
       - name: Install dependencies
         run: julia -e 'using Pkg; pkg"add PkgBenchmark BenchmarkTools BenchmarkCI@0.1"'
@@ -48,13 +48,13 @@ jobs:
 
       # create/update comment
       - name: create comment
-        if: ${{ steps.fc.outputs.comment-id == 0 }} && github.actor != 'dependabot[bot]'
+        if: ${{ steps.fc.outputs.comment-id == 0 && github.actor != 'dependabot[bot]' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body: ${{ steps.generate-result-markdown.outputs.body }}
       - name: update comment
-        if: ${{ steps.fc.outputs.comment-id != 0 }} && github.actor != 'dependabot[bot]'
+        if: ${{ steps.fc.outputs.comment-id != 0 && github.actor != 'dependabot[bot]' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           comment-id: ${{ steps.fc.outputs.comment-id }}

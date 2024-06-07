@@ -1,340 +1,13 @@
-"""
-    FirstOrderTransitionOperator(hamiltonian, shift, dτ) <: AbstractHamiltonian
-
-First order transition operator
-```math
-𝐓 = 1 + dτ(S - 𝐇)
-```
-where ``𝐇`` is the `hamiltonian` and ``S`` is the `shift`.
-
-``𝐓`` represents the first order expansion of the exponential evolution operator
-of the imaginary-time Schrödinger equation (Euler step) and repeated application
-will project out the ground state eigenvector of the `hamiltonian`.  It is the
-transition operator used in FCIQMC.
-"""
-struct FirstOrderTransitionOperator{T,S,H} <: AbstractHamiltonian{T}
-    hamiltonian::H
-    shift::S
-    dτ::Float64
-
-    function FirstOrderTransitionOperator(hamiltonian::H, shift::S, dτ) where {H,S}
-        T = eltype(hamiltonian)
-        return new{T,S,H}(hamiltonian, shift, Float64(dτ))
-    end
-end
-
-function Hamiltonians.diagonal_element(t::FirstOrderTransitionOperator, add)
-    diag = diagonal_element(t.hamiltonian, add)
-    return 1 - t.dτ * (diag - t.shift)
-end
-
-struct FirstOrderOffdiagonals{
-    A,V,O<:AbstractVector{Tuple{A,V}}
-} <: AbstractVector{Tuple{A,V}}
-    dτ::Float64
-    offdiagonals::O
-end
-function Hamiltonians.offdiagonals(t::FirstOrderTransitionOperator, add)
-    return FirstOrderOffdiagonals(t.dτ, offdiagonals(t.hamiltonian, add))
-end
-Base.size(o::FirstOrderOffdiagonals) = size(o.offdiagonals)
-
-function Base.getindex(o::FirstOrderOffdiagonals, i)
-    add, val = o.offdiagonals[i]
-    return add, -val * o.dτ
-end
-
-
-"""
-    ReplicaState(v, wm, pnorm, params, id)
-
-Struct that holds all information needed for an independent run of the algorithm.
-
-Can be advanced a step forward with [`advance!`](@ref).
-
-# Fields
-
-* `hamiltonian`: the model Hamiltonian.
-* `v`: vector.
-* `pv`: vector from the previous step.
-* `wm`: working memory.
-* `pnorm`: previous walker number (see [`walkernumber`](@ref)).
-* `params`: the [`FciqmcRunStrategy`](@ref).
-* `id`: string ID appended to reported column names.
-
-See also [`QMCState`](@ref), [`ReplicaStrategy`](@ref), [`replica_stats`](@ref),
-[`lomc!`](@ref).
-"""
-mutable struct ReplicaState{H,T,V,W,R<:FciqmcRunStrategy{T}}
-    # Future TODO: rename these fields, add interface for accessing them.
-    hamiltonian::H
-    v::V       # vector
-    pv::V      # previous vector.
-    wm::W      # working memory. Maybe working memories could be shared among replicas?
-    pnorm::T   # previous walker number - used to control the shift
-    params::R  # params: step, laststep, dτ...
-    id::String # id is appended to column names
-end
-
-function ReplicaState(h, v, wm, params, id="")
-    if isnothing(wm)
-        wm = similar(v)
-    end
-    pv = zerovector(v)
-    return ReplicaState(h, v, pv, wm, walkernumber(v), params, id)
-end
-
-function Base.show(io::IO, r::ReplicaState)
-    print(
-        io,
-        "ReplicaState(v: ", length(r.v), "-element ", nameof(typeof(r.v)),
-        ", wm: ", length(r.wm), "-element ", nameof(typeof(r.wm)), ")"
-    )
-end
-
-"""
-    QMCState
-
-Holds all information needed to run [`lomc!`](@ref), except the dataframe. Holds an
-`NTuple` of [`ReplicaState`](@ref)s, the Hamiltonian, and various strategies that control
-the algorithm. Constructed and returned by [`lomc!`](@ref).
-"""
-struct QMCState{
-    H,
-    N,
-    R<:ReplicaState,
-    RS<:ReportingStrategy,
-    SS<:ShiftStrategy,
-    TS<:TimeStepStrategy,
-    RRS<:ReplicaStrategy,
-    PS<:NTuple{<:Any,PostStepStrategy},
-}
-    hamiltonian::H
-    replicas::NTuple{N,R}
-    maxlength::Ref{Int}
-
-    r_strat::RS
-    s_strat::SS
-    τ_strat::TS
-    post_step::PS
-    replica::RRS
-end
-
-"""
-    _n_walkers(v, s_strat)
-Returns an estimate of the expected number of walkers as an integer.
-"""
-function _n_walkers(v, s_strat)
-    n = if hasfield(typeof(s_strat), :targetwalkers)
-        s_strat.targetwalkers
-    else # e.g. for LogUpdate()
-        walkernumber(v)
-    end
-    return ceil(Int, max(real(n), imag(n)))
-end
-
-function QMCState(
-    hamiltonian, v;
-    laststep=nothing,
-    dτ=nothing,
-    shift=nothing,
-    wm=nothing,
-    style=nothing,
-    targetwalkers=1000,
-    address=starting_address(hamiltonian),
-    params::FciqmcRunStrategy=RunTillLastStep(
-        laststep = 100,
-        shift = float(valtype(v))(diagonal_element(hamiltonian, address))
-    ),
-    s_strat::ShiftStrategy=DoubleLogUpdate(; targetwalkers),
-    r_strat::ReportingStrategy=ReportDFAndInfo(),
-    τ_strat::TimeStepStrategy=ConstantTimeStep(),
-    threading=nothing,
-    replica::ReplicaStrategy=NoStats(),
-    post_step=(),
-    maxlength= 2 * _n_walkers(v, s_strat) + 100, # padding for small walker numbers
-)
-    Hamiltonians.check_address_type(hamiltonian, keytype(v))
-    # Set up r_strat and params
-    r_strat = refine_r_strat(r_strat)
-    if !isnothing(laststep)
-        params.laststep = laststep
-    end
-    if !isnothing(dτ)
-        params.dτ = dτ
-    end
-    if !isnothing(shift)
-        params.shift = shift
-    end
-
-    if threading ≠ nothing
-        @warn "Starting vector is provided. Ignoring `threading=$threading`."
-    end
-    if style ≠ nothing
-        @warn "Starting vector is provided. Ignoring `style=$style`."
-    end
-    wm = isnothing(wm) ? working_memory(v) : wm
-
-    # Set up post_step
-    if !(post_step isa Tuple)
-        post_step = (post_step,)
-    end
-
-    # Set up replicas
-    nreplicas = num_replicas(replica)
-    if nreplicas > 1
-        replicas = ntuple(nreplicas) do i
-            ReplicaState(hamiltonian, deepcopy(v), deepcopy(wm), deepcopy(params), "_$i")
-        end
-    else
-        replicas = (ReplicaState(hamiltonian, v, wm, params, ""),)
-    end
-
-    return QMCState(
-        hamiltonian, replicas, Ref(Int(maxlength)),
-        r_strat, s_strat, τ_strat, post_step, replica
-    )
-end
-
-# Allow setting step, laststep, dτ, shift from QMCState.
-function Base.getproperty(state::QMCState, key::Symbol)
-    if key == :step
-        step = state.replicas[1].params.step
-        return step
-    elseif key == :laststep
-        laststep = state.replicas[1].params.laststep
-        return laststep
-    elseif key == :maxlength
-        return getfield(state, :maxlength)[]
-    elseif key == :dτ
-        return state.replicas[1].params.dτ
-    elseif key == :shift
-        return state.replicas[1].params.shift
-    else
-        return getfield(state, key)
-    end
-end
-function Base.setproperty!(state::QMCState, key::Symbol, value)
-    if key == :step
-        for r in state.replicas
-            r.params.step = value
-        end
-        return value
-    elseif key == :laststep
-        for r in state.replicas
-            r.params.laststep = value
-        end
-        return value
-    elseif key == :dτ
-        for r in state.replicas
-            r.params.dτ = value
-        end
-        return value
-    elseif key == :shift
-        for r in state.replicas
-            r.params.shift = value
-        end
-        return value
-    elseif key == :maxlength
-        getfield(state, :maxlength)[] = value
-        return value
-    else
-        # This will error
-        return setfield!(state, key, value)
-    end
-end
-
-function Base.show(io::IO, st::QMCState)
-    print(io, "QMCState")
-    if length(st.replicas) > 1
-        print(io, " with ", length(st.replicas), " replicas")
-    end
-    print(io, "\n  H:    ", st.hamiltonian)
-    print(io, "\n  step: ", st.step, " / ", st.laststep)
-    print(io, "\n  replicas: ")
-    for (i, r) in enumerate(st.replicas)
-        print(io, "\n    $i: ", r)
-    end
-end
-
-function report_default_metadata!(report::Report, state::QMCState)
-    report_metadata!(report, "Rimu.PACKAGE_VERSION", Rimu.PACKAGE_VERSION)
-    # add metadata from state
-    report_metadata!(report, "laststep", state.laststep)
-    report_metadata!(report, "num_replicas", length(state.replicas))
-    report_metadata!(report, "hamiltonian", state.hamiltonian)
-    report_metadata!(report, "r_strat", state.r_strat)
-    report_metadata!(report, "s_strat", state.s_strat)
-    report_metadata!(report, "τ_strat", state.τ_strat)
-    params = state.replicas[1].params
-    report_metadata!(report, "params", params)
-    report_metadata!(report, "dτ", params.dτ)
-    report_metadata!(report, "step", params.step)
-    report_metadata!(report, "shift", params.shift)
-    report_metadata!(report, "shiftMode", params.shiftMode)
-    report_metadata!(report, "maxlength", state.maxlength[])
-    report_metadata!(report, "post_step", state.post_step)
-    report_metadata!(report, "v_summary", summary(state.replicas[1].v))
-    report_metadata!(report, "v_type", typeof(state.replicas[1].v))
-    return report
-end
-
-"""
-    default_starting_vector(hamiltonian::AbstractHamiltonian; kwargs...)
-    default_starting_vector(
-        address=starting_address(hamiltonian);
-        style=IsStochasticInteger(),
-        initiator=NonInitiator(),
-        threading=nothing
-    )
-Return a default starting vector for [`lomc!`](@ref). The default choice for the starting
-vector is
-```julia
-v = PDVec(address => 10; style, initiator)
-```
-if threading is available, or otherwise
-```julia
-v = DVec(address => 10; style)
-```
-if `initiator == NonInitiator()`, and
-```julia
-v = InitiatorDVec(address => 10; style, initiator)
-```
-if not. See [`PDVec`](@ref), [`DVec`](@ref), [`InitiatorDVec`](@ref),
-[`StochasticStyle`](@ref), and [`InitiatorRule`].
-"""
-function default_starting_vector(
-    hamiltonian::AbstractHamiltonian;
-    address=starting_address(hamiltonian), kwargs...
-)
-    return default_starting_vector(address; kwargs...)
-end
-function default_starting_vector(address;
-    style=IsStochasticInteger(),
-    threading=nothing,
-    initiator=NonInitiator(),
-)
-    if isnothing(threading)
-        threading = Threads.nthreads() > 1
-    end
-    if threading
-        v = PDVec(address => 10; style, initiator)
-    elseif initiator isa NonInitiator
-        v = DVec(address => 10; style)
-    else
-        v = InitiatorDVec(address => 10; style, initiator)
-    end
-    return v
-end
+# This file contains deprecated code. This code will be removed in a future release.
 
 """
     lomc!(ham::AbstractHamiltonian, [v]; kwargs...) -> df, state
-    lomc!(state::QMCState, [df]; kwargs...) -> df, state
+    lomc!(state::ReplicaState, [df]; kwargs...) -> df, state
 
 Linear operator Monte Carlo: Perform a projector quantum Monte Carlo simulation for
 determining the lowest eigenvalue of `ham`. The details of the simulation are controlled by
 the optional keyword arguments and by the type of the optional starting vector `v`.
-Alternatively, a `QMCState` can be passed in to continue a previous simulation.
+Alternatively, a `ReplicaState` can be passed in to continue a previous simulation.
 
 # Common keyword arguments and defaults:
 
@@ -351,12 +24,15 @@ Alternatively, a `QMCState` can be passed in to continue a previous simulation.
   `true` to force [`PDVec`](@ref) for the starting vector, `false` for serial computation;
   unused if `v` is specified.
 * `shift = diagonal_element(ham, address)` - initial value of shift.
-* `post_step::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
-  [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref).
-* `replica::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
-  [`ReplicaStrategy`](@ref).
-* `r_strat::ReportingStrategy = ReportDFAndInfo()` - how and when to report results, see
-  [`ReportingStrategy`](@ref)
+* `post_step_strategy::NTuple{N,<:PostStepStrategy} = ()` - extract observables (e.g.
+  [`ProjectedEnergy`](@ref)), see [`PostStepStrategy`](@ref). (Deprecated: `post_step` is
+  accepted as an alias for `post_step_strategy`.)
+* `replica_strategy::ReplicaStrategy = NoStats(1)` - run several synchronised simulations, see
+  [`ReplicaStrategy`](@ref). (Deprecated: `replica` is accepted as an alias for
+  `replica_strategy`.)
+* `reporting_strategy::ReportingStrategy = ReportDFAndInfo()` - how and when to report
+  results, see [`ReportingStrategy`](@ref). (Deprecated: `r_strat` is accepted as an alias
+  for `reporting_strategy`.)
 * `name = "lomc!"` - name displayed in progress bar (via `ProgressLogging`)
 * `metadata` - user-supplied metadata to be added to the report `df`. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
@@ -370,7 +46,7 @@ Some metadata is automatically added to the report `df` including
 `lomc!` returns a named tuple with the following fields:
 
 * `df`: a `DataFrame` with all statistics being reported.
-* `state`: a `QMCState` that can be used for continuations.
+* `state`: a `ReplicaState` that can be used for continuations.
 
 # Example
 
@@ -384,10 +60,10 @@ julia> df1, state = lomc!(hamiltonian; targetwalkers=500, laststep=100);
 julia> df2, _ = lomc!(state, df1; laststep=200, metadata=(;info="cont")); # Continuation run
 
 julia> size(df1)
-(100, 11)
+(100, 10)
 
 julia> size(df2)
-(200, 11)
+(200, 10)
 
 julia> using DataFrames; metadata(df2, "info") # retrieve custom metadata
 "cont"
@@ -404,10 +80,6 @@ julia> metadata(df2, "hamiltonian") # some metadata is automatically added
   how to update the `shift`, see [`ShiftStrategy`](@ref).
 * `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
   reached, `lomc!` will abort
-* `params::FciqmcRunStrategy = RunTillLastStep(laststep = 100, dτ = 0.01, shift =
-  diagonal_element(ham, address)` -
-  basic parameters of simulation state, see [`FciqmcRunStrategy`](@ref). Parameter values
-  are overridden by explicit keyword arguments `laststep`, `dτ`, `shift`; is mutated.
 * `wm` - working memory for re-use in subsequent calculations; is mutated.
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
   be passed for merging with the report `df`.
@@ -416,11 +88,98 @@ The default choice for the starting vector is
 `v = default_starting_vector(; address, style, threading, initiator)`.
 See [`default_starting_vector`](@ref), [`PDVec`](@ref), [`DVec`](@ref),
 [`StochasticStyle`](@ref), and [`InitiatorRule`](@ref).
+!!! warning
+    The use of this `lomc!` is deprecated. Use
+    [`ProjectorMonteCarloProblem`](@ref) and [`solve`](@ref) instead.
 """
-function lomc!(ham, v; df=DataFrame(), name="lomc!", metadata=nothing, kwargs...)
-    state = QMCState(ham, v; kwargs...)
-    return lomc!(state, df; name, metadata)
+function lomc!(
+    ham, v;
+    df = DataFrame(),
+    name = "lomc!",
+    metadata = nothing,
+    reporting_strategy = ReportDFAndInfo(),
+    r_strat = reporting_strategy,
+    targetwalkers = 1000,
+    s_strat = DoubleLogUpdate(; targetwalkers),
+    τ_strat = ConstantTimeStep(),
+    replica_strategy = NoStats(),
+    replica = replica_strategy,
+    post_step_strategy = (),
+    post_step = post_step_strategy,
+    step=nothing,
+    laststep=nothing,
+    dτ=nothing,
+    shift=nothing,
+    address=starting_address(ham),
+    params::FciqmcRunStrategy=RunTillLastStep(
+        laststep=100,
+        shift=float(valtype(v))(diagonal_element(ham, address))
+    ),
+    maxlength = nothing,
+    wm = nothing
+)
+    if !isnothing(wm)
+        @warn "The `wm` argument has been removed and will be ignored."
+    end
+    if hasfield(typeof(s_strat), :targetwalkers)
+        targetwalkers = s_strat.targetwalkers
+    end
+    if isnothing(maxlength)
+        maxlength = round(Int, 2 * abs(targetwalkers) + 100)
+    end
+
+    # eventually we want to deprecate the use of params
+    if !isnothing(step)
+        params.step = step
+    end
+    if !isnothing(laststep)
+        params.laststep = laststep
+    end
+    if !isnothing(dτ)
+        params.dτ = dτ
+    end
+    if !isnothing(shift)
+        params.shift = shift
+    end
+    starting_step = params.step
+    time_step = params.dτ
+    shift = params.shift
+    last_step = params.laststep
+
+    p = ProjectorMonteCarloProblem(ham;
+        algorithm=FCIQMC(s_strat, τ_strat),
+        start_at = v,
+        starting_step,
+        last_step,
+        time_step,
+        shift,
+        replica_strategy = replica,
+        reporting_strategy = r_strat,
+        post_step_strategy = post_step,
+        maxlength,
+        metadata,
+        display_name = name,
+        random_seed = false
+    )
+    simulation = init(p; copy_vectors=false)
+    solve!(simulation)
+
+    # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
+    # compatible, which should be the case if the run is an actual continuation. Maybe the
+    # DataFrames should be merged in a more permissive manner?
+    result_df = DataFrame(simulation)
+
+    if !isempty(df)
+        df = vcat(df, result_df) # metadata is not propagated
+        for (key, val) in get_metadata(simulation.report) # add metadata
+            DataFrames.metadata!(df, key, val)
+        end
+        return (; df, state=simulation.state)
+    else
+        return (; df=result_df, state=simulation.state)
+    end
 end
+
 function lomc!(
     ham;
     style=IsStochasticInteger(),
@@ -432,56 +191,50 @@ function lomc!(
     v = default_starting_vector(address; style, threading, initiator)
     return lomc!(ham, v; address, kwargs...) # pass address for setting the default shift
 end
-# For continuation, you can pass a QMCState and a DataFrame
-function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
-    if !iszero(laststep)
-        state.laststep = laststep
-    end
 
-    # initialise report
+function lomc!(::AbstractMatrix, v=nothing; kwargs...)
+    throw(ArgumentError("Using lomc! with a matrix is no longer supported. Use `MatrixHamiltonian` instead."))
+end
+
+# methods for backward compatibility
+function lomc!(state::ReplicaState, df=DataFrame(); laststep=0, name="lomc!", metadata=nothing)
+    if !iszero(laststep)
+        state = @set state.simulation_plan.last_step = laststep
+    end
+    @unpack spectral_states, maxlength, step, simulation_plan,
+    reporting_strategy, post_step_strategy, replica_strategy = state
+    first_replica = first(state) # SingleState
+    @unpack hamiltonian = first_replica
+    @assert step[] ≥ simulation_plan.starting_step
+    problem = ProjectorMonteCarloProblem(hamiltonian;
+        algorithm=first_replica.algorithm,
+        start_at=first_replica.v,
+        initial_shift_parameters=first_replica.shift_parameters,
+        replica_strategy,
+        reporting_strategy,
+        post_step_strategy,
+        maxlength=maxlength[],
+        simulation_plan,
+        metadata,
+        display_name=name,
+        random_seed=false
+    )
     report = Report()
     report_default_metadata!(report, state)
-    isnothing(metadata) || report_metadata!(report, metadata) # add user metadata
-
+    report_metadata!(report, problem.metadata) # add user metadata
     # Sanity checks.
-    step, laststep = state.step, state.laststep
-    for replica in state.replicas
-        @assert replica.params.step == step
-        @assert replica.params.laststep == laststep
-    end
-    check_transform(state.replica, state.hamiltonian)
+    check_transform(state.replica_strategy, hamiltonian)
 
-    # main loop
-    initial_step = step
-    update_steps = max((laststep - initial_step) ÷ 200, 100) # log often but not too often
-    # update_steps = 400
-    @withprogress name=name while step < laststep
-        step += 1
-        if step % reporting_interval(state.r_strat) == 0
-            report!(state.r_strat, step, report, :steps, step)
-        end
-        # This loop could be threaded if num_threads() == num_replicas? MPIData would
-        # need to be aware of the replica's id and use that in communication.
-        success = true
-        for replica in state.replicas
-            success &= advance!(report, state, replica)
-        end
-        if step % reporting_interval(state.r_strat) == 0
-            replica_names, replica_values = replica_stats(state.replica, state.replicas)
-            report!(state.r_strat, step, report, replica_names, replica_values)
-            report_after_step(state.r_strat, step, report, state)
-            ensure_correct_lengths(report)
-        end
-        if step % update_steps == 0 # for updating progress bars
-            @logprogress (step-initial_step)/(laststep-initial_step)
-        end
-        !success && break
-    end
+    simulation = PMCSimulation(
+        problem, state, report, false, false, false, "", 0.0
+    )
+    solve!(simulation)
 
     # Put report into DataFrame and merge with `df`. We are assuming the previous `df` is
     # compatible, which should be the case if the run is an actual continuation. Maybe the
     # DataFrames should be merged in a more permissive manner?
-    result_df = finalize_report!(state.r_strat, report)
+    result_df = DataFrame(simulation)
+
     if !isempty(df)
         df = vcat(df, result_df) # metadata is not propagated
         for (key, val) in get_metadata(report) # add metadata
@@ -492,74 +245,13 @@ function lomc!(state::QMCState, df=DataFrame(); laststep=0, name="lomc!", metada
         return (; df=result_df, state)
     end
 end
-
-"""
-    advance!(report::Report, state::QMCState, replica::ReplicaState)
-
-Advance the `replica` by one step. The `state` is used only to access the various strategies
-involved. Steps, stats, and computed quantities are written to the `report`.
-
-Returns `true` if the step was successful and calculation should proceed, `false` when
-it should terminate.
-"""
-function advance!(report, state::QMCState, replica::ReplicaState)
-
-    @unpack hamiltonian, r_strat, s_strat, τ_strat = state
-    @unpack v, pv, wm, pnorm, params, id = replica
-    @unpack step, shiftMode, shift, dτ = params
-    step += 1
-
-    ### PROPAGATOR ACTS
-    ### FROM HERE
-    transition_op = FirstOrderTransitionOperator(hamiltonian, shift, dτ)
-
-    # Step
-    step_stat_names, step_stat_values, wm, pv = apply_operator!(wm, pv, v, transition_op)
-    # pv was mutated and now contains the new vector.
-    v, pv = (pv, v)
-
-    # Stats
-    tnorm = walkernumber(v)
-    len = length(v)
-
-    # Updates
-    shift, shiftMode, pnorm, proceed = update_shift(
-        s_strat, shift, shiftMode, tnorm, pnorm, dτ, step, nothing, v, pv
-    )
-    dτ = update_dτ(τ_strat, dτ, tnorm)
-
-    @pack! params = step, shiftMode, shift, dτ
-    @pack! replica = v, pv, wm, pnorm, params
-    ### TO HERE
-
-    if step % reporting_interval(state.r_strat) == 0
-        # Note: post_step must be called after packing the values.
-        post_step_stats = post_step(state.post_step, replica)
-
-        # Reporting
-        report!(
-            r_strat, step, report,
-            (dτ, shift, shiftMode, len, norm=tnorm), id,
-        )
-        report!(r_strat, step, report, step_stat_names, step_stat_values, id)
-        report!(state.r_strat, step, report, post_step_stats, id)
+# This constructor is currently only used by lomc! and should not be used for new code.
+function SingleState(h, v, wm, shift_strategy, time_step_strategy, shift, dτ::Float64, id="")
+    if isnothing(wm)
+        wm = similar(v)
     end
-
-    if len == 0
-        if length(state.replicas) > 1
-            @error "population in replica$(replica.id) is dead. Aborting."
-        else
-            @error "population is dead. Aborting."
-        end
-        return false
-    end
-    if len > state.maxlength[]
-        if length(state.replicas) > 1
-            @error "`maxlength` reached in replica$(replica.id). Aborting."
-        else
-            @error "`maxlength` reached. Aborting."
-        end
-        return false
-    end
-    return proceed # Bool
+    pv = zerovector(v)
+    sp = initialise_shift_parameters(shift_strategy, shift, walkernumber(v), dτ)
+    alg = FCIQMC(; shift_strategy, time_step_strategy)
+    return SingleState(h, alg, v, pv, wm, sp, id)
 end

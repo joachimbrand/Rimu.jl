@@ -5,6 +5,7 @@ using Rimu
 using Test
 using DataFrames
 using Suppressor
+using StaticArrays
 
 function exact_energy(ham)
     dv = DVec(starting_address(ham) => 1.0)
@@ -149,6 +150,60 @@ using Rimu.Hamiltonians: momentum_transfer_excitation
     end
 end
 
+using Rimu.Hamiltonians: Directions, Displacements
+
+@testset "CubicGrid" begin
+    @testset "construtors and basic properties" begin
+        @test PeriodicBoundaries(3, 3) == CubicGrid(3, 3)
+        @test HardwallBoundaries(3, 4, 5) == CubicGrid((3, 4, 5), (false, false, false))
+        @test LadderBoundaries(2, 3, 4) == CubicGrid((2, 3, 4), (false, true, true))
+
+        for (dims, fold) in (
+            ((4,), (false,)), ((2, 5), (true, false)), ((5, 6, 7), (true, true, false))
+        )
+            geom = CubicGrid(dims, fold)
+            @test size(geom) == dims
+            @test length(geom) == prod(dims)
+            @test Rimu.Hamiltonians.fold(geom) == fold
+            @test eval(Meta.parse(repr(geom))) == geom
+        end
+    end
+
+    @testset "getindex" begin
+        g = CubicGrid((2,3,4), (false,true,false))
+        for i in 1:length(g)
+            v = SVector(Tuple(CartesianIndices((2,3,4))[i])...)
+            @test g[i] == v
+            @test g[v] == i
+        end
+
+        @test g[SVector(3, 1, 1)] == 0
+        @test g[SVector(1,4,1)] == 1
+        @test g[SVector(2,0,4)] == 24
+        @test g[SVector(2,3,0)] == 0
+    end
+
+    @testset "Directions" begin
+        @test Directions(1) == [[1], [-1]]
+        @test Directions(CubicGrid(2,3)) == [[1,0], [0,1], [-1,0], [0,-1]]
+        @test Directions(3) == [[1,0,0], [0,1,0], [0,0,1], [-1,0,0], [0,-1,0], [0,0,-1]]
+        @test_throws BoundsError Directions(3)[0]
+        @test_throws BoundsError Directions(2)[5]
+        @test_throws BoundsError Directions(1)[15]
+    end
+
+    @testset "Displacements" begin
+        @test collect(Displacements(CubicGrid(3), center=false)) == [[0], [1], [2]]
+        @test collect(Displacements(CubicGrid(3), center=true)) == [[-1], [0], [1]]
+
+        @test collect(Displacements(CubicGrid(2,2))) == [[0,0], [1,0], [0,1], [1,1]]
+        @test collect(Displacements(CubicGrid(2,3))) == [[0,0], [1,0], [0,1], [1,1], [0,2], [1,2]]
+        @test collect(Displacements(CubicGrid(2,3); center=true)) == [
+            [0,-1], [1,-1], [0,0], [1,0], [0,1], [1,1]
+        ]
+    end
+end
+
 @testset "Interface tests" begin
     for H in (
         HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
@@ -196,7 +251,9 @@ end
         HOCartesianCentralImpurity(BoseFS((1,0,0,0,0))),
 
         FroehlichPolaron(OccupationNumberFS(1,1,1)),
-        FroehlichPolaron(OccupationNumberFS(1,1,1); momentum_cutoff = 10.0)
+        FroehlichPolaron(OccupationNumberFS(1,1,1); momentum_cutoff = 10.0),
+
+        ParticleNumberOperator(OccupationNumberFS(1, 1, 1))
     )
         test_hamiltonian_interface(H)
     end
@@ -338,19 +395,6 @@ end
         od_nonzeros = filter(!iszero, od_values)
         @test length(od_values) == 12
         @test length(od_nonzeros) == 4
-
-        H = HubbardRealSpace(f, geometry=LadderBoundaries(2, 6))
-        od_values = last.(offdiagonals(H, f))
-        od_nonzeros = filter(!iszero, od_values)
-        @test length(od_values) == 9
-        @test length(od_nonzeros) == 5
-
-        hard_ladder = LadderBoundaries(2, 6, subgeometry=HardwallBoundaries)
-        H = HubbardRealSpace(f, geometry=hard_ladder)
-        od_values = last.(offdiagonals(H, f))
-        od_nonzeros = filter(!iszero, od_values)
-        @test length(od_values) == 9
-        @test length(od_nonzeros) == 3
     end
     @testset "1D Bosons (single)" begin
         H1 = HubbardReal1D(BoseFS((1, 1, 1, 1, 1, 0)); u=2, t=3)
@@ -510,24 +554,19 @@ end
             )
             @test exact_energy(H3) < -16
         end
-        @testset "hardwall and ladder" begin
-            geom1 = LadderBoundaries(2, 3, subgeometry=HardwallBoundaries)
-            geom2 = HardwallBoundaries(2, 3)
-            geom3 = HardwallBoundaries(3, 2)
+        @testset "Hardwall" begin
+            geom1 = HardwallBoundaries(2, 3)
+            geom2 = HardwallBoundaries(3, 2)
             bose = BoseFS((1, 1, 1, 0, 0, 0))
             fermi = FermiFS((1, 0, 0, 0, 1, 0))
 
             H1 = HubbardRealSpace(bose, geometry=geom1)
             H2 = HubbardRealSpace(bose, geometry=geom2)
-            H3 = HubbardRealSpace(bose, geometry=geom3)
-            @test exact_energy(H1) == exact_energy(H2)
-            @test exact_energy(H1) ≈ exact_energy(H3)
+            @test exact_energy(H1) ≈ exact_energy(H2)
 
             H1 = HubbardRealSpace(fermi, geometry=geom1)
             H2 = HubbardRealSpace(fermi, geometry=geom2)
-            H3 = HubbardRealSpace(fermi, geometry=geom3)
-            @test exact_energy(H1) == exact_energy(H2)
-            @test exact_energy(H1) ≈ exact_energy(H3)
+            @test exact_energy(H1) ≈ exact_energy(H2)
         end
     end
 end
@@ -725,33 +764,31 @@ end
     end
 end
 
-@testset "AbstractMatrix and MatrixHamiltonian" begin
-    # lomc!() with AbstractMatrix
+@testset "MatrixHamiltonian" begin
+    # using lomc! with an `AbstractMatrix` was removed in Rimu.jl v0.12.0
+
+    # generate matrix
     ham = HubbardReal1D(BoseFS((1, 1, 1, 1)))
     dim = dimension(ham)
     @test dim ≤ dimension(Int, starting_address(ham)) == dimension(starting_address(ham))
-    bsr = BasisSetRep(ham, starting_address(ham))
-    sm, basis = sparse(bsr), bsr.basis
+    bsr = BasisSetRepresentation(ham, starting_address(ham))
+    sparse_matrix, basis = sparse(bsr), bsr.basis
     @test dim == length(basis)
-    # run lomc! in deterministic mode with Matrix and Vector
-    a = lomc!(sm, ones(dim)).df
-    b = lomc!(sm, ones(dim)).df
-    @test a.shift ≈ b.shift
+
     # run lomc! in deterministic mode with Hamiltonian and DVec
     v = DVec(k=>1.0 for k in basis; style=IsDeterministic()) # corresponds to `ones(dim)`
-    c = lomc!(ham, v).df
-    @test a.shift ≈ c.shift
+    a = lomc!(ham, v).df
 
     # MatrixHamiltonian
     @test_throws ArgumentError MatrixHamiltonian([1 2 3; 4 5 6])
-    @test_throws ArgumentError MatrixHamiltonian(sm, starting_address = dim+1)
+    @test_throws ArgumentError MatrixHamiltonian(sparse_matrix, starting_address = dim+1)
     # adjoint nonhermitian
     nonhermitian = MatrixHamiltonian([1 2; 4 5])
     @test LOStructure(nonhermitian) == AdjointKnown()
     @test get_offdiagonal(nonhermitian,2,1)[2] == get_offdiagonal(nonhermitian',1,1)[2]
 
     # wrap sparse matrix as MatrixHamiltonian
-    mh =  MatrixHamiltonian(sm)
+    mh =  MatrixHamiltonian(sparse_matrix)
     # adjoint IsHermitian
     @test LOStructure(mh) == IsHermitian()
     @test mh' == mh
@@ -761,217 +798,316 @@ end
 
     # lomc!
     # float walkernumber triggers IsDeterministic algorithm
-    d = lomc!(mh, ones(dim)).df
+    d = lomc!(mh, DVec(pairs(ones(dim)))).df
     @test d.shift ≈ a.shift
     # integer walkernumber triggers IsStochasticInteger algorithm
     Random.seed!(15)
-    e = lomc!(mh, ones(Int,dim)).df
+    e = lomc!(mh, DVec(pairs(ones(Int,dim)))).df
     @test ≈(e.shift[end], a.shift[end], atol=0.3)
     # wrap full matrix as MatrixHamiltonian
-    fmh =  MatrixHamiltonian(Matrix(sm))
-    f = lomc!(fmh, ones(dim)).df
+    fmh =  MatrixHamiltonian(Matrix(sparse_matrix))
+    f = lomc!(fmh, DVec(pairs(ones(dim)))).df
     @test f.shift ≈ a.shift
 end
 
-@testset "G2MomCorrelator" begin
-    # v0 is the exact ground state from BoseHubbardMom1D2C(aIni;ua=0,ub=0,v=0.1)
-    bfs1=BoseFS([0,2,0])
-    bfs2=BoseFS([0,1,0])
-    aIni = BoseFS2C(bfs1,bfs2)
-    v0 = DVec(
-        BoseFS2C((0, 2, 0), (0, 1, 0)) => 0.9999389545691221,
-        BoseFS2C((1, 1, 0), (0, 0, 1)) => -0.007812695959057453,
-        BoseFS2C((0, 1, 1), (1, 0, 0)) => -0.007812695959057453,
-        BoseFS2C((2, 0, 0), (1, 0, 0)) => 4.046694762039993e-5,
-        BoseFS2C((0, 0, 2), (0, 0, 1)) => 4.046694762039993e-5,
-        BoseFS2C((1, 0, 1), (0, 1, 0)) => 8.616127793651117e-5,
-    )
-    g0 = G2MomCorrelator(0)
-    g1 = G2MomCorrelator(1)
-    g2 = G2MomCorrelator(2)
-    g3 = G2MomCorrelator(3)
-    @test imag(dot(v0,g0,v0)) == 0 # should be strictly real
-    @test abs(imag(dot(v0,g3,v0))) < 1e-10
-    @test dot(v0,g0,v0) ≈ 0.65 rtol=0.01
-    @test dot(v0,g1,v0) ≈ 0.67 rtol=0.01
-    @test dot(v0,g2,v0) ≈ 0.67 rtol=0.01
-    @test dot(v0,g3,v0) ≈ 0.65 rtol=0.01
-    @test num_offdiagonals(g0,aIni) == 2
+using Rimu.Hamiltonians: circshift_dot
 
-    # on first component
-    g0f = G2MomCorrelator(0,:first)
-    g1f = G2MomCorrelator(1,:first)
-    @test imag(dot(v0,g0f,v0)) == 0 # should be strictly real
-    @test dot(v0,g0f,v0) ≈ 1.33 rtol=0.01
-    @test dot(v0,g1f,v0) ≈ 1.33 + 7.08e-5im rtol=0.01
-    # on second component
-    g0s = G2MomCorrelator(0,:second)
-    g1s = G2MomCorrelator(1,:second)
-    #@test_throws ErrorException("invalid ONR") get_offdiagonal(g0s,aIni,1) # should fail due to invalid ONR
-    @test dot(v0,g0s,v0) ≈ 1/3
-    @test dot(v0,g1s,v0) ≈ 1/3
-    # test against BoseFS
-    ham1 = HubbardMom1D(bfs1)
-    ham2 = HubbardMom1D(bfs2)
-    @test num_offdiagonals(g0f,aIni) == num_offdiagonals(ham1,bfs1)
-    @test num_offdiagonals(g0s,aIni) == num_offdiagonals(ham2,bfs2)
-    aIni = BoseFS2C(bfs2,bfs1) # flip bfs1 and bfs2
-    @test get_offdiagonal(g0s,aIni,1) == (BoseFS2C(BoseFS{1,3}((0, 1, 0)),BoseFS{2,3}((1, 0, 1))), 0.47140452079103173)
-    # test on BoseFS
-    @test diagonal_element(g0s,bfs1) == 4/3
-    @test diagonal_element(g0s,bfs2) == 1/3
-end
-
-@testset "G2RealCorrelator" begin
-    m = 6
-    n1 = 4
-    n2 = m
-    add1 = BoseFS((n1,0,0,0,0,0))
-    add2 = near_uniform(BoseFS{n2,m})
-
-    # localised state
-    @test diagonal_element(G2RealCorrelator(0), add1) == n1 * (n1 - 1) / m
-    @test diagonal_element(G2RealCorrelator(1), add1) == 0.
-
-    # constant density state
-    @test diagonal_element(G2RealCorrelator(0), add2) == (n2/m) * ((n2/m) - 1)
-    @test diagonal_element(G2RealCorrelator(1), add2) == (n2/m)^2
-
-    # local-local
-    comp = CompositeFS(add1,add1)
-    @test diagonal_element(G2RealCorrelator(0), comp) == 2n1 * (2n1 - 1) / m
-    @test diagonal_element(G2RealCorrelator(1), comp) == 0.
-
-    # local-uniform (assuming unit filling)
-    comp = CompositeFS(add1,add2)
-    @test diagonal_element(G2RealCorrelator(0), comp) == (n1 + 1) * n1 / m
-    @test diagonal_element(G2RealCorrelator(1), comp) == (2 * (n1 + 1) + (m - 2)) / m
-
-    # uniform-uniform
-    comp = CompositeFS(add2,add2)
-    @test diagonal_element(G2RealCorrelator(0), comp) == (2n2 / m) * (2 * (n2 / m) - 1)
-    @test diagonal_element(G2RealCorrelator(1), comp) == (2n2 / m)^2
-
-    # offdiagonals
-    @test num_offdiagonals(G2RealCorrelator(0), add1) == 0
-    @test num_offdiagonals(G2RealCorrelator(0), comp) == 0
-
-    # Test show method
-    d = 5
-    output = @capture_out print(G2RealCorrelator(d))
-    @test output == "G2RealCorrelator($d)"
-end
-
-@testset "SuperfluidCorrelator" begin
-    m = 6
-    n1 = 4
-    n2 = m
-    add1 = BoseFS((n1,0,0,0,0,0))
-    add2 = near_uniform(BoseFS{n2,m})
-
-    # localised state
-    @test @inferred diagonal_element(SuperfluidCorrelator(0), add1) == n1/m
-    @test @inferred diagonal_element(SuperfluidCorrelator(1), add1) == 0.
-
-    # constant density state
-    @test diagonal_element(SuperfluidCorrelator(0), add2) == n2/m
-    @test diagonal_element(SuperfluidCorrelator(1), add2) == 0.
-
-    # offdiagonals
-    @test num_offdiagonals(SuperfluidCorrelator(0), add1) == 1
-    @test num_offdiagonals(SuperfluidCorrelator(0), add2) == 6
-
-    # get_offdiagonal
-    @test get_offdiagonal(SuperfluidCorrelator(0), add1, 1) == (add1, n1/m)
-    @test get_offdiagonal(SuperfluidCorrelator(1), add1, 1) == (BoseFS((3,1,0,0,0,0)), sqrt(n1)/m)
-    @test get_offdiagonal(SuperfluidCorrelator(0), add2, 1) == (add2, 1/m)
-    @test get_offdiagonal(SuperfluidCorrelator(1), add2, 1) == (BoseFS((0,2,1,1,1,1)), sqrt(2)/m)
-
-    # Test show method
-    d = 5
-    output = @capture_out print(SuperfluidCorrelator(d))
-    @test output == "SuperfluidCorrelator($d)"
-end
-
-@testset "StringCorrelator" begin
-    m = 6
-    n1 = 4
-    n2 = m
-
-    # unital refers to n̄=1
-    non_unital_localised_state = BoseFS((n1,0,0,0,0,0))
-    non_unital_uniform_state = near_uniform(non_unital_localised_state)
-
-    localised_state = BoseFS((n2,0,0,0,0,0))
-    uniform_state = near_uniform(BoseFS{n2,m})
-
-    S0 = StringCorrelator(0)
-    S1 = StringCorrelator(1)
-    S2 = StringCorrelator(2)
-
-    @test num_offdiagonals(S0, localised_state) == 0
-
-    # non unital localised state
-    @test @inferred diagonal_element(S0, non_unital_localised_state) ≈ 20/9
-    @test @inferred diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
-
-    # non unital near uniform state
-    @test @inferred diagonal_element(S0, non_unital_uniform_state) ≈ 2/9
-
-    # constant density localised state
-    @test @inferred diagonal_element(S0, localised_state) == 5.
-    @test @inferred diagonal_element(S1, localised_state) ≈ 1
-    @test @inferred diagonal_element(S2, localised_state) ≈ -1
-
-    # constant density uniform state
-    @test @inferred diagonal_element(S0, uniform_state) == 0
-    @test @inferred diagonal_element(S2, uniform_state) == 0
-
-    # Test return type for integer, and non-integer filling
-    @test @inferred diagonal_element(S0, localised_state) isa Float64
-    @test @inferred diagonal_element(S1, non_unital_localised_state) isa ComplexF64
-
-    # Test show method
-    d = 5
-    output = @capture_out print(StringCorrelator(d))
-    @test output == "StringCorrelator($d)"
-
-end
-
-@testset "Momentum" begin
-    @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) ≡ 2.0
-    @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) ≡ 7.0
-    @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) ≡ -1.0
-    @test_throws MethodError diagonal_element(Momentum(2), BoseFS((0,1,0)))
-
-    for add in (BoseFS2C((0,1,2,3,0), (1,2,3,4,5)), FermiFS2C((1,0,0,1), (0,0,1,0)))
-        @test diagonal_element(Momentum(1), add) + diagonal_element(Momentum(2), add) ≡
-            diagonal_element(Momentum(0), add)
-    end
-
-    @test num_offdiagonals(Momentum(), BoseFS((0,1,0))) == 0
-    @test LOStructure(Momentum(2; fold=true)) == IsDiagonal()
-    @test Momentum(1)' === Momentum(1)
-end
-
-@testset "DensityMatrixDiagonal" begin
-    @test diagonal_element(DensityMatrixDiagonal(5), FermiFS((0,1,0,1,0,1,0))) == 0
-    @test diagonal_element(DensityMatrixDiagonal(2; component=1), BoseFS((1,5,1,0))) == 5
-
-    for add in (
-        CompositeFS(BoseFS((1,2,3,4,5)), BoseFS((5,4,3,2,1))),
-        BoseFS2C((1,2,3,4,5), (5,4,3,2,1))
-    )
-        for i in 1:5
-            @test diagonal_element(DensityMatrixDiagonal(i, component=1), add) == i
-            @test diagonal_element(DensityMatrixDiagonal(i, component=2), add) == 6 - i
-            @test diagonal_element(DensityMatrixDiagonal(i), add) == 6
+@testset "Correlation functions" begin
+    @testset "circhshift_dot" begin
+        for i in 1:10
+            A = rand(3, 4, 5)
+            B = rand(3, 4, 5)
+            inds = (rand(0:3), rand(0:4), rand(0:5))
+            @test circshift_dot(A, B, inds) ≈ dot(A, circshift(B, inds))
         end
     end
 
-    @test num_offdiagonals(DensityMatrixDiagonal(1), BoseFS((0,1,0))) == 0
-    @test LOStructure(DensityMatrixDiagonal(2)) == IsDiagonal()
-    @test DensityMatrixDiagonal(15)' === DensityMatrixDiagonal(15)
+    @testset "G2RealCorrelator" begin
+        m = 6
+        n1 = 4
+        n2 = m
+        add1 = BoseFS((n1,0,0,0,0,0))
+        add2 = near_uniform(BoseFS{n2,m})
+
+        # localised state
+        @test diagonal_element(G2RealCorrelator(0), add1) == n1 * (n1 - 1) / m
+        @test diagonal_element(G2RealCorrelator(1), add1) == 0.0
+
+        # constant density state
+        @test diagonal_element(G2RealCorrelator(0), add2) == (n2/m) * ((n2/m) - 1)
+        @test diagonal_element(G2RealCorrelator(1), add2) == (n2/m)^2
+
+        # local-local
+        comp = CompositeFS(add1,add1)
+        @test diagonal_element(G2RealCorrelator(0), comp) == 2n1 * (2n1 - 1) / m
+        @test diagonal_element(G2RealCorrelator(1), comp) == 0.0
+
+        # local-uniform (assuming unit filling)
+        comp = CompositeFS(add1,add2)
+        @test diagonal_element(G2RealCorrelator(0), comp) == (n1 + 1) * n1 / m
+        @test diagonal_element(G2RealCorrelator(1), comp) == (2 * (n1 + 1) + (m - 2)) / m
+
+        # uniform-uniform
+        comp = CompositeFS(add2,add2)
+        @test diagonal_element(G2RealCorrelator(0), comp) == (2n2 / m) * (2 * (n2 / m) - 1)
+        @test diagonal_element(G2RealCorrelator(1), comp) == (2n2 / m)^2
+
+        # offdiagonals
+        @test num_offdiagonals(G2RealCorrelator(0), add1) == 0
+        @test num_offdiagonals(G2RealCorrelator(0), comp) == 0
+
+        # Test show method
+        d = 5
+        output = @capture_out print(G2RealCorrelator(d))
+        @test output == "G2RealCorrelator($d)"
+    end
+
+    @testset "G2RealSpace" begin
+        @testset "1D G2RealCorrelator comparison" begin
+            @testset "constructors" begin
+                g2_1 = G2RealSpace(CubicGrid(2, 2, 3), 1, 3)
+                g2_2 = G2RealSpace(CubicGrid(2, 2), 2)
+                g2_3 = G2RealSpace(CubicGrid(2, 2); sum_components=true)
+                @test g2_1 isa G2RealSpace{1,3}
+                @test g2_2 isa G2RealSpace{2,2}
+                @test g2_3 isa G2RealSpace{0,0}
+
+                @test eval(Meta.parse(repr(g2_1))) == g2_1
+                @test eval(Meta.parse(repr(g2_2))) == g2_2
+                @test eval(Meta.parse(repr(g2_3))) == g2_3
+
+                @test_throws ArgumentError G2RealSpace(CubicGrid(3), 1, 0)
+                @test_throws ArgumentError G2RealSpace(CubicGrid(2, 2), 0, 0)
+                @test_throws ArgumentError G2RealSpace(CubicGrid(1, 2, 3), -1, 2)
+                @test_throws ArgumentError G2RealSpace(CubicGrid(12), 3; sum_components=true)
+            end
+            @testset "single components" begin
+                addr = near_uniform(BoseFS{6,6})
+                H = HubbardReal1D(addr)
+                v = normalize!(H * (H * (H * DVec(addr => 1.0))))
+
+                g2 = dot(v, G2RealSpace(CubicGrid(6)), v)
+                for d in 0:5
+                    @test g2[d + 1] ≈ dot(v, G2RealCorrelator(d), v)
+                end
+            end
+
+            @testset "sum of components" begin
+                addr = CompositeFS(BoseFS(4, 1=>1), BoseFS(4, 1=>1), BoseFS(4, 1=>1))
+                H = HubbardRealSpace(addr)
+                v = normalize!(H * (H * (H * DVec(addr => 1.0))))
+
+                g2 = dot(v, G2RealSpace(CubicGrid(4); sum_components=true), v)
+                for d in 0:3
+                    @test g2[d + 1] ≈ dot(v, G2RealCorrelator(d), v)
+                end
+
+                g2_nosum = dot(v, G2RealSpace(CubicGrid(4)), v)
+                @test iszero(g2_nosum)
+            end
+        end
+
+        @testset "2-component, 2D" begin
+            c1 = BoseFS(1, 0, 0, 0, 0, 0)
+            c2 = BoseFS(1, 2, 3, 4, 5, 6)
+            addr = CompositeFS(c1, c2)
+            geom = CubicGrid((3, 2))
+
+            g2_11 = diagonal_element(G2RealSpace(geom, 1, 1), addr)
+            g2_12 = diagonal_element(G2RealSpace(geom, 1, 2), addr)
+            g2_21 = diagonal_element(G2RealSpace(geom, 2, 1), addr)
+            g2_22 = diagonal_element(G2RealSpace(geom, 2, 2), addr)
+
+            # Sum is N1 * (N2 - δ_12) / M
+            @test sum(g2_11) == 0
+            @test sum(g2_12) == 3.5
+            @test sum(g2_21) == 3.5
+            @test sum(g2_22) == 70
+
+            # Swapping components flips axes
+            @test g2_11 == [0 0; 0 0; 0 0]
+            @test g2_12 == [1 4; 2 5; 3 6] ./ 6
+            @test g2_21 == [1 4; 3 6; 2 5] ./ 6
+            @test g2_22[1, 1] == sum(n -> n * (n-1), onr(c2)) / 6
+            @test g2_22[3, 2] == dot(onr(c2, geom), circshift(onr(c2, geom), (2, 1))) / 6
+        end
+
+        @testset "G2 is symmetric for translationally invariant ground states" begin
+            addr = near_uniform(BoseFS{3,18})
+            geom = CubicGrid((2,3,3), (false, true, true))
+            H = HubbardRealSpace(addr; geometry=geom)
+            bsr = BasisSetRep(H)
+            v0 = PDVec(zip(bsr.basis, eigen(Matrix(bsr)).vectors[:,1]))
+
+            g2 = dot(v0, G2RealSpace(geom), v0)
+
+            @test sum(g2) ≈ 3 * 2 / 18
+            @test g2[:,2,:] ≈ g2[:,3,:]
+            @test g2[:,:,2] ≈ g2[:,:,3]
+            @test minimum(g2) == first(g2)
+        end
+    end
+
+    @testset "G2MomCorrelator" begin
+        # v0 is the exact ground state from BoseHubbardMom1D2C(aIni;ua=0,ub=0,v=0.1)
+        bfs1 = BoseFS([0, 2, 0])
+        bfs2 = BoseFS([0, 1, 0])
+        aIni = BoseFS2C(bfs1,bfs2)
+        v0 = DVec(
+            BoseFS2C((0, 2, 0), (0, 1, 0)) => 0.9999389545691221,
+            BoseFS2C((1, 1, 0), (0, 0, 1)) => -0.007812695959057453,
+            BoseFS2C((0, 1, 1), (1, 0, 0)) => -0.007812695959057453,
+            BoseFS2C((2, 0, 0), (1, 0, 0)) => 4.046694762039993e-5,
+            BoseFS2C((0, 0, 2), (0, 0, 1)) => 4.046694762039993e-5,
+            BoseFS2C((1, 0, 1), (0, 1, 0)) => 8.616127793651117e-5,
+        )
+        g0 = G2MomCorrelator(0)
+        g1 = G2MomCorrelator(1)
+        g2 = G2MomCorrelator(2)
+        g3 = G2MomCorrelator(3)
+        @test imag(dot(v0,g0,v0)) == 0 # should be strictly real
+        @test abs(imag(dot(v0,g3,v0))) < 1e-10
+        @test dot(v0,g0,v0) ≈ 0.65 rtol=0.01
+        @test dot(v0,g1,v0) ≈ 0.67 rtol=0.01
+        @test dot(v0,g2,v0) ≈ 0.67 rtol=0.01
+        @test dot(v0,g3,v0) ≈ 0.65 rtol=0.01
+        @test num_offdiagonals(g0,aIni) == 2
+
+        # on first component
+        g0f = G2MomCorrelator(0,:first)
+        g1f = G2MomCorrelator(1,:first)
+        @test imag(dot(v0,g0f,v0)) == 0 # should be strictly real
+        @test dot(v0,g0f,v0) ≈ 1.33 rtol=0.01
+        @test dot(v0,g1f,v0) ≈ 1.33 + 7.08e-5im rtol=0.01
+        # on second component
+        g0s = G2MomCorrelator(0,:second)
+        g1s = G2MomCorrelator(1,:second)
+        #@test_throws ErrorException("invalid ONR") get_offdiagonal(g0s,aIni,1) # should fail due to invalid ONR
+        @test dot(v0,g0s,v0) ≈ 1/3
+        @test dot(v0,g1s,v0) ≈ 1/3
+        # test against BoseFS
+        ham1 = HubbardMom1D(bfs1)
+        ham2 = HubbardMom1D(bfs2)
+        @test num_offdiagonals(g0f,aIni) == num_offdiagonals(ham1,bfs1)
+        @test num_offdiagonals(g0s,aIni) == num_offdiagonals(ham2,bfs2)
+        aIni = BoseFS2C(bfs2,bfs1) # flip bfs1 and bfs2
+        @test get_offdiagonal(g0s,aIni,1) == (BoseFS2C(BoseFS{1,3}((0, 1, 0)),BoseFS{2,3}((1, 0, 1))), 0.47140452079103173)
+        # test on BoseFS
+        @test diagonal_element(g0s,bfs1) == 4/3
+        @test diagonal_element(g0s,bfs2) == 1/3
+    end
+
+    @testset "SuperfluidCorrelator" begin
+        m = 6
+        n1 = 4
+        n2 = m
+        add1 = BoseFS((n1,0,0,0,0,0))
+        add2 = near_uniform(BoseFS{n2,m})
+
+        # localised state
+        @test @inferred diagonal_element(SuperfluidCorrelator(0), add1) == n1/m
+        @test @inferred diagonal_element(SuperfluidCorrelator(1), add1) == 0.
+
+            # constant density state
+            @test diagonal_element(SuperfluidCorrelator(0), add2) == n2/m
+        @test diagonal_element(SuperfluidCorrelator(1), add2) == 0.
+
+            # offdiagonals
+            @test num_offdiagonals(SuperfluidCorrelator(0), add1) == 1
+        @test num_offdiagonals(SuperfluidCorrelator(0), add2) == 6
+
+        # get_offdiagonal
+        @test get_offdiagonal(SuperfluidCorrelator(0), add1, 1) == (add1, n1/m)
+        @test get_offdiagonal(SuperfluidCorrelator(1), add1, 1) == (BoseFS((3,1,0,0,0,0)), sqrt(n1)/m)
+        @test get_offdiagonal(SuperfluidCorrelator(0), add2, 1) == (add2, 1/m)
+        @test get_offdiagonal(SuperfluidCorrelator(1), add2, 1) == (BoseFS((0,2,1,1,1,1)), sqrt(2)/m)
+
+        # Test show method
+        d = 5
+        output = @capture_out print(SuperfluidCorrelator(d))
+        @test output == "SuperfluidCorrelator($d)"
+    end
+
+    @testset "StringCorrelator" begin
+        m = 6
+        n1 = 4
+        n2 = m
+
+        # unital refers to n̄=1
+        non_unital_localised_state = BoseFS((n1,0,0,0,0,0))
+        non_unital_uniform_state = near_uniform(non_unital_localised_state)
+
+        localised_state = BoseFS((n2,0,0,0,0,0))
+        uniform_state = near_uniform(BoseFS{n2,m})
+
+        S0 = StringCorrelator(0)
+        S1 = StringCorrelator(1)
+        S2 = StringCorrelator(2)
+
+        @test num_offdiagonals(S0, localised_state) == 0
+
+        # non unital localised state
+        @test @inferred diagonal_element(S0, non_unital_localised_state) ≈ 20/9
+        @test @inferred diagonal_element(S1, non_unital_localised_state) ≈ (-4/9)*exp(im * -2pi/3)
+
+        # non unital near uniform state
+        @test @inferred diagonal_element(S0, non_unital_uniform_state) ≈ 2/9
+
+        # constant density localised state
+        @test @inferred diagonal_element(S0, localised_state) == 5.
+            @test @inferred diagonal_element(S1, localised_state) ≈ 1
+        @test @inferred diagonal_element(S2, localised_state) ≈ -1
+
+        # constant density uniform state
+        @test @inferred diagonal_element(S0, uniform_state) == 0
+        @test @inferred diagonal_element(S2, uniform_state) == 0
+
+        # Test return type for integer, and non-integer filling
+        @test @inferred diagonal_element(S0, localised_state) isa Float64
+        @test @inferred diagonal_element(S1, non_unital_localised_state) isa ComplexF64
+
+        # Test show method
+        d = 5
+        output = @capture_out print(StringCorrelator(d))
+        @test output == "StringCorrelator($d)"
+
+    end
+
+    @testset "Momentum" begin
+        @test diagonal_element(Momentum(), BoseFS((0,0,2,1,3))) ≡ 2.0
+        @test diagonal_element(Momentum(fold=false), BoseFS((0,0,2,1,3))) ≡ 7.0
+        @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) ≡ -1.0
+        @test_throws MethodError diagonal_element(Momentum(2), BoseFS((0,1,0)))
+
+        for add in (BoseFS2C((0,1,2,3,0), (1,2,3,4,5)), FermiFS2C((1,0,0,1), (0,0,1,0)))
+            @test diagonal_element(Momentum(1), add) + diagonal_element(Momentum(2), add) ≡
+                diagonal_element(Momentum(0), add)
+        end
+
+        @test num_offdiagonals(Momentum(), BoseFS((0,1,0))) == 0
+        @test LOStructure(Momentum(2; fold=true)) == IsDiagonal()
+        @test Momentum(1)' === Momentum(1)
+    end
+
+    @testset "DensityMatrixDiagonal" begin
+        @test diagonal_element(DensityMatrixDiagonal(5), FermiFS((0,1,0,1,0,1,0))) == 0
+        @test diagonal_element(DensityMatrixDiagonal(2; component=1), BoseFS((1,5,1,0))) == 5
+
+        for add in (
+            CompositeFS(BoseFS((1,2,3,4,5)), BoseFS((5,4,3,2,1))),
+            BoseFS2C((1,2,3,4,5), (5,4,3,2,1))
+            )
+            for i in 1:5
+                @test diagonal_element(DensityMatrixDiagonal(i, component=1), add) == i
+                @test diagonal_element(DensityMatrixDiagonal(i, component=2), add) == 6 - i
+                @test diagonal_element(DensityMatrixDiagonal(i), add) == 6
+            end
+        end
+
+        @test num_offdiagonals(DensityMatrixDiagonal(1), BoseFS((0,1,0))) == 0
+        @test LOStructure(DensityMatrixDiagonal(2)) == IsDiagonal()
+        @test DensityMatrixDiagonal(15)' === DensityMatrixDiagonal(15)
+    end
 end
 
 @testset "HubbardReal1DEP" begin
@@ -1218,8 +1354,8 @@ end
         ham = HubbardRealSpace(
             CompositeFS(FermiFS((1,1,0)), FermiFS((1,0,0)), BoseFS((0,0,2)))
         )
-        even_b = BasisSetRep(ParitySymmetry(ham))
-        odd_b = BasisSetRep(ParitySymmetry(ham; odd=true))
+        even_b = BasisSetRepresentation(ParitySymmetry(ham))
+        odd_b = BasisSetRepresentation(ParitySymmetry(ham; odd=true))
 
         for add in even_b.basis
             @test add == min(add, reverse(add))
@@ -1241,7 +1377,7 @@ end
     @testset "Even Hamiltonian" begin
         # This Hamiltonian only has even addresses.
         ham = HubbardMom1D(BoseFS((0,0,0,2,0,0,0)); u=3)
-        even_b = BasisSetRep(ParitySymmetry(ham))
+        even_b = BasisSetRepresentation(ParitySymmetry(ham))
 
         ham_m = Matrix(ham)
         even_m = Matrix(even_b)
@@ -1289,133 +1425,6 @@ end
         @test LOStructure(odd) isa IsHermitian
     end
 
-end
-
-@testset "BasisSetRep" begin
-    @testset "basics" begin
-        m = 100
-        n = 100
-        addr = BoseFS(Tuple(i == 1 ? n : 0 for i in 1:m))
-        ham = HubbardReal1D(addr)
-        @test_throws ArgumentError BasisSetRep(ham) # dimension too large
-        m = 2
-        n = 10
-        addr = near_uniform(BoseFS{n,m})
-        ham = HubbardReal1D(addr)
-        bsr = BasisSetRep(ham; nnzs = dimension(ham))
-        @test length(bsr.basis) == dimension(bsr) ≤  dimension(ham)
-        @test_throws ArgumentError BasisSetRep(ham, BoseFS((1,2,3))) # wrong address type
-        @test Matrix(bsr) == Matrix(bsr.sm) == Matrix(ham)
-        @test sparse(bsr) == bsr.sm == sparse(ham)
-        addr2 = bsr.basis[2]
-        @test starting_address(BasisSetRep(ham, addr2)) ==  addr2
-        @test isreal(ham) == (eltype(ham) <: Real)
-        @test isdiag(ham) == (LOStructure(ham) ≡ IsDiagonal())
-        @test ishermitian(ham) == (LOStructure(ham) ≡ IsHermitian())
-        @test issymmetric(ham) == (ishermitian(ham) && isreal(ham))
-    end
-
-    @testset "filtering" begin
-        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        bsr_orig = BasisSetRep(ham; sort=true)
-        mat_orig = Matrix(bsr_orig)
-        mat_cut_index = diag(mat_orig) .< 30
-        mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-        bsr = BasisSetRep(ham; cutoff=30, sort=true)
-        mat_cut = Matrix(bsr)
-        @test mat_cut == mat_cut_manual
-        # pass a basis and generate truncated BasisSetRep
-        bsrt = BasisSetRep(ham, bsr.basis; filter= Returns(false), sort=true)
-        @test bsrt.basis == bsr.basis
-        @test bsr.sm == bsrt.sm
-        # pass addresses and generate reachable basis
-        @test BasisSetRep(ham, bsr.basis, sort=true).basis == bsr_orig.basis
-
-        filterfun(fs) = maximum(onr(fs)) < 8
-        mat_cut_index = filterfun.(BasisSetRep(ham; sort=true).basis)
-        mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
-        mat_cut = Matrix(ham; filter=filterfun, sort=true)
-        @test mat_cut == mat_cut_manual
-    end
-
-    @testset "getindex" begin
-        ham = HubbardReal1D(near_uniform(BoseFS{10,2}))
-        bsr = BasisSetRep(ham; sort=true)
-        b = bsr.basis
-        @test [ham[i, j] for i in b, j in b] == Matrix(bsr)
-    end
-
-    @testset "momentum blocking" begin
-        add1 = BoseFS((2,0,0,0))
-        add2 = BoseFS((0,1,0,1))
-        ham = HubbardMom1D(add1)
-
-        @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
-        @test Matrix(ham, add1) ≠ Matrix(ham, add2)
-
-        add1 = BoseFS((2,0,0,0,0))
-        add2 = BoseFS((0,1,0,0,1))
-        ham = HubbardMom1D(add1)
-
-        @test Matrix(ham, add1; sort=true) == Matrix(ham, add2; sort=true)
-        @test Matrix(ham, add1) ≠ Matrix(ham, add2)
-    end
-
-    using Rimu.Hamiltonians: fix_approx_hermitian!, isapprox_enforce_hermitian!
-    using Rimu.Hamiltonians: build_sparse_matrix_from_LO
-    using Random
-    @testset "fix_approx_hermitian!" begin
-        # generic `Matrix`
-        Random.seed!(17)
-        mat = rand(5,5)
-        @test !ishermitian(mat)
-        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
-        @test !ishermitian(mat) # still not hermitian
-        fix_approx_hermitian!(mat; test_approx_symmetry=false)
-        @test ishermitian(mat) # now it is hermitian
-
-        # sparse matrix
-        Random.seed!(17)
-        mat = sparse(rand(5,5))
-        @test !ishermitian(mat)
-        @test_throws ArgumentError fix_approx_hermitian!(mat; test_approx_symmetry=true)
-        @test !ishermitian(mat) # still not hermitian
-
-        # subtle symmetry violation due to `ParitySymmetry` wrapper
-        ham = HubbardMom1D(BoseFS((1, 0, 1, 2, 0)))
-        even = ParitySymmetry(ham; odd=false)
-        odd = ParitySymmetry(ham; even=false)
-
-        even_sm, _ = build_sparse_matrix_from_LO(even)
-        even_m = Matrix(even) # symmetrised version via BasisSetRep
-
-        @test !issymmetric(even_sm) # not symmetric due to floating point errors
-        @test issymmetric(even_m) # because it was passed through `fix_approx_hermitian!`
-        @test even_sm ≈ even_m # still approximately the same!
-    end
-
-    @testset "basis-only" begin
-        m = 5
-        n = 5
-        add = near_uniform(BoseFS{n,m})
-        ham = HubbardReal1D(add)
-        @test_throws ArgumentError build_basis(ham, BoseFS((1,2,3))) # wrong address type
-        # same basis as BSR
-        bsr = BasisSetRep(ham)
-        basis = build_basis(ham)
-        @test basis == bsr.basis
-        @test basis == build_basis(ham, basis) # passing multiple addresses
-        # sorting
-        basis = build_basis(ham, add; sort = true)
-        @test basis == sort!(bsr.basis)
-        # filtering
-        @test_throws ArgumentError build_basis(ham, add; sizelim = 100)
-        @test length(build_basis(ham, add; cutoff = -1)) == 1 # no new addresses added
-        cutoff = n * (n-1) / 4  # half maximum energy
-        bsr = BasisSetRep(ham, add; cutoff)
-        basis = build_basis(ham, add; cutoff)
-        @test basis == bsr.basis
-    end
 end
 
 @testset "Stoquastic" begin
@@ -1554,9 +1563,9 @@ end
         @test length(H.vtable) == M÷2 + 1     # 5
         @test sum(H.vtable) ≈ -3.497817080215528
 
-        bsr = BasisSetRep(H; sizelim=Inf)
+        bsr = BasisSetRepresentation(H; sizelim=Inf)
         @test dimension(bsr) == 15  # dimension(bsr) < dimension(H)
-        @test sum(bsr.sm) ≈ 142.6393438659114
+        @test sum(bsr.sparse_matrix) ≈ 142.6393438659114
 
         @test eval(Meta.parse(repr(H))) == H
     end
@@ -1572,9 +1581,9 @@ end
         Ly = AxialAngularMomentumHO(S; z_dim=2, addr)
         Lx = AxialAngularMomentumHO(S; z_dim=1, addr)
 
-        Lz_vals = eigvals(Matrix(BasisSetRep(Lz)))
-        Ly_vals = eigvals(Matrix(BasisSetRep(Ly)))
-        Lx_vals = eigvals(Matrix(BasisSetRep(Lx)))
+        Lz_vals = eigvals(Matrix(BasisSetRepresentation(Lz)))
+        Ly_vals = eigvals(Matrix(BasisSetRepresentation(Ly)))
+        Lx_vals = eigvals(Matrix(BasisSetRepresentation(Lx)))
 
         expected = [-4, -2, 0, 0, 2, 4]
         @test Lz_vals ≈ expected

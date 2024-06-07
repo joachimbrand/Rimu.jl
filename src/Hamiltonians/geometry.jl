@@ -1,256 +1,236 @@
 """
-    abstract type LatticeGeometry{D}
+    CubicGrid(dims::NTuple{D,Int}, fold::NTuple{D,Bool})
 
-A `LatticeGeometry` controls which sites in an [`AbstractFockAddress`](@ref) are considered
-to be neighbours.
+Represents a `D`-dimensional grid. Used to define a cubic lattice and boundary conditions
+for some [`AbstractHamiltonian`](@ref)s. The type instance can be used to convert between
+cartesian vector indices (tuples or `SVector`s) and linear indices (integers). When indexed
+with vectors, it folds them back into the grid if the out-of-bounds dimension is periodic and
+0 otherwise (see example below).
 
-Currently only supported by [`HubbardRealSpace`](@ref).
+* `dims` controls the size of the grid in each dimension.
+* `fold` controls whether the boundaries in each dimension are periodic (or folded in the
+  case of momentum space).
 
-# Available implementations
+```julia
+julia> geo = CubicGrid((2,3), (true,false))
+CubicGrid{2}((2, 3), (true, false))
 
-* [`PeriodicBoundaries`](@ref)
-* [`HardwallBoundaries`](@ref)
-* [`LadderBoundaries`](@ref)
+julia> geo[1]
+(1, 1)
 
-# Interface to implement
+julia> geo[2]
+(2, 1)
 
-* `Base.size`: return the lattice size.
-* [`neighbour_site(::LatticeGeometry, ::Int, ::Int)`](@ref)
-* [`num_dimensions(::LatticeGeometry)`](@ref)
-* [`num_neighbours(::LatticeGeometry)`](@ref)
+julia> geo[3]
+(1, 2)
+
+julia> geo[(1,2)]
+3
+
+julia> geo[(3,2)] # 3 is folded back into 1
+3
+
+julia> geo[(3,3)]
+5
+
+julia> geo[(3,4)] # returns 0 if out of bounds
+0
+```
+
+See also [`PeriodicBoundaries`](@ref), [`HardwallBoundaries`](@ref) and
+[`LadderBoundaries`](@ref) for special-case constructors.
 """
-abstract type LatticeGeometry{D} end
+struct CubicGrid{D,Dims,Fold}
+    function CubicGrid(
+        dims::NTuple{D,Int}, fold::NTuple{D,Bool}=ntuple(Returns(true), Val(D))
+    ) where {D}
+        if any(≤(1), dims)
+            throw(ArgumentError("All dimensions must be at least 2 in size"))
+        end
+        return new{D,dims,fold}()
+    end
+end
+CubicGrid(args::Vararg{Int}) = CubicGrid(args)
 
-function Base.show(io::IO, geom::LatticeGeometry)
-    print(io, nameof(typeof(geom)), size(geom))
+"""
+    PeriodicBoundaries(dims...) -> CubicGrid
+    PeriodicBoundaries(dims) -> CubicGrid
+
+Return `CubicGrid` with all dimensions periodic. Equivalent to `CubicGrid(dims)`.
+"""
+function PeriodicBoundaries(dims::NTuple{D,Int}) where {D}
+    return CubicGrid(dims, ntuple(Returns(true), Val(D)))
+end
+PeriodicBoundaries(dims::Vararg{Int}) = PeriodicBoundaries(dims)
+
+"""
+    HardwallBoundaries(dims...) -> CubicGrid
+    HardwallBoundaries(dims) -> CubicGrid
+
+Return `CubicGrid` with all dimensions non-periodic. Equivalent to
+`CubicGrid(dims, (false, false, ...))`.
+"""
+function HardwallBoundaries(dims::NTuple{D,Int}) where {D}
+    return CubicGrid(dims, ntuple(Returns(false), Val(D)))
+end
+HardwallBoundaries(dims::Vararg{Int}) = HardwallBoundaries(dims)
+
+"""
+    LadderBoundaries(dims...) -> CubicGrid
+    LadderBoundaries(dims) -> CubicGrid
+
+Return `CubicGrid` where the first dimension is dimensions non-periodic and the rest are
+periodic. Equivalent to `CubicGrid(dims, (true, false, ...))`.
+"""
+function LadderBoundaries(dims::NTuple{D,Int}) where {D}
+    return CubicGrid(dims, ntuple(>(1), Val(D)))
+end
+LadderBoundaries(dims::Vararg{Int}) = LadderBoundaries(dims)
+
+function Base.show(io::IO, g::CubicGrid{<:Any,Dims,Fold}) where {Dims,Fold}
+    print(io, "CubicGrid($Dims, $Fold)")
 end
 
-"""
-    onr(add::AbstractFockAddress, geom::LatticeGeometry)
-Returns the occupation number representation of a Fock state address as an `SArray`
-with the shape of the lattice geometry `geom`. For composite addresses, a tuple
-of `onr`s is returned.
-"""
-function BitStringAddresses.onr(add, geom::LatticeGeometry)
-    return reshape(onr(add), size(geom))
-end
-function BitStringAddresses.onr(add::CompositeFS, geom::LatticeGeometry)
-    return map(fs -> onr(fs, geom), add.components)
-end
+Base.size(g::CubicGrid{<:Any,Dims}) where {Dims} = Dims
+Base.size(g::CubicGrid{<:Any,Dims}, i) where {Dims} = Dims[i]
+Base.length(g::CubicGrid) = prod(size(g))
+fold(g::CubicGrid{<:Any,<:Any,Fold}) where {Fold} = Fold
 
 """
-    neighbour_site(geom::LatticeGeometry, site, i)
-
-Find the `i`-th neighbour of `site` in the geometry. If the move is illegal, return 0.
-"""
-neighbour_site
-
-"""
-    num_dimensions(geom::LatticeGeometry)
+    num_dimensions(geom::LatticeCubicGrid)
 
 Return the number of dimensions of the lattice in this geometry.
 """
-num_dimensions(::LatticeGeometry{D}) where D = D
+num_dimensions(::CubicGrid{D}) where {D} = D
 
 """
-    num_neighbours(geom::LatticeGeometry)
+    fold_vec(g::CubicGrid{D}, vec::SVector{D,Int}) -> SVector{D,Int}
 
-Return the number of neighbours each lattice site has in this geometry.
+Use the CubicGrid to fold the `vec` in each dimension. If folding is disabled in a
+dimension, and the vector is allowed to go out of bounds.
 
-Note that for efficiency reasons, all sites are expected to have the same number of
-neighbours. If some of the neighbours are invalid, this is handled by having
-[`neighbour_site`](@ref) return 0.
-"""
-num_neighbours
+```julia
+julia> geo = CubicGrid((2,3), (true,false))
+CubicGrid{2}((2, 3), (true, false))
 
+julia> fold_vec(geo, (3,1))
+(1, 1)
 
-"""
-    PeriodicBoundaries(size...) <: LatticeGeometry
-
-Rectangular lattice with periodic boundary conditions of size `size`.
-
-The dimension of the lattice is controlled by the number of arguments given to its
-constructor.
-
-This is the default geometry used by [`HubbardRealSpace`](@ref).
-
-## Example
-
+julia> fold_vec(geo, (3,4))
+(1, 4)
 ```
-julia> lattice = PeriodicBoundaries(5, 4) # 2D lattice of size 5 × 4
-PeriodicBoundaries(5, 4)
-
-julia> num_neighbours(lattice)
-4
-
-julia> neighbour_site(lattice, 1, 1)
-2
-
-julia> neighbour_site(lattice, 1, 2)
-5
-
-julia> neighbour_site(lattice, 1, 3)
-6
-
-julia> neighbour_site(lattice, 1, 4)
-16
-```
-
-## See also
-
-* [`LatticeGeometry`](@ref)
-* [`HardwallBoundaries`](@ref)
-* [`LadderBoundaries`](@ref)
-* [`num_neighbours`](@ref)
-* [`neighbour_site`](@ref)
 """
-struct PeriodicBoundaries{D} <: LatticeGeometry{D}
-    size::NTuple{D,Int}
+function fold_vec(g::CubicGrid{D}, vec::SVector{D,Int}) where {D}
+    (_fold_vec(Tuple(vec), fold(g), size(g)))
+end
+@inline _fold_vec(::Tuple{}, ::Tuple{}, ::Tuple{}) = ()
+@inline function _fold_vec((x, xs...), (f, fs...), (d, ds...))
+    x = f ? mod1(x, d) : x
+    return (x, _fold_vec(xs, fs, ds)...)
 end
 
-PeriodicBoundaries(args::Vararg{Int}) = PeriodicBoundaries(args)
-
-Base.size(geom::PeriodicBoundaries) = geom.size
-
-num_neighbours(::PeriodicBoundaries{D}) where {D} = 2D
-
-function neighbour_site(geom::PeriodicBoundaries{D}, site, i) where {D}
-    # Neighbour indexing
-    # i |  x  y  z …
-    # 0 | +1  0  0
-    # 1 | -1  0  0
-    # 2 |  0 +1  0
-    # 3 |  0 -1  0
-    # 4 |  0  0 +1
-    #         ⋮    ⋱
-    i -= 1
-    cart_indices = CartesianIndices(size(geom))
-    cart_index = Tuple(cart_indices[site])
-    offset = ntuple(Val(D)) do k
-        ifelse(2(k - 1) ≤ i < 2k, ifelse(iseven(i), 1, -1), 0)
-    end
-    new_index = CartesianIndex(mod1.(cart_index .+ offset, size(geom) .% UInt))
-    return LinearIndices(cart_indices)[new_index]
+function Base.getindex(g::CubicGrid{D}, vec::Union{NTuple{D,Int},SVector{D,Int}}) where {D}
+    return get(LinearIndices(size(g)), fold_vec(g, SVector(vec)), 0)
 end
+Base.getindex(g::CubicGrid, i::Int) = SVector(Tuple(CartesianIndices(size(g))[i]))
 
 """
-    HardwallBoundaries
+    Directions(D) <: AbstractVector{SVector{D,Int}}
+    Directions(geometry::CubicGrid) <: AbstractVector{SVector{D,Int}}
 
-Rectangular lattice with hard wall boundary conditions of size `size`.
-[`neighbour_site()`](@ref) will return 0 for some neighbours of boundary sites.
+Iterate over axis-aligned direction vectors in `D` dimensions.
 
-The dimension of the lattice is controlled by the number of arguments given to its
-constructor.
-
-## Example
-
-```
-julia> lattice = HardwallBoundaries(5) # 1D lattice of size 5
-HardwallBoundaries(5)
-
-julia> neighbour_site(lattice, 1, 1)
-2
-
-julia> neighbour_site(lattice, 1, 2)
-0
+```jldoctest; setup=:(using Rimu.Hamiltonians: Directions)
+julia> Directions(3)
+6-element Directions{3}:
+ [1, 0, 0]
+ [0, 1, 0]
+ [0, 0, 1]
+ [-1, 0, 0]
+ [0, -1, 0]
+ [0, 0, -1]
 
 ```
 
-## See also
-
-* [`LatticeGeometry`](@ref)
-* [`PeriodicBoundaries`](@ref)
-* [`LadderBoundaries`](@ref)
+See also [`CubicGrid`](@ref).
 """
-struct HardwallBoundaries{D} <: LatticeGeometry{D}
-    size::NTuple{D,Int}
-end
+struct Directions{D} <: AbstractVector{SVector{D,Int}} end
 
-HardwallBoundaries(args::Vararg{Int}) = HardwallBoundaries(args)
+Directions(D) = Directions{D}()
+Directions(::CubicGrid{D}) where {D} = Directions{D}()
 
-Base.size(geom::HardwallBoundaries) = geom.size
+Base.size(::Directions{D}) where {D} = (2D,)
 
-num_neighbours(::HardwallBoundaries{D}) where {D} = 2D
-
-function neighbour_site(geom::HardwallBoundaries{D}, site, i) where {D}
-    i -= 1
-    cart_indices = CartesianIndices(size(geom))
-    cart_index = Tuple(cart_indices[site])
-    offset = ntuple(Val(D)) do k
-        ifelse(2(k - 1) ≤ i < 2k, ifelse(iseven(i), 1, -1), 0)
-    end
-    new_index = CartesianIndex(cart_index .+ offset)
-    if new_index in cart_indices
-        return LinearIndices(cart_indices)[new_index]
+function Base.getindex(uv::Directions{D}, i) where {D}
+    @boundscheck 0 < i ≤ length(uv) || throw(BoundsError(uv, i))
+    if i ≤ D
+        return SVector(_unit_vec(Val(D), i, 1))
     else
-        return 0
+        return SVector(_unit_vec(Val(D), i - D, -1))
     end
 end
 
-"""
-    LadderBoundaries(size...; subgeometry=PeriodicBoundaries) <: LatticeGeometry
-
-Lattice geometry where the first dimension is of size 2 and has hardwall boundary conditions.
-Using this geometry is more efficient than using [`HardwallBoundaries`](@ref) with a size of
-2, as it does not generate rejected neighbours.
-
-In other dimensions, it behaves like its subgeometry, which can be any
-[`LatticeGeometry`](@ref).
-
-## Example
-
-```
-julia> lattice = LadderBoundaries(2, 3, 4) # 3D lattice of size 2 × 3 × 4
-LadderBoundaries(2, 3, 4)
-
-julia> num_neighbours(lattice)
-5
-
-julia> neighbour_site(lattice, 1, 1)
-2
-
-julia> neighbour_site(lattice, 1, 2)
-3
-
-julia> neighbour_site(lattice, 1, 3)
-5
-
-julia> neighbour_site(lattice, 1, 4)
-7
-
-julia> neighbour_site(lattice, 1, 5)
-19
-```
-
-## See also
-
-* [`LatticeGeometry`](@ref)
-* [`PeriodicBoundaries`](@ref)
-* [`HardwallBoundaries`](@ref)
-"""
-struct LadderBoundaries{D,G<:LatticeGeometry} <: LatticeGeometry{D}
-    subgeometry::G
+@inline _unit_vec(::Val{0}, _, _) = ()
+@inline function _unit_vec(::Val{I}, i, x) where {I}
+    val = ifelse(i == I, x, 0)
+    return (_unit_vec(Val(I-1), i, x)..., val)
 end
 
-function LadderBoundaries(arg::Int, args::Vararg{Int}; subgeometry=PeriodicBoundaries)
-    if arg ≠ 2
-        throw(ArgumentError("First dimension must be of size 2"))
-    end
-    D = length(args) + 1
-    return LadderBoundaries{D,subgeometry{D-1}}(subgeometry(args...))
+"""
+    Displacements(geometry::CubicGrid) <: AbstractVector{SVector{D,Int}}
+
+Return all valid offset vectors in a [`CubicGrid`](@ref). If `center=true` the (0,0) displacement is
+placed at the centre of the array.
+
+```jldoctest; setup=:(using Rimu.Hamiltonians: Displacements)
+julia> geometry = CubicGrid((3,4));
+
+julia> reshape(Displacements(geometry), (3,4))
+3×4 reshape(::Displacements{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
+ [0, 0]  [0, 1]  [0, 2]  [0, 3]
+ [1, 0]  [1, 1]  [1, 2]  [1, 3]
+ [2, 0]  [2, 1]  [2, 2]  [2, 3]
+
+julia> reshape(Displacements(geometry; center=true), (3,4))
+3×4 reshape(::Displacements{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
+ [-1, -1]  [-1, 0]  [-1, 1]  [-1, 2]
+ [0, -1]   [0, 0]   [0, 1]   [0, 2]
+ [1, -1]   [1, 0]   [1, 1]   [1, 2]
+
+```
+"""
+struct Displacements{D} <: AbstractVector{SVector{D,Int}}
+    geometry::CubicGrid{D}
+    center::Bool
 end
+Displacements(geometry; center=false) = Displacements(geometry, center)
 
-Base.size(geom::LadderBoundaries) = (2, size(geom.subgeometry)...)
+Base.size(off::Displacements) = (length(off.geometry),)
 
-num_neighbours(geom::LadderBoundaries) = num_neighbours(geom.subgeometry) + 1
-
-function neighbour_site(geom::LadderBoundaries, site, i)
-    if i == 1
-        # Make odd site even, or make even site odd.
-        return site + site % 2 - (site + 1) % 2
+@inline function Base.getindex(off::Displacements{D}, i) where {D}
+    @boundscheck 0 < i ≤ length(off) || throw(BoundsError(off, i))
+    geo = off.geometry
+    vec = geo[i]
+    if !off.center
+        return vec - ones(SVector{D,Int})
     else
-        i -= 1
-        subneighbour = neighbour_site(geom.subgeometry, cld(site, 2), i)
-        return ifelse(iszero(subneighbour), 0, 2 * subneighbour - site % 2)
+        return vec - SVector(ntuple(i -> cld(size(geo, i), 2), Val(D)))
     end
+end
+
+"""
+    neighbor_site(geom::CubicGrid, site, i)
+
+Find the `i`-th neighbor of `site` in the geometry. If the move is illegal, return 0.
+"""
+function neighbor_site(g::CubicGrid{D}, mode, chosen) where {D}
+    # TODO: reintroduce LadderBoundaries small dimensions
+    return g[g[mode] + Directions(D)[chosen]]
+end
+
+function BitStringAddresses.onr(address, geom::CubicGrid{<:Any,S}) where {S}
+    return SArray{Tuple{S...}}(onr(address))
+end
+function BitStringAddresses.onr(address::CompositeFS, geom::CubicGrid)
+    return map(fs -> onr(fs, geom), address.components)
 end

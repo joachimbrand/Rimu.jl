@@ -47,10 +47,7 @@ is_distributed(::Communicator) = true
 
 Merge the results of reductions over MPI. By default, it uses `MPI.Allreduce`.
 """
-function merge_remote_reductions(c::Communicator, op, x)
-    @assert MPI.Is_thread_main()
-    return MPI.Allreduce(x, op, mpi_comm(c))
-end
+merge_remote_reductions(c::Communicator, op, x) = MPI.Allreduce!(Ref(x), op, mpi_comm(c))[]
 
 """
     total_num_segments(c::Communicator, n) -> Int

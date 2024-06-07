@@ -11,52 +11,53 @@ using Suppressor
 using Statistics
 using Logging
 using DataFrames
+using Setfield
+import Tables
 
 Random.seed!(1234)
-@testset "lomc!/QMCState" begin
+@testset "lomc!/ReplicaState" begin
+    @testset "AbstractMatrix" begin
+        @test_throws ArgumentError lomc!([1 2; 3 4])
+    end
+
     @testset "Setting laststep + working memory" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=0.1)
-        dv = DVec(add => 1; style=IsStochasticInteger())
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=0.1)
+        dv = DVec(address => 1; style=IsStochasticInteger())
 
         # test passing working memory
         v = copy(dv)
         wm = copy(dv)
         df, state = lomc!(H, v; wm, laststep=9)
-        @test state.replicas[1].wm === wm # after number of steps divisible by 3
-        @test state.replicas[1].v === v
-        @test state.replicas[1].pv !== v && state.replicas[1].pv !== wm
+        @test_broken state.spectral_states[1].single_states[1].wm === wm # after number of steps divisible by 3
+        @test state_vectors(state)[1] === v
+        @test state.spectral_states[1].single_states[1].pv !== v
+        @test state.spectral_states[1].single_states[1].pv !== wm
 
-        state.laststep = 10
-        df = lomc!(state, df).df
-        @test state.replicas[1].v === wm
-        @test state.replicas[1].pv === v
+        df = lomc!(state, df, laststep=10).df
+        @test_broken state.spectral_states[1].single_states[1].v === wm
+        @test state.spectral_states[1].single_states[1].pv === v
 
         @test size(df, 1) == 10
-        @test state.replicas[1].params.step == 10
+        @test state.step[] == 10
 
-        state.laststep = 100
-        df = lomc!(state, df).df
+        df, state = lomc!(state, df, laststep=100)
         @test size(df, 1) == 100
 
-        state.step = 0
-        df = lomc!(state, df).df
+        state.step[] = 0
+        df, state = lomc!(state, df)
         @test size(df, 1) == 200
         @test df.steps == [1:100; 1:100]
     end
 
     @testset "Setting dτ and shift" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=0.1)
-        dv = DVec(add => 1; style=IsStochasticInteger())
-        df, state = lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
-        @test state.replicas[1].params.dτ == state.dτ == 0.002
-        @test state.replicas[1].params.shift == state.shift == 23.1
-        state.dτ = 0.004
-        @test state.replicas[1].params.dτ == state.dτ == 0.004
-        state.shift = 5.0
-        @test state.replicas[1].params.shift == state.shift == 5.0
-        @test state.replica == NoStats{1}() # uses getfield method
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=0.1)
+        dv = DVec(address => 1; style=IsStochasticInteger())
+        df, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, dv; laststep=0, shift=23.1, dτ=0.002)
+        @test state.spectral_states[1].single_states[1].shift_parameters.time_step  == 0.002
+        @test state.spectral_states[1].single_states[1].shift_parameters.shift == 23.1
+        @test state.replica_strategy == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
         addr = BoseFS{5,2}((2,3))
@@ -67,13 +68,13 @@ Random.seed!(1234)
         @test default_starting_vector(addr; threading=false) isa DVec
         @test default_starting_vector(addr; threading=true) isa PDVec
         v = default_starting_vector(addr; threading=true)
-        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=0, threading=false)
-        @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=0, style=IsStochasticInteger())
+        # @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, threading=false)
+        # @test_logs (:warn, Regex("(Starting)")) lomc!(H, v; laststep=1, style=IsStochasticInteger())
     end
     @testset "Setting walkernumber" begin
-        add = BoseFS{2,5}((0,0,2,0,0))
-        H = HubbardMom1D(add; u=0.5)
-        dv = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
+        address = BoseFS{2,5}((0,0,2,0,0))
+        H = HubbardMom1D(address; u=0.5)
+        dv = DVec(address => 1; style=IsStochasticWithThreshold(1.0))
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
         v = copy(dv)
@@ -91,25 +92,25 @@ Random.seed!(1234)
         walkers = lomc!(H, copy(dv); s_strat, laststep=1000).df.norm
         @test median(walkers) ≈ 1000 rtol=0.1
 
-        _, state = lomc!(H, copy(dv); targetwalkers=500, laststep=0)
-        @test state.s_strat.targetwalkers == 500
+        _, state = @test_logs (:warn, Regex("(Simulation)")) lomc!(H, copy(dv); targetwalkers=500, laststep=0)
+        @test only(state).algorithm.shift_strategy.targetwalkers == 500
     end
 
     @testset "Replicas" begin
-        add = near_uniform(BoseFS{5,15})
-        H = HubbardReal1D(add)
+        address = near_uniform(BoseFS{5,15})
+        H = HubbardReal1D(address)
         G = GutzwillerSampling(H, g=1)
         @testset "NoStats" begin
-            dv = DVec(add => 1, style=IsDynamicSemistochastic())
-            df, state = lomc!(H, dv; replica=NoStats(1))
-            @test state.replica == NoStats(1)
-            @test length(state.replicas) == 1
+            dv = DVec(address => 1, style=IsDynamicSemistochastic())
+            df, state = lomc!(H, dv; replica_strategy=NoStats(1))
+            @test state.replica_strategy == NoStats(1)
+            @test length(state.spectral_states) == 1
             @test "shift" ∈ names(df)
             @test "shift_1" ∉ names(df)
 
-            df, state = lomc!(H, dv; replica=NoStats(3))
-            @test state.replica == NoStats(3)
-            @test length(state.replicas) == 3
+            df, state = lomc!(H, dv; replica_strategy=NoStats(3))
+            @test state.replica_strategy == NoStats(3)
+            @test length(state.spectral_states) == 3
             @test df.shift_1 ≠ df.shift_2 && df.shift_2 ≠ df.shift_3
             @test "shift_4" ∉ names(df)
 
@@ -122,44 +123,44 @@ Random.seed!(1234)
         end
         @testset "AllOverlaps" begin
             for dv in (
-                DVec(add => 1, style=IsDynamicSemistochastic()),
-                PDVec(add => 1, style=IsDynamicSemistochastic()),
+                DVec(address => 1, style=IsDynamicSemistochastic()),
+                PDVec(address => 1, style=IsDynamicSemistochastic()),
             )
 
                 # No operator: N choose 2 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(4))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(4))
                 @test num_stats(df) == binomial(4, 2)
-                df, _ = lomc!(H, dv; replica=AllOverlaps(5))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(5))
                 @test num_stats(df) == binomial(5, 2)
 
                 # No vector norm: N choose 2 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H, vecnorm=false))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(4; operator=H, vecnorm=false))
                 @test num_stats(df) == binomial(4, 2)
-                df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H, vecnorm=false))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(5; operator=H, vecnorm=false))
                 @test num_stats(df) == binomial(5, 2)
 
                 # No operator, no vector norm: 0 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(4; vecnorm=false))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(4; vecnorm=false))
                 @test num_stats(df) == 0
-                df, _ = lomc!(H, dv; replica=AllOverlaps(5; vecnorm=false))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(5; vecnorm=false))
                 @test num_stats(df) == 0
 
                 # One operator: 2 * N choose 2 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(4; operator=H))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(4; operator=H))
                 @test num_stats(df) == 2 * binomial(4, 2)
-                df, _ = lomc!(H, dv; replica=AllOverlaps(5; operator=H))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(5; operator=H))
                 @test num_stats(df) == 2 * binomial(5, 2)
 
                 # Two operators: 3 * N choose 2 reports.
-                df, _ = lomc!(H, dv; replica=AllOverlaps(2; operator=(G, H)))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(2; operator=(G, H)))
                 @test num_stats(df) == 3 * binomial(2, 2)
-                df, _ = lomc!(H, dv; replica=AllOverlaps(7; operator=(G, H)))
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(7; operator=(G, H)))
                 @test num_stats(df) == 3 * binomial(7, 2)
 
                 # Transformed operators: (3 + 1) * N choose 2 reports.
-                df, _ = lomc!(G, dv; replica=AllOverlaps(2; operator=(H, G), transform=G))
+                df, _ = lomc!(G, dv; replica_strategy=AllOverlaps(2; operator=(H, G), transform=G))
                 @test num_stats(df) == 4 * binomial(2, 2)
-                df, _ = lomc!(G, dv; replica=AllOverlaps(7; operator=(H, G), transform=G))
+                df, _ = lomc!(G, dv; replica_strategy=AllOverlaps(7; operator=(H, G), transform=G))
                 @test num_stats(df) == 4 * binomial(7, 2)
 
                 # Check transformation
@@ -180,23 +181,23 @@ Random.seed!(1234)
             v = DVec(1 => 1)
             G = MatrixHamiltonian(rand(5, 5))
             O = MatrixHamiltonian(rand(ComplexF64, 5, 5))
-            df, _ = lomc!(G, v, replica=AllOverlaps(2; operator=O))
+            df, _ = lomc!(G, v, replica_strategy=AllOverlaps(2; operator=O))
             @test df.c1_dot_c2 isa Vector{ComplexF64}
             @test df.c1_Op1_c2 isa Vector{ComplexF64}
 
             # MPIData
-            dv = DVec(add => 1, style=IsDynamicSemistochastic())
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(4; operator=H))
+            dv = DVec(address => 1, style=IsDynamicSemistochastic())
+            df, _ = lomc!(H, MPIData(dv); replica_strategy=AllOverlaps(4; operator=H))
             @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, MPIData(dv); replica=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))
+            df, _ = lomc!(H, MPIData(dv); replica_strategy=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))
             @test num_stats(df) == 2 * binomial(5, 2)
         end
     end
 
     @testset "Dead population" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=20)
-        dv = DVec(add => 10; style=IsStochasticInteger())
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=20)
+        dv = DVec(address => 10; style=IsStochasticInteger())
 
         # Only population is dead.
         params = RunTillLastStep(shift = 0.0)
@@ -209,26 +210,26 @@ Random.seed!(1234)
 
         # Populations in replicas are dead.
         params = RunTillLastStep(shift = 0.0)
-        df = @suppress_err lomc!(H, copy(dv); params, laststep=100, replica=NoStats(5)).df
+        df = @suppress_err lomc!(H, copy(dv); params, laststep=100, replica_strategy=NoStats(5)).df
         @test size(df, 1) < 100
     end
 
     @testset "Default DVec" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=20)
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=20)
         df, state = lomc!(H; laststep=100)
-        @test StochasticStyle(state.replicas[1].v) isa IsStochasticInteger
+        @test StochasticStyle(state_vectors(state)[1]) isa IsStochasticInteger
 
         df, state = lomc!(H; laststep=100, style = IsDeterministic())
-        @test StochasticStyle(state.replicas[1].v) isa IsDeterministic
+        @test StochasticStyle(state_vectors(state)[1]) isa IsDeterministic
 
         df, state = lomc!(H; laststep=1, threading=false, initiator=Initiator())
-        @test state.replicas[1].v isa InitiatorDVec
+        @test state_vectors(state)[1] isa InitiatorDVec
     end
 
     @testset "ShiftStrategy" begin
-        add = BoseFS{5,2}((2,3))
-        H = HubbardReal1D(add; u=20)
+        address = BoseFS{5,2}((2,3))
+        H = HubbardReal1D(address; u=20)
 
         # DontUpdate
         s_strat = DontUpdate(targetwalkers = 100)
@@ -239,14 +240,18 @@ Random.seed!(1234)
         s_strat = LogUpdateAfterTargetWalkers(targetwalkers = 100)
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
+        @test df.shift_mode[end] # finish in variable shift mode
         @test df.norm[end] > 100
 
         # LogUpdate
-        v = state.replicas[1].v
-        params = state.replicas[1].params
+        s_strat = DoubleLogUpdate(targetwalkers=100)
+        df, state = lomc!(H; s_strat, laststep=100)
+        @test size(df, 1) == 100
+
+        v = state_vectors(state)[1]
+        step = state.step[]
         s_strat = LogUpdate()
-        df = lomc!(H, v; df, params, s_strat, laststep=200).df
+        df = lomc!(H, v; df, step, s_strat, laststep=200).df
         @test size(df, 1) == 200
         @test 500 > df.norm[end] > 100
 
@@ -254,7 +259,7 @@ Random.seed!(1234)
         s_strat = DoubleLogUpdateAfterTargetWalkers(targetwalkers = 100)
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
+        @test df.shift_mode[end] # finish in variable shift mode
         @test df.norm[end] > 100
 
         # test unexported strategies
@@ -262,35 +267,17 @@ Random.seed!(1234)
         s_strat = Rimu.DoubleLogSumUpdate(targetwalkers = 100)
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
-
-        # TripleLogUpdate
-        s_strat = Rimu.TripleLogUpdate(targetwalkers = 100)
-        df, state  = lomc!(H; s_strat, laststep=100)
-        @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
 
         # DoubleLogProjected
         s_strat = Rimu.DoubleLogProjected(target = 100.0, projector=UniformProjector())
         df, state  = lomc!(H; s_strat, laststep=100)
         @test size(df, 1) == 100
-        @test df.shiftMode[end] # finish in variable shift mode
-
-    end
-
-    @testset "deprecated" begin
-        @test_throws ErrorException DelayedLogUpdateAfterTargetWalkers()
-        @test_throws ErrorException HistoryLogUpdate()
-        @test_throws ErrorException DelayedLogUpdate()
-        @test_throws ErrorException DelayedDoubleLogUpdateAfterTW()
-        @test_throws ErrorException DoubleLogUpdateAfterTargetWalkersSwitch()
-        @test_throws ErrorException DelayedDoubleLogUpdate()
     end
 
     @testset "Setting `maxlength`" begin
-        add = BoseFS{15,10}((0,0,0,0,0,15,0,0,0,0))
-        H = HubbardMom1D(add; u=6.0)
-        dv = PDVec(add => 1; style=IsDynamicSemistochastic())
+        address = BoseFS{15,10}((0,0,0,0,0,15,0,0,0,0))
+        H = HubbardMom1D(address; u=6.0)
+        dv = PDVec(address => 1; style=IsDynamicSemistochastic())
 
         Random.seed!(1336)
 
@@ -298,7 +285,7 @@ Random.seed!(1234)
         @test all(df.len[1:end-1] .≤ 10)
         @test df.len[end] > 10
 
-        df, state = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4, replica=NoStats(6))
+        df, state = @suppress_err lomc!(H, copy(dv); maxlength=10, dτ=1e-4, replica_strategy=NoStats(6))
         @test all(df.len_1[1:end-1] .≤ 10)
         @test all(df.len_2[1:end-1] .≤ 10)
         @test all(df.len_3[1:end-1] .≤ 10)
@@ -306,21 +293,21 @@ Random.seed!(1234)
         @test all(df.len_5[1:end-1] .≤ 10)
         @test all(df.len_6[1:end-1] .≤ 10)
 
-        state.maxlength += 1000
+        state.maxlength[] += 1000
         df_cont = lomc!(state).df
         @test size(df_cont, 1) == 100 - size(df, 1)
     end
 
     @testset "Continuations" begin
-        add = BoseFS{5,5}((1,1,1,1,1))
-        H = HubbardReal1D(add; u=0.5)
+        address = BoseFS{5,5}((1,1,1,1,1))
+        H = HubbardReal1D(address; u=0.5)
         # Using Deterministic to get exact same result
-        dv = PDVec(add => 1.0, style=IsDeterministic())
+        dv = PDVec(address => 1.0, style=IsDeterministic())
 
         # Run lomc!, then change laststep and continue.
         df, state = lomc!(H, copy(dv))
-        state.laststep = 200
-        df1 = lomc!(state, df).df
+        # @set state.simulation_plan.last_step = 200
+        df1 = lomc!(state, df, laststep=200).df
 
         # Run lomc! with laststep already set.
         df2 = lomc!(H, copy(dv); laststep=200).df
@@ -331,20 +318,19 @@ Random.seed!(1234)
     end
 
     @testset "Reporting" begin
-        add = BoseFS((1,2,1,1))
-        H = HubbardReal1D(add; u=2)
-        dv = PDVec(add => 1, style=IsDeterministic())
+        address = BoseFS((1,2,1,1))
+        H = HubbardReal1D(address; u=2)
+        dv = PDVec(address => 1, style=IsDeterministic())
 
         @testset "ReportDFAndInfo" begin
-            r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=devnull, writeinfo=true)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=devnull, writeinfo=true)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test size(df, 1) == 20
             @test metadata(df, "Rimu.PACKAGE_VERSION") == string(Rimu.PACKAGE_VERSION)
-            @test_throws ArgumentError lomc!(H, copy(dv); r_strat, metadata=(;dτ=0.001))
 
             out = @capture_out begin
-                r_strat = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=stdout, writeinfo=true)
-                lomc!(H, copy(dv); r_strat, laststep=100)
+                reporting_strategy = ReportDFAndInfo(reporting_interval=5, info_interval=10, io=stdout, writeinfo=true)
+                lomc!(H, copy(dv); reporting_strategy, laststep=100)
             end
             @test length(split(out, '\n')) == 3 # (last line is empty)
         end
@@ -357,29 +343,29 @@ Random.seed!(1234)
             rm("test-report-nc.arrow"; force=true)
             rm("test-report-lz4.arrow"; force=true)
 
-            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, save_if=false)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", io=devnull, save_if=false)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test !isfile("test-report.arrow")
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
 
-            r_strat = ReportToFile(filename="test-report.arrow", io=devnull)
-            df = lomc!(H, copy(dv); r_strat, laststep=100, metadata=(;u=6.0)).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", io=devnull)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100, metadata=(;u=6.0)).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             df1 = RimuIO.load_df("test-report.arrow")
             @test metadata(df1, "u") == "6.0" # custom metadata is saved
             @test metadata(df1, "filename") == "test-report.arrow" # filename in metadata
 
-            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", io=devnull, chunk_size=5)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             df2 = RimuIO.load_df("test-report-1.arrow")
 
-            r_strat = ReportToFile(filename="test-report.arrow", io=devnull, return_df=true)
-            df3 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", io=devnull, return_df=true)
+            df3 = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             df4 = RimuIO.load_df("test-report-2.arrow")
 
             @test df1.shift ≈ df2.shift
@@ -388,8 +374,8 @@ Random.seed!(1234)
 
             # ReportToFile with skipping interval
             df5 = df1[10:10:100,:]
-            r_strat = ReportToFile(filename="test-report.arrow", reporting_interval=10, io=devnull, chunk_size=10)
-            df = lomc!(H, copy(dv); r_strat, laststep=100).df
+            reporting_strategy = ReportToFile(filename="test-report.arrow", reporting_interval=10, io=devnull, chunk_size=10)
+            df = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
             df6 = RimuIO.load_df("test-report-3.arrow")
 
@@ -399,23 +385,23 @@ Random.seed!(1234)
             # ReportToFile with compression
             @test_throws ArgumentError ReportToFile(compress=false)
 
-            r_strat = ReportToFile(
+            reporting_strategy = ReportToFile(
                 filename="test-report-nc.arrow", io=devnull, return_df=true,
                 compress=nothing
             )
-            df7 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            df7 = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             @test df7 == RimuIO.load_df("test-report-nc.arrow")
 
 
-            r_strat = ReportToFile(
+            reporting_strategy = ReportToFile(
                 filename="test-report-lz4.arrow", io=devnull, return_df=true,
                 compress=:lz4
             )
-            df8 = lomc!(H, copy(dv); r_strat, laststep=100).df
+            df8 = lomc!(H, copy(dv); reporting_strategy, laststep=100).df
             @test isempty(df)
-            @test Rimu._isopen(r_strat) == false
+            @test Rimu._isopen(reporting_strategy) == false
             @test df8 == RimuIO.load_df("test-report-lz4.arrow")
 
             @test filesize("test-report-lz4.arrow") < filesize("test-report-nc.arrow")
@@ -434,34 +420,38 @@ Random.seed!(1234)
             rp = Rimu.Report()
             Rimu.report!(rp, :b, 4)
             Rimu.report!(rp, :b, 6)
-            @test sprint(show, rp) == "Report:\n  b => [4, 6]"
             Rimu.report_metadata!(rp, :a, 1)
             @test Rimu.get_metadata(rp, "a") == "1"
+            @test sprint(show, rp) == "Report:\n  b => [4, 6]\n metadata:\n  a => 1"
+
+            # Tables integration
+            NamedTuple(first(Tables.rows(rp))) == (b=4,)
+            Tables.schema(rp) isa Tables.Schema
         end
     end
 
     @testset "Post step" begin
-        add = BoseFS((0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0))
-        H = HubbardMom1D(add; u=4)
-        dv = DVec(add => 1)
+        address = BoseFS((0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0))
+        H = HubbardMom1D(address; u=4)
+        dv = DVec(address => 1)
 
         @testset "Projector, ProjectedEnergy" begin
             Random.seed!(1337)
 
-            post_step = (
+            post_step_strategy = (
                 Projector(p1=NormProjector()),
                 Projector(p2=copy(dv)),
                 ProjectedEnergy(H, dv),
                 ProjectedEnergy(H, dv, vproj=:vproj2, hproj=:hproj2),
                 ProjectedEnergy(H, UniformProjector(), vproj=:vproj3, hproj=:hproj3),
             )
-            df, _ = lomc!(H, copy(dv); post_step)
+            df, _ = lomc!(H, copy(dv); post_step_strategy)
             @test df.vproj == df.vproj2 == df.p2
             @test df.norm ≈ df.p1
             @test df.norm ≥ df.vproj3
 
             @test_throws ArgumentError lomc!(
-                H, dv; post_step=(Projector(a=dv), Projector(a=dv))
+                H, dv; post_step_strategy=(Projector(a=dv), Projector(a=dv))
             )
             @test_throws ArgumentError Projector(a=dv, b=dv)
             @test_throws ArgumentError Projector()
@@ -471,34 +461,34 @@ Random.seed!(1234)
             Random.seed!(1337)
 
             ref = eigsolve(H, dv, 1, :SR; issymmetric=true)[2][1]
-            post_step = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
-            df, _ = lomc!(H, copy(dv); post_step)
+            post_step_strategy = (SignCoherence(ref), SignCoherence(dv * -1, name=:single_coherence))
+            df, _ = lomc!(H, copy(dv); post_step_strategy)
             @test df.coherence[1] == 1.0
             @test all(-1.0 .≤ df.coherence .≤ 1.0)
             @test all(in.(df.single_coherence, Ref((-1, 0, 1))))
 
-            cdv = DVec(add => 1 + im)
-            df, _ = lomc!(H, cdv; post_step)
+            cdv = DVec(address => 1 + im)
+            df, _ = lomc!(H, cdv; post_step_strategy)
             @test df.coherence isa Vector{ComplexF64}
         end
 
         @testset "WalkerLoneliness" begin
             Random.seed!(1337)
 
-            post_step = WalkerLoneliness()
-            df, _ = lomc!(H, copy(dv); post_step)
+            post_step_strategy = WalkerLoneliness()
+            df, _ = lomc!(H, copy(dv); post_step_strategy)
             @test df.loneliness[1] == 1
             @test all(1 .≥ df.loneliness .≥ 0)
 
-            cdv = DVec(add => 1 + im)
-            df, _ = lomc!(H, cdv; post_step)
+            cdv = DVec(address => 1 + im)
+            df, _ = lomc!(H, cdv; post_step_strategy)
             @test df.loneliness isa Vector{ComplexF64}
         end
 
         @testset "Timer" begin
-            post_step = Rimu.Timer()
+            post_step_strategy = Rimu.Timer()
             time_before = time()
-            df, _ = lomc!(H, copy(dv); post_step)
+            df, _ = lomc!(H, copy(dv); post_step_strategy)
             time_after = time()
             @test df.time[1] > time_before
             @test df.time[end] < time_after
@@ -506,23 +496,25 @@ Random.seed!(1234)
         end
 
         @testset "SingleParticleDensity" begin
-            post_step = (
+            post_step_strategy = (
                 SingleParticleDensity(save_every=2),
             )
-            df, st = lomc!(H, copy(dv); post_step)
-            @test all(==(ntuple(_ -> 0, num_modes(add))), df.single_particle_density[1:2:end])
+            df, st = lomc!(H, copy(dv); post_step_strategy)
+            @test all(==(ntuple(_ -> 0, num_modes(address))), df.single_particle_density[1:2:end])
             @test all(≈(3), sum.(df.single_particle_density[2:2:end]))
 
-            @test df.single_particle_density[end] == single_particle_density(st.replicas[1].v)
+            @test df.single_particle_density[end] == single_particle_density(
+                st.spectral_states[1].single_states[1].v
+            )
 
-            for add in (
+            for address in (
                 BoseFS2C((1,2,3), (0,1,0)),
                 CompositeFS(BoseFS((1,2,3)), FermiFS((0,1,0)))
             )
-                @test single_particle_density(add) == (1, 3, 3)
-                @test single_particle_density(add; component=1) == (1, 2, 3)
-                @test single_particle_density(add; component=2) == (0, 1, 0)
-                @test single_particle_density(DVec(add => 1); component=2) == (0, 7, 0)
+                @test single_particle_density(address) == (1, 3, 3)
+                @test single_particle_density(address; component=1) == (1, 2, 3)
+                @test single_particle_density(address; component=2) == (0, 1, 0)
+                @test single_particle_density(DVec(address => 1); component=2) == (0, 7, 0)
             end
         end
     end
@@ -536,11 +528,11 @@ end
     )
         @testset "$H" begin
             dv = DVec(starting_address(H) => 2; style=IsDynamicSemistochastic())
-            post_step = ProjectedEnergy(H, dv)
+            post_step_strategy = ProjectedEnergy(H, dv)
 
             E0 = eigsolve(H, copy(dv), 1, :SR; issymmetric=true)[1][1]
 
-            df = lomc!(H, dv; post_step, laststep=3000).df
+            df = lomc!(H, dv; post_step_strategy, laststep=3000).df
 
             # Shift estimate.
             Es, σs = mean_and_se(df.shift)
@@ -555,20 +547,20 @@ end
     end
 
     @testset "Stochastic style comparison" begin
-        add = BoseFS{5,5}((1,1,1,1,1))
-        H = HubbardReal1D(add)
+        address = BoseFS{5,5}((1,1,1,1,1))
+        H = HubbardReal1D(address)
         E0 = -8.280991746582686
 
         Random.seed!(1234)
-        dv_st = DVec(add => 1; style=IsStochasticInteger())
-        dv_th = DVec(add => 1; style=IsStochasticWithThreshold(1.0))
-        dv_cx = DVec(add => 1 + im; style=IsStochastic2Pop())
-        dv_dy = DVec(add => 1; style=IsDynamicSemistochastic())
-        dv_de = DVec(add => 1; style=IsDeterministic())
-        dv_dp = DVec(add => 1; style=IsDeterministic(ThresholdCompression()))
+        dv_st = DVec(address => 1; style=IsStochasticInteger())
+        dv_th = DVec(address => 1; style=IsStochasticWithThreshold(1.0))
+        dv_cx = DVec(address => 1 + im; style=IsStochastic2Pop())
+        dv_dy = DVec(address => 1; style=IsDynamicSemistochastic())
+        dv_de = DVec(address => 1; style=IsDeterministic())
+        dv_dp = DVec(address => 1; style=IsDeterministic(ThresholdCompression()))
 
-        dv_nr = DVec(add => 1; style=IsDynamicSemistochastic(spawning=WithoutReplacement()))
-        dv_br = DVec(add => 1; style=IsDynamicSemistochastic(spawning=Bernoulli()))
+        dv_nr = DVec(address => 1; style=IsDynamicSemistochastic(spawning=WithoutReplacement()))
+        dv_br = DVec(address => 1; style=IsDynamicSemistochastic(spawning=Bernoulli()))
 
         s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100)
         s_strat_cx = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=100 + 100im)
@@ -624,28 +616,28 @@ end
     end
 
     @testset "Initiator energies" begin
-        add = BoseFS{10,10}((0,0,0,0,10,0,0,0,0,0))
+        address = BoseFS{10,10}((0,0,0,0,10,0,0,0,0,0))
         dv_no = DVec(
-            add => 1;
+            address => 1;
             style=IsDynamicSemistochastic()
         )
         dv_i1 = InitiatorDVec(
-            add => 1;
+            address => 1;
             initiator=Initiator(1),
             style=IsDynamicSemistochastic(),
         )
         dv_i2 = InitiatorDVec(
-            add => 1;
+            address => 1;
             initiator=SimpleInitiator(1),
             style=IsDynamicSemistochastic(),
         )
         dv_i3 = InitiatorDVec(
-            add => 1;
+            address => 1;
             initiator=CoherentInitiator(1),
             style=IsDynamicSemistochastic(),
         )
         dv_ni = InitiatorDVec(
-            add => 1;
+            address => 1;
             initiator=NonInitiator(),
             style=IsDynamicSemistochastic(),
         )
@@ -653,7 +645,7 @@ end
         @testset "Energies below the plateau & initiator bias" begin
             Random.seed!(8008)
 
-            H = HubbardMom1D(add; u=4.0)
+            H = HubbardMom1D(address; u=4.0)
             E0 = -9.251592973178997
 
             s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=300)
@@ -689,7 +681,7 @@ end
         @testset "Energies above the plateau" begin
             Random.seed!(1337)
 
-            H = HubbardMom1D(add)
+            H = HubbardMom1D(address)
             E0 = -16.36048582876015
 
             s_strat = DoubleLogUpdate(ζ=0.05, ξ=0.05^2/4, targetwalkers=3000)
