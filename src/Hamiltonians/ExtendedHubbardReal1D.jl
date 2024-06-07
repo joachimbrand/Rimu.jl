@@ -20,7 +20,7 @@ struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,PI_TWISTED,H
 end
 
 # addr for compatibility.
-function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, pi_twisted=false, HardwallBoundaries=false)
+function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, pi_twisted::Bool = false, HardwallBoundaries::Bool = false)
     U, V, T , PI_TWISTED, HARDWALLBOUNDARIES= promote(float(u), float(v), float(t), Bool(pi_twisted), Bool(HardwallBoundaries))
     return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,PI_TWISTED,HARDWALLBOUNDARIES}(addr)
 end
