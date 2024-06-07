@@ -498,7 +498,7 @@ function rayleigh_replica_estimator(
     return ratio_of_means(num, denom; kwargs...)
 end
 function rayleigh_replica_estimator(
-    df::DataFrame;
+    sim;
     shift_name="shift",
     op_name="Op1",
     vec_name="dot",
@@ -507,6 +507,7 @@ function rayleigh_replica_estimator(
     Anorm=1,
     kwargs...
 )
+    df = DataFrame(sim)
     num_reps = length(filter(startswith("dτ"), names(df)))
     dτ = if num_reps == 1
         df.dτ[end]
