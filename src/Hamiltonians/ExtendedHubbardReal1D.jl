@@ -15,18 +15,18 @@ Implements the extended Hubbard model on a one-dimensional chain in real space.
 * `t`: the hopping strength
 
 """
-struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,PI_TWISTED::Bool,HARDWALLBOUNDARIES::Bool} <: AbstractHamiltonian{TT}
+struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,PITWISTED::Bool,HARDWALLBOUNDARIES::Bool} <: AbstractHamiltonian{TT}
     add::A
 end
 
 # addr for compatibility.
-function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, pi_twisted::Bool = false, HardwallBoundaries::Bool = false)
-    U, V, T , PI_TWISTED, HARDWALLBOUNDARIES= promote(float(u), float(v), float(t), Bool(pi_twisted), Bool(HardwallBoundaries))
-    return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,PI_TWISTED,HARDWALLBOUNDARIES}(addr)
+function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, pitwisted::Bool = false, HardwallBoundaries::Bool = false)
+    U, V, T , PITWISTED, HARDWALLBOUNDARIES= promote(float(u), float(v), float(t), Bool(pitwisted), Bool(HardwallBoundaries))
+    return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,pitwisted,HARDWALLBOUNDARIES}(addr)
 end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
-    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), pi_twisted=$(h.pi_twisted), HardwallBoundaries=$(h.HardwallBoundaries)")
+    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), pitwisted=$(h.pitwisted), HardwallBoundaries=$(h.HardwallBoundaries)")
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
@@ -42,7 +42,7 @@ Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:add}) = getfield(h, :add)
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,V}, ::Val{:v}) where V = V
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
-Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,<:Any,PI_TWISTED}, ::Val{:pi_twisted}) where PI_TWISTED=PI_TWISTED
+Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,<:Any,PITWISTED}, ::Val{:pitwisted}) where PITWISTED=PITWISTED
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,<:Any,<:Any,HARDWALLBOUNDARIES}, ::Val{:HardwallBoundaries}) where HARDWALLBOUNDARIES=HARDWALLBOUNDARIES
 
 function num_offdiagonals(::ExtendedHubbardReal1D, address::SingleComponentFockAddress)
@@ -78,10 +78,10 @@ end
 
 function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddress)
     ebhinteraction, bhinteraction = extended_hubbard_interaction(h,b)
-    return h.u * bhinteraction / 2 + h.v * ebhinteraction
+    return h.u * bhinteraction / 2 + h.v * ebhinteractionS
 end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen; pi_twisted = h.pi_twisted, HardwallBoundaries = h.HardwallBoundaries)
+    naddress, onproduct = hopnextneighbour(add, chosen; pitwisted = h.pitwisted, HardwallBoundaries = h.HardwallBoundaries)
     return naddress, - h.t * onproduct
 end
