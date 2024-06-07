@@ -15,18 +15,18 @@ Implements the extended Hubbard model on a one-dimensional chain in real space.
 * `t`: the hopping strength
 
 """
-struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T} <: AbstractHamiltonian{TT}
+struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,PI_TWISTED,BOX_BC} <: AbstractHamiltonian{TT}
     add::A
 end
 
 # addr for compatibility.
-function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0)
-    U, V, T = promote(float(u), float(v), float(t))
-    return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T}(addr)
+function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, pi_twisted=false)
+    U, V, T , PI_TWISTED, BOX_BC= promote(float(u), float(v), float(t), Bool(pi_twisted), Bool(box_bc))
+    return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,PI_TWISTED,BOX_BC}(addr)
 end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
-    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t))")
+    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), pi_twisted=$(h.pi_twisted), box_bc=$(h.box_bc)")
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
@@ -42,6 +42,8 @@ Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:add}) = getfield(h, :add)
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,V}, ::Val{:v}) where V = V
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
+Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,<:Any,PI_TWISTED}, ::Val{:pi_twisted}) where PI_TWISTED=PI_TWISTED
+Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,<:Any,<:Any,BOX_BC}, ::Val{:box_bc}) where BOX_BC=BOX_BC
 
 function num_offdiagonals(::ExtendedHubbardReal1D, address::SingleComponentFockAddress)
     return 2 * num_occupied_modes(address)
@@ -64,11 +66,12 @@ function extended_bose_hubbard_interaction(b::SingleComponentFockAddress)
         reg_result += curr.occnum * (curr.occnum - 1)
         prev = curr
     end
-
-    # Handle periodic boundaries
-    last = ifelse(omm[end].mode == num_modes(b), omm[end], zero(eltype(omm)))
-    first = ifelse(omm[1].mode == 1, omm[1], zero(eltype(omm)))
-    ext_result += last.occnum * first.occnum
+    if h.box_bc == false
+        # Handle periodic boundaries
+        last = ifelse(omm[end].mode == num_modes(b), omm[end], zero(eltype(omm)))
+        first = ifelse(omm[1].mode == 1, omm[1], zero(eltype(omm)))
+        ext_result += last.occnum * first.occnum
+    end
 
     return ext_result, reg_result
 end
@@ -78,7 +81,7 @@ function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddres
     return h.u * bhinteraction / 2 + h.v * ebhinteraction
 end
 
-function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen)
+function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen,pi_twisted = h.pi_twisted, box_bc = h.box_bc)
+    naddress, onproduct = hopnextneighbour(add, chosen; pi_twisted, box_bc)
     return naddress, - h.t * onproduct
 end
