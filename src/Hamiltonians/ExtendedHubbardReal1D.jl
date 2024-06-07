@@ -15,7 +15,7 @@ Implements the extended Hubbard model on a one-dimensional chain in real space.
 * `t`: the hopping strength
 
 """
-struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,PI_TWISTED,HARDWALLBOUNDARIES} <: AbstractHamiltonian{TT}
+struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,PI_TWISTED::Bool,HARDWALLBOUNDARIES::Bool} <: AbstractHamiltonian{TT}
     add::A
 end
 
