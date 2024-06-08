@@ -89,7 +89,7 @@ function extended_hubbard_interaction(h::ExtendedHubbardReal1D,b::SingleComponen
 end
 
 function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddress)
-    ebhinteraction, bhinteraction = extended_hubbard_interaction(h,b)
+    ebhinteraction, bhinteraction = extended_hubbard_interaction(h, b)
     return h.u * bhinteraction / 2 + h.v * ebhinteraction
 end
 
