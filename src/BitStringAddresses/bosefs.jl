@@ -344,7 +344,7 @@ function hopnextneighbour(b::SingleComponentFockAddress, i; pitwisted::Bool = fa
         elseif src.mode !=num_modes(b) && src.mode !=num_modes(b)
             return new_b, val
         end
-    elseif hardwall == true
+    elseif hardwall
         if src.mode==num_modes(b) && dst.mode !=1
             return new_b, val
         elseif src.mode == num_modes(b) && dst.mode ==1
