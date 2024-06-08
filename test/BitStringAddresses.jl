@@ -571,3 +571,17 @@ end
             sparse(ParitySymmetry(bham; odd=true))
     end
 end
+
+
+@testset "hopnextneighbour" begin
+    ffs1 = FermiFS{1,4}(1,0,0,0)
+    ffsend = FermiFS{1,4}(0,0,0,1)
+
+    @test hopnextneighbour(ffs1,2; pitwisted=true) == (ffsend, -1.0)
+    @test hopnextneighbour(ffsend,1; pitwisted=true) == (ffs1, -1.0)
+    @test hopnextneighbour(ffs1,2; hardwall=true) == (ffsend, 0.0)
+    @test hopnextneighbour(ffsend,1; hardwall=true) == (ffs1, 0.0)
+    @test hopnextneighbour(ffs1,2) == (ffsend, 1.0)
+    @test hopnextneighbour(ffsend,1) == (ffs1, 1.0)
+
+end
