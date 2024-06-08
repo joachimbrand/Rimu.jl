@@ -78,7 +78,7 @@ function extended_hubbard_interaction(h::ExtendedHubbardReal1D,b::SingleComponen
         reg_result += curr.occnum * (curr.occnum - 1)
         prev = curr
     end
-    if h.hardwall == false
+    if !h.hardwall
         # Handle periodic boundaries
         last = ifelse(omm[end].mode == num_modes(b), omm[end], zero(eltype(omm)))
         first = ifelse(omm[1].mode == 1, omm[1], zero(eltype(omm)))
