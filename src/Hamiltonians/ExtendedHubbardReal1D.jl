@@ -22,7 +22,7 @@ end
 # addr for compatibility.
 function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, pitwisted::Bool = false, hardwall::Bool = false)
     if (pitwisted,hardwall)==(true,true)
-        println("Hardwall and pitwisted boundaries cannot be called together")
+        throw(ArgumentError("Hardwall and pitwisted boundaries cannot be called together"))
     else
         U, V, T = promote(float(u), float(v), float(t))
         return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,pitwisted,hardwall}(addr)
