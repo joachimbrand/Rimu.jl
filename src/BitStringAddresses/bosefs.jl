@@ -332,7 +332,7 @@ function hopnextneighbour(b::SingleComponentFockAddress, i; pitwisted::Bool = fa
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
     new_b, val = excitation(b, (dst,), (src,))
-    if pitwisted == true
+    if pitwisted
         if src.mode==num_modes(b) && dst.mode !=1
             return new_b, val
         elseif src.mode == num_modes(b) && dst.mode ==1
