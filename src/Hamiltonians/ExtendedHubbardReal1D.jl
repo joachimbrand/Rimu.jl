@@ -30,7 +30,7 @@ function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, pitwisted::Bool = fals
 end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
-    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), pitwisted=$(h.pitwisted), hardwall=$(h.hardwall)")
+    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), pitwisted=$(h.pitwisted), hardwall=$(h.hardwall))")
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
