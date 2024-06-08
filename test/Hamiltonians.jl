@@ -1671,60 +1671,55 @@ end
 end
 
 @testset "ExtendedHubbardReal1D_new_Boundary_conditions" begin
-    @testset "Gutzwiller" begin
-        @testset "Gutzwiller transformation" begin
-            for H in (
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pitwisted=true),
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,hardwall=true),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwall=true))
-                
-                # GutzwillerSampling with parameter zero is exactly equal to the original H
-                G = GutzwillerSampling(H, 0.0)
-                addr = starting_address(H)
-                g = rand()
-                G = GutzwillerSampling(H, g)
-                for i in 1:num_offdiagonals(G, addr)
-                    addr2, me = get_offdiagonal(G, addr, i)
-                    
-                    w = exp(-g * (diagonal_element(H, addr2) - diagonal_element(H, addr)))
-                    @test get_offdiagonal(H, addr, i)[2] * w == me
-                    @test get_offdiagonal(H, addr, i)[1] == addr2
-                    @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
+    for H in (
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pitwisted=true),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,hardwall=true),
+        ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
+        ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwall=true))
+        
+        # GutzwillerSampling with parameter zero is exactly equal to the original H
+        G = GutzwillerSampling(H, 0.0)
+        addr = starting_address(H)
+        g = rand()
+        G = GutzwillerSampling(H, g)
+        for i in 1:num_offdiagonals(G, addr)
+            addr2, me = get_offdiagonal(G, addr, i)
+            
+            w = exp(-g * (diagonal_element(H, addr2) - diagonal_element(H, addr)))
+            @test get_offdiagonal(H, addr, i)[2] * w == me
+            @test get_offdiagonal(H, addr, i)[1] == addr2
+            @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
 
-                end
-            end
         end
-    
+    end
+end
 
-        @testset "supported transformations" begin
-            for H in (
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pitwisted=true),
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,hardwall=true),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
-                ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwall=true))
-                
-                @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H)
-                @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H, H)
-            end
+
+@testset "supported transformations" begin
+    for H in (
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,pitwisted=true),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0,hardwall=true),
+        ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
+        ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwall=true))
+        
+        @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H)
+        @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H, H)
+    end
+end
+
+@testset "extended_hubbard_interaction" begin
+    for H in (
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwall=true),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0))
+
+        addr = starting_address(H)
+        g = rand()
+        G = GutzwillerSampling(H, g)
+        for i in 1:num_offdiagonals(G, addr)
+            addr2, me = get_offdiagonal(G, addr, i)
+            @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
         end
-
-        @testset "extended_hubbard_interaction" begin
-            for H in (
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,pitwisted=true),
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0,hardwall=true),
-                ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0))
-
-                addr = starting_address(H)
-                g = rand()
-                G = GutzwillerSampling(H, g)
-                for i in 1:num_offdiagonals(G, addr)
-                    addr2, me = get_offdiagonal(G, addr, i)
-                    @test diagonal_element(H, addr2) == diagonal_element(G, addr2)
-                end
-            end
-        end
-
     end
 
 end
