@@ -32,7 +32,7 @@ function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, boundary_condition = :
 end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
-    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=$(h.boundary_condition))")
+    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
