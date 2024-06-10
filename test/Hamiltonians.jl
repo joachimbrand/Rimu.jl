@@ -1696,7 +1696,7 @@ end
     @testset "supported transformations" begin
         for H in (
             ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0, boundary_condition=:twisted),
-            ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0, boundary_condition=hard_wall),
+            ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1,0)), v=6, t=2.0, boundary_condition=:hard_wall),
             ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:twisted),
             ExtendedHubbardReal1D(FermiFS((0,1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:hard_wall))
             
