@@ -88,12 +88,7 @@ function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddres
 end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
-    if h.boundary_condition == :hard_wall
-        naddress, onproduct = hopnextneighbour(add, chosen, Val(false),Val(true))
-    elseif h.boundary_condition == :twisted
-        naddress, onproduct = hopnextneighbour(add, chosen, Val(true),Val(false))
-    else
-        naddress, onproduct = hopnextneighbour(add, chosen)
-    end
+    naddress, onproduct = hopnextneighbour(add, chosen, Val(h.boundary_condition))
+
     return naddress, - h.t * onproduct
 end
