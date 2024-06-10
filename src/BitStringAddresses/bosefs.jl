@@ -361,7 +361,7 @@ julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(true),Val(false))
 (BoseFS{2,4}(2, 0, 0), -1.4142135623730951)
 
 julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(false),Val(true))
-(FermiFS{2,3}(2, 0, 0), 0.0)
+(BoseFS{2,3}(2, 0, 0), 0.0)
 ```
 """
 
