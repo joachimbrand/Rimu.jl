@@ -93,7 +93,7 @@ function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddre
     elseif h.boundary_condition == :twisted
         naddress, onproduct = hopnextneighbour(add, chosen, Val(true),Val(false))
     else
-        naddress, onproduct = hopnextneighbour(add, chosen, Val(false),Val(false))
+        naddress, onproduct = hopnextneighbour(add, chosen)
     end
     return naddress, - h.t * onproduct
 end
