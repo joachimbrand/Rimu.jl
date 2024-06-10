@@ -328,32 +328,53 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
     end
     return BoseFS{N,M,A}(new_address), √prod
 end
-function hopnextneighbour(b::SingleComponentFockAddress, i; pitwisted::Bool = false, hardwall::Bool = false)
+
+function hopnextneighbour(b::SingleComponentFockAddress, i)
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
+
     new_b, val = excitation(b, (dst,), (src,))
-    if pitwisted
-        if src.mode == num_modes(b) && dst.mode !=1
-            return new_b, val
-        elseif src.mode == num_modes(b) && dst.mode ==1
-            return new_b, -val
-        elseif src.mode ==1 && dst.mode!=num_modes(b)
-            return new_b, val
-        elseif src.mode == 1 && dst.mode==num_modes(b)
-            return new_b, -val
-        elseif src.mode !=num_modes(b) && src.mode !=num_modes(b)
-            return new_b, val
-        end
-    elseif hardwall
-        if src.mode==num_modes(b) && dst.mode !=1
-            return new_b, val
-        elseif src.mode == num_modes(b) && dst.mode ==1
+    return new_b, val
+end
+
+"""
+    new_address, product = hopnextneighbour(add, chosen, Val(pitwisted), Val(hard-wall))
+
+Compute the new address of a hopping event for the Hubbard model. Returns the new
+address and the square root of product of occupation numbers of the involved modes
+multiplied by a term consistent with boundary condition.
+
+The off-diagonals are indexed as follows:
+
+* `(chosen + 1) ÷ 2` selects the hopping site.
+* Even `chosen` indicates a hop to the left.
+* Odd `chosen` indicates a hop to the right.
+* Boundary conditions are periodic, pi-twisted and hard-wall.
+* Show pi-twisted when pitwested=true and hard-wall=false and vice-versa for hard-wall else periodic
+
+# Example
+
+```jldoctest
+julia> using Rimu.Hamiltonians: hopnextneighbour
+
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(true),Val(false))
+(BoseFS{2,4}(2, 0, 0), -1.4142135623730951)
+
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(false),Val(true))
+(FermiFS{2,3}(2, 0, 0), 0.0)
+```
+"""
+
+function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{PITWISTED}, ::Val{HARDWALL}) where {PITWISTED, HARDWALL}
+    new_b,val=hopnextneighbour(b, i)
+
+    if (find_occupied_mode(b,1).mode==1 && i==2) || 
+        (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b) && i == (2*num_occupied_modes(b)-1))
+        if PITWISTED
+            return new_b,-val
+        elseif HARDWALL
             return new_b, 0.0
-        elseif src.mode ==1 && dst.mode!=num_modes(b)
-            return new_b, val
-        elseif src.mode == 1 && dst.mode==num_modes(b)
-            return new_b, 0.0
-        elseif src.mode !=num_modes(b) && src.mode !=num_modes(b)
+        else
             return new_b, val
         end
     else
