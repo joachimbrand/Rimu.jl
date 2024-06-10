@@ -328,15 +328,12 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
     end
     return BoseFS{N,M,A}(new_address), √prod
 end
-
 function hopnextneighbour(b::SingleComponentFockAddress, i)
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
-
     new_b, val = excitation(b, (dst,), (src,))
     return new_b, val
 end
-
 """
     new_address, product = hopnextneighbour(add, chosen, Val(pitwisted), Val(hard-wall))
 
@@ -364,10 +361,8 @@ julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(false),Val(true))
 (BoseFS{2,3}(2, 0, 0), 0.0)
 ```
 """
-
 function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{PITWISTED}, ::Val{HARDWALL}) where {PITWISTED, HARDWALL}
     new_b,val=hopnextneighbour(b, i)
-
     if (find_occupied_mode(b,1).mode==1 && i==2) || 
         (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b) && i == (2*num_occupied_modes(b)-1))
         if PITWISTED
@@ -381,10 +376,6 @@ function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{PITWISTED}, ::
         return new_b, val
     end
 end
-
-
-
-
 
 """
     bose_hubbard_interaction(address)
