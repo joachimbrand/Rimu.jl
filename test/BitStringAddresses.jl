@@ -577,10 +577,10 @@ end
     ffs1 = FermiFS{1,4}(1,0,0,0)
     ffsend = FermiFS{1,4}(0,0,0,1)
 
-    @test hopnextneighbour(ffs1,2, Val(true), Val(false)) == (ffsend, -1.0)
-    @test hopnextneighbour(ffsend,1, Val(true), Val(false)) == (ffs1, -1.0)
-    @test hopnextneighbour(ffs1,2, Val(false), Val(true)) == (ffsend, 0.0)
-    @test hopnextneighbour(ffsend,1, Val(false), Val(true)) == (ffs1, 0.0)
+    @test hopnextneighbour(ffs1,2, Val(:twisted)) == (ffsend, -1.0)
+    @test hopnextneighbour(ffsend,1, Val(:twisted)) == (ffs1, -1.0)
+    @test hopnextneighbour(ffs1,2, Val(:hard_wall)) == (ffsend, 0.0)
+    @test hopnextneighbour(ffsend,1, Val(:hard_wall)) == (ffs1, 0.0)
     @test hopnextneighbour(ffs1,2) == (ffsend, 1.0)
     @test hopnextneighbour(ffsend,1) == (ffs1, 1.0)
 
