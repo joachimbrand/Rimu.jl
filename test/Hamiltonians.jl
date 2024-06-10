@@ -1660,7 +1660,6 @@ end
         null_addr = BoseFS(prod(S), 1=>0)
         @test isempty(fock_to_cart(null_addr, S))
     end
-
 end
 
 @testset "dimension and multi-component addresses" begin
@@ -1687,11 +1686,8 @@ end
             @test get_offdiagonal(H, addr, 2)[2] == 0.0
         end
         @test get_offdiagonal(H, addr, 2)[1] == addr2
-        
-
-        end
     end
-
+end
 
 @testset "supported transformations" begin
     for H in (
