@@ -362,8 +362,8 @@ julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(false),Val(true))
 ```
 """
 function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{PITWISTED}, ::Val{HARDWALL}) where {PITWISTED, HARDWALL}
-    new_b,val=hopnextneighbour(b, i)
-    if (find_occupied_mode(b,1).mode==1 && i==2) || 
+    new_b,val = hopnextneighbour(b, i)
+    if (find_occupied_mode(b,1).mode == 1 && i == 2) || 
         (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b) && i == (2*num_occupied_modes(b)-1))
         if PITWISTED
             return new_b,-val
