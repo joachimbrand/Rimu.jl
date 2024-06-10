@@ -335,7 +335,7 @@ function hopnextneighbour(b::SingleComponentFockAddress, i)
     return new_b, val
 end
 """
-    new_address, product = hopnextneighbour(add, chosen, Val(pitwisted), Val(hard-wall))
+    new_address, product = hopnextneighbour(add, chosen, Val(boundary_condition))
 
 Compute the new address of a hopping event for the Hubbard model. Returns the new
 address and the square root of product of occupation numbers of the involved modes
@@ -347,7 +347,11 @@ The off-diagonals are indexed as follows:
 * Even `chosen` indicates a hop to the left.
 * Odd `chosen` indicates a hop to the right.
 * Boundary conditions are periodic, pi-twisted and hard-wall.
-* Show pi-twisted when pitwested=true and hard-wall=false and vice-versa for hard-wall else periodic
+
+# Boundary conditions
+
+* For π-twisted -> :twisted
+* For hard wall -> :hard_wall
 
 # Example
 
@@ -361,13 +365,15 @@ julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(false),Val(true))
 (BoseFS{2,3}(2, 0, 0), 0.0)
 ```
 """
-function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{PITWISTED}, ::Val{HARDWALL}) where {PITWISTED, HARDWALL}
-    new_b,val = hopnextneighbour(b, i)
-    if (find_occupied_mode(b,1).mode == 1 && i == 2) || 
-        (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b) && i == (2*num_occupied_modes(b)-1))
-        if PITWISTED
+function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{boundary_condition}) where {boundary_condition}
+    new_b,val=hopnextneighbour(b, i)
+
+    if (find_occupied_mode(b,1).mode==1 && i==2) || 
+        (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b) 
+        && i == (2*num_occupied_modes(b)-1))
+        if boundary_condition == :twisted
             return new_b,-val
-        elseif HARDWALL
+        elseif boundary_condition == :hard_wall
             return new_b, 0.0
         else
             return new_b, val
