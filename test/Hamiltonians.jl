@@ -1669,7 +1669,7 @@ end
     [@test dimension(addr) == dimension(typeof(addr)) for addr in addresses]
 end
 
-@testset "ExtendedHubbardReal1D_new_Boundary_conditions" begin
+@testset "ExtendedHubbardReal1D boundary conditions" begin
     for H in (
         ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:twisted),
         ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:hard_wall),
