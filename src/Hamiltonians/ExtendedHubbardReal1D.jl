@@ -13,12 +13,7 @@ Implements the extended Hubbard model on a one-dimensional chain in real space.
 * `u`: on-site interaction parameter
 * `v`: the next-neighbor interaction
 * `t`: the hopping strength
-* `boundary_condition` : applied boundray condition 
-
-# Boundary conditions
-
-* For π-twisted -> :twisted
-* For hard wall -> :hard_wall
+* `boundary_condition` : the boundary condition to apply. Can be one of `:periodic`, `:twisted`, or `:hard_wall`
 
 """
 struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,BOUNDARY_CONDITION} <: AbstractHamiltonian{TT}
