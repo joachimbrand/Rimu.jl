@@ -359,7 +359,7 @@ The off-diagonals are indexed as follows:
 julia> using Rimu.Hamiltonians: hopnextneighbour
 
 julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(:twisted))
-(BoseFS{2,4}(2, 0, 0), -1.4142135623730951)
+(BoseFS{2,3}(2, 0, 0), -1.4142135623730951)
 
 julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(:hard_wall))
 (BoseFS{2,3}(2, 0, 0), 0.0)
