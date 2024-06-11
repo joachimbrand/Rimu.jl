@@ -346,7 +346,7 @@ The off-diagonals are indexed as follows:
 * `(chosen + 1) ÷ 2` selects the hopping site.
 * Even `chosen` indicates a hop to the left.
 * Odd `chosen` indicates a hop to the right.
-* Boundary conditions are periodic, pi-twisted and hard-wall.
+* Boundary conditions can be periodic, pi-twisted and hard-wall.
 
 # Boundary conditions
 
