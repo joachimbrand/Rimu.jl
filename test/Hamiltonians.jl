@@ -1687,4 +1687,9 @@ end
         end
         @test get_offdiagonal(H, addr, 2)[1] == addr2
     end
+    H1 = ExtendedHubbardReal1D(BoseFS(1,1,1,1))
+    H2 = ExtendedHubbardReal1D(BoseFS(1,1,1,1); boundary_condition=:hard_wall)
+    H3 = ExtendedHubbardReal1D(BoseFS(1,1,1,1); boundary_condition=:twisted)
+    @test sparse(H1) == sparse(H2)
+    @test sparce(H1) == sparse(H3)
 end
