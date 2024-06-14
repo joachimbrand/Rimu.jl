@@ -366,8 +366,9 @@ julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(:hard_wall))
 ```
 """
 function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{boundary_condition}) where {boundary_condition}
-    new_b,val=hopnextneighbour(b, i)
-
+    src = find_occupied_mode(b, (i + 1) >>> 0x1)
+    dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
+    new_b, val = excitation(b, (dst,), (src,))
     if (find_occupied_mode(b,1).mode==1 && i==2) || 
         (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b) 
         && i == (2*num_occupied_modes(b)-1))
