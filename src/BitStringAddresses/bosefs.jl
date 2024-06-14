@@ -335,7 +335,7 @@ function hopnextneighbour(b::SingleComponentFockAddress, i)
     return new_b, val
 end
 """
-    new_address, product = hopnextneighbour(add, chosen, boundary_condition)
+    new_address, product = hopnextneighbour(add, chosen, Val(boundary_condition))
 
 Compute the new address of a hopping event for the Hubbard model. Returns the new
 address and the square root of product of occupation numbers of the involved modes
@@ -358,14 +358,14 @@ The off-diagonals are indexed as follows:
 ```jldoctest
 julia> using Rimu.Hamiltonians: hopnextneighbour
 
-julia> hopnextneighbour(BoseFS(1, 0, 1), 3, :twisted)
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(:twisted))
 (BoseFS{2,3}(2, 0, 0), -1.4142135623730951)
 
-julia> hopnextneighbour(BoseFS(1, 0, 1), 3, :hard_wall)
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(:hard_wall))
 (BoseFS{2,3}(2, 0, 0), 0.0)
 ```
 """
-function hopnextneighbour(b::SingleComponentFockAddress, i, boundary_condition)
+function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{boundary_condition}) where {boundary_condition}
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
     new_b, val = excitation(b, (dst,), (src,))
