@@ -83,7 +83,7 @@ function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddres
 end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen, h.boundary_condition)
+    naddress, onproduct = hopnextneighbour(add, chosen, Val(h.boundary_condition))
 
     return naddress, - h.t * onproduct
 end
