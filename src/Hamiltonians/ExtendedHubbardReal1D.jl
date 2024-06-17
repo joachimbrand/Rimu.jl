@@ -27,7 +27,11 @@ function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, boundary_condition = :
 end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
-    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
+    if h.boundary_condition !=:periodic || h.boundary_condition !=:twisted || h.boundary_condition !=:hard_wall
+        throw(ArgumentError("invalid boundary condition"))
+    else
+        print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
+    end
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
