@@ -22,16 +22,16 @@ end
 
 # addr for compatibility.
 function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, boundary_condition = :periodic)
-    U, V, T = promote(float(u), float(v), float(t))
-    return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,boundary_condition}(addr)
-end
-
-function Base.show(io::IO, h::ExtendedHubbardReal1D)
     if h.boundary_condition == :periodic || h.boundary_condition == :twisted || h.boundary_condition == :hard_wall
-        print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
+        U, V, T = promote(float(u), float(v), float(t))
+        return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,boundary_condition}(addr)
     else
         throw(ArgumentError("invalid boundary condition"))
     end
+end
+
+function Base.show(io::IO, h::ExtendedHubbardReal1D)
+    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
