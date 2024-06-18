@@ -22,7 +22,7 @@ end
 
 # addr for compatibility.
 function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, boundary_condition = :periodic)
-    if h.boundary_condition == :periodic || h.boundary_condition == :twisted || h.boundary_condition == :hard_wall
+    if boundary_condition == :periodic || boundary_condition == :twisted || boundary_condition == :hard_wall
         U, V, T = promote(float(u), float(v), float(t))
         return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,boundary_condition}(addr)
     else
