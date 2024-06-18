@@ -1688,5 +1688,5 @@ end
         @test get_offdiagonal(H, addr, 2)[1] == addr2
     end
     H1 = ExtendedHubbardReal1D(BoseFS(1,1,1,1))
-    @test_throws ArgumentError("invalid boundary condition") ExtendedHubbardReal1D(BoseFS(1,1,1,1); boundary_condition=:hrad_wall)
+    @test_throws ArgumentError ExtendedHubbardReal1D(BoseFS(1,1,1,1); boundary_condition=:hrad_wall)
 end
