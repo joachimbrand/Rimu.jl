@@ -1,7 +1,7 @@
 """
     ExtendedHubbardReal1D(address; u=1.0, v=1.0, t=1.0, boundary_condition=:periodic)
 
-Implements the extended Hubbard model on a one-dimensional chain in real space. This model can define both purely real as well as complex Hamiltonian.
+Implements the extended Hubbard model on a one-dimensional chain in real space. This model can be defined with both purely real and complex Hamiltonians.
 
 ```math
 \\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1) + v \\sum_{\\langle i,j\\rangle} n_i n_j
@@ -16,7 +16,7 @@ Implements the extended Hubbard model on a one-dimensional chain in real space. 
 * `boundary_condition` : applied boundray condition 
 
 # Boundary conditions
-### For purely real Hamiltonian
+### For real Hamiltonian
 * For π-twisted -> :twisted
 * For hard wall -> :hard_wall
 ### For complex Hamiltonian
