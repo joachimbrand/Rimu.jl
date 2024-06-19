@@ -259,7 +259,11 @@ end
 
 Compute the new address of a hopping event for the Hubbard model. Returns the new
 address and the square root of product of occupation numbers of the involved modes
-multiplied by a term consistent with boundary condition.
+multiplied by a term consistent with boundary condition. The following boundary conditions are supported:
+
+* `:periodic`: hopping over the boundary gives does not change the `product`.
+* `:twisted`: hopping over the boundary flips the sign of the `product`.
+* `:hard_wall`: hopping over the boundary gives a `product` of 0.
 
 The off-diagonals are indexed as follows:
 
