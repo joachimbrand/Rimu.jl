@@ -264,23 +264,14 @@ multiplied by a term consistent with boundary condition. The following boundary 
 * `:periodic`: hopping over the boundary gives does not change the `product`.
 * `:twisted`: hopping over the boundary flips the sign of the `product`.
 * `:hard_wall`: hopping over the boundary gives a `product` of 0.
+* `Number "θ"`: hopping over the boundary gives `product` with multiple of exp(\\iota θ) or 
+exp(-\\iota θ) depending on the direction of hopping.
 
 The off-diagonals are indexed as follows:
 
 * `(chosen + 1) ÷ 2` selects the hopping site.
 * Even `chosen` indicates a hop to the left.
 * Odd `chosen` indicates a hop to the right.
-* Boundary conditions can be periodic, pi-twisted, hard-wall and θ-twisted.
-
-# Boundary conditions
-
-* For π-twisted -> :twisted
-* For hard wall -> :hard_wall
-* For θ-twisted -> Number "θ"
-where,
-```math
-a_{M+1} = exp(-\\iota θ) a_1
-```
 
 # Example
 
@@ -361,34 +352,31 @@ function hopnextneighbour(b::SingleComponentFockAddress, i)
     return new_b, val
 end
 
-function hopnextneighbour(b::SingleComponentFockAddress, i, boundary_condition::Symbol)
-    new_b,val=hopnextneighbour(b, i)
-
-    if (find_occupied_mode(b,1).mode==1 && i==2) || 
-        (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b) 
-        && i == (2*num_occupied_modes(b)-1))
-        if boundary_condition == :twisted
-            return new_b,-val
-        elseif boundary_condition == :hard_wall
-            return new_b, 0.0
-        else
-            return new_b, val
-        end
+function hopnextneighbour(
+    b::SingleComponentFockAddress, i, boundary_condition::Symbol)
+    src = find_occupied_mode(b, (i + 1) >>> 0x1)
+    dir = ifelse(isodd(i), 1, -1)
+    dst = find_mode(b, mod1(src.mode + dir, num_modes(b)))
+    new_b, val = excitation(b, (dst,), (src,))
+    on_boundary = src.mode == 1 && dir == -1 || src.mode == num_modes(b) && dir == 1
+    if boundary_condition == :twisted && on_boundary
+        return new_b, -val
+    elseif boundary_condition == :hard_wall && on_boundary
+        return new_b, 0.0
     else
         return new_b, val
     end
 end
 
 function hopnextneighbour(b::SingleComponentFockAddress, i, boundary_condition::Number)
-    new_b,val=hopnextneighbour(b, i)
-
-    if (find_occupied_mode(b,1).mode==1 && i==2)
+    src = find_occupied_mode(b, (i + 1) >>> 0x1)
+    dir = ifelse(isodd(i), 1, -1)
+    dst = find_mode(b, mod1(src.mode + dir, num_modes(b)))
+    new_b, val = excitation(b, (dst,), (src,))
+    if (src.mode == 1 && dir == -1)
         return new_b, val*exp(-im*boundary_condition)
-
-    elseif (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b)
-        && i == (2*num_occupied_modes(b)-1))
+    elseif (src.mode == num_modes(b) && dir == 1)
         return new_b, val*exp(im*boundary_condition)
-
     else
         return new_b, complex(val)
     end
