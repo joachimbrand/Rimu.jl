@@ -1,7 +1,7 @@
 """
     ExtendedHubbardReal1D(address; u=1.0, v=1.0, t=1.0, boundary_condition=:periodic)
 
-Implements the extended Hubbard model on a one-dimensional chain in real space.
+Implements the extended Hubbard model on a one-dimensional chain in real space. This model can define both purely real as well as complex Hamiltonian.
 
 ```math
 \\hat{H} = -t \\sum_{\\langle i,j\\rangle} a_i^† a_j + \\frac{u}{2}\\sum_i n_i (n_i-1) + v \\sum_{\\langle i,j\\rangle} n_i n_j
@@ -13,7 +13,20 @@ Implements the extended Hubbard model on a one-dimensional chain in real space.
 * `u`: on-site interaction parameter
 * `v`: the next-neighbor interaction
 * `t`: the hopping strength
-* `boundary_condition` : the boundary condition to apply. Can be one of `:periodic`, `:twisted`, or `:hard_wall`
+* `boundary_condition` : applied boundray condition 
+
+# Boundary conditions
+## For purely real Hamiltonian
+* For π-twisted -> :twisted
+* For hard wall -> :hard_wall
+## For complex Hamiltonian
+* For θ-twisted -> Number "θ"
+
+where,
+
+```math
+a_{M+1} = exp(-\\iota θ) a_1
+```
 
 """
 struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,BOUNDARY_CONDITION} <: AbstractHamiltonian{TT}
@@ -25,13 +38,20 @@ function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, boundary_condition = :
     if boundary_condition == :periodic || boundary_condition == :twisted || boundary_condition == :hard_wall
         U, V, T = promote(float(u), float(v), float(t))
         return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,boundary_condition}(addr)
+    elseif boundary_condition isa Number
+        U, V, T = promote(complex(u), complex(v), complex(t))
+        return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,boundary_condition}(addr)
     else
         throw(ArgumentError("invalid boundary condition"))
     end
 end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
-    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
+    if h.boundary_condition isa Number
+        print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=$(h.boundary_condition))")
+    else
+        print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
+    end
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
@@ -59,7 +79,7 @@ end
 Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
 sum_j n_j n_{j+1} with respective boundary conditions.
 """
-function extended_hubbard_interaction(h::ExtendedHubbardReal1D, b::SingleComponentFockAddress)
+function extended_hubbard_interaction(h::ExtendedHubbardReal1D,b::SingleComponentFockAddress)
     omm = OccupiedModeMap(b)
 
     prev = zero(eltype(omm))
@@ -87,7 +107,6 @@ function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddres
 end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen, Val(h.boundary_condition))
-
+    naddress, onproduct = hopnextneighbour(add, chosen, h.boundary_condition)
     return naddress, - h.t * onproduct
 end
