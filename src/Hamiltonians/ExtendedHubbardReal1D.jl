@@ -16,10 +16,10 @@ Implements the extended Hubbard model on a one-dimensional chain in real space. 
 * `boundary_condition` : applied boundray condition 
 
 # Boundary conditions
-## For purely real Hamiltonian
+### For purely real Hamiltonian
 * For π-twisted -> :twisted
 * For hard wall -> :hard_wall
-## For complex Hamiltonian
+### For complex Hamiltonian
 * For θ-twisted -> Number "θ"
 
 where,
