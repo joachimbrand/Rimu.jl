@@ -255,7 +255,7 @@ function excitation(b::B, creations, destructions) where {B<:BoseFS}
 end
 
 """
-    new_address, product = hopnextneighbour(add, chosen, [Val(boundary_condition)])
+    new_address, product = hopnextneighbour(add, chosen, boundary_condition)
 
 Compute the new address of a hopping event for the Hubbard model. Returns the new
 address and the square root of product of occupation numbers of the involved modes
@@ -266,12 +266,17 @@ The off-diagonals are indexed as follows:
 * `(chosen + 1) ÷ 2` selects the hopping site.
 * Even `chosen` indicates a hop to the left.
 * Odd `chosen` indicates a hop to the right.
-* Boundary conditions can be periodic, pi-twisted and hard-wall.
+* Boundary conditions can be periodic, pi-twisted, hard-wall and θ-twisted.
 
 # Boundary conditions
 
 * For π-twisted -> :twisted
 * For hard wall -> :hard_wall
+* For θ-twisted -> Number "θ"
+where,
+```math
+a_{M+1} = exp(-\\iota θ) a_1
+```
 
 # Example
 
@@ -284,11 +289,14 @@ julia> hopnextneighbour(BoseFS(1, 0, 1), 3)
 julia> hopnextneighbour(BoseFS(1, 0, 1), 4)
 (BoseFS{2,3}(1, 1, 0), 1.0)
 
-julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(:twisted))
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3, :twisted)
 (BoseFS{2,3}(2, 0, 0), -1.4142135623730951)
 
-julia> hopnextneighbour(BoseFS(1, 0, 1), 3, Val(:hard_wall))
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3, :hard_wall)
 (BoseFS{2,3}(2, 0, 0), 0.0)
+
+julia> hopnextneighbour(BoseFS(1, 0, 1), 3, π/4)
+(BoseFS{2,3}(2, 0, 0), 1.0000000000000002 + 1.0im)
 ```
 """
 function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
@@ -340,17 +348,18 @@ function hopnextneighbour(b::BoseFS{N,M,A}, chosen) where {N,M,A<:BitString}
     end
     return BoseFS{N,M,A}(new_address), √prod
 end
+
 function hopnextneighbour(b::SingleComponentFockAddress, i)
     src = find_occupied_mode(b, (i + 1) >>> 0x1)
     dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
+
     new_b, val = excitation(b, (dst,), (src,))
     return new_b, val
 end
 
-function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{boundary_condition}) where {boundary_condition}
-    src = find_occupied_mode(b, (i + 1) >>> 0x1)
-    dst = find_mode(b, mod1(src.mode + ifelse(isodd(i), 1, -1), num_modes(b)))
-    new_b, val = excitation(b, (dst,), (src,))
+function hopnextneighbour(b::SingleComponentFockAddress, i, boundary_condition::Symbol)
+    new_b,val=hopnextneighbour(b, i)
+
     if (find_occupied_mode(b,1).mode==1 && i==2) || 
         (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b) 
         && i == (2*num_occupied_modes(b)-1))
@@ -365,6 +374,25 @@ function hopnextneighbour(b::SingleComponentFockAddress, i, ::Val{boundary_condi
         return new_b, val
     end
 end
+
+function hopnextneighbour(b::SingleComponentFockAddress, i, boundary_condition::Number)
+    new_b,val=hopnextneighbour(b, i)
+
+    if (find_occupied_mode(b,1).mode==1 && i==2)
+        return new_b, val*exp(-im*boundary_condition)
+
+    elseif (find_occupied_mode(b,num_occupied_modes(b)).mode == num_modes(b)
+        && i == (2*num_occupied_modes(b)-1))
+        return new_b, val*exp(im*boundary_condition)
+
+    else
+        return new_b, complex(val)
+    end
+end
+
+
+
+
 
 """
     bose_hubbard_interaction(address)
