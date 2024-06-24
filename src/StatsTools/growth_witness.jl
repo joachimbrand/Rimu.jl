@@ -1,7 +1,7 @@
 """
-    growth_witness(shift::AbstractArray, norm::AbstractArray, dt, [b]; skip=0) -> g
-    growth_witness(df::DataFrame, [b]; skip=0) -> g
-    growth_witness(sim::SimulationState, [b]; skip=0) -> g
+    growth_witness(shift::AbstractArray, norm::AbstractArray, dt, [b]; skip=0)
+    growth_witness(df::DataFrame, [b]; skip=0)
+    growth_witness(sim::PMCSimulation, [b]; skip=0)
 
 Compute the growth witness
 ```math
@@ -35,6 +35,7 @@ function growth_witness(shift::AbstractArray, norm::AbstractArray, dt, b; kwargs
 end
 """
     growth_witness(df::DataFrame, [b]; shift=:shift, norm=:norm, dτ=df.dτ[end], skip=0)
+
 Calculate the growth witness directly from a `DataFrame` returned by
 [`lomc!`](@ref Main.lomc!). The keyword arguments `shift` and `norm`
 can be used to change the names of the relevant columns.

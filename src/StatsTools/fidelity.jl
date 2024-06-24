@@ -1,5 +1,7 @@
 """
     replica_fidelity(df::DataFrame; p_field = :hproj, skip = 0)
+    replica_fidelity(sim::PMCSimulation; kwargs...)
+
 Compute the fidelity of the average coefficient vector and the projector defined in
 `p_field` from the result of replica [`lomc!`](@ref Main.lomc!) passed as  argument `df`,
 using replicas `_1` and `_2`.

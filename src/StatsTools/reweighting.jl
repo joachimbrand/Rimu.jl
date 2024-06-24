@@ -28,6 +28,7 @@ VectorOrView = Union{Vector,SubArray{<:Any,1,<:Vector,<:Any,true}}
 
 """
     w_exp(shift, h, dτ; E_r = mean(shift), skip = 0)
+
 Compute the weights for reweighting over `h` time steps with reference energy `E_r` from
 the exponential formula
 ```math
@@ -35,8 +36,8 @@ w_h^{(n)} = \\prod_{j=1}^h \\exp[-dτ(S^{(q+n-j)}-E_r)] ,
 ```
 where `q = skip`.
 
-See also [`w_lin()`](@ref), [`growth_estimator()`](@ref),
-[`mixed_estimator()`](@ref).
+See also [`w_lin`](@ref), [`growth_estimator`](@ref),
+[`mixed_estimator`](@ref).
 """
 @inline function w_exp(shift::VectorOrView, h, dτ; E_r=mean(shift), skip=0)
     T = promote_type(eltype(shift), typeof(E_r))
@@ -57,6 +58,7 @@ w_exp(shift, h, dτ; kwargs...) = w_exp(Vector(shift), h, dτ; kwargs...)
 
 """
     w_lin(shift, h, dτ; E_r = mean(shift), skip = 0)
+
 Compute the weights for reweighting over `h` time steps with reference energy `E_r` from
 the linearised formula
 ```math
@@ -64,8 +66,8 @@ w_h^{(n)} = \\prod_{j=1}^h [1-dτ(S^{(q+n-j)}-E_r)] ,
 ```
 where `q = skip`.
 
-See also [`w_exp()`](@ref), [`growth_estimator()`](@ref),
-[`mixed_estimator()`](@ref).
+See also [`w_exp`](@ref), [`growth_estimator`](@ref),
+[`mixed_estimator`](@ref).
 """
 @inline function w_lin(shift::VectorOrView, h, dτ; E_r=mean(shift), skip=0)
     T = promote_type(eltype(shift), typeof(E_r))
@@ -92,44 +94,47 @@ w_lin(shift, h, dτ; kwargs...) = w_lin(Vector(shift), h, dτ; kwargs...)
         weights = w_exp,
         change_type = identity,
         kwargs...
-    ) -> r::RatioBlockingResult
+    )
     growth_estimator(
         df::DataFrame, h;
         shift_name=:shift,
         norm_name=:norm,
         dτ=determine_constant_time_step(df),
         kwargs...
-    ) -> r::RatioBlockingResult
+    )
+    growth_estimator(sim::PMCSimulation; kwargs...)
+    -> r::RatioBlockingResult
+
 Compute the growth estimator with reference energy `E_r` by the reweighting
 technique described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195),
 see Eq. (20).
-`shift` and `wn` are equal length
-vectors containing the shift and walker number time series, respectively.
-Reweighting is done over `h`
-time steps and `length(shift) - skip` time steps are used for the blocking analysis done
-with [`ratio_of_means()`](@ref). `dτ` is the time step and `weights` a function that
-calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).
+`shift` and `wn` are equal length vectors containing the shift and walker number time
+series, respectively.  Reweighting is done over `h` time steps and `length(shift) - skip`
+time steps are used for the blocking analysis done with [`ratio_of_means()`](@ref). `dτ` is
+the time step and `weights` a function that calulates the weights. See [`w_exp()`](@ref) and
+[`w_lin()`](@ref).
 ```math
 E_{gr} = E_r - \\frac{1}{dτ}\\ln
     \\frac{\\sum_n w_{h+1}^{(n+1)} N_\\mathrm{w}^{(n+1)}}
         {\\sum_m w_{h}^{(m)} N_\\mathrm{w}^{(m)}}
 ```
-When `h` is greater than the autocorrelation time scale of the `shift`,
-then `E_gr` (returned as `r.ratio`) is an unbiased but approximate estimator for the ground
-state energy ``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased
-confidence intervals compared to the (biased) shift estimator.
-Error propagation is done with [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl). Progagation through the
-logarithm can be modified by setting `change_type` to [`to_measurement`](@ref) in order
-to avoid `NaN` results from negative outliers.
 
-If `success==true` the
-blocking analysis was successful in `k-1` steps, using `blocks` uncorrelated data points.
+When `h` is greater than the autocorrelation time scale of the `shift`, then `E_gr`
+(returned as `r.ratio`) is an unbiased but approximate estimator for the ground state energy
+``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased confidence intervals
+compared to the (biased) shift estimator.  Error propagation is done with
+[`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
+Propagation through the logarithm can be modified by setting `change_type` to
+[`to_measurement`](@ref) in order to avoid `NaN` results from negative outliers.
+
+If `success==true` the blocking analysis was successful in `k-1` steps, using `blocks`
+uncorrelated data points.
 
 The second method calculates the growth estimator directly from a `DataFrame` returned by
-[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name` and `norm_name` can be used to change the names
-of the relevant columns.
+[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name` and `norm_name` can be used
+to change the names of the relevant columns.
 
-See also [`mixed_estimator()`](@ref) and [`RatioBlockingResult`](@ref).
+See also [`mixed_estimator`](@ref) and [`RatioBlockingResult`](@ref).
 """
 function growth_estimator(
     shift, wn, h, dτ;
@@ -186,24 +191,30 @@ end
 
 """
     growth_estimator_analysis(df::DataFrame; kwargs...)
-    -> (;df_ge, correlation_estimate, se, se_l, se_u)
-Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref  Main.lomc!)
-repeatedly over a range of reweighting depths.
+    growth_estimator_analysis(sim::PMCSimulation; kwargs...)
+    -> (; df_ge, correlation_estimate, se, se_l, se_u)
 
+Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` or
+[`PMCSimulation`](@ref Main.PMCSimulation) `sim`. repeatedly over a range of reweighting
+depths.
 
 Returns a `NamedTuple` with the fields
-* `df_ge`: `DataFrame` with reweighting depth and `growth_estiamator` data. See example below.
+* `df_ge`: `DataFrame` with reweighting depth and `growth_estiamator` data. See example
+  below.
 * `correlation_estimate`: estimated correlation time from blocking analysis
 * `se, se_l, se_u`: [`shift_estimator`](@ref) and error
 
 ## Keyword arguments
-* `h_range`: The default is about `h_values` values from 0 to twice the estimated correlation time
+
+* `h_range`: The default is about `h_values` values from 0 to twice the estimated
+  correlation time
 * `h_values = 100`: minimum number of reweighting depths
 * `skip = 0`: initial time steps to exclude from averaging
 * `threading = Threads.nthreads() > 1`: if `false` a progress meter is displayed
 * `shift_name = :shift` name of column in `df` with shift data
 * `norm_name = :norm` name of column in `df` with walkernumber data
-* `warn = true` whether to log warning messages when blocking fails or denominators are small
+* `warn = true` whether to log warning messages when blocking fails or denominators are
+  small
 
 ## Example
 ```julia
@@ -281,7 +292,7 @@ end
         E_r = mean(shift[skip+1:end]),
         weights = w_exp,
         kwargs...
-    ) -> r::RatioBlockingResult
+    )
     mixed_estimator(
         df::DataFrame, h;
         hproj_name=:hproj,
@@ -290,6 +301,9 @@ end
         dτ=df.dτ[end],
         kwargs...
     )
+    mixed_estimator(sim::PMCSimulation, h; kwargs...)
+    -> r::RatioBlockingResult
+
 Compute the mixed estimator by the reweighting
 technique described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195),
 Eq. (19)
@@ -297,27 +311,27 @@ Eq. (19)
 E_\\mathrm{mix} = \\frac{\\sum_n w_{h}^{(n)}  (Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}}
         {\\sum_m w_{h}^{(m)}  \\mathbf{v}⋅\\mathbf{c}^{(m)}} ,
 ```
-where the time series `hproj ==` ``(Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}`` and
-`vproj ==` ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` have the same length as `shift`
-(See [`ProjectedEnergy`](@ref Main.ProjectedEnergy) on how to set these up).
-Reweighting is done over `h`
-time steps and `length(shift) - skip` time steps are used for the blocking analysis done
-with [`ratio_of_means()`](@ref). `dτ` is the time step and `weights` a function that
-calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).
-Additional keyword arguments are passed on to [`ratio_of_means()`](@ref).
 
-When `h` is greater than the autocorrelation time scale of the `shift`,
-then `r.ratio` is an unbiased but approximate estimator for the ground state energy
-``E_0`` with an error ``\\mathcal{O}(dτ^2)`` and potentially increased confidence intervals
-compared to the unweighted ratio.
-Error propagation is done with [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
+where the time series `hproj ==` ``(Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}`` and `vproj ==`
+``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` have the same length as `shift` (See
+[`ProjectedEnergy`](@ref Main.ProjectedEnergy) on how to set these up).  Reweighting is done
+over `h` time steps and `length(shift) - skip` time steps are used for the blocking analysis
+done with [`ratio_of_means()`](@ref). `dτ` is the time step and `weights` a function that
+calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).  Additional keyword
+arguments are passed on to [`ratio_of_means()`](@ref).
+
+When `h` is greater than the autocorrelation time scale of the `shift`, then `r.ratio` is an
+unbiased but approximate estimator for the ground state energy ``E_0`` with an error
+``\\mathcal{O}(dτ^2)`` and potentially increased confidence intervals compared to the
+unweighted ratio.  Error propagation is done with
+[`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 Results are returned as [`RatioBlockingResult`](@ref).
 
-The second method calculates the mixed energy estimator directly from a `DataFrame`
-returned by [`lomc!`](@ref Main.lomc!). The keyword arguments `hproj_name`, `vproj_name`, and
+The second method calculates the mixed energy estimator directly from a `DataFrame` returned
+by [`lomc!`](@ref Main.lomc!). The keyword arguments `hproj_name`, `vproj_name`, and
 `shift_name` can be used to change the names of the relevant columns.
 
-See also [`growth_estimator()`](@ref).
+See also [`growth_estimator`](@ref).
 """
 function mixed_estimator(
     hproj::AbstractVector, vproj::AbstractVector, shift::AbstractVector, h, dτ;
@@ -345,7 +359,9 @@ end
 
 """
     mixed_estimator_analysis(df::DataFrame; kwargs...)
+    mixed_estimator_analysis(sim::PMCSimulation; kwargs...)
     -> (; df_me, correlation_estimate, se, se_l, se_u)
+
 Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref Main.lomc!)
 repeatedly over a range of reweighting depths.
 
@@ -441,7 +457,7 @@ end
         E_r = mean(shift[skip+1:end]),
         weights = w_exp,
         kwargs...
-    ) -> r::RatioBlockingResult
+    )
     rayleigh_replica_estimator(
         df::DataFrame;
         shift_name="shift",
@@ -451,7 +467,10 @@ end
         skip=0,
         Anorm=1,
         kwargs...
-    ) -> r::RatioBlockingResult
+    )
+    rayleigh_replica_estimator(sim::PMCSimulation; kwargs...)
+    -> r::RatioBlockingResult
+
 Compute the estimator of a Rayleigh quotient of operator ``\\hat{A}`` with reweighting,
 ```math
 A_\\mathrm{est}(h) = \\frac{\\sum_{a<b} \\sum_n w_{h,a}^{(n)} w_{h,b}^{(n)}
@@ -551,7 +570,9 @@ end
 
 """
     rayleigh_replica_estimator_analysis(df::DataFrame; kwargs...)
+    rayleigh_replica_estimator_analysis(sim::PMCSimulation; kwargs...)
     -> (; df_rre, df_se)
+
 Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref Main.lomc!)
 repeatedly over a range of reweighting depths.
 
@@ -662,10 +683,10 @@ function rayleigh_replica_estimator_df_progress(op_ol::Vector, vec_ol::Vector, s
 end
 
 """
-    projected_energy(
-        df::DataFrame;
-        skip=0, hproj=:hproj, vproj=:vproj, kwargs...
-    ) -> r::RatioBlockingResult
+    projected_energy(df::DataFrame; skip=0, hproj=:hproj, vproj=:vproj, kwargs...)
+    projected_energy(sim::PMCSimulation; kwargs...)
+    -> r::RatioBlockingResult
+
 Compute the projected energy estimator
 ```math
 E_\\mathrm{p} = \\frac{\\sum_n  \\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}}
@@ -693,10 +714,13 @@ function projected_energy(sim; skip=0, hproj=:hproj, vproj=:vproj, kwargs...)
 end
 
 """
-    shift_estimator(df::DataFrame; shift=:shift, kwargs...) -> r::BlockingResult
-Return the shift estimator from the data in `df.shift`. The keyword argument `shift`
-can be used to change the name of the relevant column. Other keyword arguments are passed
-on to [`blocking_analysis`](@ref). Returns a [`BlockingResult`](@ref).
+    shift_estimator(df::DataFrame; shift=:shift, kwargs...)
+    shift_estimator(sim::PMCSimulation; kwargs...)
+    -> r::BlockingResult
+
+Return the shift estimator from the data in `df.shift`. The keyword argument `shift` can be
+used to change the name of the relevant column. Other keyword arguments are passed on to
+[`blocking_analysis`](@ref). Returns a [`BlockingResult`](@ref).
 
 See also [`growth_estimator`](@ref), [`projected_energy`](@ref).
 """
