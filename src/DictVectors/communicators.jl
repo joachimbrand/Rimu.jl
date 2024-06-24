@@ -11,8 +11,9 @@ end
     abstract type Communicator
 
 Communicators are used to handle MPI communication when using [`PDVec`](@ref)s. Currently,
-two implementations are provided, [`NotDistributed`](@ref), and [`PointToPoint`](@ref). The
-communicator is picked automatically according to the number of MPI ranks available.
+three implementations are provided, [`NotDistributed`](@ref), [`AllToAll`](@ref) and
+[`PointToPoint`](@ref). The communicator is picked automatically according to the number of
+MPI ranks available.
 
 When implementing a communicator, use [`local_segments`](@ref) and
 [`remote_segments`](@ref).

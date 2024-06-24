@@ -35,7 +35,7 @@ See also: [`AbstractDVec`](@ref), [`DVec`](@ref), [`InitiatorDVec`](@ref).
 
 * `communicator`: A [`Communicator`](@ref) that controls how operations are performed when
   using MPI. The defaults are [`NotDistributed`](@ref) when not using MPI and
-  [`PointToPoint`](@ref) when using MPI.
+  [`AllToAll`](@ref) when using MPI.
 
 # Extended Help
 
@@ -189,7 +189,7 @@ function PDVec{K,V,N}(
     IW = initiator_valtype(irule, W)
     if isnothing(communicator)
         if MPI.Comm_size(MPI.COMM_WORLD) > 1
-            comm = PointToPoint{K,IW}()
+            comm = AllToAll{K,IW}()
         else
             comm = NotDistributed()
         end
