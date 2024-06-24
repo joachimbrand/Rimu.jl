@@ -1,9 +1,8 @@
-# growth_witness()
-# smoothen()
-
 """
     growth_witness(shift::AbstractArray, norm::AbstractArray, dt, [b]; skip=0) -> g
     growth_witness(df::DataFrame, [b]; skip=0) -> g
+    growth_witness(sim::SimulationState, [b]; skip=0) -> g
+
 Compute the growth witness
 ```math
 G^{(n)} = S^{(n)} - \\frac{\\vert\\mathbf{c}^{(n+1)}\\vert -
@@ -45,9 +44,8 @@ function growth_witness(
     shift=:shift, norm=:norm, dτ=nothing, kwargs...
 )
     df = DataFrame(sim)
-    if isnothing(dτ)
-        dτ = df.dτ[end]
-    end
+    dτ = determine_constant_time_step(df)
+
     shift_vec = getproperty(df, Symbol(shift))
     norm_vec = getproperty(df, Symbol(norm))
     return growth_witness(shift_vec, norm_vec, dτ, b; kwargs...)

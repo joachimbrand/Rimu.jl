@@ -1,5 +1,28 @@
 # reweighting functions
 
+"""
+    determine_constant_time_step(df) -> dτ
+
+Given a `DataFrame` `df`, determine the time step that was used to compute it. Throw an
+error if time step is not constant.
+"""
+function determine_constant_time_step(df)
+    # Using get for backwards compatibility with old data frames
+    if get(metadata(df), "time_step_strategy", "ConstantTimeStep()") == "ConstantTimeStep()"
+        if haskey(metadata(df), "time_step")
+            return parse(Float64, metadata(df)["time_step"])
+        elseif hasproperty(df, "dτ")
+            return df.dτ[end]
+        elseif hasproperty(df, "dτ_1")
+            return df.dτ_1[end]
+        else
+            throw(ArgumentError("Timestep not found in `df`"))
+        end
+    else
+        throw(ArgumentError("Timestep not constant"))
+    end
+end
+
 VectorOrView = Union{Vector,SubArray{<:Any,1,<:Vector,<:Any,true}}
 # safe type for `@simd ivdep` loops, supports fast linear indexing
 
@@ -74,7 +97,7 @@ w_lin(shift, h, dτ; kwargs...) = w_lin(Vector(shift), h, dτ; kwargs...)
         df::DataFrame, h;
         shift_name=:shift,
         norm_name=:norm,
-        dτ=df.dτ[end],
+        dτ=determine_constant_time_step(df),
         kwargs...
     ) -> r::RatioBlockingResult
 Compute the growth estimator with reference energy `E_r` by the reweighting
@@ -143,9 +166,7 @@ function growth_estimator(
     shift_name=:shift, norm_name=:norm, dτ=nothing, kwargs...
 )
     df = DataFrame(sim)
-    if isnothing(dτ)
-        dτ = df.dτ[end]
-    end
+    dτ = isnothing(dτ) ? determine_constant_time_step(df) : dτ
     shift_vec = Vector(getproperty(df, Symbol(shift_name)))
     norm_vec = Vector(getproperty(df, Symbol(norm_name)))
     # converting to Vector here because this works fastest with `growth_estimator`
@@ -211,11 +232,7 @@ function growth_estimator_analysis(
     shift_v = Vector(getproperty(df, Symbol(shift_name))) # casting to `Vector` to make SIMD loops efficient
     norm_v = Vector(getproperty(df, Symbol(norm_name)))
     num_reps = length(filter(startswith("dτ"), names(df)))
-    dτ = if num_reps == 1
-        df.dτ[end]
-    else
-        df.dτ_1[end]
-    end
+    dτ = determine_constant_time_step(df)
     se = blocking_analysis(shift_v; skip)
     E_r = se.mean
     correlation_estimate = 2^(se.k - 1)
@@ -319,9 +336,7 @@ function mixed_estimator(
     hproj_name=:hproj, vproj_name=:vproj, shift_name=:shift, dτ=nothing, kwargs...
 )
     df = DataFrame(sim)
-    if isnothing(dτ)
-        dτ = df.dτ[end]
-    end
+    dτ = isnothing(dτ) ? determine_constant_time_step(df) : dτ
     hproj_vec = Vector(getproperty(df, Symbol(hproj_name)))
     vproj_vec = Vector(getproperty(df, Symbol(vproj_name)))
     shift_vec = Vector(getproperty(df, Symbol(shift_name)))
@@ -377,11 +392,8 @@ function mixed_estimator_analysis(
     hproj_v = Vector(getproperty(df, Symbol(hproj_name)))
     vproj_v = Vector(getproperty(df, Symbol(vproj_name)))
     num_reps = length(filter(startswith("dτ"), names(df)))
-    dτ = if num_reps == 1
-        df.dτ[end]
-    else
-        df.dτ_1[end]
-    end
+
+    dτ = determine_constant_time_step(df)
     se = blocking_analysis(shift_v; skip)
     E_r = se.mean
     correlation_estimate = 2^(se.k - 1)

@@ -22,7 +22,7 @@ Tools for the statistical analysis of Monte Carlo data.
 """
 module StatsTools
 
-using DataFrames: DataFrames, DataFrame
+using DataFrames: DataFrames, DataFrame, metadata
 using Distributions: Distributions, Chisq, Distribution, MvNormal, Normal,
     cquantile, var
 using LinearAlgebra: LinearAlgebra, diag, norm
