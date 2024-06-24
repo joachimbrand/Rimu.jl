@@ -2,6 +2,7 @@ using Rimu
 using Test
 using Random
 using Suppressor
+using SparseArrays
 
 @testset "BasisSetRepresentation" begin
     @testset "basics" begin
