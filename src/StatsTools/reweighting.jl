@@ -195,7 +195,7 @@ end
     -> (; df_ge, correlation_estimate, se, se_l, se_u)
 
 Compute the [`growth_estimator`](@ref) on a `DataFrame` `df` or
-[`PMCSimulation`](@ref Main.PMCSimulation) `sim`. repeatedly over a range of reweighting
+[`PMCSimulation`](@ref Main.Rimu.PMCSimulation) `sim`. repeatedly over a range of reweighting
 depths.
 
 Returns a `NamedTuple` with the fields
