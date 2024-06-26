@@ -332,7 +332,7 @@ end
 
 2D grid of vectors stored in a simple buffer with collective MPI communication support.
 
-See [`append_collections!`](@ref), [`mpi_exchange!`](@ref).
+See [`append_collections!`](@ref), [`mpi_exchange_alltoall!`](@ref).
 """
 struct NestedSegmentedBuffer{T} <: AbstractMatrix{SubVector{T}}
     nrows::Int
@@ -407,11 +407,14 @@ function Base.empty!(buf::NestedSegmentedBuffer)
 end
 
 """
-    mpi_exchange!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
+    mpi_exchange_alltoall!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
 
-The `n`-th column from `src` will be sent to rank `n+1`. The data sent from rank `r` will be stored in the `(r-1)`-st column.
+The `n`-th column from `src` will be sent to rank `n+1`. The data sent from rank `r` will be
+stored in the `(r-1)`-st column.
 """
-function mpi_exchange!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
+function mpi_exchange_alltoall!(
+    src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm
+)
     @assert MPI.Is_thread_main()
     nrows = src.nrows
     if dst.nrows ≠ nrows
@@ -429,6 +432,34 @@ function mpi_exchange!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, c
     recv_vbuff = MPI.VBuffer(dst.buffer, dst.counts)
 
     MPI.Alltoallv!(send_vbuff, recv_vbuff, comm)
+    return dst
+end
+
+"""
+    mpi_exchange_allgather!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
+
+The first and only column in `src` will be sent to all ranks. The data from all ranks will
+be gethered in `dst`. After this operation, `dst` will contain the same data on all ranks.
+"""
+function mpi_exchange_allgather!(
+    src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm
+)
+    # only sending from first column
+    @assert size(src, 2) == 1
+    nrows = src.nrows
+
+    resize!(dst.counts, MPI.Comm_size(comm))
+    MPI.Allgather!(MPI.Buffer(src.counts), MPI.UBuffer(dst.counts, 1), comm)
+
+    resize!(dst.offsets, MPI.Comm_size(comm) * nrows)
+    MPI.Allgather!(MPI.Buffer(src.offsets), MPI.UBuffer(dst.offsets, nrows), comm)
+
+    resize!(dst.buffer, sum(dst.counts))
+    send_buff = MPI.Buffer(src.buffer)
+    recv_vbuff = MPI.VBuffer(dst.buffer, dst.counts)
+
+    MPI.Allgatherv!(send_buff, recv_vbuff, comm)
+
     return dst
 end
 
@@ -480,9 +511,10 @@ function synchronize_remote!(ata::AllToAll, w)
                 append_collections!(ata.send_buffer, remote_segments(w, i))
             end
         end
-        mpi_time = @elapsed mpi_exchange!(ata.send_buffer, ata.recv_buffer, ata.mpi_comm)
-
-        for i in 1:mpi_size()
+        mpi_time = @elapsed mpi_exchange_alltoall!(
+            ata.send_buffer, ata.recv_buffer, ata.mpi_comm
+        )
+        for i in 1:ata.mpi_size
             foreach(dict_add!, local_segments(w), view(ata.recv_buffer, :, i))
         end
     end
@@ -491,4 +523,18 @@ function synchronize_remote!(ata::AllToAll, w)
     else
         return (), ()
     end
+end
+
+function copy_to_local!(ata::AllToAll, w, t)
+    empty!(ata.send_buffer)
+    append_collections!(ata.send_buffer, t.segments)
+    mpi_exchange_allgather!(ata.send_buffer, ata.recv_buffer, ata.mpi_comm)
+
+    for i in 1:ata.mpi_size
+        foreach(empty!, remote_segments(w, i-1))
+        foreach(dict_add!, remote_segments(w, i-1), view(ata.recv_buffer, :, i))
+    end
+
+    # Pack the segments into a PDVec and return it.
+    return main_column(w)
 end

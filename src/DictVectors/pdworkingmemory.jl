@@ -44,6 +44,16 @@ num_segments(c::PDWorkingMemoryColumn{<:Any,<:Any,<:Any,<:Any,<:Any,N}) where {N
 segment_type(::Type{<:PDWorkingMemoryColumn{K,<:Any,W}}) where {K,W} = Dict{K,W}
 StochasticStyle(c::PDWorkingMemoryColumn) = c.style
 
+function DVec(c::PDWorkingMemoryColumn{K,V}) where {K,V}
+    dv = DVec{K,V}(; style=c.style)
+    for seg in c.segments
+        for (k, v) in seg
+            dv[k] = v
+        end
+    end
+    return dv
+end
+
 """
     PDWorkingMemory(t::PDVec)
 
