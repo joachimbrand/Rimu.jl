@@ -551,11 +551,11 @@ function synchronize_remote!(ata::AllToAll, w)
             ata.send_buffer, ata.recv_buffer, ata.mpi_comm
         )
         for i in 1:ata.mpi_size
-            foreach(dict_add!, local_segments(w), view(ata.recv_buffer, :, i))
+            Folds.foreach(dict_add!, local_segments(w), view(ata.recv_buffer, :, i))
         end
     end
     if ata.report
-        return (:mpi_comm_time,:total_comm_time), (mpi_time,comm_time)
+        return (:mpi_comm_time, :total_comm_time), (mpi_time, comm_time)
     else
         return (), ()
     end
