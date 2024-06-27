@@ -350,7 +350,6 @@ function copy_to_local!(ptp::PointToPoint, w, t)
         end
     end
 
-    # Pack the segments into a PDVec and return it.
     return main_column(w)
 end
 
@@ -563,15 +562,19 @@ function synchronize_remote!(ata::AllToAll, w)
 end
 
 function copy_to_local!(ata::AllToAll, w, t)
+    println("KOPI LOKAL")
     empty!(ata.send_buffer)
     append_collections!(ata.send_buffer, t.segments)
     mpi_exchange_allgather!(ata.send_buffer, ata.recv_buffer, ata.mpi_comm)
 
     for i in 1:ata.mpi_size
-        foreach(empty!, remote_segments(w, i-1))
-        foreach(dict_add!, remote_segments(w, i-1), view(ata.recv_buffer, :, i))
+        Folds.foreach(
+            zip(remote_segments(w, i-1), view(ata.recv_buffer, :, i))
+        ) do (seg, buf)
+            empty!(seg)
+            dict_add!(seg, buff)
+        end
     end
 
-    # Pack the segments into a PDVec and return it.
     return main_column(w)
 end
