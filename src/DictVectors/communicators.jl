@@ -165,11 +165,19 @@ end
 const SubVector{T} = SubArray{T,1,Vector{T},Tuple{UnitRange{Int64}},true}
 
 """
-    SegmentedBuffer
+    SegmentedBuffer{T} <: AbstractVector{AbstractVector{T}}
 
-Multiple vectors stored in a simple buffer with MPI communication.
+Multiple vectors stored in a single buffer with MPI communication support. Used in the
+[`PointToPoint`](@ref) communication strategy.
 
-See [`replace_collections!`](@ref), [`mpi_send`](@ref), [`mpi_recv_any!`](@ref).
+# Supported operations
+
+* [`replace_collections!`](@ref): insert data into the buffers
+* [`mpi_send`](@ref): send the contents of a buffer to a given rank
+* [`mpi_recv_any!`](@ref): receive a message sent by [`mpi_send`](@ref) from any rank,
+  storing the contents in this buffer
+
+See also: [`NestedSegmentedBuffer`](@ref).
 """
 struct SegmentedBuffer{T} <: AbstractVector{SubVector{T}}
     offsets::Vector{Int}
@@ -191,6 +199,24 @@ end
     replace_collections!(buf::SegmentedBuffer, iters)
 
 Insert collections in `iters` into buffers.
+
+```julia
+julia> using Rimu.DictVectors: SegmentedBuffer
+
+julia> buf = SegmentedBuffer{Int}()
+0-element SegmentedBuffer{Int64}
+
+julia> Rimu.DictVectors.replace_collections!(buf, [[1,2,3], [4,5]])
+2-element SegmentedBuffer{Int64}:
+ [1, 2, 3]
+ [4, 5]
+
+julia> Rimu.DictVectors.replace_collections!(buf, [[1], [2,3], [4]])
+3-element SegmentedBuffer{Int64}:
+ [1]
+ [2, 3]
+ [4]
+```
 """
 function replace_collections!(buf::SegmentedBuffer, iters)
     resize!(buf.offsets, length(iters))
@@ -213,9 +239,9 @@ function replace_collections!(buf::SegmentedBuffer, iters)
 end
 
 """
-    mpi_send(buf::SegmentedBuffer, dest, comm)
+    mpi_send(buf::SegmentedBuffer, dest, comm::MPI.Comm)
 
-Send the buffers to `dest`.
+Send the buffer to rank with id `dest`.
 """
 function mpi_send(buf::SegmentedBuffer, dest, comm)
     @assert MPI.Is_thread_main()
@@ -225,7 +251,7 @@ function mpi_send(buf::SegmentedBuffer, dest, comm)
 end
 
 """
-    mpi_recv_any!(buf::SegmentedBuffer, comm) -> Int
+    mpi_recv_any!(buf::SegmentedBuffer, comm::MPI_Comm) -> Int
 
 Find a source that is ready to send a buffer and receive from it. Return the rank ID of the
 sender.
@@ -245,7 +271,8 @@ end
 """
     PointToPoint <: Communicator
 
-[`Communicator`](@ref) that uses circular communication using `MPI.Isend` and `MPI.Recv!`.
+MPI [`Communicator`](@ref) that uses circular communication using `MPI.Isend` and
+`MPI.Recv!`.
 """
 struct PointToPoint{K,V} <: Communicator
     send_buffers::Vector{SegmentedBuffer{Pair{K,V}}}
@@ -328,11 +355,21 @@ function copy_to_local!(ptp::PointToPoint, w, t)
 end
 
 """
-    NestedSegmentedBuffer
+    NestedSegmentedBuffer{T}(nrows) <: AbstractMatrix{AbstractVector{T}}
 
-2D grid of vectors stored in a simple buffer with collective MPI communication support.
+Matrix of vectors stored in a single buffer with collective MPI communication support. The
+number of rows in the matrix `nrows`. Used in the [`AllToAll`](@ref) communication strategy.
 
-See [`append_collections!`](@ref), [`mpi_exchange_alltoall!`](@ref).
+# Supported operations
+
+* [`append_collections!`](@ref): add a column to the matrix.
+* [`append_empty_column!`](@ref): add an empty column to the matrix.
+* [`mpi_exchange_alltoall!`](@ref): each rank sends the `i`-th column of the matrix to the
+  `(i-1)`-st rank.
+* [`mpi_exchange_allgather!`](@ref): each rank sends the `1`-st column of the matrix to all
+  ranks.
+
+See also [`SegmentedBuffer`](@ref).
 """
 struct NestedSegmentedBuffer{T} <: AbstractMatrix{SubVector{T}}
     nrows::Int
@@ -409,8 +446,8 @@ end
 """
     mpi_exchange_alltoall!(src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm)
 
-The `n`-th column from `src` will be sent to rank `n+1`. The data sent from rank `r` will be
-stored in the `(r-1)`-st column.
+The `n`-th column from `src` will be sent to rank `n-1`. The data sent from rank `r` will be
+stored in the `(r+1)`-st column of `dst`.
 """
 function mpi_exchange_alltoall!(
     src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm

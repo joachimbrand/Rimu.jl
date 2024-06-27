@@ -228,8 +228,7 @@ end
             V = DV.NonInitiatorValue{Float64}
             for communicator in (AllToAll{K,V}(), PointToPoint{K,V}())
                 @testset "$(nameof(typeof(communicator)))" begin
-                    println(communicator)
-                    pv = PDVec(addr => 1.0)
+                    pv = PDVec(addr => 1.0; communicator)
 
                     res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
                     res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
@@ -294,8 +293,8 @@ end
 
                     v = DVec(pairs_v)
                     w = DVec(pairs_w)
-                    pv = PDVec(pairs_v)
-                    pw = PDVec(pairs_w)
+                    pv = PDVec(pairs_v; communicator)
+                    pw = PDVec(pairs_w; communicator)
 
                     @test norm(v) ≈ norm(pv)
                     @test length(w) == length(pw)
