@@ -398,6 +398,8 @@ end
     append_collections!(buf::NestedSegmentedBuffer, iters)
 
 Add a column to `buf`. The length of `iters` should match `buf.nrows`.
+
+See also: [`NestedSegmentedBuffer`](@ref), [`append_empty_column!`](@ref).
 """
 function append_collections!(buf::NestedSegmentedBuffer, iters)
     if length(iters) ≠ buf.nrows
@@ -423,10 +425,13 @@ function append_collections!(buf::NestedSegmentedBuffer, iters)
     end
     return buf
 end
+
 """
     append_empty_column!(buf::NestedSegmentedBuffer)
 
 Like [`append_collections!`](@ref), but adds an empty column.
+
+See also: [`NestedSegmentedBuffer`](@ref), [`append_collections!`](@ref).
 """
 function append_empty_column!(buf::NestedSegmentedBuffer)
     push!(buf.counts, 0)
@@ -447,6 +452,8 @@ end
 
 The `n`-th column from `src` will be sent to rank `n-1`. The data sent from rank `r` will be
 stored in the `(r+1)`-st column of `dst`.
+
+See also: [`NestedSegmentedBuffer`](@ref), [`mpi_exchange_allgather!`](@ref).
 """
 function mpi_exchange_alltoall!(
     src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm
@@ -454,7 +461,7 @@ function mpi_exchange_alltoall!(
     @assert MPI.Is_thread_main()
     nrows = src.nrows
     if dst.nrows ≠ nrows
-        throw(ArgumentError("mismatch in number of cols ($nrows and $(dst.nrows))."))
+        throw(ArgumentError("mismatch in number of columns ($nrows and $(dst.nrows))."))
     end
 
     resize!(dst.counts, length(src.counts))
@@ -476,6 +483,8 @@ end
 
 The first and only column in `src` will be sent to all ranks. The data from all ranks will
 be gethered in `dst`. After this operation, `dst` will contain the same data on all ranks.
+
+See also [`NestedSegmentedBuffer`](@ref), [`mpi_exchange_alltoall!`](@ref).
 """
 function mpi_exchange_allgather!(
     src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm
@@ -503,7 +512,7 @@ end
 """
     AllToAll{K,V} <: Communicator
 
-[`Communicator`](@ref) that uses collective communication using `MPI.Alltoall!`.
+[`Communicator`](@ref) that uses collective communication using `MPI.Alltoall[v]!`.
 """
 struct AllToAll{K,V} <: Communicator
     send_buffer::NestedSegmentedBuffer{Pair{K,V}}
@@ -562,9 +571,9 @@ function synchronize_remote!(ata::AllToAll, w)
     end
 end
 
-function copy_to_local!(ata::AllToAll, w, t)
+function copy_to_local!(ata::AllToAll, w, p)
     empty!(ata.send_buffer)
-    append_collections!(ata.send_buffer, t.segments)
+    append_collections!(ata.send_buffer, p.segments)
     mpi_exchange_allgather!(ata.send_buffer, ata.recv_buffer, ata.mpi_comm)
 
     for i in 1:ata.mpi_size
