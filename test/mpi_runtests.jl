@@ -229,10 +229,13 @@ end
             for communicator in (AllToAll{K,V}(), PointToPoint{K,V}())
                 @testset "$(nameof(typeof(communicator)))" begin
                     pv = PDVec(addr => 1.0; communicator)
+                    @test pv.communicator isa typeof(communicator)
 
                     res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
                     res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
                     # `issymmetric` kwarg only needed for pre v1.9 julia versions
+
+                    @test res_pv[2][1].communicator isa typeof(communicator)
 
                     @test res_dv[1][1] ≈ res_pv[1][1] || res_dv[1][1] ≈ -res_pv[1][1]
 
@@ -259,7 +262,6 @@ end
                     @test dot(freeze(pv2), pv1) ≈ dot(pv2, pv1)
                     @test dot(pv1, freeze(pv2)) ≈ dot(pv1, pv2)
 
-                    #@test pv.communicator isa typeof(communicator)
                     @test mpi_size() == mpi_size(pv.communicator)
                     @test_throws DictVectors.CommunicatorError iterate(pairs(pv))
 
