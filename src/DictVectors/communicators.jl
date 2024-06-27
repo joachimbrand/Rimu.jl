@@ -562,7 +562,6 @@ function synchronize_remote!(ata::AllToAll, w)
 end
 
 function copy_to_local!(ata::AllToAll, w, t)
-    println("KOPI LOKAL")
     empty!(ata.send_buffer)
     append_collections!(ata.send_buffer, t.segments)
     mpi_exchange_allgather!(ata.send_buffer, ata.recv_buffer, ata.mpi_comm)
