@@ -234,18 +234,14 @@ end
                     res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
                     # `issymmetric` kwarg only needed for pre v1.9 julia versions
 
-                    i=1
-                    println(i); i+=1
                     @test res_dv[1][1] ≈ res_pv[1][1] || res_dv[1][1] ≈ -res_pv[1][1]
 
                     wm = working_memory(pv)
                     local_copy = DVec(copy_to_local!(wm, res_pv[2][1]))
-                    println(i); i+=1
                     @test res_dv[2][1] ≈ local_copy || res_dv[2][1] ≈ -local_copy
 
                     dv = copy(res_dv[2][1])
                     pv = copy(res_pv[2][1])
-                    println(i); i+=1
                     @test norm(pv) ≈ 1
                     @test length(pv) == length(dv)
                     @test sum(values(pv)) ≈ sum(values(dv)) ||
@@ -258,13 +254,11 @@ end
                     pv1 = copy(res_pv[2][1])
                     pv2 = mul!(similar(pv), ham, pv)
 
-                    println(i); i+=1
                     @test dot(pv2, pv1) ≈ dot(pv2, dv)
                     @test dot(pv1, pv2) ≈ dot(dv, pv2)
                     @test dot(freeze(pv2), pv1) ≈ dot(pv2, pv1)
                     @test dot(pv1, freeze(pv2)) ≈ dot(pv1, pv2)
 
-                    println(i); i+=1
                     #@test pv.communicator isa typeof(communicator)
                     @test mpi_size() == mpi_size(pv.communicator)
                     @test_throws DictVectors.CommunicatorError iterate(pairs(pv))
@@ -275,59 +269,64 @@ end
                     total_len = MPI.Allreduce(length(local_pairs), +, MPI.COMM_WORLD)
                     total_vals = MPI.Allreduce(local_vals, +, MPI.COMM_WORLD)
 
-                    println(i); i+=1
                     @test total_len == length(dv)
                     @test total_vals == sum(abs2, values(pv))
                 end
+            end
 
-                @testset "dot" begin
-                    addr = BoseFS((0,0,10,0,0))
-                    H = HubbardMom1D(addr)
-                    D = DensityMatrixDiagonal(1)
-                    G2 = G2RealSpace(PeriodicBoundaries(5))
+            @testset "dot" begin
+                addr = BoseFS((0,0,10,0,0))
+                H = HubbardMom1D(addr)
+                D = DensityMatrixDiagonal(1)
+                G2 = G2RealSpace(PeriodicBoundaries(5))
 
-                    # Need to seed here to get the same random vectors on all ranks.
-                    Random.seed!(1)
-                    pairs_v = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
-                    pairs_w = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:20]
+                K = typeof(addr)
+                V = Rimu.DictVectors.NonInitiatorValue{Float64}
+                for communicator in (AllToAll{K,V}(), PointToPoint{K,V}())
+                    @testset "$(nameof(typeof(communicator)))" begin
+                        # Need to seed here to get the same random vectors on all ranks.
+                        Random.seed!(1)
+                        pairs_v = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
+                        pairs_w = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:20]
 
-                    v = DVec(pairs_v)
-                    w = DVec(pairs_w)
-                    pv = PDVec(pairs_v; communicator)
-                    pw = PDVec(pairs_w; communicator)
+                        v = DVec(pairs_v)
+                        w = DVec(pairs_w)
+                        pv = PDVec(pairs_v; communicator)
+                        pw = PDVec(pairs_w; communicator)
 
-                    @test norm(v) ≈ norm(pv)
-                    @test length(w) == length(pw)
+                        @test norm(v) ≈ norm(pv)
+                        @test length(w) == length(pw)
 
-                    @test dot(v, w) ≈ dot(pv, pw)
+                        @test dot(v, w) ≈ dot(pv, pw)
 
-                    @test dot(freeze(pw), pv) ≈ dot(w, v) ≈ dot(pw, freeze(pv))
-                    @test dot(freeze(pv), pw) ≈ dot(v, w) ≈ dot(pv, freeze(pw))
-                    wm = PDWorkingMemory(pv)
+                        @test dot(freeze(pw), pv) ≈ dot(w, v) ≈ dot(pw, freeze(pv))
+                        @test dot(freeze(pv), pw) ≈ dot(v, w) ≈ dot(pv, freeze(pw))
+                        wm = PDWorkingMemory(pv)
 
-                    for op in (H, D)
-                        @test dot(v, op, w) ≈ dot(pv, op, pw)
-                        @test dot(w, op, v) ≈ dot(pw, op, pv)
+                        for op in (H, D)
+                            @test dot(v, op, w) ≈ dot(pv, op, pw)
+                            @test dot(w, op, v) ≈ dot(pw, op, pv)
 
-                        @test dot(v, op, w) ≈ dot(pv, op, pw, wm)
-                        @test dot(w, op, v) ≈ dot(pw, op, pv, wm)
+                            @test dot(v, op, w) ≈ dot(pv, op, pw, wm)
+                            @test dot(w, op, v) ≈ dot(pw, op, pv, wm)
 
-                        pu = op * pv
-                        u = op * v
-                        @test length(u) == length(pu)
-                        @test norm(u, 1) ≈ norm(pu, 1)
-                        @test norm(u, 2) ≈ norm(pu, 2)
-                        @test norm(u, Inf) ≈ norm(pu, Inf)
+                            pu = op * pv
+                            u = op * v
+                            @test length(u) == length(pu)
+                            @test norm(u, 1) ≈ norm(pu, 1)
+                            @test norm(u, 2) ≈ norm(pu, 2)
+                            @test norm(u, Inf) ≈ norm(pu, Inf)
+                        end
+                        # dot only for G2
+                        @test dot(v, G2, w) ≈ dot(pv, G2, pw)
+                        @test dot(w, G2, v) ≈ dot(pw, G2, pv)
+
+                        @test dot(v, G2, w) ≈ dot(pv, G2, pw, wm)
+                        @test dot(w, G2, v) ≈ dot(pw, G2, pv, wm)
+
+                        @test dot(pv, (H, D), pw, wm) == (dot(pv, H, pw), dot(pv, D, pw))
+                        @test dot(pv, (H, D), pw) == (dot(pv, H, pw), dot(pv, D, pw))
                     end
-                    # dot only for G2
-                    @test dot(v, G2, w) ≈ dot(pv, G2, pw)
-                    @test dot(w, G2, v) ≈ dot(pw, G2, pv)
-
-                    @test dot(v, G2, w) ≈ dot(pv, G2, pw, wm)
-                    @test dot(w, G2, v) ≈ dot(pw, G2, pv, wm)
-
-                    @test dot(pv, (H, D), pw, wm) == (dot(pv, H, pw), dot(pv, D, pw))
-                    @test dot(pv, (H, D), pw) == (dot(pv, H, pw), dot(pv, D, pw))
                 end
             end
         end

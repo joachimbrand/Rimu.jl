@@ -480,7 +480,8 @@ be gethered in `dst`. After this operation, `dst` will contain the same data on 
 function mpi_exchange_allgather!(
     src::NestedSegmentedBuffer, dst::NestedSegmentedBuffer, comm
 )
-    # only sending from first column
+    @assert MPI.Is_thread_main()
+    # only sending from first column.
     @assert size(src, 2) == 1
     nrows = src.nrows
 
@@ -568,8 +569,8 @@ function copy_to_local!(ata::AllToAll, w, t)
 
     for i in 1:ata.mpi_size
         Folds.foreach(
-            zip(remote_segments(w, i-1), view(ata.recv_buffer, :, i))
-        ) do (seg, buf)
+            remote_segments(w, i-1), view(ata.recv_buffer, :, i)
+        ) do seg, buff
             empty!(seg)
             dict_add!(seg, buff)
         end
