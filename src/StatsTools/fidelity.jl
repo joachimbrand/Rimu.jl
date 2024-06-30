@@ -3,12 +3,10 @@
     replica_fidelity(sim::PMCSimulation; kwargs...)
 
 Compute the fidelity of the average coefficient vector and the projector defined in
-`p_field` from the result of replica [`lomc!`](@ref Main.lomc!) passed as  argument `df`,
-using replicas `_1` and `_2`.
-Calls [`ratio_of_means()`](@ref) to perform a blocking analysis
-on a ratio of the means of separate time series and returns a
-[`RatioBlockingResult`](@ref).
-The first `skip` steps in the time series are skipped.
+`p_field` from the [`PQMCSimulation`](@ref) or `DataFrame` returned by solve, using replicas
+`_1` and `_2`. Calls [`ratio_of_means()`](@ref) to perform a blocking analysis on a ratio
+of the means of separate time series and returns a [`RatioBlockingResult`](@ref). The first
+`skip` steps in the time series are skipped.
 
 The fidelity of states `|ψ⟩` and `|ϕ⟩` is defined as
 ```math

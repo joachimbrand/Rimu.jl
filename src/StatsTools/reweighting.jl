@@ -130,9 +130,10 @@ Propagation through the logarithm can be modified by setting `change_type` to
 If `success==true` the blocking analysis was successful in `k-1` steps, using `blocks`
 uncorrelated data points.
 
-The second method calculates the growth estimator directly from a `DataFrame` returned by
-[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name` and `norm_name` can be used
-to change the names of the relevant columns.
+The second method calculates the growth estimator directly from a [`PQMCSimulation`](@ref)
+or `DataFrame` returned by [`solve`](@ref Main.solve(::ProjectorMonteCarloProblem)). The
+keyword arguments `shift_name` and `norm_name` can be used to change the names of the
+relevant columns.
 
 See also [`mixed_estimator`](@ref) and [`RatioBlockingResult`](@ref).
 """
@@ -218,8 +219,8 @@ Returns a `NamedTuple` with the fields
 
 ## Example
 ```julia
-df, _ = lomc!(...)
-df_ge, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(df; skip=5_000)
+sim = solve(...)
+df_ge, correlation_estimate, se, se_l, se_u = growth_estimator_analysis(sim; skip=5_000)
 
 using StatsPlots
 @df df_ge plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
@@ -327,9 +328,10 @@ unweighted ratio.  Error propagation is done with
 [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 Results are returned as [`RatioBlockingResult`](@ref).
 
-The second method calculates the mixed energy estimator directly from a `DataFrame` returned
-by [`lomc!`](@ref Main.lomc!). The keyword arguments `hproj_name`, `vproj_name`, and
-`shift_name` can be used to change the names of the relevant columns.
+The second method calculates the mixed energy estimator directly from a `DataFrame` or
+`PQMCSimulation` returned by [`solve`](@ref Main.solve(::ProjectorMonteCarloProblem)). The
+keyword arguments `hproj_name`, `vproj_name`, and `shift_name` can be used to change the
+names of the relevant columns.
 
 See also [`growth_estimator`](@ref).
 """
@@ -362,8 +364,9 @@ end
     mixed_estimator_analysis(sim::PMCSimulation; kwargs...)
     -> (; df_me, correlation_estimate, se, se_l, se_u)
 
-Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref Main.lomc!)
-repeatedly over a range of reweighting depths.
+Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` or [`PQMCSimulation`](@ref)
+`sim` returned from [`solve`](@ref Main.solve(::ProjectorMonteCarloProblem)) repeatedly over
+a range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
 * `df_me`: `DataFrame` with reweighting depth and `mixed_estiamator` data. See example below.
@@ -382,8 +385,8 @@ Returns a `NamedTuple` with the fields
 
 ## Example
 ```julia
-df, _ = lomc!(...)
-df_me, correlation_estimate, se, se_l, se_u = mixed_estimator_analysis(df; skip=5_000)
+sim = solve(...)
+df_me, correlation_estimate, se, se_l, se_u = mixed_estimator_analysis(sim; skip=5_000)
 
 using StatsPlots
 @df df_me plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
@@ -486,12 +489,13 @@ holding the data for a pair of replicas.
 Argument `shift` is of type `Vector{Vector}`, with each element `Vector`
 holding the shift data for each individual replica.
 
-The second method computes the Rayleigh quotient directly from a `DataFrame` returned by
-[`lomc!`](@ref Main.lomc!). The keyword arguments `shift_name`, `op_name` and `vec_name` can be used to
-change the names of the relevant columns, see [`AllOverlaps`](@ref Main.AllOverlaps) for default
-formatting. The operator overlap data can be scaled by a prefactor `Anorm`. A specific
-reweighting depth can be set with keyword argument `h`. The default is `h = 0` which
-calculates the Rayleigh quotient without reweighting.
+The second method computes the Rayleigh quotient directly from a `DataFrame` or
+[`PQMCSimulation`](@ref) returned by [`solve`](@ref
+Main.solve(::ProjectorMonteCarloProblem)). The keyword arguments `shift_name`, `op_name` and
+`vec_name` can be used to change the names of the relevant columns, see [`AllOverlaps`](@ref
+Main.AllOverlaps) for default formatting. The operator overlap data can be scaled by a
+prefactor `Anorm`. A specific reweighting depth can be set with keyword argument `h`. The
+default is `h = 0` which calculates the Rayleigh quotient without reweighting.
 
 The reweighting is an extension of the mixed estimator using the reweighting technique
 described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195).
@@ -573,8 +577,9 @@ end
     rayleigh_replica_estimator_analysis(sim::PMCSimulation; kwargs...)
     -> (; df_rre, df_se)
 
-Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` returned from [`lomc!`](@ref Main.lomc!)
-repeatedly over a range of reweighting depths.
+Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` or
+[`PQMCSimulation`](@ref) `sim` returned from [`solve`](@ref
+Main.solve(::ProjectorMonteCarloProblem)) repeatedly over a range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
 * `df_rre`: `DataFrame` with reweighting depth and `rayleigh_replica_estimator` data. See example below.
@@ -593,8 +598,8 @@ Returns a `NamedTuple` with the fields
 
 ## Example
 ```julia
-df, _ = lomc!(...)
-df_rre, df_se = rayleigh_replica_estimator_analysis(df; skip=5_000)
+sim = solve(...)
+df_rre, df_se = rayleigh_replica_estimator_analysis(sim; skip=5_000)
 
 using StatsPlots
 @df df_rre plot(_ -> se, :h, ribbon = (se_l, se_u), label = "⟨S⟩") # constant line and ribbon for shift estimator
@@ -692,16 +697,15 @@ Compute the projected energy estimator
 E_\\mathrm{p} = \\frac{\\sum_n  \\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}}
         {\\sum_m \\mathbf{v}⋅\\mathbf{c}^{(m)}} ,
 ```
-where the time series `df.hproj ==` ``\\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}`` and
-`df.vproj ==` ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` are taken from `df`, skipping the first
-`skip` entries (use `post_step_strategy = `[`ProjectedEnergy()`](@ref Main.ProjectedEnergy)
-to set these up in [`lomc!()`](@ref Main.lomc!)).
+where the time series `df.hproj ==` ``\\mathbf{v}⋅Ĥ\\mathbf{c}^{(n)}`` and `df.vproj ==`
+``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` are taken from `df`, skipping the first `skip` entries
+(use `post_step_strategy = `[`ProjectedEnergy`](@ref Main.ProjectedEnergy)`(...)` to set
+these up in [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem)).
 `projected_energy` is equivalent to [`mixed_estimator`](@ref) with `h=0`.
 
-The keyword arguments `hproj` and `vproj`
-can be used to change the names of the relevant columns. Other `kwargs` are
-passed on to [`ratio_of_means`](@ref).
-Returns a [`RatioBlockingResult`](@ref).
+The keyword arguments `hproj` and `vproj` can be used to change the names of the relevant
+columns. Other `kwargs` are passed on to [`ratio_of_means`](@ref). Returns a
+[`RatioBlockingResult`](@ref).
 
 See [`NamedTuple`](@ref), [`val_and_errs`](@ref), [`val`](@ref), [`errs`](@ref) for
 processing results.

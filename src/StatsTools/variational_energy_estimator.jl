@@ -1,7 +1,9 @@
 """
     variational_energy_estimator(shifts, overlaps; kwargs...)
     variational_energy_estimator(df::DataFrame; max_replicas=:all, kwargs...)
+    variational_energy_estimator(sim::PQMCSimulation; kwargs...)
     -> r::RatioBlockingResult
+
 Compute the variational energy estimator from the replica time series of the `shifts` and
 coefficient vector `overlaps` by blocking analysis.
 The keyword argument `max_replicas` can be used to constrain the number of replicas
@@ -21,11 +23,12 @@ Ē_{v}  =  \\frac{\\sum_{a<b}^R \\overline{(S_a+S_b) \\mathbf{c}_a^† \\mathbf
 where the sum goes over distinct pairs out of the ``R`` replicas. See
 [arXiv:2103.07800](http://arxiv.org/abs/2103.07800).
 
-The `DataFrame` version can extract the relevant information from the result of
-[`lomc!`](@ref Main.lomc!). Set up [`lomc!`](@ref Main.lomc!) with the keyword argument
-`replica = AllOverlaps(R)` and `R ≥ 2`.
-If passing `shifts` and `overlaps`, the data has to be arranged in the correct order (as
-provided in the `DataFrame` version).
+The `DataFrame` and [`PQMCSimulation`](@ref) versions can extract the relevant information
+from the result of [`solve`](@ref Main.solve(::ProjectorMonteCarloProblem)). Set up the
+[`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) with the keyword
+argument `replica_strategy = AllOverlaps(R)` and `R ≥ 2`. If passing `shifts` and
+`overlaps`, the data has to be arranged in the correct order (as provided in the `DataFrame`
+version).
 
 See [`AllOverlaps`](@ref Main.AllOverlaps).
 """
@@ -52,7 +55,7 @@ function variational_energy_estimator(sim; max_replicas=:all, kwargs...)
     if iszero(num_replicas)
         throw(ArgumentError(
             "No replicas found. Use keyword \
-            `replica=AllOverlaps(n)` with n≥2 in `lomc!()` to set up replicas!"
+            `replica_strategy=AllOverlaps(n)` with n≥2 in `ProjectorMonteCarloProblem` to set up replicas!"
         ))
     end
     @assert num_replicas ≥ 2 "At least two replicas are needed, found $num_replicas"
