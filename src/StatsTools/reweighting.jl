@@ -131,8 +131,8 @@ If `success==true` the blocking analysis was successful in `k-1` steps, using `b
 uncorrelated data points.
 
 The second method calculates the growth estimator directly from a
-[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) or `DataFrame` returned by
-[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
+[`PMCSimulation`](@ref Main.Rimu.PMCSimulation) or `DataFrame` returned by
+[`solve`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
 `shift_name` and `norm_name` can be used to change the names of the relevant columns.
 
 See also [`mixed_estimator`](@ref) and [`RatioBlockingResult`](@ref).
@@ -329,8 +329,8 @@ unweighted ratio.  Error propagation is done with
 Results are returned as [`RatioBlockingResult`](@ref).
 
 The second method calculates the mixed energy estimator directly from a `DataFrame` or
-[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) returned by
-[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
+[`PMCSimulation`](@ref Main.Rimu.PMCSimulation) returned by
+[`solve`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
 `hproj_name`, `vproj_name`, and `shift_name` can be used to change the names of the relevant
 columns.
 
@@ -366,8 +366,8 @@ end
     -> (; df_me, correlation_estimate, se, se_l, se_u)
 
 Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` or
-[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) `sim` returned from
-[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)) repeatedly over a
+[`PMCSimulation`](@ref Main.Rimu.PMCSimulation) `sim` returned from
+[`solve`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem)) repeatedly over a
 range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
@@ -492,8 +492,8 @@ Argument `shift` is of type `Vector{Vector}`, with each element `Vector`
 holding the shift data for each individual replica.
 
 The second method computes the Rayleigh quotient directly from a `DataFrame` or
-[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) returned by
-[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
+[`PMCSimulation`](@ref Main.Rimu.PMCSimulation) returned by
+[`solve`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
 `shift_name`, `op_name` and `vec_name` can be used to change the names of the relevant
 columns, see [`AllOverlaps`](@ref Main.AllOverlaps) for default formatting. The operator
 overlap data can be scaled by a prefactor `Anorm`. A specific reweighting depth can be set
@@ -581,8 +581,8 @@ end
     -> (; df_rre, df_se)
 
 Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` or
-[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) `sim` returned from
-[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)) repeatedly over a
+[`PMCSimulation`](@ref Main.Rimu.PMCSimulation) `sim` returned from
+[`solve`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem)) repeatedly over a
 range of reweighting depths.
 
 Returns a `NamedTuple` with the fields

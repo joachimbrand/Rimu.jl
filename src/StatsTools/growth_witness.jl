@@ -37,8 +37,8 @@ end
     growth_witness(df::DataFrame, [b]; shift=:shift, norm=:norm, dτ=df.dτ[end], skip=0)
 
 Calculate the growth witness directly from the result (`DataFrame` or
-[`PMCSimulation`](@ref)) of
-[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem))ing a
+[`PMCSimulation`](@ref Main.Rimu.PMCSimulation)) of
+[`solve`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem))ing a
 [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem). The keyword arguments
 `shift` and `norm` can be used to change the names of the relevant columns.
 """

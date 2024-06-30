@@ -1,7 +1,7 @@
 """
     variational_energy_estimator(shifts, overlaps; kwargs...)
     variational_energy_estimator(df::DataFrame; max_replicas=:all, kwargs...)
-    variational_energy_estimator(sim::PQMCSimulation; kwargs...)
+    variational_energy_estimator(sim::PMCSimulation; kwargs...)
     -> r::RatioBlockingResult
 
 Compute the variational energy estimator from the replica time series of the `shifts` and
@@ -23,9 +23,9 @@ Ē_{v}  =  \\frac{\\sum_{a<b}^R \\overline{(S_a+S_b) \\mathbf{c}_a^† \\mathbf
 where the sum goes over distinct pairs out of the ``R`` replicas. See
 [arXiv:2103.07800](http://arxiv.org/abs/2103.07800).
 
-The `DataFrame` and [`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) versions can extract
+The `DataFrame` and [`PMCSimulation`](@ref Main.Rimu.PMCSimulation) versions can extract
 the relevant information from the result of
-[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)).
+[`solve`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem)).
 Set up the [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) with the
 keyword argument `replica_strategy = AllOverlaps(R)` and `R ≥ 2`. If passing `shifts` and
 `overlaps`, the data has to be arranged in the correct order (as provided in the `DataFrame`
