@@ -110,9 +110,9 @@ technique described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465
 see Eq. (20).
 `shift` and `wn` are equal length vectors containing the shift and walker number time
 series, respectively.  Reweighting is done over `h` time steps and `length(shift) - skip`
-time steps are used for the blocking analysis done with [`ratio_of_means()`](@ref). `dτ` is
-the time step and `weights` a function that calulates the weights. See [`w_exp()`](@ref) and
-[`w_lin()`](@ref).
+time steps are used for the blocking analysis done with [`ratio_of_means`](@ref). `dτ` is
+the time step and `weights` a function that calulates the weights. See [`w_exp`](@ref) and
+[`w_lin`](@ref).
 ```math
 E_{gr} = E_r - \\frac{1}{dτ}\\ln
     \\frac{\\sum_n w_{h+1}^{(n+1)} N_\\mathrm{w}^{(n+1)}}
@@ -130,10 +130,10 @@ Propagation through the logarithm can be modified by setting `change_type` to
 If `success==true` the blocking analysis was successful in `k-1` steps, using `blocks`
 uncorrelated data points.
 
-The second method calculates the growth estimator directly from a [`PQMCSimulation`](@ref)
-or `DataFrame` returned by [`solve`](@ref Main.solve(::ProjectorMonteCarloProblem)). The
-keyword arguments `shift_name` and `norm_name` can be used to change the names of the
-relevant columns.
+The second method calculates the growth estimator directly from a
+[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) or `DataFrame` returned by
+[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
+`shift_name` and `norm_name` can be used to change the names of the relevant columns.
 
 See also [`mixed_estimator`](@ref) and [`RatioBlockingResult`](@ref).
 """
@@ -317,9 +317,9 @@ where the time series `hproj ==` ``(Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}`` and `
 ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` have the same length as `shift` (See
 [`ProjectedEnergy`](@ref Main.ProjectedEnergy) on how to set these up).  Reweighting is done
 over `h` time steps and `length(shift) - skip` time steps are used for the blocking analysis
-done with [`ratio_of_means()`](@ref). `dτ` is the time step and `weights` a function that
-calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).  Additional keyword
-arguments are passed on to [`ratio_of_means()`](@ref).
+done with [`ratio_of_means`](@ref). `dτ` is the time step and `weights` a function that
+calulates the weights. See [`w_exp`](@ref) and [`w_lin`](@ref).  Additional keyword
+arguments are passed on to [`ratio_of_means`](@ref).
 
 When `h` is greater than the autocorrelation time scale of the `shift`, then `r.ratio` is an
 unbiased but approximate estimator for the ground state energy ``E_0`` with an error
@@ -329,9 +329,10 @@ unweighted ratio.  Error propagation is done with
 Results are returned as [`RatioBlockingResult`](@ref).
 
 The second method calculates the mixed energy estimator directly from a `DataFrame` or
-`PQMCSimulation` returned by [`solve`](@ref Main.solve(::ProjectorMonteCarloProblem)). The
-keyword arguments `hproj_name`, `vproj_name`, and `shift_name` can be used to change the
-names of the relevant columns.
+[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) returned by
+[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
+`hproj_name`, `vproj_name`, and `shift_name` can be used to change the names of the relevant
+columns.
 
 See also [`growth_estimator`](@ref).
 """
@@ -364,9 +365,10 @@ end
     mixed_estimator_analysis(sim::PMCSimulation; kwargs...)
     -> (; df_me, correlation_estimate, se, se_l, se_u)
 
-Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` or [`PQMCSimulation`](@ref)
-`sim` returned from [`solve`](@ref Main.solve(::ProjectorMonteCarloProblem)) repeatedly over
-a range of reweighting depths.
+Compute the [`mixed_estimator`](@ref) on a `DataFrame` `df` or
+[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) `sim` returned from
+[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)) repeatedly over a
+range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
 * `df_me`: `DataFrame` with reweighting depth and `mixed_estiamator` data. See example below.
@@ -490,25 +492,26 @@ Argument `shift` is of type `Vector{Vector}`, with each element `Vector`
 holding the shift data for each individual replica.
 
 The second method computes the Rayleigh quotient directly from a `DataFrame` or
-[`PQMCSimulation`](@ref) returned by [`solve`](@ref
-Main.solve(::ProjectorMonteCarloProblem)). The keyword arguments `shift_name`, `op_name` and
-`vec_name` can be used to change the names of the relevant columns, see [`AllOverlaps`](@ref
-Main.AllOverlaps) for default formatting. The operator overlap data can be scaled by a
-prefactor `Anorm`. A specific reweighting depth can be set with keyword argument `h`. The
-default is `h = 0` which calculates the Rayleigh quotient without reweighting.
+[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) returned by
+[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)). The keyword arguments
+`shift_name`, `op_name` and `vec_name` can be used to change the names of the relevant
+columns, see [`AllOverlaps`](@ref Main.AllOverlaps) for default formatting. The operator
+overlap data can be scaled by a prefactor `Anorm`. A specific reweighting depth can be set
+with keyword argument `h`. The default is `h = 0` which calculates the Rayleigh quotient
+without reweighting.
 
 The reweighting is an extension of the mixed estimator using the reweighting technique
 described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195).
 Reweighting is done over `h` time steps and `length(shift) - skip` time steps are used
-for the blocking analysis done with [`ratio_of_means()`](@ref).
+for the blocking analysis done with [`ratio_of_means`](@ref).
 `dτ` is the time step and `weights` a function that
-calulates the weights. See [`w_exp()`](@ref) and [`w_lin()`](@ref).
-Additional keyword arguments are passed on to [`ratio_of_means()`](@ref).
+calulates the weights. See [`w_exp`](@ref) and [`w_lin`](@ref).
+Additional keyword arguments are passed on to [`ratio_of_means`](@ref).
 
 Error propagation is done with [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 Results are returned as [`RatioBlockingResult`](@ref).
 
-See also [`mixed_estimator`](@ref), [`growth_estimator()`](@ref).
+See also [`mixed_estimator`](@ref), [`growth_estimator`](@ref).
 """
 function rayleigh_replica_estimator(
     op_ol::Vector,
@@ -578,8 +581,9 @@ end
     -> (; df_rre, df_se)
 
 Compute the [`rayleigh_replica_estimator`](@ref) on a `DataFrame` `df` or
-[`PQMCSimulation`](@ref) `sim` returned from [`solve`](@ref
-Main.solve(::ProjectorMonteCarloProblem)) repeatedly over a range of reweighting depths.
+[`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) `sim` returned from
+[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)) repeatedly over a
+range of reweighting depths.
 
 Returns a `NamedTuple` with the fields
 * `df_rre`: `DataFrame` with reweighting depth and `rayleigh_replica_estimator` data. See example below.

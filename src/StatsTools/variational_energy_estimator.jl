@@ -23,10 +23,11 @@ Ē_{v}  =  \\frac{\\sum_{a<b}^R \\overline{(S_a+S_b) \\mathbf{c}_a^† \\mathbf
 where the sum goes over distinct pairs out of the ``R`` replicas. See
 [arXiv:2103.07800](http://arxiv.org/abs/2103.07800).
 
-The `DataFrame` and [`PQMCSimulation`](@ref) versions can extract the relevant information
-from the result of [`solve`](@ref Main.solve(::ProjectorMonteCarloProblem)). Set up the
-[`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) with the keyword
-argument `replica_strategy = AllOverlaps(R)` and `R ≥ 2`. If passing `shifts` and
+The `DataFrame` and [`PQMCSimulation`](@ref Main.Rimu.PQMCSimulation) versions can extract
+the relevant information from the result of
+[`solve`](@ref Main.CommonSolve.solve(::ProjectorMonteCarloProblem)).
+Set up the [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) with the
+keyword argument `replica_strategy = AllOverlaps(R)` and `R ≥ 2`. If passing `shifts` and
 `overlaps`, the data has to be arranged in the correct order (as provided in the `DataFrame`
 version).
 
