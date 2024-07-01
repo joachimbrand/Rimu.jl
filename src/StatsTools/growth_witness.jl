@@ -1,7 +1,5 @@
 """
     growth_witness(shift::AbstractArray, norm::AbstractArray, dt, [b]; skip=0)
-    growth_witness(df::DataFrame, [b]; skip=0)
-    growth_witness(sim::PMCSimulation, [b]; skip=0)
 
 Compute the growth witness
 ```math
@@ -35,6 +33,7 @@ function growth_witness(shift::AbstractArray, norm::AbstractArray, dt, b; kwargs
 end
 """
     growth_witness(df::DataFrame, [b]; shift=:shift, norm=:norm, dτ=df.dτ[end], skip=0)
+    growth_witness(sim::PMCSimulation, [b]; kwargs...)
 
 Calculate the growth witness directly from the result (`DataFrame` or
 [`PMCSimulation`](@ref Main.Rimu.PMCSimulation)) of
