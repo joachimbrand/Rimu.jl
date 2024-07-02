@@ -95,18 +95,10 @@ mpi_comm
 """
     copy_to_local!([::Communicator,] w::PDWorkingMemory, t::PDVec) -> PDVec
 
-Copy pairs in `t` from all ranks and return them as (possibly) new [`PDVec`](@ref), possibly
-using the [`PDWorkingMemory`](@ref) as temporary storage.
+Copy pairs in `t` from all ranks and return them as a (possibly) new [`PDVec`](@ref),
+possibly using the [`PDWorkingMemory`](@ref) as temporary storage.
 """
 copy_to_local!
-
-"""
-    synchronize_remote!([::Communicator,] ::PDWorkingMemory)
-
-Copy pairs from remote ranks to the local part of the [`PDWorkingMemory`](@ref).
-"""
-synchronize_remote!
-
 
 """
     NotDistributed <: Communicator
@@ -165,10 +157,11 @@ end
 const SubVector{T} = SubArray{T,1,Vector{T},Tuple{UnitRange{Int64}},true}
 
 """
-    SegmentedBuffer{T} <: AbstractVector{AbstractVector{T}}
+    SegmentedBuffer{T}() <: AbstractVector{AbstractVector{T}}
 
-Multiple vectors stored in a single buffer with MPI communication support. Used in the
-[`PointToPoint`](@ref) communication strategy.
+Behaves like a vector of vectors, but is stored in a single buffer. It can be sent/received
+over MPI keeping its structure intact. Used in the [`PointToPoint`](@ref) communication
+strategy.
 
 # Supported operations
 
@@ -198,7 +191,7 @@ end
 """
     replace_collections!(buf::SegmentedBuffer, iters)
 
-Insert collections in `iters` into buffers.
+Insert collections in `iters` into a [`SegmentedBuffer`](@ref).
 
 ```julia
 julia> using Rimu.DictVectors: SegmentedBuffer
@@ -269,10 +262,16 @@ function mpi_recv_any!(buf::SegmentedBuffer, comm)
 end
 
 """
-    PointToPoint <: Communicator
+    PointToPoint{K,V}(; mpi_comm, report) <: Communicator
 
 MPI [`Communicator`](@ref) that uses circular communication using `MPI.Isend` and
 `MPI.Recv!`.
+
+# Keyword arguments
+
+* `mpi_comm=MPI.COMM_WORLD`: the MPI communicator to use.
+*  `report=false`: if set to true, report MPI communication times during a projector Monte
+  Carlo run.
 """
 struct PointToPoint{K,V} <: Communicator
     send_buffers::Vector{SegmentedBuffer{Pair{K,V}}}
@@ -285,10 +284,10 @@ end
 function PointToPoint{K,V}(
     ;
     mpi_comm=MPI.COMM_WORLD,
-    mpi_rank=MPI.Comm_rank(mpi_comm),
-    mpi_size=MPI.Comm_size(mpi_comm),
     report=false,
 ) where {K,V}
+    mpi_rank=MPI.Comm_rank(mpi_comm)
+    mpi_size=MPI.Comm_size(mpi_comm)
     return PointToPoint(
         [SegmentedBuffer{Pair{K,V}}() for _ in 1:mpi_size-1],
         SegmentedBuffer{Pair{K,V}}(),
@@ -350,14 +349,16 @@ function copy_to_local!(ptp::PointToPoint, w, t)
         end
     end
 
-    return main_column(w)
+    return first_column(w)
 end
 
 """
     NestedSegmentedBuffer{T}(nrows) <: AbstractMatrix{AbstractVector{T}}
 
 Matrix of vectors stored in a single buffer with collective MPI communication support. The
-number of rows in the matrix `nrows`. Used in the [`AllToAll`](@ref) communication strategy.
+number of rows in the matrix is `nrows`.
+
+Used in the [`AllToAll`](@ref) communication strategy.
 
 # Supported operations
 
@@ -510,9 +511,17 @@ function mpi_exchange_allgather!(
 end
 
 """
-    AllToAll{K,V} <: Communicator
+    AllToAll{K,V}(; mpi_comm, n_segments, report) <: Communicator
 
 [`Communicator`](@ref) that uses collective communication using `MPI.Alltoall[v]!`.
+
+# Keyword arguments
+
+* `mpi_comm=MPI.COMM_WORLD`: the MPI communicator to use.
+* `n_segments=Threads.nthreads()`: the number of segments per rank to use. Should match the
+  [`PDVec`](@ref) the communicator is used with.
+*  `report=false`: if set to true, report MPI communication times during a projector Monte
+  Carlo run.
 """
 struct AllToAll{K,V} <: Communicator
     send_buffer::NestedSegmentedBuffer{Pair{K,V}}
@@ -523,16 +532,14 @@ struct AllToAll{K,V} <: Communicator
     report::Bool
 end
 function AllToAll{K,V}(
-    ;
-    mpi_comm=MPI.COMM_WORLD,
-    mpi_rank=MPI.Comm_rank(mpi_comm),
-    mpi_size=MPI.Comm_size(mpi_comm),
-    threads=Threads.nthreads(),
-    report=false,
+    ; mpi_comm=MPI.COMM_WORLD, n_segments=Threads.nthreads(), report=false,
 ) where {K,V}
+    mpi_rank=MPI.Comm_rank(mpi_comm)
+    mpi_size=MPI.Comm_size(mpi_comm)
+
     return AllToAll(
-        NestedSegmentedBuffer{Pair{K,V}}(threads),
-        NestedSegmentedBuffer{Pair{K,V}}(threads),
+        NestedSegmentedBuffer{Pair{K,V}}(n_segments),
+        NestedSegmentedBuffer{Pair{K,V}}(n_segments),
         mpi_comm,
         mpi_rank,
         mpi_size,
@@ -585,5 +592,5 @@ function copy_to_local!(ata::AllToAll, w, p)
         end
     end
 
-    return main_column(w)
+    return first_column(w)
 end

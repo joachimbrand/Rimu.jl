@@ -71,6 +71,19 @@ The steps performed on a `PDWorkingMemory` during a typical operation are
 
 When used with three-argument dot products, a full copy of the left-hand side vector is
 materialized in the first column of the working memory on all ranks.
+
+# Extended Help
+
+A matrix-vector product is performed by the applying the following sequence of functions.
+
+- Spawns are performed from each segment in the vector independently. The spawns from the
+  `p`-th segment are collected in the `p`-th column of the working memory.
+  ([`perform_spawns!`](@ref))
+- The local segments are summed row-wise to the main (first) column.
+  ([`collect_local!`](@ref))
+- The remote segements are communicated using MPI and added to the main column.
+  ([`synchronize_remote!`](@ref))
+- The data is compressed copied to the next vector ([`move_and_compress!`](@ref))
 """
 struct PDWorkingMemory{
     K,V,W<:AbstractInitiatorValue{V},S<:StochasticStyle{V},I<:InitiatorRule,C<:Communicator,N
@@ -122,12 +135,12 @@ function Base.length(w::PDWorkingMemory)
 end
 
 """
-    MainSegmentIterator{W,D} <: AbstractVector{D}
+    FirstColumnIterator{W,D} <: AbstractVector{D}
 
-Iterates the main segments of a specified rank. See [`remote_segments`](@ref) and
-[`local_segments`](@ref).
+Iterates segments in the first column of a working memory that belong to a specified
+rank. See [`remote_segments`](@ref) and [`local_segments`](@ref).
 """
-struct MainSegmentIterator{W,D} <: AbstractVector{D}
+struct FirstColumnIterator{W,D} <: AbstractVector{D}
     working_memory::W
     rank::Int
 end
@@ -135,29 +148,31 @@ end
 """
     remote_segments(w::PDWorkingMemory, rank_id)
 
-Returns iterator over the main segments that belong to rank `rank_id`. Iterates `Dict`s.
+Returns iterator over the segments in the first column of `w` that belong to rank
+`rank_id`. Iterates `Dict`s.
 
 See [`PDWorkingMemory`](@ref).
 """
 function remote_segments(w::PDWorkingMemory, rank)
-    return MainSegmentIterator{typeof(w),segment_type(eltype(w.columns))}(w, rank)
+    return FirstColumnIterator{typeof(w),segment_type(eltype(w.columns))}(w, rank)
 end
 
 """
     local_segments(w::PDWorkingMemory)
 
-Returns iterator over the main segments on the current rank. Iterates `Dict`s.
+Returns iterator over the segments in the first column of `w` on the current rank. Iterates
+`Dict`s.
 
 See [`PDWorkingMemory`](@ref).
 """
 function local_segments(w::PDWorkingMemory)
     rank = mpi_rank(w.communicator)
-    return MainSegmentIterator{typeof(w),segment_type(eltype(w.columns))}(w, rank)
+    return FirstColumnIterator{typeof(w),segment_type(eltype(w.columns))}(w, rank)
 end
 
-Base.size(it::MainSegmentIterator) = (num_columns(it.working_memory),)
+Base.size(it::FirstColumnIterator) = (num_columns(it.working_memory),)
 
-function Base.getindex(it::MainSegmentIterator, index)
+function Base.getindex(it::FirstColumnIterator, index)
     row_index = index + it.rank * num_columns(it.working_memory)
     return it.working_memory.columns[1].segments[row_index]
 end
@@ -175,7 +190,8 @@ end
 """
     perform_spawns!(w::PDWorkingMemory, t::PDVec, ham, boost)
 
-Perform spawns from `t` through `ham` to `w`.
+Perform spawns from `t` through `ham` to `w`. `boost` increases the number of spawns without
+affecting the expectation value of the process.
 
 See [`PDVec`](@ref) and [`PDWorkingMemory`](@ref).
 """
@@ -193,8 +209,9 @@ end
 """
     collect_local!(w::PDWorkingMemory)
 
-Collect each row in `w` into its main segment. This step must be performed before using
-[`local_segments`](@ref) or [`remote_segments`](@ref) to move the values elsewhere.
+Sum each row in `w` and store the result in the first column. This step must be performed
+before using [`local_segments`](@ref) or [`remote_segments`](@ref) to move the values
+elsewhere.
 
 See [`PDWorkingMemory`](@ref).
 """
@@ -208,10 +225,11 @@ function collect_local!(w::PDWorkingMemory)
 end
 
 """
-    synchronize_remote!(w::PDWorkingMemory) -> names, values
+    synchronize_remote!([::Communicator,] w::PDWorkingMemory) -> names, values
 
-Synchronize non-local segments across MPI. Controlled by the [`Communicator`](@ref). This
-can only be perfomed after [`collect_local!`](@ref).
+Synchronize non-local segments across MPI and add the results to the first
+column. Controlled by the [`Communicator`](@ref). This can only be perfomed after
+[`collect_local!`](@ref).
 
 Should return a `Tuple` of names and a `Tuple` of values to report.
 
@@ -245,13 +263,14 @@ function move_and_compress!(dst::PDVec, src::PDWorkingMemory)
 end
 
 """
-    main_column(::PDWorkingMemory) -> PDVec
+    first_column(::PDWorkingMemory)
 
-Return the "main" column of the working memory wrapped in a [`PDVec`](@ref).
+Return the first column of the working memory. This is where the vectors are collected
+with [`collect_local!`](@ref) and [`synchronize_remote!`](@ref).
 
 See [`PDWorkingMemory`](@ref).
 """
-function main_column(w::PDWorkingMemory{K,V,W,S}) where {K,V,W,S}
+function first_column(w::PDWorkingMemory{K,V,W,S}) where {K,V,W,S}
     return w.columns[1]
 end
 
@@ -266,10 +285,8 @@ end
 working_memory(t::PDVec) = PDWorkingMemory(t)
 
 function Interfaces.apply_operator!(
-    working_memory::PDWorkingMemory, target::PDVec, source::PDVec, ham,
-    boost=1, compress::Val{C}=Val(true)
-) where {C}
-
+    working_memory::PDWorkingMemory, target::PDVec, source::PDVec, ham, boost=1,
+)
     stat_names, stats = perform_spawns!(working_memory, source, ham, boost)
     collect_local!(working_memory)
     sync_stat_names, sync_stats = synchronize_remote!(working_memory)

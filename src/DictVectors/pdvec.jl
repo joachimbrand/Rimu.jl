@@ -67,7 +67,7 @@ julia> pv = op * pv
   fs"|↑↓↓↑⟩" => -1.0
   fs"|⋅⇅⇅⋅⟩" => 1.0
 
-julia> map!(x -> -x, values(pv)); pv
+julia> scale!(pv, -1); pv
 7-element PDVec: style = IsDeterministic{Float64}()
   fs"|↑↓↑↓⟩" => -1.0
   fs"|↑↑↓↓⟩" => -4.0
@@ -140,16 +140,14 @@ julia> results[1][1:4]
 
 ## Parallel functionality
 
-The following functions are threaded MPI-compatible:
+The following functions are threaded and MPI-compatible:
 
 * From Base: `mapreduce` and derivatives (`sum`, `prod`, `reduce`...), `all`,
   `any`,`map!` (on `values` only), `+`, `-`, `*`
-
 * From LinearAlgebra: `rmul!`, `lmul!`, `mul!`, `axpy!`, `axpby!`, `dot`, `norm`,
   `normalize`, `normalize!`
-
 * The full interface defined in
-  [VectorInterface](https://github.com/Jutho/VectorInterface.jl)
+  [VectorInterface.jl](https://github.com/Jutho/VectorInterface.jl)
 
 """
 struct PDVec{
@@ -189,7 +187,7 @@ function PDVec{K,V,N}(
     IW = initiator_valtype(irule, W)
     if isnothing(communicator)
         if MPI.Comm_size(MPI.COMM_WORLD) > 1
-            comm = AllToAll{K,IW}()
+            comm = AllToAll{K,IW}(; n_segments=N)
         else
             comm = NotDistributed()
         end
