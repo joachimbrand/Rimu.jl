@@ -27,9 +27,9 @@ struct BoseHubbardReal1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
     hb::HB
 end
 
-function BoseHubbardReal1D2C(add::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
-    ha = HubbardReal1D(add.bsa; u=ua, t=ta)
-    hb = HubbardReal1D(add.bsb; u=ub, t=tb)
+function BoseHubbardReal1D2C(address::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
+    ha = HubbardReal1D(address.bsa; u=ua, t=ta)
+    hb = HubbardReal1D(address.bsb; u=ub, t=tb)
     T = promote_type(eltype(ha), eltype(hb))
     return BoseHubbardReal1D2C{T,typeof(ha),typeof(hb),v}(ha, hb)
 end
@@ -58,8 +58,8 @@ Base.getproperty(h::BoseHubbardReal1D2C, ::Val{:hb}) = getfield(h, :hb)
 Base.getproperty(h::BoseHubbardReal1D2C{<:Any,<:Any,<:Any,V}, ::Val{:v}) where {V} = V
 
 # number of excitations that can be made
-function num_offdiagonals(ham::BoseHubbardReal1D2C, add)
-    return 2*(num_occupied_modes(add.bsa) + num_occupied_modes(add.bsb))
+function num_offdiagonals(::BoseHubbardReal1D2C, address)
+    return 2*(num_occupied_modes(address.bsa) + num_occupied_modes(address.bsb))
 end
 
 """
@@ -67,9 +67,9 @@ end
 
 Compute the interaction between the two components.
 """
-function bose_hubbard_2c_interaction(add::BoseFS2C)
-    c1 = onr(add.bsa)
-    c2 = onr(add.bsb)
+function bose_hubbard_2c_interaction(address::BoseFS2C)
+    c1 = onr(address.bsa)
+    c2 = onr(address.bsb)
     interaction = zero(eltype(c1))
     for site = 1:length(c1)
         if !iszero(c2[site])
@@ -87,18 +87,18 @@ function diagonal_element(ham::BoseHubbardReal1D2C, address::BoseFS2C)
     )
 end
 
-function get_offdiagonal(ham::BoseHubbardReal1D2C, add, chosen)
-    nhops = num_offdiagonals(ham,add)
-    nhops_a = 2 * num_occupied_modes(add.bsa)
+function get_offdiagonal(ham::BoseHubbardReal1D2C, address, chosen)
+    nhops = num_offdiagonals(ham,address)
+    nhops_a = 2 * num_occupied_modes(address.bsa)
     if chosen ≤ nhops_a
-        naddress_from_bsa, onproduct = hopnextneighbour(add.bsa, chosen)
+        naddress_from_bsa, onproduct = hopnextneighbour(address.bsa, chosen)
         elem = - ham.ha.t * onproduct
-        return BoseFS2C(naddress_from_bsa,add.bsb), elem
+        return BoseFS2C(naddress_from_bsa,address.bsb), elem
     else
         chosen -= nhops_a
-        naddress_from_bsb, onproduct = hopnextneighbour(add.bsb, chosen)
+        naddress_from_bsb, onproduct = hopnextneighbour(address.bsb, chosen)
         elem = -ham.hb.t * onproduct
-        return BoseFS2C(add.bsa,naddress_from_bsb), elem
+        return BoseFS2C(address.bsa,naddress_from_bsb), elem
     end
     # return new address and matrix element
 end

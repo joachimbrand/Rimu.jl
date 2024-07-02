@@ -66,7 +66,7 @@ See also [`HubbardMom1D`](@ref), [`HubbardReal1DEP`](@ref),
 [`Transcorrelated1D`](@ref), [`Hamiltonians`](@ref).
 """
 struct HubbardMom1DEP{TT,M,AD<:AbstractFockAddress,U,T,V,D} <: AbstractHamiltonian{TT}
-    addr::AD # default starting address, should have M modes, U and T are model parameters
+    address::AD # default starting address, should have M modes, U and T are model parameters
     ks::SVector{M,TT} # values for k
     kes::SVector{M,TT} # values for kinetic energy
     ep::SVector{M,TT} # external potential
@@ -74,10 +74,10 @@ struct HubbardMom1DEP{TT,M,AD<:AbstractFockAddress,U,T,V,D} <: AbstractHamiltoni
 end
 
 function HubbardMom1DEP(
-    addr::Union{SingleComponentFockAddress,FermiFS2C};
+    address::Union{SingleComponentFockAddress,FermiFS2C};
     u=1.0, t=1.0, dispersion = hubbard_dispersion, v_ho=1.0,
 )
-    M = num_modes(addr)
+    M = num_modes(address)
     U, T, V = promote(float(u), float(t), float(v_ho))
     step = 2π/M
     if isodd(M)
@@ -91,22 +91,22 @@ function HubbardMom1DEP(
 
     potential = momentum_space_harmonic_potential(M, V)
 
-    return HubbardMom1DEP{typeof(U),M,typeof(addr),U,T,V,typeof(dispersion)}(
-        addr, ks, kes, potential, dispersion
+    return HubbardMom1DEP{typeof(U),M,typeof(address),U,T,V,typeof(dispersion)}(
+        address, ks, kes, potential, dispersion
     )
 end
 
 function starting_address(h::HubbardMom1DEP)
-    return h.addr
+    return h.address
 end
 
 dimension(::HubbardMom1DEP, address) = number_conserving_dimension(address)
 
-function get_offdiagonal(h::HubbardMom1DEP{<:Any,<:Any,F}, addr::F, i) where {F}
-    return offdiagonals(h, addr)[i]
+function get_offdiagonal(h::HubbardMom1DEP{<:Any,<:Any,F}, address::F, i) where {F}
+    return offdiagonals(h, address)[i]
 end
-function num_offdiagonals(h::HubbardMom1DEP{<:Any,<:Any,F}, addr::F) where {F}
-    return length(offdiagonals(h, addr))
+function num_offdiagonals(h::HubbardMom1DEP{<:Any,<:Any,F}, address::F) where {F}
+    return length(offdiagonals(h, address))
 end
 
 LOStructure(::Type{<:HubbardMom1DEP{<:Real}}) = IsHermitian()
@@ -115,20 +115,20 @@ Base.getproperty(h::HubbardMom1DEP, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::HubbardMom1DEP, ::Val{:ep}) = getfield(h, :ep)
 Base.getproperty(h::HubbardMom1DEP, ::Val{:ks}) = getfield(h, :ks)
 Base.getproperty(h::HubbardMom1DEP, ::Val{:kes}) = getfield(h, :kes)
-Base.getproperty(h::HubbardMom1DEP, ::Val{:addr}) = getfield(h, :addr)
+Base.getproperty(h::HubbardMom1DEP, ::Val{:address}) = getfield(h, :address)
 Base.getproperty(h::HubbardMom1DEP, ::Val{:dispersion}) = getfield(h, :dispersion)
 Base.getproperty(h::HubbardMom1DEP{<:Any,<:Any,<:Any,U}, ::Val{:u}) where {U} = U
 Base.getproperty(h::HubbardMom1DEP{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where {T} = T
 Base.getproperty(h::HubbardMom1DEP{<:Any,<:Any,<:Any,<:Any,<:Any,V}, ::Val{:v_ho}) where {V} = V
 
 function Base.show(io::IO, h::HubbardMom1DEP)
-    compact_addr = repr(h.addr, context=:compact => true) # compact print address
+    compact_addr = repr(h.address, context=:compact => true) # compact print address
     print(io, "HubbardMom1DEP($compact_addr; ")
     print(io, "u=$(h.u), t=$(h.t), v_ho=$(h.v_ho), dispersion=$(h.dispersion))")
 end
 
 function Base.:(==)(a::HubbardMom1DEP, b::HubbardMom1DEP)
-    result = a.addr == b.addr && a.u == b.u && a.t == b.t && a.dispersion == b.dispersion
+    result = a.address == b.address && a.u == b.u && a.t == b.t && a.dispersion == b.dispersion
     return result && a.ep == b.ep && a.ks == b.ks && a.kes == b.kes
 end
 
@@ -145,13 +145,13 @@ end
     return h.u / 2M * momentum_transfer_diagonal(map_a, map_b)
 end
 
-@inline function diagonal_element(h::HubbardMom1DEP, addr::SingleComponentFockAddress)
-    map = OccupiedModeMap(addr)
+@inline function diagonal_element(h::HubbardMom1DEP, address::SingleComponentFockAddress)
+    map = OccupiedModeMap(address)
     return dot(h.kes, map) + momentum_transfer_diagonal(h, map) +
-        momentum_external_potential_diagonal(h.ep, addr, map)
+        momentum_external_potential_diagonal(h.ep, address, map)
 end
-@inline function diagonal_element(h::HubbardMom1DEP, addr::FermiFS2C)
-    c1, c2 = addr.components
+@inline function diagonal_element(h::HubbardMom1DEP, address::FermiFS2C)
+    c1, c2 = address.components
     map_a = OccupiedModeMap(c1)
     map_b = OccupiedModeMap(c2)
     return dot(h.kes, map_a) + dot(h.kes, map_b) +

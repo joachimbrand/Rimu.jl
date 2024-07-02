@@ -188,17 +188,16 @@ are passed on to `Base.sortperm`.
 julia> hamiltonian = HubbardReal1D(BoseFS(1,0,0));
 
 julia> bsr = BasisSetRepresentation(hamiltonian)
-BasisSetRepresentation(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
+BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
 
 julia> BasisSetRepresentation(hamiltonian, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
-BasisSetRepresentation(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
+BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
   0.0  -1.0
  -1.0   0.0
-```
-```julia-repl
+
 julia> using LinearAlgebra; eigvals(Matrix(bsr)) # eigenvalues
 3-element Vector{Float64}:
  -1.9999999999999996
@@ -216,7 +215,7 @@ DVec{BoseFS{1, 3, BitString{3, 1, UInt8}},Float64} with 3 entries, style = IsDet
   fs"|0 0 1⟩" => -0.57735
   fs"|0 1 0⟩" => -0.57735
   fs"|1 0 0⟩" => -0.57735
-```
+  ```
 Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 [`starting_address`](@ref).
 
