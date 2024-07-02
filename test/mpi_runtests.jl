@@ -226,7 +226,7 @@ end
         if mpi_size() > 1
             K = typeof(addr)
             V = Rimu.DictVectors.NonInitiatorValue{Float64}
-            for communicator in (AllToAll{K,V}(), PointToPoint{K,V}())
+            for communicator in (AllToAll{K,V}(report=true), PointToPoint{K,V}(report=true))
                 @testset "$(nameof(typeof(communicator)))" begin
                     pv = PDVec(addr => 1.0; communicator)
                     @test pv.communicator isa typeof(communicator)
