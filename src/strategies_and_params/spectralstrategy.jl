@@ -18,11 +18,12 @@ num_spectral_states(::SpectralStrategy{S}) where {S} = S
     GramSchmidt{S} <: SpectralStrategy{S}
 
 Use the Gram-Schmidt procedure to orthogonalize the excited states. A total of `S` spectral
-states are used in the simulation.
+states are used in the simulation, and they are orthogonalised every `orthogonalisation_interval` steps.
 """
-struct GramSchmidt{S} <: SpectralStrategy{S} end
+struct GramSchmidt{S} <: SpectralStrategy{S}
+    orthogonalisation_interval::Int
+end
 
-function GramSchmidt(num_spectral_states = 1)
-    num_spectral_states > 1 && throw(ArgumentError("num_spectral_states > 1 is currently not supported."))
-    GramSchmidt{num_spectral_states}()
+function GramSchmidt(num_spectral_states = 1, orthogonalisation_interval = 1)
+    return GramSchmidt{num_spectral_states}(orthogonalisation_interval)
 end

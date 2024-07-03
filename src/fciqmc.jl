@@ -188,4 +188,18 @@ end
 function advance!(algorithm, report, state::ReplicaState, replica::SpectralState{1})
     return advance!(algorithm, report, state, only(replica.single_states))
 end
-# TODO: add advance! for SpectralState{N} where N > 1
+
+function advance!(algorithm, report, state::ReplicaState, replica::SpectralState{N, NS, GramSchmidt{N}}) where {N, NS}
+    proceed = true
+    if state.step[] % replica.spectral_strategy.orthogonalisation_interval == 0
+        for i in 1:N
+            for j in 1:i-1
+                add!(replica[i].v, replica[j].v, -1*dot(replica[j].v,replica[i].v)/dot(replica[j].v, replica[j].v), One())
+            end
+        end
+    end
+    for i in 1:N
+        proceed &= advance!(algorithm, report, state, replica[i])
+    end
+    return proceed
+end
