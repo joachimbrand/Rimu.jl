@@ -78,7 +78,7 @@ julia> size(DataFrame(simulation))
 - `ξ = ζ^2/4`: Forcing parameter for the shift update.
 - `shift_strategy = DoubleLogUpdate(; target_walkers, ζ, ξ)`: How to update the `shift`,
     see [`ShiftStrategy`](@ref).
-- `time_step_strategy = ConstantTimeStep()``: Adjust time step or not, see
+- `time_step_strategy = ConstantTimeStep()`: Adjust time step or not, see
     `TimeStepStrategy`.
 - `algorithm = FCIQMC(; shift_strategy, time_step_strategy)`: The algorithm to use.
     Currenlty only [`FCIQMC`](@ref) is implemented.
