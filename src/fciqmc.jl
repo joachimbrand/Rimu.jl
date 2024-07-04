@@ -145,7 +145,7 @@ function advance!(algorithm::FCIQMC, report, state::ReplicaState, s_state::Singl
     len = length(v)
 
     # Updates
-    time_step = update_dτ(time_step_strategy, time_step, tnorm)
+    time_step = update_time_step(time_step_strategy, time_step, tnorm)
 
     shift_stats, proceed = update_shift_parameters!(
         shift_strategy, shift_parameters, tnorm, v, pv, step, report
