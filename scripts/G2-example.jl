@@ -54,7 +54,7 @@ replica_strategy = AllOverlaps(num_replicas; operator = G2list)
 steps_equilibrate = 1_000
 steps_measure = 5_000
 targetwalkers = 100;
-dτ = 0.001
+time_step = 0.001
 
 Random.seed!(17); #hide
 
@@ -62,7 +62,7 @@ Random.seed!(17); #hide
 # style, a vector with the appropriate style is created automatically.
 df, state = lomc!(
     H; style=IsDynamicSemistochastic(),
-    dτ,
+    time_step,
     laststep = steps_equilibrate + steps_measure,
     targetwalkers,
     replica_strategy,

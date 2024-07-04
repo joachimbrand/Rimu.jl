@@ -22,9 +22,9 @@ end
     @test_throws AssertionError growth_witness(rand(5), rand(5), 0.01; skip=10)
     nor = rand(200)
     shift = rand(200)
-    dτ = 0.01 * ones(200)
-    df = DataFrame(; norm=nor, shift, dτ)
-    m = mean(growth_witness(shift, nor, dτ[1]; skip=10))
+    time_step = 0.01 * ones(200)
+    df = DataFrame(; norm=nor, shift, time_step)
+    m = mean(growth_witness(shift, nor, time_step[1]; skip=10))
     @test mean(growth_witness(df, 10; skip=10)) ≈ m
     @test mean(growth_witness(df; skip=10)) ≈ m
 end
@@ -236,7 +236,7 @@ end
     # projected energy
     bp = @suppress projected_energy(df; skip=steps_equi)
     me = @suppress @inferred mixed_estimator(
-        df.hproj, df.vproj, df.shift, h, df.dτ[end];
+        df.hproj, df.vproj, df.shift, h, df.time_step[end];
         skip=steps_equi, E_r
     )
     @test me.ratio ≈ bp.ratio # reweighting has not significantly improved the projected energy

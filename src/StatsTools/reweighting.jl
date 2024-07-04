@@ -1,7 +1,7 @@
 # reweighting functions
 
 """
-    determine_constant_time_step(df) -> dτ
+    determine_constant_time_step(df) -> time_step
 
 Given a `DataFrame` `df`, determine the time step that was used to compute it. Throw an
 error if time step is not constant.
@@ -11,15 +11,19 @@ function determine_constant_time_step(df)
     if get(metadata(df), "time_step_strategy", "ConstantTimeStep()") == "ConstantTimeStep()"
         if haskey(metadata(df), "time_step")
             return parse(Float64, metadata(df)["time_step"])
-        elseif hasproperty(df, "dτ")
+        elseif hasproperty(df, "time_step")
+            return df.time_step[end]
+        elseif hasproperty(df, "time_step_1")
+            return df.time_step_1[end]
+        elseif hasproperty(df, "dτ") # backwards compatibility
             return df.dτ[end]
         elseif hasproperty(df, "dτ_1")
             return df.dτ_1[end]
         else
-            throw(ArgumentError("Timestep not found in `df`"))
+            throw(ArgumentError("Time step not found in `df`"))
         end
     else
-        throw(ArgumentError("Timestep not constant"))
+        throw(ArgumentError("Time step not constant"))
     end
 end
 
@@ -27,19 +31,19 @@ VectorOrView = Union{Vector,SubArray{<:Any,1,<:Vector,<:Any,true}}
 # safe type for `@simd ivdep` loops, supports fast linear indexing
 
 """
-    w_exp(shift, h, dτ; E_r = mean(shift), skip = 0)
+    w_exp(shift, h, time_step; E_r = mean(shift), skip = 0)
 
 Compute the weights for reweighting over `h` time steps with reference energy `E_r` from
 the exponential formula
 ```math
 w_h^{(n)} = \\prod_{j=1}^h \\exp[-dτ(S^{(q+n-j)}-E_r)] ,
 ```
-where `q = skip`.
+where `q = skip` and ``dτ`` is the `time_step`.
 
 See also [`w_lin`](@ref), [`growth_estimator`](@ref),
 [`mixed_estimator`](@ref).
 """
-@inline function w_exp(shift::VectorOrView, h, dτ; E_r=mean(shift), skip=0)
+@inline function w_exp(shift::VectorOrView, h, time_step; E_r=mean(shift), skip=0)
     T = promote_type(eltype(shift), typeof(E_r))
     len = length(shift) - skip
     accu = Vector{T}(undef, len)
@@ -49,27 +53,27 @@ See also [`w_lin`](@ref), [`growth_estimator`](@ref),
         @simd ivdep for j in 1:look_back # makes it very fast
             a += shift[skip+n-j]
         end
-        accu[n] = exp(-dτ * (a - look_back * E_r))
+        accu[n] = exp(-time_step * (a - look_back * E_r))
     end
     return accu
 end
-w_exp(shift, h, dτ; kwargs...) = w_exp(Vector(shift), h, dτ; kwargs...)
+w_exp(shift, h, time_step; kwargs...) = w_exp(Vector(shift), h, time_step; kwargs...)
 # cast to vector to make `@simd` loop work
 
 """
-    w_lin(shift, h, dτ; E_r = mean(shift), skip = 0)
+    w_lin(shift, h, time_step; E_r = mean(shift), skip = 0)
 
 Compute the weights for reweighting over `h` time steps with reference energy `E_r` from
 the linearised formula
 ```math
 w_h^{(n)} = \\prod_{j=1}^h [1-dτ(S^{(q+n-j)}-E_r)] ,
 ```
-where `q = skip`.
+where `q = skip` and ``dτ`` is the `time_step`.
 
 See also [`w_exp`](@ref), [`growth_estimator`](@ref),
 [`mixed_estimator`](@ref).
 """
-@inline function w_lin(shift::VectorOrView, h, dτ; E_r=mean(shift), skip=0)
+@inline function w_lin(shift::VectorOrView, h, time_step; E_r=mean(shift), skip=0)
     T = promote_type(eltype(shift), typeof(E_r))
     len = length(shift) - skip
     accu = ones(T, len)
@@ -77,18 +81,18 @@ See also [`w_exp`](@ref), [`growth_estimator`](@ref),
         a = one(T)
         look_back = min(h, skip + n - 1)
         @simd ivdep for j in 1:look_back
-            a *= 1 - dτ * (shift[skip+n-j] - E_r)
+            a *= 1 - time_step * (shift[skip+n-j] - E_r)
         end
         accu[n] = a
     end
     return accu
 end
-w_lin(shift, h, dτ; kwargs...) = w_lin(Vector(shift), h, dτ; kwargs...)
+w_lin(shift, h, time_step; kwargs...) = w_lin(Vector(shift), h, time_step; kwargs...)
 # cast to vector to make `@simd` loop work
 
 """
     growth_estimator(
-        shift, wn, h, dτ;
+        shift, wn, h, time_step;
         skip = 0,
         E_r = mean(shift[skip+1:end]),
         weights = w_exp,
@@ -99,7 +103,7 @@ w_lin(shift, h, dτ; kwargs...) = w_lin(Vector(shift), h, dτ; kwargs...)
         df::DataFrame, h;
         shift_name=:shift,
         norm_name=:norm,
-        dτ=determine_constant_time_step(df),
+        time_step=determine_constant_time_step(df),
         kwargs...
     )
     growth_estimator(sim::PMCSimulation; kwargs...)
@@ -110,14 +114,15 @@ technique described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465
 see Eq. (20).
 `shift` and `wn` are equal length vectors containing the shift and walker number time
 series, respectively.  Reweighting is done over `h` time steps and `length(shift) - skip`
-time steps are used for the blocking analysis done with [`ratio_of_means`](@ref). `dτ` is
-the time step and `weights` a function that calulates the weights. See [`w_exp`](@ref) and
+time steps are used for the blocking analysis done with [`ratio_of_means`](@ref).
+`weights` is a function that calulates the weights. See [`w_exp`](@ref) and
 [`w_lin`](@ref).
 ```math
 E_{gr} = E_r - \\frac{1}{dτ}\\ln
     \\frac{\\sum_n w_{h+1}^{(n+1)} N_\\mathrm{w}^{(n+1)}}
-        {\\sum_m w_{h}^{(m)} N_\\mathrm{w}^{(m)}}
+        {\\sum_m w_{h}^{(m)} N_\\mathrm{w}^{(m)}} ,
 ```
+where ``dτ`` is the `time_step`
 
 When `h` is greater than the autocorrelation time scale of the `shift`, then `E_gr`
 (returned as `r.ratio`) is an unbiased but approximate estimator for the ground state energy
@@ -138,7 +143,7 @@ The second method calculates the growth estimator directly from a
 See also [`mixed_estimator`](@ref) and [`RatioBlockingResult`](@ref).
 """
 function growth_estimator(
-    shift, wn, h, dτ;
+    shift, wn, h, time_step;
     skip=0,
     E_r=mean(view(shift, skip+1:length(shift))),
     weights=w_exp,
@@ -148,14 +153,14 @@ function growth_estimator(
 )
     T = promote_type(eltype(shift), eltype(wn))
     # W_{t+1}^{(n+1)} .* wn^{(n+1)}
-    @views numerator = weights(shift[2:end], h + 1, dτ; E_r, skip) .* wn[skip+2:end]
+    @views numerator = weights(shift[2:end], h + 1, time_step; E_r, skip) .* wn[skip+2:end]
     # W_{t}^{(n)} .* wn^{(n)}
-    @views denominator = weights(shift[1:end-1], h, dτ; E_r, skip) .* wn[skip+1:end-1]
+    @views denominator = weights(shift[1:end-1], h, time_step; E_r, skip) .* wn[skip+1:end-1]
     rbr = ratio_of_means(numerator, denominator; mc_samples, kwargs...)
     r = rbr.ratio::MonteCarloMeasurements.Particles{T,<:Any}
     r = change_type(r)
-    E_gr = E_r - log(r) / dτ # MonteCarloMeasurements propagates the uncertainty
-    E_gr_f = E_r - log(Measurements.measurement(rbr.f, rbr.σ_f)) / dτ # linear error prop
+    E_gr = E_r - log(r) / time_step # MonteCarloMeasurements propagates the uncertainty
+    E_gr_f = E_r - log(Measurements.measurement(rbr.f, rbr.σ_f)) / time_step # linear error prop
     return RatioBlockingResult(
         particles(mc_samples, E_gr),
         Measurements.value(E_gr_f),
@@ -169,14 +174,14 @@ function growth_estimator(
 end
 function growth_estimator(
     sim, h;
-    shift_name=:shift, norm_name=:norm, dτ=nothing, kwargs...
+    shift_name=:shift, norm_name=:norm, time_step=nothing, kwargs...
 )
     df = DataFrame(sim)
-    dτ = isnothing(dτ) ? determine_constant_time_step(df) : dτ
+    time_step = isnothing(time_step) ? determine_constant_time_step(df) : time_step
     shift_vec = Vector(getproperty(df, Symbol(shift_name)))
     norm_vec = Vector(getproperty(df, Symbol(norm_name)))
     # converting to Vector here because this works fastest with `growth_estimator`
-    return growth_estimator(shift_vec, norm_vec, h, dτ; kwargs...)
+    return growth_estimator(shift_vec, norm_vec, h, time_step; kwargs...)
 end
 
 function determine_h_range(df, skip, correlation_estimate, h_values)
@@ -243,8 +248,8 @@ function growth_estimator_analysis(
     df = DataFrame(sim)
     shift_v = Vector(getproperty(df, Symbol(shift_name))) # casting to `Vector` to make SIMD loops efficient
     norm_v = Vector(getproperty(df, Symbol(norm_name)))
-    num_reps = length(filter(startswith("dτ"), names(df)))
-    dτ = determine_constant_time_step(df)
+    num_reps = length(filter(startswith("norm"), names(df)))
+    time_step = determine_constant_time_step(df)
     se = blocking_analysis(shift_v; skip)
     E_r = se.mean
     correlation_estimate = 2^(se.k - 1)
@@ -252,9 +257,9 @@ function growth_estimator_analysis(
         h_range = determine_h_range(df, skip, correlation_estimate, h_values)
     end
     df_ge = if threading
-        growth_estimator_df_folds(shift_v, norm_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
+        growth_estimator_df_folds(shift_v, norm_v, h_range, time_step; skip, E_r, warn=false, kwargs...)
     else
-        growth_estimator_df_progress(shift_v, norm_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
+        growth_estimator_df_progress(shift_v, norm_v, h_range, time_step; skip, E_r, warn=false, kwargs...)
     end
 
     if warn # log warning messages based on the whole `DataFrame`
@@ -267,19 +272,19 @@ function growth_estimator_analysis(
     return (; df_ge, correlation_estimate, val_and_errs(se; name=:se)...)
 end
 
-function growth_estimator_df_folds(shift::Vector, norm::Vector, h_range, dτ; kwargs...)
+function growth_estimator_df_folds(shift::Vector, norm::Vector, h_range, time_step; kwargs...)
     # parallel excecution with Folds.jl package
     nts = Folds.map(h_range) do h
-        ge = growth_estimator(shift, norm, h, dτ; kwargs...)
+        ge = growth_estimator(shift, norm, h, time_step; kwargs...)
         (; h, NamedTuple(ge)...)
     end
     return DataFrame(nts)
 end
 
-function growth_estimator_df_progress(shift::Vector, norm::Vector, h_range, dτ; kwargs...)
+function growth_estimator_df_progress(shift::Vector, norm::Vector, h_range, time_step; kwargs...)
     # serial processing supports progress bar
     ProgressLogging.@progress nts = [
-        (; h, NamedTuple(growth_estimator(shift, norm, h, dτ; kwargs...))...)
+        (; h, NamedTuple(growth_estimator(shift, norm, h, time_step; kwargs...))...)
         for h in h_range
     ]
     return DataFrame(nts)
@@ -288,7 +293,7 @@ end
 
 """
     mixed_estimator(
-        hproj, vproj, shift, h, dτ;
+        hproj, vproj, shift, h, time_step;
         skip = 0,
         E_r = mean(shift[skip+1:end]),
         weights = w_exp,
@@ -299,7 +304,7 @@ end
         hproj_name=:hproj,
         vproj_name=:vproj,
         shift_name=:shift,
-        dτ=df.dτ[end],
+        time_step=determine_constant_time_step(df),
         kwargs...
     )
     mixed_estimator(sim::PMCSimulation, h; kwargs...)
@@ -317,14 +322,14 @@ where the time series `hproj ==` ``(Ĥ'\\mathbf{v})⋅\\mathbf{c}^{(n)}`` and `
 ``\\mathbf{v}⋅\\mathbf{c}^{(m)}`` have the same length as `shift` (See
 [`ProjectedEnergy`](@ref Main.ProjectedEnergy) on how to set these up).  Reweighting is done
 over `h` time steps and `length(shift) - skip` time steps are used for the blocking analysis
-done with [`ratio_of_means`](@ref). `dτ` is the time step and `weights` a function that
+done with [`ratio_of_means`](@ref). `weights` is a function that
 calulates the weights. See [`w_exp`](@ref) and [`w_lin`](@ref).  Additional keyword
 arguments are passed on to [`ratio_of_means`](@ref).
 
 When `h` is greater than the autocorrelation time scale of the `shift`, then `r.ratio` is an
 unbiased but approximate estimator for the ground state energy ``E_0`` with an error
-``\\mathcal{O}(dτ^2)`` and potentially increased confidence intervals compared to the
-unweighted ratio.  Error propagation is done with
+``\\mathcal{O}(dτ^2)``, where ``dτ`` is the `time_step`, and potentially increased
+confidence intervals compared to the unweighted ratio.  Error propagation is done with
 [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 Results are returned as [`RatioBlockingResult`](@ref).
 
@@ -337,27 +342,27 @@ columns.
 See also [`growth_estimator`](@ref).
 """
 function mixed_estimator(
-    hproj::AbstractVector, vproj::AbstractVector, shift::AbstractVector, h, dτ;
+    hproj::AbstractVector, vproj::AbstractVector, shift::AbstractVector, h, time_step;
     skip=0,
     E_r=mean(view(shift, skip+1:length(shift))),
     weights=w_exp,
     kwargs...
 )
-    wts = weights(shift, h, dτ; E_r, skip)
+    wts = weights(shift, h, time_step; E_r, skip)
     @views num =  wts .* hproj[skip+1:end]
     @views denom = wts .* vproj[skip+1:end]
     return ratio_of_means(num, denom; kwargs...)
 end
 function mixed_estimator(
     sim, h;
-    hproj_name=:hproj, vproj_name=:vproj, shift_name=:shift, dτ=nothing, kwargs...
+    hproj_name=:hproj, vproj_name=:vproj, shift_name=:shift, time_step=nothing, kwargs...
 )
     df = DataFrame(sim)
-    dτ = isnothing(dτ) ? determine_constant_time_step(df) : dτ
+    time_step = isnothing(time_step) ? determine_constant_time_step(df) : time_step
     hproj_vec = Vector(getproperty(df, Symbol(hproj_name)))
     vproj_vec = Vector(getproperty(df, Symbol(vproj_name)))
     shift_vec = Vector(getproperty(df, Symbol(shift_name)))
-    return mixed_estimator(hproj_vec, vproj_vec, shift_vec, h, dτ; kwargs...)
+    return mixed_estimator(hproj_vec, vproj_vec, shift_vec, h, time_step; kwargs...)
 end
 
 """
@@ -412,9 +417,9 @@ function mixed_estimator_analysis(
     shift_v = Vector(getproperty(df, Symbol(shift_name))) # casting to `Vector` to make SIMD loops efficient
     hproj_v = Vector(getproperty(df, Symbol(hproj_name)))
     vproj_v = Vector(getproperty(df, Symbol(vproj_name)))
-    num_reps = length(filter(startswith("dτ"), names(df)))
+    num_reps = length(filter(startswith("norm"), names(df)))
 
-    dτ = determine_constant_time_step(df)
+    time_step = determine_constant_time_step(df)
     se = blocking_analysis(shift_v; skip)
     E_r = se.mean
     correlation_estimate = 2^(se.k - 1)
@@ -422,9 +427,9 @@ function mixed_estimator_analysis(
         h_range = determine_h_range(df, skip, correlation_estimate, h_values)
     end
     df_me = if threading
-        mixed_estimator_df_folds(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
+        mixed_estimator_df_folds(shift_v, hproj_v, vproj_v, h_range, time_step; skip, E_r, warn=false, kwargs...)
     else
-        mixed_estimator_df_progress(shift_v, hproj_v, vproj_v, h_range, dτ; skip, E_r, warn=false, kwargs...)
+        mixed_estimator_df_progress(shift_v, hproj_v, vproj_v, h_range, time_step; skip, E_r, warn=false, kwargs...)
     end
 
     if warn # log warning messages based on the whole `DataFrame`
@@ -437,19 +442,19 @@ function mixed_estimator_analysis(
     return (; df_me, correlation_estimate, val_and_errs(se; name=:se)...)
 end
 
-function mixed_estimator_df_folds(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
+function mixed_estimator_df_folds(shift::Vector, hproj::Vector, vproj::Vector, h_range, time_step; kwargs...)
     # parallel excecution with Folds.jl package
     nts = Folds.map(h_range) do h
-        me = mixed_estimator(hproj, vproj, shift, h, dτ; kwargs...)
+        me = mixed_estimator(hproj, vproj, shift, h, time_step; kwargs...)
         (; h, NamedTuple(me)...)
     end
     return DataFrame(nts)
 end
 
-function mixed_estimator_df_progress(shift::Vector, hproj::Vector, vproj::Vector, h_range, dτ; kwargs...)
+function mixed_estimator_df_progress(shift::Vector, hproj::Vector, vproj::Vector, h_range, time_step; kwargs...)
     # serial processing supports progress bar
     ProgressLogging.@progress nts = [
-        (; h, NamedTuple(mixed_estimator(hproj, vproj, shift, h, dτ; kwargs...))...)
+        (; h, NamedTuple(mixed_estimator(hproj, vproj, shift, h, time_step; kwargs...))...)
         for h in h_range
     ]
     return DataFrame(nts)
@@ -457,7 +462,7 @@ end
 
 """
     rayleigh_replica_estimator(
-        op_ol, vec_ol, shift, h, dτ;
+        op_ol, vec_ol, shift, h, time_step;
         skip = 0,
         E_r = mean(shift[skip+1:end]),
         weights = w_exp,
@@ -504,11 +509,12 @@ The reweighting is an extension of the mixed estimator using the reweighting tec
 described in [Umrigar *et al.* (1993)](http://dx.doi.org/10.1063/1.465195).
 Reweighting is done over `h` time steps and `length(shift) - skip` time steps are used
 for the blocking analysis done with [`ratio_of_means`](@ref).
-`dτ` is the time step and `weights` a function that
+`weights` is a function that
 calulates the weights. See [`w_exp`](@ref) and [`w_lin`](@ref).
 Additional keyword arguments are passed on to [`ratio_of_means`](@ref).
 
-Error propagation is done with [`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
+Error propagation is done with
+[`MonteCarloMeasurements`](https://github.com/baggepinnen/MonteCarloMeasurements.jl).
 Results are returned as [`RatioBlockingResult`](@ref).
 
 See also [`mixed_estimator`](@ref), [`growth_estimator`](@ref).
@@ -518,7 +524,7 @@ function rayleigh_replica_estimator(
     vec_ol::Vector,
     shift::Vector,
     h,
-    dτ;
+    time_step;
     skip=0,
     E_r::Vector=[mean(view(s, skip+1:length(s))) for s in shift],
     weights=w_exp,
@@ -534,7 +540,7 @@ function rayleigh_replica_estimator(
         wts = if h == 0
             ones(length(num))
         else
-            weights(shift[a], h, dτ; E_r=E_r[a], skip) .* weights(shift[b], h, dτ; E_r=E_r[b], skip)
+            weights(shift[a], h, time_step; E_r=E_r[a], skip) .* weights(shift[b], h, time_step; E_r=E_r[b], skip)
         end
         @views num .+= wts .* op_ol[pair_idx][skip+1:end]
         @views denom .+= wts .* vec_ol[pair_idx][skip+1:end]
@@ -552,12 +558,8 @@ function rayleigh_replica_estimator(
     kwargs...
 )
     df = DataFrame(sim)
-    num_reps = length(filter(startswith("dτ"), names(df)))
-    dτ = if num_reps == 1
-        df.dτ[end]
-    else
-        df.dτ_1[end]
-    end
+    num_reps = length(filter(startswith("norm"), names(df)))
+    time_step = determine_constant_time_step(df)
     T = eltype(df[!, Symbol(shift_name, "_1")])
     shift_v = Vector{T}[]
     for a in 1:num_reps
@@ -572,7 +574,7 @@ function rayleigh_replica_estimator(
         push!(vec_ol_v, Vector(df[!, Symbol("c", a, "_", vec_name, "_c" ,b)]))
     end
 
-    return rayleigh_replica_estimator(op_ol_v, vec_ol_v, shift_v, h, dτ; skip, kwargs...)
+    return rayleigh_replica_estimator(op_ol_v, vec_ol_v, shift_v, h, time_step; skip, kwargs...)
 end
 
 """
@@ -626,12 +628,8 @@ function rayleigh_replica_estimator_analysis(
     kwargs...
 )
     df = DataFrame(sim)
-    num_reps = length(filter(startswith("dτ"), names(df)))
-    dτ = if num_reps == 1
-        df.dτ[end]
-    else
-        df.dτ_1[end]
-    end
+    num_reps = length(filter(startswith("norm"), names(df)))
+    time_step = determine_constant_time_step(df)
     # estimate the correlation time by blocking the shift data
     T = eltype(df[!, Symbol(shift_name, "_1")])
     shift_v = Vector{T}[]
@@ -658,9 +656,9 @@ function rayleigh_replica_estimator_analysis(
     end
 
     df_rre = if threading
-        rayleigh_replica_estimator_df_folds(op_ol_v, vec_ol_v, shift_v, h_range, dτ; skip, E_r, warn = false, kwargs...)
+        rayleigh_replica_estimator_df_folds(op_ol_v, vec_ol_v, shift_v, h_range, time_step; skip, E_r, warn = false, kwargs...)
     else
-        rayleigh_replica_estimator_df_progress(op_ol_v, vec_ol_v, shift_v, h_range, dτ; skip, E_r, warn = false, kwargs...)
+        rayleigh_replica_estimator_df_progress(op_ol_v, vec_ol_v, shift_v, h_range, time_step; skip, E_r, warn = false, kwargs...)
     end
 
     if warn # log warning messages based on the whole `DataFrame`
@@ -673,19 +671,19 @@ function rayleigh_replica_estimator_analysis(
     return (; df_rre, df_se)
 end
 
-function rayleigh_replica_estimator_df_folds(op_ol::Vector, vec_ol::Vector, shift::Vector, h_range, dτ; kwargs...)
+function rayleigh_replica_estimator_df_folds(op_ol::Vector, vec_ol::Vector, shift::Vector, h_range, time_step; kwargs...)
     # parallel excecution with Folds.jl package
     nts = Folds.map(h_range) do h
-        rre = rayleigh_replica_estimator(op_ol, vec_ol, shift, h, dτ; kwargs...)
+        rre = rayleigh_replica_estimator(op_ol, vec_ol, shift, h, time_step; kwargs...)
         (; h, NamedTuple(rre)...)
     end
     return DataFrame(nts)
 end
 
-function rayleigh_replica_estimator_df_progress(op_ol::Vector, vec_ol::Vector, shift::Vector, h_range, dτ; kwargs...)
+function rayleigh_replica_estimator_df_progress(op_ol::Vector, vec_ol::Vector, shift::Vector, h_range, time_step; kwargs...)
     # serial processing supports progress bar
     ProgressLogging.@progress nts = [
-        (; h, NamedTuple(rayleigh_replica_estimator(op_ol, vec_ol, shift, h, dτ; kwargs...))...)
+        (; h, NamedTuple(rayleigh_replica_estimator(op_ol, vec_ol, shift, h, time_step; kwargs...))...)
         for h in h_range
     ]
     return DataFrame(nts)
