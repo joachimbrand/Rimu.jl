@@ -1,9 +1,6 @@
-# growth_witness()
-# smoothen()
-
 """
-    growth_witness(shift::AbstractArray, norm::AbstractArray, dt, [b]; skip=0) -> g
-    growth_witness(df::DataFrame, [b]; skip=0) -> g
+    growth_witness(shift::AbstractArray, norm::AbstractArray, dt, [b]; skip=0)
+
 Compute the growth witness
 ```math
 G^{(n)} = S^{(n)} - \\frac{\\vert\\mathbf{c}^{(n+1)}\\vert -
@@ -36,14 +33,21 @@ function growth_witness(shift::AbstractArray, norm::AbstractArray, dt, b; kwargs
 end
 """
     growth_witness(df::DataFrame, [b]; shift=:shift, norm=:norm, dτ=df.dτ[end], skip=0)
-Calculate the growth witness directly from a `DataFrame` returned by
-[`lomc!`](@ref Main.lomc!). The keyword arguments `shift` and `norm`
-can be used to change the names of the relevant columns.
+    growth_witness(sim::PMCSimulation, [b]; kwargs...)
+
+Calculate the growth witness directly from the result (`DataFrame` or
+[`PMCSimulation`](@ref Main.Rimu.PMCSimulation)) of
+[`solve`](@ref CommonSolve.solve(::ProjectorMonteCarloProblem))ing a
+[`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem). The keyword arguments
+`shift` and `norm` can be used to change the names of the relevant columns.
 """
 function growth_witness(
-    df::DataFrame, b=Val(0);
-    shift=:shift, norm=:norm, dτ=df.dτ[end], kwargs...
+    sim, b=Val(0);
+    shift=:shift, norm=:norm, dτ=nothing, kwargs...
 )
+    df = DataFrame(sim)
+    dτ = determine_constant_time_step(df)
+
     shift_vec = getproperty(df, Symbol(shift))
     norm_vec = getproperty(df, Symbol(norm))
     return growth_witness(shift_vec, norm_vec, dτ, b; kwargs...)
