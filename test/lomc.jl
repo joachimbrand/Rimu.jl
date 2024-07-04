@@ -47,7 +47,7 @@ Random.seed!(1234)
         state.step[] = 0
         df, state = lomc!(state, df)
         @test size(df, 1) == 200
-        @test df.steps == [1:100; 1:100]
+        @test df.step == [1:100; 1:100]
     end
 
     @testset "Setting dτ and shift" begin

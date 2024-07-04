@@ -92,10 +92,10 @@ df = DataFrame(simulation);
 # We can plot the norm of the coefficient vector as a function of the number of steps.
 hline(
     [targetwalkers];
-    label="targetwalkers", xlabel="steps", ylabel="norm",
+    label="targetwalkers", xlabel="step", ylabel="norm",
     color=2, linestyle=:dash, margin = 1Plots.cm
 )
-plot!(df.steps, df.norm, label="norm", color=1)
+plot!(df.step, df.norm, label="norm", color=1)
 
 # After an initial equilibriation period, the norm fluctuates around the target number of
 # walkers.
@@ -120,11 +120,11 @@ pe = projected_energy(df; skip=steps_equilibrate)
 v = val_and_errs(pe; p=0.95)
 
 # Let's visualise these estimators together with the time series of the shift.
-plot(df.steps, df.shift, ylabel="energy", xlabel="steps", label="shift", margin = 1Plots.cm)
+plot(df.step, df.shift, ylabel="energy", xlabel="step", label="shift", margin = 1Plots.cm)
 
-plot!(x->se.mean, df.steps[steps_equilibrate+1:end], ribbon=se.err, label="shift mean")
+plot!(x->se.mean, df.step[steps_equilibrate+1:end], ribbon=se.err, label="shift mean")
 plot!(
-    x -> v.val, df.steps[steps_equilibrate+1:end], ribbon=(v.val_l,v.val_u),
+    x -> v.val, df.step[steps_equilibrate+1:end], ribbon=(v.val_l,v.val_u),
     label="projected energy",
 )
 lens!([steps_equilibrate, last_step], [-5.1, -2.9]; inset=(1, bbox(0.2, 0.25, 0.6, 0.4)))
