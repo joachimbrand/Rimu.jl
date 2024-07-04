@@ -53,7 +53,7 @@ replica_strategy = AllOverlaps(num_replicas; operator = G2list)
 # Other FCIQMC parameters and strategies can be set in the same way as before.
 steps_equilibrate = 1_000
 steps_measure = 5_000
-targetwalkers = 100;
+target_walkers = 100;
 time_step = 0.001
 
 Random.seed!(17); #hide
@@ -62,9 +62,9 @@ Random.seed!(17); #hide
 # style, a vector with the appropriate style is created automatically.
 df, state = lomc!(
     H; style=IsDynamicSemistochastic(),
-    time_step,
+    dτ = time_step,
     laststep = steps_equilibrate + steps_measure,
-    targetwalkers,
+    targetwalkers = target_walkers,
     replica_strategy,
 );
 

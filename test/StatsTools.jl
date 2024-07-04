@@ -206,7 +206,7 @@ end
     steps_meas = 2^10
     p = RunTillLastStep(laststep=steps_equi + steps_meas)
     post_step = ProjectedEnergy(ham, v)
-    s_strat = DoubleLogUpdate(targetwalkers=10)
+    s_strat = DoubleLogUpdate(target_walkers=10)
     df = lomc!(ham, v; params=p, s_strat, post_step).df
     @test_throws ArgumentError variational_energy_estimator(df) # see next testset
     bs = shift_estimator(df; skip=steps_equi)
@@ -264,7 +264,7 @@ end
     tw = 10
 
     params = RunTillLastStep(laststep = skipsteps + runsteps)
-    s_strat = DoubleLogUpdate(targetwalkers = tw)
+    s_strat = DoubleLogUpdate(target_walkers = tw)
     G2list = ([G2RealCorrelator(i) for i in dvals]...,)
 
     Random.seed!(174)
@@ -307,7 +307,7 @@ using Rimu.StatsTools: replica_fidelity
     steps_meas = 2^10
     p = RunTillLastStep(laststep=steps_equi + steps_meas)
     post_step = (Projector(vproj=gs), Projector(hproj=os))
-    s_strat = DoubleLogUpdate(targetwalkers=10)
+    s_strat = DoubleLogUpdate(target_walkers=10)
 
     # run replica fciqmc
     Random.seed!(170)
