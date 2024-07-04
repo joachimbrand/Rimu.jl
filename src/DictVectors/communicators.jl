@@ -298,6 +298,10 @@ function PointToPoint{K,V}(
     )
 end
 
+function Base.show(io::IO, ata::PointToPoint{K,V}) where {K,V}
+    print(io, "PointToPoint{$K,$V}(mpi_comm=$(ata.mpi_comm), report=$(ata.report))")
+end
+
 mpi_rank(ptp::PointToPoint) = ptp.mpi_rank
 mpi_size(ptp::PointToPoint) = ptp.mpi_size
 mpi_comm(ptp::PointToPoint) = ptp.mpi_comm
@@ -552,6 +556,10 @@ function AllToAll{K,V}(
         mpi_size,
         report,
     )
+end
+
+function Base.show(io::IO, ata::AllToAll{K,V}) where {K,V}
+    print(io, "AllToAll{$K,$V}(mpi_comm=$(ata.mpi_comm), report=$(ata.report))")
 end
 
 mpi_rank(ata::AllToAll) = ata.mpi_rank
