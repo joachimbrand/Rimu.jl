@@ -9,13 +9,15 @@ replica_strategy = AllOverlaps(num_replicas; operator = G2list)</code></pre><pre
 steps_measure = 5_000
 target_walkers = 100;
 time_step = 0.001
-</code></pre><p>Now, we run FCIQMC. Note that passing an initial vector is optional - if we only pass the style, a vector with the appropriate style is created automatically.</p><pre><code class="language-julia hljs">df, state = lomc!(
-    H; style=IsDynamicSemistochastic(),
-    dτ = time_step,
-    laststep = steps_equilibrate + steps_measure,
-    targetwalkers = target_walkers,
+</code></pre><p>Now, we run FCIQMC. Note that passing an initial vector is optional - if we only pass the style, a vector with the appropriate style is created automatically.</p><pre><code class="language-julia hljs">problem = ProjectorMonteCarloProblem(H;
+    style=IsDynamicSemistochastic(),
+    time_step,
+    last_step = steps_equilibrate + steps_measure,
+    target_walkers,
     replica_strategy,
-);</code></pre><p>The output <code>DataFrame</code> has FCIQMC statistics for each replica (e.g. shift, norm),</p><pre><code class="language-julia hljs">println(filter(startswith(&quot;shift_&quot;), names(df)))</code></pre><pre><code class="nohighlight hljs">[&quot;shift_1&quot;, &quot;shift_2&quot;, &quot;shift_3&quot;]
+)
+result = solve(problem)
+df = DataFrame(result);</code></pre><p>The output <code>DataFrame</code> has FCIQMC statistics for each replica (e.g. shift, norm),</p><pre><code class="language-julia hljs">println(filter(startswith(&quot;shift_&quot;), names(df)))</code></pre><pre><code class="nohighlight hljs">[&quot;shift_1&quot;, &quot;shift_2&quot;, &quot;shift_3&quot;]
 </code></pre><p>as well as vector-vector overlaps (e.g. <code>c1_dot_c2</code>),</p><pre><code class="language-julia hljs">println(filter(contains(&quot;dot&quot;), names(df)))</code></pre><pre><code class="nohighlight hljs">[&quot;c1_dot_c2&quot;, &quot;c1_dot_c3&quot;, &quot;c2_dot_c3&quot;]
 </code></pre><p>and operator overlaps (e.g. <code>c1_Op1_c2</code>) between the replicas.</p><pre><code class="language-julia hljs">println(filter(contains(&quot;Op&quot;), names(df)))</code></pre><pre><code class="nohighlight hljs">[&quot;c1_Op1_c2&quot;, &quot;c1_Op2_c2&quot;, &quot;c1_Op3_c2&quot;, &quot;c1_Op4_c2&quot;, &quot;c1_Op5_c2&quot;, &quot;c1_Op6_c2&quot;, &quot;c1_Op1_c3&quot;, &quot;c1_Op2_c3&quot;, &quot;c1_Op3_c3&quot;, &quot;c1_Op4_c3&quot;, &quot;c1_Op5_c3&quot;, &quot;c1_Op6_c3&quot;, &quot;c2_Op1_c3&quot;, &quot;c2_Op2_c3&quot;, &quot;c2_Op3_c3&quot;, &quot;c2_Op4_c3&quot;, &quot;c2_Op5_c3&quot;, &quot;c2_Op6_c3&quot;]
 </code></pre><p>The vector-vector and operator overlaps go into calculating the Rayleigh quotient for an observable</p><p class="math-container">\[    \langle \hat{G}^{(2)}(d) \rangle = \frac{\sum_{a&lt;b} \mathbf{c}_a^\dagger \cdot \hat{G}^{(2)}(d) \cdot \mathbf{c}_b}{\sum_{a&lt;b} \mathbf{c}_a^\dagger \cdot \mathbf{c}_b }\]</p><p>The sum over all replica pairs (a,b), especially in the denominator, helps to avoid errors from poor sampling if the number of walkers is too low.</p><p>We use the function <a href="../statstools.html#Rimu.StatsTools.rayleigh_replica_estimator-Tuple{Vector, Vector, Vector, Any, Any}"><code>rayleigh_replica_estimator</code></a> to calculate the Rayleigh quotient using all replicas in <code>df</code>, returning a <a href="../statstools.html#Rimu.StatsTools.RatioBlockingResult"><code>RatioBlockingResult</code></a>. Using the keyword <code>skip</code> will ignore the initial equilibration steps.</p><p>Now, we can calculate the correlation function for each value of <span>$d$</span>.</p><pre><code class="language-julia hljs">println(&quot;Two-body correlator from $num_replicas replicas:&quot;)
@@ -23,19 +25,19 @@ for d in dvals
     r = rayleigh_replica_estimator(df; op_name = &quot;Op$(d+1)&quot;, skip=steps_equilibrate)
     println(&quot;   G2($d) = $(r.f) ± $(r.σ_f)&quot;)
 end</code></pre><pre><code class="nohighlight hljs">Two-body correlator from 3 replicas:
-   G2(0) = 0.210397630724869 ± 0.002945411560125692
-   G2(1) = 0.9179375998196901 ± 0.0014487882545570095
-   G2(2) = 0.9824618365485462 ± 0.0008078855891765099
-   G2(3) = 0.9888034965386578 ± 0.0012000192916385307
-   G2(4) = 0.9824618365485462 ± 0.0008078855891765099
-   G2(5) = 0.9179375998196901 ± 0.0014487882545570095
+   G2(0) = 0.21197142944971895 ± 0.002317635834542583
+   G2(1) = 0.9168064719462313 ± 0.0008725137071837262
+   G2(2) = 0.9819784583944712 ± 0.0008109430484585117
+   G2(3) = 0.9904587098688754 ± 0.0013043898352337647
+   G2(4) = 0.9819784583944712 ± 0.0008109430484585117
+   G2(5) = 0.9168064719462313 ± 0.0008725137071837262
 </code></pre><p>As expected, the onsite correlation at <span>$d=0$</span> is low since this is a Mott insulating state with unit filling fraction, and is close to <span>$1.0$</span> for all other values of the displacement <span>$d$</span>.</p><p>Since we ran multiple independent replicas, we also have multiple estimates of the shift energy.</p><pre><code class="language-julia hljs">println(&quot;Shift energy from $num_replicas replicas:&quot;)
 for i in 1:num_replicas
     se = shift_estimator(df; shift=&quot;shift_$i&quot;, skip=steps_equilibrate)
     println(&quot;   Replica $i: $(se.mean) ± $(se.err)&quot;)
 end
 </code></pre><pre><code class="nohighlight hljs">Shift energy from 3 replicas:
-   Replica 1: -3.982824328882403 ± 0.13748856752861724
-   Replica 2: -3.974753826250174 ± 0.12466355058904417
-   Replica 3: -4.011054302602586 ± 0.12438161612595747
-</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="BHM-example-mpi.html">« Rimu with MPI</a><a class="docs-footer-nextpage" href="exact-example.html">Exact diagonalization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Thursday 4 July 2024 17:07">Thursday 4 July 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+   Replica 1: -4.043346067519052 ± 0.12780601477391282
+   Replica 2: -4.0698797484447935 ± 0.1289975304986834
+   Replica 3: -4.030307815130401 ± 0.12692988232307267
+</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="BHM-example-mpi.html">« Rimu with MPI</a><a class="docs-footer-nextpage" href="exact-example.html">Exact diagonalization »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.5.0 on <span class="colophon-date" title="Thursday 4 July 2024 17:15">Thursday 4 July 2024</span>. Using Julia version 1.10.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
