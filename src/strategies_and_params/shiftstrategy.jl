@@ -1,12 +1,12 @@
 """
     ShiftStrategy
 Abstract type for defining the strategy for controlling the norm, potentially by updating
-the `shift`. Passed as a parameter to [`lomc!`](@ref).
+the `shift`. Passed as a parameter to [`ProjectorMonteCarloProblem`](@ref) or to [`FCIQMC`](@ref).
 
 ## Implemented strategies:
 
 * [`DontUpdate`](@ref)
-* [`DoubleLogUpdate`](@ref) - default in [`lomc!()`](@ref)
+* [`DoubleLogUpdate`](@ref) - default in [`ProjectorMonteCarloProblem()`](@ref)
 * [`LogUpdate`](@ref)
 * [`LogUpdateAfterTargetWalkers`](@ref) - FCIQMC standard
 * [`DoubleLogUpdateAfterTargetWalkers`](@ref)
@@ -72,7 +72,7 @@ update_shift_parameters!
     DontUpdate(; target_walkers = 1_000_000) <: ShiftStrategy
 Don't update the `shift`.  Return when `target_walkers` is reached.
 
-See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
+See [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
 Base.@kwdef struct DontUpdate <: ShiftStrategy
     target_walkers::Int = 1_000_000
@@ -87,7 +87,7 @@ end
 Strategy for updating the shift: After `target_walkers` is reached, update the
 shift according to the log formula with damping parameter `ζ`.
 
-See [`LogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
+See [`LogUpdate`](@ref), [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
 Base.@kwdef struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     target_walkers::Int
@@ -115,7 +115,7 @@ parameter `ζ`.
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\\right)
 ```
 
-See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
+See [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
 Base.@kwdef struct LogUpdate <: ShiftStrategy
     ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
@@ -141,7 +141,7 @@ S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{\\|Ψ\\|_1^{n+1}}{\\|Ψ\\|_1^n}\
 When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
 
-See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
+See [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
 struct DoubleLogUpdate{T} <: ShiftStrategy
     target_walkers::T
@@ -166,7 +166,7 @@ end
 Strategy for updating the shift: After `target_walkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`.
 
-See [`DoubleLogUpdate`](@ref), [`ShiftStrategy`](@ref), [`lomc!`](@ref).
+See [`DoubleLogUpdate`](@ref), [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
 Base.@kwdef struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     target_walkers::Int
@@ -203,7 +203,7 @@ When ξ = ζ^2/4 this corresponds to critical damping with a damping time scale
 T = 2/ζ.
 
 
-See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
+See [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
 struct DoubleLogSumUpdate{T} <: ShiftStrategy
     target_walkers::T
@@ -239,10 +239,10 @@ parameter `ζ` and `ξ` after projecting onto `projector`.
 S^{n+1} = S^n -\\frac{ζ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{P⋅Ψ^{(n)}}\\right)-\\frac{ξ}{dτ}\\ln\\left(\\frac{P⋅Ψ^{(n+1)}}{\\text{target}}\\right)
 ```
 
-Note that adjusting the keyword `maxlength` in [`lomc!`](@ref) is advised as the
-default may not be appropriate.
+Note that adjusting the keyword `maxlength` in [`ProjectorMonteCarloProblem`](@ref) is
+advised as the default may not be appropriate.
 
-See [`ShiftStrategy`](@ref), [`lomc!`](@ref).
+See [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
 struct DoubleLogProjected{T,P} <: ShiftStrategy
     target::T
