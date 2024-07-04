@@ -159,7 +159,11 @@ function advance!(algorithm::FCIQMC, report, state::ReplicaState, s_state::Singl
         post_step_stats = post_step_action(state.post_step_strategy, s_state, step)
 
         # Reporting
-        report!(reporting_strategy, step, report, (; time_step, len), id)
+        if !(reporting_strategy isa ConstantTimeStep) # report time_step unless it is constant
+            report!(reporting_strategy, step, report, (; time_step), id)
+        end
+
+        report!(reporting_strategy, step, report, (; len), id)
         report!(reporting_strategy, step, report, shift_stats, id) # shift, norm, shift_mode
 
         report!(reporting_strategy, step, report, step_stat_names, step_stat_values, id)
