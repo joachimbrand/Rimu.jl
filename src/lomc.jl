@@ -60,10 +60,10 @@ julia> df1, state = lomc!(hamiltonian; targetwalkers=500, laststep=100);
 julia> df2, _ = lomc!(state, df1; laststep=200, metadata=(;info="cont")); # Continuation run
 
 julia> size(df1)
-(100, 10)
+(100, 9)
 
 julia> size(df2)
-(200, 10)
+(200, 9)
 
 julia> using DataFrames; metadata(df2, "info") # retrieve custom metadata
 "cont"

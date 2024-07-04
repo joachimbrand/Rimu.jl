@@ -235,8 +235,9 @@ end
     @test all(abs.(df_nt.val .- df_ge.val) .< df_nt.val_l)
     # projected energy
     bp = @suppress projected_energy(df; skip=steps_equi)
+    time_step = Rimu.StatsTools.determine_constant_time_step(df)
     me = @suppress @inferred mixed_estimator(
-        df.hproj, df.vproj, df.shift, h, df.time_step[end];
+        df.hproj, df.vproj, df.shift, h, time_step;
         skip=steps_equi, E_r
     )
     @test me.ratio ≈ bp.ratio # reweighting has not significantly improved the projected energy

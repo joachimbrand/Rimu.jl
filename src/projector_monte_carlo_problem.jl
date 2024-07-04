@@ -66,7 +66,7 @@ julia> simulation.success[]
 true
 
 julia> size(DataFrame(simulation))
-(100, 10)
+(100, 9)
 ```
 
 # Further keyword arguments:
