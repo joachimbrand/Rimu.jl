@@ -376,9 +376,10 @@ end
     NestedSegmentedBuffer{T}(nrows) <: AbstractMatrix{AbstractVector{T}}
 
 Matrix of vectors stored in a single buffer with collective MPI communication support. The
-number of rows in the matrix is `nrows`.
+number of rows in the matrix is fixed to `nrows`.
 
-Used in the [`AllToAll`](@ref) communication strategy.
+Used in the [`AllToAll`](@ref) communication strategy, where each column corresponds to an
+MPI rank and each row corresponds to a segment in the [`PDVec`](@ref).
 
 # Supported operations
 
