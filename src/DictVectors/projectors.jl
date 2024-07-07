@@ -109,7 +109,6 @@ end
 
 # NOTE that this returns a `Float64` opposite to the convention for
 # dot to return the promote_type of the arguments.
-# NOTE: This operation should work for `MPIData` and is MPI synchronizing
 
 """
     PopsProjector() <: AbstractProjector

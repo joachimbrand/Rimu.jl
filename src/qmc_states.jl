@@ -219,13 +219,12 @@ function default_starting_vector(fdv::Union{FrozenDVec,Pair};
     style = IsDynamicSemistochastic(),
     threading = nothing,
     initiator = NonInitiator(),
-    mpi = RMPI.mpi_size() > 1,
 )
     threading === nothing && (threading = Threads.nthreads() > 1)
-    return _setup_dvec(fdv, style, initiator, threading, mpi)
+    return _setup_dvec(fdv, style, initiator, threading)
 end
 
-function _setup_dvec(fdv::Union{FrozenDVec,Pair}, style, initiator, threading, mpi)
+function _setup_dvec(fdv::Union{FrozenDVec,Pair}, style, initiator, threading)
     # we are allocating new memory
     if threading
         return PDVec(fdv; style, initiator)
@@ -234,9 +233,6 @@ function _setup_dvec(fdv::Union{FrozenDVec,Pair}, style, initiator, threading, m
         v = DVec(fdv; style)
     else
         v = InitiatorDVec(fdv; style, initiator)
-    end
-    if mpi
-        return RMPI.MPIData(v)
     end
     return v
 end

@@ -8,7 +8,6 @@ using MPI
 
 using Rimu.RMPI
 using Rimu.StatsTools
-using Rimu.RMPI: targetrank, mpi_synchronize!
 using Rimu.DictVectors: PointToPoint, AllToAll, copy_to_local!, NonInitiatorValue
 
 const N_REPEATS = 5
@@ -26,17 +25,6 @@ function rand_onr(N, M)
     return result.data
 end
 
-"""
-    correct_ranks(md)
-
-Check if all entries in `md` are located on the correct rank.
-"""
-function correct_ranks(md)
-    return mapreduce(|, pairs(md); init=true) do ((k, v))
-        targetrank(k, mpi_size()) == mpi_rank()
-    end
-end
-
 @mpi_root @info "Running MPI tests..."
 RMPI.mpi_allprintln("hello")
 
@@ -50,174 +38,7 @@ if !isnothing(get(ARGS, 1, nothing))
     @mpi_root @info "Debug printing enabled"
 end
 
-"""
-    setup_dv(type, args...; kwargs...)
-
-Create a local and distributed versions of dvec of type `type`. Ensure they both have the same
-contents.
-"""
-function setup_dv(type, args...; md_kwargs=(;), kwargs...)
-    v = type(args...; kwargs...)
-    if mpi_rank() == mpi_root
-        dv = MPIData(copy(v); md_kwargs...)
-    else
-        dv = MPIData(empty(v); md_kwargs...)
-    end
-    return v, dv
-end
-
 @testset "MPI tests" begin
-    @testset "MPIData" begin
-        for type in (InitiatorDVec, DVec)
-            @testset "copy_to_local" begin
-                dv = MPIData(type(mpi_rank() => 1, -1 => 10))
-                loc = RMPI.copy_to_local(dv)
-                @test length(loc) == mpi_size() + 1
-                @test loc[-1] == 10 * mpi_size()
-            end
-            @testset "Single component $type" begin
-                for i in 1:N_REPEATS
-                    addr = BoseFS((0, 0, 10, 0, 0))
-                    H = HubbardMom1D(addr)
-                    Random.seed!(7350 * i)
-                    v, dv = setup_dv(
-                        type, [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
-                    )
-                    mpi_synchronize!(dv)
-
-                    Random.seed!(1337 * i)
-                    w, dw = setup_dv(
-                        type, [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:20]
-                    )
-                    mpi_synchronize!(dw)
-
-                    @test correct_ranks(dv)
-                    @test length(v) == length(dv)
-                    @test correct_ranks(dw)
-                    @test length(w) == length(dw)
-
-                    @testset "Basics" begin
-                        @test norm(v) ≈ norm(dv)
-                        @test norm(v, 1) ≈ norm(dv, 1)
-                        @test norm(v, 2) ≈ norm(dv, 2)
-                        @test norm(v, Inf) ≈ norm(dv, Inf)
-                        @test sum(values(v)) ≈ sum(values(dv))
-                        f((k, v)) = (k == addr) + v > 0
-                        @test mapreduce(f, |, pairs(v); init=true) ==
-                              mapreduce(f, |, pairs(dv); init=true)
-                    end
-
-                    @testset "Operations" begin
-                        @test dot(v, w) ≈ dot(dv, dw)
-
-                        @test dot(freeze(dw), dv) ≈ dot(w, v)
-                        @test dot(freeze(dv), dw) ≈ dot(v, w)
-
-                        for op in (H, DensityMatrixDiagonal(1))
-                            @test dot(v, op, w) ≈ dot(v, op, dw)
-                            @test dot(w, op, v) ≈ dot(w, op, dv)
-                            @test dot(w, op, v) ≈ dot(dw, op, dv)
-                            @test dot(w, op, v) ≈ dot(dw, op, v)
-
-                            du = MPIData(op * dv)
-                            u = op * v
-                            @test correct_ranks(du)
-
-                            @test length(u) == length(du)
-                            @test norm(u, 1) ≈ norm(du, 1)
-                            @test norm(u, 2) ≈ norm(du, 2)
-                            @test norm(u, Inf) ≈ norm(du, Inf)
-                        end
-                    end
-                end
-            end
-            @testset "Two-component $type" begin
-                for i in 1:N_REPEATS
-                    addr = BoseFS2C((0, 0, 10, 0, 0), (0, 0, 2, 0, 0))
-                    H = BoseHubbardMom1D2C(addr)
-                    Random.seed!(7350 * i)
-                    v, dv = setup_dv(
-                        type, [BoseFS2C(rand_onr(10, 5), rand_onr(2, 5)) => rand() for _ in 1:100]
-                    )
-                    mpi_synchronize!(dv)
-
-                    Random.seed!(1337 * i)
-                    w, dw = setup_dv(
-                        type, [BoseFS2C(rand_onr(10, 5), rand_onr(2, 5)) => rand() for _ in 1:20]
-                    )
-                    mpi_synchronize!(dw)
-
-                    @testset "Operations" begin
-                        @test dot(v, w) ≈ dot(dv, dw)
-
-                        @test dot(v, H, w) ≈ dot(v, H, dw)
-                        @test dot(w, H, v) ≈ dot(w, H, dv)
-                        G1 = G2MomCorrelator(1)
-                        G3 = G2MomCorrelator(3)
-                        @test dot(v, G1, w) ≈ dot(v, G1, dw)
-                        @test dot(w, G3, v) ≈ dot(w, G3, dv)
-                        @test dot(w, G3, v) ≈ dot(dw, G3, v)
-                        @test dot(w, G3, v) ≈ dot(dw, G3, dv)
-
-                        @test dot(freeze(dw), dv) ≈ dot(w, v)
-                        @test dot(freeze(dv), dw) ≈ dot(v, w)
-
-                        du = MPIData(H * dv)
-                        u = H * v
-                        @test correct_ranks(du)
-
-                        @test length(u) == length(du)
-                        @test norm(u, 1) ≈ norm(du, 1)
-                        @test norm(u, 2) ≈ norm(du, 2)
-                        @test norm(u, Inf) ≈ norm(du, Inf)
-
-                        du = MPIData(G3 * dv)
-                        u = G3 * v
-                        @test correct_ranks(du)
-
-                        @test length(u) == length(du)
-                        @test norm(u, 1) ≈ norm(du, 1)
-                        @test norm(u, 2) ≈ norm(du, 2)
-                        @test norm(u, Inf) ≈ norm(du, Inf)
-                    end
-                end
-            end
-        end
-        @testset "Communication strategies" begin
-            # The idea here is to generate a big DVec and make sure all communication
-            # strategies distribute it in the same manner.
-            for i in 1:N_REPEATS
-                sorted = map((
-                    (; setup=RMPI.mpi_point_to_point),
-                    (; setup=RMPI.mpi_one_sided, capacity=10_000),
-                    (; setup=RMPI.mpi_all_to_all),
-                )) do kw
-                    mpi_seed!(i)
-                    source = DVec(
-                        [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:10_000]
-                    )
-                    target = MPIData(similar(source); kw...)
-                    RMPI.mpi_combine_walkers!(target, source)
-                    return target
-                end
-
-                for v in sorted
-                    @test correct_ranks(v)
-                end
-
-                ptp_pairs = sort(collect(pairs(localpart(sorted[1]))))
-                os_pairs = sort(collect(pairs(localpart(sorted[3]))))
-                ata_pairs = sort(collect(pairs(localpart(sorted[2]))))
-
-                @test first.(ptp_pairs) == first.(os_pairs)
-                @test first.(ata_pairs) == first.(os_pairs)
-
-                @test last.(ptp_pairs) ≈ last.(os_pairs)
-                @test last.(ata_pairs) ≈ last.(os_pairs)
-            end
-        end
-    end
-
     @testset "PDVec" begin
         addr = FermiFS2C((1,1,1,0,0,0),(1,1,1,0,0,0))
         ham = HubbardRealSpace(addr)
@@ -340,137 +161,91 @@ end
         E0 = -4.628524493494574
         mpi_seed!(1000_000_000)
 
-        for (setup, kwargs) in (
-            (RMPI.mpi_point_to_point, (;)),
-            (RMPI.mpi_all_to_all, (;)),
-            (RMPI.mpi_one_sided, (; capacity=1000)),
-            (:PDVec, (;)),
-        )
-            @testset "Regular with $setup and post-steps" begin
-                H = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
-                if setup == :PDVec
-                    dv = PDVec(starting_address(H) => 3; style=IsDynamicSemistochastic())
-                else
-                    dv = MPIData(
-                        DVec(starting_address(H) => 3; style=IsDynamicSemistochastic());
-                        setup,
-                        kwargs...
-                    )
-                end
+        @testset "Regular FCIQMC with post-steps" begin
+            H = HubbardReal1D(BoseFS((1,1,1,1,1,1,1)); u=6.0)
+            dv = PDVec(starting_address(H) => 3; style=IsDynamicSemistochastic())
 
-                post_step_strategy = (
-                    ProjectedEnergy(H, dv),
-                    SignCoherence(copy(localpart(dv))),
-                    WalkerLoneliness(),
-                    Projector(proj_1=Norm2Projector()),
-                )
-                df = lomc!(H, dv; post_step_strategy, laststep=5000).df
+            post_step_strategy = (
+                ProjectedEnergy(H, dv),
+                SignCoherence(copy(localpart(dv))),
+                WalkerLoneliness(),
+                Projector(proj_1=Norm2Projector()),
+            )
+            prob = ProjectorMonteCarloProblem(
+                H; start_at=dv, post_step_strategy, last_step=5000
+            )
+            df = DataFrame(solve(prob))
 
-                # Shift estimate.
-                Es, σs = mean_and_se(df.shift[2000:end])
-                s_low, s_high = Es - 3σs, Es + 3σs
-                # Projected estimate.
-                r = ratio_of_means(df.hproj[2000:end], df.vproj[2000:end])
-                p_low, p_high = pquantile(r, [0.0015, 0.9985])
+            # Shift estimate.
+            Es, σs = mean_and_se(df.shift[2000:end])
+            s_low, s_high = Es - 3σs, Es + 3σs
+            # Projected estimate.
+            r = ratio_of_means(df.hproj[2000:end], df.vproj[2000:end])
+            p_low, p_high = pquantile(r, [0.0015, 0.9985])
 
-                @test s_low < E0 < s_high
-                @test p_low < E0 < p_high
-                @test all(-1 .≤ df.coherence .≤ 1)
-                @test all(0 .≤ df.loneliness .≤ 1)
-            end
-            @testset "Initiator with $setup" begin
-                H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)
-                addr = starting_address(H)
-
-                if setup == :PDVec
-                    dv = PDVec(addr => 3; initiator_threshold=1)
-                else
-                    dv = MPIData(InitiatorDVec(addr => 3); setup, kwargs...)
-                end
-                s_strat = DoubleLogUpdate(targetwalkers=100)
-                df = lomc!(H, dv; laststep=5000, s_strat).df
-
-                # Shift estimate.
-                Es, _ = mean_and_se(df.shift[2000:end])
-                @test E0 ≤ Es
-            end
-            for initiator in (true, false)
-                if setup === RMPI.mpi_one_sided
-                    # Skip one sided here, because for some reason blocking fails
-                    @warn "Skipping one-sided"
-                    continue
-                end
-                @testset "AllOverlaps with $setup and initiator=$initiator" begin
-                    H = HubbardMom1D(BoseFS((0,0,5,0,0)))
-                    addr = starting_address(H)
-                    N = num_particles(addr)
-                    M = num_modes(addr)
-
-                    if setup == :PDVec
-                        dv = PDVec(addr => 3; style=IsDynamicSemistochastic(), initiator)
-                    elseif initiator
-                        dv = MPIData(InitiatorDVec(
-                            addr => 3; style=IsDynamicSemistochastic()
-                        ); setup, kwargs...)
-                    else
-                        dv = MPIData(DVec(
-                            addr => 3; style=IsDynamicSemistochastic()
-                        ); setup, kwargs...)
-                    end
-
-                    # Diagonal
-                    replica_strategy = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
-                    df,_ = lomc!(H, dv; replica_strategy, laststep=10_000)
-
-                    density_sum = sum(1:M) do i
-                        top = df[!, Symbol("c1_Op", i, "_c2")]
-                        bot = df.c1_dot_c2
-                        pmean(ratio_of_means(top, bot; skip=5000))
-                    end
-                    @test density_sum ≈ N rtol=1e-3
-
-                    # Not Diagonal
-                    ops = ntuple(x -> G2MomCorrelator(x - cld(M, 2)), M)
-                    replica_strategy = AllOverlaps(2; operator=ops)
-                    df,_ = lomc!(H, dv; replica_strategy, laststep=10_000)
-
-                    g2s = map(1:M) do i
-                        top = df[!, Symbol("c1_Op", i, "_c2")]
-                        bot = df.c1_dot_c2
-                        pmean(ratio_of_means(top, bot; skip=5000))
-                    end
-                    for i in 1:cld(M, 2)
-                        @test real(g2s[i]) ≈ real(g2s[end - i + 1]) rtol=1e-3
-                        @test imag(g2s[i]) ≈ -imag(g2s[end - i + 1]) rtol=1e-3
-                    end
-                    @test real(sum(g2s)) ≈ N^2 rtol=1e-2
-                    @test imag(sum(g2s)) ≈ 0 atol=1e-3
-                end
-            end
+            @test s_low < E0 < s_high
+            @test p_low < E0 < p_high
+            @test all(-1 .≤ df.coherence .≤ 1)
+            @test all(0 .≤ df.loneliness .≤ 1)
         end
-    end
+        @testset "Initiator FCIQMC" begin
+            H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)
+            addr = starting_address(H)
 
-    @testset "Same seed gives same results" begin
-        for kwargs in (
-            (; setup=RMPI.mpi_point_to_point),
-            (; setup=RMPI.mpi_one_sided, capacity=10_000),
-            (; setup=RMPI.mpi_all_to_all),
-        )
-            # The entries in the vectors are the same (tested above), but they appear in a
-            # different order.
-            addr = BoseFS2C((1, 1, 1, 1, 1), (1, 0, 0, 0, 0))
-            H = BoseHubbardReal1D2C(addr; v=2)
-            dv = DVec(addr => 1)
+            dv = PDVec(addr => 3; initiator_threshold=1)
+            shift_strategy = DoubleLogUpdate(targetwalkers=100)
+            prob = ProjectorMonteCarloProblem(
+                H; start_at=dv, last_step=5000, shift_strategy
+            )
+            df = DataFrame(solve(prob))
 
-            dv_1 = MPIData(copy(dv); kwargs...)
-            mpi_seed!(17)
-            df_1 = lomc!(H, dv_1).df
+            # Shift estimate.
+            Es, _ = mean_and_se(df.shift[2000:end])
+            @test E0 ≤ Es
+        end
+        for initiator in (true, false)
+            @testset "AllOverlaps with initiator=$initiator" begin
+                H = HubbardMom1D(BoseFS((0,0,5,0,0)))
+                addr = starting_address(H)
+                N = num_particles(addr)
+                M = num_modes(addr)
 
-            dv_2 = MPIData(copy(dv); kwargs...)
-            mpi_seed!(17)
-            df_2 = lomc!(H, dv_2).df
+                dv = PDVec(addr => 3; style=IsDynamicSemistochastic(), initiator)
 
-            @test df_1 == df_2
+                # Diagonal
+                replica_strategy = AllOverlaps(2; operator=ntuple(DensityMatrixDiagonal, M))
+                prob = ProjectorMonteCarloProblem(
+                    H; start_at=dv, replica_strategy, last_step=10_000
+                )
+                df = DataFrame(solve(prob))
+
+                density_sum = sum(1:M) do i
+                    top = df[!, Symbol("c1_Op", i, "_c2")]
+                    bot = df.c1_dot_c2
+                    pmean(ratio_of_means(top, bot; skip=5000))
+                end
+                @test density_sum ≈ N rtol=1e-3
+
+                # Not Diagonal
+                ops = ntuple(x -> G2MomCorrelator(x - cld(M, 2)), M)
+                replica_strategy = AllOverlaps(2; operator=ops)
+                prob = ProjectorMonteCarloProblem(
+                    H; start_at=dv, replica_strategy, last_step=10_000
+                )
+                df = DataFrame(solve(prob))
+
+                g2s = map(1:M) do i
+                    top = df[!, Symbol("c1_Op", i, "_c2")]
+                    bot = df.c1_dot_c2
+                    pmean(ratio_of_means(top, bot; skip=5000))
+                end
+                for i in 1:cld(M, 2)
+                    @test real(g2s[i]) ≈ real(g2s[end - i + 1]) rtol=1e-3
+                    @test imag(g2s[i]) ≈ -imag(g2s[end - i + 1]) rtol=1e-3
+                end
+                @test real(sum(g2s)) ≈ N^2 rtol=1e-2
+                @test imag(sum(g2s)) ≈ 0 atol=1e-3
+            end
         end
     end
 
