@@ -15,7 +15,8 @@ end
 
 Dictionary-based vector-like data structure for use with FCIQMC and
 [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl). While mostly behaving like a `Dict`,
-it supports various linear algebra operations such as `norm` and `dot`, and the interface defined in [VectorInterface](https://github.com/Jutho/VectorInterface.jl).
+it supports various linear algebra operations such as `norm` and `dot`, and the interface
+defined in [VectorInterface](https://github.com/Jutho/VectorInterface.jl).
 
 The P in `PDVec` stands for parallel. `PDVec`s perform `mapreduce`, `foreach`, and various
 linear algebra operations in a threaded manner. If MPI is available, these operations are
@@ -45,6 +46,8 @@ The vector is split into `Threads.nthreads()` subdictionaries called segments. W
 dictionary a key-value pair is mapped to is determined by the hash of the key. The purpose
 of this segmentation is to allow parallel processing - functions such as `mapreduce`, `add!`
 or `dot` (full list below) process each subdictionary on a separate thread.
+
+See also [`PDWorkingMemory`](@ref).
 
 ### Example
 
@@ -103,7 +106,7 @@ julia> dot(dest, op, pv)
 ## MPI
 
 When MPI is active, all parallel reductions are automatically reduced across MPI ranks
-with a call to `MPI.Allreduce`.
+with a call to `MPI.Allreduce!`.
 
 In a distributed setting, `PDVec` does not support iteration without first making it
 explicit the iteration is only to be performed on the local segments of the vector. This is
@@ -252,6 +255,8 @@ end
     is_distributed(t::PDVec)
 
 Return true if `t` is MPI-distributed.
+
+See [`PDVec`](@ref).
 """
 is_distributed(t::PDVec) = is_distributed(t.communicator)
 
@@ -259,6 +264,8 @@ is_distributed(t::PDVec) = is_distributed(t.communicator)
     num_segments(t::PDVec)
 
 Return the number of segments in `t`.
+
+See [`PDVec`](@ref).
 """
 num_segments(t::PDVec{<:Any,<:Any,N}) where {N} = N
 
@@ -275,6 +282,8 @@ Base.isempty(t::PDVec) = iszero(length(t))
     check_compatibility(t, u)
 
 Return true if `t` and `u` have the same number of segments and throw otherwise.
+
+See [`PDVec`](@ref).
 """
 function check_compatibility(t, u)
     if num_segments(t) == num_segments(u)
@@ -301,6 +310,8 @@ end
 
 Determine the target segment from `key` hash. For MPI distributed vectors, this may return
 numbers that are out of range and `is_local=false`.
+
+See [`PDVec`](@ref).
 """
 function target_segment(t::PDVec{K}, k::K) where {K}
     return target_segment(t.communicator, k, num_segments(t))
@@ -416,8 +427,10 @@ end
     PDVecPairs
 
 Iterators over keys/values/pairs of the [`PDVec`](@ref). Iteration is only supported over
-the [`localpart`](@ref). Use reduction operations (`reduce`, `mapreduce`, `sum`, ...) if possible
-when using them.
+the [`localpart`](@ref). Use reduction operations (`reduce`, `mapreduce`, `sum`, ...) if
+possible when using them.
+
+See [`PDVec`](@ref).
 """
 struct PDVecIterator{F,T,V<:PDVec}
     selector::F
@@ -736,6 +749,8 @@ end
 Perform `y = A * x` in-place. The working memory `w` is required to facilitate
 threaded/distributed operations. If not passed a new instance will be allocated. `y` and `x`
 may be the same vector.
+
+See [`PDVec`](@ref), [`PDWorkingMemory`](@ref).
 """
 function LinearAlgebra.mul!(
     y::PDVec, op::AbstractHamiltonian, x::PDVec,
@@ -757,6 +772,8 @@ end
 Perform `y ⋅ A ⋅ x`. The working memory `w` is required to facilitate threaded/distributed
 operations with non-diagonal `A`. If needed and not passed a new instance will be
 allocated. `A` can be replaced with a tuple of operators.
+
+See [`PDVec`](@ref), [`PDWorkingMemory`](@ref).
 """
 function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec, w)
     return dot(LOStructure(op), t, op, u, w)

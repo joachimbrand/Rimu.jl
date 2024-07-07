@@ -33,13 +33,14 @@ When implementing a communicator, use [`local_segments`](@ref) and
 * [`target_segment`](@ref): defaults to selecting using
   [fastrange](https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/)  to pick the segment.
 
+See also: [`PDVec`](@ref), [`PDWorkingMemory`](@ref).
 """
 abstract type Communicator end
 
 """
     is_distributed(::Communicator)
 
-Return `true` if communicator operates over MPI.
+Return `true` if [`Communicator`](@ref) operates over MPI.
 """
 is_distributed(::Communicator) = true
 
@@ -47,6 +48,8 @@ is_distributed(::Communicator) = true
     merge_remote_reductions(c::Communicator, op, x)
 
 Merge the results of reductions over MPI. By default, it uses `MPI.Allreduce`.
+
+See also: [`Communicator`](@ref).
 """
 merge_remote_reductions(c::Communicator, op, x) = MPI.Allreduce!(Ref(x), op, mpi_comm(c))[]
 
@@ -55,6 +58,8 @@ merge_remote_reductions(c::Communicator, op, x) = MPI.Allreduce!(Ref(x), op, mpi
 
 Return the total number of segments, including the remote ones, where `n` is number of
 local segments.
+
+See also: [`PDVec`](@ref), [`Communicator`](@ref).
 """
 total_num_segments(c::Communicator, n) = n * mpi_size(c)
 
@@ -62,8 +67,10 @@ total_num_segments(c::Communicator, n) = n * mpi_size(c)
     target_segment(c::Communicator, k, num_segments) -> target, is_local
 
 This function is used to determine where in the [`PDVec`](@ref) a key should be stored.
+If the key is local (stored on the same MPI rank), return its segment index and `true`. If
+the key is non-local, return any value and `false`.
 
-If the key is local (stored on the same MPI rank), return its segment index and `true`. If the key is non-local, return any value and `false`.
+See also: [`PDVec`](@ref), [`Communicator`](@ref).
 """
 function target_segment(c::Communicator, k, num_segments)
     total_segments = num_segments * mpi_size(c)
@@ -97,6 +104,8 @@ mpi_comm
 
 Copy pairs in `t` from all ranks and return them as a (possibly) new [`PDVec`](@ref),
 possibly using the [`PDWorkingMemory`](@ref) as temporary storage.
+
+See also: [`PDVec`](@ref), [`PDWorkingMemory`](@ref), [`Communicator`](@ref).
 """
 copy_to_local!
 
@@ -380,7 +389,7 @@ Used in the [`AllToAll`](@ref) communication strategy.
 * [`mpi_exchange_allgather!`](@ref): each rank sends the `1`-st column of the matrix to all
   ranks.
 
-See also [`SegmentedBuffer`](@ref).
+See also: [`SegmentedBuffer`](@ref).
 """
 struct NestedSegmentedBuffer{T} <: AbstractMatrix{SubVector{T}}
     nrows::Int
@@ -533,6 +542,8 @@ end
   [`PDVec`](@ref) the communicator is used with.
 *  `report=false`: if set to true, report MPI communication times during a projector Monte
   Carlo run.
+
+See also: [`Communicator`](@ref).
 """
 struct AllToAll{K,V} <: Communicator
     send_buffer::NestedSegmentedBuffer{Pair{K,V}}
