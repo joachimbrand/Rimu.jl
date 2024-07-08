@@ -39,8 +39,8 @@ function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, boundary_condition = :
         U, V, T = promote(float(u), float(v), float(t))
         return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,boundary_condition}(addr)
     elseif boundary_condition isa Number
-        U, V, T = promote(complex(u), complex(v), complex(t))
-        return ExtendedHubbardReal1D{typeof(U),typeof(addr),U,V,T,boundary_condition}(addr)
+        U, V, T = promote(float(u), float(v), float(t))
+        return ExtendedHubbardReal1D{typeof(complex(U)),typeof(addr),U,V,T,boundary_condition}(addr)
     else
         throw(ArgumentError("invalid boundary condition"))
     end
