@@ -262,10 +262,10 @@ address and the square root of product of occupation numbers of the involved mod
 multiplied by a term consistent with boundary condition. The following values 
 for `boundary_condition` are supported:
 
-* `:periodic`: hopping over the boundary gives does not change the `product`.
-* `:twisted`: hopping over the boundary flips the sign of the `product`.
-* `:hard_wall`: hopping over the boundary gives a `product` of 0.
-* `Number "θ"`: hopping over the boundary gives `product` with multiple of exp(ιθ) or exp(−ιθ) depending on the direction of hopping.
+* `:periodic`: hopping over the boundary gives does not change the `value`.
+* `:twisted`: hopping over the boundary flips the sign of the `value`.
+* `:hard_wall`: hopping over the boundary gives a `value` of zero.
+* `θ <: Number`: hopping over the boundary gives a `value` multiplied by ``\\exp(ιθ)`` or ``\\exp(−ιθ)`` depending on the direction of hopping.
 
 The off-diagonals are indexed as follows:
 
