@@ -28,7 +28,7 @@ the projector Monte Carlo calculation.
 Rimu.PMCSimulation
 ```
 
-The `DataFrame` returned from `DataFrame(::PNCSimulation)` contains the time series data from 
+The `DataFrame` returned from `DataFrame(::PMCSimulation)` contains the time series data from 
 the projector Monte Carlo simulation that is of primary interest for analysis. Depending on the 
 `reporting_strategy` and other options passed as keyword arguments to 
 `ProjectorMonteCarloProblem` it can have different numbers of rows and columns. The rows 
