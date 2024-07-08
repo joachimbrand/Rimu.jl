@@ -255,7 +255,7 @@ function excitation(b::B, creations, destructions) where {B<:BoseFS}
 end
 
 """
-    new_address, product = hopnextneighbour(add, chosen, boundary_condition)
+    new_address, value = hopnextneighbour(add, chosen, boundary_condition)
 
 Compute the new address of a hopping event for the Hubbard model. Returns the new
 address and the square root of product of occupation numbers of the involved modes
