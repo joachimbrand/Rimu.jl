@@ -21,6 +21,9 @@ Implements a two-component one-dimensional Bose Hubbard chain in real space.
 * [`HubbardReal1D`](@ref)
 * [`BoseHubbardMom1D2C`](@ref)
 
+!!! warning
+    This type is deprecated and will be removed in a future release. Use
+    `HubbardRealSpace` instead.
 """
 struct BoseHubbardReal1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
     ha::HA
@@ -28,6 +31,8 @@ struct BoseHubbardReal1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
 end
 
 function BoseHubbardReal1D2C(address::BoseFS2C; ua=1.0,ub=1.0,ta=1.0,tb=1.0,v=1.0)
+    @warn "`BoseHubbardReal1D2C` is deprecated. Use `HubbardRealSpace` instead."
+
     ha = HubbardReal1D(address.bsa; u=ua, t=ta)
     hb = HubbardReal1D(address.bsb; u=ub, t=tb)
     T = promote_type(eltype(ha), eltype(hb))
