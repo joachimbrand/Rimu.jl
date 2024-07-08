@@ -61,6 +61,7 @@ end
 dimension(::ExtendedHubbardReal1D, address) = number_conserving_dimension(address)
 
 LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real}}) = IsHermitian()
+LOStructure(::Type{<:ExtendedHubbardReal1D{<:Complex}}) = IsHermitian()
 
 Base.getproperty(h::ExtendedHubbardReal1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:add}) = getfield(h, :add)
@@ -103,10 +104,10 @@ end
 
 function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddress)
     ebhinteraction, bhinteraction = extended_hubbard_interaction(h,b)
-    return h.u * bhinteraction / 2 + h.v * ebhinteraction
+    return convert(eltype(h), h.u * bhinteraction / 2 + h.v * ebhinteraction)
 end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
     naddress, onproduct = hopnextneighbour(add, chosen, h.boundary_condition)
-    return convert(eltype(h), naddress, - h.t * onproduct)
+    return naddress, convert(eltype(h), - h.t * onproduct)
 end
