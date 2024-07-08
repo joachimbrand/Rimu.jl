@@ -29,7 +29,6 @@ ExtendedHubbardReal1D
 ### Momentum space Hubbard models
 ```@docs
 HubbardMom1D
-BoseHubbardMom1D2C
 HubbardMom1DEP
 ```
 
@@ -158,4 +157,9 @@ Hamiltonians.log_abs_oscillator_zero
 ## Index
 ```@index
 Pages   = ["hamiltonians.md"]
+```
+
+## Deprecated Hamiltonians
+```@docs
+BoseHubbardMom1D2C
 ```
