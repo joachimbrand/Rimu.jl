@@ -21,9 +21,9 @@ Use the Gram-Schmidt procedure to orthogonalize the excited states. A total of `
 states are used in the simulation, and they are orthogonalised every `orthogonalisation_interval` steps.
 """
 struct GramSchmidt{S} <: SpectralStrategy{S}
-    orthogonalisation_interval::Int
+    orthogonalization_interval::Int
 end
 
-function GramSchmidt(num_spectral_states = 1, orthogonalisation_interval = 1)
-    return GramSchmidt{num_spectral_states}(orthogonalisation_interval)
+function GramSchmidt(S = 1; orthogonalization_interval = 1)
+    return GramSchmidt{S}(orthogonalization_interval)
 end
