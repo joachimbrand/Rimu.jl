@@ -69,29 +69,44 @@ See [`initialise_shift_parameters`](@ref), [`ShiftStrategy`](@ref).
 update_shift_parameters!
 
 """
-    DontUpdate(; target_walkers = 1_000_000) <: ShiftStrategy
+    DontUpdate(; target_walkers = 1_000) <: ShiftStrategy
 Don't update the `shift`.  Return when `target_walkers` is reached.
 
 See [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
-Base.@kwdef struct DontUpdate <: ShiftStrategy
-    target_walkers::Int = 1_000_000
+struct DontUpdate <: ShiftStrategy
+    target_walkers::Int
 end
+function DontUpdate(; targetwalkers = nothing, target_walkers = 1_000)
+    if !isnothing(targetwalkers)
+        @warn "The keyword targetwalkers is deprecated. Use target_walkers instead."
+        target_walkers = targetwalkers
+    end
+    return DontUpdate(target_walkers)
+end
+
 
 function update_shift_parameters!(s::DontUpdate, sp, tnorm, _...)
     return (; shift=sp.shift, norm=tnorm), tnorm < s.target_walkers
 end
 
 """
-    LogUpdateAfterTargetWalkers(target_walkers, ζ = 0.08) <: ShiftStrategy
+    LogUpdateAfterTargetWalkers(target_walkers = 1_000, ζ = 0.08) <: ShiftStrategy
 Strategy for updating the shift: After `target_walkers` is reached, update the
 shift according to the log formula with damping parameter `ζ`.
 
 See [`LogUpdate`](@ref), [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
-Base.@kwdef struct LogUpdateAfterTargetWalkers <: ShiftStrategy
+struct LogUpdateAfterTargetWalkers <: ShiftStrategy
     target_walkers::Int
-    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
+    ζ::Float64
+end
+function LogUpdateAfterTargetWalkers(; targetwalkers=nothing, target_walkers = 1_000, ζ = 0.08)
+    if !isnothing(targetwalkers)
+        @warn "The keyword targetwalkers is deprecated. Use target_walkers instead."
+        target_walkers = targetwalkers
+    end
+    return LogUpdateAfterTargetWalkers(target_walkers, ζ)
 end
 
 function update_shift_parameters!(s::LogUpdateAfterTargetWalkers, sp, tnorm, _...)
@@ -131,7 +146,7 @@ function update_shift_parameters!(s::LogUpdate, sp, tnorm, _...)
 end
 
 """
-    DoubleLogUpdate(; target_walkers = 1000, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
+    DoubleLogUpdate(; target_walkers = 1_000, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
 Strategy for updating the shift according to the log formula with damping
 parameter `ζ` and `ξ`.
 
@@ -148,7 +163,11 @@ struct DoubleLogUpdate{T} <: ShiftStrategy
     ζ::Float64 # damping parameter, best left at value of 0.08
     ξ::Float64  # restoring force to bring walker number to the target
 end
-function DoubleLogUpdate(;target_walkers = 1000,  ζ = 0.08, ξ = ζ^2/4)
+function DoubleLogUpdate(;targetwalkers = nothing, target_walkers = 1_000,  ζ = 0.08, ξ = ζ^2/4)
+    if !isnothing(targetwalkers)
+        @warn "The keyword targetwalkers is deprecated. Use target_walkers instead."
+        target_walkers = targetwalkers
+    end
     return DoubleLogUpdate(target_walkers, ζ, ξ)
 end
 
@@ -162,16 +181,25 @@ function update_shift_parameters!(s::DoubleLogUpdate, sp, tnorm, _...)
 end
 
 """
-    DoubleLogUpdateAfterTargetWalkers(target_walkers, ζ = 0.08, ξ = 0.0016) <: ShiftStrategy
+    DoubleLogUpdateAfterTargetWalkers(target_walkers = 1_000, ζ = 0.08, ξ = ζ^2/4) <: ShiftStrategy
 Strategy for updating the shift: After `target_walkers` is reached, update the
 shift according to the log formula with damping parameter `ζ` and `ξ`.
 
 See [`DoubleLogUpdate`](@ref), [`ShiftStrategy`](@ref), [`ProjectorMonteCarloProblem`](@ref).
 """
-Base.@kwdef struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
+struct DoubleLogUpdateAfterTargetWalkers <: ShiftStrategy
     target_walkers::Int
-    ζ::Float64 = 0.08 # damping parameter, best left at value of 0.3
-    ξ::Float64 = 0.0016 # restoring force to bring walker number to the target
+    ζ::Float64 # damping parameter
+    ξ::Float64 # restoring force to bring walker number to the target
+end
+function DoubleLogUpdateAfterTargetWalkers(;
+    targetwalkers=nothing, target_walkers = 1_000, ζ = 0.08, ξ = ζ^2/4
+)
+    if !isnothing(targetwalkers)
+        @warn "The keyword targetwalkers is deprecated. Use target_walkers instead."
+        target_walkers = targetwalkers
+    end
+    return DoubleLogUpdateAfterTargetWalkers(target_walkers, ζ, ξ)
 end
 
 function update_shift_parameters!(s::DoubleLogUpdateAfterTargetWalkers, sp, tnorm, _...)
@@ -211,7 +239,12 @@ struct DoubleLogSumUpdate{T} <: ShiftStrategy
     ξ::Float64  # restoring force to bring walker number to the target
     α::Float64  # mixing angle for (1-α)*walkernumber + α*UniformProjector()⋅ψ
 end
-function DoubleLogSumUpdate(;target_walkers = 1000,  ζ = 0.08, ξ = ζ^2/4, α = 1/2)
+function DoubleLogSumUpdate(;
+    targetwalkers = nothing, target_walkers = 1000,  ζ = 0.08, ξ = ζ^2/4, α = 1/2)
+    if !isnothing(targetwalkers)
+        @warn "The keyword targetwalkers is deprecated. Use target_walkers instead."
+        target_walkers = targetwalkers
+    end
     DoubleLogSumUpdate(target_walkers,  ζ, ξ, α)
 end
 

@@ -151,6 +151,7 @@ function ProjectorMonteCarloProblem(
     walltime = Inf,
     simulation_plan = SimulationPlan(starting_step, last_step, walltime),
     replica_strategy = NoStats(n_replicas),
+    targetwalkers = nothing, # deprecated
     target_walkers = 1_000,
     ζ = 0.08,
     ξ = ζ^2/4,
@@ -166,6 +167,11 @@ function ProjectorMonteCarloProblem(
     display_name = "PMCSimulation",
     random_seed = true
 )
+    if !isnothing(targetwalkers)
+        @warn "The keyword argument `targetwalkers` is deprecated. Use `target_walkers` instead."
+        target_walkers = targetwalkers
+    end
+
     n_replicas = num_replicas(replica_strategy) # replica_strategy may override n_replicas
 
     if random_seed == true
