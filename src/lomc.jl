@@ -60,10 +60,10 @@ julia> df1, state = lomc!(hamiltonian; targetwalkers=500, laststep=100);
 julia> df2, _ = lomc!(state, df1; laststep=200, metadata=(;info="cont")); # Continuation run
 
 julia> size(df1)
-(100, 10)
+(100, 9)
 
 julia> size(df2)
-(200, 10)
+(200, 9)
 
 julia> using DataFrames; metadata(df2, "info") # retrieve custom metadata
 "cont"
@@ -76,9 +76,9 @@ julia> metadata(df2, "hamiltonian") # some metadata is automatically added
 
 * `τ_strat::TimeStepStrategy = ConstantTimeStep()` - adjust time step or not, see
   [`TimeStepStrategy`](@ref)
-* `s_strat::ShiftStrategy = DoubleLogUpdate(; targetwalkers, ζ = 0.08, ξ = ζ^2/4)` -
+* `s_strat::ShiftStrategy = DoubleLogUpdate(; target_walkers=targetwalkers, ζ = 0.08, ξ = ζ^2/4)` -
   how to update the `shift`, see [`ShiftStrategy`](@ref).
-* `maxlength = 2 * s_strat.targetwalkers + 100` - upper limit on the length of `v`; when
+* `maxlength = 2 * s_strat.target_walkers + 100` - upper limit on the length of `v`; when
   reached, `lomc!` will abort
 * `wm` - working memory for re-use in subsequent calculations; is mutated.
 * `df = DataFrame()` - when called with `AbstractHamiltonian` argument, a `DataFrame` can
@@ -100,7 +100,7 @@ function lomc!(
     reporting_strategy = ReportDFAndInfo(),
     r_strat = reporting_strategy,
     targetwalkers = 1000,
-    s_strat = DoubleLogUpdate(; targetwalkers),
+    s_strat = DoubleLogUpdate(; target_walkers=targetwalkers),
     τ_strat = ConstantTimeStep(),
     replica_strategy = NoStats(),
     replica = replica_strategy,
@@ -121,8 +121,8 @@ function lomc!(
     if !isnothing(wm)
         @warn "The `wm` argument has been removed and will be ignored."
     end
-    if hasfield(typeof(s_strat), :targetwalkers)
-        targetwalkers = s_strat.targetwalkers
+    if hasfield(typeof(s_strat), :target_walkers)
+        targetwalkers = s_strat.target_walkers
     end
     if isnothing(maxlength)
         maxlength = round(Int, 2 * abs(targetwalkers) + 100)

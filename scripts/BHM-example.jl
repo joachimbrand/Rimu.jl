@@ -29,7 +29,7 @@ H = HubbardReal1D(initial_address; u = 6.0, t = 1.0)
 # use in this Monte Carlo run, which is equivalent to the average one-norm of the
 # coefficient vector. Higher values will result in better statistics, but require more
 # memory and computing power.
-targetwalkers = 1_000;
+target_walkers = 1_000;
 
 # FCIQMC takes a certain number of steps to equllibrate, after which the observables will
 # fluctuate around a mean value. In this example, we will devote 1000 steps to equilibration
@@ -76,7 +76,7 @@ problem = ProjectorMonteCarloProblem(
     start_at = initial_vector,
     last_step,
     time_step,
-    targetwalkers,
+    target_walkers,
     post_step_strategy
 );
 
@@ -91,11 +91,11 @@ df = DataFrame(simulation);
 
 # We can plot the norm of the coefficient vector as a function of the number of steps.
 hline(
-    [targetwalkers];
-    label="targetwalkers", xlabel="steps", ylabel="norm",
+    [target_walkers];
+    label="target_walkers", xlabel="step", ylabel="norm",
     color=2, linestyle=:dash, margin = 1Plots.cm
 )
-plot!(df.steps, df.norm, label="norm", color=1)
+plot!(df.step, df.norm, label="norm", color=1)
 
 # After an initial equilibriation period, the norm fluctuates around the target number of
 # walkers.
@@ -120,11 +120,11 @@ pe = projected_energy(df; skip=steps_equilibrate)
 v = val_and_errs(pe; p=0.95)
 
 # Let's visualise these estimators together with the time series of the shift.
-plot(df.steps, df.shift, ylabel="energy", xlabel="steps", label="shift", margin = 1Plots.cm)
+plot(df.step, df.shift, ylabel="energy", xlabel="step", label="shift", margin = 1Plots.cm)
 
-plot!(x->se.mean, df.steps[steps_equilibrate+1:end], ribbon=se.err, label="shift mean")
+plot!(x->se.mean, df.step[steps_equilibrate+1:end], ribbon=se.err, label="shift mean")
 plot!(
-    x -> v.val, df.steps[steps_equilibrate+1:end], ribbon=(v.val_l,v.val_u),
+    x -> v.val, df.step[steps_equilibrate+1:end], ribbon=(v.val_l,v.val_u),
     label="projected energy",
 )
 lens!([steps_equilibrate, last_step], [-5.1, -2.9]; inset=(1, bbox(0.2, 0.25, 0.6, 0.4)))
@@ -146,7 +146,7 @@ exact_energy = solve(edp).values[1]
 
 println(
     """
-    Energy from $steps_measure steps with $targetwalkers walkers:
+    Energy from $steps_measure steps with $target_walkers walkers:
     Shift: $(se.mean) ± $(se.err)
     Projected Energy: $(v.val) ± ($(v.val_l), $(v.val_u))
     Exact Energy: $exact_energy

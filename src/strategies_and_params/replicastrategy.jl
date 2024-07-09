@@ -1,9 +1,9 @@
 """
     ReplicaStrategy{N}
 
-Supertype for strategies that can be passed to [`lomc!`](@ref) and control how many
-replicas are used, and what information is computed and returned. The number of replicas
-is `N`.
+Supertype for strategies that can be passed to [`ProjectorMonteCarloProblem`](@ref) and
+control how many replicas are used, and what information is computed and returned. The
+number of replicas is `N`.
 
 ## Concrete implementations
 
@@ -17,7 +17,7 @@ function:
 
 * [`Rimu.replica_stats`](@ref) - return a
   tuple of `String`s or `Symbols` of names for replica statistics and a tuple of the values.
-  These will be reported to the `DataFrame` returned by [`lomc!`](@ref).
+  These will be reported to the `DataFrame` returned by [`ProjectorMonteCarloProblem`](@ref).
 """
 abstract type ReplicaStrategy{N} end
 
@@ -34,8 +34,9 @@ num_replicas(::ReplicaStrategy{N}) where {N} = N
 Return the names and values of statistics related to `N` replica states consistent with the
 [`ReplicaStrategy`](@ref) `RS`. `names`
 should be a tuple of `Symbol`s or `String`s and `values` should be a tuple of the same
-length. This function will be called every [`reporting_interval`](@ref) steps from [`lomc!`](@ref),
-or once per time step if `reporting_interval` is not defined.
+length. This function will be called every [`reporting_interval`](@ref) steps from
+[`ProjectorMonteCarloProblem`](@ref), or once per time step if `reporting_interval` is not
+defined.
 
 Part of the [`ReplicaStrategy`](@ref) interface. See also [`SingleState`](@ref).
 """
@@ -47,7 +48,7 @@ replica_stats
 The default [`ReplicaStrategy`](@ref). `N` replicas are run, but no statistics are
 collected.
 
-See also [`lomc!`](@ref).
+See also [`ProjectorMonteCarloProblem`](@ref).
 """
 struct NoStats{N} <: ReplicaStrategy{N} end
 NoStats(N=1) = NoStats{N}()
@@ -66,12 +67,12 @@ of operators, the overlaps are computed for all operators.
 Column names in the report are of the form `c{i}_dot_c{j}` for vector-vector overlaps, and
 `c{i}_Op{k}_c{j}` for operator overlaps.
 
-See [`lomc!`](@ref), [`ReplicaStrategy`](@ref) and [`AbstractHamiltonian`](@ref) (for an
-interface for implementing operators).
+See [`ProjectorMonteCarloProblem`](@ref), [`ReplicaStrategy`](@ref) and
+[`AbstractHamiltonian`](@ref) (for an interface for implementing operators).
 
 # Transformed Hamiltonians
 
-If a transformed Hamiltonian `G` has been passed to [`lomc!`](@ref) then overlaps can be calculated by
+If a transformed Hamiltonian `G` has been passed to [`ProjectorMonteCarloProblem`](@ref) then overlaps can be calculated by
 passing the same transformed Hamiltonian to `AllOverlaps` by setting `transform=G`. A warning is given
 if these two Hamiltonians do not match.
 
@@ -175,7 +176,7 @@ end
     check_transform(r::AllOverlaps, ham)
 
 Check that the transformation provided to `r::AllOverlaps` matches the given Hamiltonian `ham`.
-Used as a sanity check before starting main [`lomc!`](@ref) loop.
+Used as a sanity check before starting main [`ProjectorMonteCarloProblem`](@ref) loop.
 """
 function check_transform(r::AllOverlaps, ham::AbstractHamiltonian)
     ops = r.operators

@@ -1,6 +1,7 @@
 """
 This module provides concrete implementations of [`StochasticStyle`](@ref)s, which
-specify the algorithm used by [`lomc!`](@ref Main.lomc!) when
+specify the algorithm used by
+[`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) when
 performing stochastic matrix-vector multiplication.
 
 # Implemented stochastic styles:

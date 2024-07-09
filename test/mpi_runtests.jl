@@ -387,7 +387,7 @@ end
                 else
                     dv = MPIData(InitiatorDVec(addr => 3); setup, kwargs...)
                 end
-                s_strat = DoubleLogUpdate(targetwalkers=100)
+                s_strat = DoubleLogUpdate(target_walkers=100)
                 df = lomc!(H, dv; laststep=5000, s_strat).df
 
                 # Shift estimate.

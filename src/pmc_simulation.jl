@@ -253,7 +253,7 @@ function CommonSolve.step!(sm::PMCSimulation)
 
     # report step number
     if step[] % reporting_interval(reporting_strategy) == 0
-        report!(reporting_strategy, step[], report, :steps, step[])
+        report!(reporting_strategy, step[], report, :step, step[])
     end
 
     proceed = true

@@ -32,7 +32,12 @@ function growth_witness(shift::AbstractArray, norm::AbstractArray, dt, b; kwargs
     return smoothen(g_raw, b)
 end
 """
-    growth_witness(df::DataFrame, [b]; shift=:shift, norm=:norm, dτ=df.dτ[end], skip=0)
+    growth_witness(df::DataFrame, [b];
+        shift=:shift,
+        norm=:norm,
+        time_step=determine_constant_time_step(df),
+        skip=0
+    )
     growth_witness(sim::PMCSimulation, [b]; kwargs...)
 
 Calculate the growth witness directly from the result (`DataFrame` or
@@ -43,14 +48,14 @@ Calculate the growth witness directly from the result (`DataFrame` or
 """
 function growth_witness(
     sim, b=Val(0);
-    shift=:shift, norm=:norm, dτ=nothing, kwargs...
+    shift=:shift, norm=:norm, time_step=nothing, kwargs...
 )
     df = DataFrame(sim)
-    dτ = determine_constant_time_step(df)
+    time_step = determine_constant_time_step(df)
 
     shift_vec = getproperty(df, Symbol(shift))
     norm_vec = getproperty(df, Symbol(norm))
-    return growth_witness(shift_vec, norm_vec, dτ, b; kwargs...)
+    return growth_witness(shift_vec, norm_vec, time_step, b; kwargs...)
 end
 
 """

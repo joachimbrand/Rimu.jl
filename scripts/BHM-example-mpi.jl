@@ -57,7 +57,7 @@ problem = ProjectorMonteCarloProblem(H;
     start_at=initial_vector,
     reporting_strategy,
     post_step_strategy=ProjectedEnergy(H, initial_vector),
-    targetwalkers=10_000,
+    target_walkers=10_000,
     time_step=1e-4,
     last_step=10_000
 );
