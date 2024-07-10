@@ -15,10 +15,12 @@ Return the number of spectral states used in the simulation.
 num_spectral_states(::SpectralStrategy{S}) where {S} = S
 
 """
-    GramSchmidt{S} <: SpectralStrategy{S}
-
+    GramSchmidt(S; orthogonalization_interval = 1) <: SpectralStrategy{S} 
 Use the Gram-Schmidt procedure to orthogonalize the excited states. A total of `S` spectral
-states are used in the simulation, and they are orthogonalised every `orthogonalisation_interval` steps.
+states are used in the simulation, and they are orthogonalized every 
+`orthogonalization_interval` steps.
+
+Use with the keyword argument `spectral_strategy` in [`ProjectorMonteCarloProblem`](@ref).
 """
 struct GramSchmidt{S} <: SpectralStrategy{S}
     orthogonalization_interval::Int
@@ -26,4 +28,9 @@ end
 
 function GramSchmidt(S = 1; orthogonalization_interval = 1)
     return GramSchmidt{S}(orthogonalization_interval)
+end
+
+function Base.show(io::IO, gs::GramSchmidt{S}) where {S}
+    print(io, "GramSchmidt(", S, "; orthogonalization_interval=")
+    print(io, gs.orthogonalization_interval, ")")
 end

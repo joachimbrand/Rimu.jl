@@ -191,7 +191,7 @@ end
 
 function advance!(algorithm, report, state::ReplicaState, replica::SpectralState{N, <:Any, GramSchmidt{N}}) where {N}
     proceed = true
-    if state.step[] % replica.spectral_strategy.orthogonalisation_interval == 0
+    if state.step[] % replica.spectral_strategy.orthogonalization_interval == 0
         for i in 1:N
             for j in 1:i-1
                 u = replica[i].v
