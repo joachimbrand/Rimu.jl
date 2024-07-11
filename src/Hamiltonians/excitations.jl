@@ -1,5 +1,6 @@
 using Rimu
 using Rimu.Hamiltonians: hopnextneighbour
+using Rimu.BitStringAddresses: update_component
 
 const BoseOccupiedModeMap{N} = OccupiedModeMap{N,BitStringAddresses.BoseFSIndex}
 const FermiOccupiedModeMap{N} = OccupiedModeMap{N,BitStringAddresses.FermiFSIndex}
@@ -139,14 +140,23 @@ function momentum_transfer_diagonal(map::BoseOccupiedModeMap)
     end
     return float(onproduct)
 end
-function momentum_transfer_diagonal(
-    map_a::FermiOccupiedModeMap, map_b::FermiOccupiedModeMap
-)
+function momentum_transfer_diagonal(map::FermiOccupiedModeMap)
+    return 0.0
+end
+function momentum_transfer_diagonal(map_a, map_b)
     onproduct = 0
     n1 = length(map_a)
     n2 = length(map_b)
 
     return float(2 * n1 * n2)
+end
+function momentum_transfer_diagonal(mode_maps)
+    num = length(mode_maps)
+    result = sum(momentum_transfer_diagonal, mode_maps)
+    for i in 1:num, j in (i + 1):num
+        result = momentum_transfer_diagonal(mode_maps[i], mode_maps[j])
+    end
+    return result
 end
 
 """
@@ -247,4 +257,117 @@ function momentum_external_potential_diagonal(ep, add, map::OccupiedModeMap)
         index.occnum
     end
     return onproduct * ep[1]
+end
+
+function _comp_pair(i)
+    a, b = vertices(i, Val(2))
+    return a - 1, b
+end
+function _comp_pair_num(k)
+    return k * (k - 1) ÷ 2 + k
+end
+
+function _momtransfer_length(k, mode_maps, M)
+    i, j = _comp_pair(k)
+    if i == j # operating on same component
+        occ = mode_maps[i]
+        if eltype(occ) ≡ FermiFSIndex
+            len = 0
+        else
+            singlies = length(occ)
+            doublies = count(x -> x.occnum ≥ 2, occ)
+
+            len = singlies * (singlies - 1) * (M - 2) + doublies * (M - 1)
+        end
+    else
+        N1 = length(mode_maps[i])
+        N2 = length(mode_maps[j])
+        len = N1 * N2 * (M - 1)
+    end
+    return len
+end
+
+struct MomentumTransferExcitation{A,N,M} <: AbstractVector{Tuple{A,Float64,Int,Int,Int}}
+    address::A
+    mode_maps::M
+    lengths::NTuple{N,Int}
+    fold::Bool
+end
+
+function MomentumTransferExcitation(address::CompositeFS{N,<:Any,M}; fold=true) where {N,M}
+    mode_maps = map(OccupiedModeMap, address.components)
+    lengths = ntuple(k -> _momtransfer_length(k, mode_maps, M), Val(_comp_pair_num(N)))
+
+    return MomentumTransferExcitation(address, mode_maps, lengths, fold)
+end
+function MomentumTransferExcitation(address::SingleComponentFockAddress; fold=true)
+    mode_maps = (OccupiedModeMap(address),)
+    lengths = (_momtransfer_length(1, mode_maps, num_modes(address)),)
+
+    return MomentumTransferExcitation(address, mode_maps, lengths, fold)
+end
+
+function Base.size(ex::MomentumTransferExcitation)
+    return (sum(ex.lengths),)
+end
+
+function Base.getindex(ex::MomentumTransferExcitation{<:Any,1}, chosen)
+    new_address, value, rest = momentum_transfer_excitation(
+        ex.address, chosen, ex.mode_maps[1]
+    )
+    return new_address, 2value, rest
+end
+
+@generated function Base.getindex(
+    ex::MomentumTransferExcitation{<:CompositeFS,N}, chosen
+) where {N}
+    expr = quote
+        @boundscheck if chosen ≤ 0
+            throw(BoundsError(ex, chosen))
+        end
+
+        orig_chosen = chosen # for error message
+        address = ex.address
+        components = ex.address.components
+        mode_maps = ex.mode_maps
+        fold = ex.fold
+    end
+
+    for k in 1:N
+        i, j = _comp_pair(k)
+        expr = quote
+            $expr
+            num = ex.lengths[$k]
+            if chosen ≤ num
+                if $i == $j
+                    new_addr, value, rest... = momentum_transfer_excitation(
+                        components[$i], chosen, mode_maps[$i]; fold,
+                    )
+                    new_address = update_component(address, new_addr, Val($i))
+
+                    return (new_address, value, rest...)
+                else
+                    new_addr1, new_addr2, value, rest... = momentum_transfer_excitation(
+                        components[$i], components[$j],
+                        chosen,
+                        mode_maps[$i], mode_maps[$j];
+                        fold,
+                    )
+
+                    new_address = update_component(address, new_addr1, Val($i))
+                    new_address = update_component(new_address, new_addr2, Val($j))
+
+                    return (new_address, 2value, rest...)
+                end
+            else
+                chosen -= num
+            end
+        end
+    end
+
+    return quote
+        $expr
+        @boundscheck throw(BoundsError(ex, orig_chosen))
+        return address, 0.0, 0, 0, 0
+    end
 end
