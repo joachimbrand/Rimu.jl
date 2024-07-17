@@ -382,10 +382,6 @@ function hopnextneighbour(b::SingleComponentFockAddress, i, boundary_condition::
     end
 end
 
-
-
-
-
 """
     bose_hubbard_interaction(address)
 
