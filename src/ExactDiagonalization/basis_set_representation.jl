@@ -198,11 +198,11 @@ BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimensio
   0.0  -1.0
  -1.0   0.0
 
-julia> using LinearAlgebra; eigvals(Matrix(bsr)) # eigenvalues
+julia> using LinearAlgebra; round.(eigvals(Matrix(bsr)); digits = 4) # eigenvalues
 3-element Vector{Float64}:
- -1.9999999999999996
-  0.9999999999999997
-  1.0000000000000002
+ -2.0
+  1.0
+  1.0
 
 julia> ev = eigvecs(Matrix(bsr))[:,1] # ground state eigenvector
 3-element Vector{Float64}:
