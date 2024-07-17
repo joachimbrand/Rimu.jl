@@ -184,7 +184,7 @@ are passed on to `Base.sortperm`.
 * `hamiltonian`: the Hamiltonian `hamiltonian`
 
 ## Example
-```jldoctest
+```jldoctest; filter = r"(\\d*)\\.(\\d{4})\\d+" => s"\\1.\\2***"
 julia> hamiltonian = HubbardReal1D(BoseFS(1,0,0));
 
 julia> bsr = BasisSetRepresentation(hamiltonian)
