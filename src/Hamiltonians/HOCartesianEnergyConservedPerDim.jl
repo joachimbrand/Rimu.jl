@@ -2,7 +2,7 @@
 """
     largest_two_point_box(i, j, dims::Tuple) -> ranges
 
-For a box defined by `dims` containing two points `i` and `j`, find the set of all positions 
+For a box defined by `dims` containing two points `i` and `j`, find the set of all positions
 such that shifting `i` to that position with an opposite shift to `j` leaves both points inbounds.
 
 Arguments `i` and `j` are linear indices, `dims` is a `Tuple` defining the inbounds area.
@@ -14,7 +14,7 @@ function largest_two_point_box(i::Int, j::Int, dims::NTuple{D,Int}) where {D}
     state_j = Tuple(cart[j])
 
     ranges = ntuple(d -> largest_two_point_interval(state_i[d], state_j[d], dims[d]), Val(D))
-    
+
     box_size = prod(length.(ranges))
     return ranges, box_size
 end
@@ -23,7 +23,7 @@ end
     find_chosen_pair_moves(omm::OccupiedModeMap, c, S) -> p_i, p_j, c, box_ranges
 
 Find size of valid moves for chosen pair of indices in `omm`. Returns two valid indices `p_i` and `p_j`
-for the initial pair and a tuple of ranges `box_ranges` defining the subbox of valid moves. 
+for the initial pair and a tuple of ranges `box_ranges` defining the subbox of valid moves.
 The index for the chosen move `c` is updated to be valid for this box.
 Arguments are the `OccupiedModeMap` `omm`, the chosen move index `c`
 and the size of the basis grid `S`.
@@ -36,7 +36,7 @@ function find_chosen_pair_moves(omm::OccupiedModeMap, c, S::Tuple)
             if c - box_size < 1
                 return p_i, p_i, box_ranges, c
             else
-                c -= box_size 
+                c -= box_size
             end
         end
         for j in 1:i-1
@@ -45,7 +45,7 @@ function find_chosen_pair_moves(omm::OccupiedModeMap, c, S::Tuple)
             if c - box_size < 1
                 return p_i, p_j, box_ranges, c
             else
-                c -= box_size 
+                c -= box_size
             end
         end
     end
@@ -55,47 +55,47 @@ end
 """
     HOCartesianEnergyConservedPerDim(addr; S, η, g = 1.0, interaction_only = false)
 
-Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
+Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions
 ```math
 \\hat{H} = \\sum_{i} ϵ_i n_i + \\frac{g}{2}\\sum_{ijkl} V_{ijkl} a^†_i a^†_j a_k a_l,
 ```
 with the additional restriction that the interactions only couple states with the same
-energy in each dimension separately. See [`HOCartesianContactInteractions`](@ref) for a model that 
+energy in each dimension separately. See [`HOCartesianContactInteractions`](@ref) for a model that
 conserves total energy.
 
-For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots`` 
-are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
-so that single particle energies are 
+For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots``
+are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x``
+so that single particle energies are
 ```math
     \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots.
 ```
-The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
+The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
-Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this basis using 
+Matrix elements ``V_{\\mathbf{ijkl}}`` are for a contact interaction calculated in this basis using
 first-order degenerate perturbation theory.
 ```math
-    V_{\\mathbf{ijkl}} = \\prod_{d \\in x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d) 
+    V_{\\mathbf{ijkl}} = \\prod_{d \\in x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d)
         \\delta_{i_d + j_d}^{k_d + l_d},
 ```
 where the ``\\delta``-function indicates that the noninteracting energy is conserved along each
 dimension.
-The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
-basis functions, see [`four_oscillator_integral_general`](@ref), with the additional restriction 
+The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator
+basis functions, see [`four_oscillator_integral_general`](@ref), with the additional restriction
 that energy is conserved in each dimension.
 
 # Arguments
 
 * `addr`: the starting address, defines number of particles and total number of modes.
-* `S`: Tuple of the number of levels in each dimension, including the groundstate. Defaults 
-    to a 1D spectrum with number of levels matching modes of `addr`. Will be sorted to 
+* `S`: Tuple of the number of levels in each dimension, including the groundstate. Defaults
+    to a 1D spectrum with number of levels matching modes of `addr`. Will be sorted to
     make the first dimension the largest.
 * `η`: Define a custom aspect ratio for the trapping potential strengths, instead of deriving
-    from `S .- 1`. The values are always scaled relative to the first dimension, which sets 
+    from `S .- 1`. The values are always scaled relative to the first dimension, which sets
     the energy scale of the system, ``\\hbar\\omega_x``.
-* `g`: the (isotropic) interparticle interaction parameter. The value of `g` is assumed 
+* `g`: the (isotropic) interparticle interaction parameter. The value of `g` is assumed
     to be in trap units.
-* `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
+* `interaction_only`: if set to `true` then the noninteracting single-particle terms are
     ignored. Useful if only energy shifts due to interactions are required.
 
 
@@ -113,9 +113,9 @@ struct HOCartesianEnergyConservedPerDim{
 end
 
 function HOCartesianEnergyConservedPerDim(
-        addr::BoseFS; 
+        addr::BoseFS;
         S = (num_modes(addr),),
-        η = nothing, 
+        η = nothing,
         g = 1.0,
         interaction_only = false
     )
@@ -147,7 +147,7 @@ function HOCartesianEnergyConservedPerDim(
     bigrange = 0:M-1
     # case n = M is the same as n = 0
     vmat = reshape(
-                [four_oscillator_integral_general(i-n, j+n, j, i; max_level = M-1) 
+                [four_oscillator_integral_general(i-n, j+n, j, i; max_level = M-1)
                     for i in bigrange, j in bigrange, n in bigrange],
                     M,M,M)
 
@@ -155,10 +155,11 @@ function HOCartesianEnergyConservedPerDim(
 end
 
 function Base.show(io::IO, h::HOCartesianEnergyConservedPerDim)
+    compact_addr = repr(h.addr, context=:compact => true) # compact print address
     flag = iszero(h.energies)
     # invert the scaling of u parameter
     g = h.u * 2 * sqrt(prod(h.aspect1))
-    print(io, "HOCartesianEnergyConservedPerDim($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
+    print(io, "HOCartesianEnergyConservedPerDim($(compact_addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
 end
 
 Base.:(==)(H::HOCartesianEnergyConservedPerDim, G::HOCartesianEnergyConservedPerDim) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
@@ -174,7 +175,7 @@ LOStructure(::Type{<:HOCartesianEnergyConservedPerDim}) = IsHermitian()
 function energy_transfer_diagonal(h::HOCartesianEnergyConservedPerDim{D}, omm::BoseOccupiedModeMap) where {D}
     result = 0.0
     states = CartesianIndices(h.S)    # 1-indexed
-    
+
     for i in eachindex(omm)
         mode_i, occ_i = omm[i].mode, omm[i].occnum
         idx_i = Tuple(states[mode_i])
@@ -188,7 +189,7 @@ function energy_transfer_diagonal(h::HOCartesianEnergyConservedPerDim{D}, omm::B
             idx_j = Tuple(states[mode_j])
             val = 4 * occ_i * occ_j
             result += prod(h.vtable[idx_i[d],idx_j[d],1] for d in 1:D) * val
-        end        
+        end
     end
     return result * h.u
 end
@@ -219,12 +220,12 @@ function num_offdiagonals(h::HOCartesianEnergyConservedPerDim, addr::BoseFS)
         p_i = omm[i]
         if p_i.occnum > 1
             _, valid_box_size  = largest_two_point_box(p_i.mode, p_i.mode, S)
-            noffs += valid_box_size 
+            noffs += valid_box_size
         end
         for j in 1:i-1
             p_j = omm[j]
             _, valid_box_size  = largest_two_point_box(p_i.mode, p_j.mode, S)
-            noffs += valid_box_size 
+            noffs += valid_box_size
         end
     end
     return noffs
@@ -240,9 +241,9 @@ Return the new address `new_add`, the prefactor `val`, the initial particle mode
 `mode_k` is implicit by energy conservation.
 """
 function energy_transfer_offdiagonal(
-        S::Tuple, 
-        addr::BoseFS, 
-        chosen::Int, 
+        S::Tuple,
+        addr::BoseFS,
+        chosen::Int,
         omm::BoseOccupiedModeMap = OccupiedModeMap(addr)
     )
     # find size of valid moves for each pair
@@ -267,14 +268,14 @@ function energy_transfer_offdiagonal(
 end
 
 function get_offdiagonal(
-        h::HOCartesianEnergyConservedPerDim{D,A}, 
-        addr::A, 
-        chosen::Int, 
+        h::HOCartesianEnergyConservedPerDim{D,A},
+        addr::A,
+        chosen::Int,
         omm::BoseOccupiedModeMap = OccupiedModeMap(addr)
     ) where {D,A}
 
     S = h.S
-    
+
     new_add, val, i, j, l = energy_transfer_offdiagonal(S, addr, chosen, omm)
 
     if val ≠ 0.0    # is this a safe check? maybe check if Δns == (0,...)

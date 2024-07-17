@@ -10,7 +10,7 @@ products. Implemented subtypes:
 - [`Norm2Projector`](@ref)
 - [`Norm1ProjectorPPop`](@ref)
 
-See also [`PostStepStrategy`](@ref Main.PostStepStrategy) for use of projectors in [`lomc!`](@ref Main.lomc!).
+See also [`PostStepStrategy`](@ref Main.PostStepStrategy) for use of projectors in [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem).
 
 ## Interface
 
@@ -33,7 +33,7 @@ dot(UniformProjector(), LO, v) == sum(LO*v)
 ```
 
 See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
+of projectors in [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem).
 """
 struct UniformProjector <: AbstractProjector end
 
@@ -60,7 +60,7 @@ dot(NormProjector(),x)
 `NormProjector()` thus represents the vector `sign.(x)`.
 
 See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
+of projectors in [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem).
 """
 struct NormProjector <: AbstractProjector end
 
@@ -75,7 +75,7 @@ dot(NormProjector(),x)
 ```
 
 See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
+of projectors in [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem).
 """
 struct Norm2Projector <: AbstractProjector end
 
@@ -92,7 +92,7 @@ dot(Norm1ProjectorPPop(),x)
 ```
 
 See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
+of projectors in [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem).
 """
 struct Norm1ProjectorPPop <: AbstractProjector end
 
@@ -121,7 +121,7 @@ dot(PopsProjector(),x)
 ```
 
 See also [`PostStepStrategy`](@ref Main.PostStepStrategy), and [`AbstractProjector`](@ref) for use
-of projectors in [`lomc!`](@ref Main.lomc!).
+of projectors in [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem).
 """
 struct PopsProjector <: AbstractProjector end
 

@@ -22,7 +22,7 @@ using OrderedCollections: freeze
     @test sp.shift == diagonal_element(h, starting_address(h))
     @test sp.pnorm == walkernumber(only(state_vectors(simulation)))
     @test sp.pnorm isa Float64
-    @test p.maxlength == 2 * p.algorithm.shift_strategy.targetwalkers + 100
+    @test p.maxlength == 2 * p.algorithm.shift_strategy.target_walkers + 100
 
     ps = ProjectorMonteCarloProblem(h; initial_shift_parameters=sp, threading=false)
     @test ps.initial_shift_parameters === sp

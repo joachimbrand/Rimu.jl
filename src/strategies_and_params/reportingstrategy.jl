@@ -208,7 +208,7 @@ refine_reporting_strategy(reporting_strategy::ReportingStrategy) = reporting_str
      report!(::ReportingStrategy, step, report::Report, nt, id="")
 
 Report `keys` and `values` to `report`, which will be converted to a `DataFrame` before
-[`lomc!`](@ref) exits. Alternatively, a `nt::NamedTuple` can be passed in place of `keys`
+[`ProjectorMonteCarloProblem`](@ref) exits. Alternatively, a `nt::NamedTuple` can be passed in place of `keys`
 and `values`. If `id` is specified, it is appended to all `keys`. This is used to
 differentiate between values reported by different replicas.
 
@@ -242,8 +242,8 @@ reporting_interval(::ReportingStrategy) = 1
 """
     finalize_report!(::ReportingStrategy, report)
 
-Finalize the report. This function is called after all steps in [`lomc!`](@ref) have
-finished.
+Finalize the report. This function is called after all steps in
+[`solve!`](@ref) have finished.
 """
 function finalize_report!(::ReportingStrategy, report)
     report.is_finalized[] = true

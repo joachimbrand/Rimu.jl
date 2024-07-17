@@ -299,12 +299,33 @@ end
     end
 end
 
-using Rimu.DictVectors: num_segments, is_distributed
+using Rimu.DictVectors: num_segments, is_distributed, SegmentedBuffer, replace_collections!
 
 @testset "PDVec" begin
     @testset "constructor errors" begin
         @test_throws ArgumentError PDVec(1 => 1; initiator="none")
         @test_throws ArgumentError PDVec(1 => 1; communicator="none")
+    end
+
+    @testset "internals" begin
+        @testset "SegmentedBuffer" begin
+            buf = SegmentedBuffer{Float64}()
+            vecss = (
+                ([1.0,2.0,3.0], [4.0,5.0], [6.0,7.0,8.0,9.0,0.0], Float64[], [10.0]),
+                (Float64[], rand(5), rand(3)),
+                (Float64[],),
+            )
+            for vecs in vecss
+                replace_collections!(buf, vecs)
+
+                @test length(buf) == length(vecs)
+                @test buf.offsets[end] == sum(length, vecs)
+                @test buf.buffer == reduce(vcat, vecs)
+                for (i, v) in enumerate(vecs)
+                    @test buf[i] == v
+                end
+            end
+        end
     end
 
     @testset "operations" begin

@@ -5,7 +5,8 @@
     AbstractHamiltonian{T}
 
 Supertype that provides an interface for linear operators over a linear space with scalar
-type `T` that are suitable for FCIQMC (with [`lomc!`](@ref Main.lomc!)). Indexing is done
+type `T` that are suitable for FCIQMC (with
+[`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem)). Indexing is done
 with addresses (typically not integers) from an address space that may be large (and will
 not need to be completely generated).
 

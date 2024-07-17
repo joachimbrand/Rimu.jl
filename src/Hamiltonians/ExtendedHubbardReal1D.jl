@@ -55,7 +55,7 @@ function Base.show(io::IO, h::ExtendedHubbardReal1D)
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
-    return getfield(h, :add)
+    return getfield(h, :address)
 end
 
 dimension(::ExtendedHubbardReal1D, address) = number_conserving_dimension(address)
@@ -64,7 +64,7 @@ LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real}}) = IsHermitian()
 LOStructure(::Type{<:ExtendedHubbardReal1D{<:Complex}}) = IsHermitian()
 
 Base.getproperty(h::ExtendedHubbardReal1D, s::Symbol) = getproperty(h, Val(s))
-Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:add}) = getfield(h, :add)
+Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:address}) = getfield(h, :address)
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,V}, ::Val{:v}) where V = V
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T

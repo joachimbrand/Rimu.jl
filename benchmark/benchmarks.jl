@@ -58,7 +58,7 @@ const SUITE = @benchmarkset "Rimu" begin
             ham = HubbardMom1D(addr, u=1.0)
             dv = PDVec(addr => 1.0; style=IsDynamicSemistochastic(), initiator=true)
             post_step = ProjectedEnergy(ham, dv)
-            s_strat = DoubleLogUpdate(targetwalkers=40_000)
+            s_strat = DoubleLogUpdate(target_walkers=40_000)
 
             lomc!(ham, dv; s_strat, post_step, dτ=1e-4, laststep=8000)
         end seconds=150
@@ -67,7 +67,7 @@ const SUITE = @benchmarkset "Rimu" begin
             addr = BoseFS2C(ntuple(i -> ifelse(i == 5, 4, 0), 11), ntuple(==(5), 11))
             ham = BoseHubbardMom1D2C(addr, v=0.1)
             dv = PDVec(addr => 1.0f0; style=IsDynamicSemistochastic{Float32}())
-            s_strat = DoubleLogUpdate(targetwalkers=10_000)
+            s_strat = DoubleLogUpdate(target_walkers=10_000)
             replica_strategy = AllOverlaps(2; operator = ntuple(i -> G2Correlator(i - 1), 7))
 
             lomc!(ham, dv; s_strat, replica_strategy, laststep=2000)
@@ -77,7 +77,7 @@ const SUITE = @benchmarkset "Rimu" begin
             addr = near_uniform(BoseFS{50,50})
             ham = HubbardReal1D(addr, u=6.0)
             dv = PDVec(addr => 1.0; style=IsDynamicSemistochastic())
-            s_strat = DoubleLogUpdate(targetwalkers=50_000)
+            s_strat = DoubleLogUpdate(target_walkers=50_000)
 
             lomc!(ham, dv; s_strat, dτ=1e-4, laststep=1000)
         end seconds=150

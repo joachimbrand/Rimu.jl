@@ -936,7 +936,7 @@ using Rimu.Hamiltonians: circshift_dot
             addr = near_uniform(BoseFS{3,18})
             geom = CubicGrid((2,3,3), (false, true, true))
             H = HubbardRealSpace(addr; geometry=geom)
-            bsr = BasisSetRep(H)
+            bsr = BasisSetRepresentation(H)
             v0 = PDVec(zip(bsr.basis, eigen(Matrix(bsr)).vectors[:,1]))
 
             g2 = dot(v0, G2RealSpace(geom), v0)
