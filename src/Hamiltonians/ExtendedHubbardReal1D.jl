@@ -13,7 +13,7 @@ Implements the extended Hubbard model on a one-dimensional chain in real space. 
 * `u`: on-site interaction parameter
 * `v`: the next-neighbor interaction
 * `t`: the hopping strength
-* `boundary_condition` : applied boundray condition 
+* `boundary_condition`: applied boundary condition mentioned below.
 
 # Boundary conditions
 ### For real Hamiltonian
