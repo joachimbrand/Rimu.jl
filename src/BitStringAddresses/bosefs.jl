@@ -265,7 +265,7 @@ for `boundary_condition` are supported:
 * `:periodic`: hopping over the boundary gives does not change the `value`.
 * `:twisted`: hopping over the boundary flips the sign of the `value`.
 * `:hard_wall`: hopping over the boundary gives a `value` of zero.
-* `θ <: Number`: hopping over the boundary gives a `value` multiplied by ``\\exp(ιθ)`` or ``\\exp(−ιθ)`` depending on the direction of hopping.
+* `θ <: Number`: hopping over the boundary gives a `value` multiplied by ``\\exp(iθ)`` or ``\\exp(−iθ)`` depending on the direction of hopping.
 
 The off-diagonals are indexed as follows:
 
