@@ -30,7 +30,7 @@ a_{M+1} = exp(-\\iota θ) a_1
 
 """
 struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,BOUNDARY_CONDITION} <: AbstractHamiltonian{TT}
-    add::A
+    address::A
 end
 
 # addr for compatibility.
@@ -47,10 +47,11 @@ function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0, boundary_condition = :
 end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
+    compact_addr = repr(h.address, context=:compact => true) # compact print address
     if h.boundary_condition isa Number
-        print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=$(h.boundary_condition))")
+        print(io, "ExtendedHubbardReal1D($(compact_addr); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=$(h.boundary_condition))")
     else
-        print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
+        print(io, "ExtendedHubbardReal1D($(compact_addr); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
     end
 end
 
@@ -107,7 +108,7 @@ function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddres
     return convert(eltype(h), h.u * bhinteraction / 2 + h.v * ebhinteraction)
 end
 
-function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen, h.boundary_condition)
+function get_offdiagonal(h::ExtendedHubbardReal1D, address::SingleComponentFockAddress, chosen)
+    naddress, onproduct = hopnextneighbour(address, chosen, h.boundary_condition)
     return naddress, convert(eltype(h), - h.t * onproduct)
 end
