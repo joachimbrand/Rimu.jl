@@ -16,7 +16,7 @@ Implements the extended Hubbard model on a one-dimensional chain in real space.
 
 """
 struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T} <: AbstractHamiltonian{TT}
-    add::A
+    address::A
 end
 
 # addr for compatibility.
@@ -26,11 +26,12 @@ function ExtendedHubbardReal1D(addr; u=1.0, v=1.0, t=1.0)
 end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
-    print(io, "ExtendedHubbardReal1D($(h.add); u=$(h.u), v=$(h.v), t=$(h.t))")
+    compact_addr = repr(h.address, context=:compact => true) # compact print address
+    print(io, "ExtendedHubbardReal1D($(compact_addr); u=$(h.u), v=$(h.v), t=$(h.t))")
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
-    return getfield(h, :add)
+    return getfield(h, :address)
 end
 
 dimension(::ExtendedHubbardReal1D, address) = number_conserving_dimension(address)
@@ -38,7 +39,7 @@ dimension(::ExtendedHubbardReal1D, address) = number_conserving_dimension(addres
 LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real}}) = IsHermitian()
 
 Base.getproperty(h::ExtendedHubbardReal1D, s::Symbol) = getproperty(h, Val(s))
-Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:add}) = getfield(h, :add)
+Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:address}) = getfield(h, :address)
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,U}, ::Val{:u}) where U = U
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,V}, ::Val{:v}) where V = V
 Base.getproperty(h::ExtendedHubbardReal1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where T = T
@@ -78,7 +79,7 @@ function diagonal_element(h::ExtendedHubbardReal1D, b::SingleComponentFockAddres
     return h.u * bhinteraction / 2 + h.v * ebhinteraction
 end
 
-function get_offdiagonal(h::ExtendedHubbardReal1D, add::SingleComponentFockAddress, chosen)
-    naddress, onproduct = hopnextneighbour(add, chosen)
+function get_offdiagonal(h::ExtendedHubbardReal1D, address::SingleComponentFockAddress, chosen)
+    naddress, onproduct = hopnextneighbour(address, chosen)
     return naddress, - h.t * onproduct
 end

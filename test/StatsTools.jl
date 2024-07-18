@@ -22,9 +22,9 @@ end
     @test_throws AssertionError growth_witness(rand(5), rand(5), 0.01; skip=10)
     nor = rand(200)
     shift = rand(200)
-    dτ = 0.01 * ones(200)
-    df = DataFrame(; norm=nor, shift, dτ)
-    m = mean(growth_witness(shift, nor, dτ[1]; skip=10))
+    time_step = 0.01 * ones(200)
+    df = DataFrame(; norm=nor, shift, time_step)
+    m = mean(growth_witness(shift, nor, time_step[1]; skip=10))
     @test mean(growth_witness(df, 10; skip=10)) ≈ m
     @test mean(growth_witness(df; skip=10)) ≈ m
 end
@@ -206,7 +206,7 @@ end
     steps_meas = 2^10
     p = RunTillLastStep(laststep=steps_equi + steps_meas)
     post_step = ProjectedEnergy(ham, v)
-    s_strat = DoubleLogUpdate(targetwalkers=10)
+    s_strat = DoubleLogUpdate(target_walkers=10)
     df = lomc!(ham, v; params=p, s_strat, post_step).df
     @test_throws ArgumentError variational_energy_estimator(df) # see next testset
     bs = shift_estimator(df; skip=steps_equi)
@@ -235,8 +235,9 @@ end
     @test all(abs.(df_nt.val .- df_ge.val) .< df_nt.val_l)
     # projected energy
     bp = @suppress projected_energy(df; skip=steps_equi)
+    time_step = Rimu.StatsTools.determine_constant_time_step(df)
     me = @suppress @inferred mixed_estimator(
-        df.hproj, df.vproj, df.shift, h, df.dτ[end];
+        df.hproj, df.vproj, df.shift, h, time_step;
         skip=steps_equi, E_r
     )
     @test me.ratio ≈ bp.ratio # reweighting has not significantly improved the projected energy
@@ -264,7 +265,7 @@ end
     tw = 10
 
     params = RunTillLastStep(laststep = skipsteps + runsteps)
-    s_strat = DoubleLogUpdate(targetwalkers = tw)
+    s_strat = DoubleLogUpdate(target_walkers = tw)
     G2list = ([G2RealCorrelator(i) for i in dvals]...,)
 
     Random.seed!(174)
@@ -307,7 +308,7 @@ using Rimu.StatsTools: replica_fidelity
     steps_meas = 2^10
     p = RunTillLastStep(laststep=steps_equi + steps_meas)
     post_step = (Projector(vproj=gs), Projector(hproj=os))
-    s_strat = DoubleLogUpdate(targetwalkers=10)
+    s_strat = DoubleLogUpdate(target_walkers=10)
 
     # run replica fciqmc
     Random.seed!(170)

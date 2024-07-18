@@ -54,6 +54,7 @@ makedocs(;
         "Examples" => EXAMPLES_PAIRS[sortperm(EXAMPLES_NUMS)],
         "User documentation" => [
             "Exact Diagonalization" => "exactdiagonalization.md",
+            "Projector Monte Carlo" => "projectormontecarlo.md",
             "StatsTools" => "statstools.md",
             "Using MPI" => "mpi.md",
         ],

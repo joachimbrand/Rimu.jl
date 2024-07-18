@@ -1,18 +1,18 @@
 """
     four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
 
-Integral of four one-dimensional harmonic oscillator functions, 
+Integral of four one-dimensional harmonic oscillator functions,
 ```math
-    \\mathcal{I}(i,j,k,l) = \\int_{-\\infty}^\\infty dx \\, 
+    \\mathcal{I}(i,j,k,l) = \\int_{-\\infty}^\\infty dx \\,
     \\phi_i(x) \\phi_j(x) \\phi_k(x) \\phi_l(x)
 ```
 Indices `i,j,k,l` start at `0` for the groundstate.
 
-This integral has a closed form in terms of the hypergeometric ``_{3}F_2`` function, 
-and is non-zero unless ``i+j+k+l`` is odd. See e.g. 
+This integral has a closed form in terms of the hypergeometric ``_{3}F_2`` function,
+and is non-zero unless ``i+j+k+l`` is odd. See e.g.
 [Titchmarsh (1948)](https://doi.org/10.1112/jlms/s1-23.1.15).
-This is a generalisation of the closed form in 
-[Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606), which is is the special 
+This is a generalisation of the closed form in
+[Papenbrock (2002)](https://doi.org/10.1103/PhysRevA.65.033606), which is is the special
 case where ``i+j == k+l``, but is numerically unstable for large arguments.
 Used in [`HOCartesianContactInteractions`](@ref) and [`HOCartesianEnergyConservedPerDim`](@ref).
 """
@@ -22,15 +22,15 @@ function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
 
     # enforce correct symmetry and k ≥ l
     i, j, k, l = sort(SVector(i, j, k, l); rev = true)
-    
-    a = i + j - k + l + 1    
+
+    a = i + j - k + l + 1
     b = i - j + k - l + 1
     c = -i + j + k - l + 1
     d = -i - j + k - l + 1
-    
+
     p = sqrt(2 * gamma(i + 1) * gamma(j + 1) * gamma(k + 1) * gamma(l + 1)) * pi^2
     q = gamma(a/2) * gamma(b/2) * gamma(c/2) * gamma(k + 1) / gamma(k - l + 1)
-    
+
     f1 = _₃F₂(float(-l), b/2, c/2, float(1 + k - l), d/2, 1.0)
 
     if isnan(f1)
@@ -41,14 +41,14 @@ function four_oscillator_integral_general(i, j, k, l; max_level = typemax(Int))
     else
         f = f1
     end
-    
+
     return f * q / p
 end
 
 """
     largest_two_point_interval(i, j, [v=1,] w) -> range
 
-For two points `i` and `j` on a range `v:w`, find the largest subinterval of sites 
+For two points `i` and `j` on a range `v:w`, find the largest subinterval of sites
 such that moving `i` to one of those sites and moving `j` by an equal but opposite
 amount leaves both within `v:w`.
 
@@ -81,7 +81,7 @@ function two_point_interval_bounds(i, j, v, w)
     return left_edge, right_edge
 end
 
-# useful conversion of box to aspect ratios; 
+# useful conversion of box to aspect ratios;
 box_to_aspect(S::NTuple{<:Any,Int}) = (S[1] - 1) .// (S .- 1)
 
 @inline function mode_to_energy(i, S, aspect)
@@ -97,11 +97,11 @@ end
 """
     find_Ebounds(i, j, S)
 
-Find the range of single particle energies that a particle in mode `i` can move to while 
+Find the range of single particle energies that a particle in mode `i` can move to while
 preserving total energy of particles `i` and `j`, and constrained to box `S`.
 """
 function find_Ebounds(i, j, S, aspect)
-    
+
     E_i = mode_to_energy(i, S, aspect)
     E_j = mode_to_energy(j, S, aspect)
 
@@ -112,58 +112,58 @@ end
 """
     HOCartesianContactInteractions(addr; S, η, g = 1.0, interaction_only = false, block_by_level = true)
 
-Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions 
+Implements a bosonic harmonic oscillator in Cartesian basis with contact interactions
 ```math
-\\hat{H} = \\sum_{i} \\epsilon_\\mathbf{i} n_\\mathbf{i} + \\frac{g}{2}\\sum_\\mathbf{ijkl} 
+\\hat{H} = \\sum_{i} \\epsilon_\\mathbf{i} n_\\mathbf{i} + \\frac{g}{2}\\sum_\\mathbf{ijkl}
     V_\\mathbf{ijkl} a^†_\\mathbf{i} a^†_\\mathbf{j} a_\\mathbf{k} a_\\mathbf{l}.
 ```
 For a ``D``-dimensional harmonic oscillator indices ``\\mathbf{i}, \\mathbf{j}, \\ldots``
-are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x`` 
-so that single particle energies are 
+are ``D``-tuples. The energy scale is defined by the first dimension i.e. ``\\hbar \\omega_x``
+so that single particle energies are
 ```math
     \\frac{\\epsilon_\\mathbf{i}}{\\hbar \\omega_x} = (i_x + 1/2) + \\eta_y (i_y+1/2) + \\ldots.
 ```
-The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to 
+The factors ``\\eta_y, \\ldots`` allow for anisotropic trapping geometries and are assumed to
 be greater than `1` so that ``\\omega_x`` is the smallest trapping frequency.
 
-By default the offdiagonal elements due to the interactions are consistent with first-order 
+By default the offdiagonal elements due to the interactions are consistent with first-order
 degenerate perturbation theory
 ```math
     V_{\\mathbf{ijkl}} = \\delta_{\\epsilon_\\mathbf{i} + \\epsilon_\\mathbf{j}}
-        ^{\\epsilon_\\mathbf{k} + \\epsilon_\\mathbf{l}} 
+        ^{\\epsilon_\\mathbf{k} + \\epsilon_\\mathbf{l}}
         \\prod_{d \\in x, y,\\ldots} \\mathcal{I}(i_d,j_d,k_d,l_d),
 ```
 where the ``\\delta`` function indicates that the *total* noninteracting energy is conserved
-meaning all states with the same noninteracting energy are connected by this interaction and 
+meaning all states with the same noninteracting energy are connected by this interaction and
 the Hamiltonian blocks according to noninteracting energy levels.
-Setting `block_by_level = false` will disable this restriction and allow coupling between 
-basis states of any noninteracting energy level, leading to many more offdiagonals and 
+Setting `block_by_level = false` will disable this restriction and allow coupling between
+basis states of any noninteracting energy level, leading to many more offdiagonals and
 fewer but larger blocks (the blocks are still distinguished by parity of basis states).
-Alternatively, see [`HOCartesianEnergyConservedPerDim`](@ref) for a model with the stronger 
+Alternatively, see [`HOCartesianEnergyConservedPerDim`](@ref) for a model with the stronger
 restriction that conserves energy separately per spatial dimension.
-The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator 
+The integral ``\\mathcal{I}(a,b,c,d)`` is of four one dimensional harmonic oscillator
 basis functions, implemented in [`four_oscillator_integral_general`](@ref).
 
 # Arguments
 
 * `addr`: the starting address, defines number of particles and total number of modes.
-* `S`: Tuple of the number of levels in each dimension, including the groundstate. The 
-    allowed couplings between states is defined by the aspect ratio of `S .- 1`. Defaults 
-    to a 1D spectrum with number of levels matching modes of `addr`. Will be sorted to make 
+* `S`: Tuple of the number of levels in each dimension, including the groundstate. The
+    allowed couplings between states is defined by the aspect ratio of `S .- 1`. Defaults
+    to a 1D spectrum with number of levels matching modes of `addr`. Will be sorted to make
     the first dimension the largest.
 * `η`: Define a custom aspect ratio for the trapping potential strengths, instead of deriving
-    from `S .- 1`. This will only affect the single particle energy scale and not the 
-    interactions. The values are always scaled relative to the first dimension, which sets 
+    from `S .- 1`. This will only affect the single particle energy scale and not the
+    interactions. The values are always scaled relative to the first dimension, which sets
     the energy scale of the system, ``\\hbar\\omega_x``.
-* `g`: the (isotropic) bare interaction parameter. The value of `g` is assumed 
+* `g`: the (isotropic) bare interaction parameter. The value of `g` is assumed
     to be in trap units.
-* `interaction_only`: if set to `true` then the noninteracting single-particle terms are 
+* `interaction_only`: if set to `true` then the noninteracting single-particle terms are
     ignored. Useful if only energy shifts due to interactions are required.
-* `block_by_level`: if set to false will allow the interactions to couple all states without 
+* `block_by_level`: if set to false will allow the interactions to couple all states without
     comparing their noninteracting energy.
 
 !!! warning
-    `num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building 
+    `num_offdiagonals` is a bad estimate for this Hamiltonian. Take care when building
     a matrix or using QMC methods. Use [`get_all_blocks`](@ref) first then pass option
     `col_hint = block_size` to [`BasisSetRep`](@ref) to safely build the matrix.
 """
@@ -183,9 +183,9 @@ struct HOCartesianContactInteractions{
 end
 
 function HOCartesianContactInteractions(
-        addr::BoseFS; 
+        addr::BoseFS;
         S = (num_modes(addr),),
-        η = nothing, 
+        η = nothing,
         g = 1.0,
         interaction_only = false,
         block_by_level = true
@@ -194,7 +194,7 @@ function HOCartesianContactInteractions(
     D = length(S)
     S_sort = tuple(sort(collect(S); rev = true)...)
     S == S_sort || @warn("dimensions have been reordered")
-    
+
     P = prod(S)
     P == num_modes(addr) || throw(ArgumentError("number of modes does not match starting address"))
 
@@ -231,10 +231,11 @@ function HOCartesianContactInteractions(
 end
 
 function Base.show(io::IO, h::HOCartesianContactInteractions)
+    compact_addr = repr(h.addr, context=:compact => true) # compact print address
     flag = iszero(h.energies)
     # invert the scaling of u parameter
     g = h.u * 2 * sqrt(prod(h.aspect1))
-    print(io, "HOCartesianContactInteractions($(h.addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
+    print(io, "HOCartesianContactInteractions($(compact_addr); S=$(h.S), η=$(h.aspect1), g=$g, interaction_only=$flag)")
 end
 
 Base.:(==)(H::HOCartesianContactInteractions, G::HOCartesianContactInteractions) = all(map(p -> getproperty(H, p) == getproperty(G, p), propertynames(H)))
@@ -250,7 +251,7 @@ LOStructure(::Type{<:HOCartesianContactInteractions}) = IsHermitian()
 function energy_transfer_diagonal(h::HOCartesianContactInteractions{D}, omm::BoseOccupiedModeMap) where {D}
     result = 0.0
     states = CartesianIndices(h.S)    # 1-indexed
-    
+
     for i in eachindex(omm)
         mode_i, occ_i = omm[i].mode, omm[i].occnum
         idx_i = Tuple(states[mode_i])
@@ -264,7 +265,7 @@ function energy_transfer_diagonal(h::HOCartesianContactInteractions{D}, omm::Bos
             idx_j = Tuple(states[mode_j])
             val = 4 * occ_i * occ_j
             result += prod(h.vtable[idx_i[d],idx_j[d],idx_i[d],idx_j[d]] for d in 1:D) * val
-        end        
+        end
     end
     return result * h.u
 end
@@ -317,7 +318,7 @@ Base.size(::HOCartOffdiagonals) = throw(HOCartOffdiagonalsError)
 Base.length(::HOCartOffdiagonals) = throw(HOCartOffdiagonalsError)
 
 # This is the dumb way to loop through valid states.
-# It should take arguments that define where to begin so that the loop can be restarted later 
+# It should take arguments that define where to begin so that the loop can be restarted later
 # Better way would 'jump ahead' when a mode index goes outside the valid energy range.
 # For that I would need dummy indices and probably while loops
 function loop_over_modes(k_start, l_start, S, aspect, Emin, Emax, Etot)
@@ -360,7 +361,7 @@ function loop_over_pairs(S, aspect, pairs, start, block_by_level)
     mode_l = l_start
     if block_by_level
         Es = find_Ebounds(mode_i, mode_j, S, aspect)
-    else 
+    else
         parity_ij = mod(mode_i + mode_j, 2)
     end
     while true
@@ -377,13 +378,13 @@ function loop_over_pairs(S, aspect, pairs, start, block_by_level)
             return pair_index, (mode_i, mode_j, mode_k, mode_l), true
         end
         pair_index += 1
-        # update looping indices        
+        # update looping indices
         p_i, p_j = pairs[pair_index]
         mode_i = p_i.mode
         mode_j = p_j.mode
         if block_by_level
             Es = find_Ebounds(mode_i, mode_j, S, aspect)
-        else 
+        else
             parity_ij = mod(mode_i + mode_j, 2)
         end
         # start with checking lowest possible states in first dimension (x)
@@ -421,7 +422,7 @@ function Base.iterate(off::HOCartOffdiagonals{<:Any,<:Any,B}, iter_state = (1,1,
         states = CartesianIndices(S)    # 1-indexed
         ho_indices = ntuple(x -> Tuple(states[modes[x]]), 4)
         val *= prod(off.ham.vtable[a,b,c,d] for (a,b,c,d) in zip(ho_indices...))
-        # account for j ≤ i and l ≤ k 
+        # account for j ≤ i and l ≤ k
         val *= (1 + (i ≠ j)) * (1 + (k ≠ l)) * off.ham.u
     end
 

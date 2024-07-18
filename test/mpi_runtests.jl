@@ -9,6 +9,7 @@ using MPI
 using Rimu.RMPI
 using Rimu.StatsTools
 using Rimu.RMPI: targetrank, mpi_synchronize!
+using Rimu.DictVectors: PointToPoint, AllToAll, copy_to_local!, NonInitiatorValue
 
 const N_REPEATS = 5
 
@@ -76,8 +77,8 @@ end
             end
             @testset "Single component $type" begin
                 for i in 1:N_REPEATS
-                    add = BoseFS((0, 0, 10, 0, 0))
-                    H = HubbardMom1D(add)
+                    addr = BoseFS((0, 0, 10, 0, 0))
+                    H = HubbardMom1D(addr)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
                         type, [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
@@ -101,7 +102,7 @@ end
                         @test norm(v, 2) ≈ norm(dv, 2)
                         @test norm(v, Inf) ≈ norm(dv, Inf)
                         @test sum(values(v)) ≈ sum(values(dv))
-                        f((k, v)) = (k == add) + v > 0
+                        f((k, v)) = (k == addr) + v > 0
                         @test mapreduce(f, |, pairs(v); init=true) ==
                               mapreduce(f, |, pairs(dv); init=true)
                     end
@@ -132,8 +133,8 @@ end
             end
             @testset "Two-component $type" begin
                 for i in 1:N_REPEATS
-                    add = BoseFS2C((0, 0, 10, 0, 0), (0, 0, 2, 0, 0))
-                    H = BoseHubbardMom1D2C(add)
+                    addr = BoseFS2C((0, 0, 10, 0, 0), (0, 0, 2, 0, 0))
+                    H = BoseHubbardMom1D2C(addr)
                     Random.seed!(7350 * i)
                     v, dv = setup_dv(
                         type, [BoseFS2C(rand_onr(10, 5), rand_onr(2, 5)) => rand() for _ in 1:100]
@@ -218,99 +219,118 @@ end
     end
 
     @testset "PDVec" begin
-        add = FermiFS2C((1,1,1,0,0,0),(1,1,1,0,0,0))
-        ham = HubbardRealSpace(add)
+        addr = FermiFS2C((1,1,1,0,0,0),(1,1,1,0,0,0))
+        ham = HubbardRealSpace(addr)
 
-        dv = DVec(add => 1.0)
-        pv = PDVec(add => 1.0)
-
-        res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
-        res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
-        # `issymmetric` kwarg only needed for pre v1.9 julia versions
-
-        @test res_dv[1][1] ≈ res_pv[1][1] || res_dv[1][1] ≈ -res_pv[1][1]
-
-        dv = copy(res_dv[2][1])
-        pv = copy(res_pv[2][1])
-        @test norm(pv) ≈ 1
-        @test length(pv) == length(dv)
-        @test sum(values(pv)) ≈ sum(values(dv)) || sum(values(pv)) ≈ -sum(values(dv))
-        normalize!(pv, 1)
-        @test norm(pv, 1) ≈ 1
-        rmul!(pv, 2)
-        @test norm(pv, 1) ≈ 2
-
-        pv1 = copy(res_pv[2][1])
-        pv2 = mul!(similar(pv), ham, pv)
-
-        @test dot(pv2, pv1) ≈ dot(pv2, dv)
-        @test dot(pv1, pv2) ≈ dot(dv, pv2)
-        @test dot(freeze(pv2), pv1) ≈ dot(pv2, pv1)
-        @test dot(pv1, freeze(pv2)) ≈ dot(pv1, pv2)
-
+        dv = DVec(addr => 1.0)
         if mpi_size() > 1
-            @test pv.communicator isa DictVectors.PointToPoint
-            @test mpi_size() == mpi_size(pv.communicator)
-            @test_throws DictVectors.CommunicatorError iterate(pairs(pv))
+            K = typeof(addr)
+            V = Rimu.DictVectors.NonInitiatorValue{Float64}
+            for communicator in (AllToAll{K,V}(report=true), PointToPoint{K,V}(report=true))
+                @testset "$(nameof(typeof(communicator)))" begin
+                    pv = PDVec(addr => 1.0; communicator)
+                    @test pv.communicator isa typeof(communicator)
 
-            local_pairs = collect(pairs(localpart(pv)))
-            local_vals = sum(abs2, values(localpart(pv)))
+                    res_dv = eigsolve(ham, dv, 1, :SR; issymmetric=true)
+                    res_pv = eigsolve(ham, pv, 1, :SR; issymmetric=true)
+                    # `issymmetric` kwarg only needed for pre v1.9 julia versions
 
-            total_len = MPI.Allreduce(length(local_pairs), +, MPI.COMM_WORLD)
-            total_vals = MPI.Allreduce(local_vals, +, MPI.COMM_WORLD)
+                    @test res_pv[2][1].communicator isa typeof(communicator)
 
-            @test total_len == length(dv)
-            @test total_vals == sum(abs2, values(pv))
-        end
+                    @test res_dv[1][1] ≈ res_pv[1][1] || res_dv[1][1] ≈ -res_pv[1][1]
 
-        @testset "dot" begin
-            add = BoseFS((0,0,10,0,0))
-            H = HubbardMom1D(add)
-            D = DensityMatrixDiagonal(1)
-            G2 = G2RealSpace(PeriodicBoundaries(5))
+                    wm = working_memory(pv)
+                    local_copy = DVec(copy_to_local!(wm, res_pv[2][1]))
+                    @test res_dv[2][1] ≈ local_copy || res_dv[2][1] ≈ -local_copy
 
-            # Need to seed here to get the same random vectors on all ranks.
-            Random.seed!(1)
-            pairs_v = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
-            pairs_w = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:20]
+                    dv = copy(res_dv[2][1])
+                    pv = copy(res_pv[2][1])
+                    @test norm(pv) ≈ 1
+                    @test length(pv) == length(dv)
+                    @test sum(values(pv)) ≈ sum(values(dv)) ||
+                        sum(values(pv)) ≈ -sum(values(dv))
+                    normalize!(pv, 1)
+                    @test norm(pv, 1) ≈ 1
+                    rmul!(pv, 2)
+                    @test norm(pv, 1) ≈ 2
 
-            v = DVec(pairs_v)
-            w = DVec(pairs_w)
-            pv = PDVec(pairs_v)
-            pw = PDVec(pairs_w)
+                    pv1 = copy(res_pv[2][1])
+                    pv2 = mul!(similar(pv), ham, pv)
 
-            @test norm(v) ≈ norm(pv)
-            @test length(w) == length(pw)
+                    @test dot(pv2, pv1) ≈ dot(pv2, dv)
+                    @test dot(pv1, pv2) ≈ dot(dv, pv2)
+                    @test dot(freeze(pv2), pv1) ≈ dot(pv2, pv1)
+                    @test dot(pv1, freeze(pv2)) ≈ dot(pv1, pv2)
 
-            @test dot(v, w) ≈ dot(pv, pw)
+                    @test mpi_size() == mpi_size(pv.communicator)
+                    @test_throws DictVectors.CommunicatorError iterate(pairs(pv))
 
-            @test dot(freeze(pw), pv) ≈ dot(w, v) ≈ dot(pw, freeze(pv))
-            @test dot(freeze(pv), pw) ≈ dot(v, w) ≈ dot(pv, freeze(pw))
-            wm = PDWorkingMemory(pv)
+                    local_pairs = collect(pairs(localpart(pv)))
+                    local_vals = sum(abs2, values(localpart(pv)))
 
-            for op in (H, D)
-                @test dot(v, op, w) ≈ dot(pv, op, pw)
-                @test dot(w, op, v) ≈ dot(pw, op, pv)
+                    total_len = MPI.Allreduce(length(local_pairs), +, MPI.COMM_WORLD)
+                    total_vals = MPI.Allreduce(local_vals, +, MPI.COMM_WORLD)
 
-                @test dot(v, op, w) ≈ dot(pv, op, pw, wm)
-                @test dot(w, op, v) ≈ dot(pw, op, pv, wm)
-
-                pu = op * pv
-                u = op * v
-                @test length(u) == length(pu)
-                @test norm(u, 1) ≈ norm(pu, 1)
-                @test norm(u, 2) ≈ norm(pu, 2)
-                @test norm(u, Inf) ≈ norm(pu, Inf)
+                    @test total_len == length(dv)
+                    @test total_vals == sum(abs2, values(pv))
+                end
             end
-            # dot only for G2
-            @test dot(v, G2, w) ≈ dot(pv, G2, pw)
-            @test dot(w, G2, v) ≈ dot(pw, G2, pv)
 
-            @test dot(v, G2, w) ≈ dot(pv, G2, pw, wm)
-            @test dot(w, G2, v) ≈ dot(pw, G2, pv, wm)
+            @testset "dot" begin
+                addr = BoseFS((0,0,10,0,0))
+                H = HubbardMom1D(addr)
+                D = DensityMatrixDiagonal(1)
+                G2 = G2RealSpace(PeriodicBoundaries(5))
 
-            @test dot(pv, (H, D), pw, wm) == (dot(pv, H, pw), dot(pv, D, pw))
-            @test dot(pv, (H, D), pw) == (dot(pv, H, pw), dot(pv, D, pw))
+                K = typeof(addr)
+                V = Rimu.DictVectors.NonInitiatorValue{Float64}
+                for communicator in (AllToAll{K,V}(), PointToPoint{K,V}())
+                    @testset "$(nameof(typeof(communicator)))" begin
+                        # Need to seed here to get the same random vectors on all ranks.
+                        Random.seed!(1)
+                        pairs_v = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:100]
+                        pairs_w = [BoseFS(rand_onr(10, 5)) => 2 - 4rand() for _ in 1:20]
+
+                        v = DVec(pairs_v)
+                        w = DVec(pairs_w)
+                        pv = PDVec(pairs_v; communicator)
+                        pw = PDVec(pairs_w; communicator)
+
+                        @test norm(v) ≈ norm(pv)
+                        @test length(w) == length(pw)
+
+                        @test dot(v, w) ≈ dot(pv, pw)
+
+                        @test dot(freeze(pw), pv) ≈ dot(w, v) ≈ dot(pw, freeze(pv))
+                        @test dot(freeze(pv), pw) ≈ dot(v, w) ≈ dot(pv, freeze(pw))
+                        wm = PDWorkingMemory(pv)
+
+                        for op in (H, D)
+                            @test dot(v, op, w) ≈ dot(pv, op, pw)
+                            @test dot(w, op, v) ≈ dot(pw, op, pv)
+
+                            @test dot(v, op, w) ≈ dot(pv, op, pw, wm)
+                            @test dot(w, op, v) ≈ dot(pw, op, pv, wm)
+
+                            pu = op * pv
+                            u = op * v
+                            @test length(u) == length(pu)
+                            @test norm(u, 1) ≈ norm(pu, 1)
+                            @test norm(u, 2) ≈ norm(pu, 2)
+                            @test norm(u, Inf) ≈ norm(pu, Inf)
+                        end
+                        # dot only for G2
+                        @test dot(v, G2, w) ≈ dot(pv, G2, pw)
+                        @test dot(w, G2, v) ≈ dot(pw, G2, pv)
+
+                        @test dot(v, G2, w) ≈ dot(pv, G2, pw, wm)
+                        @test dot(w, G2, v) ≈ dot(pw, G2, pv, wm)
+
+                        @test dot(pv, (H, D), pw, wm) == (dot(pv, H, pw), dot(pv, D, pw))
+                        @test dot(pv, (H, D), pw) == (dot(pv, H, pw), dot(pv, D, pw))
+                    end
+                end
+            end
         end
     end
 
@@ -360,14 +380,14 @@ end
             end
             @testset "Initiator with $setup" begin
                 H = HubbardMom1D(BoseFS((0,0,0,7,0,0,0)); u=6.0)
-                add = starting_address(H)
+                addr = starting_address(H)
 
                 if setup == :PDVec
-                    dv = PDVec(add => 3; initiator_threshold=1)
+                    dv = PDVec(addr => 3; initiator_threshold=1)
                 else
-                    dv = MPIData(InitiatorDVec(add => 3); setup, kwargs...)
+                    dv = MPIData(InitiatorDVec(addr => 3); setup, kwargs...)
                 end
-                s_strat = DoubleLogUpdate(targetwalkers=100)
+                s_strat = DoubleLogUpdate(target_walkers=100)
                 df = lomc!(H, dv; laststep=5000, s_strat).df
 
                 # Shift estimate.
@@ -382,19 +402,19 @@ end
                 end
                 @testset "AllOverlaps with $setup and initiator=$initiator" begin
                     H = HubbardMom1D(BoseFS((0,0,5,0,0)))
-                    add = starting_address(H)
-                    N = num_particles(add)
-                    M = num_modes(add)
+                    addr = starting_address(H)
+                    N = num_particles(addr)
+                    M = num_modes(addr)
 
                     if setup == :PDVec
-                        dv = PDVec(add => 3; style=IsDynamicSemistochastic(), initiator)
+                        dv = PDVec(addr => 3; style=IsDynamicSemistochastic(), initiator)
                     elseif initiator
                         dv = MPIData(InitiatorDVec(
-                            add => 3; style=IsDynamicSemistochastic()
+                            addr => 3; style=IsDynamicSemistochastic()
                         ); setup, kwargs...)
                     else
                         dv = MPIData(DVec(
-                            add => 3; style=IsDynamicSemistochastic()
+                            addr => 3; style=IsDynamicSemistochastic()
                         ); setup, kwargs...)
                     end
 
@@ -438,9 +458,9 @@ end
         )
             # The entries in the vectors are the same (tested above), but they appear in a
             # different order.
-            add = BoseFS2C((1, 1, 1, 1, 1), (1, 0, 0, 0, 0))
-            H = BoseHubbardReal1D2C(add; v=2)
-            dv = DVec(add => 1)
+            addr = BoseFS2C((1, 1, 1, 1, 1), (1, 0, 0, 0, 0))
+            H = BoseHubbardReal1D2C(addr; v=2)
+            dv = DVec(addr => 1)
 
             dv_1 = MPIData(copy(dv); kwargs...)
             mpi_seed!(17)
