@@ -110,5 +110,9 @@ end
 
 function get_offdiagonal(h::ExtendedHubbardReal1D, address::SingleComponentFockAddress, chosen)
     naddress, onproduct = hopnextneighbour(address, chosen, h.boundary_condition)
-    return naddress, convert(eltype(h), - h.t * onproduct)
+    if h.t isa Complex && chosen%2 == 0
+        return naddress, convert(eltype(h), - conj(h.t) * onproduct)
+    else
+        return naddress, convert(eltype(h), - h.t * onproduct)
+    end
 end
