@@ -204,17 +204,17 @@ julia> using LinearAlgebra; round.(eigvals(Matrix(bsr)); digits = 4) # eigenvalu
   1.0
   1.0
 
-julia> ev = eigvecs(Matrix(bsr))[:,1] # ground state eigenvector
+julia> ev = eigvecs(Matrix(bsr))[:,1]; ev = ev .* sign(ev[1]) # ground state eigenvector
 3-element Vector{Float64}:
- -0.5773502691896257
- -0.5773502691896255
- -0.5773502691896257
+ 0.5773502691896257
+ 0.5773502691896255
+ 0.5773502691896257
 
-julia> DVec(zip(bsr.basis,ev)) # ground state as DVec
+julia> dv = DVec(zip(bsr.basis, ev)) # ground state as DVec
 DVec{BoseFS{1, 3, BitString{3, 1, UInt8}},Float64} with 3 entries, style = IsDeterministic{Float64}()
-  fs"|0 0 1⟩" => -0.57735
-  fs"|0 1 0⟩" => -0.57735
-  fs"|1 0 0⟩" => -0.57735
+  fs"|0 0 1⟩" => 0.57735
+  fs"|0 1 0⟩" => 0.57735
+  fs"|1 0 0⟩" => 0.57735
 ```
 Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 [`starting_address`](@ref).
