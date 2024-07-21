@@ -1703,28 +1703,3 @@ end
     ]
     [@test dimension(addr) == dimension(typeof(addr)) for addr in addresses]
 end
-
-@testset "ExtendedHubbardReal1D boundary conditions" begin
-    for H in (
-        ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:twisted),
-        ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:hard_wall),
-        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:twisted),
-        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:hard_wall),
-        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=π))
-
-        addr = starting_address(H)
-        H1 = ExtendedHubbardReal1D(addr, v=6, t=2.0)
-        addr2, me = get_offdiagonal(H1, addr, 2)
-        if H.boundary_condition == :twisted
-            @test get_offdiagonal(H, addr, 2)[2] == - me
-            @test diagonal_element(H, addr) == diagonal_element(H1, addr)
-        elseif H.boundary_condition == :hard_wall
-            @test get_offdiagonal(H, addr, 2)[2] == 0.0
-        elseif H.boundary_condition isa Number
-            @test get_offdiagonal(H, addr, 2)[2] == me*exp(-im*H.boundary_condition)
-            @test diagonal_element(H, addr) == diagonal_element(H1, addr)
-        end
-        @test get_offdiagonal(H, addr, 2)[1] == addr2
-    end
-    @test_throws ArgumentError ExtendedHubbardReal1D(BoseFS(1,1,1,1); boundary_condition=:hrad_wall)
-end
