@@ -80,7 +80,8 @@ G2MomCorrelator
 SuperfluidCorrelator
 StringCorrelator
 DensityMatrixDiagonal
-ReducedDensityMatrix
+SingleParticleReducedDensityMatrix
+TwoParticleReducedDensityMatrix
 Momentum
 AxialAngularMomentumHO
 ```
