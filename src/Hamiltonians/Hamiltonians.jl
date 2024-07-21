@@ -39,6 +39,8 @@ Other
 - [`G2RealSpace`](@ref)
 - [`G2MomCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
+- [`SingleParticleReducedDensityMatrix`](@ref)
+- [`TwoParticleReducedDensityMatrix`](@ref)
 - [`Momentum`](@ref)
 - [`AxialAngularMomentumHO`](@ref)
 
@@ -83,6 +85,7 @@ export FroehlichPolaron
 export ParticleNumberOperator
 
 export G2MomCorrelator, G2RealCorrelator, G2RealSpace, SuperfluidCorrelator, DensityMatrixDiagonal, Momentum
+export SingleParticleReducedDensityMatrix, TwoParticleReducedDensityMatrix
 export StringCorrelator
 
 export CubicGrid, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
@@ -118,7 +121,7 @@ include("Stoquastic.jl")
 include("Transcorrelated1D.jl")
 
 include("correlation_functions.jl")
-include("DensityMatrixDiagonal.jl")
+include("ReducedDensityMatrix.jl")
 include("Momentum.jl")
 include("particle_number.jl")
 
