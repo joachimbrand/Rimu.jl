@@ -1660,7 +1660,6 @@ end
 
         # HOCartesianContactInteractions requires a valid energy restriction
         @test_throws ArgumentError get_all_blocks(HOCartesianContactInteractions(addr; S))
-
         # block_by_level = false
         H = HOCartesianContactInteractions(addr; S, block_by_level = false)
         df = get_all_blocks(H)
