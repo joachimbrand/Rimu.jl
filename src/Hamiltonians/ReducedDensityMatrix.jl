@@ -21,8 +21,6 @@ struct SingleParticleReducedDensityMatrix <: AbstractHamiltonian{Float64}
     J::Int
 end
 
-SingleParticleReducedDensityMatrix(i,j) = SingleParticleReducedDensityMatrix{}(i,j)
-
 function Base.show(io::IO, spd::SingleParticleReducedDensityMatrix)
     print(io, "SingleParticleReducedDensityMatrix($(spd.I), $(spd.J))")
 end
@@ -86,8 +84,6 @@ struct TwoParticleReducedDensityMatrix <: AbstractHamiltonian{Float64}
     K::Int
     L::Int
 end
-
-TwoParticleReducedDensityMatrix(i,j,k,l) = TwoParticleReducedDensityMatrix{}(i,j,k,l)
 
 function Base.show(io::IO, spd::TwoParticleReducedDensityMatrix)
     print(io, "TwoParticleReducedDensityMatrix($(spd.I), $(spd.J), $(spd.K), $(spd.L))")
