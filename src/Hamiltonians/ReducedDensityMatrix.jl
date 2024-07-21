@@ -21,6 +21,8 @@ struct SingleParticleReducedDensityMatrix <: AbstractHamiltonian{Float64}
     J::Int
 end
 
+SingleParticleReducedDensityMatrix(i,j) = SingleParticleReducedDensityMatrix{}(i,j)
+
 function Base.show(io::IO, spd::SingleParticleReducedDensityMatrix)
     print(io, "SingleParticleReducedDensityMatrix($(spd.I), $(spd.J))")
 end
@@ -61,7 +63,7 @@ function get_offdiagonal(spd::SingleParticleReducedDensityMatrix, add::SingleCom
 end
 
 """
-    SingleParticleReducedDensityMatrix(i, j, k, l) <: AbstractHamiltonian
+    TwoParticleReducedDensityMatrix(i, j, k, l) <: AbstractHamiltonian
 
 Represent a {ij, kl} element of the two-particle reduced density matrix:
 
@@ -84,6 +86,8 @@ struct TwoParticleReducedDensityMatrix <: AbstractHamiltonian{Float64}
     K::Int
     L::Int
 end
+
+TwoParticleReducedDensityMatrix(i,j,k,l) = TwoParticleReducedDensityMatrix{}(i,j,k,l)
 
 function Base.show(io::IO, spd::TwoParticleReducedDensityMatrix)
     print(io, "TwoParticleReducedDensityMatrix($(spd.I), $(spd.J), $(spd.K), $(spd.L))")
