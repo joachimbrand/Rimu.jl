@@ -1110,10 +1110,8 @@ using Rimu.Hamiltonians: circshift_dot
     end
 
     @testset "Reduced Density Matrix" begin
-
         addr_bose = BoseFS(6,5,4,3,2,1)
         addr_fermi = FermiFS(1,0,1,0,1,0)
-    
         for i in 1:6
             naddr_fermi1, value_f1 = excitation(addr_fermi,find_mode(addr_fermi,(1,)),find_mode(addr_fermi,(i,)))
             naddr_fermi2, value_f2 = excitation(addr_fermi,find_mode(addr_fermi,(2,)),find_mode(addr_fermi,(i,)))
@@ -1660,6 +1658,7 @@ end
 
         # HOCartesianContactInteractions requires a valid energy restriction
         @test_throws ArgumentError get_all_blocks(HOCartesianContactInteractions(addr; S))
+
         # block_by_level = false
         H = HOCartesianContactInteractions(addr; S, block_by_level = false)
         df = get_all_blocks(H)
@@ -1694,6 +1693,7 @@ end
         null_addr = BoseFS(prod(S), 1=>0)
         @test isempty(fock_to_cart(null_addr, S))
     end
+
 end
 
 @testset "dimension and multi-component addresses" begin
