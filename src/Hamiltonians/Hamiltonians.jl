@@ -119,8 +119,8 @@ include("TRSymmetry.jl")
 include("Stoquastic.jl")
 
 include("Transcorrelated1D.jl")
-
 include("correlation_functions.jl")
+include("DensityMatrixDiagonal.jl")
 include("ReducedDensityMatrix.jl")
 include("Momentum.jl")
 include("particle_number.jl")
