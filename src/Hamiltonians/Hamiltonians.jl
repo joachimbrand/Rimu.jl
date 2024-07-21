@@ -5,15 +5,13 @@ Hamiltonians.
 ## Exported concrete Hamiltonian types
 
 Real space Hubbard models
- - [`HubbardReal1D`](@ref)
- - [`BoseHubbardReal1D2C`](@ref)
- - [`HubbardReal1DEP`](@ref)
  - [`HubbardRealSpace`](@ref)
+ - [`HubbardReal1D`](@ref)
+ - [`HubbardReal1DEP`](@ref)
  - [`ExtendedHubbardReal1D`](@ref)
 
 Momentum space Hubbard models
 - [`HubbardMom1D`](@ref)
-- [`BoseHubbardMom1D2C`](@ref)
 - [`HubbardMom1DEP`](@ref)
 
 Harmonic oscillator models
@@ -72,7 +70,6 @@ export MatrixHamiltonian
 export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
 export HubbardReal1DEP, shift_lattice, shift_lattice_inv
 export HubbardMom1DEP
-export BoseHubbardMom1D2C, BoseHubbardReal1D2C
 export GutzwillerSampling, GuidingVectorSampling
 export ParitySymmetry
 export TimeReversalSymmetry
@@ -90,6 +87,10 @@ export CubicGrid, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
 export HOCartesianContactInteractions, HOCartesianEnergyConservedPerDim, HOCartesianCentralImpurity
 export AxialAngularMomentumHO
 export get_all_blocks, fock_to_cart
+
+# deprecated and will be removed
+export BoseHubbardMom1D2C
+export BoseHubbardReal1D2C
 
 include("abstract.jl")
 include("offdiagonals.jl")

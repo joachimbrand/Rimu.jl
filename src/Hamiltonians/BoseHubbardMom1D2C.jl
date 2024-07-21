@@ -1,35 +1,48 @@
+# """
+#     BoseHubbardMom1D2C(address::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, kwargs...)
+
+# Implements a one-dimensional Bose Hubbard chain in momentum space with a two-component
+# Bose gas.
+
+# ```math
+# \\hat{H} = \\hat{H}_a + \\hat{H}_b + \\frac{V}{M}\\sum_{kpqr} b^†_{r} a^†_{q} b_p a_k δ_{r+q,p+k}
+# ```
+
+# # Arguments
+
+# * `address`: the starting address.
+# * `ua`: the `u` parameter for Hamiltonian a.
+# * `ub`: the `u` parameter for Hamiltonian b.
+# * `ta`: the `t` parameter for Hamiltonian a.
+# * `tb`: the `t` parameter for Hamiltonian b.
+# * `v`: the inter-species interaction parameter V.
+# Further keyword arguments are passed on to the constructor of [`HubbardMom1D`](@ref).
+
+# # See also
+
+# * [`BoseFS2C`](@ref)
+# * [`BoseHubbardReal1D2C`](@ref)
+
+# """
 """
-    BoseHubbardMom1D2C(address::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, kwargs...)
+    BoseHubbardMom1D2C{T} <: TwoComponentHamiltonian{T}
+Special case `AbstractHamiltonian` for a 2 component Bose gas. Use
+[`HubbardMom1D(::BoseFS2C; kwargs...)`](@ref) to construct this type.
 
-Implements a one-dimensional Bose Hubbard chain in momentum space with a two-component
-Bose gas.
-
-```math
-\\hat{H} = \\hat{H}_a + \\hat{H}_b + \\frac{V}{M}\\sum_{kpqr} b^†_{r} a^†_{q} b_p a_k δ_{r+q,p+k}
-```
-
-# Arguments
-
-* `address`: the starting address.
-* `ua`: the `u` parameter for Hamiltonian a.
-* `ub`: the `u` parameter for Hamiltonian b.
-* `ta`: the `t` parameter for Hamiltonian a.
-* `tb`: the `t` parameter for Hamiltonian b.
-* `v`: the inter-species interaction parameter V.
-Further keyword arguments are passed on to the constructor of [`HubbardMom1D`](@ref).
-
-# See also
-
-* [`BoseFS2C`](@ref)
-* [`BoseHubbardReal1D2C`](@ref)
-
+!!! warning
+    This type is not part of the user interface and may be removed in the future.
 """
 struct BoseHubbardMom1D2C{T,HA,HB,V} <: TwoComponentHamiltonian{T}
     ha::HA
     hb::HB
 end
 
-function BoseHubbardMom1D2C(address::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, args...)
+function BoseHubbardMom1D2C(address; kwargs...)
+    @warn "Calling a the contructor to `BoseHubbardMom1D2C` is deprecated. Use `HubbardMom1D` instead."
+    return _BoseHubbardMom1D2C(address; kwargs...)
+end
+
+function _BoseHubbardMom1D2C(address::BoseFS2C; ua=1.0, ub=1.0, ta=1.0, tb=1.0, v=1.0, args...)
     ha = HubbardMom1D(address.bsa; u=ua, t=ta, args...)
     hb = HubbardMom1D(address.bsb; u=ub, t=tb, args...)
     T = promote_type(eltype(ha), eltype(hb))
@@ -43,7 +56,7 @@ function Base.show(io::IO, h::BoseHubbardMom1D2C)
     ta = h.ha.t
     tb = h.hb.t
     v = h.v
-    print(io, "BoseHubbardMom1D2C($addr; ua=$ua, ub=$ub, ta=$ta, tb=$tb, v=$v)")
+    print(io, "HubbardMom1D($addr; t=[$ta,$tb], u=[$ua $v; $v $ub])")
 end
 
 dimension(::BoseHubbardMom1D2C, address) = number_conserving_dimension(address)

@@ -19,17 +19,15 @@ of the Hubbard model in real and momentum space, as well as some other models.
 
 ### Real space Hubbard models
 ```@docs
-HubbardReal1D
-BoseHubbardReal1D2C
-HubbardReal1DEP
 HubbardRealSpace
+HubbardReal1D
+HubbardReal1DEP
 ExtendedHubbardReal1D
 ```
 
 ### Momentum space Hubbard models
 ```@docs
 HubbardMom1D
-BoseHubbardMom1D2C
 HubbardMom1DEP
 ```
 
@@ -158,4 +156,10 @@ Hamiltonians.log_abs_oscillator_zero
 ## Index
 ```@index
 Pages   = ["hamiltonians.md"]
+```
+
+## Deprecated Hamiltonians
+```@docs
+BoseHubbardReal1D2C
+BoseHubbardMom1D2C
 ```

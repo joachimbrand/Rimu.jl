@@ -222,10 +222,10 @@ end
         ),
 
         BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
-        BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))),
+        HubbardMom1D(BoseFS2C((1,2,3), (1,0,0))),
 
         GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6); g=0.3),
-        GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3,2,1), (1,2,3)); ua=6); g=0.3),
+        GutzwillerSampling(HubbardMom1D(BoseFS2C((3,2,1), (1,2,3)); u=[6 1; 1 1]); g=0.3),
         GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6 + 2im); g=0.3),
 
         MatrixHamiltonian(Float64[1 2;2 0]),
@@ -242,7 +242,7 @@ end
 
         ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
         TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
-        TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
+        TimeReversalSymmetry(HubbardMom1D(BoseFS2C((0,1,1),(1,0,1)))),
         Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
         momentum(HubbardMom1D(BoseFS((0,5,0)))),
 
@@ -310,7 +310,7 @@ end
     addr1 = near_uniform(BoseFS2C{1,100,20})
     addr2 = near_uniform(BoseFS2C{100,1,20})
 
-    for Hamiltonian in (BoseHubbardReal1D2C, BoseHubbardMom1D2C)
+    for Hamiltonian in (BoseHubbardReal1D2C,)
         @testset "$Hamiltonian" begin
             H1 = BoseHubbardReal1D2C(addr1; ta=1.0, tb=2.0, ua=0.5, ub=0.7, v=0.2)
             H2 = BoseHubbardReal1D2C(addr2; ta=2.0, tb=1.0, ua=0.7, ub=0.5, v=0.2)
@@ -577,7 +577,7 @@ end
             for H in (
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
-                BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
+                HubbardMom1D(BoseFS2C((1,2,3), (1,0,0)), u=[1 1; 1 2]),
             )
                 # GutzwillerSampling with parameter zero is exactly equal to the original H
                 G = GutzwillerSampling(H, 0.0)
@@ -607,7 +607,6 @@ end
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
-                # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
                 # energy
                 g = rand()
@@ -687,7 +686,6 @@ end
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
-                # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
                 # energy
                 x = rand()
@@ -756,7 +754,7 @@ end
         for H in (
             HubbardMom1D(BoseFS((2,2,2)), u=6),
             ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
-            BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
+            HubbardMom1D(BoseFS2C((1,2,3), (1,0,0))),
         )
             @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H)
             @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H, H)
@@ -949,7 +947,7 @@ using Rimu.Hamiltonians: circshift_dot
     end
 
     @testset "G2MomCorrelator" begin
-        # v0 is the exact ground state from BoseHubbardMom1D2C(aIni;ua=0,ub=0,v=0.1)
+        # v0 is the exact ground state from HubbardMom1D(aIni; u=[0 0.1; 0.1 0])
         bfs1 = BoseFS([0, 2, 0])
         bfs2 = BoseFS([0, 1, 0])
         aIni = BoseFS2C(bfs1,bfs2)
@@ -1389,7 +1387,7 @@ end
 
 @testset "TimeReversalSymmetry" begin
     @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(BoseFS((1, 1))))
-    @test_throws ArgumentError TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((1, 1),(2,1))))
+    @test_throws ArgumentError TimeReversalSymmetry(HubbardMom1D(BoseFS2C((1, 1),(2,1))))
     @test_throws ArgumentError begin
         TimeReversalSymmetry(HubbardRealSpace(CompositeFS(FermiFS((1, 1)),BoseFS((2,1)))))
     end
@@ -1409,8 +1407,8 @@ end
         @test issymmetric(even_m)
         @test issymmetric(odd_m)
     end
-    @testset "2-particle BoseHubbardMom1D2C" begin
-        ham = BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))
+    @testset "2-particle 2-component HubbardMom1D" begin
+        ham = HubbardMom1D(BoseFS2C((0,1,1),(1,0,1)))
         even = TimeReversalSymmetry(ham)
         odd = TimeReversalSymmetry(ham; even=false)
 

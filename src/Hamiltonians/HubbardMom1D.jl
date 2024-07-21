@@ -62,6 +62,52 @@ function HubbardMom1D(
     return HubbardMom1D{typeof(U),M,typeof(address),U,T}(address, ks, kes)
 end
 
+"""
+    HubbardMom1D(address::BoseFS2C; t=ones(C), u=ones(C, C), dispersion=hubbard_dispersion)
+
+Implements a one-dimensional Bose Hubbard chain in momentum space with a two-component
+Bose gas.
+
+```math
+\\hat{H} = \\hat{H}_a + \\hat{H}_b + \\frac{V}{M}\\sum_{kpqr} b^†_{r} a^†_{q} b_p a_k δ_{r+q,p+k}
+```
+
+# Arguments
+
+* `address`: the starting address.
+* `t`: the hopping strengths. Must be a vector of length `2`. The `i`-th element of the
+  vector corresponds to the hopping strength of the `i`-th component.
+* `u`: the on-site interaction parameters. Must be a symmetric 2×2 matrix. `u[i, j]`
+  corresponds to the interaction between the `i`-th and `j`-th component. `u[i, i]`
+  corresponds to the interaction of a component with itself.
+* `dispersion`: defines ``ϵ_k =``` t*dispersion(k)`
+    - [`hubbard_dispersion`](@ref): ``ϵ_k = -2t \\cos(k)``
+    - [`continuum_dispersion`](@ref): ``ϵ_k = tk^2``
+
+# See also
+
+* [`BoseFS2C`](@ref)
+"""
+function HubbardMom1D(address::BoseFS2C; t=ones(2), u=ones(2,2), args...)
+    # Sanity checks
+    if length(u) ≠ 1 && !issymmetric(u)
+        throw(ArgumentError("`u` must be symmetric"))
+    elseif length(u) ≠ 2 * 2
+        throw(ArgumentError("`u` must be a 2 × 2 matrix"))
+    elseif size(t) ≠ (2,)
+        throw(ArgumentError("`t` must be a vector of length 2"))
+    end
+
+    ta = t[1]; tb = t[2]
+    ua = u[1,1]; ub = u[2,2]; v = u[1,2]
+    ha = HubbardMom1D(address.bsa; u=ua, t=ta, args...)
+    hb = HubbardMom1D(address.bsb; u=ub, t=tb, args...)
+    T = promote_type(eltype(ha), eltype(hb), typeof(v))
+    V = T(v)
+    return BoseHubbardMom1D2C{T,typeof(ha),typeof(hb),V}(ha, hb)
+end
+
+
 function Base.show(io::IO, h::HubbardMom1D)
     compact_addr = repr(h.address, context=:compact => true) # compact print address
     print(io, "HubbardMom1D($(compact_addr); u=$(h.u), t=$(h.t))")
