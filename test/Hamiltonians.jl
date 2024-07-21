@@ -1108,6 +1108,41 @@ using Rimu.Hamiltonians: circshift_dot
         @test LOStructure(DensityMatrixDiagonal(2)) == IsDiagonal()
         @test DensityMatrixDiagonal(15)' === DensityMatrixDiagonal(15)
     end
+
+    @testset "Reduced Density Matrix" begin
+
+        addr_bose = BoseFS(6,5,4,3,2,1)
+        addr_fermi = FermiFS(1,0,1,0,1,0)
+    
+        for i in 1:6
+            naddr_fermi1, value_f1 = excitation(addr_fermi,find_mode(addr_fermi,(1,)),find_mode(addr_fermi,(i,)))
+            naddr_fermi2, value_f2 = excitation(addr_fermi,find_mode(addr_fermi,(2,)),find_mode(addr_fermi,(i,)))
+            @test diagonal_element(SingleParticleReducedDensityMatrix(i, i), addr_bose) == 7-i
+            @test diagonal_element(SingleParticleReducedDensityMatrix(i, i), addr_fermi) == i%2
+            @test get_offdiagonal(SingleParticleReducedDensityMatrix(2,i),addr_fermi,1) == (naddr_fermi2,value_f2/2)
+            if i == 1
+                @test diagonal_element(TwoParticleReducedDensityMatrix(1,i,1,i), addr_bose) == 5*(7-i)
+                @test diagonal_element(TwoParticleReducedDensityMatrix(1,i,1,i), addr_fermi) == 0.0
+                @test get_offdiagonal(SingleParticleReducedDensityMatrix(1,i),addr_fermi,1) == (naddr_fermi1,1/2)
+            else
+                naddr_bose1, value_b1 = excitation(addr_bose,find_mode(addr_bose,(1,)),find_mode(addr_bose,(i,)))
+                naddr_fermi11, value_f11 = excitation(addr_fermi,find_mode(addr_fermi,(1,2,)),find_mode(addr_fermi,(i,1,)))
+                @test diagonal_element(TwoParticleReducedDensityMatrix(1,i,1,i), addr_bose) == 6*(7-i)
+                @test diagonal_element(TwoParticleReducedDensityMatrix(1,i,1,i), addr_fermi) == i%2
+                @test get_offdiagonal(SingleParticleReducedDensityMatrix(1,i),addr_bose,1) == (naddr_bose1,value_b1/2)
+                @test get_offdiagonal(SingleParticleReducedDensityMatrix(1,i),addr_fermi,1) == (naddr_fermi1,0.0)
+                @test get_offdiagonal(TwoParticleReducedDensityMatrix(1,2,1,i),addr_fermi,1) == (naddr_fermi11,value_f11/6)
+                if i!=2
+                    naddr_bose11, value_b11 = excitation(addr_bose,find_mode(addr_bose,(1,2,)),find_mode(addr_bose,(i,1,)))
+                    @test get_offdiagonal(TwoParticleReducedDensityMatrix(1,2,1,i),addr_bose,1) == (naddr_bose11,value_b11/6)
+                end
+            end
+        end
+        @test num_offdiagonals(SingleParticleReducedDensityMatrix(1,2), addr_bose) == 2
+        @test LOStructure(SingleParticleReducedDensityMatrix(1,2)) == AdjointUnknown()
+        @test num_offdiagonals(TwoParticleReducedDensityMatrix(1,2,2,1), addr_bose) == 6
+        @test LOStructure(TwoParticleReducedDensityMatrix(1,2,2,1)) == AdjointUnknown()
+    end
 end
 
 @testset "HubbardReal1DEP" begin
@@ -1660,7 +1695,6 @@ end
         null_addr = BoseFS(prod(S), 1=>0)
         @test isempty(fock_to_cart(null_addr, S))
     end
-
 end
 
 @testset "dimension and multi-component addresses" begin
@@ -1668,4 +1702,29 @@ end
                 FermiFS2C((1,0,1), (0,1,0)), BoseFS2C((1,0,1), (0,1,0))
     ]
     [@test dimension(addr) == dimension(typeof(addr)) for addr in addresses]
+end
+
+@testset "ExtendedHubbardReal1D boundary conditions" begin
+    for H in (
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:twisted),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:hard_wall),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:twisted),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:hard_wall),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=π))
+
+        addr = starting_address(H)
+        H1 = ExtendedHubbardReal1D(addr, v=6, t=2.0)
+        addr2, me = get_offdiagonal(H1, addr, 2)
+        if H.boundary_condition == :twisted
+            @test get_offdiagonal(H, addr, 2)[2] == - me
+            @test diagonal_element(H, addr) == diagonal_element(H1, addr)
+        elseif H.boundary_condition == :hard_wall
+            @test get_offdiagonal(H, addr, 2)[2] == 0.0
+        elseif H.boundary_condition isa Number
+            @test get_offdiagonal(H, addr, 2)[2] == me*exp(-im*H.boundary_condition)
+            @test diagonal_element(H, addr) == diagonal_element(H1, addr)
+        end
+        @test get_offdiagonal(H, addr, 2)[1] == addr2
+    end
+    @test_throws ArgumentError ExtendedHubbardReal1D(BoseFS(1,1,1,1); boundary_condition=:hrad_wall)
 end
