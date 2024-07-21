@@ -59,7 +59,7 @@ Represent a {i,j} element of the single-particle reduced density matrix:
 \\hat{ρ}^{(1)}_{i,j} = \\langle \\psi | \\hat a^†_{i} \\hat a_{j} | \\psi \\rangle
 ```
 
-where ``i`` and ``j`` are the `mode` and ``| \\psi \\rangle`` is the `state-ket`.
+where ``i`` and ``j`` are the `mode` and ``| \\psi \\rangle`` is the `state-ket` of the given Hamiltonian.
 
 # See also
 
@@ -77,9 +77,9 @@ function Base.show(io::IO, spd::SingleParticleReducedDensityMatrix)
     print(io, "SingleParticleReducedDensityMatrix($(spd.I), $(spd.J))")
 end
 
-Rimu.LOStructure(::Type{T}) where T<:SingleParticleReducedDensityMatrix = AdjointUnknown()
+LOStructure(::Type{T}) where T<:SingleParticleReducedDensityMatrix = AdjointUnknown()
 
-function Rimu.diagonal_element(spd::SingleParticleReducedDensityMatrix, add::SingleComponentFockAddress)
+function diagonal_element(spd::SingleParticleReducedDensityMatrix, add::SingleComponentFockAddress)
     src = find_mode(add, spd.J)
     dst = find_mode(add,spd.I)
     address, value = excitation(add, (dst,), (src,))
@@ -90,19 +90,26 @@ function Rimu.diagonal_element(spd::SingleParticleReducedDensityMatrix, add::Sin
     end
 end
 
-function Rimu.num_offdiagonals(spd::SingleParticleReducedDensityMatrix, address::SingleComponentFockAddress)
+function num_offdiagonals(spd::SingleParticleReducedDensityMatrix, address::SingleComponentFockAddress)
     if spd.I == spd.J
         return 0
     else
-        return 1
+        return 2
     end
 end
 
-function Rimu.get_offdiagonal(spd::SingleParticleReducedDensityMatrix, add::SingleComponentFockAddress, chosen)
+function get_offdiagonal(spd::SingleParticleReducedDensityMatrix, add::SingleComponentFockAddress, chosen)
     src = find_mode(add, spd.J)
     dst = find_mode(add,spd.I)
+    if chosen == 2
+        src, dst = dst, src
+    end
     address, value = excitation(add, (dst,), (src,))
-    return address, value
+    if (chosen == 2 && add isa FermiFS)
+        return address, -value/2
+    else
+        return address, value/2
+    end
 end
 
 """
@@ -114,7 +121,7 @@ Represent a {ij, kl} element of the two-particle reduced density matrix:
 \\hat{ρ}^{(2)}_{ij, kl} = \\langle \\psi | \\hat a^†_{i} \\hat a^†_{j} \\hat a_{l} \\hat a_{k} | \\psi \\rangle
 ```
 
-where ``i``, ``j``, ``k``, and ``l`` are the `mode` and ``| \\psi \\rangle`` is the `state-ket`.
+where ``i``, ``j``, ``k``, and ``l`` are the `mode` and ``| \\psi \\rangle`` is the `state-ket` of the given Hamiltonian.
 
 # See also
 
@@ -134,28 +141,28 @@ function Base.show(io::IO, spd::TwoParticleReducedDensityMatrix)
     print(io, "TwoParticleReducedDensityMatrix($(spd.I), $(spd.J), $(spd.K), $(spd.L))")
 end
 
-Rimu.LOStructure(::Type{T}) where T<:TwoParticleReducedDensityMatrix = AdjointUnknown()
+LOStructure(::Type{T}) where T<:TwoParticleReducedDensityMatrix = AdjointUnknown()
 
-function Rimu.diagonal_element(spd::TwoParticleReducedDensityMatrix, add::SingleComponentFockAddress)
+function diagonal_element(spd::TwoParticleReducedDensityMatrix, add::SingleComponentFockAddress)
     src = find_mode(add, (spd.L, spd.K))
     dst = find_mode(add,(spd.I, spd.J))
     address, value = excitation(add, (dst...,), (src...,))
-    if (spd.I, spd.J) == (spd.K, spd.L) || (spd.I, spd.J) == (spd.L, spd.K)
+    if (spd.I, spd.J) == (spd.K, spd.L)
         return value
     else
         return 0.0
     end
 end
 
-function Rimu.num_offdiagonals(spd::TwoParticleReducedDensityMatrix, address::SingleComponentFockAddress)
-    if (spd.I, spd.J) == (spd.K, spd.L) || (spd.I, spd.J) == (spd.L, spd.K)
+function num_offdiagonals(spd::TwoParticleReducedDensityMatrix, address::SingleComponentFockAddress)
+    if (spd.I, spd.J) == (spd.K, spd.L)
         return 0
     else
         return 6
     end
 end
 
-function Rimu.get_offdiagonal(spd::TwoParticleReducedDensityMatrix, add::BoseFS, chosen)
+function get_offdiagonal(spd::TwoParticleReducedDensityMatrix, add::BoseFS, chosen)
     if chosen<=2
         src = find_mode(add, (spd.L, spd.K))
         dst = find_mode(add,(spd.I, spd.J))
@@ -173,7 +180,7 @@ function Rimu.get_offdiagonal(spd::TwoParticleReducedDensityMatrix, add::BoseFS,
     return address, value/6
 end
 
-function Rimu.get_offdiagonal(spd::TwoParticleReducedDensityMatrix, add::FermiFS, chosen)
+function get_offdiagonal(spd::TwoParticleReducedDensityMatrix, add::FermiFS, chosen)
     if chosen <= 2
         src = find_mode(add, (spd.L, spd.K))
         dst = find_mode(add,(spd.I, spd.J))
