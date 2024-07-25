@@ -15,7 +15,6 @@ where ``i`` and ``j`` are the `mode` and ``| \\psi \\rangle`` is the `state-ket`
 * [`SingleParticleDensity`](@ref)
 * [`TwoParticleReducedDensityMatrix`](@ref)
 """
-
 struct SingleParticleReducedDensityMatrix <: AbstractHamiltonian{Float64}
     I::Int
     J::Int
@@ -77,7 +76,6 @@ where ``i``, ``j``, ``k``, and ``l`` are the `mode` and ``| \\psi \\rangle`` is 
 * [`SingleParticleDensity`](@ref)
 * [`SingleParticleReducedDensityMatrix`](@ref)
 """
-
 struct TwoParticleReducedDensityMatrix <: AbstractHamiltonian{Float64}
     I::Int
     J::Int
