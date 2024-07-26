@@ -13,20 +13,14 @@ Implements the extended Hubbard model on a one-dimensional chain in real space. 
 * `u`: on-site interaction parameter
 * `v`: the next-neighbor interaction
 * `t`: the hopping strength
-* `boundary_condition`: applied boundary condition mentioned below.
-
-# Boundary conditions
-### For real Hamiltonian
-* For π-twisted -> :twisted
-* For hard wall -> :hard_wall
-### For complex Hamiltonian
-* For θ-twisted -> Number "θ"
-
-where,
-
-```math
-a_{M+1} = exp(-\\iota θ) a_1
-```
+* `boundary_condition` The following values are supported:
+  * `:periodic`: usual period boundary condition realising a ring geometry.
+  * `:hard_wall`: hopping over the boundary is not allowed.
+  * `:twisted`: like `:periodic` but hopping over the boundary incurs an additional factor of `-1`.
+  * `θ <: Number`: like `:periodic` and `:twisted` but hopping over the boundary incurs a factor 
+  ``\\exp(iθ)`` for a hop to the right and ``\\exp(−iθ)`` for a hop to the left. With this choice the 
+  Hamiltonian will have a complex `eltype` whereas otherwise the `eltype` is deterimed by the 
+  type of the parameters `t`, `u`, and `v`.
 
 """
 struct ExtendedHubbardReal1D{TT,A<:SingleComponentFockAddress,U,V,T,BOUNDARY_CONDITION} <: AbstractHamiltonian{TT}
