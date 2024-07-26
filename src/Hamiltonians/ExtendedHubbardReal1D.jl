@@ -70,7 +70,13 @@ function num_offdiagonals(::ExtendedHubbardReal1D, address::SingleComponentFockA
 end
 
 """
-    extended_hubbard_interaction(address, m)
+    extended_hubbard_interaction(h::ExtendedHubbardReal1D, address)
+    
+Compute and return both the nearest neighbor occupation number product ``\\sum_j n_j n_{j+1}`` 
+(according to the boundary conditions of `h`) as well as the on-site product ``\\sum_j n_j (n_j - 1)`` 
+treating the `address` as a one-dimensional chain.
+
+See [`ExtendedHubbardReal1D`](@ref) and [`hopnextneighbour`](@ref).
 
 Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
 sum_j n_j n_{j+1} with respective boundary conditions.
