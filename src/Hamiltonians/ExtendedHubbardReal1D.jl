@@ -81,7 +81,7 @@ See [`ExtendedHubbardReal1D`](@ref) and [`hopnextneighbour`](@ref).
 Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
 sum_j n_j n_{j+1} with respective boundary conditions.
 """
-function extended_hubbard_interaction(h::ExtendedHubbardReal1D,b::SingleComponentFockAddress)
+function extended_hubbard_interaction(h::ExtendedHubbardReal1D, b::SingleComponentFockAddress)
     omm = OccupiedModeMap(b)
 
     prev = zero(eltype(omm))
