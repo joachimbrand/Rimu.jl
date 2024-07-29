@@ -239,7 +239,7 @@ end
 
 LinearAlgebra.adjoint(::IsHermitian, op) = op # adjoint is known
 function LinearAlgebra.adjoint(::IsDiagonal, op)
-    if eltype(op) <: Real
+    if eltype(op) <: Real || eltype(eltype(op)) <: Real # for op's that return vectors
         return op
     else
         throw(ArgumentError("adjoint() is not implemented for complex diagonal Hamiltonians"))

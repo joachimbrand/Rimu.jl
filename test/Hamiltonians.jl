@@ -941,6 +941,13 @@ using Rimu.Hamiltonians: circshift_dot
                 g2_nosum = dot(v, G2RealSpace(CubicGrid(4)), v)
                 @test iszero(g2_nosum)
             end
+
+            @testset "adjoint" begin
+                G2 = G2RealSpace(CubicGrid(6))
+                @test LOStructure(G2) isa IsDiagonal
+                @test eltype(eltype(G2)) <: Real
+                @test G2' == G2
+            end
         end
 
         @testset "2-component, 2D" begin
