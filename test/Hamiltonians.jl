@@ -55,7 +55,7 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
             elseif LOStructure(H) isa AdjointKnown
                 @test begin H'; true; end # make sure no error is thrown
             else
-                @test_throws ErrorException H'
+                @test_throws ArgumentError H'
             end
         end
         @testset "dimension" begin
@@ -1736,9 +1736,18 @@ end
         ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), boundary_condition=:twisted), # Hermitian
         ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), boundary_condition=0.5), # Hermitian
         ExtendedHubbardReal1D(BoseFS(1, 0, 1, 0), v=6, t=2.0+3im), # Hermitian
-        ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), v=6 + 0.5im, t=2.0), # Non-Hermitian
-        ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1), u=6 + 3im, t=2.0), # Non-Hermitian
+        ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), v=6 + 0.5im, t=2.0), # non-Hermitian
+        ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1), u=6 + 3im, t=2.0), # non-Hermitian
+        ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1), u=6 + 3im, t=0), # diagonal and non-Hermitian
+        ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1), t=0), # diagonal and Hermitian
     )
         test_hamiltonian_structure(H)
     end
+    h = ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1); t=0) # diagonal and Hermitian
+    @test LOStructure(h) isa IsDiagonal
+    @test adjoint(h) == h
+    h2 = ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1); u=6 + 3im, t=0)
+    # diagonal and non-Hermitian
+    @test LOStructure(h) isa IsDiagonal
+    @test_throws ArgumentError adjoint(h2)
 end

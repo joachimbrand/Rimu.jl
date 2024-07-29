@@ -56,9 +56,17 @@ end
 
 dimension(::ExtendedHubbardReal1D, address) = number_conserving_dimension(address)
 
-LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real}}) = IsHermitian()
-function LOStructure(::Type{<:ExtendedHubbardReal1D{<:Complex,<:Any,U,V}}) where {U,V}
-    if iszero(imag(U)) && iszero(imag(V))
+function LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real,<:Any,<:Any,<:Any,T}}) where T
+    if iszero(T)
+        return IsDiagonal()
+    else
+        return IsHermitian()
+    end
+end
+function LOStructure(::Type{<:ExtendedHubbardReal1D{<:Complex,<:Any,U,V,T}}) where {U,V,T}
+    if iszero(T)
+        return IsDiagonal() # TODO: implement adjoint
+    elseif iszero(imag(U)) && iszero(imag(V))
         return IsHermitian() # still Hermitian with complex t and twisted boundaries
     else
         return AdjointUnknown() # diagonal elements are complex; TODO: implement adjoint
