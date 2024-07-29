@@ -42,11 +42,8 @@ end
 
 function Base.show(io::IO, h::ExtendedHubbardReal1D)
     compact_addr = repr(h.address, context=:compact => true) # compact print address
-    if h.boundary_condition isa Number
-        print(io, "ExtendedHubbardReal1D($(compact_addr); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=$(h.boundary_condition))")
-    else
-        print(io, "ExtendedHubbardReal1D($(compact_addr); u=$(h.u), v=$(h.v), t=$(h.t), boundary_condition=:$(h.boundary_condition))")
-    end
+    print(io, "ExtendedHubbardReal1D($(compact_addr); u=$(h.u), v=$(h.v), t=$(h.t), ")
+    print(io, "boundary_condition=$(repr(h.boundary_condition)))")
 end
 
 function starting_address(h::ExtendedHubbardReal1D)
@@ -78,14 +75,11 @@ end
 """
     extended_hubbard_interaction(h::ExtendedHubbardReal1D, address)
 
-Compute and return both the nearest neighbor occupation number product ``\\sum_j n_j n_{j+1}``
-(according to the boundary conditions of `h`) as well as the on-site product ``\\sum_j n_j (n_j - 1)``
-treating the `address` as a one-dimensional chain.
+Compute and return both the nearest neighbor occupation number product
+``\\sum_j n_j n_{j+1}`` (according to the boundary conditions of `h`) as well as the on-site
+product ``\\sum_j n_j (n_j - 1)`` treating the `address` as a one-dimensional chain.
 
 See [`ExtendedHubbardReal1D`](@ref) and [`hopnextneighbour`](@ref).
-
-Compute the on-site product sum_j n_j(n_j-1) and the next neighbour term
-sum_j n_j n_{j+1} with respective boundary conditions.
 """
 function extended_hubbard_interaction(h::ExtendedHubbardReal1D, b::SingleComponentFockAddress)
     omm = OccupiedModeMap(b)
