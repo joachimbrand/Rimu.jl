@@ -187,6 +187,7 @@ function Base.show(io::IO, g2::G2RealSpace{0,0})
 end
 
 LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
+Base.valtype(::G2RealSpace) = Float64 # needed because eltype is a vector
 
 num_offdiagonals(g2::G2RealSpace, _) = 0
 

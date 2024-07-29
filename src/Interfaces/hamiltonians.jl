@@ -59,7 +59,8 @@ See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref).
 """
 abstract type AbstractHamiltonian{T} end
 
-Base.eltype(::AbstractHamiltonian{T}) where {T} = T
+Base.eltype(::AbstractHamiltonian{T}) where {T} = T # could be vector value
+Base.valtype(h::AbstractHamiltonian) = eltype(h) # type of underlying scalar values
 
 """
     allows_address_type(operator, addr_or_type)

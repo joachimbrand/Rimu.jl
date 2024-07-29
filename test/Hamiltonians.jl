@@ -912,6 +912,10 @@ using Rimu.Hamiltonians: circshift_dot
                 @test eval(Meta.parse(repr(g2_2))) == g2_2
                 @test eval(Meta.parse(repr(g2_3))) == g2_3
 
+                @test valtype(g2_1) == Float64
+                @test valtype(g2_2) == Float64
+                @test valtype(g2_3) == Float64
+
                 @test_throws ArgumentError G2RealSpace(CubicGrid(3), 1, 0)
                 @test_throws ArgumentError G2RealSpace(CubicGrid(2, 2), 0, 0)
                 @test_throws ArgumentError G2RealSpace(CubicGrid(1, 2, 3), -1, 2)
