@@ -23,7 +23,7 @@ v \\sum_{\\langle i,j\\rangle} n_i n_j
   * `θ <: Number`: like `:periodic` and `:twisted` but hopping over the boundary incurs a
     factor ``\\exp(iθ)`` for a hop to the right and ``\\exp(−iθ)`` for a hop to the left.
     With this choice the Hamiltonian will have a complex `eltype` whereas otherwise the
-    `eltype` is deterimed by the type of the parameters `t`, `u`, and `v`.
+    `eltype` is determined by the type of the parameters `t`, `u`, and `v`.
 
 See also [`HubbardRealSpace`](@ref).
 """
