@@ -83,6 +83,40 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
     end
 end
 
+"""
+    test_hamiltonian_structure(H)
+
+Test the `LOStructure` of a small Hamiltonian `H` by instantiating it as a sparse matrix and
+checking whether the structure of the matrix is constistent with the result of
+`LOStructure(H)` and the `eltype` is consistent with `eltype(H)`.
+
+This function is intended to be used for small Hamiltonians where instantiating the matrix
+is quick.
+"""
+function test_hamiltonian_structure(H)
+    d = dimension(H)
+    d > 20 && @warn "This function is intended for small Hamiltonians. The dimension is $d."
+    m = sparse(H)
+    @test eltype(m) === eltype(H)
+    if LOStructure(H) == IsDiagonal()
+        @test isdiag(m)
+    elseif LOStructure(H) == IsHermitian()
+        @test H' == H
+        @test H' === H
+        @test ishermitian(m)
+    elseif LOStructure(H) == AdjointKnown()
+        @test m' == sparse(H')
+    end
+    if !ishermitian(m)
+        @test LOStructure(H) != IsHermitian()
+        if LOStructure(H) == IsDiagonal()
+            @test !isreal(m)
+            @test !(eltype(H) <: Real)
+        end
+    end
+    nothing
+end
+
 using Rimu.Hamiltonians: momentum_transfer_excitation
 
 @testset "momentum_transfer_excitation" begin
@@ -212,6 +246,8 @@ end
         HubbardMom1D(OccupationNumberFS(6, 0, 0, 4); t=1.0, u=0.5),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
         ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
+        ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); u=1 + 0.5im),
+        ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); t=1 + 0.5im),
         HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
         HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
         HubbardRealSpace(
@@ -1675,7 +1711,8 @@ end
         ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:hard_wall),
         ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:twisted),
         ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:hard_wall),
-        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=π))
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=π),
+        ExtendedHubbardReal1D(BoseFS(1,0,2,1); u=1+0.5im, boundary_condition=:hard_wall))
 
         addr = starting_address(H)
         H1 = ExtendedHubbardReal1D(addr, v=6, t=2.0)
@@ -1692,4 +1729,16 @@ end
         @test get_offdiagonal(H, addr, 2)[1] == addr2
     end
     @test_throws ArgumentError ExtendedHubbardReal1D(BoseFS(1,1,1,1); boundary_condition=:hrad_wall)
+end
+
+@testset "Small ExtendedHubbardReal1D with complex parameters" begin
+    for H in (
+        ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), boundary_condition=:twisted), # Hermitian
+        ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), boundary_condition=0.5), # Hermitian
+        ExtendedHubbardReal1D(BoseFS(1, 0, 1, 0), v=6, t=2.0+3im), # Hermitian
+        ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), v=6 + 0.5im, t=2.0), # Non-Hermitian
+        ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1), u=6 + 3im, t=2.0), # Non-Hermitian
+    )
+        test_hamiltonian_structure(H)
+    end
 end

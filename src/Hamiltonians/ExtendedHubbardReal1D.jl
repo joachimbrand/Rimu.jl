@@ -17,9 +17,9 @@ Implements the extended Hubbard model on a one-dimensional chain in real space. 
   * `:periodic`: usual period boundary condition realising a ring geometry.
   * `:hard_wall`: hopping over the boundary is not allowed.
   * `:twisted`: like `:periodic` but hopping over the boundary incurs an additional factor of `-1`.
-  * `θ <: Number`: like `:periodic` and `:twisted` but hopping over the boundary incurs a factor 
-  ``\\exp(iθ)`` for a hop to the right and ``\\exp(−iθ)`` for a hop to the left. With this choice the 
-  Hamiltonian will have a complex `eltype` whereas otherwise the `eltype` is deterimed by the 
+  * `θ <: Number`: like `:periodic` and `:twisted` but hopping over the boundary incurs a factor
+  ``\\exp(iθ)`` for a hop to the right and ``\\exp(−iθ)`` for a hop to the left. With this choice the
+  Hamiltonian will have a complex `eltype` whereas otherwise the `eltype` is deterimed by the
   type of the parameters `t`, `u`, and `v`.
 
 """
@@ -56,7 +56,13 @@ end
 dimension(::ExtendedHubbardReal1D, address) = number_conserving_dimension(address)
 
 LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real}}) = IsHermitian()
-LOStructure(::Type{<:ExtendedHubbardReal1D{<:Complex}}) = IsHermitian()
+function LOStructure(::Type{<:ExtendedHubbardReal1D{<:Complex,<:Any,U,V}}) where {U,V}
+    if iszero(imag(U)) && iszero(imag(V))
+        return IsHermitian() # still Hermitian with complex t and twisted boundaries
+    else
+        return AdjointUnknown() # diagonal elements are complex; TODO: implement adjoint
+    end
+end
 
 Base.getproperty(h::ExtendedHubbardReal1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::ExtendedHubbardReal1D, ::Val{:address}) = getfield(h, :address)
@@ -71,9 +77,9 @@ end
 
 """
     extended_hubbard_interaction(h::ExtendedHubbardReal1D, address)
-    
-Compute and return both the nearest neighbor occupation number product ``\\sum_j n_j n_{j+1}`` 
-(according to the boundary conditions of `h`) as well as the on-site product ``\\sum_j n_j (n_j - 1)`` 
+
+Compute and return both the nearest neighbor occupation number product ``\\sum_j n_j n_{j+1}``
+(according to the boundary conditions of `h`) as well as the on-site product ``\\sum_j n_j (n_j - 1)``
 treating the `address` as a one-dimensional chain.
 
 See [`ExtendedHubbardReal1D`](@ref) and [`hopnextneighbour`](@ref).
