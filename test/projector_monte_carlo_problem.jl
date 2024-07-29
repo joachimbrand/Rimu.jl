@@ -10,6 +10,7 @@ using OrderedCollections: freeze
     h = HubbardReal1D(BoseFS(1,3))
     p = ProjectorMonteCarloProblem(h; threading=true)
     @test p.hamiltonian == h
+    @test valtype(p.hamiltonian) == valtype(h)
 
     @test Rimu.num_replicas(p) == 1
     @test startswith(sprint(show, p), "ProjectorMonteCarloProblem with 1 replica(s)")
@@ -72,6 +73,11 @@ using OrderedCollections: freeze
     @test state_vectors(sm)[1] === dv1
     @test state_vectors(sm)[2] === dv2
     @test_throws BoundsError sm.state.spectral_states[3]
+
+    # complex Hamiltonian
+    h = HubbardReal1D(BoseFS(1, 3); u=1.0 + 1.0im)
+    @test valtype(h) <: Complex
+    @test_throws ArgumentError ProjectorMonteCarloProblem(h)
 end
 
 @testset "PMCSimulation" begin
