@@ -105,15 +105,21 @@ as `c{i}_Op{K+1}_c{j}`. This is in addition to the *bare* vector-vector overlap
 
 In either case the `c{i}_dot_c{j}` overlap can be omitted with the flag `vecnorm=false`.
 """
-struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},B} <: ReplicaStrategy{N}
+struct AllOverlaps{N,M,O,B} <: ReplicaStrategy{N}
     operators::O
 end
+
+const TupleOrVector = Union{Tuple, Vector}
 
 function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
     num_replicas isa Integer || throw(ArgumentError("num_replicas must be an integer"))
     if isnothing(operator)
         operators = ()
-    elseif operator isa Tuple
+    elseif operator isa TupleOrVector
+        if !(eltype(operator) <: AbstractHamiltonian)
+            throw(ArgumentError("operator must be an AbstractHamiltonian or a Tuple or "*
+                "Vector of AbstractHamiltonians"))
+        end
         operators = operator
     else
         operators = (operator,)
@@ -145,7 +151,7 @@ Get all overlaps between vectors and operators. This function is overloaded for 
 The flag `vecnorm` can disable the vector-vector overlap `c{i}_dot_c{j}`.
 """
 function all_overlaps(
-    operators::Tuple, vecs::NTuple{N,AbstractDVec}, wms, ::Val{B}
+    operators::TupleOrVector, vecs::NTuple{N,AbstractDVec}, wms, ::Val{B}
 ) where {N,B}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]

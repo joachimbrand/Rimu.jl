@@ -156,6 +156,8 @@ Random.seed!(1234)
                 @test num_stats(df) == 3 * binomial(2, 2)
                 df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(7; operator=(G, H)))
                 @test num_stats(df) == 3 * binomial(7, 2)
+                df, _ = lomc!(H, dv; replica_strategy=AllOverlaps(7; operator=[G, H]))
+                @test num_stats(df) == 3 * binomial(7, 2)
 
                 # Transformed operators: (3 + 1) * N choose 2 reports.
                 df, _ = lomc!(G, dv; replica_strategy=AllOverlaps(2; operator=(H, G), transform=G))
