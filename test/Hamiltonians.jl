@@ -55,7 +55,7 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
             elseif LOStructure(H) isa AdjointKnown
                 @test begin H'; true; end # make sure no error is thrown
             else
-                @test_throws ErrorException H'
+                @test_throws ArgumentError H'
             end
         end
         @testset "dimension" begin
@@ -81,6 +81,40 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
             @test eval(Meta.parse(repr(H))) == H
         end
     end
+end
+
+"""
+    test_hamiltonian_structure(H)
+
+Test the `LOStructure` of a small Hamiltonian `H` by instantiating it as a sparse matrix and
+checking whether the structure of the matrix is constistent with the result of
+`LOStructure(H)` and the `eltype` is consistent with `eltype(H)`.
+
+This function is intended to be used for small Hamiltonians where instantiating the matrix
+is quick.
+"""
+function test_hamiltonian_structure(H)
+    d = dimension(H)
+    d > 20 && @warn "This function is intended for small Hamiltonians. The dimension is $d."
+    m = sparse(H)
+    @test eltype(m) === eltype(H)
+    if LOStructure(H) == IsDiagonal()
+        @test isdiag(m)
+    elseif LOStructure(H) == IsHermitian()
+        @test H' == H
+        @test H' === H
+        @test ishermitian(m)
+    elseif LOStructure(H) == AdjointKnown()
+        @test m' == sparse(H')
+    end
+    if !ishermitian(m)
+        @test LOStructure(H) != IsHermitian()
+        if LOStructure(H) == IsDiagonal()
+            @test !isreal(m)
+            @test !(eltype(H) <: Real)
+        end
+    end
+    nothing
 end
 
 using Rimu.Hamiltonians: momentum_transfer_excitation
@@ -212,6 +246,8 @@ end
         HubbardMom1D(OccupationNumberFS(6, 0, 0, 4); t=1.0, u=0.5),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
         ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
+        ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); u=1 + 0.5im),
+        ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); t=1 + 0.5im),
         HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
         HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
         HubbardRealSpace(
@@ -904,6 +940,13 @@ using Rimu.Hamiltonians: circshift_dot
 
                 g2_nosum = dot(v, G2RealSpace(CubicGrid(4)), v)
                 @test iszero(g2_nosum)
+            end
+
+            @testset "adjoint" begin
+                G2 = G2RealSpace(CubicGrid(6))
+                @test LOStructure(G2) isa IsDiagonal
+                @test eltype(eltype(G2)) <: Real
+                @test G2' == G2
             end
         end
 
@@ -1660,7 +1703,6 @@ end
         null_addr = BoseFS(prod(S), 1=>0)
         @test isempty(fock_to_cart(null_addr, S))
     end
-
 end
 
 @testset "dimension and multi-component addresses" begin
@@ -1668,4 +1710,51 @@ end
                 FermiFS2C((1,0,1), (0,1,0)), BoseFS2C((1,0,1), (0,1,0))
     ]
     [@test dimension(addr) == dimension(typeof(addr)) for addr in addresses]
+end
+
+@testset "ExtendedHubbardReal1D boundary conditions" begin
+    for H in (
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:twisted),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0)), v=6, t=2.0, boundary_condition=:hard_wall),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:twisted),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=:hard_wall),
+        ExtendedHubbardReal1D(FermiFS((1,0,1,0,1,0,1,0,1,0,1)), v=6, t=2.0, boundary_condition=π),
+        ExtendedHubbardReal1D(BoseFS(1,0,2,1); u=1+0.5im, boundary_condition=:hard_wall))
+
+        addr = starting_address(H)
+        H1 = ExtendedHubbardReal1D(addr, v=6, t=2.0)
+        addr2, me = get_offdiagonal(H1, addr, 2)
+        if H.boundary_condition == :twisted
+            @test get_offdiagonal(H, addr, 2)[2] == - me
+            @test diagonal_element(H, addr) == diagonal_element(H1, addr)
+        elseif H.boundary_condition == :hard_wall
+            @test get_offdiagonal(H, addr, 2)[2] == 0.0
+        elseif H.boundary_condition isa Number
+            @test get_offdiagonal(H, addr, 2)[2] == me*exp(-im*H.boundary_condition)
+            @test diagonal_element(H, addr) == diagonal_element(H1, addr)
+        end
+        @test get_offdiagonal(H, addr, 2)[1] == addr2
+    end
+    @test_throws ArgumentError ExtendedHubbardReal1D(BoseFS(1,1,1,1); boundary_condition=:hrad_wall)
+end
+
+@testset "Small ExtendedHubbardReal1D with complex parameters" begin
+    for H in (
+        ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), boundary_condition=:twisted), # Hermitian
+        ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), boundary_condition=0.5), # Hermitian
+        ExtendedHubbardReal1D(BoseFS(1, 0, 1, 0), v=6, t=2.0+3im), # Hermitian
+        ExtendedHubbardReal1D(FermiFS(1, 0, 1, 0), v=6 + 0.5im, t=2.0), # non-Hermitian
+        ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1), u=6 + 3im, t=2.0), # non-Hermitian
+        ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1), u=6 + 3im, t=0), # diagonal and non-Hermitian
+        ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1), t=0), # diagonal and Hermitian
+    )
+        test_hamiltonian_structure(H)
+    end
+    h = ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1); t=0) # diagonal and Hermitian
+    @test LOStructure(h) isa IsDiagonal
+    @test adjoint(h) == h
+    h2 = ExtendedHubbardReal1D(OccupationNumberFS(3, 0, 1); u=6 + 3im, t=0)
+    # diagonal and non-Hermitian
+    @test LOStructure(h) isa IsDiagonal
+    @test_throws ArgumentError adjoint(h2)
 end
