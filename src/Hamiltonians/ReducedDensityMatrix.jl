@@ -27,14 +27,11 @@ end
 LOStructure(::Type{T}) where T<:SingleParticleExcitation = AdjointUnknown()
 
 function diagonal_element(spd::SingleParticleExcitation, add::SingleComponentFockAddress)
-    src = find_mode(add, spd.J)
-    dst = find_mode(add,spd.I)
-    address, value = excitation(add, (dst,), (src,))
-    if spd.I == spd.J
-        return value
-    else
+    if spd.I != spd.J
         return 0.0
     end
+    src = find_mode(add, spd.J)
+    return src.occnum
 end
 
 function num_offdiagonals(spd::SingleParticleExcitation, address::SingleComponentFockAddress)
