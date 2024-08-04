@@ -1160,22 +1160,22 @@ using Rimu.Hamiltonians: circshift_dot
             naddr_fermi2, value_f2 = excitation(addr_fermi,find_mode(addr_fermi,(2,)),find_mode(addr_fermi,(i,)))
             @test diagonal_element(SingleParticleReducedDensityMatrix(i, i), addr_bose) == 7-i
             @test diagonal_element(SingleParticleReducedDensityMatrix(i, i), addr_fermi) == i%2
-            @test get_offdiagonal(SingleParticleReducedDensityMatrix(2,i),addr_fermi,1) == (naddr_fermi2,value_f2/2)
+            @test get_offdiagonal(SingleParticleReducedDensityMatrix(2,i),addr_fermi,1) == (naddr_fermi2,value_f2)
             if i == 1
                 @test diagonal_element(TwoParticleReducedDensityMatrix(1,i,1,i), addr_bose) == 5*(7-i)
                 @test diagonal_element(TwoParticleReducedDensityMatrix(1,i,1,i), addr_fermi) == 0.0
-                @test get_offdiagonal(SingleParticleReducedDensityMatrix(1,i),addr_fermi,1) == (naddr_fermi1,1/2)
+                @test get_offdiagonal(SingleParticleReducedDensityMatrix(1,i),addr_fermi,1) == (naddr_fermi1,1)
             else
                 naddr_bose1, value_b1 = excitation(addr_bose,find_mode(addr_bose,(1,)),find_mode(addr_bose,(i,)))
                 naddr_fermi11, value_f11 = excitation(addr_fermi,find_mode(addr_fermi,(1,2,)),find_mode(addr_fermi,(i,1,)))
                 @test diagonal_element(TwoParticleReducedDensityMatrix(1,i,1,i), addr_bose) == 6*(7-i)
                 @test diagonal_element(TwoParticleReducedDensityMatrix(1,i,1,i), addr_fermi) == i%2
-                @test get_offdiagonal(SingleParticleReducedDensityMatrix(1,i),addr_bose,1) == (naddr_bose1,value_b1/2)
+                @test get_offdiagonal(SingleParticleReducedDensityMatrix(1,i),addr_bose,1) == (naddr_bose1,value_b1)
                 @test get_offdiagonal(SingleParticleReducedDensityMatrix(1,i),addr_fermi,1) == (naddr_fermi1,0.0)
-                @test get_offdiagonal(TwoParticleReducedDensityMatrix(1,2,1,i),addr_fermi,1) == (naddr_fermi11,value_f11/6)
+                @test get_offdiagonal(TwoParticleReducedDensityMatrix(1,2,1,i),addr_fermi,1) == (naddr_fermi11,value_f11)
                 if i!=2
                     naddr_bose11, value_b11 = excitation(addr_bose,find_mode(addr_bose,(1,2,)),find_mode(addr_bose,(i,1,)))
-                    @test get_offdiagonal(TwoParticleReducedDensityMatrix(1,2,1,i),addr_bose,1) == (naddr_bose11,value_b11/6)
+                    @test get_offdiagonal(TwoParticleReducedDensityMatrix(1,2,1,i),addr_bose,1) == (naddr_bose11,value_b11)
                 end
             end
         end
