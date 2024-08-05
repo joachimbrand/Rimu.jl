@@ -20,33 +20,31 @@ end
 
 SingleParticleExcitation(I::Int,J::Int) = SingleParticleExcitation{I,J}()
 
-function Base.show(io::IO, spd::SingleParticleExcitation)
-    print(io, "SingleParticleExcitation($(spd.I), $(spd.J))")
+function Base.show(io::IO, spd::SingleParticleExcitation{I,J}) where {I,J}
+    print(io, "SingleParticleExcitation($(I), $(J))")
 end
 
 LOStructure(::Type{T}) where T<:SingleParticleExcitation = AdjointUnknown()
-Base.getproperty(::SingleParticleExcitation{I}, ::Val{:I}) where I = I
-Base.getproperty(::SingleParticleExcitation{<:Any,J}, ::Val{:J}) where J = J
 
-function diagonal_element(spd::SingleParticleExcitation, add::SingleComponentFockAddress)
-    if spd.I != spd.J
+function diagonal_element(spd::SingleParticleExcitation{I,J}, add::SingleComponentFockAddress) where {I,J}
+    if I != J
         return 0.0
     end
-    src = find_mode(add, spd.J)
+    src = find_mode(add, J)
     return src.occnum
 end
 
-function num_offdiagonals(spd::SingleParticleExcitation, address::SingleComponentFockAddress)
-    if spd.I == spd.J
+function num_offdiagonals(spd::SingleParticleExcitation{I,J}, address::SingleComponentFockAddress) where {I,J}
+    if I == J
         return 0
     else
         return 1
     end
 end
 
-function get_offdiagonal(spd::SingleParticleExcitation, add::SingleComponentFockAddress, chosen)
-    src = find_mode(add, spd.J)
-    dst = find_mode(add,spd.I)
+function get_offdiagonal(spd::SingleParticleExcitation{I,J}, add::SingleComponentFockAddress, chosen) where {I,J}
+    src = find_mode(add, J)
+    dst = find_mode(add,I)
     address, value = excitation(add, (dst,), (src,))
     return address, value
 end
@@ -73,38 +71,34 @@ end
 
 SingleParticleExcitation(I::Int,J::Int,K::Int,L::Int) = TwoParticleExcitation{I,J,K,L}()
 
-function Base.show(io::IO, spd::TwoParticleExcitation)
-    print(io, "TwoParticleExcitation($(spd.I), $(spd.J), $(spd.K), $(spd.L))")
+function Base.show(io::IO, spd::TwoParticleExcitation{I,J,K,L}) where {I,J,K,L}
+    print(io, "TwoParticleExcitation($(I), $(J), $(K), $(L))")
 end
 
 LOStructure(::Type{T}) where T<:TwoParticleExcitation = AdjointUnknown()
-Base.getproperty(::TwoParticleExcitation{I}, ::Val{:I}) where I = I
-Base.getproperty(::TwoParticleExcitation{<:Any,J}, ::Val{:J}) where J = J
-Base.getproperty(::TwoParticleExcitation{<:Any,<:Any,K}, ::Val{:K}) where K = K
-Base.getproperty(::TwoParticleExcitation{<:Any,<:Any,<:Any,L}, ::Val{:L}) where L = L
 
-function diagonal_element(spd::TwoParticleExcitation, add::SingleComponentFockAddress)
-    src = find_mode(add, (spd.L, spd.K))
-    dst = find_mode(add,(spd.I, spd.J))
+function diagonal_element(spd::TwoParticleExcitation{I,J,K,L}, add::SingleComponentFockAddress) where {I,J,K,L}
+    src = find_mode(add, (L, K))
+    dst = find_mode(add,(I, J))
     address, value = excitation(add, (dst...,), (src...,))
-    if (spd.I, spd.J) == (spd.K, spd.L)
+    if (I, J) == (K, L)
         return value
     else
         return 0.0
     end
 end
 
-function num_offdiagonals(spd::TwoParticleExcitation, address::SingleComponentFockAddress)
-    if (spd.I, spd.J) == (spd.K, spd.L)
+function num_offdiagonals(spd::TwoParticleExcitation{I,J,K,L}, address::SingleComponentFockAddress) where {I,J,K,L}
+    if (I, J) == (K, L)
         return 0
     else
         return 1
     end
 end
 
-function get_offdiagonal(spd::TwoParticleExcitation, add::SingleComponentFockAddress, chosen)
-    src = find_mode(add, (spd.L, spd.K))
-    dst = find_mode(add,(spd.I, spd.J))
+function get_offdiagonal(spd::TwoParticleExcitation{I,J,K,L}, add::SingleComponentFockAddress, chosen) where {I,J,K,L}
+    src = find_mode(add, (L, K))
+    dst = find_mode(add,(I, J))
     address, value = excitation(add, (dst...,), (src...,))
     return address, value
 end
