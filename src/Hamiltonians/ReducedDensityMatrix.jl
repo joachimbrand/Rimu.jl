@@ -78,10 +78,10 @@ function Base.show(io::IO, spd::TwoParticleExcitation)
 end
 
 LOStructure(::Type{T}) where T<:TwoParticleExcitation = AdjointUnknown()
-Base.getproperty(::SingleParticleExcitation{I}, ::Val{:I}) where I = I
-Base.getproperty(::SingleParticleExcitation{<:Any,J}, ::Val{:J}) where J = J
-Base.getproperty(::SingleParticleExcitation{<:Any,<:Any,K}, ::Val{:K}) where K = K
-Base.getproperty(::SingleParticleExcitation{<:Any,<:Any,<:Any,L}, ::Val{:L}) where L = L
+Base.getproperty(::TwoParticleExcitation{I}, ::Val{:I}) where I = I
+Base.getproperty(::TwoParticleExcitation{<:Any,J}, ::Val{:J}) where J = J
+Base.getproperty(::TwoParticleExcitation{<:Any,<:Any,K}, ::Val{:K}) where K = K
+Base.getproperty(::TwoParticleExcitation{<:Any,<:Any,<:Any,L}, ::Val{:L}) where L = L
 
 function diagonal_element(spd::TwoParticleExcitation, add::SingleComponentFockAddress)
     src = find_mode(add, (spd.L, spd.K))
