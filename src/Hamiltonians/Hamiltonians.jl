@@ -85,7 +85,7 @@ export FroehlichPolaron
 export ParticleNumberOperator
 
 export G2MomCorrelator, G2RealCorrelator, G2RealSpace, SuperfluidCorrelator, DensityMatrixDiagonal, Momentum
-export SingleParticleExcitation, TwoParticleExcitation'
+export SingleParticleExcitation, TwoParticleExcitation
 export StringCorrelator
 
 export CubicGrid, PeriodicBoundaries, HardwallBoundaries, LadderBoundaries
