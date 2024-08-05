@@ -39,8 +39,8 @@ Other
 - [`G2RealSpace`](@ref)
 - [`G2MomCorrelator`](@ref)
 - [`DensityMatrixDiagonal`](@ref)
-- [`SingleParticleReducedDensityMatrix`](@ref)
-- [`TwoParticleReducedDensityMatrix`](@ref)
+- [`SingleParticleExcitation`](@ref)
+- [`TwoParticleExcitation`](@ref)
 - [`Momentum`](@ref)
 - [`AxialAngularMomentumHO`](@ref)
 
