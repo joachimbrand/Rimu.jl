@@ -18,7 +18,7 @@ where ``i`` and ``j`` are the `mode`
 struct SingleParticleExcitation{I,J} <: AbstractHamiltonian{Float64}
 end
 
-SingleParticleExcitation(I,J) = SingleParticleExcitation{I,J}()
+SingleParticleExcitation(I::Int,J::Int) = SingleParticleExcitation{I,J}()
 
 function Base.show(io::IO, spd::SingleParticleExcitation)
     print(io, "SingleParticleExcitation($(spd.I), $(spd.J))")
@@ -68,10 +68,10 @@ where ``i``, ``j``, ``k``, and ``l`` are the `mode`
 * [`SingleParticleDensity`](@ref)
 * [`SingleParticleExcitation`](@ref)
 """
-struct TwoParticleExcitation{I::Int,J::Int,K::Int,L::Int} <: AbstractHamiltonian{Float64}
+struct TwoParticleExcitation{I,J,K,L} <: AbstractHamiltonian{Float64}
 end
 
-SingleParticleExcitation(I,J,K,L) = TwoParticleExcitation{I,J,K,L}()
+SingleParticleExcitation(I::Int,J::Int,K::Int,L::Int) = TwoParticleExcitation{I,J,K,L}()
 
 function Base.show(io::IO, spd::TwoParticleExcitation)
     print(io, "TwoParticleExcitation($(spd.I), $(spd.J), $(spd.K), $(spd.L))")
