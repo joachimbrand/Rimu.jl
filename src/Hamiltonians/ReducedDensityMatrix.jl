@@ -15,16 +15,18 @@ where ``i`` and ``j`` are the `mode`
 * [`SingleParticleDensity`](@ref)
 * [`TwoParticleExcitation`](@ref)
 """
-struct SingleParticleExcitation <: AbstractHamiltonian{Float64}
-    I::Int
-    J::Int
+struct SingleParticleExcitation{I,J} <: AbstractHamiltonian{Float64}
 end
+
+SingleParticleExcitation(I,J) = SingleParticleExcitation{I,J}()
 
 function Base.show(io::IO, spd::SingleParticleExcitation)
     print(io, "SingleParticleExcitation($(spd.I), $(spd.J))")
 end
 
 LOStructure(::Type{T}) where T<:SingleParticleExcitation = AdjointUnknown()
+Base.getproperty(::SingleParticleExcitation{I}, ::Val{:I}) where I = I
+Base.getproperty(::SingleParticleExcitation{<:Any,J}, ::Val{:J}) where J = J
 
 function diagonal_element(spd::SingleParticleExcitation, add::SingleComponentFockAddress)
     if spd.I != spd.J
@@ -66,18 +68,20 @@ where ``i``, ``j``, ``k``, and ``l`` are the `mode`
 * [`SingleParticleDensity`](@ref)
 * [`SingleParticleExcitation`](@ref)
 """
-struct TwoParticleExcitation <: AbstractHamiltonian{Float64}
-    I::Int
-    J::Int
-    K::Int
-    L::Int
+struct TwoParticleExcitation{I::Int,J::Int,K::Int,L::Int} <: AbstractHamiltonian{Float64}
 end
+
+SingleParticleExcitation(I,J,K,L) = TwoParticleExcitation{I,J,K,L}()
 
 function Base.show(io::IO, spd::TwoParticleExcitation)
     print(io, "TwoParticleExcitation($(spd.I), $(spd.J), $(spd.K), $(spd.L))")
 end
 
 LOStructure(::Type{T}) where T<:TwoParticleExcitation = AdjointUnknown()
+Base.getproperty(::SingleParticleExcitation{I}, ::Val{:I}) where I = I
+Base.getproperty(::SingleParticleExcitation{<:Any,J}, ::Val{:J}) where J = J
+Base.getproperty(::SingleParticleExcitation{<:Any,<:Any,K}, ::Val{:K}) where K = K
+Base.getproperty(::SingleParticleExcitation{<:Any,<:Any,<:Any,L}, ::Val{:L}) where L = L
 
 function diagonal_element(spd::TwoParticleExcitation, add::SingleComponentFockAddress)
     src = find_mode(add, (spd.L, spd.K))
