@@ -69,7 +69,7 @@ where ``i``, ``j``, ``k``, and ``l`` are the `mode`
 struct TwoParticleExcitation{I,J,K,L} <: AbstractHamiltonian{Float64}
 end
 
-SingleParticleExcitation(I::Int,J::Int,K::Int,L::Int) = TwoParticleExcitation{I,J,K,L}()
+TwoParticleExcitation(I::Int,J::Int,K::Int,L::Int) = TwoParticleExcitation{I,J,K,L}()
 
 function Base.show(io::IO, spd::TwoParticleExcitation{I,J,K,L}) where {I,J,K,L}
     print(io, "TwoParticleExcitation($(I), $(J), $(K), $(L))")
