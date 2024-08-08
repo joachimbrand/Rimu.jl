@@ -28,8 +28,8 @@ end
 Set up the initial shift parameters for the [`FCIQMC`](@ref) algorithm.
 """
 function set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
-    starting_vectors::SMatrix{S,R}, shift, time_step
-) where {S,R}
+    starting_vectors::SMatrix{R,S}, shift, time_step
+) where {R,S}
     shift_strategy = algorithm.shift_strategy
 
     if shift === nothing
@@ -45,7 +45,7 @@ function set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
         initialise_shift_parameters(shift_strategy, s, walkernumber(sv), time_step)
     end)
     @assert length(initial_shift_parameters) == S * R
-    return SMatrix{S,R}(initial_shift_parameters)
+    return SMatrix{R,S}(initial_shift_parameters)
 end
 
 function _determine_initial_shift(hamiltonian, starting_vectors)

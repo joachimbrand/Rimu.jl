@@ -21,42 +21,57 @@ mutable struct PMCSimulation
 end
 
 function _set_up_starting_vectors(
-    start_at, n_replicas, n_spectral, style, initiator, threading, copy_vectors
+    ham, start_at, n_replicas, n_spectral, style, initiator, threading, copy_vectors
 )
     if start_at isa AbstractMatrix && size(start_at) == (n_replicas, n_spectral)
         if eltype(start_at) <: Union{AbstractDVec, RMPI.MPIData} # already dvecs
             if copy_vectors
-                return SMatrix{n_spectral, n_replicas}(deepcopy(v) for v in start_at)
+                return SMatrix{n_replicas, n_spectral}(deepcopy(v) for v in start_at)
             else
-                return SMatrix{n_spectral, n_replicas}(v for v in start_at)
+                return SMatrix{n_replicas, n_spectral}(v for v in start_at)
             end
         else
-            return SMatrix{n_spectral, n_replicas}(
+            return SMatrix{n_replicas, n_spectral}(
                 default_starting_vector(sa; style, initiator, threading) for sa in start_at
             )
         end
+    elseif n_spectral > 1
+        basis = build_basis(ham; cutoff=diagonal_element(ham, starting_address(ham)) + 5)
+        basis = sort!(basis; by=x -> diagonal_element(ham, x))[1:2*n_spectral]
+        trunc = BasisSetRepresentation(ham, basis; filter=Returns(false), sizelim=Inf)
+        vecs = eigvecs(Matrix(trunc))
+        if threading
+            eigs = [PDVec(zip(basis, 10*vecs[:,i]); style, initiator) for i in 1:n_spectral]
+        else
+            if initiator == NonInitiator()
+                eigs = [DVec(zip(basis, 10*vecs[:,i]); style) for i in 1:n_spectral]
+            else
+                eigs = [InitiatorDVec(zip(basis,10*vecs[:,i]);style,initiator) for i in 1:n_spectral]
+            end
+        end
+        mat = stack([eigs for _ in 1:n_replicas], dims=1)
+        return SMatrix{n_replicas, n_spectral}(mat)
     end
-    n_spectral == 1 || throw(ArgumentError("The number of spectral states must match the number of starting vectors."))
     if start_at isa AbstractVector && length(start_at) == n_replicas
         if eltype(start_at) <: Union{AbstractDVec, RMPI.MPIData} # already dvecs
             if copy_vectors
-                return SMatrix{n_spectral, n_replicas}(deepcopy(v) for v in start_at)
+                return SMatrix{n_replicas, n_spectral}(deepcopy(v) for v in start_at)
             else
-                return SMatrix{n_spectral, n_replicas}(v for v in start_at)
+                return SMatrix{n_replicas, n_spectral}(v for v in start_at)
             end
         else
-            return SMatrix{n_spectral, n_replicas}(
+            return SMatrix{n_replicas, n_spectral}(
                 default_starting_vector(sa; style, initiator, threading) for sa in start_at
             )
         end
     elseif start_at isa Union{AbstractDVec, RMPI.MPIData}
         if n_replicas == 1 && !copy_vectors
-            return SMatrix{n_spectral, n_replicas}(start_at)
+            return SMatrix{n_replicas, n_spectral}(start_at)
         else
-            return SMatrix{n_spectral, n_replicas}(deepcopy(start_at) for _ in 1:n_replicas)
+            return SMatrix{n_replicas, n_spectral}(deepcopy(start_at) for _ in 1:n_replicas)
         end
     end
-    return SMatrix{n_spectral,n_replicas}(
+    return SMatrix{n_replicas, n_spectral}(
         default_starting_vector(start_at; style, initiator, threading) for _ in 1:n_replicas
     )
 end
@@ -80,10 +95,10 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
 
     start_at = isnothing(start_at) ? starting_address(hamiltonian) : start_at
     vectors = _set_up_starting_vectors(
-        start_at, n_replicas, n_spectral, style, initiator,
+        hamiltonian, start_at, n_replicas, n_spectral, style, initiator,
         threading, copy_vectors
     )
-    @assert vectors isa SMatrix{n_spectral,n_replicas}
+    @assert vectors isa SMatrix{n_replicas, n_spectral}
 
     # set up initial_shift_parameters
     shift, time_step = nothing, nothing
@@ -93,17 +108,17 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
         @unpack shift, time_step = initial_shift_parameters
         set_up_initial_shift_parameters(algorithm, hamiltonian, vectors, shift, time_step)
     else
-        SMatrix{n_spectral,n_replicas}(initial_shift_parameters...)
+        SMatrix{n_replicas, n_spectral}(initial_shift_parameters...)
     end
-    @assert shift_parameters isa SMatrix{n_spectral,n_replicas}
+    @assert shift_parameters isa SMatrix{n_replicas, n_spectral}
 
     # set up the spectral_states
     wm = working_memory(vectors[1, 1])
     spectral_states = ntuple(n_replicas) do i
         SpectralState(
             ntuple(n_spectral) do j
-                v = vectors[j, i]
-                sp = shift_parameters[j, i]
+                v = vectors[i, j]
+                sp = shift_parameters[i, j]
                 id = if n_replicas * n_spectral == 1
                     ""
                 elseif n_spectral == 1
