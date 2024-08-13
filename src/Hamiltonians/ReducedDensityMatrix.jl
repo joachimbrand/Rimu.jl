@@ -52,7 +52,7 @@ end
 """
     TwoParticleExcitation(i, j, k, l) <: AbstractHamiltonian
 
-Represent {ij, kl} element of the two-particle reduced density matrix:
+Represent the ``{ij, kl}`` element of the two-particle reduced density matrix:
 
 ```math
 \\hat{ρ}^{(2)}_{ij, kl} =  \\hat a^†_{i} \\hat a^†_{j} \\hat a_{l} \\hat a_{k} 
