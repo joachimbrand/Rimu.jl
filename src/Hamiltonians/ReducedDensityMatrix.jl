@@ -58,7 +58,7 @@ Represent {ij, kl} element of the two-particle reduced density matrix:
 \\hat{ρ}^{(2)}_{ij, kl} =  \\hat a^†_{i} \\hat a^†_{j} \\hat a_{l} \\hat a_{k} 
 ```
 
-where ``i``, ``j``, ``k``, and ``l`` are the `mode`
+where `i`, `j`, `k`, and `l` (all `<: Int`) specify the mode numbers.
 
 # See also
 
