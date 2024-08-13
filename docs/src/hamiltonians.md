@@ -114,7 +114,7 @@ random_offdiagonal
 Hamiltonians.LOStructure
 dimension
 has_adjoint
-allowed_address_type
+allows_address_type
 ```
 
 This interface relies on unexported functionality, including
