@@ -7,7 +7,7 @@ Represent the ``{i,j}`` element of the single-particle reduced density matrix:
 \\hat{ρ}^{(1)}_{i,j} = \\hat a^†_{i} \\hat a_{j}
 ```
 
-where ``i`` and ``j`` are the `mode`
+where `i <: Int` and `j <: Int` specify the mode numbers.
 
 # See also
 
