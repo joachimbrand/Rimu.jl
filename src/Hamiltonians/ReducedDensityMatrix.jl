@@ -80,7 +80,7 @@ LOStructure(::Type{<:TwoParticleExcitation}) = AdjointUnknown()
 function diagonal_element(spd::TwoParticleExcitation{I,J,K,L}, add::SingleComponentFockAddress) where {I,J,K,L}
     src = find_mode(add, (L, K))
     dst = find_mode(add,(I, J))
-    address, value = excitation(add, (dst...,), (src...,))
+    address, value = excitation(add, dst, src)
     if (I, J) == (K, L)
         return value
     else
