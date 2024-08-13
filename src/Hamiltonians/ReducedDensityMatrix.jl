@@ -75,7 +75,7 @@ function Base.show(io::IO, spd::TwoParticleExcitation{I,J,K,L}) where {I,J,K,L}
     print(io, "TwoParticleExcitation($(I), $(J), $(K), $(L))")
 end
 
-LOStructure(::Type{T}) where T<:TwoParticleExcitation = AdjointUnknown()
+LOStructure(::Type{<:TwoParticleExcitation}) = AdjointUnknown()
 
 function diagonal_element(spd::TwoParticleExcitation{I,J,K,L}, add::SingleComponentFockAddress) where {I,J,K,L}
     src = find_mode(add, (L, K))
