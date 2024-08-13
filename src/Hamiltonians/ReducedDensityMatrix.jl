@@ -1,7 +1,7 @@
 """
     SingleParticleExcitation(i, j) <: AbstractHamiltonian
 
-Represent {i,j} element of the single-particle reduced density matrix:
+Represent the ``{i,j}`` element of the single-particle reduced density matrix:
 
 ```math
 \\hat{ρ}^{(1)}_{i,j} = \\hat a^†_{i} \\hat a_{j}
