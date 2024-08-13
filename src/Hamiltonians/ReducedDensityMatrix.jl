@@ -24,7 +24,7 @@ function Base.show(io::IO, spd::SingleParticleExcitation{I,J}) where {I,J}
     print(io, "SingleParticleExcitation($(I), $(J))")
 end
 
-LOStructure(::Type{T}) where T<:SingleParticleExcitation = AdjointUnknown()
+LOStructure(::Type{<:SingleParticleExcitation}) = AdjointUnknown()
 
 function diagonal_element(spd::SingleParticleExcitation{I,J}, add::SingleComponentFockAddress) where {I,J}
     if I != J
