@@ -81,7 +81,7 @@ function diagonal_element(spd::TwoParticleExcitation{I,J,K,L}, add::SingleCompon
     src = find_mode(add, (L, K))
     dst = find_mode(add,(I, J))
     address, value = excitation(add, dst, src)
-    if (I, J) == (K, L)
+    if (I, J) == (K, L) || (I, J) == (L, K)
         return value
     else
         return 0.0
