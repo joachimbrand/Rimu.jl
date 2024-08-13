@@ -33,4 +33,6 @@ starting_address(n::ParticleNumberOperator) = n.address
 function diagonal_element(::ParticleNumberOperator, addr::AbstractFockAddress)
     return float(num_particles(addr))
 end
-allowed_address_type(::ParticleNumberOperator) = AbstractFockAddress
+function allows_address_type(::ParticleNumberOperator, ::Type{A}) where {A}
+    return A <: AbstractFockAddress
+end

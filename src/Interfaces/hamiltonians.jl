@@ -32,8 +32,8 @@ Optional additional methods to implement:
 * [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
 * [`dimension(::AbstractHamiltonian, addr)`](@ref Main.Hamiltonians.dimension): defaults to
   dimension of address space
-* [`allowed_address_type(h::AbstractHamiltonian)`](@ref): defaults to
-  `typeof(starting_address(h))`
+* [`allows_address_type(h::AbstractHamiltonian, ::Type{A})`](@ref): defaults to
+  `A :< typeof(starting_address(h))`
 * [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
 Provides the following functions and methods:
@@ -62,16 +62,22 @@ abstract type AbstractHamiltonian{T} end
 Base.eltype(::AbstractHamiltonian{T}) where {T} = T
 
 """
-    allowed_address_type(h::AbstractHamiltonian)
-Return the type of addresses that can be used with Hamiltonian `h`.
+    allows_address_type(operator, addr_or_type)
+Returns `true` if `addr_or_type` is a valid address for `operator`. Otherwise, returns
+`false`.
 
 Part of the [`AbstractHamiltonian`](@ref) interface.
 
-Defaults to `typeof(starting_address(h))`. Overload this function if the Hamiltonian can be
-used with addresses of different types.
+# Extended help
+Defaults to `addr_or_type <: typeof(starting_address(operator))`. Overload this function if
+the operator can be used with addresses of different types.
 """
-allowed_address_type(h::AbstractHamiltonian) = typeof(starting_address(h))
-allowed_address_type(::AbstractMatrix) = Integer
+@inline function allows_address_type(hamiltonian, ::Type{A}) where {A}
+    return A <: typeof(starting_address(hamiltonian))
+end
+function allows_address_type(op, address)
+    allows_address_type(op, typeof(address))
+end
 
 """
     diagonal_element(ham, address)

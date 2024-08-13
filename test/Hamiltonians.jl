@@ -62,9 +62,9 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
             @test dimension(H) == dimension(H, starting_address(H))
             @test dimension(addr) ≥ dimension(H, addr)
         end
-        @testset "allowed_address_type" begin
-            @test starting_address(H) isa allowed_address_type(H)
-            @test addr isa allowed_address_type(H)
+        @testset "allows_address_type" begin
+            @test allows_address_type(H, starting_address(H))
+            @test allows_address_type(H, addr)
         end
         @testset "offdiagonals" begin
             # `get_offdiagonal` is not mandatory but `offdiagonals` is

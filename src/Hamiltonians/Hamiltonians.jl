@@ -66,7 +66,7 @@ using TupleTools: TupleTools
 using ..BitStringAddresses
 using ..Interfaces
 import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starting_address,
-    offdiagonals, random_offdiagonal, LOStructure, allowed_address_type
+    offdiagonals, random_offdiagonal, LOStructure, allows_address_type
 
 export dimension, rayleigh_quotient, momentum
 

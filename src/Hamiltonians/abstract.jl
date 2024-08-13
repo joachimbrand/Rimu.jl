@@ -1,13 +1,16 @@
 """
     check_address_type(h::AbstractHamiltonian, addr_or_type)
-Throw an `ArgumentError` if `addr_or_type` is not compatible with `h`. Acceptable arguments
-are either an address or an address type, or a tuple or array thereof.
+Throw an `ArgumentError` if `addr_or_type` is not compatible with `h`, otherwise return
+`true`. Acceptable arguments are either an address or an address type, or a tuple or
+array thereof.
 
-See also [`allowed_address_type`](@ref).
+See also [`allows_address_type`](@ref).
 """
 @inline function check_address_type(h, ::Type{A}) where {A}
-    B = allowed_address_type(h)
-    A <: B || throw(ArgumentError("address type mismatch: found $A, expected <: $B"))
+    if !allows_address_type(h, A)
+        throw(ArgumentError("address type $A not allowed for operator $h"))
+    end
+    return true
 end
 @inline check_address_type(h, addr) = check_address_type(h, typeof(addr))
 @inline function check_address_type(h::AbstractHamiltonian, v::Union{AbstractArray,Tuple})
