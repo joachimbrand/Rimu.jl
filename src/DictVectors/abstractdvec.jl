@@ -263,7 +263,7 @@ walkernumber_and_length(v) = walkernumber(v), length(v)
 ###
 ### Vector-operator functions
 ###
-function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec)
+function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractOperator, v::AbstractDVec)
     empty!(w)
     for (key, val) in pairs(v)
         w[key] += diagonal_element(h, key) * val
@@ -274,22 +274,22 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::Abstract
     return w
 end
 
-function Base.:*(h::AbstractHamiltonian, v::AbstractDVec)
+function Base.:*(h::AbstractOperator, v::AbstractDVec)
     return mul!(zerovector(v, promote_type(eltype(h), valtype(v))), h, v)
 end
 
 """
-    dot(w, op::AbstractHamiltonian, v)
+    dot(w, op::AbstractOperator, v)
 
 Evaluate `w⋅op(v)` minimizing memory allocations.
 """
-function LinearAlgebra.dot(w::AbstractDVec, op::AbstractHamiltonian, v::AbstractDVec)
+function LinearAlgebra.dot(w::AbstractDVec, op::AbstractOperator, v::AbstractDVec)
     return dot(LOStructure(op), w, op, v)
 end
-function LinearAlgebra.dot(::AdjointUnknown, w, op::AbstractHamiltonian, v)
+function LinearAlgebra.dot(::AdjointUnknown, w, op::AbstractOperator, v)
     return dot_from_right(w, op, v)
 end
-function LinearAlgebra.dot(::LOStructure, w, op::AbstractHamiltonian, v)
+function LinearAlgebra.dot(::LOStructure, w, op::AbstractOperator, v)
     if length(w) < length(v)
         return conj(dot_from_right(v, op', w)) # turn args around to execute faster
     else
@@ -298,7 +298,7 @@ function LinearAlgebra.dot(::LOStructure, w, op::AbstractHamiltonian, v)
 end
 
 """
-    dot_from_right(w, op::AbstractHamiltonian, v)
+    dot_from_right(w, op::AbstractOperator, v)
 
 Internal function evaluates the 3-argument `dot()` function in order from right
 to left.

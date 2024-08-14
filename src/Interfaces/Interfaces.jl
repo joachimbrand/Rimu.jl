@@ -6,6 +6,7 @@ This module contains interfaces that can be used to extend and modify the algori
 # Interfaces
 Follow the links for the definitions of the interfaces!
 * [`AbstractHamiltonian`](@ref) for defining [`Hamiltonians`](@ref Main.Hamiltonians)
+* [`AbstractOperator`](@ref) for defining observable operators
 * [`AbstractDVec`](@ref) for defining data structures for `Rimu` as in [`DictVectors`](@ref Main.DictVectors)
 * [`StochasticStyle`](@ref) for controlling the stochastic algorithms used by
   [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) as implemented in
@@ -51,7 +52,8 @@ export
 export
     AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
     random_offdiagonal, starting_address, allows_address_type,
-    LOStructure, IsDiagonal, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
+    LOStructure, IsDiagonal, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint,
+    AbstractOperator
 
 include("stochasticstyles.jl")
 include("dictvectors.jl")

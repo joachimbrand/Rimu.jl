@@ -21,7 +21,7 @@ import MPI
 using ..Interfaces: Interfaces, AbstractDVec, AdjointUnknown,
     CompressionStrategy, IsDiagonal, LOStructure,
     apply_column!, apply_operator!, compress!,
-    diagonal_element, offdiagonals, step_stats, AbstractHamiltonian
+    diagonal_element, offdiagonals, step_stats, AbstractHamiltonian, AbstractOperator
 using ..StochasticStyles: StochasticStyles, IsDeterministic
 
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,

@@ -744,16 +744,16 @@ end
 ### Operator linear algebra operations
 ###
 """
-    mul!(y::PDVec, A::AbstractHamiltonian, x::PDVec[, w::PDWorkingMemory])
+    mul!(y::PDVec, A::AbstractOperator, x::PDVec[, w::PDWorkingMemory])
 
 Perform `y = A * x` in-place. The working memory `w` is required to facilitate
 threaded/distributed operations. If not passed a new instance will be allocated. `y` and `x`
 may be the same vector.
 
-See [`PDVec`](@ref), [`PDWorkingMemory`](@ref).
+See [`PDVec`](@ref), [`PDWorkingMemory`](@ref), [`AbstractOperator`](@ref).
 """
 function LinearAlgebra.mul!(
-    y::PDVec, op::AbstractHamiltonian, x::PDVec,
+    y::PDVec, op::AbstractOperator, x::PDVec,
     w=PDWorkingMemory(y; style=IsDeterministic()),
 )
     if w.style ≢ IsDeterministic()
@@ -767,7 +767,7 @@ function LinearAlgebra.mul!(
 end
 
 """
-    dot(y::PDVec, A::AbstractHamiltonian, x::PDVec[, w::PDWorkingMemory])
+    dot(y::PDVec, A::AbstractOperator, x::PDVec[, w::PDWorkingMemory])
 
 Perform `y ⋅ A ⋅ x`. The working memory `w` is required to facilitate threaded/distributed
 operations with non-diagonal `A`. If needed and not passed a new instance will be
@@ -775,14 +775,14 @@ allocated. `A` can be replaced with a tuple of operators.
 
 See [`PDVec`](@ref), [`PDWorkingMemory`](@ref).
 """
-function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec, w)
+function LinearAlgebra.dot(t::PDVec, op::AbstractOperator, u::PDVec, w)
     return dot(LOStructure(op), t, op, u, w)
 end
-function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec)
+function LinearAlgebra.dot(t::PDVec, op::AbstractOperator, u::PDVec)
     return dot(LOStructure(op), t, op, u)
 end
 function LinearAlgebra.dot(
-    ::IsDiagonal, t::PDVec, op::AbstractHamiltonian, u::PDVec, w=nothing
+    ::IsDiagonal, t::PDVec, op::AbstractOperator, u::PDVec, w=nothing
 )
     T = typeof(zero(valtype(t)) * zero(valtype(u)) * zero(eltype(op)))
     return sum(pairs(u); init=zero(T)) do (k, v)
@@ -790,7 +790,7 @@ function LinearAlgebra.dot(
     end
 end
 function LinearAlgebra.dot(
-    ::LOStructure, left::PDVec, op::AbstractHamiltonian, right::PDVec, w=nothing
+    ::LOStructure, left::PDVec, op::AbstractOperator, right::PDVec, w=nothing
 )
     # First two cases: only one vector is distrubuted. Avoid shuffling things around
     # by placing that one on the left to reduce the need for communication.
@@ -809,7 +809,7 @@ function LinearAlgebra.dot(
 end
 # Default variant: also called from other LOStructures.
 function LinearAlgebra.dot(
-    ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec, w=nothing
+    ::AdjointUnknown, t::PDVec, op::AbstractOperator, source::PDVec, w=nothing
 )
     if is_distributed(t)
         if isnothing(w)

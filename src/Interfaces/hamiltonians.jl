@@ -2,7 +2,55 @@
 ### This file contains abstract types, interfaces and traits.
 ###
 """
-    AbstractHamiltonian{T}
+    AbstractOperator{T}
+
+Supertype that provides an interface for linear operators over a linear space with elements
+of type `T` and general (custom type) indices called 'addresses'.
+
+`AbstractOperator` instances operate on vectors of type [`AbstractDVec`](@ref) from the
+module `DictVectors` and work well with addresses of type
+[`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress)
+from the module `BitStringAddresses`.
+
+The defining feature of an `AbstractOperator` is that it can be applied to a vector with
+`mul!(y, op, x)` and that three-way dot products are defined with `dot(x, op, y)`.
+
+The `AbstractOperator` type is useful for defining operators that are not necessarily
+Hamiltonians, but that can be used in the context of FCIQMC as observable operators, e.g.
+for defining correlation functions. For concrete implementations see
+[`Hamiltonians`](@ref Main.Hamiltonians). In order to implement a Hamiltonian for use in
+[`ProjectorMonteCarloProblem`](@ref) or [`ExactDiagonalizationProblem`](@ref) use the type
+[`AbstractHamiltonian`](@ref) instead, which is a subtype of `AbstractOperator`.
+
+# Interface
+
+Basic interface methods to implement:
+- [`allows_address_type(op, type)`](@ref)
+
+and either
+- [`diagonal_element(op, address)`](@ref)
+- [`num_offdiagonals(op, address)`](@ref) and
+- [`get_offdiagonal(op, address, chosen)`](@ref)
+
+or
+- `LinearAlgebra.mul!(y, op, x)` and
+- `LinearAlgebra.dot(x, op, y)`
+
+Optional additional methods to implement:
+- [`valtype(op)`](@ref): defaults to `eltype(op)`
+- [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
+- [`dimension(op, addr)`](@ref Main.Hamiltonians.dimension): defaults to dimension of
+  address space
+
+See also [`AbstractHamiltonian`](@ref), [`Interfaces`](@ref).
+"""
+abstract type AbstractOperator{T} end
+
+Base.eltype(::AbstractOperator{T}) where {T} = T # could be vector value
+Base.valtype(h::AbstractOperator) = eltype(h) # type of underlying scalar values
+
+"""
+    AbstractHamiltonian{T} <: AbstractOperator{T}
 
 Supertype that provides an interface for linear operators over a linear space with scalar
 type `T` that are suitable for FCIQMC (with
@@ -11,7 +59,8 @@ with addresses (typically not integers) from an address space that may be large 
 not need to be completely generated).
 
 `AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) from the
-module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress)
+module `DictVectors` and work well with addresses of type
+[`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress)
 from the module `BitStringAddresses`. The type works well with the external package
 [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
 
@@ -55,12 +104,10 @@ Alternatively to the above, [`offdiagonals`](@ref) can be implemented instead of
 [`num_offdiagonals`](@ref) should provide an upper bound on the number of elements obtained
 when iterating [`offdiagonals`](@ref).
 
-See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref).
+See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref),
+[`AbstractOperator`](@ref).
 """
-abstract type AbstractHamiltonian{T} end
-
-Base.eltype(::AbstractHamiltonian{T}) where {T} = T # could be vector value
-Base.valtype(h::AbstractHamiltonian) = eltype(h) # type of underlying scalar values
+abstract type AbstractHamiltonian{T} <: AbstractOperator{T} end
 
 """
     allows_address_type(operator, addr_or_type)
