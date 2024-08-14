@@ -32,8 +32,8 @@ Optional additional methods to implement:
 * [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
 * [`dimension(::AbstractHamiltonian, addr)`](@ref Main.Hamiltonians.dimension): defaults to
   dimension of address space
-* [`allows_address_type(h::AbstractHamiltonian, ::Type{A})`](@ref): defaults to
-  `A :< typeof(starting_address(h))`
+* [`allows_address_type(h::AbstractHamiltonian, type)`](@ref): defaults to
+  `type :< typeof(starting_address(h))`
 * [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
 Provides the following functions and methods:
