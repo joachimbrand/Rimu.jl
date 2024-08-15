@@ -31,11 +31,9 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
             @test v′ == v″ == v‴ == v⁗
         end
         @testset "diagonal_element" begin
-            if eltype(H) <: Real
-                @test diagonal_element(H, addr) isa Real
-            else
-                @test norm(diagonal_element(H, addr)) ≥ 0
-            end
+            @test diagonal_element(H, addr) isa eltype(H)
+            @test eltype(diagonal_element(H, addr)) == scalartype(H)
+            @test norm(diagonal_element(H, addr)) ≥ 0
         end
         if !(H isa HOCartesianContactInteractions)  # offdiagonals not consistent with interface
             @testset "hopping" begin
@@ -912,9 +910,9 @@ using Rimu.Hamiltonians: circshift_dot
                 @test eval(Meta.parse(repr(g2_2))) == g2_2
                 @test eval(Meta.parse(repr(g2_3))) == g2_3
 
-                @test valtype(g2_1) == Float64
-                @test valtype(g2_2) == Float64
-                @test valtype(g2_3) == Float64
+                @test scalartype(g2_1) == Float64
+                @test scalartype(g2_2) == Float64
+                @test scalartype(g2_3) == Float64
 
                 @test_throws ArgumentError G2RealSpace(CubicGrid(3), 1, 0)
                 @test_throws ArgumentError G2RealSpace(CubicGrid(2, 2), 0, 0)

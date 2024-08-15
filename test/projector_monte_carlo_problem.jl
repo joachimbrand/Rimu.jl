@@ -10,7 +10,6 @@ using OrderedCollections: freeze
     h = HubbardReal1D(BoseFS(1,3))
     p = ProjectorMonteCarloProblem(h; threading=true)
     @test p.hamiltonian == h
-    @test valtype(p.hamiltonian) == valtype(h)
 
     @test Rimu.num_replicas(p) == 1
     @test startswith(sprint(show, p), "ProjectorMonteCarloProblem with 1 replica(s)")
@@ -76,7 +75,7 @@ using OrderedCollections: freeze
 
     # complex Hamiltonian
     h = HubbardReal1D(BoseFS(1, 3); u=1.0 + 1.0im)
-    @test valtype(h) <: Complex
+    @test scalartype(h) <: Complex
     @test_throws ArgumentError ProjectorMonteCarloProblem(h)
 end
 

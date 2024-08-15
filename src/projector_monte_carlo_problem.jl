@@ -246,4 +246,3 @@ end
 
 num_replicas(::ProjectorMonteCarloProblem{N}) where N = N
 num_spectral_states(::ProjectorMonteCarloProblem{<:Any,S}) where {S} = S
-Base.valtype(p::ProjectorMonteCarloProblem) = valtype(p.hamiltonian)

@@ -5,7 +5,8 @@
     AbstractOperator{T}
 
 Supertype that provides an interface for linear operators over a linear space with elements
-of type `T` and general (custom type) indices called 'addresses'.
+of type `T` (returned by [`eltype`](@ref)) and general (custom type) indices called
+'addresses'.
 
 `AbstractOperator` instances operate on vectors of type [`AbstractDVec`](@ref) from the
 module `DictVectors` and work well with addresses of type
@@ -34,11 +35,11 @@ and either
 
 or
 - `LinearAlgebra.mul!(y, op, x)` and
-- `LinearAlgebra.dot(x, op, y)`
+- `DictVectors.dot_from_right(x, op, y)`
 
 Optional additional methods to implement:
-- [`valtype(op)`](@ref): defaults to `eltype(op)`
-- [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
+- [`VectorInterface.scalartype(op)`](@ref): defaults to `eltype(eltype(op))`
+- [`LOStructure(::Type{typeof(op)})`](@ref LOStructure): defaults to `AdjointUnknown`
 - [`dimension(op, addr)`](@ref Main.Hamiltonians.dimension): defaults to dimension of
   address space
 
@@ -46,8 +47,27 @@ See also [`AbstractHamiltonian`](@ref), [`Interfaces`](@ref).
 """
 abstract type AbstractOperator{T} end
 
-Base.eltype(::AbstractOperator{T}) where {T} = T # could be vector value
-Base.valtype(h::AbstractOperator) = eltype(h) # type of underlying scalar values
+"""
+    eltype(op::AbstractOperator)
+Return the type of the elements of the operator. This can be a vector value. For the
+underlying scalar type use [`scalartype`](@ref).
+
+Part of the [`AbstractOperator`](@ref) interface.
+!!! note
+    New types should only implement the method with the argument in the type domain.
+"""
+Base.eltype(::Type{<:AbstractOperator{T}}) where {T} = T # could be vector value
+
+"""
+    scalartype(op::AbstractOperator)
+Return the type of the underlying scalar field of the operator. This may be different from
+the element type of the operator returned by [`eltype`](@ref), which can be a vector value.
+
+Part of the [`AbstractOperator`](@ref) interface.
+!!! note
+    New types should only implement the method with the argument in the type domain.
+"""
+VectorInterface.scalartype(::Type{<:AbstractOperator{T}}) where T = eltype(T)
 
 """
     AbstractHamiltonian{T} <: AbstractOperator{T}
