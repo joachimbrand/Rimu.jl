@@ -47,8 +47,8 @@ G2list = ((G2RealCorrelator(d) for d in dvals)...,)
 # To obtain an unbiased result, at least two replicas should be used. One can also use more
 # than two to improve the statistics. This is particularly helpful when the walker number is
 # low.
-number_of_replicas = 3
-replica_strategy = AllOverlaps(number_of_replicas; operator=G2list)
+n_replicas = 3
+replica_strategy = AllOverlaps(n_replicas; operator=G2list)
 
 # Other FCIQMC parameters and strategies can be set in the same way as before.
 steps_equilibrate = 1_000
@@ -93,7 +93,7 @@ println(filter(contains("Op"), names(df)))
 # equilibration steps.
 
 # Now, we can calculate the correlation function for each value of ``d``.
-println("Two-body correlator from $num_replicas replicas:")
+println("Two-body correlator from $n_replicas replicas:")
 for d in dvals
     r = rayleigh_replica_estimator(df; op_name = "Op$(d+1)", skip=steps_equilibrate)
     println("   G2($d) = $(r.f) ± $(r.σ_f)")
@@ -105,8 +105,8 @@ end
 
 # Since we ran multiple independent replicas, we also have multiple estimates of the shift
 # energy.
-println("Shift energy from $num_replicas replicas:")
-for i in 1:num_replicas
+println("Shift energy from $n_replicas replicas:")
+for i in 1:n_replicas
     se = shift_estimator(df; shift="shift_$i", skip=steps_equilibrate)
     println("   Replica $i: $(se.mean) ± $(se.err)")
 end

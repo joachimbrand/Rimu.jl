@@ -32,7 +32,7 @@ end
 end
 
 """
-    G2RealCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+    G2RealCorrelator(d::Int) <: AbstractOperator{Float64}
 
 Two-body operator for density-density correlation between sites separated by `d`
 with `0 ≤ d < M`.
@@ -62,10 +62,10 @@ equivalent to stacking all components into a single Fock state.
 * [`HubbardReal1D`](@ref)
 * [`G2RealSpace`](@ref)
 * [`G2MomCorrelator`](@ref)
-* [`AbstractHamiltonian`](@ref)
+* [`AbstractOperator`](@ref)
 * [`AllOverlaps`](@ref)
 """
-struct G2RealCorrelator{D} <: AbstractHamiltonian{Float64}
+struct G2RealCorrelator{D} <: AbstractOperator{Float64}
 end
 
 G2RealCorrelator(d::Int) = G2RealCorrelator{d}()
@@ -104,7 +104,7 @@ num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0
 num_offdiagonals(::G2RealCorrelator, ::CompositeFS) = 0
 
 """
-    G2RealSpace(geometry::CubicGrid, σ=1, τ=1; sum_components=false) <: AbstractHamiltonian{SArray}
+    G2RealSpace(geometry::CubicGrid, σ=1, τ=1; sum_components=false) <: AbstractOperator{SArray}
 
 Two-body operator for density-density correlation for all [`Displacements`](@ref) ``d⃗`` in the specified `geometry`.
 
@@ -157,10 +157,10 @@ julia> diagonal_element(g2_sum, fs"|⇅⋅↓↑⟩")
 * [`HubbardRealSpace`](@ref)
 * [`G2RealCorrelator`](@ref)
 * [`G2MomCorrelator`](@ref)
-* [`AbstractHamiltonian`](@ref)
+* [`AbstractOperator`](@ref)
 * [`AllOverlaps`](@ref)
 """
-struct G2RealSpace{A,B,G<:CubicGrid,S} <: AbstractHamiltonian{S}
+struct G2RealSpace{A,B,G<:CubicGrid,S} <: AbstractOperator{S}
     geometry::G
     init::S
 end
@@ -226,7 +226,7 @@ function diagonal_element(g2::G2RealSpace{0,0}, addr::CompositeFS)
 end
 
 """
-    G2MomCorrelator(d::Int,c=:cross) <: AbstractHamiltonian{ComplexF64}
+    G2MomCorrelator(d::Int,c=:cross) <: AbstractOperator{ComplexF64}
 
 Two-body correlation operator representing the density-density
 correlation at distance `d` of a two component system
@@ -267,10 +267,10 @@ and let it be the default value.
 * [`BoseFS2C`](@ref)
 * [`G2RealCorrelator`](@ref)
 * [`G2RealSpace`](@ref)
-* [`AbstractHamiltonian`](@ref)
+* [`AbstractOperator`](@ref)
 * [`AllOverlaps`](@ref)
 """
-struct G2MomCorrelator{C} <: AbstractHamiltonian{ComplexF64}
+struct G2MomCorrelator{C} <: AbstractOperator{ComplexF64}
     d::Int
 
     function G2MomCorrelator(d,c=:cross)
@@ -382,7 +382,7 @@ function get_offdiagonal(
 end
 
 """
-    SuperfluidCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+    SuperfluidCorrelator(d::Int) <: AbstractOperator{Float64}
 
 Operator for extracting superfluid correlation between sites separated by a distance `d` with `0 ≤ d < M`:
 
@@ -398,10 +398,10 @@ similar use of [`G2RealCorrelator`](@ref) see
 [G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html).
 
 
-See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`AbstractHamiltonian`](@ref),
+See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`AbstractOperator`](@ref),
 and [`AllOverlaps`](@ref).
 """
-struct SuperfluidCorrelator{D} <: AbstractHamiltonian{Float64}
+struct SuperfluidCorrelator{D} <: AbstractOperator{Float64}
 end
 
 SuperfluidCorrelator(d::Int) = SuperfluidCorrelator{d}()
@@ -430,7 +430,7 @@ end
 
 
 """
-    StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+    StringCorrelator(d::Int) <: AbstractOperator{Float64}
 
 Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice
 separated by a distance `d` with `0 ≤ d < M`
@@ -446,9 +446,9 @@ Assumes a one-dimensional lattice with periodic boundary conditions. For usage
 see [`SuperfluidCorrelator`](@ref) and [`AllOverlaps`](@ref).
 
 See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`SuperfluidCorrelator`](@ref),
-[`AbstractHamiltonian`](@ref), and [`AllOverlaps`](@ref).
+[`AbstractOperator`](@ref), and [`AllOverlaps`](@ref).
 """
-struct StringCorrelator{D} <: AbstractHamiltonian{Float64}
+struct StringCorrelator{D} <: AbstractOperator{Float64}
 end
 
 StringCorrelator(d::Int) = StringCorrelator{d}()

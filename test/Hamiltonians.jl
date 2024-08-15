@@ -6,6 +6,7 @@ using Test
 using DataFrames
 using Suppressor
 using StaticArrays
+using Rimu.Hamiltonians: TransformUndoer
 
 function exact_energy(ham)
     dv = DVec(starting_address(ham) => 1.0)
@@ -66,7 +67,7 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
         end
         @testset "offdiagonals" begin
             # `get_offdiagonal` is not mandatory but `offdiagonals` is
-            if length(methods(get_offdiagonal, (typeof(H), typeof(add), Int))) > 0
+            if length(methods(get_offdiagonal, (typeof(H), typeof(address), Int))) > 0
                 ods = [get_offdiagonal(H, addr, i) for i in 1:num_offdiagonals(H, addr)]
                 @test ods == offdiagonals(H, addr)
             end
@@ -264,7 +265,7 @@ end
 
         MatrixHamiltonian(Float64[1 2;2 0]),
         GutzwillerSampling(MatrixHamiltonian([1.0 2.0;2.0 0.0]); g=0.3),
-        Rimu.Hamiltonians.TransformUndoer(
+        TransformUndoer(
             GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3)
         ),
 
@@ -619,7 +620,7 @@ end
                 @test starting_address(G) == addr
                 @test all(x == y for (x, y) in zip(offdiagonals(H, addr), offdiagonals(G, addr)))
                 @test LOStructure(G) isa AdjointKnown
-                @test LOStructure(Rimu.Hamiltonians.TransformUndoer(G,G)) isa AdjointKnown
+                @test LOStructure(TransformUndoer(G,G)) isa AdjointKnown
 
                 @test eval(Meta.parse(repr(G))) == G
                 @test eval(Meta.parse(repr(G'))) == G'
@@ -647,20 +648,23 @@ end
                 g = rand()
                 x = rand()
                 G = GutzwillerSampling(H, g)
-                add = starting_address(H)
-                dv = DVec(add => x)
+                address = starting_address(H)
+                dv = DVec(address => x)
                 # transforming the Hamiltonian again should be consistent
-                fsq = Rimu.Hamiltonians.TransformUndoer(G)
-                fHf = Rimu.Hamiltonians.TransformUndoer(G, H)
+                fsq = TransformUndoer(G)
+                fHf = TransformUndoer(G, H)
                 Ebare = dot(dv, H, dv)/dot(dv, dv)
                 Egutz = dot(dv, G, dv)/dot(dv, dv)
                 Etrans = dot(dv, fHf, dv)/dot(dv, fsq, dv)
                 @test Ebare ≈ Egutz ≈ Etrans
 
                 # general operators
-                m = num_modes(add)
+                m = num_modes(address)
                 g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
-                g2transformed = map(d -> dot(dv, Rimu.Hamiltonians.TransformUndoer(G,G2RealCorrelator(d)), dv)/dot(dv, fsq, dv), 0:m-1)
+                g2transformed = map(
+                    d -> dot(dv, TransformUndoer(G,G2RealCorrelator(d)), dv)/dot(dv, fsq, dv),
+                    0:m-1
+                )
                 @test all(g2vals ≈ g2transformed)
 
                 # type promotion
@@ -726,8 +730,8 @@ end
                 # energy
                 x = rand()
                 G = GuidingVectorSampling(H, v, 0.2)
-                add = starting_address(H)
-                dv = DVec(add => x)
+                address = starting_address(H)
+                dv = DVec(address => x)
                 # transforming the Hamiltonian again should be consistent
                 fsq = Rimu.Hamiltonians.TransformUndoer(G)
                 fHf = Rimu.Hamiltonians.TransformUndoer(G, H)
@@ -737,7 +741,7 @@ end
                 @test Ebare ≈ Egutz ≈ Etrans
 
                 # general operators
-                m = num_modes(add)
+                m = num_modes(address)
                 g2vals = map(d -> dot(dv, G2RealCorrelator(d), dv)/dot(dv, dv), 0:m-1)
                 g2transformed = map(d -> dot(dv, Rimu.Hamiltonians.TransformUndoer(G,G2RealCorrelator(d)), dv)/dot(dv, fsq, dv), 0:m-1)
                 @test all(g2vals ≈ g2transformed)
@@ -1124,9 +1128,9 @@ using Rimu.Hamiltonians: circshift_dot
         @test diagonal_element(Momentum(1), BoseFS((1,0,0,0))) ≡ -1.0
         @test_throws MethodError diagonal_element(Momentum(2), BoseFS((0,1,0)))
 
-        for add in (BoseFS2C((0,1,2,3,0), (1,2,3,4,5)), FermiFS2C((1,0,0,1), (0,0,1,0)))
-            @test diagonal_element(Momentum(1), add) + diagonal_element(Momentum(2), add) ≡
-                diagonal_element(Momentum(0), add)
+        for address in (BoseFS2C((0,1,2,3,0), (1,2,3,4,5)), FermiFS2C((1,0,0,1), (0,0,1,0)))
+            @test diagonal_element(Momentum(1), address) + diagonal_element(Momentum(2), address) ≡
+                diagonal_element(Momentum(0), address)
         end
 
         @test num_offdiagonals(Momentum(), BoseFS((0,1,0))) == 0
@@ -1138,14 +1142,14 @@ using Rimu.Hamiltonians: circshift_dot
         @test diagonal_element(DensityMatrixDiagonal(5), FermiFS((0,1,0,1,0,1,0))) == 0
         @test diagonal_element(DensityMatrixDiagonal(2; component=1), BoseFS((1,5,1,0))) == 5
 
-        for add in (
+        for address in (
             CompositeFS(BoseFS((1,2,3,4,5)), BoseFS((5,4,3,2,1))),
             BoseFS2C((1,2,3,4,5), (5,4,3,2,1))
             )
             for i in 1:5
-                @test diagonal_element(DensityMatrixDiagonal(i, component=1), add) == i
-                @test diagonal_element(DensityMatrixDiagonal(i, component=2), add) == 6 - i
-                @test diagonal_element(DensityMatrixDiagonal(i), add) == 6
+                @test diagonal_element(DensityMatrixDiagonal(i, component=1), address) == i
+                @test diagonal_element(DensityMatrixDiagonal(i, component=2), address) == 6 - i
+                @test diagonal_element(DensityMatrixDiagonal(i), address) == 6
             end
         end
 
@@ -1435,12 +1439,12 @@ end
         even_b = BasisSetRepresentation(ParitySymmetry(ham))
         odd_b = BasisSetRepresentation(ParitySymmetry(ham; odd=true))
 
-        for add in even_b.basis
-            @test add == min(add, reverse(add))
+        for address in even_b.basis
+            @test address == min(address, reverse(address))
         end
-        for add in odd_b.basis
-            @test add == min(add, reverse(add))
-            @test add ≠ reverse(add)
+        for address in odd_b.basis
+            @test address == min(address, reverse(address))
+            @test address ≠ reverse(address)
         end
 
         ham_m = Matrix(ham)

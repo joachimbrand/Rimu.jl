@@ -18,7 +18,7 @@ See [`Offdiagonals`](@ref) for a default implementation.
   `get_offdiagonal(h, a, i)`.
 * `Base.size(::AbstractOffdiagonals)`: should be equivalent to `num_offdiagonals(h, a)`.
 
-See also [`offdiagonals`](@ref), [`AbstractHamiltonian`](@ref).
+See also [`offdiagonals`](@ref), [`AbstractHamiltonian`](@ref), [`AbstractOperator`](@ref).
 """
 abstract type AbstractOffdiagonals{A,T} <: AbstractVector{Tuple{A,T}} end
 
@@ -37,9 +37,9 @@ construct this iterator use [`offdiagonals`](@ref).
 This is the default implementation of [`AbstractOffdiagonals`](@ref) defined in terms of
 [`num_offdiagonals`](@ref) and [`get_offdiagonal`](@ref).
 
-See also [`offdiagonals`](@ref), [`AbstractHamiltonian`](@ref).
+See also [`offdiagonals`](@ref), [`AbstractHamiltonian`](@ref), [`AbstractOperator`](@ref).
 """
-struct Offdiagonals{A,T,H<:AbstractHamiltonian{T}} <: AbstractOffdiagonals{A,T}
+struct Offdiagonals{A,T,H<:AbstractOperator{T}} <: AbstractOffdiagonals{A,T}
     hamiltonian::H
     address::A
     length::Int

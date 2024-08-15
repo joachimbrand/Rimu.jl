@@ -58,9 +58,9 @@ check_transform(::NoStats, _) = nothing
 
 # TODO: add custom names
 """
-    AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{num_replicas}
+    AllOverlaps(n_replicas=2; operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{n_replicas}
 
-Run `num_replicas` replicas and report overlaps between all pairs of replica vectors. If `operator` is
+Run `n_replicas` replicas and report overlaps between all pairs of replica vectors. If `operator` is
 not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If `operator` is a tuple
 of operators, the overlaps are computed for all operators.
 
@@ -68,7 +68,7 @@ Column names in the report are of the form `c{i}_dot_c{j}` for vector-vector ove
 `c{i}_Op{k}_c{j}` for operator overlaps.
 
 See [`ProjectorMonteCarloProblem`](@ref), [`ReplicaStrategy`](@ref) and
-[`AbstractHamiltonian`](@ref) (for an interface for implementing operators).
+[`n_replicas`](@ref) (for an interface for implementing operators).
 
 # Transformed Hamiltonians
 
@@ -111,13 +111,13 @@ end
 
 const TupleOrVector = Union{Tuple, Vector}
 
-function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
-    num_replicas isa Integer || throw(ArgumentError("num_replicas must be an integer"))
+function AllOverlaps(n_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
+    n_replicas isa Integer || throw(ArgumentError("n_replicas must be an integer"))
     if isnothing(operator)
         operators = ()
     elseif operator isa TupleOrVector
-        if !(eltype(operator) <: AbstractHamiltonian)
-            throw(ArgumentError("operator must be an AbstractHamiltonian or a Tuple or "*
+        if !(eltype(operator) <: AbstractOperator)
+            throw(ArgumentError("operator must be an AbstractOperator or a Tuple or "*
                 "Vector of AbstractHamiltonians"))
         end
         operators = operator
@@ -131,9 +131,9 @@ function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnor
         ops = (map(op -> Rimu.Hamiltonians.TransformUndoer(transform, op), operators)..., fsq)
     end
     if !vecnorm && length(ops) == 0
-        return NoStats(num_replicas)
+        return NoStats(n_replicas)
     end
-    return AllOverlaps{num_replicas,length(ops),typeof(ops),vecnorm}(ops)
+    return AllOverlaps{n_replicas,length(ops),typeof(ops),vecnorm}(ops)
 end
 
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, spectral_states::NTuple{N}) where {N,B}
