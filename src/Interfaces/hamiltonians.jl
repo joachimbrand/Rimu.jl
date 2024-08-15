@@ -28,21 +28,18 @@ for defining correlation functions. For concrete implementations see
 
 Basic interface methods to implement:
 - [`allows_address_type(op, type)`](@ref)
-
-and either
-- [`LinearAlgebra.mul!(y, op, x)`](@ref) and
-- [`Interfaces.dot_from_right(x, op, y)`](@ref)
-
-or, alternatively (these imply default implementations for the above):
 - [`diagonal_element(op, address)`](@ref)
 - [`num_offdiagonals(op, address)`](@ref) and
-- [`get_offdiagonal(op, address, chosen)`](@ref)
+- [`get_offdiagonal(op, address, chosen)`](@ref) or [`offdiagonals`](@ref)
 
 Optional additional methods to implement:
 - [`VectorInterface.scalartype(op)`](@ref): defaults to `eltype(eltype(op))`
 - [`LOStructure(::Type{typeof(op)})`](@ref LOStructure): defaults to `AdjointUnknown`
 - [`dimension(op, addr)`](@ref Main.Hamiltonians.dimension): defaults to dimension of
   address space
+
+In order to calculate observables efficiently, it may make sense to implement custom methods
+for [`Interfaces.dot_from_right(x, op, y)`](@ref) and [`LinearAlgebra.mul!(y, op, x)`](@ref).
 
 See also [`AbstractHamiltonian`](@ref), [`Interfaces`](@ref).
 """
