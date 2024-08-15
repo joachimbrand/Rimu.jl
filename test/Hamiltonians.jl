@@ -67,7 +67,7 @@ function test_hamiltonian_interface(H, addr=starting_address(H))
         end
         @testset "offdiagonals" begin
             # `get_offdiagonal` is not mandatory but `offdiagonals` is
-            if length(methods(get_offdiagonal, (typeof(H), typeof(address), Int))) > 0
+            if length(methods(get_offdiagonal, (typeof(H), typeof(addr), Int))) > 0
                 ods = [get_offdiagonal(H, addr, i) for i in 1:num_offdiagonals(H, addr)]
                 @test ods == offdiagonals(H, addr)
             end
