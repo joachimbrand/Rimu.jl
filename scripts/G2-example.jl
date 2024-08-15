@@ -47,8 +47,8 @@ G2list = ((G2RealCorrelator(d) for d in dvals)...,)
 # To obtain an unbiased result, at least two replicas should be used. One can also use more
 # than two to improve the statistics. This is particularly helpful when the walker number is
 # low.
-num_replicas = 3
-replica_strategy = AllOverlaps(num_replicas; operator = G2list)
+number_of_replicas = 3
+replica_strategy = AllOverlaps(number_of_replicas; operator=G2list)
 
 # Other FCIQMC parameters and strategies can be set in the same way as before.
 steps_equilibrate = 1_000
