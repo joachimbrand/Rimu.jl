@@ -278,11 +278,7 @@ function Base.:*(h::AbstractOperator, v::AbstractDVec)
     return mul!(zerovector(v, promote_type(eltype(h), valtype(v))), h, v)
 end
 
-"""
-    dot(w, op::AbstractOperator, v)
-
-Evaluate `w⋅op(v)` minimizing memory allocations.
-"""
+# docstring in Interfaces
 function LinearAlgebra.dot(w::AbstractDVec, op::AbstractOperator, v::AbstractDVec)
     return dot(LOStructure(op), w, op, v)
 end
@@ -297,13 +293,8 @@ function LinearAlgebra.dot(::LOStructure, w, op::AbstractOperator, v)
     end
 end
 
-"""
-    dot_from_right(w, op::AbstractOperator, v)
-
-Internal function evaluates the 3-argument `dot()` function in order from right
-to left.
-"""
-function dot_from_right(w, op, v::AbstractDVec)
+# docstring in Interfaces
+function Interfaces.dot_from_right(w, op, v::AbstractDVec)
     T = typeof(zero(valtype(w)) * zero(eltype(op)) * zero(valtype(v)))
     result = zero(T)
     for (key, val) in pairs(v)

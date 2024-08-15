@@ -30,9 +30,15 @@ end
 LOStructure(::Type{<:ParticleNumberOperator}) = IsDiagonal()
 starting_address(n::ParticleNumberOperator) = n.address
 
-function diagonal_element(::ParticleNumberOperator, addr::AbstractFockAddress)
+function diagonal_element(
+    ::ParticleNumberOperator{<:AbstractFockAddress},
+    addr::AbstractFockAddress
+)
     return float(num_particles(addr))
 end
-function allows_address_type(::ParticleNumberOperator, ::Type{A}) where {A}
-    return A <: AbstractFockAddress
+function allows_address_type(
+    ::ParticleNumberOperator{<:AbstractFockAddress},
+    ::Type{B}
+) where {B}
+    return B <: AbstractFockAddress
 end

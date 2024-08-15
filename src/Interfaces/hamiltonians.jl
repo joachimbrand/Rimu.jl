@@ -14,7 +14,8 @@ module `DictVectors` and work well with addresses of type
 from the module `BitStringAddresses`.
 
 The defining feature of an `AbstractOperator` is that it can be applied to a vector with
-`mul!(y, op, x)` and that three-way dot products are defined with `dot(x, op, y)`.
+[`mul!(y, op, x)`](@ref LinearAlgebra.mul!) and that three-way dot products are defined with
+[`dot(x, op, y)`](@ref LinearAlgebra.mul!).
 
 The `AbstractOperator` type is useful for defining operators that are not necessarily
 Hamiltonians, but that can be used in the context of FCIQMC as observable operators, e.g.
@@ -29,13 +30,13 @@ Basic interface methods to implement:
 - [`allows_address_type(op, type)`](@ref)
 
 and either
+- [`LinearAlgebra.mul!(y, op, x)`](@ref) and
+- [`Interfaces.dot_from_right(x, op, y)`](@ref)
+
+or, alternatively (these imply default implementations for the above):
 - [`diagonal_element(op, address)`](@ref)
 - [`num_offdiagonals(op, address)`](@ref) and
 - [`get_offdiagonal(op, address, chosen)`](@ref)
-
-or
-- `LinearAlgebra.mul!(y, op, x)` and
-- `DictVectors.dot_from_right(x, op, y)`
 
 Optional additional methods to implement:
 - [`VectorInterface.scalartype(op)`](@ref): defaults to `eltype(eltype(op))`
@@ -68,6 +69,35 @@ Part of the [`AbstractOperator`](@ref) interface.
     New types should only implement the method with the argument in the type domain.
 """
 VectorInterface.scalartype(::Type{<:AbstractOperator{T}}) where T = eltype(T)
+
+@doc """
+    LinearAlgebra.mul!(w::AbstractDVec, op::AbstractOperator, v::AbstractDVec)
+In place multiplication of `op` with `v` and storing the result in `w`. The result is
+returned.
+
+Part of the [`AbstractOperator`](@ref) interface.
+
+The default implementation relies of [`diagonal_element`](@ref) and [`offdiagonals`](@ref)
+to access the elements of the operator. The function can be overloaded for custom operators.
+"""
+LinearAlgebra.mul!
+
+@doc """
+    dot(w, op::AbstractOperator, v)
+
+Evaluate `w⋅op(v)` minimizing memory allocations.
+"""
+LinearAlgebra.dot
+
+@doc """
+    dot_from_right(w, op::AbstractOperator, v)
+
+Internal function evaluates the 3-argument `dot()` function in order from right
+to left.
+"""
+function dot_from_right(::W, ::O, ::V) where {W, O, V}
+    throw(ArgumentError("dot_from_right not implemented for types $W, $O, $V"))
+end
 
 """
     AbstractHamiltonian{T} <: AbstractOperator{T}

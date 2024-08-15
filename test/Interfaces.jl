@@ -32,6 +32,8 @@ using Test
 
     @test LOStructure(ham) == AdjointKnown()
     @test has_adjoint(ham)
+
+    @test_throws ArgumentError Interfaces.dot_from_right(1, 2, 3)
 end
 
 # using lomc! with a matrix was removed in Rimu.jl v0.12.0

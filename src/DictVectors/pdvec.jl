@@ -823,7 +823,7 @@ function LinearAlgebra.dot(
     return dot_from_right(target, op, source)
 end
 
-function dot_from_right(target, op, source::PDVec)
+function Interfaces.dot_from_right(target, op, source::PDVec)
     T = typeof(zero(valtype(target)) * zero(valtype(source)) * zero(eltype(op)))
 
     result = sum(pairs(source); init=zero(T)) do (k, v)
