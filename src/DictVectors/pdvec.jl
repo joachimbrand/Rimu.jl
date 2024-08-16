@@ -851,6 +851,14 @@ function LinearAlgebra.dot(t::PDVec, ops::Tuple, source::PDVec, w=nothing)
     end
 end
 
+function walkernumber_and_length(t::PDVec)
+    t_local = localpart(t)
+    wn = walkernumber(t_local)
+    len = length(t_local)
+    result = merge_remote_reductions(t.communicator, +, SVector(wn, len))
+    return (result[1], Int(result[2]))
+end
+
 """
     FrozenPDVec
 

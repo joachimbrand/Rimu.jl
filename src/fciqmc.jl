@@ -140,9 +140,8 @@ function advance!(algorithm::FCIQMC, report, state::ReplicaState, s_state::Singl
     # pv was mutated and now contains the new vector.
     v, pv = (pv, v)
 
-    # Stats
-    tnorm = walkernumber(v)
-    len = length(v)
+    # Stats:
+    tnorm, len = walkernumber_and_length(v)
 
     # Updates
     time_step = update_time_step(time_step_strategy, time_step, tnorm)

@@ -12,6 +12,7 @@ module DictVectors
 using Folds: Folds
 using LinearAlgebra: LinearAlgebra, I, dot, ⋅, mul!, normalize!, rank
 using Random: Random
+using StaticArrays: SVector
 using VectorInterface: VectorInterface, add, add!, inner, norm, scalartype,
     scale, scale!, zerovector, zerovector!, zerovector!!
 
@@ -26,7 +27,7 @@ using ..StochasticStyles: StochasticStyles, IsDeterministic
 import ..Interfaces: deposit!, storage, StochasticStyle, default_style, freeze, localpart,
     working_memory
 
-export deposit!, storage, walkernumber, dot_from_right
+export deposit!, storage, walkernumber, walkernumber_and_length, dot_from_right
 export DVec, InitiatorDVec, PDVec, PDWorkingMemory
 
 export InitiatorRule, Initiator, SimpleInitiator, NonInitiator, CoherentInitiator
