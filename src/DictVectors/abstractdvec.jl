@@ -252,6 +252,14 @@ walkernumber(::StochasticStyle, v) = dot(Norm1ProjectorPPop(), v)
 # complex walkers as two populations
 # the following default is fast and generic enough to be good for real walkers and
 
+"""
+    walkernumber_and_length(v)
+
+Compute [`walkernumber`](@ref) and `length` at the same time. When MPI is used, this is more
+efficient than calling them separately.
+"""
+walkernumber_and_length(v) = walkernumber(v), length(v)
+
 ###
 ### Vector-operator functions
 ###

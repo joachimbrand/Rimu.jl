@@ -486,11 +486,13 @@ function mpi_exchange_alltoall!(
         throw(ArgumentError("mismatch in number of columns ($nrows and $(dst.nrows))."))
     end
 
-    resize!(dst.counts, length(src.counts))
-    MPI.Alltoall!(MPI.UBuffer(src.counts, 1), MPI.UBuffer(dst.counts, 1), comm)
-
     resize!(dst.offsets, length(src.offsets))
     MPI.Alltoall!(MPI.UBuffer(src.offsets, nrows), MPI.UBuffer(dst.offsets, nrows), comm)
+
+    resize!(dst.counts, length(src.counts))
+    for i in eachindex(dst.counts)
+        dst.counts[i] = dst.offsets[i * nrows]
+    end
 
     resize!(dst.buffer, sum(dst.counts))
     send_vbuff = MPI.VBuffer(src.buffer, src.counts)
