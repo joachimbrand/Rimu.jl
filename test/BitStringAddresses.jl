@@ -543,6 +543,7 @@ end
     @testset "Properties of OccupationNumberFS" begin
         @test num_modes(ofs) == 3
         @test num_particles(ofs) == 6
+        @test num_particles(OccupationNumberFS(86, 84, 86)) == 256
         @test num_occupied_modes(ofs) == 3
         @test onr(ofs) == ofs.onr == SVector{3,UInt8}(1, 2, 3)
         @test occupation_number_representation(ofs) == onr(ofs)
