@@ -42,6 +42,7 @@ In addition, Rimu defines the following function.
 
 ```@docs
 walkernumber
+walkernumber_and_length
 dot_from_right
 ```
 
