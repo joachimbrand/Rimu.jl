@@ -316,13 +316,6 @@ mpi_size(ptp::PointToPoint) = ptp.mpi_size
 mpi_comm(ptp::PointToPoint) = ptp.mpi_comm
 
 function synchronize_remote!(ptp::PointToPoint, w)
-    if ptp.report
-        wait_time = @elapsed MPI.Barrier(ptp.mpi_comm)
-        wait_time = MPI.Allreduce!(Ref(wait_time), MPI.MAX, ptp.mpi_comm)[]
-    else
-        wait_time = 0.0
-    end
-
     comm_time = @elapsed begin
         # Asynchronously send all buffers.
         for offset in 1:ptp.mpi_size - 1
@@ -339,7 +332,7 @@ function synchronize_remote!(ptp::PointToPoint, w)
         end
     end
     if ptp.report
-        return (:total_comm_time, :wait_time), (comm_time, wait_time)
+        return (:total_comm_time,), (comm_time,)
     else
         return (), ()
     end
@@ -581,13 +574,6 @@ mpi_size(ata::AllToAll) = ata.mpi_size
 mpi_comm(ata::AllToAll) = ata.mpi_comm
 
 function synchronize_remote!(ata::AllToAll, w)
-    if ata.report
-        wait_time = @elapsed MPI.Barrier(ata.mpi_comm)
-        wait_time = MPI.Allreduce!(Ref(wait_time), max, ata.mpi_comm)[]
-    else
-        wait_time = 0.0
-    end
-
     # Fill the buffer
     comm_time = @elapsed begin
         empty!(ata.send_buffer)
@@ -609,8 +595,8 @@ function synchronize_remote!(ata::AllToAll, w)
     end
     if ata.report
         return (
-            (:mpi_comm_time, :total_comm_time, :wait_time),
-            (mpi_time, comm_time, wait_time),
+            (:mpi_comm_time, :total_comm_time),
+            (mpi_time, comm_time),
         )
     else
         return (), ()
