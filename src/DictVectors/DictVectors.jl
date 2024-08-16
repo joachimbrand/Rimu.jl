@@ -12,6 +12,7 @@ module DictVectors
 using Folds: Folds
 using LinearAlgebra: LinearAlgebra, I, dot, ⋅, mul!, normalize!, rank
 using Random: Random
+using StaticArrays: SVector
 using VectorInterface: VectorInterface, add, add!, inner, norm, scalartype,
     scale, scale!, zerovector, zerovector!, zerovector!!
 
