@@ -378,6 +378,8 @@ end
 end
 
 # bypass branching code for Exact() sub-strategy
-@inline function spawn!(s::DynamicSemistochastic{<:Any, <:Exact}, args...)
-    return (1, 0, spawn!(s.strat, args...)...)
+@inline function spawn!(
+    s::DynamicSemistochastic{<:Any,<:Exact}, w, od::AbstractVector, args...
+)
+    return (1, 0, spawn!(s.strat, w, od, args...)...)
 end
