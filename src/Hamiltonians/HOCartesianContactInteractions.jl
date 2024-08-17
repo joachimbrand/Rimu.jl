@@ -291,8 +291,13 @@ num_offdiagonals(h::HOCartesianContactInteractions, addr::BoseFS) = dimension(h)
 """
     HOCartOffdiagonals
 
-Specialized [`AbstractOffdiagonals`](@ref) that iterates over valid offdiagonal moves that
-are connected by the interaction matrix.
+Specialized iterator for [`HOCartesianContactInteractions`](@ref) that iterates over valid
+offdiagonal moves that are connected by the interaction matrix.
+
+!!! note
+    This iterator is not an [`AbstractOffdiagonals`](@ref) and only supports basic
+    iteration. The number of offdiagonals is not known in advance and the iterator will
+    throw an error if `size` or `length` is called.
 """
 struct HOCartOffdiagonals{
     A<:BoseFS,T,B,H<:AbstractHamiltonian{T},P<:OccupiedPairsMap

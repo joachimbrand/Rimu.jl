@@ -218,10 +218,10 @@ Part of the [`AbstractHamiltonian`](@ref) interface.
 num_offdiagonals(m::AbstractMatrix, i) = length(offdiagonals(m, i))
 
 """
-    newadd, me = get_offdiagonal(ham, add, chosen)
+    newadd, me = get_offdiagonal(ham, address, chosen)
 
 Compute value `me` and new address `newadd` of a single (off-diagonal) matrix element in a
-Hamiltonian `ham`. The off-diagonal element is in the same column as address `add` and is
+Hamiltonian `ham`. The off-diagonal element is in the same column as address `address` and is
 indexed by integer index `chosen`.
 
 # Example
@@ -305,10 +305,11 @@ end
 
 """
     random_offdiagonal(offdiagonals::AbstractOffdiagonals)
-    random_offdiagonal(ham::AbstractHamiltonian, add)
+    random_offdiagonal(ham::AbstractHamiltonian, address)
+    -> newaddress, probability, matrixelement
 
 Generate a single random excitation, i.e. choose from one of the accessible off-diagonal
-elements in the column corresponding to address `add` of the Hamiltonian matrix represented
+elements in the column corresponding to `address` in the Hamiltonian matrix represented
 by `ham`. Alternatively, pass as argument an iterator over the accessible matrix elements.
 
 Part of the [`AbstractHamiltonian`](@ref) interface.
@@ -320,8 +321,8 @@ function random_offdiagonal(offdiagonals::AbstractVector)
     return naddress, 1.0/nl, melem
 end
 
-function random_offdiagonal(ham, add)
-    return random_offdiagonal(offdiagonals(ham, add))
+function random_offdiagonal(ham, address)
+    return random_offdiagonal(offdiagonals(ham, address))
 end
 
 @doc """

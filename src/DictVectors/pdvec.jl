@@ -754,15 +754,15 @@ See [`PDVec`](@ref), [`PDWorkingMemory`](@ref), [`AbstractOperator`](@ref).
 """
 function LinearAlgebra.mul!(
     y::PDVec, op::AbstractOperator, x::PDVec,
-    w=PDWorkingMemory(y; style=IsDeterministic()),
+    w=PDWorkingMemory(y; style=StochasticStyle(y)),
 )
-    if w.style ≢ IsDeterministic()
+    if !(w.style isa IsDeterministic)
         throw(ArgumentError(
             "Attempted to use `mul!` with non-deterministic working memory. " *
             "Use `apply_operator!` instead."
         ))
     end
-    _, _, wm, y = apply_operator!(w, y, x, op)
+    _, _, _, y = apply_operator!(w, y, x, op)
     return y
 end
 

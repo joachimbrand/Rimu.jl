@@ -149,7 +149,7 @@ This function should be overloaded in the second form, with `offdiags` as an arg
 
 See [`SpawningStrategy`](@ref).
 """
-@inline function spawn!(s::SpawningStrategy, w, op, add, val, boost=1)
+@inline function spawn!(s::SpawningStrategy, w, op::AbstractOperator, add, val, boost=1)
     return spawn!(s, w, offdiagonals(op, add), add, val, boost)
 end
 

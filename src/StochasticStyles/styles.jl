@@ -62,6 +62,8 @@ function apply_column!(::IsStochastic2Pop, w, op, add, val, boost=1)
     return (spawns, deaths, clones, zombies)
 end
 
+const FloatOrComplexFloat = Union{AbstractFloat, Complex{<:AbstractFloat}}
+
 """
     IsDeterministic{T=Float64}(compression=NoCompression()) <: StochasticStyle{T}
 
@@ -71,7 +73,7 @@ resultant vector (after annihilations) can be triggered by setting the optional
 
 See also [`StochasticStyle`](@ref).
 """
-struct IsDeterministic{T<:AbstractFloat,C<:CompressionStrategy} <: StochasticStyle{T}
+struct IsDeterministic{T<:FloatOrComplexFloat,C<:CompressionStrategy} <: StochasticStyle{T}
     compression::C
 end
 function IsDeterministic{T}(compression::C=NoCompression()) where {T,C}
@@ -213,4 +215,5 @@ end
 
 default_style(::Type{T}) where {T<:Integer} = IsStochasticInteger{T}()
 default_style(::Type{T}) where {T<:AbstractFloat} = IsDeterministic{T}()
+default_style(::Type{T}) where {T<:Complex{<:AbstractFloat}} = IsDeterministic{T}()
 default_style(::Type{T}) where {T<:Complex{<:Integer}} = IsStochastic2Pop{T}()
