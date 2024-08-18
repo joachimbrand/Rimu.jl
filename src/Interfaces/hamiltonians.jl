@@ -77,7 +77,7 @@ VectorInterface.scalartype(::Type{<:AbstractOperator{T}}) where T = eltype(T)
 In place multiplication of `op` with `v` and storing the result in `w`. The result is
 returned. Note that `w` needs to have a `valtype` that can hold a product of instances
 of `eltype(op)` and `valtype(v)`. Moreover, the [`StochasticStyle`](@ref) of `w` needs to
-be [`<: IsDeterministic`](@ref Rimu.StochasticStyles.IsDeterministic).
+be [`<:IsDeterministic`](@ref Rimu.StochasticStyles.IsDeterministic).
 
 Part of the [`AbstractOperator`](@ref) interface.
 
@@ -365,7 +365,7 @@ LOStructure(::Type) = AdjointUnknown()
 LOStructure(::AbstractMatrix) = AdjointKnown()
 
 # diagonal matrices have zero offdiagonal elements
-function num_offdiagonals(h::H, addr) where {H<:AbstractHamiltonian}
+function num_offdiagonals(h::H, addr) where {H<:AbstractOperator}
     return num_offdiagonals(LOStructure(H), h, addr)
 end
 num_offdiagonals(::IsDiagonal, _, _) = 0

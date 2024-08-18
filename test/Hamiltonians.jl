@@ -181,22 +181,29 @@ end
                 FermiFS((1, 1, 1, 1, 0, 0, 0, 0)),
             ); t=[1, 2], u=[0 3; 3 0]
         ), BoseHubbardReal1D2C(BoseFS2C((1, 2, 3), (1, 0, 0))),
-        BoseHubbardMom1D2C(BoseFS2C((1, 2, 3), (1, 0, 0))), GutzwillerSampling(HubbardReal1D(BoseFS((1, 2, 3)); u=6); g=0.3),
+        BoseHubbardMom1D2C(BoseFS2C((1, 2, 3), (1, 0, 0))),
+        GutzwillerSampling(HubbardReal1D(BoseFS((1, 2, 3)); u=6); g=0.3),
         GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3, 2, 1), (1, 2, 3)); ua=6); g=0.3),
-        GutzwillerSampling(HubbardReal1D(BoseFS((1, 2, 3)); u=6 + 2im); g=0.3), MatrixHamiltonian(Float64[1 2; 2 0]),
+        GutzwillerSampling(HubbardReal1D(BoseFS((1, 2, 3)); u=6 + 2im); g=0.3),
+        MatrixHamiltonian(Float64[1 2; 2 0]),
         GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3),
         TransformUndoer(
             GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3)
-        ), Transcorrelated1D(CompositeFS(FermiFS((0, 0, 1, 1, 0)), FermiFS((0, 1, 1, 0, 0))); t=2),
-        Transcorrelated1D(CompositeFS(FermiFS((0, 0, 1, 0)), FermiFS((0, 1, 1, 0))); v=3, v_ho=1), HubbardMom1DEP(BoseFS((0, 0, 5, 0, 0))),
-        HubbardMom1DEP(CompositeFS(FermiFS((0, 1, 1, 0, 0)), FermiFS((0, 0, 1, 0, 0))), v_ho=5), ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1, 2, 0)), FermiFS((0, 1, 0))))),
+        ),
+        Transcorrelated1D(CompositeFS(FermiFS((0, 0, 1, 1, 0)), FermiFS((0, 1, 1, 0, 0))); t=2),
+        Transcorrelated1D(CompositeFS(FermiFS((0, 0, 1, 0)), FermiFS((0, 1, 1, 0))); v=3, v_ho=1),
+        HubbardMom1DEP(BoseFS((0, 0, 5, 0, 0))),
+        HubbardMom1DEP(CompositeFS(FermiFS((0, 1, 1, 0, 0)), FermiFS((0, 0, 1, 0, 0))), v_ho=5),
+        ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1, 2, 0)), FermiFS((0, 1, 0))))),
         TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1, 0, 1), (0, 1, 1)))),
         TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0, 1, 1), (1, 0, 1)))),
         Stoquastic(HubbardMom1D(BoseFS((0, 5, 0)))),
-        momentum(HubbardMom1D(BoseFS((0, 5, 0)))), HOCartesianContactInteractions(BoseFS((2, 0, 0, 0))),
+        momentum(HubbardMom1D(BoseFS((0, 5, 0)))),
+        HOCartesianContactInteractions(BoseFS((2, 0, 0, 0))),
         HOCartesianEnergyConservedPerDim(BoseFS((2, 0, 0, 0))),
-        HOCartesianCentralImpurity(BoseFS((1, 0, 0, 0, 0))), FroehlichPolaron(OccupationNumberFS(1, 1, 1)),
-        FroehlichPolaron(OccupationNumberFS(1, 1, 1); momentum_cutoff=10.0), ParticleNumberOperator(OccupationNumberFS(1, 1, 1))
+        HOCartesianCentralImpurity(BoseFS((1, 0, 0, 0, 0))),
+        FroehlichPolaron(OccupationNumberFS(1, 1, 1)),
+        FroehlichPolaron(OccupationNumberFS(1, 1, 1); momentum_cutoff=10.0),
     )
         # test_hamiltonian_interface(H; test_spawning=false)
         test_hamiltonian_interface(H; test_spawning=!(H isa HOCartesianContactInteractions))
