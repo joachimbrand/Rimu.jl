@@ -14,15 +14,20 @@ module `DictVectors` and work well with addresses of type
 from the module `BitStringAddresses`.
 
 The defining feature of an `AbstractOperator` is that it can be applied to a vector with
-[`mul!(y, op, x)`](@ref LinearAlgebra.mul!) and that three-way dot products are defined with
-[`dot(x, op, y)`](@ref LinearAlgebra.mul!).
+[`mul!(y, op, x)`](@ref LinearAlgebra.mul!) and that three-way dot products can be
+calculated with [`dot(x, op, y)`](@ref LinearAlgebra.dot).
 
 The `AbstractOperator` type is useful for defining operators that are not necessarily
-Hamiltonians, but that can be used in the context of FCIQMC as observable operators, e.g.
-for defining correlation functions. For concrete implementations see
-[`Hamiltonians`](@ref Main.Hamiltonians). In order to implement a Hamiltonian for use in
-[`ProjectorMonteCarloProblem`](@ref) or [`ExactDiagonalizationProblem`](@ref) use the type
-[`AbstractHamiltonian`](@ref) instead, which is a subtype of `AbstractOperator`.
+Hamiltonians, but that can be used in the context of a [`ProjectorMonteCarloProblem`](@ref)
+as observable operators in a [`ReplicaStrategy`](@ref), e.g. for defining correlation
+functions. In contrast to [`AbstractHamiltonian`](@ref)s, `AbstractOperator`s do not need
+to have a [`starting_address`](@ref). Moreover, the `eltype` of an `AbstractOperator` can
+be a vector value.
+
+For concrete implementations see [`Hamiltonians`](@ref Main.Hamiltonians). In order to
+implement a Hamiltonian for use in [`ProjectorMonteCarloProblem`](@ref) or
+[`ExactDiagonalizationProblem`](@ref) use the type [`AbstractHamiltonian`](@ref) instead,
+which is a subtype of `AbstractOperator`.
 
 # Interface
 
@@ -70,7 +75,9 @@ VectorInterface.scalartype(::Type{<:AbstractOperator{T}}) where T = eltype(T)
 @doc """
     LinearAlgebra.mul!(w::AbstractDVec, op::AbstractOperator, v::AbstractDVec)
 In place multiplication of `op` with `v` and storing the result in `w`. The result is
-returned.
+returned. Note that `w` needs to have a `valtype` that can hold a product of instances
+of `eltype(op)` and `valtype(v)`. Moreover, the [`StochasticStyle`](@ref) of `w` needs to
+be [`<: IsDeterministic`](@ref IsDeterministic).
 
 Part of the [`AbstractOperator`](@ref) interface.
 

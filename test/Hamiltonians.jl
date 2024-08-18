@@ -163,6 +163,64 @@ function test_hamiltonian_structure(H)
     end
     nothing
 end
+@testset "Hamiltonian interface tests" begin
+    for H in (
+        HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
+        HubbardReal1DEP(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0, v_ho=3.0),
+        HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
+        HubbardMom1D(OccupationNumberFS(6, 0, 0, 4); t=1.0, u=0.5),
+        HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
+        ExtendedHubbardReal1D(BoseFS((1, 0, 0, 0, 1)); u=1.0, v=2.0, t=3.0),
+        ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); u=1 + 0.5im),
+        ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); t=1 + 0.5im),
+        HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
+        HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
+        HubbardRealSpace(
+            CompositeFS(
+                FermiFS((1, 1, 1, 1, 1, 0, 0, 0)),
+                FermiFS((1, 1, 1, 1, 0, 0, 0, 0)),
+            ); t=[1, 2], u=[0 3; 3 0]
+        ), BoseHubbardReal1D2C(BoseFS2C((1, 2, 3), (1, 0, 0))),
+        BoseHubbardMom1D2C(BoseFS2C((1, 2, 3), (1, 0, 0))), GutzwillerSampling(HubbardReal1D(BoseFS((1, 2, 3)); u=6); g=0.3),
+        GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3, 2, 1), (1, 2, 3)); ua=6); g=0.3),
+        GutzwillerSampling(HubbardReal1D(BoseFS((1, 2, 3)); u=6 + 2im); g=0.3), MatrixHamiltonian(Float64[1 2; 2 0]),
+        GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3),
+        TransformUndoer(
+            GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3)
+        ), Transcorrelated1D(CompositeFS(FermiFS((0, 0, 1, 1, 0)), FermiFS((0, 1, 1, 0, 0))); t=2),
+        Transcorrelated1D(CompositeFS(FermiFS((0, 0, 1, 0)), FermiFS((0, 1, 1, 0))); v=3, v_ho=1), HubbardMom1DEP(BoseFS((0, 0, 5, 0, 0))),
+        HubbardMom1DEP(CompositeFS(FermiFS((0, 1, 1, 0, 0)), FermiFS((0, 0, 1, 0, 0))), v_ho=5), ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1, 2, 0)), FermiFS((0, 1, 0))))),
+        TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1, 0, 1), (0, 1, 1)))),
+        TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0, 1, 1), (1, 0, 1)))),
+        Stoquastic(HubbardMom1D(BoseFS((0, 5, 0)))),
+        momentum(HubbardMom1D(BoseFS((0, 5, 0)))), HOCartesianContactInteractions(BoseFS((2, 0, 0, 0))),
+        HOCartesianEnergyConservedPerDim(BoseFS((2, 0, 0, 0))),
+        HOCartesianCentralImpurity(BoseFS((1, 0, 0, 0, 0))), FroehlichPolaron(OccupationNumberFS(1, 1, 1)),
+        FroehlichPolaron(OccupationNumberFS(1, 1, 1); momentum_cutoff=10.0), ParticleNumberOperator(OccupationNumberFS(1, 1, 1))
+    )
+        # test_hamiltonian_interface(H; test_spawning=false)
+        test_hamiltonian_interface(H; test_spawning=!(H isa HOCartesianContactInteractions))
+    end
+end
+
+@testset "Operator interface test" begin
+    # this is only needed for AbstractOperators that are not AbstractHamiltonians
+    # and are not tested in the Hamiltonian interface tests
+    for (op, addr) in [
+        (G2RealSpace(CubicGrid((2, 2), (true, true)), 1, 1), BoseFS{10,4}(1, 2, 3, 4)),
+        (G2RealSpace(CubicGrid(4); sum_components=true),
+            CompositeFS(BoseFS(4, 1 => 1), BoseFS(4, 1 => 1), BoseFS(4, 1 => 1))),
+        (ParticleNumberOperator(), BoseFS(1, 2, 3)),
+        (ParticleNumberOperator(), FermiFS2C((1, 0, 1), (0, 1, 1))),
+        (G2RealCorrelator(3), FermiFS2C((1, 0, 1, 1), (0, 1, 1, 0))),
+        (G2MomCorrelator(3), BoseFS(1, 2, 0, 3, 0, 4, 0, 1)),
+        (SuperfluidCorrelator(3), BoseFS(1, 2, 3, 1)),
+        (StringCorrelator(3), BoseFS(1, 0, 3, 1)),
+        (DensityMatrixDiagonal(3), FermiFS(1, 0, 1)),
+    ]
+        test_operator_interface(op, addr)
+    end
+end
 
 using Rimu.Hamiltonians: momentum_transfer_excitation
 
@@ -282,76 +340,6 @@ using Rimu.Hamiltonians: Directions, Displacements
         @test collect(Displacements(CubicGrid(2,3); center=true)) == [
             [0,-1], [1,-1], [0,0], [1,0], [0,1], [1,1]
         ]
-    end
-end
-
-@testset "Hamiltonian interface tests" begin
-    for H in (
-        HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
-        HubbardReal1DEP(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0, v_ho=3.0),
-        HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
-        HubbardMom1D(OccupationNumberFS(6, 0, 0, 4); t=1.0, u=0.5),
-        HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
-        ExtendedHubbardReal1D(BoseFS((1,0,0,0,1)); u=1.0, v=2.0, t=3.0),
-        ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); u=1 + 0.5im),
-        ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); t=1 + 0.5im),
-        HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
-        HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
-        HubbardRealSpace(
-            CompositeFS(
-                FermiFS((1, 1, 1, 1, 1, 0, 0, 0)),
-                FermiFS((1, 1, 1, 1, 0, 0, 0, 0)),
-            ); t=[1, 2], u=[0 3; 3 0]
-        ),
-
-        BoseHubbardReal1D2C(BoseFS2C((1,2,3), (1,0,0))),
-        BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0))),
-
-        GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6); g=0.3),
-        GutzwillerSampling(BoseHubbardMom1D2C(BoseFS2C((3,2,1), (1,2,3)); ua=6); g=0.3),
-        GutzwillerSampling(HubbardReal1D(BoseFS((1,2,3)); u=6 + 2im); g=0.3),
-
-        MatrixHamiltonian(Float64[1 2;2 0]),
-        GutzwillerSampling(MatrixHamiltonian([1.0 2.0;2.0 0.0]); g=0.3),
-        TransformUndoer(
-            GutzwillerSampling(MatrixHamiltonian([1.0 2.0; 2.0 0.0]); g=0.3)
-        ),
-
-        Transcorrelated1D(CompositeFS(FermiFS((0,0,1,1,0)), FermiFS((0,1,1,0,0))); t=2),
-        Transcorrelated1D(CompositeFS(FermiFS((0,0,1,0)), FermiFS((0,1,1,0))); v=3, v_ho=1),
-
-        HubbardMom1DEP(BoseFS((0,0,5,0,0))),
-        HubbardMom1DEP(CompositeFS(FermiFS((0,1,1,0,0)), FermiFS((0,0,1,0,0))), v_ho=5),
-
-        ParitySymmetry(HubbardRealSpace(CompositeFS(BoseFS((1,2,0)), FermiFS((0,1,0))))),
-        TimeReversalSymmetry(HubbardMom1D(FermiFS2C((1,0,1),(0,1,1)))),
-        TimeReversalSymmetry(BoseHubbardMom1D2C(BoseFS2C((0,1,1),(1,0,1)))),
-        Stoquastic(HubbardMom1D(BoseFS((0,5,0)))),
-        momentum(HubbardMom1D(BoseFS((0,5,0)))),
-
-        HOCartesianContactInteractions(BoseFS((2,0,0,0))),
-        HOCartesianEnergyConservedPerDim(BoseFS((2,0,0,0))),
-        HOCartesianCentralImpurity(BoseFS((1,0,0,0,0))),
-
-        FroehlichPolaron(OccupationNumberFS(1,1,1)),
-        FroehlichPolaron(OccupationNumberFS(1,1,1); momentum_cutoff = 10.0),
-
-        ParticleNumberOperator(OccupationNumberFS(1, 1, 1))
-    )
-        # test_hamiltonian_interface(H; test_spawning=false)
-        test_hamiltonian_interface(H; test_spawning=!(H isa HOCartesianContactInteractions))
-    end
-end
-
-@testset "Operator interface test" begin
-    # this is only needed for AbstractOperators that are not AbstractHamiltonians
-    # and are not tested in the Hamiltonian interface tests
-    for (op, addr) in [
-        (G2RealSpace(CubicGrid((2, 2), (true, true)), 1, 1), BoseFS{10,4}(1, 2, 3, 4)),
-        (G2RealSpace(CubicGrid(4); sum_components=true),
-            CompositeFS(BoseFS(4, 1 => 1), BoseFS(4, 1 => 1), BoseFS(4, 1 => 1)))
-    ]
-        test_operator_interface(op, addr)
     end
 end
 
@@ -1163,6 +1151,8 @@ using Rimu.Hamiltonians: circshift_dot
         S0 = StringCorrelator(0)
         S1 = StringCorrelator(1)
         S2 = StringCorrelator(2)
+        SI = StringCorrelator(3; address=uniform_state)
+        SC = StringCorrelator(3; type=ComplexF64)
 
         @test num_offdiagonals(S0, localised_state) == 0
 
@@ -1185,11 +1175,13 @@ using Rimu.Hamiltonians: circshift_dot
         # Test return type for integer, and non-integer filling
         @test @inferred diagonal_element(S0, localised_state) isa Float64
         @test @inferred diagonal_element(S1, non_unital_localised_state) isa ComplexF64
+        @test @inferred diagonal_element(SI, uniform_state) isa Float64
+        @test @inferred diagonal_element(SC, uniform_state) isa ComplexF64
 
         # Test show method
         d = 5
         output = @capture_out print(StringCorrelator(d))
-        @test output == "StringCorrelator($d)"
+        @test output == "StringCorrelator($d; type=ComplexF64)"
 
     end
 
