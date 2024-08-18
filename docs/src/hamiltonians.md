@@ -80,6 +80,8 @@ G2MomCorrelator
 SuperfluidCorrelator
 StringCorrelator
 DensityMatrixDiagonal
+SingleParticleExcitation
+TwoParticleExcitation
 Momentum
 AxialAngularMomentumHO
 ```

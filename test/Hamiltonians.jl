@@ -1151,6 +1151,39 @@ using Rimu.Hamiltonians: circshift_dot
         @test LOStructure(DensityMatrixDiagonal(2)) == IsDiagonal()
         @test DensityMatrixDiagonal(15)' === DensityMatrixDiagonal(15)
     end
+
+    @testset "Reduced Density Matrix" begin
+        addr_bose = BoseFS(6,5,4,3,2,1)
+        addr_fermi = FermiFS(1,0,1,0,1,0)
+        for i in 1:6
+            naddr_fermi1, value_f1 = excitation(addr_fermi,find_mode(addr_fermi,(1,)),find_mode(addr_fermi,(i,)))
+            naddr_fermi2, value_f2 = excitation(addr_fermi,find_mode(addr_fermi,(2,)),find_mode(addr_fermi,(i,)))
+            @test diagonal_element(SingleParticleExcitation(i, i), addr_bose) == 7-i
+            @test diagonal_element(SingleParticleExcitation(i, i), addr_fermi) == i%2
+            @test get_offdiagonal(SingleParticleExcitation(2,i),addr_fermi,1) == (naddr_fermi2,value_f2)
+            if i == 1
+                @test diagonal_element(TwoParticleExcitation(1,i,1,i), addr_bose) == 5*(7-i)
+                @test diagonal_element(TwoParticleExcitation(1,i,1,i), addr_fermi) == 0.0
+                @test get_offdiagonal(SingleParticleExcitation(1,i),addr_fermi,1) == (naddr_fermi1,1)
+            else
+                naddr_bose1, value_b1 = excitation(addr_bose,find_mode(addr_bose,(1,)),find_mode(addr_bose,(i,)))
+                naddr_fermi11, value_f11 = excitation(addr_fermi,find_mode(addr_fermi,(1,2,)),find_mode(addr_fermi,(i,1,)))
+                @test diagonal_element(TwoParticleExcitation(1,i,1,i), addr_bose) == 6*(7-i)
+                @test diagonal_element(TwoParticleExcitation(1,i,1,i), addr_fermi) == i%2
+                @test get_offdiagonal(SingleParticleExcitation(1,i),addr_bose,1) == (naddr_bose1,value_b1)
+                @test get_offdiagonal(SingleParticleExcitation(1,i),addr_fermi,1) == (naddr_fermi1,0.0)
+                @test get_offdiagonal(TwoParticleExcitation(1,2,1,i),addr_fermi,1) == (naddr_fermi11,value_f11)
+                if i!=2
+                    naddr_bose11, value_b11 = excitation(addr_bose,find_mode(addr_bose,(1,2,)),find_mode(addr_bose,(i,1,)))
+                    @test get_offdiagonal(TwoParticleExcitation(1,2,1,i),addr_bose,1) == (naddr_bose11,value_b11)
+                end
+            end
+        end
+        @test num_offdiagonals(SingleParticleExcitation(1,2), addr_bose) == 1
+        @test LOStructure(SingleParticleExcitation(1,2)) == AdjointUnknown()
+        @test num_offdiagonals(TwoParticleExcitation(1,2,2,1), addr_bose) == 1
+        @test LOStructure(TwoParticleExcitation(1,2,2,1)) == AdjointUnknown()
+    end
 end
 
 @testset "HubbardReal1DEP" begin

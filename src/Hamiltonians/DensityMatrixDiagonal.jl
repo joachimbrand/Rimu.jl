@@ -14,6 +14,7 @@ all components is computed.
 
 * [`single_particle_density`](@ref)
 * [`SingleParticleDensity`](@ref)
+* [`SingleParticleExcitation`](@ref)
 """
 struct DensityMatrixDiagonal{C} <: AbstractHamiltonian{Float64}
     mode::Int
