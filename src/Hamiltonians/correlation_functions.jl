@@ -193,7 +193,7 @@ function Interfaces.allows_address_type(
     g2::G2RealSpace{C1,C2}, A::Type{<:AbstractFockAddress}
 ) where {C1,C2}
     result = prod(size(g2.geometry)) == num_modes(A)
-    return result && 0 < C1 ≤ num_components(A) && 0 < C2 ≤ num_components(A)
+    return result && 0 ≤ C1 ≤ num_components(A) && 0 ≤ C2 ≤ num_components(A)
 end
 
 num_offdiagonals(g2::G2RealSpace, _) = 0
