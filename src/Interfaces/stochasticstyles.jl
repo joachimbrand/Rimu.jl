@@ -41,6 +41,7 @@ abstract type StochasticStyle{T} end
 StochasticStyle(::AbstractVector{T}) where T = default_style(T)
 
 Base.eltype(::Type{<:StochasticStyle{T}}) where {T} = T
+VectorInterface.scalartype(::Type{<:StochasticStyle{T}}) where {T} = T
 
 """
     StyleUnknown{T}() <: StochasticStyle

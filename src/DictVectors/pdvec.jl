@@ -377,11 +377,15 @@ end
 function Base.empty(t::PDVec{K,V}, ::Type{V}; kwargs...) where {K,V}
     return empty(t; kwargs...)
 end
-function Base.empty(t::PDVec{K,<:Any,N}, ::Type{V}; kwargs...) where {K,V,N}
-    return PDVec{K,V,N}(; kwargs...)
+function Base.empty(
+    t::PDVec{K,<:Any,N}, ::Type{V}; style=default_style(V), kwargs...
+) where {K,V,N}
+    return PDVec{K,V,N}(; style, kwargs...)
 end
-function Base.empty(t::PDVec{<:Any,<:Any,N}, ::Type{K}, ::Type{V}; kwargs...) where {K,V,N}
-    return PDVec{K,V,N}(; kwargs...)
+function Base.empty(
+    t::PDVec{<:Any,<:Any,N}, ::Type{K}, ::Type{V}; style=default_style(V), kwargs...
+) where {K,V,N}
+    return PDVec{K,V,N}(; style, kwargs...)
 end
 function Base.empty!(t::PDVec)
     Folds.foreach(empty!, t.segments, )

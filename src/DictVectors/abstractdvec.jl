@@ -275,7 +275,14 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractOperator, v::AbstractDVe
 end
 
 function Base.:*(h::AbstractOperator, v::AbstractDVec)
-    return mul!(zerovector(v, promote_type(eltype(h), valtype(v))), h, v)
+    T = promote_type(scalartype(h), scalartype(v))
+    if eltype(h) ≠ scalartype(h)
+        throw(ArgumentError("Operators with non-scalar eltype don't support "*
+                            "multiplication with `*`. Use `mul!` or `dot` instead."))
+    end
+    # first argument in mul! requires IsDeterministic style
+    w = empty(v, T; style=IsDeterministic{T}())
+    return mul!(w, h, v)
 end
 
 # docstring in Interfaces

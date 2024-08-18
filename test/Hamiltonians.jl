@@ -48,36 +48,12 @@ function test_operator_interface(op, addr; test_spawning=true)
                 end
             end
         end
-        @testset "*, mul!, and call" begin
+        @testset "three way dot" begin # this works with vector valued operators
             v = DVec(addr => scalartype(op)(2))
-            v1 = similar(v)
-            mul!(v1, op, v)
-            v2 = op * v
-            v3 = similar(v)
-            op(v3, v)
-            v4 = op(v)
-            @test v1 == v2 == v3 == v4
-            v5 = DVec(addr => diagonal_element(op, addr))
-            for (addr, val) in offdiagonals(op, addr)
-                v5[addr] += val
-            end
-            scale!(v5, scalartype(op)(2))
-            v5[addr] = v5[addr] # remove possible 0.0 from the diagonal
-            @test v5 == v1
-        end
-        @testset "three way dot" begin
-            v = DVec(addr => scalartype(op)(2))
-            v1 = op(v)
-            @test dot(v1, op, v) ≈ Interfaces.dot_from_right(v1, op, v) ≈ dot(v1, v1)
-            if test_spawning && scalartype(op) <: Real
-                # applying an operator on a PDVec uses spawn!, which requires
-                # offdiagonals to be an AbstractVector
-                # currently this only works for real operators as spawn! is not
-                # implemented for complex operators
-                pv = PDVec(v)
-                pv1 = op(pv)
-                @test dot(pv1, op, pv) ≈ Interfaces.dot_from_right(pv1, op, pv) ≈ dot(v1, v1)
-            end
+            @test dot(v, op, v) isa eltype(op)
+            w = empty(v, eltype(op); style=IsDeterministic{scalartype(op)}())
+            mul!(w, op, v) # operator vector product
+            @test dot(v, op, v) ≈ Interfaces.dot_from_right(v, op, v) ≈ dot(v, w)
         end
         @testset "LOStructure" begin
             @test LOStructure(op) isa LOStructure
@@ -113,10 +89,45 @@ end
 The main purpose of this test function is to check that all required methods are defined.
 """
 function test_hamiltonian_interface(H, addr=starting_address(H); test_spawning=true)
-    @testset "starting_address of $(nameof(typeof(H)))" begin
-        @test allows_address_type(H, starting_address(H))
-    end
     test_operator_interface(H, addr; test_spawning)
+
+    @testset "Hamiltonians-only tests with $(nameof(typeof(H)))" begin
+        # starting_address is specific to Hamiltonians
+        @test allows_address_type(H, starting_address(H))
+
+        @test dimension(H) ≥ dimension(H, addr)
+
+        # Hamiltonians can only have scalar eltype
+        @test scalartype(H) === eltype(H)
+
+        # Hamiltonian action on a vector
+        v = DVec(addr => scalartype(H)(2))
+        v1 = similar(v)
+        mul!(v1, H, v)
+        v2 = H * v
+        v3 = similar(v)
+        H(v3, v)
+        v4 = H(v)
+        @test v1 == v2 == v3 == v4
+        v5 = DVec(addr => diagonal_element(H, addr))
+        for (addr, val) in offdiagonals(H, addr)
+            v5[addr] += val
+        end
+        scale!(v5, scalartype(H)(2))
+        v5[addr] = v5[addr] # remove possible 0.0 from the diagonal
+        @test v5 == v1
+
+        if test_spawning && scalartype(H) <: Real
+            # applying an operator on a PDVec uses spawn!, which requires
+            # offdiagonals to be an AbstractVector
+            # currently this only works for real operators as spawn! is not
+            # implemented for complex operators
+            pv = PDVec(addr => scalartype(H)(2))
+            pv1 = H(pv)
+            @test dot(pv1, H, pv) ≈ Interfaces.dot_from_right(pv1, H, pv) ≈ dot(v1, v1)
+        end
+
+    end
 end
 
 """
@@ -274,7 +285,7 @@ using Rimu.Hamiltonians: Directions, Displacements
     end
 end
 
-@testset "Interface tests" begin
+@testset "Hamiltonian interface tests" begin
     for H in (
         HubbardReal1D(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0),
         HubbardReal1DEP(BoseFS((1, 2, 3, 4)); u=1.0, t=2.0, v_ho=3.0),
@@ -329,6 +340,18 @@ end
     )
         # test_hamiltonian_interface(H; test_spawning=false)
         test_hamiltonian_interface(H; test_spawning=!(H isa HOCartesianContactInteractions))
+    end
+end
+
+@testset "Operator interface test" begin
+    # this is only needed for AbstractOperators that are not AbstractHamiltonians
+    # and are not tested in the Hamiltonian interface tests
+    for (op, addr) in [
+        (G2RealSpace(CubicGrid((2, 2), (true, true)), 1, 1), BoseFS{10,4}(1, 2, 3, 4)),
+        (G2RealSpace(CubicGrid(4); sum_components=true),
+            CompositeFS(BoseFS(4, 1 => 1), BoseFS(4, 1 => 1), BoseFS(4, 1 => 1)))
+    ]
+        test_operator_interface(op, addr)
     end
 end
 
@@ -1032,6 +1055,16 @@ using Rimu.Hamiltonians: circshift_dot
             @test g2[:,2,:] ≈ g2[:,3,:]
             @test g2[:,:,2] ≈ g2[:,:,3]
             @test minimum(g2) == first(g2)
+        end
+        @testset "G2 operator vector products" begin
+            addr = BoseFS(2, 0, 1, 1)
+            geom = CubicGrid(2, 2)
+            g2 = G2RealSpace(geom)
+            dv = DVec(addr => 2.0)
+            @test dot(dv, g2, dv) isa SMatrix
+            w = empty(dv, eltype(g2); style=IsDeterministic())
+            mul!(w, g2, dv) # operator vector product
+            @test dot(dv, w) == dot(dv, g2, dv) == conj.(dot(w, dv))
         end
     end
 

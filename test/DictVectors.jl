@@ -2,7 +2,7 @@ using LinearAlgebra
 using Random
 using Rimu
 using Rimu.DictVectors
-using Rimu.StochasticStyles: IsStochastic2Pop
+using Rimu.StochasticStyles: IsStochastic2Pop, StochasticStyle
 using StaticArrays
 using Suppressor
 using Test
@@ -290,6 +290,17 @@ end
         test_dvec_interface(DVec; capacity=200)
     end
 
+    @testset "DVec with StaticArray" begin
+        sa = SA[1.0 2.0; 3.0 4.0]
+        sai = SA[1 2; 3 4]
+        @test DVec(:a => sa) == DVec(:a => sai)
+        @test_throws ArgumentError DVec(:a => sai; style=IsDynamicSemistochastic())
+        dict = Dict(:a => sai)
+        @test_throws ArgumentError DVec(dict; style=IsDynamicSemistochastic())
+        @test DVec(Dict(:a => sa)) == DVec(:a => sa)
+        dv = DVec(:a => sai)
+        @test_throws ArgumentError empty(dv; style=IsDynamicSemistochastic())
+    end
 end
 
 @testset "InitiatorDVec" begin
