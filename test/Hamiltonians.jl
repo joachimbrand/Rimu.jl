@@ -204,6 +204,7 @@ end
         HOCartesianCentralImpurity(BoseFS((1, 0, 0, 0, 0))),
         FroehlichPolaron(OccupationNumberFS(1, 1, 1)),
         FroehlichPolaron(OccupationNumberFS(1, 1, 1); momentum_cutoff=10.0),
+        momentum(HubbardMom1D(BoseFS(0, 1, 5, 1, 0))),
     )
         # test_hamiltonian_interface(H; test_spawning=false)
         test_hamiltonian_interface(H; test_spawning=!(H isa HOCartesianContactInteractions))
