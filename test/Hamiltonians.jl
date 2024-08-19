@@ -224,6 +224,8 @@ end
         (SuperfluidCorrelator(3), BoseFS(1, 2, 3, 1)),
         (StringCorrelator(3), BoseFS(1, 0, 3, 1)),
         (DensityMatrixDiagonal(3), FermiFS(1, 0, 1)),
+        (SingleParticleExcitation(2, 3), BoseFS(1, 2, 3, 4)),
+        (TwoParticleExcitation(3, 2, 1, 4), BoseFS(1, 2, 3, 4)),
     ]
         test_operator_interface(op, addr)
     end

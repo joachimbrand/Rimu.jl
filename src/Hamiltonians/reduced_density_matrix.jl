@@ -4,7 +4,7 @@
 Represent the ``{i,j}`` element of the single-particle reduced density matrix:
 
 ```math
-\\hat{ρ}^{(1)}_{i,j} = \\hat a^†_{i} \\hat a_{j}
+\\hat{ρ̂}^{(1)}_{i,j} = \\hat a^†_{i} \\hat a_{j}
 ```
 
 where `i <: Int` and `j <: Int` specify the mode numbers.
@@ -15,7 +15,7 @@ where `i <: Int` and `j <: Int` specify the mode numbers.
 * [`SingleParticleDensity`](@ref)
 * [`TwoParticleExcitation`](@ref)
 """
-struct SingleParticleExcitation{I,J} <: AbstractHamiltonian{Float64}
+struct SingleParticleExcitation{I,J} <: AbstractOperator{Float64}
 end
 
 SingleParticleExcitation(I::Int,J::Int) = SingleParticleExcitation{I,J}()
@@ -25,6 +25,9 @@ function Base.show(io::IO, spd::SingleParticleExcitation{I,J}) where {I,J}
 end
 
 LOStructure(::Type{<:SingleParticleExcitation}) = AdjointUnknown()
+function allows_address_type(::SingleParticleExcitation{I,J}, ::Type{A}) where {I,J,A}
+    return A <: SingleComponentFockAddress && I ≤ num_modes(A) && J ≤ num_modes(A)
+end
 
 function diagonal_element(spd::SingleParticleExcitation{I,J}, add::SingleComponentFockAddress) where {I,J}
     if I != J
@@ -55,7 +58,7 @@ end
 Represent the ``{ij, kl}`` element of the two-particle reduced density matrix:
 
 ```math
-\\hat{ρ}^{(2)}_{ij, kl} =  \\hat a^†_{i} \\hat a^†_{j} \\hat a_{l} \\hat a_{k} 
+\\hat{ρ̂}^{(2)}_{ij, kl} =  \\hat a^†_{i} \\hat a^†_{j} \\hat a_{l} \\hat a_{k}
 ```
 
 where `i`, `j`, `k`, and `l` (all `<: Int`) specify the mode numbers.
@@ -66,7 +69,7 @@ where `i`, `j`, `k`, and `l` (all `<: Int`) specify the mode numbers.
 * [`SingleParticleDensity`](@ref)
 * [`SingleParticleExcitation`](@ref)
 """
-struct TwoParticleExcitation{I,J,K,L} <: AbstractHamiltonian{Float64}
+struct TwoParticleExcitation{I,J,K,L} <: AbstractOperator{Float64}
 end
 
 TwoParticleExcitation(I::Int,J::Int,K::Int,L::Int) = TwoParticleExcitation{I,J,K,L}()
@@ -76,6 +79,10 @@ function Base.show(io::IO, spd::TwoParticleExcitation{I,J,K,L}) where {I,J,K,L}
 end
 
 LOStructure(::Type{<:TwoParticleExcitation}) = AdjointUnknown()
+function allows_address_type(::TwoParticleExcitation{I,J,K,L}, ::Type{A}) where {I,J,K,L,A}
+    return A <: SingleComponentFockAddress && I ≤ num_modes(A) && J ≤ num_modes(A) &&
+            K ≤ num_modes(A) && L ≤ num_modes(A)
+end
 
 function diagonal_element(spd::TwoParticleExcitation{I,J,K,L}, add::SingleComponentFockAddress) where {I,J,K,L}
     if (I, J) == (K, L) || (I, J) == (L, K)
