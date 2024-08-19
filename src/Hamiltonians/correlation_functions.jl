@@ -398,17 +398,20 @@ end
 """
     SuperfluidCorrelator(d::Int) <: AbstractOperator{Float64}
 
-Operator for extracting superfluid correlation between sites separated by a distance `d` with `0 ≤ d < M`:
+Operator for extracting superfluid correlation between sites separated by a distance `d`
+with `0 ≤ d < M`:
 
 ```math
     \\hat{C}_{\\text{SF}}(d) = \\frac{1}{M} \\sum_{i}^{M} a_{i}^{\\dagger} a_{i + d}
 ```
-Assumes a one-dimensional lattice with ``M`` sites and periodic boundary conditions. ``M`` is also the number of modes in the Fock state address.
+Assumes a one-dimensional lattice with ``M`` sites and periodic boundary conditions. ``M``
+is also the number of modes in the Fock state address.
 
 # Usage
-Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping `SuperfluidCorrelator` with
-[`AllOverlaps`](@ref) and passing into [`ProjectorMonteCarloProblem`](@ref) with the `replica` keyword argument. For an example with a
-similar use of [`G2RealCorrelator`](@ref) see
+Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping
+`SuperfluidCorrelator` with [`AllOverlaps`](@ref) and passing into
+[`ProjectorMonteCarloProblem`](@ref) with the `replica` keyword argument. For an example
+with a similar use of [`G2RealCorrelator`](@ref) see
 [G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html).
 
 
@@ -431,7 +434,9 @@ function num_offdiagonals(::SuperfluidCorrelator, addr::SingleComponentFockAddre
     return num_occupied_modes(addr)
 end
 
-function get_offdiagonal(::SuperfluidCorrelator{D}, addr::SingleComponentFockAddress, chosen) where {D}
+function get_offdiagonal(
+    ::SuperfluidCorrelator{D}, addr::SingleComponentFockAddress, chosen
+) where {D}
     src = find_occupied_mode(addr, chosen)
     dst = find_mode(addr, mod1(src.mode + D, num_modes(addr)))
     address, value = excitation(addr, (dst,), (src,))
@@ -441,7 +446,9 @@ end
 function diagonal_element(::SuperfluidCorrelator{0}, addr::SingleComponentFockAddress)
     return num_particles(addr) / num_modes(addr)
 end
-function diagonal_element(::SuperfluidCorrelator{D}, addr::SingleComponentFockAddress) where {D}
+function diagonal_element(
+    ::SuperfluidCorrelator{D}, addr::SingleComponentFockAddress
+) where {D}
     return 0.0
 end
 
@@ -449,14 +456,15 @@ end
 """
     StringCorrelator(d::Int; address=nothing, type=nothing) <: AbstractOperator{T}
 
-Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice
-separated by a distance `d` with `0 ≤ d < M`
+Operator for extracting string correlation between lattice sites on a one-dimensional
+Hubbard lattice separated by a distance `d` with `0 ≤ d < M`
 
 ```math
-    \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
+    Ĉ_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} δ n̂_j
+                                         (e^{i π \\sum_{j ≤ k < j + d} δ n̂_k}) δ n̂_{j+d}
 ```
-Here, ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling
-number and ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` particles and
+Here, ``δ n̂_j = n̂_j - n̄`` is the boson number deviation from the mean filling
+number and ``n̄ = N/M`` is the mean filling number of lattice sites with ``N`` particles and
 ``M`` lattice sites (or modes).
 
 Assumes a one-dimensional lattice with periodic boundary conditions. For usage

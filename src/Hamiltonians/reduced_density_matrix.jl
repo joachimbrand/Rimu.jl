@@ -4,7 +4,7 @@
 Represent the ``{i,j}`` element of the single-particle reduced density matrix:
 
 ```math
-\\hat{ρ̂}^{(1)}_{i,j} = \\hat a^†_{i} \\hat a_{j}
+ρ̂^{(1)}_{i,j} = â^†_{i} â_{j}
 ```
 
 where `i <: Int` and `j <: Int` specify the mode numbers.
@@ -20,7 +20,7 @@ end
 
 SingleParticleExcitation(I::Int,J::Int) = SingleParticleExcitation{I,J}()
 
-function Base.show(io::IO, spd::SingleParticleExcitation{I,J}) where {I,J}
+function Base.show(io::IO, ::SingleParticleExcitation{I,J}) where {I,J}
     print(io, "SingleParticleExcitation($(I), $(J))")
 end
 
@@ -29,15 +29,19 @@ function allows_address_type(::SingleParticleExcitation{I,J}, ::Type{A}) where {
     return A <: SingleComponentFockAddress && I ≤ num_modes(A) && J ≤ num_modes(A)
 end
 
-function diagonal_element(spd::SingleParticleExcitation{I,J}, add::SingleComponentFockAddress) where {I,J}
+function diagonal_element(
+    ::SingleParticleExcitation{I,J}, addr::SingleComponentFockAddress
+) where {I,J}
     if I != J
         return 0.0
     end
-    src = find_mode(add, J)
+    src = find_mode(addr, J)
     return src.occnum
 end
 
-function num_offdiagonals(spd::SingleParticleExcitation{I,J}, address::SingleComponentFockAddress) where {I,J}
+function num_offdiagonals(
+    ::SingleParticleExcitation{I,J}, ::SingleComponentFockAddress
+) where {I,J}
     if I == J
         return 0
     else
@@ -45,10 +49,12 @@ function num_offdiagonals(spd::SingleParticleExcitation{I,J}, address::SingleCom
     end
 end
 
-function get_offdiagonal(spd::SingleParticleExcitation{I,J}, add::SingleComponentFockAddress, chosen) where {I,J}
-    src = find_mode(add, J)
-    dst = find_mode(add,I)
-    address, value = excitation(add, (dst,), (src,))
+function get_offdiagonal(
+    ::SingleParticleExcitation{I,J}, addr::SingleComponentFockAddress, _
+) where {I,J}
+    src = find_mode(addr, J)
+    dst = find_mode(addr,I)
+    address, value = excitation(addr, (dst,), (src,))
     return address, value
 end
 
@@ -58,7 +64,7 @@ end
 Represent the ``{ij, kl}`` element of the two-particle reduced density matrix:
 
 ```math
-\\hat{ρ̂}^{(2)}_{ij, kl} =  \\hat a^†_{i} \\hat a^†_{j} \\hat a_{l} \\hat a_{k}
+ρ̂^{(2)}_{ij, kl} =  â^†_{i} â^†_{j} â_{l} â_{k}
 ```
 
 where `i`, `j`, `k`, and `l` (all `<: Int`) specify the mode numbers.
@@ -74,7 +80,7 @@ end
 
 TwoParticleExcitation(I::Int,J::Int,K::Int,L::Int) = TwoParticleExcitation{I,J,K,L}()
 
-function Base.show(io::IO, spd::TwoParticleExcitation{I,J,K,L}) where {I,J,K,L}
+function Base.show(io::IO, ::TwoParticleExcitation{I,J,K,L}) where {I,J,K,L}
     print(io, "TwoParticleExcitation($(I), $(J), $(K), $(L))")
 end
 
@@ -84,18 +90,22 @@ function allows_address_type(::TwoParticleExcitation{I,J,K,L}, ::Type{A}) where 
             K ≤ num_modes(A) && L ≤ num_modes(A)
 end
 
-function diagonal_element(spd::TwoParticleExcitation{I,J,K,L}, add::SingleComponentFockAddress) where {I,J,K,L}
+function diagonal_element(
+    ::TwoParticleExcitation{I,J,K,L}, addr::SingleComponentFockAddress
+) where {I,J,K,L}
     if (I, J) == (K, L) || (I, J) == (L, K)
-        src = find_mode(add, (L, K))
-        dst = find_mode(add,(I, J))
-        address, value = excitation(add, dst, src)
+        src = find_mode(addr, (L, K))
+        dst = find_mode(addr,(I, J))
+        _, value = excitation(addr, dst, src)
         return value
     else
         return 0.0
     end
 end
 
-function num_offdiagonals(spd::TwoParticleExcitation{I,J,K,L}, address::SingleComponentFockAddress) where {I,J,K,L}
+function num_offdiagonals(
+    ::TwoParticleExcitation{I,J,K,L}, ::SingleComponentFockAddress
+) where {I,J,K,L}
     if (I, J) == (K, L)
         return 0
     else
@@ -103,9 +113,11 @@ function num_offdiagonals(spd::TwoParticleExcitation{I,J,K,L}, address::SingleCo
     end
 end
 
-function get_offdiagonal(spd::TwoParticleExcitation{I,J,K,L}, add::SingleComponentFockAddress, chosen) where {I,J,K,L}
-    src = find_mode(add, (L, K))
-    dst = find_mode(add,(I, J))
-    address, value = excitation(add, (dst...,), (src...,))
+function get_offdiagonal(
+    ::TwoParticleExcitation{I,J,K,L}, addr::SingleComponentFockAddress, _
+) where {I,J,K,L}
+    src = find_mode(addr, (L, K))
+    dst = find_mode(addr,(I, J))
+    address, value = excitation(addr, (dst...,), (src...,))
     return address, value
 end
