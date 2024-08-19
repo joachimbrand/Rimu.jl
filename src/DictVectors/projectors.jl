@@ -40,7 +40,7 @@ struct UniformProjector <: AbstractProjector end
 VectorInterface.inner(::UniformProjector, y::DVecOrVec) = sum(values(y))
 Base.getindex(::UniformProjector, add) = 1
 
-function VectorInterface.inner(::UniformProjector, op::AbstractHamiltonian, v::AbstractDVec)
+function LinearAlgebra.dot(::UniformProjector, op::AbstractOperator, v::AbstractDVec)
     return sum(pairs(v)) do (key, val)
         diag = diagonal_element(op, key) * val
         offdiag = sum(offdiagonals(op, key)) do (add, elem)

@@ -219,6 +219,12 @@ function ProjectorMonteCarloProblem(
         post_step_strategy = (post_step_strategy,)
     end
 
+    if !(eltype(hamiltonian)<: Real)
+        throw(ArgumentError("Only real-valued Hamiltonians are currently supported "*
+            "for ProjectorMonteCarloProblem. Please get in touch with the Rimu.jl " *
+            "developers if you need a complex-valued Hamiltonian!"))
+    end
+
     return ProjectorMonteCarloProblem{n_replicas,num_spectral_states(spectral_strategy)}(
         algorithm,
         hamiltonian,

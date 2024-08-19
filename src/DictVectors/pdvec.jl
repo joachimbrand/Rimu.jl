@@ -377,11 +377,15 @@ end
 function Base.empty(t::PDVec{K,V}, ::Type{V}; kwargs...) where {K,V}
     return empty(t; kwargs...)
 end
-function Base.empty(t::PDVec{K,<:Any,N}, ::Type{V}; kwargs...) where {K,V,N}
-    return PDVec{K,V,N}(; kwargs...)
+function Base.empty(
+    t::PDVec{K,<:Any,N}, ::Type{V}; style=default_style(V), kwargs...
+) where {K,V,N}
+    return PDVec{K,V,N}(; style, kwargs...)
 end
-function Base.empty(t::PDVec{<:Any,<:Any,N}, ::Type{K}, ::Type{V}; kwargs...) where {K,V,N}
-    return PDVec{K,V,N}(; kwargs...)
+function Base.empty(
+    t::PDVec{<:Any,<:Any,N}, ::Type{K}, ::Type{V}; style=default_style(V), kwargs...
+) where {K,V,N}
+    return PDVec{K,V,N}(; style, kwargs...)
 end
 function Base.empty!(t::PDVec)
     Folds.foreach(empty!, t.segments, )
@@ -744,30 +748,30 @@ end
 ### Operator linear algebra operations
 ###
 """
-    mul!(y::PDVec, A::AbstractHamiltonian, x::PDVec[, w::PDWorkingMemory])
+    mul!(y::PDVec, A::AbstractOperator, x::PDVec[, w::PDWorkingMemory])
 
 Perform `y = A * x` in-place. The working memory `w` is required to facilitate
 threaded/distributed operations. If not passed a new instance will be allocated. `y` and `x`
 may be the same vector.
 
-See [`PDVec`](@ref), [`PDWorkingMemory`](@ref).
+See [`PDVec`](@ref), [`PDWorkingMemory`](@ref), [`AbstractOperator`](@ref).
 """
 function LinearAlgebra.mul!(
-    y::PDVec, op::AbstractHamiltonian, x::PDVec,
-    w=PDWorkingMemory(y; style=IsDeterministic()),
+    y::PDVec, op::AbstractOperator, x::PDVec,
+    w=PDWorkingMemory(y; style=StochasticStyle(y)),
 )
-    if w.style ≢ IsDeterministic()
+    if !(w.style isa IsDeterministic)
         throw(ArgumentError(
             "Attempted to use `mul!` with non-deterministic working memory. " *
             "Use `apply_operator!` instead."
         ))
     end
-    _, _, wm, y = apply_operator!(w, y, x, op)
+    _, _, _, y = apply_operator!(w, y, x, op)
     return y
 end
 
 """
-    dot(y::PDVec, A::AbstractHamiltonian, x::PDVec[, w::PDWorkingMemory])
+    dot(y::PDVec, A::AbstractOperator, x::PDVec[, w::PDWorkingMemory])
 
 Perform `y ⋅ A ⋅ x`. The working memory `w` is required to facilitate threaded/distributed
 operations with non-diagonal `A`. If needed and not passed a new instance will be
@@ -775,14 +779,14 @@ allocated. `A` can be replaced with a tuple of operators.
 
 See [`PDVec`](@ref), [`PDWorkingMemory`](@ref).
 """
-function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec, w)
+function LinearAlgebra.dot(t::PDVec, op::AbstractOperator, u::PDVec, w)
     return dot(LOStructure(op), t, op, u, w)
 end
-function LinearAlgebra.dot(t::PDVec, op::AbstractHamiltonian, u::PDVec)
+function LinearAlgebra.dot(t::PDVec, op::AbstractOperator, u::PDVec)
     return dot(LOStructure(op), t, op, u)
 end
 function LinearAlgebra.dot(
-    ::IsDiagonal, t::PDVec, op::AbstractHamiltonian, u::PDVec, w=nothing
+    ::IsDiagonal, t::PDVec, op::AbstractOperator, u::PDVec, w=nothing
 )
     T = typeof(zero(valtype(t)) * zero(valtype(u)) * zero(eltype(op)))
     return sum(pairs(u); init=zero(T)) do (k, v)
@@ -790,7 +794,7 @@ function LinearAlgebra.dot(
     end
 end
 function LinearAlgebra.dot(
-    ::LOStructure, left::PDVec, op::AbstractHamiltonian, right::PDVec, w=nothing
+    ::LOStructure, left::PDVec, op::AbstractOperator, right::PDVec, w=nothing
 )
     # First two cases: only one vector is distrubuted. Avoid shuffling things around
     # by placing that one on the left to reduce the need for communication.
@@ -809,7 +813,7 @@ function LinearAlgebra.dot(
 end
 # Default variant: also called from other LOStructures.
 function LinearAlgebra.dot(
-    ::AdjointUnknown, t::PDVec, op::AbstractHamiltonian, source::PDVec, w=nothing
+    ::AdjointUnknown, t::PDVec, op::AbstractOperator, source::PDVec, w=nothing
 )
     if is_distributed(t)
         if isnothing(w)
@@ -823,7 +827,7 @@ function LinearAlgebra.dot(
     return dot_from_right(target, op, source)
 end
 
-function dot_from_right(target, op, source::PDVec)
+function Interfaces.dot_from_right(target, op, source::PDVec)
     T = typeof(zero(valtype(target)) * zero(valtype(source)) * zero(eltype(op)))
 
     result = sum(pairs(source); init=zero(T)) do (k, v)

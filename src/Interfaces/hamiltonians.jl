@@ -2,7 +2,109 @@
 ### This file contains abstract types, interfaces and traits.
 ###
 """
-    AbstractHamiltonian{T}
+    AbstractOperator{T}
+
+Supertype that provides an interface for linear operators over a linear space with elements
+of type `T` (returned by [`eltype`](@ref)) and general (custom type) indices called
+'addresses'.
+
+`AbstractOperator` instances operate on vectors of type [`AbstractDVec`](@ref) from the
+module `DictVectors` and work well with addresses of type
+[`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress)
+from the module `BitStringAddresses`.
+
+The defining feature of an `AbstractOperator` is that it can be applied to a vector with
+[`mul!(y, op, x)`](@ref LinearAlgebra.mul!) and that three-way dot products can be
+calculated with [`dot(x, op, y)`](@ref LinearAlgebra.dot).
+
+The `AbstractOperator` type is useful for defining operators that are not necessarily
+Hamiltonians, but that can be used in the context of a [`ProjectorMonteCarloProblem`](@ref)
+as observable operators in a [`ReplicaStrategy`](@ref Rimu.ReplicaStrategy), e.g. for
+defining correlation functions. In contrast to [`AbstractHamiltonian`](@ref)s,
+`AbstractOperator`s do not need to have a [`starting_address`](@ref). Moreover, the
+`eltype` of an `AbstractOperator` can be a vector value.
+
+For concrete implementations see [`Hamiltonians`](@ref Main.Hamiltonians). In order to
+implement a Hamiltonian for use in [`ProjectorMonteCarloProblem`](@ref) or
+[`ExactDiagonalizationProblem`](@ref) use the type [`AbstractHamiltonian`](@ref) instead,
+which is a subtype of `AbstractOperator`.
+
+# Interface
+
+Basic interface methods to implement:
+- [`allows_address_type(op, type)`](@ref)
+- [`diagonal_element(op, address)`](@ref)
+- [`num_offdiagonals(op, address)`](@ref) and
+- [`get_offdiagonal(op, address, chosen)`](@ref) or [`offdiagonals`](@ref)
+
+Optional additional methods to implement:
+- [`VectorInterface.scalartype(op)`](@ref): defaults to `eltype(eltype(op))`
+- [`LOStructure(::Type{typeof(op)})`](@ref LOStructure): defaults to `AdjointUnknown`
+- [`dimension(op, addr)`](@ref Main.Hamiltonians.dimension): defaults to dimension of
+  address space
+
+In order to calculate observables efficiently, it may make sense to implement custom methods
+for [`Interfaces.dot_from_right(x, op, y)`](@ref) and [`LinearAlgebra.mul!(y, op, x)`](@ref).
+
+See also [`AbstractHamiltonian`](@ref), [`Interfaces`](@ref).
+"""
+abstract type AbstractOperator{T} end
+
+"""
+    eltype(op::AbstractOperator)
+Return the type of the elements of the operator. This can be a vector value. For the
+underlying scalar type use [`scalartype`](@ref).
+
+Part of the [`AbstractOperator`](@ref) interface.
+!!! note
+    New types should only implement the method with the argument in the type domain.
+"""
+Base.eltype(::Type{<:AbstractOperator{T}}) where {T} = T # could be vector value
+
+"""
+    scalartype(op::AbstractOperator)
+Return the type of the underlying scalar field of the operator. This may be different from
+the element type of the operator returned by [`eltype`](@ref), which can be a vector value.
+
+Part of the [`AbstractOperator`](@ref) interface.
+!!! note
+    New types should only implement the method with the argument in the type domain.
+"""
+VectorInterface.scalartype(::Type{<:AbstractOperator{T}}) where T = eltype(T)
+
+@doc """
+    LinearAlgebra.mul!(w::AbstractDVec, op::AbstractOperator, v::AbstractDVec)
+In place multiplication of `op` with `v` and storing the result in `w`. The result is
+returned. Note that `w` needs to have a `valtype` that can hold a product of instances
+of `eltype(op)` and `valtype(v)`. Moreover, the [`StochasticStyle`](@ref) of `w` needs to
+be [`<:IsDeterministic`](@ref Rimu.StochasticStyles.IsDeterministic).
+
+Part of the [`AbstractOperator`](@ref) interface.
+
+The default implementation relies of [`diagonal_element`](@ref) and [`offdiagonals`](@ref)
+to access the elements of the operator. The function can be overloaded for custom operators.
+"""
+LinearAlgebra.mul!
+
+@doc """
+    dot(w, op::AbstractOperator, v)
+
+Evaluate `w⋅op(v)` minimizing memory allocations.
+"""
+LinearAlgebra.dot
+
+@doc """
+    dot_from_right(w, op::AbstractOperator, v)
+
+Internal function evaluates the 3-argument `dot()` function in order from right
+to left.
+"""
+function dot_from_right(::W, ::O, ::V) where {W, O, V}
+    throw(ArgumentError("dot_from_right not implemented for types $W, $O, $V"))
+end
+
+"""
+    AbstractHamiltonian{T} <: AbstractOperator{T}
 
 Supertype that provides an interface for linear operators over a linear space with scalar
 type `T` that are suitable for FCIQMC (with
@@ -11,7 +113,8 @@ with addresses (typically not integers) from an address space that may be large 
 not need to be completely generated).
 
 `AbstractHamiltonian` instances operate on vectors of type [`AbstractDVec`](@ref) from the
-module `DictVectors` and work well with addresses of type [`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress)
+module `DictVectors` and work well with addresses of type
+[`AbstractFockAddress`](@ref Main.BitStringAddresses.AbstractFockAddress)
 from the module `BitStringAddresses`. The type works well with the external package
 [KrylovKit.jl](https://github.com/Jutho/KrylovKit.jl).
 
@@ -32,8 +135,8 @@ Optional additional methods to implement:
 * [`LOStructure(::Type{typeof(lo)})`](@ref LOStructure): defaults to `AdjointUnknown`
 * [`dimension(::AbstractHamiltonian, addr)`](@ref Main.Hamiltonians.dimension): defaults to
   dimension of address space
-* [`allowed_address_type(h::AbstractHamiltonian)`](@ref): defaults to
-  `typeof(starting_address(h))`
+* [`allows_address_type(h::AbstractHamiltonian, type)`](@ref): defaults to
+  `type :< typeof(starting_address(h))`
 * [`momentum(::AbstractHamiltonian)`](@ref Main.Hamiltonians.momentum): no default
 
 Provides the following functions and methods:
@@ -55,23 +158,28 @@ Alternatively to the above, [`offdiagonals`](@ref) can be implemented instead of
 [`num_offdiagonals`](@ref) should provide an upper bound on the number of elements obtained
 when iterating [`offdiagonals`](@ref).
 
-See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref).
+See also [`Hamiltonians`](@ref Main.Hamiltonians), [`Interfaces`](@ref),
+[`AbstractOperator`](@ref).
 """
-abstract type AbstractHamiltonian{T} end
-
-Base.eltype(::AbstractHamiltonian{T}) where {T} = T
+abstract type AbstractHamiltonian{T} <: AbstractOperator{T} end
 
 """
-    allowed_address_type(h::AbstractHamiltonian)
-Return the type of addresses that can be used with Hamiltonian `h`.
+    allows_address_type(operator, addr_or_type)
+Returns `true` if `addr_or_type` is a valid address for `operator`. Otherwise, returns
+`false`.
 
 Part of the [`AbstractHamiltonian`](@ref) interface.
 
-Defaults to `typeof(starting_address(h))`. Overload this function if the Hamiltonian can be
-used with addresses of different types.
+# Extended help
+Defaults to `addr_or_type <: typeof(starting_address(operator))`. Overload this function if
+the operator can be used with addresses of different types.
 """
-allowed_address_type(h::AbstractHamiltonian) = typeof(starting_address(h))
-allowed_address_type(::AbstractMatrix) = Integer
+@inline function allows_address_type(hamiltonian, ::Type{A}) where {A}
+    return A <: typeof(starting_address(hamiltonian))
+end
+function allows_address_type(op, address)
+    allows_address_type(op, typeof(address))
+end
 
 """
     diagonal_element(ham, address)
@@ -117,10 +225,10 @@ Part of the [`AbstractHamiltonian`](@ref) interface.
 num_offdiagonals(m::AbstractMatrix, i) = length(offdiagonals(m, i))
 
 """
-    newadd, me = get_offdiagonal(ham, add, chosen)
+    newadd, me = get_offdiagonal(ham, address, chosen)
 
 Compute value `me` and new address `newadd` of a single (off-diagonal) matrix element in a
-Hamiltonian `ham`. The off-diagonal element is in the same column as address `add` and is
+Hamiltonian `ham`. The off-diagonal element is in the same column as address `address` and is
 indexed by integer index `chosen`.
 
 # Example
@@ -204,10 +312,11 @@ end
 
 """
     random_offdiagonal(offdiagonals::AbstractOffdiagonals)
-    random_offdiagonal(ham::AbstractHamiltonian, add)
+    random_offdiagonal(ham::AbstractHamiltonian, address)
+    -> newaddress, probability, matrixelement
 
 Generate a single random excitation, i.e. choose from one of the accessible off-diagonal
-elements in the column corresponding to address `add` of the Hamiltonian matrix represented
+elements in the column corresponding to `address` in the Hamiltonian matrix represented
 by `ham`. Alternatively, pass as argument an iterator over the accessible matrix elements.
 
 Part of the [`AbstractHamiltonian`](@ref) interface.
@@ -219,8 +328,8 @@ function random_offdiagonal(offdiagonals::AbstractVector)
     return naddress, 1.0/nl, melem
 end
 
-function random_offdiagonal(ham, add)
-    return random_offdiagonal(offdiagonals(ham, add))
+function random_offdiagonal(ham, address)
+    return random_offdiagonal(offdiagonals(ham, address))
 end
 
 @doc """
@@ -256,7 +365,7 @@ LOStructure(::Type) = AdjointUnknown()
 LOStructure(::AbstractMatrix) = AdjointKnown()
 
 # diagonal matrices have zero offdiagonal elements
-function num_offdiagonals(h::H, addr) where {H<:AbstractHamiltonian}
+function num_offdiagonals(h::H, addr) where {H<:AbstractOperator}
     return num_offdiagonals(LOStructure(H), h, addr)
 end
 num_offdiagonals(::IsDiagonal, _, _) = 0

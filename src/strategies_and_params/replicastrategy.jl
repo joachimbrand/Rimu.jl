@@ -58,31 +58,33 @@ check_transform(::NoStats, _) = nothing
 
 # TODO: add custom names
 """
-    AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true) <: ReplicaStrategy{num_replicas}
+    AllOverlaps(n_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
+        <: ReplicaStrategy{n_replicas}
 
-Run `num_replicas` replicas and report overlaps between all pairs of replica vectors. If `operator` is
-not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If `operator` is a tuple
-of operators, the overlaps are computed for all operators.
+Run `n_replicas` replicas and report overlaps between all pairs of replica vectors. If
+`operator` is not `nothing`, the overlap `dot(c1, operator, c2)` is reported as well. If
+`operator` is a tuple of operators, the overlaps are computed for all operators.
 
 Column names in the report are of the form `c{i}_dot_c{j}` for vector-vector overlaps, and
 `c{i}_Op{k}_c{j}` for operator overlaps.
 
 See [`ProjectorMonteCarloProblem`](@ref), [`ReplicaStrategy`](@ref) and
-[`AbstractHamiltonian`](@ref) (for an interface for implementing operators).
+[`AbstractOperator`](@ref Interfaces.AbstractOperator) (for an interface for implementing
+operators).
 
 # Transformed Hamiltonians
 
-If a transformed Hamiltonian `G` has been passed to [`ProjectorMonteCarloProblem`](@ref) then overlaps can be calculated by
-passing the same transformed Hamiltonian to `AllOverlaps` by setting `transform=G`. A warning is given
-if these two Hamiltonians do not match.
+If a transformed Hamiltonian `G` has been passed to [`ProjectorMonteCarloProblem`](@ref)
+then overlaps can be calculated by passing the same transformed Hamiltonian to `AllOverlaps`
+by setting `transform=G`. A warning is given if these two Hamiltonians do not match.
 
 Implemented transformations are:
 
  * [`GutzwillerSampling`](@ref)
  * [`GuidingVectorSampling`](@ref)
 
-In the case of a transformed Hamiltonian the overlaps are defined as follows. For a similarity transformation
-`G` of the Hamiltonian (see e.g. [`GutzwillerSampling`](@ref).)
+In the case of a transformed Hamiltonian the overlaps are defined as follows. For a
+similarity transformation `G` of the Hamiltonian (see e.g. [`GutzwillerSampling`](@ref).)
 ```math
     \\hat{G} = f \\hat{H} f^{-1}.
 ```
@@ -95,25 +97,33 @@ where
 ```math
     | \\phi \\rangle = f | \\psi \\rangle
 ```
-is the (right) eigenvector of ``\\hat{G}`` and ``| \\psi \\rangle`` is an eigenvector of ``\\hat{H}``.
+is the (right) eigenvector of ``\\hat{G}`` and ``| \\psi \\rangle`` is an eigenvector of
+``\\hat{H}``.
 
 For a K-tuple of input operators ``(\\hat{A}_1, ..., \\hat{A}_K)``, overlaps of
-``\\langle \\phi | f^{-1} \\hat{A} f^{-1} | \\phi \\rangle`` are reported as `c{i}_Op{k}_c{j}`.
-The correct vector-vector overlap ``\\langle \\phi | f^{-2} | \\phi \\rangle`` is reported *last*
-as `c{i}_Op{K+1}_c{j}`. This is in addition to the *bare* vector-vector overlap
-``\\langle \\phi | f^{-2} | \\phi \\rangle`` that is reported as `c{i}_dot_c{j}`.
+``\\langle \\phi | f^{-1} \\hat{A} f^{-1} | \\phi \\rangle`` are reported as
+`c{i}_Op{k}_c{j}`. The correct vector-vector overlap ``\\langle \\phi | f^{-2} | \\phi
+\\rangle`` is reported *last* as `c{i}_Op{K+1}_c{j}`. This is in addition to the *bare*
+vector-vector overlap ``\\langle \\phi | f^{-2} | \\phi \\rangle`` that is reported as
+`c{i}_dot_c{j}`.
 
 In either case the `c{i}_dot_c{j}` overlap can be omitted with the flag `vecnorm=false`.
 """
-struct AllOverlaps{N,M,O<:NTuple{M,AbstractHamiltonian},B} <: ReplicaStrategy{N}
+struct AllOverlaps{N,M,O,B} <: ReplicaStrategy{N}
     operators::O
 end
 
-function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
-    num_replicas isa Integer || throw(ArgumentError("num_replicas must be an integer"))
+const TupleOrVector = Union{Tuple, Vector}
+
+function AllOverlaps(n_replicas=2; operator=nothing, transform=nothing, vecnorm=true)
+    n_replicas isa Integer || throw(ArgumentError("n_replicas must be an integer"))
     if isnothing(operator)
         operators = ()
-    elseif operator isa Tuple
+    elseif operator isa TupleOrVector
+        if !(eltype(operator) <: AbstractOperator)
+            throw(ArgumentError("operator must be an AbstractOperator or a Tuple or "*
+                "Vector of AbstractHamiltonians"))
+        end
         operators = operator
     else
         operators = (operator,)
@@ -125,9 +135,9 @@ function AllOverlaps(num_replicas=2; operator=nothing, transform=nothing, vecnor
         ops = (map(op -> Rimu.Hamiltonians.TransformUndoer(transform, op), operators)..., fsq)
     end
     if !vecnorm && length(ops) == 0
-        return NoStats(num_replicas)
+        return NoStats(n_replicas)
     end
-    return AllOverlaps{num_replicas,length(ops),typeof(ops),vecnorm}(ops)
+    return AllOverlaps{n_replicas,length(ops),typeof(ops),vecnorm}(ops)
 end
 
 function replica_stats(rs::AllOverlaps{N,<:Any,<:Any,B}, spectral_states::NTuple{N}) where {N,B}
@@ -145,7 +155,7 @@ Get all overlaps between vectors and operators. This function is overloaded for 
 The flag `vecnorm` can disable the vector-vector overlap `c{i}_dot_c{j}`.
 """
 function all_overlaps(
-    operators::Tuple, vecs::NTuple{N,AbstractDVec}, wms, ::Val{B}
+    operators::TupleOrVector, vecs::NTuple{N,AbstractDVec}, wms, ::Val{B}
 ) where {N,B}
     T = promote_type((valtype(v) for v in vecs)..., eltype.(operators)...)
     names = String[]

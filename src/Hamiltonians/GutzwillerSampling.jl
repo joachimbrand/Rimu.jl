@@ -121,7 +121,7 @@ end
 Base.size(h::GutzwillerOffdiagonals) = size(h.offdiagonals)
 
 """
-    TransformUndoer(k::GutzwillerSampling, op::AbstractHamiltonian)
+    TransformUndoer(k::GutzwillerSampling, op::AbstractOperator)
     TransformUndoer(k::GutzwillerSampling)
 
 For a Gutzwiller similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}``
@@ -131,7 +131,7 @@ to calculate observables. Here ``f`` is a diagonal operator whose entries are
 
 See [`AllOverlaps`](@ref), [`GutzwillerSampling`](@ref).
 """
-function TransformUndoer(k::GutzwillerSampling, op::Union{Nothing,AbstractHamiltonian})
+function TransformUndoer(k::GutzwillerSampling, op::Union{Nothing,AbstractOperator})
     if isnothing(op)
         T = eltype(k)
     else
@@ -143,12 +143,12 @@ end
 # methods for general operator `f^{-1} A f^{-1}`
 LOStructure(::Type{<:TransformUndoer{<:Any,<:GutzwillerSampling,A}}) where {A} = LOStructure(A)
 
-function LinearAlgebra.adjoint(s::TransformUndoer{T,<:GutzwillerSampling,<:AbstractHamiltonian}) where {T}
+function LinearAlgebra.adjoint(s::TransformUndoer{T,<:GutzwillerSampling,<:AbstractOperator}) where {T}
     a_adj = adjoint(s.op)
     return TransformUndoer{T,typeof(s.transform),typeof(a_adj)}(s.transform, a_adj)
 end
 
-function diagonal_element(s::TransformUndoer{<:Any,<:GutzwillerSampling,<:AbstractHamiltonian}, add)
+function diagonal_element(s::TransformUndoer{<:Any,<:GutzwillerSampling,<:AbstractOperator}, add)
     diagH = diagonal_element(s.transform.hamiltonian, add)
     diagA = diagonal_element(s.op, add)
     return gutzwiller_modify(diagA, true, s.transform.g, 0., 2 * diagH)

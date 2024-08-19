@@ -41,7 +41,7 @@ DVec{Symbol,Float64} with 2 entries, style = IsDeterministic{Float64}()
   :b => 3.0
 ```
 """
-struct DVec{K,V,S<:StochasticStyle{V},D<:AbstractDict{K,V}} <: AbstractDVec{K,V}
+struct DVec{K,V,S<:StochasticStyle,D<:AbstractDict{K,V}} <: AbstractDVec{K,V}
     storage::D
     style::S
 end
@@ -50,16 +50,40 @@ end
 ### Constructors
 ###
 # Vararg
-function DVec(args...; kwargs...)
+function DVec(args...; style = nothing, kwargs...)
     storage = Dict(args...)
-    return DVec(storage; kwargs...)
+    if style === nothing
+        return DVec(storage; kwargs...)
+    else
+        # if style is given, check value type compatibility and convert if necessary
+        V = valtype(storage)
+        S = scalartype(style)
+        if V <: AbstractArray
+            if eltype(V) != S
+                throw(ArgumentError("Style $(style) is incompatible with value type $(V). "*
+                            "Use a style with scalartype(style) == $(eltype(V)) instead."))
+            end
+            # no conversion necessary, the types are compatible
+        else # V is a scalar type
+            # try to convert storage to the appropriate type
+            K = keytype(storage)
+            storage = Dict{K,S}(storage)
+        end
+        return DVec(storage; style, kwargs...)
+    end
 end
 
+# from Dict; check style compatibility
 function DVec(
-    dict::Dict{K}; style::StochasticStyle{V}=default_style(valtype(dict)), capacity=0
+    dict::Dict{K,V};
+    style::StochasticStyle=default_style(V),
+    capacity=0
 ) where {K,V}
-    storage = convert(Dict{K,V}, dict)
-    return DVec(storage, style)
+    if !(V == scalartype(style) || eltype(V) == scalartype(style))
+        throw(ArgumentError("Style $(style) is incompatible with value type $(V). "*
+                            "Use a style with scalartype(style) == $(eltype(V)) instead."))
+    end
+    return DVec{K,V,typeof(style),typeof(dict)}(dict, style)
 end
 # Empty constructor.
 function DVec{K,V}(; style::StochasticStyle=default_style(V), capacity=0) where {K,V}
@@ -71,17 +95,17 @@ function DVec(dv::AbstractDVec{K,V}; style=StochasticStyle(dv), capacity=0) wher
     return copyto!(dvec, dv)
 end
 
-function Base.empty(dvec::DVec{K,V}) where {K,V}
-    return DVec{K,V}(; style=StochasticStyle(dvec))
+function Base.empty(dvec::DVec{K,V}; style=dvec.style) where {K,V}
+    return DVec{K,V}(; style)
 end
-function Base.empty(dvec::DVec{K,V}, ::Type{V}) where {K,V}
-    return empty(dvec)
+function Base.empty(dvec::DVec{K,V}, ::Type{V}; style=dvec.style) where {K,V}
+    return empty(dvec; style)
 end
-function Base.empty(dvec::DVec{K,V}, ::Type{W}) where {K,V,W}
-    return DVec{K,W}()
+function Base.empty(::DVec{K}, ::Type{V}; style=default_style(V)) where {K,V}
+    return DVec{K,V}(; style)
 end
-function Base.empty(dvec::DVec, ::Type{K}, ::Type{V}) where {K,V}
-    return DVec{K,V}()
+function Base.empty(::DVec, ::Type{K}, ::Type{V}; style=default_style(V)) where {K,V}
+    return DVec{K,V}(; style)
 end
 
 ###

@@ -263,7 +263,7 @@ walkernumber_and_length(v) = walkernumber(v), length(v)
 ###
 ### Vector-operator functions
 ###
-function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::AbstractDVec)
+function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractOperator, v::AbstractDVec)
     empty!(w)
     for (key, val) in pairs(v)
         w[key] += diagonal_element(h, key) * val
@@ -274,22 +274,25 @@ function LinearAlgebra.mul!(w::AbstractDVec, h::AbstractHamiltonian, v::Abstract
     return w
 end
 
-function Base.:*(h::AbstractHamiltonian, v::AbstractDVec)
-    return mul!(zerovector(v, promote_type(eltype(h), valtype(v))), h, v)
+function Base.:*(h::AbstractOperator, v::AbstractDVec)
+    T = promote_type(scalartype(h), scalartype(v))
+    if eltype(h) ≠ scalartype(h)
+        throw(ArgumentError("Operators with non-scalar eltype don't support "*
+                            "multiplication with `*`. Use `mul!` or `dot` instead."))
+    end
+    # first argument in mul! requires IsDeterministic style
+    w = empty(v, T; style=IsDeterministic{T}())
+    return mul!(w, h, v)
 end
 
-"""
-    dot(w, op::AbstractHamiltonian, v)
-
-Evaluate `w⋅op(v)` minimizing memory allocations.
-"""
-function LinearAlgebra.dot(w::AbstractDVec, op::AbstractHamiltonian, v::AbstractDVec)
+# docstring in Interfaces
+function LinearAlgebra.dot(w::AbstractDVec, op::AbstractOperator, v::AbstractDVec)
     return dot(LOStructure(op), w, op, v)
 end
-function LinearAlgebra.dot(::AdjointUnknown, w, op::AbstractHamiltonian, v)
+function LinearAlgebra.dot(::AdjointUnknown, w, op::AbstractOperator, v)
     return dot_from_right(w, op, v)
 end
-function LinearAlgebra.dot(::LOStructure, w, op::AbstractHamiltonian, v)
+function LinearAlgebra.dot(::LOStructure, w, op::AbstractOperator, v)
     if length(w) < length(v)
         return conj(dot_from_right(v, op', w)) # turn args around to execute faster
     else
@@ -297,13 +300,8 @@ function LinearAlgebra.dot(::LOStructure, w, op::AbstractHamiltonian, v)
     end
 end
 
-"""
-    dot_from_right(w, op::AbstractHamiltonian, v)
-
-Internal function evaluates the 3-argument `dot()` function in order from right
-to left.
-"""
-function dot_from_right(w, op, v::AbstractDVec)
+# docstring in Interfaces
+function Interfaces.dot_from_right(w, op, v::AbstractDVec)
     T = typeof(zero(valtype(w)) * zero(eltype(op)) * zero(valtype(v)))
     result = zero(T)
     for (key, val) in pairs(v)

@@ -120,17 +120,17 @@ function InitiatorDVec(
     return InitiatorDVec(copy(storage(dv)); style, initiator, capacity)
 end
 
-function Base.empty(dvec::InitiatorDVec{K,V}) where {K,V}
-    return InitiatorDVec{K,V}(; style=dvec.style, initiator=dvec.initiator)
+function Base.empty(dvec::InitiatorDVec{K,V}; style=dvec.style) where {K,V}
+    return InitiatorDVec{K,V}(; style, initiator=dvec.initiator)
 end
-function Base.empty(dvec::InitiatorDVec{K,V}, ::Type{V}) where {K,V}
-    return empty(dvec)
+function Base.empty(dvec::InitiatorDVec{K,V}, ::Type{V}; style=dvec.style) where {K,V}
+    return empty(dvec; style)
 end
-function Base.empty(dvec::InitiatorDVec{K}, ::Type{V}) where {K,V}
-    return InitiatorDVec{K,V}(; initiator=dvec.initiator)
+function Base.empty(dvec::InitiatorDVec{K}, ::Type{V}; style=default_style(V)) where {K,V}
+    return InitiatorDVec{K,V}(; style, initiator=dvec.initiator)
 end
-function Base.empty(dvec::InitiatorDVec, ::Type{K}, ::Type{V}) where {K,V}
-    return InitiatorDVec{K,V}(; initiator=dvec.initiator)
+function Base.empty(dvec::InitiatorDVec, ::Type{K}, ::Type{V}; style=default_style(V)) where {K,V}
+    return InitiatorDVec{K,V}(; style, initiator=dvec.initiator)
 end
 
 ###

@@ -149,7 +149,7 @@ This function should be overloaded in the second form, with `offdiags` as an arg
 
 See [`SpawningStrategy`](@ref).
 """
-@inline function spawn!(s::SpawningStrategy, w, op, add, val, boost=1)
+@inline function spawn!(s::SpawningStrategy, w, op::AbstractOperator, add, val, boost=1)
     return spawn!(s, w, offdiagonals(op, add), add, val, boost)
 end
 
@@ -378,6 +378,8 @@ end
 end
 
 # bypass branching code for Exact() sub-strategy
-@inline function spawn!(s::DynamicSemistochastic{<:Any, <:Exact}, args...)
-    return (1, 0, spawn!(s.strat, args...)...)
+@inline function spawn!(
+    s::DynamicSemistochastic{<:Any,<:Exact}, w, od::AbstractVector, args...
+)
+    return (1, 0, spawn!(s.strat, w, od, args...)...)
 end

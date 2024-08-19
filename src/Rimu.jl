@@ -44,6 +44,7 @@ include("helpers.jl") # non MPI-dependent helper functions
 
 include("Interfaces/Interfaces.jl")
 @reexport using .Interfaces
+using .Interfaces: dot_from_right
 include("BitStringAddresses/BitStringAddresses.jl")
 @reexport using .BitStringAddresses
 include("Hamiltonians/Hamiltonians.jl")

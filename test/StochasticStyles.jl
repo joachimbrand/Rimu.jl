@@ -4,8 +4,18 @@ using Rimu.StochasticStyles
 
 using Rimu.StochasticStyles: projected_deposit!, diagonal_step!, spawn!
 using Rimu.StochasticStyles:
-    Exact, SingleSpawn, WithReplacement, WithoutReplacement, Bernoulli, DynamicSemistochastic
+    Exact, SingleSpawn, WithReplacement, WithoutReplacement, Bernoulli,
+    DynamicSemistochastic, IsStochastic2Pop
 
+@testset "default_style" begin
+    default_style_of_typeof(x) = default_style(typeof(x))
+    @test default_style_of_typeof(1) == IsStochasticInteger{Int}()
+    @test default_style_of_typeof(1.0) == IsDeterministic{Float64}()
+    @test default_style_of_typeof(1.0f0) == IsDeterministic{Float32}()
+    @test default_style_of_typeof(1im) == IsStochastic2Pop{Complex{Int}}()
+    @test default_style_of_typeof(1.0 + 1im) == IsDeterministic{ComplexF64}()
+    @test default_style_of_typeof([1.0f0 + 1im, 1.0f0 + 1im]) isa StyleUnknown
+end
 @testset "Generic Hamiltonian-free functions" begin
     matrix = [1 2 3; 4 5 6; 7 8 9]
     @test diagonal_element(matrix, 3) == 9

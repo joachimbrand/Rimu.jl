@@ -6,6 +6,7 @@ This module contains interfaces that can be used to extend and modify the algori
 # Interfaces
 Follow the links for the definitions of the interfaces!
 * [`AbstractHamiltonian`](@ref) for defining [`Hamiltonians`](@ref Main.Hamiltonians)
+* [`AbstractOperator`](@ref) for defining observable operators
 * [`AbstractDVec`](@ref) for defining data structures for `Rimu` as in [`DictVectors`](@ref Main.DictVectors)
 * [`StochasticStyle`](@ref) for controlling the stochastic algorithms used by
   [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) as implemented in
@@ -21,7 +22,7 @@ Follow the links for the definitions of the interfaces!
 * [`random_offdiagonal`](@ref)
 * [`starting_address`](@ref)
 * [`LOStructure`](@ref)
-* [`allowed_address_type`](@ref)
+* [`allows_address_type`](@ref)
 
 ## working with  [`AbstractDVec`](@ref)s and [`StochasticStyle`](@ref)
 * [`deposit!`](@ref)
@@ -38,7 +39,7 @@ Follow the links for the definitions of the interfaces!
 module Interfaces
 
 using LinearAlgebra: LinearAlgebra, diag
-using VectorInterface: VectorInterface, add, zerovector!
+using VectorInterface: VectorInterface, add, zerovector!, scalartype
 
 import OrderedCollections: freeze
 
@@ -50,8 +51,9 @@ export
     apply_operator!, sort_into_targets!
 export
     AbstractHamiltonian, diagonal_element, num_offdiagonals, get_offdiagonal, offdiagonals,
-    random_offdiagonal, starting_address, allowed_address_type,
-    LOStructure, IsDiagonal, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint
+    random_offdiagonal, starting_address, allows_address_type,
+    LOStructure, IsDiagonal, IsHermitian, AdjointKnown, AdjointUnknown, has_adjoint,
+    AbstractOperator
 
 include("stochasticstyles.jl")
 include("dictvectors.jl")

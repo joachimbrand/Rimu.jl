@@ -72,7 +72,7 @@ function CompositeFS(adds::Vararg{SingleComponentFockAddress})
     return CompositeFS{length(adds),N,M1,typeof(adds)}(adds)
 end
 
-num_components(::CompositeFS{C}) where {C} = C
+num_components(::Type{<:CompositeFS{C}}) where {C} = C
 Base.hash(c::CompositeFS, u::UInt) = hash(c.components, u)
 
 function print_address(io::IO, c::CompositeFS{C}; compact=false) where {C}

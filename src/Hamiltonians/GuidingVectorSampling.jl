@@ -128,7 +128,7 @@ end
 Base.size(h::GuidingVectorOffdiagonals) = size(h.offdiagonals)
 
 """
-    TransformUndoer(k::GuidingVectorSampling, op::AbstractHamiltonian)
+    TransformUndoer(k::GuidingVectorSampling, op::AbstractOperator)
     TransformUndoer(k::GuidingVectorSampling)
 
 For a guiding vector similarity transformation ``\\hat{G} = f \\hat{H} f^{-1}``
@@ -138,7 +138,7 @@ the components of the guiding vector, i.e.``f_{ii} = v_i``.
 
 See [`AllOverlaps`](@ref), [`GuidingVectorSampling`](@ref).
 """
-function TransformUndoer(k::GuidingVectorSampling, op::Union{Nothing,AbstractHamiltonian})
+function TransformUndoer(k::GuidingVectorSampling, op::Union{Nothing,AbstractOperator})
     if isnothing(op)
         T = eltype(k)
     else
@@ -150,12 +150,12 @@ end
 # methods for general operator `f^{-1} A f^{-1}`
 LOStructure(::Type{<:TransformUndoer{<:Any,<:GuidingVectorSampling,A}}) where {A} = LOStructure(A)
 
-function LinearAlgebra.adjoint(s::TransformUndoer{T,<:GuidingVectorSampling,<:AbstractHamiltonian}) where {T}
+function LinearAlgebra.adjoint(s::TransformUndoer{T,<:GuidingVectorSampling,<:AbstractOperator}) where {T}
     a_adj = adjoint(s.op)
     return TransformUndoer{T,typeof(s.transform),typeof(a_adj)}(s.transform, a_adj)
 end
 
-function diagonal_element(s::TransformUndoer{<:Any,<:GuidingVectorSampling,<:AbstractHamiltonian}, add)
+function diagonal_element(s::TransformUndoer{<:Any,<:GuidingVectorSampling,<:AbstractOperator}, add)
     guide = s.transform.vector[add]
     diagA = diagonal_element(s.op, add)
     return guided_vector_modify(diagA, true, s.transform.eps, 1., 2 * guide)

@@ -32,7 +32,7 @@ end
 end
 
 """
-    G2RealCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+    G2RealCorrelator(d::Int) <: AbstractOperator{Float64}
 
 Two-body operator for density-density correlation between sites separated by `d`
 with `0 ≤ d < M`.
@@ -62,10 +62,10 @@ equivalent to stacking all components into a single Fock state.
 * [`HubbardReal1D`](@ref)
 * [`G2RealSpace`](@ref)
 * [`G2MomCorrelator`](@ref)
-* [`AbstractHamiltonian`](@ref)
+* [`AbstractOperator`](@ref)
 * [`AllOverlaps`](@ref)
 """
-struct G2RealCorrelator{D} <: AbstractHamiltonian{Float64}
+struct G2RealCorrelator{D} <: AbstractOperator{Float64}
 end
 
 G2RealCorrelator(d::Int) = G2RealCorrelator{d}()
@@ -75,28 +75,31 @@ function Base.show(io::IO, ::G2RealCorrelator{D}) where {D}
 end
 
 LOStructure(::Type{<:G2RealCorrelator}) = IsDiagonal()
+function Interfaces.allows_address_type(::G2RealCorrelator{D}, ::Type{A}) where {D,A}
+    return num_modes(A) > D
+end
 
-function diagonal_element(::G2RealCorrelator{0}, add::SingleComponentFockAddress)
-    M = num_modes(add)
-    v = onr(add)
+function diagonal_element(::G2RealCorrelator{0}, addr::SingleComponentFockAddress)
+    M = num_modes(addr)
+    v = onr(addr)
     return dot(v, v .- 1) / M
 end
-function diagonal_element(::G2RealCorrelator{D}, add::SingleComponentFockAddress) where {D}
-    M = num_modes(add)
+function diagonal_element(::G2RealCorrelator{D}, addr::SingleComponentFockAddress) where {D}
+    M = num_modes(addr)
     d = mod(D, M)
-    v = onr(add)
+    v = onr(addr)
     return circshift_dot(v, v, (d,)) / M
 end
 
-function diagonal_element(::G2RealCorrelator{0}, add::CompositeFS)
-    M = num_modes(add)
-    v = sum(map(onr, add.components))
+function diagonal_element(::G2RealCorrelator{0}, addr::CompositeFS)
+    M = num_modes(addr)
+    v = sum(map(onr, addr.components))
     return dot(v, v .- 1) / M
 end
-function diagonal_element(::G2RealCorrelator{D}, add::CompositeFS) where {D}
-    M = num_modes(add)
+function diagonal_element(::G2RealCorrelator{D}, addr::CompositeFS) where {D}
+    M = num_modes(addr)
     d = mod(D, M)
-    v = sum(map(onr, add.components))
+    v = sum(map(onr, addr.components))
     return circshift_dot(v, v, (d,)) / M
 end
 
@@ -104,7 +107,7 @@ num_offdiagonals(::G2RealCorrelator, ::SingleComponentFockAddress) = 0
 num_offdiagonals(::G2RealCorrelator, ::CompositeFS) = 0
 
 """
-    G2RealSpace(geometry::CubicGrid, σ=1, τ=1; sum_components=false) <: AbstractHamiltonian{SArray}
+    G2RealSpace(geometry::CubicGrid, σ=1, τ=1; sum_components=false) <: AbstractOperator{SArray}
 
 Two-body operator for density-density correlation for all [`Displacements`](@ref) ``d⃗`` in the specified `geometry`.
 
@@ -157,10 +160,10 @@ julia> diagonal_element(g2_sum, fs"|⇅⋅↓↑⟩")
 * [`HubbardRealSpace`](@ref)
 * [`G2RealCorrelator`](@ref)
 * [`G2MomCorrelator`](@ref)
-* [`AbstractHamiltonian`](@ref)
+* [`AbstractOperator`](@ref)
 * [`AllOverlaps`](@ref)
 """
-struct G2RealSpace{A,B,G<:CubicGrid,S} <: AbstractHamiltonian{S}
+struct G2RealSpace{A,B,G<:CubicGrid,S} <: AbstractOperator{S}
     geometry::G
     init::S
 end
@@ -187,6 +190,14 @@ function Base.show(io::IO, g2::G2RealSpace{0,0})
 end
 
 LOStructure(::Type{<:G2RealSpace}) = IsDiagonal()
+VectorInterface.scalartype(::G2RealSpace) = Float64 # needed because eltype is a vector
+
+function Interfaces.allows_address_type(
+    g2::G2RealSpace{C1,C2}, A::Type{<:AbstractFockAddress}
+) where {C1,C2}
+    result = prod(size(g2.geometry)) == num_modes(A)
+    return result && 0 ≤ C1 ≤ num_components(A) && 0 ≤ C2 ≤ num_components(A)
+end
 
 num_offdiagonals(g2::G2RealSpace, _) = 0
 
@@ -225,7 +236,7 @@ function diagonal_element(g2::G2RealSpace{0,0}, addr::CompositeFS)
 end
 
 """
-    G2MomCorrelator(d::Int,c=:cross) <: AbstractHamiltonian{ComplexF64}
+    G2MomCorrelator(d::Int,c=:cross) <: AbstractOperator{ComplexF64}
 
 Two-body correlation operator representing the density-density
 correlation at distance `d` of a two component system
@@ -266,10 +277,10 @@ and let it be the default value.
 * [`BoseFS2C`](@ref)
 * [`G2RealCorrelator`](@ref)
 * [`G2RealSpace`](@ref)
-* [`AbstractHamiltonian`](@ref)
+* [`AbstractOperator`](@ref)
 * [`AllOverlaps`](@ref)
 """
-struct G2MomCorrelator{C} <: AbstractHamiltonian{ComplexF64}
+struct G2MomCorrelator{C} <: AbstractOperator{ComplexF64}
     d::Int
 
     function G2MomCorrelator(d,c=:cross)
@@ -287,6 +298,10 @@ end
 @deprecate G2Correlator(d,c) G2MomCorrelator(d,c)
 @deprecate G2Correlator(d) G2MomCorrelator(d)
 
+function Interfaces.allows_address_type(g2m::G2MomCorrelator, ::Type{A}) where {A}
+    return num_modes(A) > g2m.d
+end
+
 function Base.show(io::IO, g::G2MomCorrelator{C}) where C
     if C == 1
         print(io, "G2MomCorrelator($(g.d),:first)")
@@ -298,28 +313,28 @@ function Base.show(io::IO, g::G2MomCorrelator{C}) where C
 end
 
 
-num_offdiagonals(g::G2MomCorrelator{1},add::BoseFS2C) = num_offdiagonals(g, add.bsa)
-num_offdiagonals(g::G2MomCorrelator{2},add::BoseFS2C) = num_offdiagonals(g, add.bsb)
+num_offdiagonals(g::G2MomCorrelator{1},addr::BoseFS2C) = num_offdiagonals(g, addr.bsa)
+num_offdiagonals(g::G2MomCorrelator{2},addr::BoseFS2C) = num_offdiagonals(g, addr.bsb)
 
-function num_offdiagonals(g::G2MomCorrelator{3}, add::BoseFS2C)
-    m = num_modes(add)
-    sa = num_occupied_modes(add.bsa)
-    sb = num_occupied_modes(add.bsb)
+function num_offdiagonals(g::G2MomCorrelator{3}, addr::BoseFS2C)
+    m = num_modes(addr)
+    sa = num_occupied_modes(addr.bsa)
+    sb = num_occupied_modes(addr.bsb)
     return sa*(m-1)*sb
 end
 
-function num_offdiagonals(g::G2MomCorrelator, add::SingleComponentFockAddress)
-    m = num_modes(add)
-    singlies, doublies = num_singly_doubly_occupied_sites(add)
+function num_offdiagonals(g::G2MomCorrelator, addr::SingleComponentFockAddress)
+    m = num_modes(addr)
+    singlies, doublies = num_singly_doubly_occupied_sites(addr)
     return singlies*(singlies-1)*(m - 2) + doublies*(m - 1)
 end
 
-diagonal_element(g::G2MomCorrelator{1}, add::BoseFS2C) = diagonal_element(g, add.bsa)
-diagonal_element(g::G2MomCorrelator{2}, add::BoseFS2C) = diagonal_element(g, add.bsb)
+diagonal_element(g::G2MomCorrelator{1}, addr::BoseFS2C) = diagonal_element(g, addr.bsa)
+diagonal_element(g::G2MomCorrelator{2}, addr::BoseFS2C) = diagonal_element(g, addr.bsb)
 
-function diagonal_element(g::G2MomCorrelator{3}, add::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
-    onrep_a = onr(add.bsa)
-    onrep_b = onr(add.bsb)
+function diagonal_element(g::G2MomCorrelator{3}, addr::BoseFS2C{NA,NB,M,AA,AB}) where {NA,NB,M,AA,AB}
+    onrep_a = onr(addr.bsa)
+    onrep_b = onr(addr.bsb)
     gd = 0
     for p in 1:M
         iszero(onrep_b[p]) && continue
@@ -330,9 +345,9 @@ function diagonal_element(g::G2MomCorrelator{3}, add::BoseFS2C{NA,NB,M,AA,AB}) w
     return ComplexF64(gd/M)
 end
 
-function diagonal_element(g::G2MomCorrelator, add::SingleComponentFockAddress)
-    M = num_modes(add)
-    onrep = onr(add)
+function diagonal_element(g::G2MomCorrelator, addr::SingleComponentFockAddress)
+    M = num_modes(addr)
+    onrep = onr(addr)
     gd = 0
     for p in 1:M
         iszero(onrep[p]) && continue
@@ -343,27 +358,27 @@ function diagonal_element(g::G2MomCorrelator, add::SingleComponentFockAddress)
     return ComplexF64(gd/M)
 end
 
-function get_offdiagonal(g::G2MomCorrelator{1}, add::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
-    new_bsa, elem = get_offdiagonal(g, add.bsa, chosen)
-    return A(new_bsa,add.bsb), elem
+function get_offdiagonal(g::G2MomCorrelator{1}, addr::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
+    new_bsa, elem = get_offdiagonal(g, addr.bsa, chosen)
+    return A(new_bsa,addr.bsb), elem
 end
 
-function get_offdiagonal(g::G2MomCorrelator{2}, add::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
-    new_bsb, elem = get_offdiagonal(g, add.bsb, chosen)
-    return A(add.bsa, new_bsb), elem
+function get_offdiagonal(g::G2MomCorrelator{2}, addr::A, chosen)::Tuple{A,ComplexF64} where A<:BoseFS2C
+    new_bsb, elem = get_offdiagonal(g, addr.bsb, chosen)
+    return A(addr.bsa, new_bsb), elem
 end
 
 function get_offdiagonal(
     g::G2MomCorrelator{3},
-    add::A,
+    addr::A,
     chosen,
-    ma=OccupiedModeMap(add.bsa),
-    mb=OccupiedModeMap(add.bsb),
+    ma=OccupiedModeMap(addr.bsa),
+    mb=OccupiedModeMap(addr.bsb),
 )::Tuple{A,ComplexF64} where {A<:BoseFS2C}
 
-    m = num_modes(add)
+    m = num_modes(addr)
     new_bsa, new_bsb, gamma, _, _, Δp = momentum_transfer_excitation(
-        add.bsa, add.bsb, chosen, ma, mb
+        addr.bsa, addr.bsb, chosen, ma, mb
     )
     gd = exp(-im*g.d*Δp*2π/m)*gamma
     return A(new_bsa, new_bsb), ComplexF64(gd/m)
@@ -371,36 +386,39 @@ end
 
 function get_offdiagonal(
     g::G2MomCorrelator,
-    add::A,
+    addr::A,
     chosen,
 )::Tuple{A,ComplexF64} where {A<:SingleComponentFockAddress}
-    M = num_modes(add)
-    new_add, gamma, Δp = momentum_transfer_excitation(add, chosen, OccupiedModeMap(add))
+    M = num_modes(addr)
+    new_add, gamma, Δp = momentum_transfer_excitation(addr, chosen, OccupiedModeMap(addr))
     gd = exp(-im*g.d*Δp*2π/M)*gamma
     return new_add, ComplexF64(gd/M)
 end
 
 """
-    SuperfluidCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+    SuperfluidCorrelator(d::Int) <: AbstractOperator{Float64}
 
-Operator for extracting superfluid correlation between sites separated by a distance `d` with `0 ≤ d < M`:
+Operator for extracting superfluid correlation between sites separated by a distance `d`
+with `0 ≤ d < M`:
 
 ```math
     \\hat{C}_{\\text{SF}}(d) = \\frac{1}{M} \\sum_{i}^{M} a_{i}^{\\dagger} a_{i + d}
 ```
-Assumes a one-dimensional lattice with ``M`` sites and periodic boundary conditions. ``M`` is also the number of modes in the Fock state address.
+Assumes a one-dimensional lattice with ``M`` sites and periodic boundary conditions. ``M``
+is also the number of modes in the Fock state address.
 
 # Usage
-Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping `SuperfluidCorrelator` with
-[`AllOverlaps`](@ref) and passing into [`ProjectorMonteCarloProblem`](@ref) with the `replica` keyword argument. For an example with a
-similar use of [`G2RealCorrelator`](@ref) see
+Superfluid correlations can be extracted from a Monte Carlo calculation by wrapping
+`SuperfluidCorrelator` with [`AllOverlaps`](@ref) and passing into
+[`ProjectorMonteCarloProblem`](@ref) with the `replica` keyword argument. For an example
+with a similar use of [`G2RealCorrelator`](@ref) see
 [G2 Correlator Example](https://joachimbrand.github.io/Rimu.jl/previews/PR227/generated/G2-example.html).
 
 
-See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`AbstractHamiltonian`](@ref),
+See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`AbstractOperator`](@ref),
 and [`AllOverlaps`](@ref).
 """
-struct SuperfluidCorrelator{D} <: AbstractHamiltonian{Float64}
+struct SuperfluidCorrelator{D} <: AbstractOperator{Float64}
 end
 
 SuperfluidCorrelator(d::Int) = SuperfluidCorrelator{d}()
@@ -408,61 +426,94 @@ SuperfluidCorrelator(d::Int) = SuperfluidCorrelator{d}()
 function Base.show(io::IO, ::SuperfluidCorrelator{D}) where {D}
     print(io, "SuperfluidCorrelator($D)")
 end
-
-function num_offdiagonals(::SuperfluidCorrelator, add::SingleComponentFockAddress)
-    return num_occupied_modes(add)
+function Interfaces.allows_address_type(::SuperfluidCorrelator{D}, ::Type{A}) where {D,A}
+    return num_modes(A) > D
 end
 
-function get_offdiagonal(::SuperfluidCorrelator{D}, add::SingleComponentFockAddress, chosen) where {D}
-    src = find_occupied_mode(add, chosen)
-    dst = find_mode(add, mod1(src.mode + D, num_modes(add)))
-    address, value = excitation(add, (dst,), (src,))
-    return address, value / num_modes(add)
+function num_offdiagonals(::SuperfluidCorrelator, addr::SingleComponentFockAddress)
+    return num_occupied_modes(addr)
 end
 
-function diagonal_element(::SuperfluidCorrelator{0}, add::SingleComponentFockAddress)
-    return num_particles(add) / num_modes(add)
+function get_offdiagonal(
+    ::SuperfluidCorrelator{D}, addr::SingleComponentFockAddress, chosen
+) where {D}
+    src = find_occupied_mode(addr, chosen)
+    dst = find_mode(addr, mod1(src.mode + D, num_modes(addr)))
+    address, value = excitation(addr, (dst,), (src,))
+    return address, value / num_modes(addr)
 end
-function diagonal_element(::SuperfluidCorrelator{D}, add::SingleComponentFockAddress) where {D}
+
+function diagonal_element(::SuperfluidCorrelator{0}, addr::SingleComponentFockAddress)
+    return num_particles(addr) / num_modes(addr)
+end
+function diagonal_element(
+    ::SuperfluidCorrelator{D}, addr::SingleComponentFockAddress
+) where {D}
     return 0.0
 end
 
 
 """
-    StringCorrelator(d::Int) <: AbstractHamiltonian{Float64}
+    StringCorrelator(d::Int; address=nothing, type=nothing) <: AbstractOperator{T}
 
-Operator for extracting string correlation between lattice sites on a one-dimensional Hubbard lattice
-separated by a distance `d` with `0 ≤ d < M`
+Operator for extracting string correlation between lattice sites on a one-dimensional
+Hubbard lattice separated by a distance `d` with `0 ≤ d < M`
 
 ```math
-    \\hat{C}_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} \\delta n_j (e^{i \\pi \\sum_{j \\leq k < j + d} \\delta n_k}) \\delta n_{j+d}
+    Ĉ_{\\text{string}}(d) = \\frac{1}{M} \\sum_{j}^{M} δ n̂_j
+                                         (e^{i π \\sum_{j ≤ k < j + d} δ n̂_k}) δ n̂_{j+d}
 ```
-Here, ``\\delta \\hat{n}_j = \\hat{n}_j - \\bar{n}`` is the boson number deviation from the mean filling
-number and ``\\bar{n} = N/M`` is the mean filling number of lattice sites with ``N`` particles and
+Here, ``δ n̂_j = n̂_j - n̄`` is the boson number deviation from the mean filling
+number and ``n̄ = N/M`` is the mean filling number of lattice sites with ``N`` particles and
 ``M`` lattice sites (or modes).
 
 Assumes a one-dimensional lattice with periodic boundary conditions. For usage
 see [`SuperfluidCorrelator`](@ref) and [`AllOverlaps`](@ref).
 
+The default element type `T` is `ComplexF64`. This can be overridden with the `type` keyword
+argument. If an `address` is provided, then `T` is calculated from the address type.
+It is set to `ComplexF64` for non-integer filling numbers, and to `Float64` for integer
+filling numbers or if `d==0`.
+
 See also [`HubbardReal1D`](@ref), [`G2RealCorrelator`](@ref), [`SuperfluidCorrelator`](@ref),
-[`AbstractHamiltonian`](@ref), and [`AllOverlaps`](@ref).
+[`AbstractOperator`](@ref), and [`AllOverlaps`](@ref).
 """
-struct StringCorrelator{D} <: AbstractHamiltonian{Float64}
+struct StringCorrelator{D,T} <: AbstractOperator{T}
 end
 
-StringCorrelator(d::Int) = StringCorrelator{d}()
+function StringCorrelator(d::Int; address=nothing, type=nothing)
+    if type === nothing
+        if iszero(d)
+            type = Float64
+        elseif address === nothing
+            type = ComplexF64
+        else
+            M = num_modes(address)
+            N = num_particles(address)
+            if !ismissing(N) && iszero(N % M)
+                type = Float64
+            else
+                type = ComplexF64
+            end
+        end
+    end
+    return StringCorrelator{d,type}()
+end
 
-function Base.show(io::IO, ::StringCorrelator{D}) where {D}
-    print(io, "StringCorrelator($D)")
+function Base.show(io::IO, ::StringCorrelator{D,T}) where {D,T}
+    print(io, "StringCorrelator($D; type=$T)")
+end
+function Interfaces.allows_address_type(::StringCorrelator{D}, ::Type{A}) where {D,A}
+    return num_modes(A) > D && A <: SingleComponentFockAddress
 end
 
 LOStructure(::Type{<:StringCorrelator}) = IsDiagonal()
 
-function diagonal_element(::StringCorrelator{0}, add::SingleComponentFockAddress)
-    M = num_modes(add)
-    N = num_particles(add)
+function diagonal_element(::StringCorrelator{0}, addr::SingleComponentFockAddress)
+    M = num_modes(addr)
+    N = num_particles(addr)
     n̄ = N/M
-    v = onr(add)
+    v = onr(addr)
 
     result = 0.0
     for i in eachindex(v)
@@ -474,23 +525,25 @@ end
 
 num_offdiagonals(::StringCorrelator, ::SingleComponentFockAddress) = 0
 
-function diagonal_element(::StringCorrelator{D}, add::SingleComponentFockAddress) where {D}
-    M = num_modes(add)
-    N = num_particles(add)
+function diagonal_element(
+    ::StringCorrelator{D,T}, addr::SingleComponentFockAddress
+) where {D,T}
+    M = num_modes(addr)
+    N = num_particles(addr)
     d = mod(D, M)
 
     if !ismissing(N) && iszero(N % M)
-        return _string_diagonal_real(d, add)
+        return T(_string_diagonal_real(d, addr))
     else
-        return _string_diagonal_complex(d, add)
+        return T(_string_diagonal_complex(d, addr))
     end
 end
 
-function _string_diagonal_complex(d, add)
-    M = num_modes(add)
-    N = num_particles(add)
+function _string_diagonal_complex(d, addr)
+    M = num_modes(addr)
+    N = num_particles(addr)
     n̄ = N/M
-    v = onr(add)
+    v = onr(addr)
 
     result = ComplexF64(0)
     for i in eachindex(v)
@@ -501,11 +554,11 @@ function _string_diagonal_complex(d, add)
 
     return result / M
 end
-function _string_diagonal_real(d, add)
-    M = num_modes(add)
-    N = num_particles(add)
+function _string_diagonal_real(d, addr)
+    M = num_modes(addr)
+    N = num_particles(addr)
     n̄ = N ÷ M
-    v = onr(add)
+    v = onr(addr)
 
     result = 0.0
     for i in eachindex(v)

@@ -69,10 +69,16 @@ Stoquastic
 ```
 
 ## Observables
-Observables are [`AbstractHamiltonian`](@ref)s that represent a physical
-observable. Their ground state expectation values can be sampled by passing
-them into [`AllOverlaps`](@ref).
+Observables are [`AbstractOperator`](@ref)s that represent a physical
+observable. Their expectation values can be sampled during a
+[`ProjectorMonteCarloProblem`](@ref) simulation by passing
+them into a suitable [`ReplicaStrategy`](@ref), e.g. 
+[`AllOverlaps`](@ref).  [`AbstractOperator`](@ref) is a supertype of 
+[`AbstractHamiltonian`](@ref) and has less stringent 
+requirements. Some observables are also [`AbstractHamiltonian`](@ref)s.
+
 ```@docs
+AbstractOperator
 ParticleNumberOperator
 G2RealCorrelator
 G2RealSpace
@@ -114,7 +120,10 @@ random_offdiagonal
 Hamiltonians.LOStructure
 dimension
 has_adjoint
-allowed_address_type
+allows_address_type
+Base.eltype
+VectorInterface.scalartype
+mul!
 ```
 
 This interface relies on unexported functionality, including
