@@ -186,7 +186,7 @@ function PDVec{K,V,N}(
 
     # This is a bit clunky. If you modify the communicator by hand, you have to make sure it
     # knows to hold values of type W. When we introduce more communicators, they should
-    # probably be constructed by a function, similar to how it's done in RMPI.
+    # probably be constructed by a function.
     IW = initiator_valtype(irule, W)
     if isnothing(communicator)
         if MPI.Comm_size(MPI.COMM_WORLD) > 1

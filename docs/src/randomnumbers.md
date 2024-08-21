@@ -9,4 +9,4 @@ If you want FCIQMC runs to be reproducible, make sure to seed the RNG with
 [Random.seed!](https://docs.julialang.org/en/v1/stdlib/Random/#Random.seed!).
 
 MPI-distributed runs can also be made reproducible by seeding the RNG with
-[`Rimu.RMPI.mpi_seed!`](@ref).
+[`mpi_seed!`](@ref).

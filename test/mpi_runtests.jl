@@ -25,7 +25,7 @@ function rand_onr(N, M)
 end
 
 @mpi_root @info "Running MPI tests..."
-RMPI.mpi_allprintln("hello")
+mpi_allprintln("hello")
 
 # Ignore all printing on ranks other than root. Passing an argument to this script disables
 # this.

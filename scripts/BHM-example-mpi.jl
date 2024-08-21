@@ -9,10 +9,8 @@
 # [here](https://github.com/joachimbrand/Rimu.jl/blob/develop/scripts/BHM-example-mpi.jl).
 # Run it with 2 MPI ranks with `mpirun -n 2 julia BHM-example-mpi.jl`.
 
-# We start by importing `Rimu` and `Rimu.RMPI`, which contains MPI-related
-# functionality.
+# We start by importing `Rimu`.
 using Rimu
-using Rimu.RMPI
 
 # Note that it is not necessary to initialise the MPI library, as this is already done
 # automatically when Rimu is loaded.
@@ -62,8 +60,8 @@ problem = ProjectorMonteCarloProblem(H;
     last_step=10_000
 );
 
-# The [`@mpi_root`](@ref Main.Rimu.RMPI.@mpi_root) macro performs an action on the root rank
-# only, which is useful for printing.
+# The [`@mpi_root`](@ref) macro performs an action on the root rank only, which is useful
+# for printing.
 @mpi_root println("Running FCIQMC with ", mpi_size(), " rank(s).")
 
 # Finally, we can run the computation.

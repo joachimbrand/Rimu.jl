@@ -113,8 +113,7 @@ needs to be done for communicating between different processes.
 Using MPI parallelism with `Rimu` is easy. Enabling MPI enabled automatically if
 [`PDVec`](@ref) is used to store a vector. In that case, data will be stored in a
 distributed fashion among the MPI ranks and only communicated between ranks when
-necessary. Additional MPI-related functionality is provided by the module [`RMPI`](@ref
-Rimu.RMPI).
+necessary.
 
 ## Compatibility
 

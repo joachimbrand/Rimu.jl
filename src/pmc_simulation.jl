@@ -75,7 +75,7 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
 
     # seed the random number generator
     if !isnothing(random_seed)
-        Random.seed!(random_seed + hash(RMPI.mpi_rank()))
+        Random.seed!(random_seed + hash(mpi_rank()))
     end
 
     start_at = isnothing(start_at) ? starting_address(hamiltonian) : start_at

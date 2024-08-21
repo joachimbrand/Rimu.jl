@@ -4,7 +4,6 @@ using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, NonInitia
 using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement
 using Rimu.StochasticStyles: ThresholdCompression
 using Rimu.StatsTools
-using Rimu.RMPI
 using Random
 using KrylovKit
 using Suppressor
