@@ -78,7 +78,7 @@ julia> using Revise
 Rimu offers a number of tools for representing Hamiltonians (see
 [`Hamiltonians`](@ref)) and state vectors / wave functions
 (see [`DictVectors`](@ref))
-as well as algorithms to find the ground state, e.g. [`lomc!`](@ref).
+as well as algorithms to find the ground state, e.g. [`ProjectorMonteCarloProblem`](@ref), [`ExactDiagonalizationProblem`](@ref).
 
 ## Scripts
 
@@ -99,7 +99,7 @@ distribute work by making use of MPI, or "message passing interface". For exampl
 ```
 > julia scripts/BHM-example.jl
 ```
-will run on one processor with the main `lomc!()` computation (i.e. after
+will run on one processor with the main computation (i.e. after
 package loading and compilation) completing in 2.69 seconds.
 
 Running
@@ -110,10 +110,10 @@ on the same hardware makes use of 4 cores and the main part completes in 1.04
 seconds, a speedup factor of 2.6. This seems reasonable, given that extra work
 needs to be done for communicating between different processes.
 
-Using MPI parallelism with `Rimu` is easy. Enabling MPI for use in [`lomc!()`](@ref) is
-enabled automatically if [`PDVec`](@ref) is used to store a vector. In that case, data will
-be stored in a distributed fashion among the MPI ranks and only communicated between ranks
-when necessary. Additional MPI-related functionality is provided by the module [`RMPI`](@ref
+Using MPI parallelism with `Rimu` is easy. Enabling MPI enabled automatically if
+[`PDVec`](@ref) is used to store a vector. In that case, data will be stored in a
+distributed fashion among the MPI ranks and only communicated between ranks when
+necessary. Additional MPI-related functionality is provided by the module [`RMPI`](@ref
 Rimu.RMPI).
 
 ## Compatibility

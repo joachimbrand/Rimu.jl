@@ -231,14 +231,20 @@ Represent the adjoint of an [`AbstractHamiltonian`](@ref). Extend this method to
 custom adjoints.
 """
 function LinearAlgebra.adjoint(::S, op) where {S<:LOStructure}
-    error(
-        "`adjoint()` not defined for `AbstractHamiltonian`s with `LOStructure` `$(S)`. ",
+    throw(ArgumentError(
+        "`adjoint()` is not defined for `AbstractHamiltonian`s with `LOStructure` `$(S)`. "*
         " Is your Hamiltonian hermitian?"
-    )
+    ))
 end
 
 LinearAlgebra.adjoint(::IsHermitian, op) = op # adjoint is known
-LinearAlgebra.adjoint(::IsDiagonal, op) = op
+function LinearAlgebra.adjoint(::IsDiagonal, op)
+    if eltype(op) <: Real || eltype(eltype(op)) <: Real # for op's that return vectors
+        return op
+    else
+        throw(ArgumentError("adjoint() is not implemented for complex diagonal Hamiltonians"))
+    end
+end
 
 """
     TransformUndoer{

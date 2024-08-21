@@ -6,7 +6,6 @@ using KrylovKit
 using StaticArrays
 using MPI
 
-using Rimu.RMPI
 using Rimu.StatsTools
 using Rimu.DictVectors: PointToPoint, AllToAll, copy_to_local!, NonInitiatorValue
 

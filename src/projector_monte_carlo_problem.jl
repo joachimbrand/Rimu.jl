@@ -33,7 +33,7 @@ the [`FCIQMC`](@ref) algorithm.
 # Common keyword arguments and defaults:
 - `time_step = 0.01`: Initial time step size.
 - `last_step = 100`: Controls the number of steps.
-- `targetwalkers = 1_000`: Target for the 1-norm of the coefficient vector.
+- `target_walkers = 1_000`: Target for the 1-norm of the coefficient vector.
 - `start_at = starting_address(hamiltonian)`: Define the initial state vector(s).
     An ``r × s`` matrix of state vectors can be passed where ``r`` is the
     number of replicas and ``s`` the number of spectral states. See also
@@ -58,7 +58,7 @@ the [`FCIQMC`](@ref) algorithm.
 ```jldoctest
 julia> hamiltonian = HubbardReal1D(BoseFS(1,2,3));
 
-julia> problem = ProjectorMonteCarloProblem(hamiltonian; targetwalkers = 500, last_step = 100);
+julia> problem = ProjectorMonteCarloProblem(hamiltonian; target_walkers = 500, last_step = 100);
 
 julia> simulation = solve(problem);
 
@@ -66,7 +66,7 @@ julia> simulation.success[]
 true
 
 julia> size(DataFrame(simulation))
-(100, 10)
+(100, 9)
 ```
 
 # Further keyword arguments:
@@ -76,9 +76,9 @@ julia> size(DataFrame(simulation))
     duration of the simulation. Takes precedence over `last_step` and `walltime`.
 - `ζ = 0.08`: Damping parameter for the shift update.
 - `ξ = ζ^2/4`: Forcing parameter for the shift update.
-- `shift_strategy = DoubleLogUpdate(; targetwalkers, ζ, ξ)`: How to update the `shift`,
+- `shift_strategy = DoubleLogUpdate(; target_walkers, ζ, ξ)`: How to update the `shift`,
     see [`ShiftStrategy`](@ref).
-- `time_step_strategy = ConstantTimeStep()``: Adjust time step or not, see
+- `time_step_strategy = ConstantTimeStep()`: Adjust time step or not, see
     `TimeStepStrategy`.
 - `algorithm = FCIQMC(; shift_strategy, time_step_strategy)`: The algorithm to use.
     Currenlty only [`FCIQMC`](@ref) is implemented.
@@ -86,7 +86,7 @@ julia> size(DataFrame(simulation))
     Hamiltonian and the starting vectors.
 - `initial_shift_parameters`: Initial shift parameters or collection of initial shift
     parameters. Overrides `shift` if provided.
-- `maxlength = 2 * targetwalkers + 100`: Maximum length of the vectors.
+- `maxlength = 2 * target_walkers + 100`: Maximum length of the vectors.
 - `display_name = "PMCSimulation"`: Name displayed in progress bar (via `ProgressLogging`).
 - `metadata`: User-supplied metadata to be added to the report. Must be an iterable of
   pairs or a `NamedTuple`, e.g. `metadata = ("key1" => "value1", "key2" => "value2")`.
@@ -151,10 +151,11 @@ function ProjectorMonteCarloProblem(
     walltime = Inf,
     simulation_plan = SimulationPlan(starting_step, last_step, walltime),
     replica_strategy = NoStats(n_replicas),
-    targetwalkers = 1_000,
+    targetwalkers = nothing, # deprecated
+    target_walkers = 1_000,
     ζ = 0.08,
     ξ = ζ^2/4,
-    shift_strategy = DoubleLogUpdate(; targetwalkers, ζ, ξ),
+    shift_strategy = DoubleLogUpdate(; target_walkers, ζ, ξ),
     time_step_strategy=ConstantTimeStep(),
     algorithm=FCIQMC(; shift_strategy, time_step_strategy),
     initial_shift_parameters=nothing,
@@ -166,6 +167,11 @@ function ProjectorMonteCarloProblem(
     display_name = "PMCSimulation",
     random_seed = true
 )
+    if !isnothing(targetwalkers)
+        @warn "The keyword argument `targetwalkers` is deprecated. Use `target_walkers` instead."
+        target_walkers = targetwalkers
+    end
+
     n_replicas = num_replicas(replica_strategy) # replica_strategy may override n_replicas
 
     if random_seed == true
@@ -182,7 +188,7 @@ function ProjectorMonteCarloProblem(
 
     if isnothing(threading)
         s_strat = algorithm.shift_strategy
-        if !hasfield(typeof(s_strat), :targetwalkers) || abs(s_strat.targetwalkers) > 1_000
+        if !hasfield(typeof(s_strat), :target_walkers) || abs(s_strat.target_walkers) > 1_000
             threading = Threads.nthreads() > 1
         else
             threading = false
@@ -198,7 +204,7 @@ function ProjectorMonteCarloProblem(
 
     shift_strategy = algorithm.shift_strategy
     if isnothing(maxlength)
-        maxlength = round(Int, 2 * abs(shift_strategy.targetwalkers) + 100)
+        maxlength = round(Int, 2 * abs(shift_strategy.target_walkers) + 100)
         # padding for small walkernumbers
     end
 

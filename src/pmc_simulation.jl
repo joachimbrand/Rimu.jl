@@ -93,7 +93,7 @@ function PMCSimulation(problem::ProjectorMonteCarloProblem; copy_vectors=true)
         @unpack shift, time_step = initial_shift_parameters
         set_up_initial_shift_parameters(algorithm, hamiltonian, vectors, shift, time_step)
     else
-        initial_shift_parameters
+        SMatrix{n_spectral,n_replicas}(initial_shift_parameters...)
     end
     @assert shift_parameters isa SMatrix{n_spectral,n_replicas}
 
@@ -253,7 +253,7 @@ function CommonSolve.step!(sm::PMCSimulation)
 
     # report step number
     if step[] % reporting_interval(reporting_strategy) == 0
-        report!(reporting_strategy, step[], report, :steps, step[])
+        report!(reporting_strategy, step[], report, :step, step[])
     end
 
     proceed = true

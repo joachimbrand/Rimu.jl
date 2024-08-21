@@ -1,7 +1,8 @@
 """
     InitiatorDVec{K,V} <: AbstractDVec{K,V}
 
-Dictionary-based vector-like data structure for use with [`lomc!`](@ref Main.lomc!) and
+Dictionary-based vector-like data structure for use with
+[`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) and
 [`KrylovKit.jl`](https://github.com/Jutho/KrylovKit.jl). See [`AbstractDVec`](@ref).
 Functionally identical to [`DVec`](@ref), but contains [`InitiatorValue`](@ref)s internally
 in order to facilitate initiator methods. Initiator methods for controlling the Monte Carlo

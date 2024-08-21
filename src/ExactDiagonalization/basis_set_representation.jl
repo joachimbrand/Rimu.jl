@@ -184,38 +184,37 @@ are passed on to `Base.sortperm`.
 * `hamiltonian`: the Hamiltonian `hamiltonian`
 
 ## Example
-```jldoctest
+```jldoctest; filter = r"(\\d*)\\.(\\d{4})\\d+" => s"\\1.\\2***"
 julia> hamiltonian = HubbardReal1D(BoseFS(1,0,0));
 
 julia> bsr = BasisSetRepresentation(hamiltonian)
-BasisSetRepresentation(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
+BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
   0.0  -1.0  -1.0
  -1.0   0.0  -1.0
  -1.0  -1.0   0.0
 
 julia> BasisSetRepresentation(hamiltonian, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
-BasisSetRepresentation(HubbardReal1D(BoseFS{1,3}(1, 0, 0); u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
+BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
   0.0  -1.0
  -1.0   0.0
-```
-```julia-repl
-julia> using LinearAlgebra; eigvals(Matrix(bsr)) # eigenvalues
-3-element Vector{Float64}:
- -1.9999999999999996
-  0.9999999999999997
-  1.0000000000000002
 
-julia> ev = eigvecs(Matrix(bsr))[:,1] # ground state eigenvector
+julia> using LinearAlgebra; round.(eigvals(Matrix(bsr)); digits = 4) # eigenvalues
 3-element Vector{Float64}:
- -0.5773502691896257
- -0.5773502691896255
- -0.5773502691896257
+ -2.0
+  1.0
+  1.0
 
-julia> DVec(zip(bsr.basis,ev)) # ground state as DVec
+julia> ev = eigvecs(Matrix(bsr))[:,1]; ev = ev .* sign(ev[1]) # ground state eigenvector
+3-element Vector{Float64}:
+ 0.5773502691896257
+ 0.5773502691896255
+ 0.5773502691896257
+
+julia> dv = DVec(zip(bsr.basis, ev)) # ground state as DVec
 DVec{BoseFS{1, 3, BitString{3, 1, UInt8}},Float64} with 3 entries, style = IsDeterministic{Float64}()
-  fs"|0 0 1⟩" => -0.57735
-  fs"|0 1 0⟩" => -0.57735
-  fs"|1 0 0⟩" => -0.57735
+  fs"|0 0 1⟩" => 0.57735
+  fs"|0 1 0⟩" => 0.57735
+  fs"|1 0 0⟩" => 0.57735
 ```
 Has methods for [`dimension`](@ref), [`sparse`](@ref), [`Matrix`](@ref),
 [`starting_address`](@ref).

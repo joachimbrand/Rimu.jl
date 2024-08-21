@@ -72,8 +72,8 @@ end
 Returns an estimate of the expected number of walkers as an integer.
 """
 function _n_walkers(v, shift_strategy)
-    n = if hasfield(typeof(shift_strategy), :targetwalkers)
-        shift_strategy.targetwalkers
+    n = if hasfield(typeof(shift_strategy), :target_walkers)
+        shift_strategy.target_walkers
     else # e.g. for LogUpdate()
         walkernumber(v)
     end

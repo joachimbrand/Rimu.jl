@@ -89,6 +89,7 @@ function Transcorrelated1D(address; t=1.0, v=1.0, v_ho=0.0, cutoff=1, three_body
 end
 
 function Base.show(io::IO, h::Transcorrelated1D)
+    io = IOContext(io, :compact => true)
     print(io, "Transcorrelated1D(", starting_address(h), ", t=$(h.t), v=$(h.v)")
     if !iszero(h.v_ho)
         print(io, ", v_ho=$(h.v_ho))")

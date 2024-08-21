@@ -12,8 +12,8 @@ state after an FCIQMC step is finished and report the results.
 * [`WalkerLoneliness`](@ref)
 * [`Timer`](@ref)
 
-Note: A tuple of multiple strategies can be passed to [`lomc!`](@ref). In that case, all
-reported column names must be distinct.
+Note: A tuple of multiple strategies can be passed to [`ProjectorMonteCarloProblem`](@ref).
+In that case, all reported column names must be distinct.
 
 # Interface:
 

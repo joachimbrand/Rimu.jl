@@ -53,20 +53,22 @@ replica_strategy = AllOverlaps(num_replicas; operator = G2list)
 # Other FCIQMC parameters and strategies can be set in the same way as before.
 steps_equilibrate = 1_000
 steps_measure = 5_000
-targetwalkers = 100;
-dτ = 0.001
+target_walkers = 100;
+time_step = 0.001
 
 Random.seed!(17); #hide
 
 # Now, we run FCIQMC. Note that passing an initial vector is optional - if we only pass the
 # style, a vector with the appropriate style is created automatically.
-df, state = lomc!(
-    H; style=IsDynamicSemistochastic(),
-    dτ,
-    laststep = steps_equilibrate + steps_measure,
-    targetwalkers,
+problem = ProjectorMonteCarloProblem(H;
+    style=IsDynamicSemistochastic(),
+    time_step,
+    last_step = steps_equilibrate + steps_measure,
+    target_walkers,
     replica_strategy,
-);
+)
+result = solve(problem)
+df = DataFrame(result);
 
 # The output `DataFrame` has FCIQMC statistics for each replica (e.g. shift, norm),
 println(filter(startswith("shift_"), names(df)))

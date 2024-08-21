@@ -543,6 +543,7 @@ end
     @testset "Properties of OccupationNumberFS" begin
         @test num_modes(ofs) == 3
         @test num_particles(ofs) == 6
+        @test num_particles(OccupationNumberFS(86, 84, 86)) == 256
         @test num_occupied_modes(ofs) == 3
         @test onr(ofs) == ofs.onr == SVector{3,UInt8}(1, 2, 3)
         @test occupation_number_representation(ofs) == onr(ofs)
@@ -570,4 +571,19 @@ end
         @test sparse(ParitySymmetry(oham; odd=true)) ==
             sparse(ParitySymmetry(bham; odd=true))
     end
+end
+
+@testset "hopnextneighbour" begin
+    ffs1 = FermiFS{1,4}(1,0,0,0)
+    ffsend = FermiFS{1,4}(0,0,0,1)
+
+    @test hopnextneighbour(ffs1,2, :twisted) == (ffsend, -1.0)
+    @test hopnextneighbour(ffsend,1, :twisted) == (ffs1, -1.0)
+    @test hopnextneighbour(ffs1,2, :hard_wall) == (ffsend, 0.0)
+    @test hopnextneighbour(ffsend,1, :hard_wall) == (ffs1, 0.0)
+    @test hopnextneighbour(ffs1,2) == (ffsend, 1.0)
+    @test hopnextneighbour(ffsend,1) == (ffs1, 1.0)
+    @test hopnextneighbour(ffs1,2, π) == (ffsend, exp(-im*π))
+    @test hopnextneighbour(ffsend,1, π) == (ffs1, exp(im*π))
+
 end

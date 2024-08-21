@@ -7,7 +7,9 @@ This module contains interfaces that can be used to extend and modify the algori
 Follow the links for the definitions of the interfaces!
 * [`AbstractHamiltonian`](@ref) for defining [`Hamiltonians`](@ref Main.Hamiltonians)
 * [`AbstractDVec`](@ref) for defining data structures for `Rimu` as in [`DictVectors`](@ref Main.DictVectors)
-* [`StochasticStyle`](@ref) for controlling the stochastic algorithms used by [`lomc!`](@ref Main.lomc!) as implemented in [`StochasticStyles`](@ref Main.StochasticStyles)
+* [`StochasticStyle`](@ref) for controlling the stochastic algorithms used by
+  [`ProjectorMonteCarloProblem`](@ref Main.ProjectorMonteCarloProblem) as implemented in
+  [`StochasticStyles`](@ref Main.StochasticStyles)
 
 # Additional exports
 
