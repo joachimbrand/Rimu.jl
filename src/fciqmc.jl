@@ -200,7 +200,7 @@ function advance!(algorithm, report, state::ReplicaState, replica::SpectralState
             for j in 1:i-1
                 u = replica[i].v
                 v = replica[j].v
-                add!(u, v, -dot(u, v) / dot(v, v))
+                add!(u, v, -dot(u, v) / norm(v)^2)
             end
         end
     end
