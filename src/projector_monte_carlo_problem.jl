@@ -52,6 +52,8 @@ the [`FCIQMC`](@ref) algorithm.
 - `n_replicas = 1`: Number of synchronised independent simulations.
 - `replica_strategy = NoStats(n_replicas)`: Which results to report from replica
   simulations, see [`ReplicaStrategy`](@ref).
+- `spectral_strategy = GramSchmidt()`: The [`SpectralStrategy`](@ref) used for simulations
+  of spectral states.
 
 # Example
 

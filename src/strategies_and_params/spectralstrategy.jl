@@ -4,6 +4,10 @@
 
 Abstract type for spectral strategies. The spectral strategy is used to control the number
 of spectral states used in the simulation.
+
+## Implemented Strategies
+
+* [`GramSchmidt`](@ref): Orthogonalize the spectral states using the Gram-Schmidt procedure.
 """
 abstract type SpectralStrategy{S} end
 
