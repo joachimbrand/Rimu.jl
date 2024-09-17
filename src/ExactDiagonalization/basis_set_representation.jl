@@ -1,29 +1,4 @@
-"""
-    build_sparse_matrix_from_LO(
-        ham, address=starting_address(ham);
-        cutoff, filter=nothing, nnzs, col_hint, sort=false, kwargs...
-    ) -> sparse_matrix, basis
-    build_sparse_matrix_from_LO(ham, addresses::AbstractVector; kwargs...)
-
-Create a sparse matrix `sparse_matrix` of all reachable matrix elements of a linear operator `ham`
-starting from `address`. Instead of a single address, a vector of `addresses` can be passed.
-The vector `basis` contains the addresses of basis configurations.
-
-Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
-estimated number of nonzero off-diagonal matrix elements in each matrix column may improve
-performance.
-
-Providing an energy cutoff will skip the columns and rows with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
-not enabled by default. To generate the matrix truncated to the subspace spanned by the
-`addresses`, use `filter = Returns(false)`.
-
-Setting `sort` to `true` will sort the `basis` and order the matrix rows and columns
-accordingly. This is useful when the order of the columns matters, e.g. when comparing
-matrices. Any additional keyword arguments are passed on to `Base.sortperm`.
-
-See [`BasisSetRepresentation`](@ref).
-"""
+#=
 function build_sparse_matrix_from_LO(
     ham, addr_or_vec=starting_address(ham);
     cutoff=nothing,
@@ -92,28 +67,6 @@ function build_sparse_matrix_from_LO(
     end
 end
 
-"""
-    build_basis(
-        ham, address=starting_address(ham);
-        cutoff, filter, sizelim, sort=false, kwargs...
-    ) -> basis
-    build_basis(ham, addresses::AbstractVector; kwargs...)
-
-Get all basis element of a linear operator `ham` that are reachable (via
-non-zero matrix elements) from the address `address`, returned as a vector.
-Instead of a single address, a vector of `addresses` can be passed.
-Does not return the matrix, for that purpose use [`BasisSetRepresentation`](@ref).
-
-Providing an energy cutoff will skip addresses with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
-Addresses passed as arguments are not filtered.
-A maximum basis size `sizelim` can be set which will throw an error if the expected
-dimension of `ham` is larger than `sizelim`. This may be useful when memory may be a
-concern. These options are disabled by default.
-
-Setting `sort` to `true` will sort the basis. Any additional keyword arguments
-are passed on to `Base.sort!`.
-"""
 function build_basis(
     ham, addr_or_vec=starting_address(ham);
     cutoff=nothing,
@@ -151,6 +104,7 @@ function build_basis(
         return adds
     end
 end
+=#
 
 """
     BasisSetRepresentation(
@@ -258,13 +212,9 @@ end
 # default, does not enforce symmetries
 function _bsr_ensure_symmetry(
     ::LOStructure, hamiltonian::AbstractHamiltonian, addr_or_vec;
-    sizelim=10^6, test_approx_symmetry=true, kwargs...
+    test_approx_symmetry=true, kwargs...
 )
     single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    d = dimension(hamiltonian, single_addr)
-    if d > sizelim
-        throw(ArgumentError("Dimension = $d larger than sizelim = $sizelim. Set a larger `sizelim` if this is safe."))
-    end
     check_address_type(hamiltonian, addr_or_vec)
     sparse_matrix, basis = build_sparse_matrix_from_LO(hamiltonian, addr_or_vec; kwargs...)
     return BasisSetRepresentation(sparse_matrix, basis, hamiltonian)
@@ -273,12 +223,9 @@ end
 # build the BasisSetRepresentation while enforcing hermitian symmetry
 function _bsr_ensure_symmetry(
     ::IsHermitian, hamiltonian::AbstractHamiltonian, addr_or_vec;
-    sizelim=10^6, test_approx_symmetry=true, kwargs...
+    test_approx_symmetry=true, kwargs...
 )
     single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    if dimension(hamiltonian, single_addr) > sizelim
-        throw(ArgumentError("dimension larger than sizelim"))
-    end
     check_address_type(hamiltonian, addr_or_vec)
     sparse_matrix, basis = build_sparse_matrix_from_LO(hamiltonian, addr_or_vec; kwargs...)
     fix_approx_hermitian!(sparse_matrix; test_approx_symmetry) # enforce hermitian symmetry after building
@@ -287,6 +234,7 @@ end
 
 """
     fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
+
 Replaces the matrix `A` by `½(A + A')` in place. This will be successful and the result
 is guaranteed to pass the `ishermitian` test only if the matrix is square and already
 approximately hermitian.
@@ -321,6 +269,7 @@ end
 
 """
     isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...) -> Bool
+
 Checks whether the matrix `A` is approximately hermitian by checking each pair of transposed
 matrix elements with `isapprox`. Keyword arguments are passed on to `isapprox`.
 Returns boolean `true` is the test is passed and `false` if not.

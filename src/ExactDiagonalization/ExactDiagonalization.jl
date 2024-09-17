@@ -25,12 +25,13 @@ using CommonSolve: CommonSolve, solve, init
 using VectorInterface: VectorInterface, add
 using OrderedCollections: freeze
 using NamedTupleTools: delete
+using StaticArrays: setindex
 
 using Rimu: Rimu, DictVectors, Hamiltonians, Interfaces, BitStringAddresses, replace_keys,
     clean_and_warn_if_others_present
 using ..Interfaces: AbstractDVec, AbstractHamiltonian, AdjointUnknown,
     diagonal_element, offdiagonals, starting_address, LOStructure, IsHermitian
-using ..BitStringAddresses: AbstractFockAddress
+using ..BitStringAddresses: AbstractFockAddress, BoseFS, FermiFS, CompositeFS, near_uniform
 using ..DictVectors: FrozenDVec, PDVec, DVec
 using ..Hamiltonians: check_address_type, dimension, ParitySymmetry, TimeReversalSymmetry
 
@@ -42,6 +43,8 @@ export BasisSetRepresentation, build_basis
 export sparse # from SparseArrays
 
 
+include("basis_bfs.jl")
+include("basis_fock.jl")
 include("basis_set_representation.jl")
 include("algorithms.jl")
 include("exact_diagonalization_problem.jl")
