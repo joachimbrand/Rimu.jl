@@ -36,8 +36,8 @@ function _set_up_starting_vectors(
             )
         end
     elseif n_spectral > 1
-        basis = build_basis(ham; cutoff=diagonal_element(ham, starting_address(ham)) + 5)
-        basis = sort!(basis; by=x -> diagonal_element(ham, x))[1:2*n_spectral]
+        basis = build_basis(ham; minimum_size=n_spectral*5)
+        basis = sort!(basis; by=x -> diagonal_element(ham, x))
         trunc = BasisSetRepresentation(ham, basis; filter=Returns(false), sizelim=Inf)
         vecs = eigvecs(Matrix(trunc))
         if threading
