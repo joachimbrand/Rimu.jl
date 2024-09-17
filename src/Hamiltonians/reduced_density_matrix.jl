@@ -34,9 +34,10 @@ function diagonal_element(
 ) where {I,J}
     if I != J
         return 0.0
+    else
+        src = find_mode(addr, J)
+        return src.occnum
     end
-    src = find_mode(addr, J)
-    return src.occnum
 end
 
 function num_offdiagonals(
@@ -53,7 +54,7 @@ function get_offdiagonal(
     ::SingleParticleExcitation{I,J}, addr::SingleComponentFockAddress, _
 ) where {I,J}
     src = find_mode(addr, J)
-    dst = find_mode(addr,I)
+    dst = find_mode(addr, I)
     address, value = excitation(addr, (dst,), (src,))
     return address, value
 end
@@ -95,9 +96,8 @@ function diagonal_element(
 ) where {I,J,K,L}
     if (I, J) == (K, L) || (I, J) == (L, K)
         src = find_mode(addr, (L, K))
-        dst = find_mode(addr,(I, J))
-        _, value = excitation(addr, dst, src)
-        return value
+        dst = find_mode(addr, (I, J))
+        return excitation(addr, dst, src)[2]
     else
         return 0.0
     end
@@ -106,7 +106,7 @@ end
 function num_offdiagonals(
     ::TwoParticleExcitation{I,J,K,L}, ::SingleComponentFockAddress
 ) where {I,J,K,L}
-    if (I, J) == (K, L)
+    if (I, J) == (K, L) || (I, J) == (L, K)
         return 0
     else
         return 1
@@ -117,7 +117,7 @@ function get_offdiagonal(
     ::TwoParticleExcitation{I,J,K,L}, addr::SingleComponentFockAddress, _
 ) where {I,J,K,L}
     src = find_mode(addr, (L, K))
-    dst = find_mode(addr,(I, J))
-    address, value = excitation(addr, (dst...,), (src...,))
+    dst = find_mode(addr, (I, J))
+    address, value = excitation(addr, dst, src)
     return address, value
 end
