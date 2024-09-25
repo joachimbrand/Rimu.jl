@@ -186,21 +186,21 @@ placed at the centre of the array.
 julia> geometry = CubicGrid((3,4));
 
 julia> reshape(Displacements(geometry), (3,4))
-3×4 reshape(::Displacements{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
+3×4 reshape(::Displacements{2, CubicGrid{2, (3, 4), (true, true)}}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
  [0, 0]  [0, 1]  [0, 2]  [0, 3]
  [1, 0]  [1, 1]  [1, 2]  [1, 3]
  [2, 0]  [2, 1]  [2, 2]  [2, 3]
 
 julia> reshape(Displacements(geometry; center=true), (3,4))
-3×4 reshape(::Displacements{2}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
+3×4 reshape(::Displacements{2, CubicGrid{2, (3, 4), (true, true)}}, 3, 4) with eltype StaticArraysCore.SVector{2, Int64}:
  [-1, -1]  [-1, 0]  [-1, 1]  [-1, 2]
  [0, -1]   [0, 0]   [0, 1]   [0, 2]
  [1, -1]   [1, 0]   [1, 1]   [1, 2]
 
 ```
 """
-struct Displacements{D} <: AbstractVector{SVector{D,Int}}
-    geometry::CubicGrid{D}
+struct Displacements{D,G<:CubicGrid{D}} <: AbstractVector{SVector{D,Int}}
+    geometry::G
     center::Bool
 end
 Displacements(geometry; center=false) = Displacements(geometry, center)
