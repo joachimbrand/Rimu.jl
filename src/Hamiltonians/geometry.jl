@@ -199,8 +199,8 @@ julia> reshape(Displacements(geometry; center=true), (3,4))
 
 ```
 """
-struct Displacements{D} <: AbstractVector{SVector{D,Int}}
-    geometry::CubicGrid{D}
+struct Displacements{D,G<:CubicGrid{D}} <: AbstractVector{SVector{D,Int}}
+    geometry::G
     center::Bool
 end
 Displacements(geometry; center=false) = Displacements(geometry, center)
