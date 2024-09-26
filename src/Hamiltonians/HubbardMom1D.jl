@@ -4,8 +4,8 @@ Dispersion relation for [`HubbardMom1D`](@ref). Returns ``-2(\\Re(t) \\cos(k) + 
 
 See also [`continuum_dispersion`](@ref).
 """
-hubbard_dispersion(t::Real,k) = -2t.*cos(k)
-hubbard_dispersion(t::Complex,k) = -2*real(t).*cos(k) .- 2*imag(t).*sin(k)
+hubbard_dispersion(t::Real, k) = -2t .* cos(k)
+hubbard_dispersion(t::Complex, k) = -2 * real(t) .* cos(k) .- 2 * imag(t) .* sin(k)
 
 
 """
