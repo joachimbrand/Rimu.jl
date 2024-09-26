@@ -78,7 +78,7 @@ function HubbardMom1DEP(
     u=1.0, t=1.0, dispersion = hubbard_dispersion, v_ho=1.0,
 )
     M = num_modes(address)
-    U, V = promote(float(u), float(v_ho))
+    U, T, V = promote(float(u), float(t), float(v_ho))
     step = 2π/M
     if isodd(M)
         start = -π*(1+1/M) + step
@@ -87,11 +87,11 @@ function HubbardMom1DEP(
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    kes = SVector{M}(dispersion.(t,kr))
+    kes = SVector{M}(dispersion.(T,kr))
 
     potential = momentum_space_harmonic_potential(M, V)
 
-    return HubbardMom1DEP{typeof(U),M,typeof(address),U,t,V,typeof(dispersion)}(
+    return HubbardMom1DEP{typeof(U),M,typeof(address),U,T,V,typeof(dispersion)}(
         address, ks, kes, potential, dispersion
     )
 end
