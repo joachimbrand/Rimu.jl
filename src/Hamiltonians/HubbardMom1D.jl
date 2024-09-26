@@ -1,6 +1,6 @@
 """
     hubbard_dispersion(t,k)
-Dispersion relation for [`HubbardMom1D`](@ref). Returns ``-2(\\Re(t) \\cos(k) + \\Im(t) \\sin(k))``.
+Dispersion relation for [`HubbardMom1D`](@ref). Returns ``-2(\\Re(t) * \\cos(k) + \\Im(t) * \\sin(k))``.
 
 See also [`continuum_dispersion`](@ref).
 """
@@ -10,7 +10,7 @@ hubbard_dispersion(t::Complex,k) = -2*real(t).*cos(k) .- 2*imag(t).*sin(k)
 
 """
     continuum_dispersion(k)
-Dispersion relation for [`HubbardMom1D`](@ref). Returns `Re(t) k^2 - 2Im(t) k`.
+Dispersion relation for [`HubbardMom1D`](@ref). Returns `\\Re(t) * k^2 - 2 * \\Im(t) * k`.
 
 See also [`hubbard_dispersion`](@ref).
 """
