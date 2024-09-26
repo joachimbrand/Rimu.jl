@@ -60,7 +60,7 @@ function HubbardMom1D(
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    # kes = SVector{M}(-2(Re(T) cos(k) + Im(T) sin(k)))
+    # kes = SVector{M}(``-2(\\Re(T) * \\cos(k) + \\Im(T) * \\sin(k))``)
     kes = SVector{M}(dispersion.(T, kr))
     return HubbardMom1D{typeof(U),M,typeof(address),U,T}(address, ks, kes)
 end
