@@ -51,7 +51,7 @@ function HubbardMom1D(
     u=1.0, t=1.0, dispersion = hubbard_dispersion,
 )
     M = num_modes(address)
-    U, T = promote(float(u), float(t))
+    U = promote(float(u))
     step = 2π/M
     if isodd(M)
         start = -π*(1+1/M) + step
@@ -60,9 +60,9 @@ function HubbardMom1D(
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    # kes = SVector{M}(-2T*cos.(kr))
-    kes = SVector{M}(dispersion.(T, kr))
-    return HubbardMom1D{typeof(U),M,typeof(address),U,T}(address, ks, kes)
+    # kes = SVector{M}(-2(Re(t) cos(k) + Im(t) sin(k)))
+    kes = SVector{M}(dispersion.(t, kr))
+    return HubbardMom1D{typeof(U),M,typeof(address),U,t}(address, ks, kes)
 end
 
 function Base.show(io::IO, h::HubbardMom1D)
