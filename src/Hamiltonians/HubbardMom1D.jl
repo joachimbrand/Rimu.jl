@@ -1,6 +1,6 @@
 """
     hubbard_dispersion(t,k)
-Dispersion relation for [`HubbardMom1D`](@ref). Returns ``-2(\\Re(t) * \\cos(k) + \\Im(t) * \\sin(k))``.
+Dispersion relation for [`HubbardMom1D`](@ref). Returns ``-2(\\Re(t) \\cos(k) + \\Im(t) \\sin(k))``.
 
 See also [`continuum_dispersion`](@ref).
 """
@@ -10,7 +10,7 @@ hubbard_dispersion(t::Complex,k) = -2*real(t).*cos(k) .- 2*imag(t).*sin(k)
 
 """
     continuum_dispersion(k)
-Dispersion relation for [`HubbardMom1D`](@ref). Returns ``\\Re(t) * k^2 - 2 * \\Im(t) * k``.
+Dispersion relation for [`HubbardMom1D`](@ref). Returns ``\\Re(t) k^2 - 2 \\Im(t) k``.
 
 See also [`hubbard_dispersion`](@ref).
 """
@@ -32,8 +32,8 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 * `u`: the interaction parameter.
 * `t`: the hopping strength.
 * `dispersion`: defines ``ϵ_k =``` t*dispersion(k)`
-    - [`hubbard_dispersion`](@ref): ``ϵ_k = -2(\\Re(t) * \\cos(k) + \\Im(t) * \\sin(k))``
-    - [`continuum_dispersion`](@ref): ``ϵ_k = \\Re(t) * k^2 - 2 * \\Im(t) * k``
+    - [`hubbard_dispersion`](@ref): ``ϵ_k = -2(\\Re(t) \\cos(k) + \\Im(t) \\sin(k))``
+    - [`continuum_dispersion`](@ref): ``ϵ_k = \\Re(t) k^2 - 2 \\Im(t) k``
 
 # See also
 
@@ -60,7 +60,7 @@ function HubbardMom1D(
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    # kes = SVector{M}(``-2(\\Re(T) * \\cos(k) + \\Im(T) * \\sin(k))``)
+    # kes = SVector{M}(``-2(\\Re(T) \\cos(k) + \\Im(T) \\sin(k))``)
     kes = SVector{M}(dispersion.(T, kr))
     return HubbardMom1D{typeof(U),M,typeof(address),U,T}(address, ks, kes)
 end
