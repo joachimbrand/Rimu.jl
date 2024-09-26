@@ -87,7 +87,7 @@ function HubbardMom1DEP(
     end
     kr = range(start; step = step, length = M)
     ks = SVector{M}(kr)
-    kes = SVector{M}(dispersion.(T,kr))
+    kes = SVector{M}(dispersion.(T, kr))
 
     potential = momentum_space_harmonic_potential(M, V)
 
