@@ -14,8 +14,8 @@ Dispersion relation for [`HubbardMom1D`](@ref). Returns ``\\Re(t) k^2 - 2 \\Im(t
 
 See also [`hubbard_dispersion`](@ref).
 """
-continuum_dispersion(t::Real,k) = t.*k^2
-continuum_dispersion(t::Complex,k) = real(t).*k^2 .- 2*imag(t).*k
+continuum_dispersion(t::Real, k) = t .* k^2
+continuum_dispersion(t::Complex, k) = real(t) .* k^2 .- 2 * imag(t) .* k
 
 """
     HubbardMom1D(address; u=1.0, t=1.0, dispersion=hubbard_dispersion)
