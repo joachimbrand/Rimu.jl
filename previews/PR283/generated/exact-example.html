@@ -102,19 +102,19 @@ vals_ar</code></pre><pre><code class="nohighlight hljs">3-element Vector{Float64
 
 vals_kk, vecs_kk = eigsolve(sparse_matrix, num_eigvals, :SR)
 vals_kk</code></pre><pre><code class="nohighlight hljs">14-element Vector{Float64}:
- -6.9798639983216155
- -3.3631242916133743
- -0.7590191922770835
-  0.13584182219622143
-  0.15789998694607377
-  0.8767114411781289
-  1.5305929970973366
-  1.5835732611867392
-  3.072870330325868
-  3.12567265395184
-  4.8621072215621695
-  6.260694850380598
-  6.402671211183113
+ -6.979863998321637
+ -3.36312429161336
+ -0.7590191922770817
+  0.1358418221962232
+  0.15789998694608975
+  0.8767114411781307
+  1.5305929970973358
+  1.583573261186733
+  3.0728703303258698
+  3.1256726539518276
+  4.862107221562174
+  6.2606948503806
+  6.402671211183112
   9.093371706203957</code></pre><p>Both solvers use variants of the <a href="https://en.wikipedia.org/wiki/Lanczos_algorithm">Lanczos algorithm</a> for Hermitian matrices and the <a href="https://en.wikipedia.org/wiki/Arnoldi_iteration">Arnoldi algorithm</a> for non-Hermitian ones. These may in some cases miss degenerate eigenpairs.</p><p>If diagonalization takes too long, you can reduce the tolerance by setting the <code>tol</code> keyword argument to <code>eigs</code> or <code>eigsolve</code>. Using drastically lower tolerances than the default can still produce good results in practice. This, however, should be checked on a case-by-case basis.</p><h3 id="The-matrix-free-method"><a class="docs-heading-anchor" href="#The-matrix-free-method">The matrix-free method</a><a id="The-matrix-free-method-1"></a><a class="docs-heading-anchor-permalink" href="#The-matrix-free-method" title="Permalink"></a></h3><p>KrylovKit&#39;s <a href="https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve"><code>eigsolve</code></a> function is implemented in a way that does not require the linear operator and vector to be Julia arrays. Rimu leverages this functionality, which allows diagonalising Hamiltonians without ever needing to construct the matrix - all matrix elements are generated on the fly.</p><p>While this method is by far the slowest of the ones discussed, it also uses drastically less memory. This allows us to diagonalise much larger Hamiltonians.</p><p>To use this method, you first need a starting vector. It&#39;s best to use <a href="../dictvectors.html#Rimu.DictVectors.PDVec"><code>PDVec</code></a> here as it leverages threading during the diagonalization.</p><pre><code class="language-julia hljs">dvec = PDVec(add =&gt; 1.0)</code></pre><pre><code class="nohighlight hljs">1-element PDVec: style = IsDeterministic{Float64}()
   fs&quot;|0 0 4 0 0⟩&quot; =&gt; 1.0</code></pre><p>Then, pass that vector and the Hamiltonian to <a href="https://jutho.github.io/KrylovKit.jl/stable/man/eig/#KrylovKit.eigsolve"><code>eigsolve</code></a>.</p><pre><code class="language-julia hljs">vals_mf, vecs_mf = eigsolve(ham, dvec, num_eigvals, :SR; issymmetric=true)
 vals_mf</code></pre><pre><code class="nohighlight hljs">10-element Vector{Float64}:
@@ -162,4 +162,4 @@ even_eigs = eigvals(Matrix(ParitySymmetry(ham)))</code></pre><pre><code class="n
  0.033070399772041625
  3.9204869225657406
  0.03307039977204162
- 0.006686138945087839</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="G2-example.html">« Calculating observables</a><a class="docs-footer-nextpage" href="HO-example.html">Degenerate perturbation theory in a harmonic oscillator basis »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Friday 27 September 2024 04:05">Friday 27 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+ 0.006686138945087839</code></pre><hr/><p><em>This page was generated using <a href="https://github.com/fredrikekre/Literate.jl">Literate.jl</a>.</em></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="G2-example.html">« Calculating observables</a><a class="docs-footer-nextpage" href="HO-example.html">Degenerate perturbation theory in a harmonic oscillator basis »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.7.0 on <span class="colophon-date" title="Friday 27 September 2024 04:28">Friday 27 September 2024</span>. Using Julia version 1.10.5.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
