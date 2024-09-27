@@ -79,10 +79,6 @@ See [`excitation`](@ref), [`OccupiedModeMap`](@ref).
     return excitation(add, dst_indices, src_indices)..., src_modes..., -mom_change
 end
 
-function momentum_transfer_excitation(add::FermiFS, chosen::Integer, map; fold=true)
-    return add, 0.0, 0, 0, 0
-end
-
 @inline function momentum_transfer_excitation(
     add_a, add_b, chosen, map_a, map_b; fold=true
 )
@@ -125,7 +121,7 @@ end
 """
     momentum_transfer_diagonal(map)
 
-The diagonal part of [`momentum_transfer_excitation`](@ref).
+The diagonal part of onsite [`momentum_transfer_excitation`](@ref).
 """
 function momentum_transfer_diagonal(map::BoseOccupiedModeMap)
     onproduct = 0
@@ -139,6 +135,27 @@ function momentum_transfer_diagonal(map::BoseOccupiedModeMap)
     end
     return float(onproduct)
 end
+
+"""
+    extended_momentum_transfer_diagonal(map, M)
+
+The diagonal part of nearest neighbour [`momentum_transfer_excitation`](@ref).
+"""
+
+function extended_momentum_transfer_diagonal(map::OccupiedModeMap,M::Int)
+    onproduct = 0
+    step = (2*π)/M
+    for i in 1:length(map)
+        occ_i = map[i].occnum
+        onproduct += occ_i * (occ_i - 1)
+        for j in 1:i-1
+            occ_j = map[j].occnum
+            onproduct += 2*occ_i * occ_j * (1 - cos((map[j].mode - map[i].mode)*step))
+        end
+    end
+    return float(onproduct)
+end
+
 function momentum_transfer_diagonal(
     map_a::FermiOccupiedModeMap, map_b::FermiOccupiedModeMap
 )
