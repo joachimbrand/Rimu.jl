@@ -58,6 +58,12 @@ Random.seed!(1234)
         @test state.spectral_states[1].single_states[1].shift_parameters.time_step  == 0.002
         @test state.spectral_states[1].single_states[1].shift_parameters.shift == 23.1
         @test state.replica_strategy == NoStats{1}() # uses getfield method
+
+        # Shift as vector
+        df, state = lomc!(H, dv; laststep=0, shift=[23.1], dτ=0.002)
+        @test state.spectral_states[1].single_states[1].shift_parameters.time_step  == 0.002
+        @test state.spectral_states[1].single_states[1].shift_parameters.shift == 23.1
+        @test state.replica_strategy == NoStats{1}() # uses getfield method
     end
     @testset "default_starting_vector" begin
         addr = BoseFS{5,2}((2,3))
