@@ -71,7 +71,7 @@ import ..Interfaces: diagonal_element, num_offdiagonals, get_offdiagonal, starti
 export dimension, rayleigh_quotient, momentum
 
 export MatrixHamiltonian
-export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, HubbardRealSpace
+export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, ExtendedHubbardMom1D, HubbardRealSpace
 export HubbardReal1DEP, shift_lattice, shift_lattice_inv
 export HubbardMom1DEP
 export BoseHubbardMom1D2C, BoseHubbardReal1D2C
@@ -107,6 +107,7 @@ include("HubbardMom1D.jl")
 include("HubbardMom1DEP.jl")
 include("HubbardRealSpace.jl")
 include("ExtendedHubbardReal1D.jl")
+include("ExtendedHubbardMom1D.jl")
 
 include("BoseHubbardReal1D2C.jl")
 include("BoseHubbardMom1D2C.jl")
