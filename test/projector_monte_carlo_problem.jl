@@ -81,47 +81,63 @@ end
 
 @testset "PMCSimulation" begin
     h = HubbardReal1D(BoseFS(1, 3))
-    p = ProjectorMonteCarloProblem(h) # generates random_seed
-    @test p.random_seed isa UInt64
+    @testset "init" begin
+        p = ProjectorMonteCarloProblem(
+            h;
+            shift=[1, 2],
+            start_at=[BoseFS(1, 3), BoseFS(3, 1)],
+            replica_strategy=AllOverlaps(2)
+        )
+        sm = init(p)
+        @test sm.modified[] == false == sm.aborted[] == sm.success[]
+        @test size(DataFrame(sm)) == (0, 0)
+        @test sm.state[1].shift_parameters.shift ≡ 1.0
+        @test sm.state[2].shift_parameters.shift ≡ 2.0
+        @test state_vectors(sm.state)[1][BoseFS(1, 3)] == 10
+        @test state_vectors(sm.state)[2][BoseFS(3, 1)] == 10
+    end
 
-    # default gives reproducible random numbers
-    sm = init(p) # seeds RNG
-    r = rand(Int)
-    init(p) # re-seeds RNG with same seed
-    @test r == rand(Int)
+    @testset "random seeds" begin
+        p = ProjectorMonteCarloProblem(h) # generates random_seed
+        @test p.random_seed isa UInt64
 
-    # but ProjectorMonteCarloProblem will re-seed
-    Random.seed!(127)
-    p = ProjectorMonteCarloProblem(h)
-    sm = init(p)
-    r = rand(Int)
-    Random.seed!(127)
-    p = ProjectorMonteCarloProblem(h)
-    sm = init(p)
-    @test r ≠ rand(Int)
-
-    # unless seeding in ProjectorMonteCarloProblem is disabled
-    Random.seed!(127)
-    p = ProjectorMonteCarloProblem(h; random_seed=false)
-    @test isnothing(p.random_seed)
-    sm = init(p)
-    r = rand(Int)
-    Random.seed!(127)
-    p = ProjectorMonteCarloProblem(h; random_seed=false)
-    sm = init(p)
-    @test r == rand(Int)
-
-    # or if the seed is provided
-    p = ProjectorMonteCarloProblem(h; random_seed=123)
-    @test p.random_seed == 123
-    sm = init(p)
-    r = rand(Int)
-    p = ProjectorMonteCarloProblem(h; random_seed=123)
-    sm = init(p)
-    @test r == rand(Int)
-
-    @test sm.modified[] == false == sm.aborted[] == sm.success[]
-    @test size(DataFrame(sm)) == (0, 0)
+        @testset "default gives reproducible random numbers" begin
+            sm = init(p) # seeds RNG
+            r = rand(Int)
+            init(p) # re-seeds RNG with same seed
+            @test r == rand(Int)
+        end
+        @testset "but ProjectorMonteCarloProblem will re-seed" begin
+            Random.seed!(127)
+            p = ProjectorMonteCarloProblem(h)
+            sm = init(p)
+            r = rand(Int)
+            Random.seed!(127)
+            p = ProjectorMonteCarloProblem(h)
+            sm = init(p)
+            @test r ≠ rand(Int)
+        end
+        @testset "unless seeding in ProjectorMonteCarloProblem is disabled" begin
+            Random.seed!(127)
+            p = ProjectorMonteCarloProblem(h; random_seed=false)
+            @test isnothing(p.random_seed)
+            sm = init(p)
+            r = rand(Int)
+            Random.seed!(127)
+            p = ProjectorMonteCarloProblem(h; random_seed=false)
+            sm = init(p)
+            @test r == rand(Int)
+        end
+        @testset "or if the seed is provided" begin
+            p = ProjectorMonteCarloProblem(h; random_seed=123)
+            @test p.random_seed == 123
+            sm = init(p)
+            r = rand(Int)
+            p = ProjectorMonteCarloProblem(h; random_seed=123)
+            sm = init(p)
+            @test r == rand(Int)
+        end
+    end
 end
 
 using Rimu: num_replicas, num_spectral_states
