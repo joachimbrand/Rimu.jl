@@ -173,6 +173,9 @@ end
         ExtendedHubbardReal1D(BoseFS((1, 0, 0, 0, 1)); u=1.0, v=2.0, t=3.0),
         ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); u=1 + 0.5im),
         ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); t=1 + 0.5im),
+        ExtendedHubbardMom1D(BoseFS((1, 0, 0, 0, 1)); u=1.0, v=2.0, t=3.0),
+        ExtendedHubbardMom1D(BoseFS(1, 0, 2, 1); u=1 + 0.5im),
+        ExtendedHubbardMom1D(BoseFS(1, 0, 2, 1); t=1 + 0.5im),
         HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
         HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
         HubbardRealSpace(
@@ -672,6 +675,7 @@ end
             for H in (
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                ExtendedHubbardMom1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
             )
                 # GutzwillerSampling with parameter zero is exactly equal to the original H
@@ -702,6 +706,7 @@ end
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                ExtendedHubbardMom1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
                 # energy
@@ -785,6 +790,7 @@ end
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                ExtendedHubbardMom1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
                 # energy
@@ -854,6 +860,7 @@ end
         for H in (
             HubbardMom1D(BoseFS((2,2,2)), u=6),
             ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+            ExtendedHubbardMom1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
             BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
         )
             @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H)
@@ -1261,7 +1268,7 @@ using Rimu.Hamiltonians: circshift_dot
         end
         @test num_offdiagonals(SingleParticleExcitation(1,2), addr_bose) == 1
         @test LOStructure(SingleParticleExcitation(1,2)) == AdjointUnknown()
-        @test num_offdiagonals(TwoParticleExcitation(1,2,2,1), addr_bose) == 0
+        @test num_offdiagonals(TwoParticleExcitation(1,2,2,1), addr_bose) == 1
         @test LOStructure(TwoParticleExcitation(1,2,2,1)) == AdjointUnknown()
     end
 end
