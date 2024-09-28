@@ -35,8 +35,8 @@ function set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
     if shift === nothing
         initial_shifts = _determine_initial_shift(hamiltonian, starting_vectors)
     elseif shift isa Number
-        initial_shifts = [float(shift) for _ in 1 : S*R] # not great for excited states
-    elseif length(shift) == n_spectral
+        initial_shifts = [float(shift) for _ in 1:(S * R)] # not great for excited states
+    elseif length(shift) == S * R
         initial_shifts = float.(shift)
     else
         throw(ArgumentError("The number of shifts must match the number of starting vectors."))
