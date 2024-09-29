@@ -1,5 +1,8 @@
 """
-    ExtendedHubbardMom1D(address; u=1.0, t=1.0, v=1.0, dispersion=hubbard_dispersion, boundary_condition = 0.0)
+    ExtendedHubbardMom1D(
+        address; 
+        u=1.0, t=1.0, v=1.0, dispersion=hubbard_dispersion, boundary_condition = 0.0
+    )
 
 Implements a one-dimensional extended Hubbard chain, also known as the ``t - V`` model, 
 in momentum space.
