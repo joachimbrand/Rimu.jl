@@ -91,7 +91,7 @@ end
 end
 
 @inline function momentum_transfer_diagonal(
-    h::ExtendedHubbardMom1D{<:Any,M,<:BoseFS}, map
+    h::ExtendedHubbardMom1D{<:Any,M,<:SingleComponentFockAddress}, map
 ) where {M}
     return (h.u/ 2M) * momentum_transfer_diagonal(map) 
     + (h.v/ M) * extended_momentum_transfer_diagonal(map, (2*π)/M) 
@@ -110,7 +110,7 @@ end
 
 @inline function get_offdiagonal(
     ham::ExtendedHubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
-) where {M,A<:BoseFS}
+) where {M,A<:SingleComponentFockAddress}
     address, onproduct,_,_,q = extended_momentum_transfer_excitation(address, chosen, map)
     return address, ham.u/(2*M)*onproduct + ((ham.v * cos((q)*((2*π)/M)))/(M))*onproduct
 end
