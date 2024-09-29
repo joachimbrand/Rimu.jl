@@ -1,7 +1,8 @@
 """
     ExtendedHubbardMom1D(address; u=1.0, t=1.0, v=1.0, dispersion=hubbard_dispersion, boundary_condition = 0.0)
 
-Implements a one-dimensional extended Hubbard chain in momentum space.
+Implements a one-dimensional extended Hubbard chain, also known as the ``t - V`` model, 
+in momentum space.
 
 ```math
 \\hat{H} =  \\sum_{k} ϵ_k n_k + \\frac{1}{2M} \\sum_{kpqr} (u + 2v \\cos(q-p)) a^†_{r} a^†_{q} a_p a_k δ_{r+q,p+k}
