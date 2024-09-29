@@ -218,7 +218,7 @@ struct OffdiagonalsBoseMom1D{
     map::O
 end
 
-function offdiagonals(h::union(HubbardMom1D, ExtendedHubbardMom1D), a::SingleComponentFockAddress)
+function offdiagonals(h::HubbardMom1D, a::SingleComponentFockAddress)
     map = OccupiedModeMap(a)
     singlies = length(map)
     doublies = count(i -> i.occnum ≥ 2, map)
