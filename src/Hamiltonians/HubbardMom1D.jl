@@ -181,6 +181,7 @@ end
     return dot(h.kes, map_a) + dot(h.kes, map_b) +
         momentum_transfer_diagonal(h, map_a, map_b)
 end
+
 @inline function get_offdiagonal(
     ham::HubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
 ) where {M,A<:SingleComponentFockAddress}
