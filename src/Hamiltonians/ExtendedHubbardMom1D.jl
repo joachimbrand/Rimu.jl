@@ -111,22 +111,14 @@ end
 @inline function get_offdiagonal(
     ham::ExtendedHubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
 ) where {M,A<:BoseFS}
-    address, onproduct,_,_,q = momentum_transfer_excitation(address, chosen, map)
+    address, onproduct,_,_,q = extended_momentum_transfer_excitation(address, chosen, map)
     return address, ham.u/(2*M)*onproduct + ((ham.v * cos((q)*((2*π)/M)))/(M))*onproduct
 end
 
 @inline function get_offdiagonal(
     ham::ExtendedHubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
 ) where {M,A<:FermiFS}
-    address, onproduct,_,_,q = momentum_transfer_excitation(address, chosen, map)
+    address, onproduct,_,_,q = extended_momentum_transfer_excitation(address, chosen, map)
     return address, -((ham.v * cos((q)*((2*π)/M)))/(M))*onproduct
-end
-
-function offdiagonals(h::ExtendedHubbardMom1D, a::SingleComponentFockAddress)
-    map = OccupiedModeMap(a)
-    singlies = length(map)
-    doublies = count(i -> i.occnum ≥ 2, map)
-    num = num_offdiagonals(h, a, singlies, doublies)
-    return OffdiagonalsBoseMom1D(h, a, num, map)
 end
 momentum(ham::ExtendedHubbardMom1D) = MomentumMom1D(ham)
