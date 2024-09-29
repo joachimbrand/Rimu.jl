@@ -183,11 +183,6 @@ end
 end
 @inline function get_offdiagonal(
     ham::HubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
-) where {M,A<:FermiFS}
-    return address, 0.0
-end
-@inline function get_offdiagonal(
-    ham::HubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
 ) where {M,A<:SingleComponentFockAddress}
     address, onproduct = momentum_transfer_excitation(address, chosen, map)
     return address, ham.u/(2*M)*onproduct
