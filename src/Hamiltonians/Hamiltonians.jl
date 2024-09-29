@@ -103,11 +103,11 @@ include("MatrixHamiltonian.jl")
 
 include("HubbardReal1D.jl")
 include("HubbardReal1DEP.jl")
+include("ExtendedHubbardMom1D.jl")
 include("HubbardMom1D.jl")
 include("HubbardMom1DEP.jl")
 include("HubbardRealSpace.jl")
 include("ExtendedHubbardReal1D.jl")
-include("ExtendedHubbardMom1D.jl")
 
 include("BoseHubbardReal1D2C.jl")
 include("BoseHubbardMom1D2C.jl")
