@@ -1268,7 +1268,7 @@ using Rimu.Hamiltonians: circshift_dot
         end
         @test num_offdiagonals(SingleParticleExcitation(1,2), addr_bose) == 1
         @test LOStructure(SingleParticleExcitation(1,2)) == AdjointUnknown()
-        @test num_offdiagonals(TwoParticleExcitation(1,2,2,1), addr_bose) == 1
+        @test num_offdiagonals(TwoParticleExcitation(1,2,2,1), addr_bose) == 0
         @test LOStructure(TwoParticleExcitation(1,2,2,1)) == AdjointUnknown()
     end
 end
