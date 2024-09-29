@@ -142,9 +142,8 @@ end
 The diagonal part of nearest neighbour [`momentum_transfer_excitation`](@ref).
 """
 
-function extended_momentum_transfer_diagonal(map::OccupiedModeMap,M::Int)
+function extended_momentum_transfer_diagonal(map::OccupiedModeMap, step)
     onproduct = 0
-    step = (2*π)/M
     for i in 1:length(map)
         occ_i = map[i].occnum
         onproduct += occ_i * (occ_i - 1)
