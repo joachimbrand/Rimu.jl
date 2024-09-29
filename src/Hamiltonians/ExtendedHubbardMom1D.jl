@@ -94,7 +94,7 @@ end
     h::ExtendedHubbardMom1D{<:Any,M,<:BoseFS}, map
 ) where {M}
     return h.u / 2M *momentum_transfer_diagonal(map) 
-    + h.v/ M * dot(cos.(h.ks), map) * extended_momentum_transfer_diagonal(map,M) 
+    + h.v/ M * dot(cos.(h.ks), map) * extended_momentum_transfer_diagonal(map, (2*π)/M) 
 end
 
 @inline function momentum_transfer_diagonal(
