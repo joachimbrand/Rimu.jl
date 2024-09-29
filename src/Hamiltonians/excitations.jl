@@ -195,11 +195,11 @@ function momentum_transfer_diagonal(map::BoseOccupiedModeMap)
 end
 
 """
-    extended_momentum_transfer_diagonal(map, M)
+    extended_momentum_transfer_diagonal(map, step)
 
-The diagonal part of nearest neighbour [`momentum_transfer_excitation`](@ref).
+The diagonal part of nearest neighbour term [`momentum_transfer_excitation`](@ref) in [`ExtendedHubbardMom1D`](@ref).
+Where `step` is the separation between the two nearest single-particle momentum.
 """
-
 function extended_momentum_transfer_diagonal(map::OccupiedModeMap, step)
     onproduct = 0
     for i in 1:length(map)
