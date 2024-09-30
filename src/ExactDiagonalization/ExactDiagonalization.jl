@@ -33,7 +33,8 @@ using ..Interfaces: AbstractDVec, AbstractHamiltonian, AdjointUnknown,
     diagonal_element, offdiagonals, starting_address, LOStructure, IsHermitian
 using ..BitStringAddresses: AbstractFockAddress, BoseFS, FermiFS, CompositeFS, near_uniform
 using ..DictVectors: FrozenDVec, PDVec, DVec
-using ..Hamiltonians: check_address_type, dimension, ParitySymmetry, TimeReversalSymmetry
+using ..Hamiltonians: allows_address_type, check_address_type, dimension,
+    ParitySymmetry, TimeReversalSymmetry
 
 
 export ExactDiagonalizationProblem, KrylovKitSolver, LinearAlgebraSolver

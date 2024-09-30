@@ -166,8 +166,6 @@ function basis_bfs(
     order=Base.Forward,
 ) where {Builder,A}
 
-    check_address_type(operator, A)
-
     dim = dimension(operator, basis[1])
     if dim > sizelim
         throw(ArgumentError("dimension $dim larger than sizelim $sizelim"))
@@ -235,12 +233,13 @@ function basis_bfs(
     return finalize_accumulator!(result_accumulator, basis, sort; sort_kwargs...)
 end
 
-_address_to_basis(addr::AbstractFockAddress) = [addr]
-function _address_to_basis(basis)
-    if eltype(basis) <: AbstractFockAddress
-        return collect(basis)
+function _address_to_basis(operator, addr_or_basis)
+    if addr_or_basis isa AbstractVector || addr_or_basis isa Tuple
+        check_address_type(operator, eltype(addr_or_basis))
+        return collect(addr_or_basis)
     else
-        throw(ArgumentError("starting basis must have eltype `<:AbstractFockAddress`"))
+        check_address_type(operator, typeof(addr_or_basis))
+        return [addr_or_basis]
     end
 end
 
@@ -267,7 +266,7 @@ Setting `sort` to `true` will sort the basis. Any additional keyword arguments
 are passed on to `Base.sort!`.
 """
 function build_basis(operator, addr=starting_address(operator); sizelim=Inf, kwargs...)
-    basis = _address_to_basis(addr)
+    basis = _address_to_basis(operator, addr)
     return basis_bfs(BasisBuilder{eltype(basis)}, operator, basis; sizelim, kwargs...)
 end
 
@@ -300,7 +299,7 @@ See [`BasisSetRepresentation`](@ref).
 function build_sparse_matrix_from_LO(
     operator, addr=starting_address(operator); sizelim=1e8, kwargs...
 )
-    basis = _address_to_basis(addr)
+    basis = _address_to_basis(operator, addr)
     T = eltype(operator)
     return basis_bfs(
         MatrixBuilder{eltype(basis),T,Int32}, operator, basis;
