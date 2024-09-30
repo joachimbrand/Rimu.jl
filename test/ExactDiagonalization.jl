@@ -54,7 +54,7 @@ using Suppressor
         addr = BoseFS(5, 1 => 1)
         ham = HubbardRealSpace(addr; geometry=CubicGrid((5,), (false,)))
 
-        basis_addr = build_basis(addr)
+        basis_addr = reverse!(build_basis(addr))
 
         @test build_basis(ham; max_depth=0) == [addr]
         @test build_basis(ham; max_depth=1) == basis_addr[1:2]
