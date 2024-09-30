@@ -131,10 +131,26 @@ function update_accumulator!(acc::MatrixBuilderAccumulator, mb::MatrixBuilder, m
     end
 end
 
-function finalize_accumulator!(acc::MatrixBuilderAccumulator, basis, sort; kwargs...)
-    matrix = SparseArrays.sparse!(acc.is, acc.js, acc.vs, length(basis), length(basis))
+function finalize_accumulator!(
+    acc::MatrixBuilderAccumulator{T,I}, basis, sort; kwargs...
+) where {T,I}
+    n = length(basis)
+
+    # see docstring of `sparse!` for an explanation for what this is
+    klasttouch = Vector{I}(undef, n)
+    csrrowptr = Vector{I}(undef, n + 1)
+    csrcolval = Vector{I}(undef, length(acc.is))
+    csrnzval = Vector{T}(undef, length(acc.is))
+
+    matrix = SparseArrays.sparse!(
+        acc.is, acc.js, acc.vs, n, n, +,
+        klasttouch, csrrowptr, csrcolval, csrnzval,
+        acc.is, acc.js, acc.vs,
+    )
     if sort
-        perm = sortperm(basis; kwargs...)
+        # `csrcolval` is no longer needed, so we can reuse it
+        perm = resize!(csrcolval, length(basis))
+        sortperm!(perm, basis; kwargs...)
         permute!(matrix, perm, perm), permute!(basis, perm)
     else
         return matrix, basis
