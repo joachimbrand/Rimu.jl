@@ -142,15 +142,15 @@ are passed on to `Base.sortperm`.
 julia> hamiltonian = HubbardReal1D(BoseFS(1,0,0));
 
 julia> bsr = BasisSetRepresentation(hamiltonian)
-BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
-  0.0  -1.0  -1.0
- -1.0   0.0  -1.0
- -1.0  -1.0   0.0
+BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 3 and 6 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int32} with 6 stored entries:
+   ⋅   -1.0  -1.0
+ -1.0    ⋅   -1.0
+ -1.0  -1.0    ⋅
 
 julia> BasisSetRepresentation(hamiltonian, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
-BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
-  0.0  -1.0
- -1.0   0.0
+BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 2 and 2 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int32} with 2 stored entries:
+   ⋅   -1.0
+ -1.0    ⋅
 
 julia> using LinearAlgebra; round.(eigvals(Matrix(bsr)); digits = 4) # eigenvalues
 3-element Vector{Float64}:
