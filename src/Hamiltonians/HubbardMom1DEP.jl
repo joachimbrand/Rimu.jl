@@ -57,7 +57,7 @@ is an external harmonic potential in momentum space,
 * `address`: the starting address, defines number of particles and sites.
 * `u`: the interaction parameter.
 * `t`: the hopping strength.
-* `dispersion`: defines ``ϵ_k =``` t*dispersion(k)`
+* `dispersion`: defines ``ϵ_k =``` dispersion(t, k)`
     - [`hubbard_dispersion`](@ref): ``ϵ_k = -2[\\Re(t) \\cos(k) + \\Im(t) \\sin(k)]``
     - [`continuum_dispersion`](@ref): ``ϵ_k = \\Re(t) k^2 - 2 \\Im(t) k``
 * `v_ho`: strength of the external harmonic oscillator potential ``v_\\mathrm{ho}``.
