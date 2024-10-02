@@ -157,9 +157,11 @@ function finalize_accumulator!(
     end
 end
 
+"""
+    basis_bfs(::Type{Builder}, operator, starting_basis)
 
-        #ham, address=starting_address(ham);
-        #cutoff, filter, sizelim, sort=false, kwargs...
+Internal function that performs breadth-first search (BFS) on an operator.
+"""
 function basis_bfs(
     ::Type{Builder}, operator, basis::Vector{A};
     min_batch_size=100,
@@ -205,10 +207,14 @@ function basis_bfs(
     result_accumulator = init_accumulator(Builder)
 
     depth = 0
+    early_stop = false
     while !isempty(curr_frontier)
         depth += 1
+        early_stop = length(basis) > stop_after || depth > max_depth
 
-        if depth > max_depth && Builder <: BasisBuilder
+        # We can stop here when not constructing the matrix. If we are, we still need
+        # to do another round to evaluate the columns.
+        if Builder <: BasisBuilder && early_stop
             break
         end
 
@@ -228,7 +234,7 @@ function basis_bfs(
             for k in result
                 if k ∉ last_seen
                     push!(last_seen, k)
-                    if depth ≤ max_depth && (isnothing(filter) || filter(k))
+                    if !early_stop && (isnothing(filter) || filter(k))
                         push!(basis, k)
                         push!(next_frontier, (k, length(basis)))
                         mapping[k] = length(basis)
@@ -278,8 +284,14 @@ A maximum basis size `sizelim` can be set which will throw an error if the expec
 dimension of `ham` is larger than `sizelim`. This may be useful when memory may be a
 concern. These options are disabled by default.
 
-Setting `sort` to `true` will sort the basis. Any additional keyword arguments
-are passed on to `Base.sort!`.
+Setting `sort` to `true` will sort the basis. Without this argument, the order is random and
+may change between invocations of the function! Any additional keyword arguments are passed
+on to `Base.sort!`.
+
+!!! warning
+        The order the basis is returned in is arbitrary and non-deterministic. Use
+        `sort=true` if the ordering matters.
+
 """
 function build_basis(operator, addr=starting_address(operator); sizelim=Inf, kwargs...)
     basis = _address_to_basis(operator, addr)
@@ -309,6 +321,10 @@ not enabled by default. To generate the matrix truncated to the subspace spanned
 Setting `sort` to `true` will sort the `basis` and order the matrix rows and columns
 accordingly. This is useful when the order of the columns matters, e.g. when comparing
 matrices. Any additional keyword arguments are passed on to `Base.sortperm`.
+
+!!! warning
+        The order of the returned rows and columns is arbitrary and non-deterministic. Use
+        `sort=true` if the ordering matters.
 
 See [`BasisSetRepresentation`](@ref).
 """

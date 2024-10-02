@@ -1,123 +1,16 @@
-#=
-function build_sparse_matrix_from_LO(
-    ham, addr_or_vec=starting_address(ham);
-    cutoff=nothing,
-    filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    nnzs=0, col_hint=0, # sizehints are opt-in
-    sort=false, kwargs...
-)
-    # Set up `adds` as queue of addresses. Also returned as the basis.
-    adds = addr_or_vec isa Union{AbstractArray,Tuple} ? [addr_or_vec...] : [addr_or_vec]
-
-    T = eltype(ham)
-    dict = Dict(add => i for (i, add) in enumerate(adds)) # Map from addresses to indices
-    col = Dict{Int,T}()       # Temporary column storage
-    sizehint!(col, col_hint)
-
-    is = Int[] # row indices
-    js = Int[] # column indice
-    vs = T[]   # non-zero values
-
-    sizehint!(is, nnzs)
-    sizehint!(js, nnzs)
-    sizehint!(vs, nnzs)
-
-    i = 0
-    while i < length(adds)
-        i += 1
-        add = adds[i]
-        push!(is, i)
-        push!(js, i)
-        push!(vs, diagonal_element(ham, add))
-
-        empty!(col)
-        for (off, v) in offdiagonals(ham, add)
-            iszero(v) && continue
-            j = get(dict, off, nothing)
-            if isnothing(j)
-                # Energy cutoff: remember skipped addresses, but avoid adding them to `adds`
-                if !isnothing(filter) && !filter(off)
-                    dict[off] = 0
-                    j = 0
-                else
-                    push!(adds, off)
-                    j = length(adds)
-                    dict[off] = j
-                end
-            end
-            if !iszero(j)
-                col[j] = get(col, j, zero(T)) + v
-            end
-        end
-        # Copy the column into the sparse matrix vectors.
-        for (j, v) in col
-            iszero(v) && continue
-            push!(is, i)
-            push!(js, j)
-            push!(vs, v)
-        end
-    end
-
-    matrix = sparse(js, is, vs, length(adds), length(adds))
-    if sort
-        perm = sortperm(adds; kwargs...)
-        return permute!(matrix, perm, perm), permute!(adds, perm)
-    else
-        return matrix, adds
-    end
-end
-
-function build_basis(
-    ham, addr_or_vec=starting_address(ham);
-    cutoff=nothing,
-    filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    sort=false,
-    max_size=Inf, # retained for backwards compatibility; use sizelim instead
-    sizelim=max_size,
-    kwargs...
-)
-    check_address_type(ham, addr_or_vec)
-    single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    if dimension(ham, single_addr) > sizelim
-        throw(ArgumentError("dimension larger than sizelim"))
-    end
-    # Set up `adds` as queue of addresses. Also returned as the basis.
-    adds = addr_or_vec isa Union{AbstractArray,Tuple} ? [addr_or_vec...] : [addr_or_vec]
-    known_basis = Set(adds)     # known addresses
-
-    i = 0
-    while i < length(adds)
-        i += 1
-        add = adds[i]
-
-        for (off, v) in offdiagonals(ham, add)
-            (iszero(v) || off in known_basis) && continue   # check if valid
-            push!(known_basis, off)
-            !isnothing(filter) && !filter(off) && continue  # check filter
-            push!(adds, off)
-        end
-    end
-
-    if sort
-        return sort!(adds, kwargs...)
-    else
-        return adds
-    end
-end
-=#
-
 """
     BasisSetRepresentation(
         hamiltonian::AbstractHamiltonian, addr=starting_address(hamiltonian);
-        sizelim=10^6, nnzs, cutoff, filter, sort=false, kwargs...
+        sizelim=10^8, cutoff, filter, max_depth, stop_after, sort=false, kwargs...
     )
     BasisSetRepresentation(hamiltonian::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
 
-Eagerly construct the basis set representation of the operator `hamiltonian` with all addresses
-reachable from `addr`. Instead of a single address, a vector of `addresses` can be passed.
+Eagerly construct the basis set representation of the operator `hamiltonian` with all
+addresses reachable from `addr`. Instead of a single address, a vector of `addresses` can be
+passed.
 
-An `ArgumentError` is thrown if `dimension(hamiltonian) > sizelim` in order to prevent memory
-overflow. Set `sizelim = Inf` in order to disable this behaviour.
+An `ArgumentError` is thrown if `dimension(hamiltonian) > sizelim` in order to prevent
+memory overflow. Set `sizelim = Inf` in order to disable this behaviour.
 
 Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
 estimated number of nonzero off-diagonal matrix elements in each matrix column may improve
@@ -131,6 +24,10 @@ subspace spanned by the `addresses`, use `filter = Returns(false)`.
 Setting `sort` to `true` will sort the matrix rows and columns. This is useful when the
 order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
 are passed on to `Base.sortperm`.
+
+!!! warning
+        The order of the returned basis and matrix rows and columns is arbitrary and
+        non-deterministic. Use `sort=true` if the ordering matters.
 
 ## Fields
 * `sparse_matrix`: sparse matrix representing `hamiltonian` in the basis `basis`
