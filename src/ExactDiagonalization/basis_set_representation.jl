@@ -95,7 +95,7 @@ end
 """
     build_basis(
         ham, address=starting_address(ham);
-        cutoff, filter, sizelim, sort=false, kwargs...
+        cutoff, filter, sizelim, sort=false, minimum_size, kwargs...
     ) -> basis
     build_basis(ham, addresses::AbstractVector; kwargs...)
 
@@ -109,7 +109,10 @@ than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead
 Addresses passed as arguments are not filtered.
 A maximum basis size `sizelim` can be set which will throw an error if the expected
 dimension of `ham` is larger than `sizelim`. This may be useful when memory may be a
-concern. These options are disabled by default.
+concern.
+Setting a `minimum_size` will stop generating addresses once at least `minimum_size`
+addresses have been generated, rather than returning the full basis.
+These options are disabled by default.
 
 Setting `sort` to `true` will sort the basis. Any additional keyword arguments
 are passed on to `Base.sort!`.
@@ -121,11 +124,12 @@ function build_basis(
     sort=false,
     max_size=Inf, # retained for backwards compatibility; use sizelim instead
     sizelim=max_size,
+    minimum_size=Inf,
     kwargs...
 )
     check_address_type(ham, addr_or_vec)
     single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    if dimension(ham, single_addr) > sizelim
+    if minimum([dimension(ham, single_addr), minimum_size]) > sizelim
         throw(ArgumentError("dimension larger than sizelim"))
     end
     # Set up `adds` as queue of addresses. Also returned as the basis.
@@ -133,7 +137,7 @@ function build_basis(
     known_basis = Set(adds)     # known addresses
 
     i = 0
-    while i < length(adds)
+    while i < length(adds) < minimum_size
         i += 1
         add = adds[i]
 

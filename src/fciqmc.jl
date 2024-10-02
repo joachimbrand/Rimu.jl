@@ -28,8 +28,8 @@ end
 Set up the initial shift parameters for the [`FCIQMC`](@ref) algorithm.
 """
 function set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
-    starting_vectors::SMatrix{S,R}, shift, time_step
-) where {S,R}
+    starting_vectors::SMatrix{R,S}, shift, time_step
+) where {R,S}
     shift_strategy = algorithm.shift_strategy
 
     if shift === nothing
@@ -45,7 +45,7 @@ function set_up_initial_shift_parameters(algorithm::FCIQMC, hamiltonian,
         initialise_shift_parameters(shift_strategy, s, walkernumber(sv), time_step)
     end)
     @assert length(initial_shift_parameters) == S * R
-    return SMatrix{S,R}(initial_shift_parameters)
+    return SMatrix{R,S}(initial_shift_parameters)
 end
 
 function _determine_initial_shift(hamiltonian, starting_vectors)
@@ -191,4 +191,20 @@ end
 function advance!(algorithm, report, state::ReplicaState, replica::SpectralState{1})
     return advance!(algorithm, report, state, only(replica.single_states))
 end
-# TODO: add advance! for SpectralState{N} where N > 1
+
+function advance!(algorithm, report, state::ReplicaState, replica::SpectralState{N, <:Any, GramSchmidt{N}}) where {N}
+    proceed = true
+    if state.step[] % replica.spectral_strategy.orthogonalization_interval == 0
+        for i in 1:N
+            for j in 1:i-1
+                u = replica[i].v
+                v = replica[j].v
+                add!(u, v, -dot(u, v) / norm(v)^2)
+            end
+        end
+    end
+    for i in 1:N
+        proceed &= advance!(algorithm, report, state, replica[i])
+    end
+    return proceed
+end

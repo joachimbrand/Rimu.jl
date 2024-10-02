@@ -3,7 +3,7 @@ module Rimu
 using Arrow: Arrow
 using DataFrames: DataFrames, DataFrame, metadata
 using DataStructures: DataStructures
-using LinearAlgebra: LinearAlgebra, dot, isdiag
+using LinearAlgebra: LinearAlgebra, dot, isdiag, eigvecs, norm
 using OrderedCollections: OrderedCollections, LittleDict, freeze
 using Parameters: Parameters, @pack!, @unpack, @with_kw
 using ProgressLogging: ProgressLogging, @logprogress, @withprogress
