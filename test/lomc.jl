@@ -4,7 +4,6 @@ using Rimu.DictVectors: Initiator, SimpleInitiator, CoherentInitiator, NonInitia
 using Rimu.StochasticStyles: IsStochastic2Pop, Bernoulli, WithoutReplacement
 using Rimu.StochasticStyles: ThresholdCompression
 using Rimu.StatsTools
-using Rimu.RMPI
 using Random
 using KrylovKit
 using Suppressor
@@ -186,13 +185,6 @@ Random.seed!(1234)
             df, _ = lomc!(G, v, replica_strategy=AllOverlaps(2; operator=O))
             @test df.c1_dot_c2 isa Vector{ComplexF64}
             @test df.c1_Op1_c2 isa Vector{ComplexF64}
-
-            # MPIData
-            dv = DVec(address => 1, style=IsDynamicSemistochastic())
-            df, _ = lomc!(H, MPIData(dv); replica_strategy=AllOverlaps(4; operator=H))
-            @test num_stats(df) == 2 * binomial(4, 2)
-            df, _ = lomc!(H, MPIData(dv); replica_strategy=AllOverlaps(5; operator=DensityMatrixDiagonal(1)))
-            @test num_stats(df) == 2 * binomial(5, 2)
         end
     end
 

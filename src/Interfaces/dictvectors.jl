@@ -75,8 +75,6 @@ StochasticStyle(::AbstractArray{T}) where {T} = default_style(T)
 
 Create a "frozen" version of `dv` which can no longer be modified or used in the
 conventional manner, but supports faster dot products.
-
-If `dv` is an [`MPIData`](@ref Main.Rimu.RMPI.MPIData), synchronize its contents among the ranks first.
 """
 freeze(v::AbstractVector) = copy(v)
 

@@ -64,7 +64,6 @@ makedocs(;
             "Dict vectors" => "dictvectors.md",
             "BitString addresses" => "addresses.md",
             "Stochastic styles" => "stochasticstyles.md",
-            "RMPI" => "RMPI.md",
             "I/O" => "rimuio.md",
             "Random numbers" => "randomnumbers.md",
             "Documentation generation" => "documentation.md",

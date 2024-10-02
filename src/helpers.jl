@@ -23,10 +23,8 @@ julia> s, p
 (0, 2)
 ```
 
-This will work with `MPIData`.
-
-Note that only `MultiScalar`s with the same types can be operated on. This is a feature, as it
-forces type stability.
+Note that only `MultiScalar`s with the same types can be operated on. This is a feature, as
+it forces type stability.
 """
 struct MultiScalar{T<:Tuple}
     tuple::T

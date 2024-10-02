@@ -19,6 +19,7 @@ using NamedTupleTools: NamedTupleTools, namedtuple, delete
 import Tables
 import ConsoleProgressMonitor
 import TOML
+import MPI
 
 @reexport using LinearAlgebra
 @reexport using VectorInterface
@@ -41,6 +42,7 @@ Read the documentation [online](https://joachimbrand.github.io/Rimu.jl/).
 Rimu
 
 include("helpers.jl") # non MPI-dependent helper functions
+include("mpi_helpers.jl")
 
 include("Interfaces/Interfaces.jl")
 @reexport using .Interfaces
@@ -61,6 +63,8 @@ include("RimuIO/RimuIO.jl")
 include("StatsTools/StatsTools.jl")
 @reexport using .StatsTools
 
+export mpi_rank, is_mpi_root, @mpi_root, mpi_barrier
+export mpi_comm, mpi_root, mpi_size, mpi_seed!, mpi_allprintln
 export lomc!
 export default_starting_vector
 export FciqmcRunStrategy, RunTillLastStep
@@ -79,6 +83,9 @@ export FCIQMC, num_replicas, num_spectral_states, GramSchmidt
 function __init__()
     # Turn on smart logging once at runtime. Turn off with `default_logger()`.
     smart_logger()
+
+    # Initialise the MPI library once at runtime.
+    MPI.Initialized() || MPI.Init(threadlevel=:funneled)
 end
 
 include("strategies_and_params/fciqmcrunstrategy.jl")
@@ -96,7 +103,5 @@ include("fciqmc.jl")
 include("pmc_simulation.jl")
 
 include("lomc.jl")                  # top level
-
-include("RMPI/RMPI.jl")
 
 end # module

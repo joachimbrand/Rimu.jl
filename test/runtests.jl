@@ -147,10 +147,6 @@ end
     include("KrylovKit.jl")
 end
 
-@safetestset "RMPI" begin
-    include("RMPI.jl")
-end
-
 @testset "Logging" begin
     default_logger()
     l = Base.global_logger()

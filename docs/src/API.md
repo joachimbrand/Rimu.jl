@@ -34,10 +34,6 @@ See [Module `DictVectors`](@ref)
 
 See [Module `StatsTools`](@ref)
 
-## RMPI
-
-See [Module `RMPI`](@ref)
-
 # Index
 
 ```@index

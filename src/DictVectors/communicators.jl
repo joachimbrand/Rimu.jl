@@ -1,3 +1,5 @@
+import Rimu: mpi_rank, mpi_size, mpi_comm
+
 struct CommunicatorError <: Exception
     msg::String
 end

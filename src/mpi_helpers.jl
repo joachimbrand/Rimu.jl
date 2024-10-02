@@ -1,8 +1,13 @@
+# The following is actually set by MPI.jl itself. See:
+# https://juliaparallel.org/MPI.jl/stable/knownissues/#Multi-threading-and-signal-handling
+# Despite that, in some cases it needs to be set manually _before_ loading MPI.
+ENV["UCX_ERROR_SIGNALS"] = "SIGILL,SIGBUS,SIGFPE"
+
+using Random: Random
+
 # default root and comm for this package
-"Default MPI root for `RMPI`."
 const mpi_root = zero(Int32)
 
-"Default MPI communicator for `RMPI`."
 mpi_comm() = MPI.COMM_WORLD
 
 """
@@ -10,17 +15,6 @@ mpi_comm() = MPI.COMM_WORLD
 Size of MPI communicator.
 """
 mpi_size(comm = mpi_comm()) = MPI.Comm_size(comm)
-
-"""
-    next_mpiID()
-Produce a new ID number for MPI distributed objects. Uses an internal counter.
-"""
-next_mpiID
-
-let mpiID::Int = 0
-    global next_mpiID
-    next_mpiID() = (mpiID +=1; mpiID)
-end
 
 """
     mpi_rank(comm = mpi_comm())
@@ -36,6 +30,7 @@ is_mpi_root(root = mpi_root) = mpi_rank() == root
 
 """
     @mpi_root expr
+
 Evaluate expression only on the root rank.
 Extra care needs to be taken as `expr` *must not* contain any code that involves
 syncronising MPI operations, i.e. actions that would require syncronous action
@@ -58,39 +53,10 @@ end
 
 """
     mpi_barrier(comm = mpi_comm())
+
 The MPI barrier with optional argument. MPI syncronizing.
 """
 mpi_barrier(comm = mpi_comm()) = MPI.Barrier(comm)
-
-"""
-    targetrank(key, np)
-Compute the rank where the `key` belongs.
-"""
-targetrank(key::Union{Integer,AbstractFockAddress}, np) = hash(key, hash(1)) % np
-targetrank(pair::Pair, np) = targetrank(pair[1], np)
-
-"""
-    mpi_combine_walkers!(target, source, [strategy])
-Distribute the entries of `source` to the `target` data structure such that all
-entries in the `target` are on the process with the correct mpi rank
-as controlled by [`targetrank()`](@ref).
-MPI syncronizing.
-
-Note: the [`storage`](@ref) of the `source` is communicated rather than the `source` itself.
-"""
-function mpi_combine_walkers!(dtarget::MPIData, source::AbstractDVec)
-    ltarget = localpart(dtarget)
-    empty!(ltarget) # start with empty slate
-    strategy = dtarget.s
-    mpi_combine_walkers!(ltarget, storage(source), strategy)
-end
-
-function sort_into_targets!(dtarget::MPIData, w::AbstractDVec, stats)
-    # single threaded MPI version
-    mpi_combine_walkers!(dtarget, w) # combine walkers from different MPI ranks
-    res_stats = MPI.Allreduce(Rimu.MultiScalar(stats), +, dtarget.comm)
-    return dtarget, w, res_stats
-end
 
 """
     mpi_seed!(seed = rand(Random.RandomDevice(), UInt))
@@ -118,4 +84,13 @@ function mpi_allprintln(args...)
         end
         mpi_barrier()
     end
+end
+
+# Make MPI reduction of a `MultiScalar` work on non-Intel processors.
+# The `MultiScalar` is converted into a vector before sending through MPI.Allreduce.
+# Testing shows that this is about the same speed or even a bit faster on Intel processors
+# than reducing the MultiScalar directly via a custom reduction operator.
+function MPI.Allreduce(ms::Rimu.MultiScalar{T}, op, comm::MPI.Comm) where {T<:Tuple}
+    result_vector = MPI.Allreduce([ms...], op, comm)
+    return Rimu.MultiScalar(T(result_vector))
 end

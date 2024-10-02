@@ -5,9 +5,6 @@ MPI should be fairly straightforward. Generally, [`PDVec`](@ref Main.DictVectors
 work with MPI automatically, as long as MPI is set up correctly and a few common pitfalls
 are avoided.
 
-Rimu includes an unexported module [`RMPI`](@ref Main.Rimu.RMPI), which must be imported to access
-additional MPI-related functionality.
-
 ## Configuring MPI
 
 When running on a cluster, ensure that MPI.jl is using the system binary. See [the MPI.jl
@@ -16,7 +13,6 @@ documentation](https://juliaparallel.org/MPI.jl/latest/configuration/) for more 
 It is always a good idea to start your script with a quick test that ensures the MPI is set up correctly. One way to do this is to open with
 
 ```julia
-using Rimu.RMPI
 mpi_allprintln("hello")
 ```
 
@@ -60,10 +56,9 @@ srun mpi=pmi2 julia --project -tauto script.jl
 ### Using `@mpi_root`
 
 Take care to not use reducing functions (such as `length`, `sum`, `norm`, ...) inside
-[`@mpi_root`](@ref Main.Rimu.RMPI.@mpi_root) blocks. Doing so will only initiate the
-distributed reduction on one rank only, which will cause the code to go out of sync and
-freeze. As an example, to report the current length of a vector, calculate the length before
-the [`@mpi_root`](@ref Main.Rimu.RMPI.@mpi_root) block:
+[`@mpi_root`](@ref) blocks. Doing so will only initiate the distributed reduction on one
+rank only, which will cause the code to go out of sync and freeze. As an example, to report
+the current length of a vector, calculate the length before the [`@mpi_root`](@ref) block:
 
 ```julia
 len = length(pdvec)

@@ -151,8 +151,8 @@ end
 """
     all_overlaps(operators, vectors, working_memories, vecnorm=true)
 
-Get all overlaps between vectors and operators. This function is overloaded for `MPIData`.
-The flag `vecnorm` can disable the vector-vector overlap `c{i}_dot_c{j}`.
+Get all overlaps between vectors and operators.  The flag `vecnorm` can disable the
+vector-vector overlap `c{i}_dot_c{j}`.
 """
 function all_overlaps(
     operators::TupleOrVector, vecs::NTuple{N,AbstractDVec}, wms, ::Val{B}
