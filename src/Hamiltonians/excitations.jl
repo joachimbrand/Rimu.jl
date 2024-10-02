@@ -79,64 +79,6 @@ See [`excitation`](@ref), [`OccupiedModeMap`](@ref).
     return excitation(add, dst_indices, src_indices)..., src_modes..., -mom_change
 end
 
-function momentum_transfer_excitation(add::FermiFS, chosen::Integer, map; fold=true)
-    return add, 0.0, 0, 0, 0
-end
-
-function extended_momentum_transfer_excitation(add::SingleComponentFockAddress, chosen::Integer, map; fold=true)
-    M = num_modes(add)
-    singlies = length(map) # number of at least singly occupied modes
-
-    double = chosen - singlies * (singlies - 1) * (M - 2)
-
-    if double > 0
-        # Both moves from the same mode.
-        double, mom_change = fldmod1(double, M - 1)
-        idx = first(map) # placeholder
-        for i in map
-            double -= i.occnum ≥ 2
-            if double == 0
-                idx = i
-                break
-            end
-        end
-        src_indices = (idx, idx)
-    else
-        # Moves from different modes.
-        pair, mom_change = fldmod1(chosen, M - 2)
-        fst, snd = fldmod1(pair, singlies - 1) # where the holes are to be made
-        if snd < fst # put them in ascending order
-            f_hole = snd
-            s_hole = fst
-        else
-            f_hole = fst
-            s_hole = snd + 1 # as we are counting through all singlies
-        end
-        src_indices = (map[f_hole], map[s_hole])
-        f_mode = src_indices[1].mode
-        s_mode = src_indices[2].mode
-        if mom_change ≥ s_mode - f_mode
-            mom_change += 1 # to avoid putting particles back into the holes
-        end
-    end
-    # For higher dimensions, replace mod1 here with some geometry.
-    src_modes = (src_indices[1].mode, src_indices[2].mode)
-    dst_modes = (src_modes[1] + mom_change, src_modes[2] - mom_change)
-    if fold
-        dst_modes = (mod1(dst_modes[1], M), mod1(dst_modes[2], M))
-    elseif !(1 ≤ dst_modes[1] ≤ M && 1 ≤ dst_modes[2] ≤ M)
-        # Using a positive momentum change would have folded, so we try to use its negative
-        # equivalent.
-        mom_change = mom_change - M
-        dst_modes = (src_modes[1] + mom_change, src_modes[2] - mom_change)
-        if !(1 ≤ dst_modes[1] ≤ M && 1 ≤ dst_modes[2] ≤ M)
-            return add, 0.0, src_modes..., -mom_change
-        end
-    end
-    dst_indices = find_mode(add, dst_modes)
-    return excitation(add, dst_indices, src_indices)..., src_modes..., -mom_change
-end
-
 @inline function momentum_transfer_excitation(
     add_a, add_b, chosen, map_a, map_b; fold=true
 )
