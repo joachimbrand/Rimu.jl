@@ -64,7 +64,7 @@ function Base.show(io::IO, r::RatioBlockingResult{T,P}) where {T<:Real,P}
     qr95 = pquantile(r.ratio, [0.025, 0.975])
     println(io, "RatioBlockingResult{$T,$P}")
     println(io, f"  ratio = \%g(q[2]) ± (\%g(q[3]-q[2]), \%g(q[2]-q[1])) (MC)")
-    println(io, f"  95% confidence interval: [\%g(qr95[1]), \%g(qr95[2])]) (MC)")
+    println(io, f"  95% confidence interval: [\%g(qr95[1]), \%g(qr95[2])] (MC)")
     println(io, f"  linear error propagation: \%g(r.f) ± \%g(r.σ_f)")
     println(io, f"  |δ_y| = |\%g(r.δ_y)| (≤ 0.1 for normal approx)")
     if r.success
