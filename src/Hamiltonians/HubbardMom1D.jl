@@ -132,7 +132,7 @@ function num_offdiagonals(ham::HubbardMom1D, address::SingleComponentFockAddress
     singlies, doublies = num_singly_doubly_occupied_sites(address)
     return num_offdiagonals(ham, address, singlies, doublies)
 end
-
+num_offdiagonals(ham::HubbardMom1D, address::FermiFS) = 0
 # 4-argument version
 @inline function num_offdiagonals(ham::HubbardMom1D, ::SingleComponentFockAddress, singlies, doublies)
     M = num_modes(ham)
@@ -174,6 +174,10 @@ end
 @inline function diagonal_element(h::HubbardMom1D, address::SingleComponentFockAddress)
     map = OccupiedModeMap(address)
     return dot(h.kes, map) + momentum_transfer_diagonal(h, map)
+end
+@inline function diagonal_element(h::HubbardMom1D, address::FermiFS)
+    map = OccupiedModeMap(address)
+    return dot(h.kes, map)
 end
 @inline function diagonal_element(h::HubbardMom1D, address::FermiFS2C)
     map_a = OccupiedModeMap(address.components[1])
