@@ -37,17 +37,17 @@ end
     else
         tasks ÷= 2
         Threads.@spawn begin
-            _bose_basis!(result, $(prefix..., 0), $index, $remaining_n, Val(M - 1), $tasks)
+            _bose_basis!(result, $(0, prefix...), $index, $remaining_n, Val(M - 1), $tasks)
         end
         index += _bose_dimension(remaining_n, M - 1)
         Threads.@spawn begin
             _bose_basis!(
-                result, $(prefix..., 1), $index, $(remaining_n - 1), Val(M - 1), $tasks
+                result, $(1, prefix...), $index, $(remaining_n - 1), Val(M - 1), $tasks
             )
         end
         index += _bose_dimension(remaining_n - 1, M - 1)
         for n in 2:remaining_n
-            _bose_basis!(result, (prefix..., n), index, remaining_n - n, Val(M - 1))
+            _bose_basis!(result, (n, prefix...), index, remaining_n - n, Val(M - 1))
             index += _bose_dimension(remaining_n - n, M - 1)
         end
     end
@@ -57,18 +57,18 @@ end
     result::Vector{T}, prefix, index, remaining_n, ::Val{M}
 ) where {M,T}
     if remaining_n == 0
-        @inbounds result[index] = T((prefix..., ntuple(Returns(0), Val(M))...))
+        @inbounds result[index] = T((ntuple(Returns(0), Val(M))..., prefix...))
     elseif remaining_n == 1
         _basis_basecase_N1!(result, prefix, index, Val(M))
     elseif M == 1
-        @inbounds result[index] = T((prefix..., remaining_n))
+        @inbounds result[index] = T((remaining_n, prefix...))
     elseif M == 2
         _bose_basis_basecase_M2!(result, prefix, index, remaining_n)
     elseif M == 3
         _bose_basis_basecase_M3!(result, prefix, index, remaining_n)
     else
         for n in 0:remaining_n
-            _bose_basis!(result, (prefix..., n), index, remaining_n - n, Val(M - 1))
+            _bose_basis!(result, (n, prefix...), index, remaining_n - n, Val(M - 1))
             index += _bose_dimension(remaining_n - n, M - 1)
         end
     end
@@ -97,10 +97,10 @@ end
     else
         tasks ÷= 2
         Threads.@spawn begin
-            _fermi_basis!(result, $(prefix..., 0), $index, $remaining_n, Val(M - 1), $tasks)
+            _fermi_basis!(result, $(0, prefix...), $index, $remaining_n, Val(M - 1), $tasks)
         end
         index += _fermi_dimension(remaining_n, M - 1)
-        _fermi_basis!(result, (prefix..., 1), index, remaining_n - 1, Val(M - 1), tasks)
+        _fermi_basis!(result, (1, prefix...), index, remaining_n - 1, Val(M - 1), tasks)
     end
 end
 
@@ -109,15 +109,15 @@ end
 ) where {M,T}
     @assert M ≥ remaining_n
     if remaining_n == 0
-        @inbounds result[index] = T((prefix..., ntuple(Returns(0), Val(M))...))
+        @inbounds result[index] = T((ntuple(Returns(0), Val(M))..., prefix...))
     elseif remaining_n == M
-        @inbounds result[index] = T((prefix..., ntuple(Returns(1), Val(M))...))
+        @inbounds result[index] = T((ntuple(Returns(1), Val(M))..., prefix...))
     elseif remaining_n == 1
         _basis_basecase_N1!(result, prefix, index, Val(M))
     else
-        _fermi_basis!(result, (prefix..., 0), index, remaining_n, Val(M - 1))
+        _fermi_basis!(result, (0, prefix...), index, remaining_n, Val(M - 1))
         index += _fermi_dimension(remaining_n, M - 1)
-        _fermi_basis!(result, (prefix..., 1), index, remaining_n - 1, Val(M - 1))
+        _fermi_basis!(result, (1, prefix...), index, remaining_n - 1, Val(M - 1))
     end
     return nothing
 end
@@ -126,7 +126,7 @@ end
 ### CompositeFS
 ###
 function build_basis(::Type{C}) where {T,C<:CompositeFS{<:Any,<:Any,<:Any,T}}
-    sub_results = map(build_basis, Tuple(T.parameters))
+    sub_results = map(build_basis, reverse(Tuple(T.parameters)))
     result = Vector{C}(undef, prod(length, sub_results))
     Threads.@threads for i in eachindex(result)
         @inbounds result[i] = C(_collect_addrs(sub_results, i))
@@ -137,7 +137,7 @@ end
 @inline _collect_addrs(::Tuple{}, _) = ()
 @inline function _collect_addrs((v, vs...), i)
     rest, curr = fldmod1(i, length(v))
-    return (v[curr], _collect_addrs(vs, rest)...)
+    return (_collect_addrs(vs, rest)..., v[curr])
 end
 
 ###
@@ -145,19 +145,19 @@ end
 ###
 @inline function _basis_basecase_N1!(result::Vector{T}, prefix, index, ::Val{M}) where {M,T}
     rest = ntuple(Returns(0), Val(M))
-    for k in 0:(M-1)
-        result[index + k] = T((prefix..., setindex(rest, 1, M - k)...))
+    for k in 1:M
+        @inbounds result[index + k - 1] = T((setindex(rest, 1, k)..., prefix...))
     end
 end
 @inline function _bose_basis_basecase_M2!(result::Vector{T}, prefix, index, remaining_n) where {T}
     for n1 in 0:remaining_n
-        @inbounds result[index + n1] = T((prefix..., n1, remaining_n - n1))
+        @inbounds result[index + n1] = T((remaining_n - n1, n1, prefix...))
     end
 end
 @inline function _bose_basis_basecase_M3!(result::Vector{T}, prefix, index, remaining_n) where {T}
     k = 0
     for n1 in 0:remaining_n, n2 in 0:(remaining_n - n1)
-        @inbounds result[index + k] = T((prefix..., n1, n2, remaining_n - n1 - n2))
+        @inbounds result[index + k] = T((remaining_n - n1 - n2, n2, n1, prefix...))
         k += 1
     end
 end

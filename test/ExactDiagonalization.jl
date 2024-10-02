@@ -150,7 +150,7 @@ using Suppressor
             CompositeFS(BoseFS(2, 0, 0), FermiFS(1, 0, 1), BoseFS(0, 2, 0), BoseFS(1, 0, 0)),
         )
             H = HubbardRealSpace(addr)
-            @test Set(build_basis(addr)) == Set(build_basis(H))
+            @test build_basis(addr) == build_basis(H; sort=true)
         end
     end
 end

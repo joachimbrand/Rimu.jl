@@ -105,7 +105,7 @@ function (builder::MatrixBuilder{<:Any,T})(operator, columns, seen) where {T}
         resize!(builder.is, new_len)
         resize!(builder.js, new_len)
         resize!(builder.vs, new_len)
-        for (i, (row_key, value)) in enumerate(builder.column_buffer)
+        @inbounds for (i, (row_key, value)) in enumerate(builder.column_buffer)
             builder.is[old_len + i] = row_key
             builder.js[old_len + i] = col_index
             builder.vs[old_len + i] = value
