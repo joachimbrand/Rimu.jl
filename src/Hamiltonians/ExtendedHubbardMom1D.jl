@@ -90,22 +90,15 @@ end
     return singlies * (singlies - 1) * (M - 2) + doublies * (M - 1)
 end
 
-@inline function momentum_transfer_diagonal(
-    h::ExtendedHubbardMom1D{<:Any,M,<:SingleComponentFockAddress}, map
-) where {M}
-    return (h.u/ 2M) * momentum_transfer_diagonal(map) 
-    + (h.v/ M) * extended_momentum_transfer_diagonal(map, (2*π)/M) 
-end
-
-@inline function momentum_transfer_diagonal(
-    h::ExtendedHubbardMom1D{<:Any,M,<:FermiFS}, map
-) where {M}
-    return (h.v/ M) * extended_momentum_transfer_diagonal(map, M)
-end
-
 @inline function diagonal_element(h::ExtendedHubbardMom1D, address::SingleComponentFockAddress)
     map = OccupiedModeMap(address)
-    return dot(h.kes, map) + momentum_transfer_diagonal(h, map)
+    return dot(h.kes, map) + (h.u/ 2M) * momentum_transfer_diagonal(map) 
+        + (h.v/ M) * extended_momentum_transfer_diagonal(map, (2*π)/M)
+end
+
+@inline function diagonal_element(h::ExtendedHubbardMom1D, address::FermiFS)
+    map = OccupiedModeMap(address)
+    return dot(h.kes, map) + (h.v/ M) * extended_momentum_transfer_diagonal(map, M)
 end
 
 @inline function get_offdiagonal(
