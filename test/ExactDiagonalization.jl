@@ -14,7 +14,7 @@ using Suppressor
         n = 10
         addr = near_uniform(BoseFS{n,m})
         ham = HubbardReal1D(addr)
-        bsr = BasisSetRepresentation(ham; nnzs=dimension(ham))
+        bsr = BasisSetRepresentation(ham)
         @test length(bsr.basis) == dimension(bsr) ≤ dimension(ham)
         @test_throws ArgumentError BasisSetRepresentation(ham, BoseFS((1, 2, 3))) # wrong address type
         @test Matrix(bsr) == Matrix(bsr.sparse_matrix) == Matrix(ham)
@@ -48,6 +48,25 @@ using Suppressor
         mat_cut_manual = mat_orig[mat_cut_index, mat_cut_index]
         mat_cut = Matrix(ham; filter=filterfun, sort=true)
         @test mat_cut == mat_cut_manual
+    end
+
+    @testset "max_depth and stop_after" begin
+        addr = BoseFS(5, 1 => 1)
+        ham = HubbardRealSpace(addr; geometry=CubicGrid((5,), (false,)))
+
+        basis_addr = build_basis(addr)
+
+        @test build_basis(ham; max_depth=0) == [addr]
+        @test build_basis(ham; max_depth=1) == basis_addr[1:2]
+        @test build_basis(ham; max_depth=2) == basis_addr[1:3]
+        @test build_basis(ham; max_depth=3) == basis_addr[1:4]
+        @test build_basis(ham; max_depth=4) == basis_addr
+
+        @test build_basis(ham; stop_after=0) == [addr]
+        @test build_basis(ham; stop_after=1) == basis_addr[1:2]
+        @test build_basis(ham; stop_after=2) == basis_addr[1:3]
+        @test build_basis(ham; stop_after=3) == basis_addr[1:4]
+        @test build_basis(ham; stop_after=4) == basis_addr
     end
 
     @testset "getindex" begin
@@ -127,6 +146,18 @@ using Suppressor
         bsr = BasisSetRepresentation(ham, add; cutoff)
         basis = build_basis(ham, add; cutoff)
         @test basis == bsr.basis
+    end
+
+    @testset "fock build basis" begin
+        for addr in (
+            BoseFS(1, 1, 1, 1, 1, 2, 1, 1),
+            FermiFS(1, 1, 1, 0, 0, 0),
+            FermiFS2C((1, 1, 0, 0, 0, 0), (0, 1, 0, 1, 1, 0)),
+            CompositeFS(BoseFS(2, 0, 0), FermiFS(1, 0, 1), BoseFS(0, 2, 0), BoseFS(1, 0, 0)),
+        )
+            H = HubbardRealSpace(addr)
+            @test build_basis(addr) == build_basis(H; sort=true)
+        end
     end
 end
 
