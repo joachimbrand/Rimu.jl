@@ -30,45 +30,45 @@ end
 
 # Multithreaded version - attempts to spawn `tasks` tasks.
 @inline function _bose_basis!(
-    result::Vector, prefix, index, remaining_n, ::Val{M}, tasks::Int
+    result::Vector, postfix, index, remaining_n, ::Val{M}, tasks::Int
 ) where {M}
     @sync if M < 5 || remaining_n ≤ 1 || tasks ≤ 0
-        _bose_basis!(result, prefix, index, remaining_n, Val(M))
+        _bose_basis!(result, postfix, index, remaining_n, Val(M))
     else
         tasks ÷= 2
         Threads.@spawn begin
-            _bose_basis!(result, $(0, prefix...), $index, $remaining_n, Val(M - 1), $tasks)
+            _bose_basis!(result, $(0, postfix...), $index, $remaining_n, Val(M - 1), $tasks)
         end
         index += _bose_dimension(remaining_n, M - 1)
         Threads.@spawn begin
             _bose_basis!(
-                result, $(1, prefix...), $index, $(remaining_n - 1), Val(M - 1), $tasks
+                result, $(1, postfix...), $index, $(remaining_n - 1), Val(M - 1), $tasks
             )
         end
         index += _bose_dimension(remaining_n - 1, M - 1)
         for n in 2:remaining_n
-            _bose_basis!(result, (n, prefix...), index, remaining_n - n, Val(M - 1))
+            _bose_basis!(result, (n, postfix...), index, remaining_n - n, Val(M - 1))
             index += _bose_dimension(remaining_n - n, M - 1)
         end
     end
 end
 
 @inline function _bose_basis!(
-    result::Vector{T}, prefix, index, remaining_n, ::Val{M}
+    result::Vector{T}, postfix, index, remaining_n, ::Val{M}
 ) where {M,T}
     if remaining_n == 0
-        @inbounds result[index] = T((ntuple(Returns(0), Val(M))..., prefix...))
+        @inbounds result[index] = T((ntuple(Returns(0), Val(M))..., postfix...))
     elseif remaining_n == 1
-        _basis_basecase_N1!(result, prefix, index, Val(M))
+        _basis_basecase_N1!(result, postfix, index, Val(M))
     elseif M == 1
-        @inbounds result[index] = T((remaining_n, prefix...))
+        @inbounds result[index] = T((remaining_n, postfix...))
     elseif M == 2
-        _bose_basis_basecase_M2!(result, prefix, index, remaining_n)
+        _bose_basis_basecase_M2!(result, postfix, index, remaining_n)
     elseif M == 3
-        _bose_basis_basecase_M3!(result, prefix, index, remaining_n)
+        _bose_basis_basecase_M3!(result, postfix, index, remaining_n)
     else
         for n in 0:remaining_n
-            _bose_basis!(result, (n, prefix...), index, remaining_n - n, Val(M - 1))
+            _bose_basis!(result, (n, postfix...), index, remaining_n - n, Val(M - 1))
             index += _bose_dimension(remaining_n - n, M - 1)
         end
     end
@@ -90,34 +90,34 @@ end
 
 # Multithreaded version - attempts to spawn `tasks` tasks.
 @inline function _fermi_basis!(
-    result::Vector, prefix, index, remaining_n, ::Val{M}, tasks
+    result::Vector, postfix, index, remaining_n, ::Val{M}, tasks
 ) where {M}
     @sync if M < 5 || remaining_n ≤ M || remaining_n == 1 || tasks ≤ 0
-        _fermi_basis!(result, prefix, index, remaining_n, Val(M))
+        _fermi_basis!(result, postfix, index, remaining_n, Val(M))
     else
         tasks ÷= 2
         Threads.@spawn begin
-            _fermi_basis!(result, $(0, prefix...), $index, $remaining_n, Val(M - 1), $tasks)
+            _fermi_basis!(result, $(0, postfix...), $index, $remaining_n, Val(M - 1), $tasks)
         end
         index += _fermi_dimension(remaining_n, M - 1)
-        _fermi_basis!(result, (1, prefix...), index, remaining_n - 1, Val(M - 1), tasks)
+        _fermi_basis!(result, (1, postfix...), index, remaining_n - 1, Val(M - 1), tasks)
     end
 end
 
 @inline function _fermi_basis!(
-    result::Vector{T}, prefix, index, remaining_n, ::Val{M}
+    result::Vector{T}, postfix, index, remaining_n, ::Val{M}
 ) where {M,T}
     @assert M ≥ remaining_n
     if remaining_n == 0
-        @inbounds result[index] = T((ntuple(Returns(0), Val(M))..., prefix...))
+        @inbounds result[index] = T((ntuple(Returns(0), Val(M))..., postfix...))
     elseif remaining_n == M
-        @inbounds result[index] = T((ntuple(Returns(1), Val(M))..., prefix...))
+        @inbounds result[index] = T((ntuple(Returns(1), Val(M))..., postfix...))
     elseif remaining_n == 1
-        _basis_basecase_N1!(result, prefix, index, Val(M))
+        _basis_basecase_N1!(result, postfix, index, Val(M))
     else
-        _fermi_basis!(result, (0, prefix...), index, remaining_n, Val(M - 1))
+        _fermi_basis!(result, (0, postfix...), index, remaining_n, Val(M - 1))
         index += _fermi_dimension(remaining_n, M - 1)
-        _fermi_basis!(result, (1, prefix...), index, remaining_n - 1, Val(M - 1))
+        _fermi_basis!(result, (1, postfix...), index, remaining_n - 1, Val(M - 1))
     end
     return nothing
 end
@@ -143,21 +143,30 @@ end
 ###
 ### Base cases
 ###
-@inline function _basis_basecase_N1!(result::Vector{T}, prefix, index, ::Val{M}) where {M,T}
+# Base case for 1 particle in M modes.
+@inline function _basis_basecase_N1!(
+    result::Vector{T}, postfix, index, ::Val{M}
+) where {M,T}
     rest = ntuple(Returns(0), Val(M))
     for k in 1:M
-        @inbounds result[index + k - 1] = T((setindex(rest, 1, k)..., prefix...))
+        @inbounds result[index + k - 1] = T((setindex(rest, 1, k)..., postfix...))
     end
 end
-@inline function _bose_basis_basecase_M2!(result::Vector{T}, prefix, index, remaining_n) where {T}
+# Base case for bosons with `reamining_n` particles in 2 modes.
+@inline function _bose_basis_basecase_M2!(
+    result::Vector{T}, postfix, index, remaining_n
+) where {T}
     for n1 in 0:remaining_n
-        @inbounds result[index + n1] = T((remaining_n - n1, n1, prefix...))
+        @inbounds result[index + n1] = T((remaining_n - n1, n1, postfix...))
     end
 end
-@inline function _bose_basis_basecase_M3!(result::Vector{T}, prefix, index, remaining_n) where {T}
+# Base case for bosons with `remaining_n` particles in 3 modes.
+@inline function _bose_basis_basecase_M3!(
+    result::Vector{T}, postfix, index, remaining_n
+) where {T}
     k = 0
     for n1 in 0:remaining_n, n2 in 0:(remaining_n - n1)
-        @inbounds result[index + k] = T((remaining_n - n1 - n2, n2, n1, prefix...))
+        @inbounds result[index + k] = T((remaining_n - n1 - n2, n2, n1, postfix...))
         k += 1
     end
 end
