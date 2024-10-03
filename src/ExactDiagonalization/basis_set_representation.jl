@@ -1,169 +1,16 @@
 """
-    build_sparse_matrix_from_LO(
-        ham, address=starting_address(ham);
-        cutoff, filter=nothing, nnzs, col_hint, sort=false, kwargs...
-    ) -> sparse_matrix, basis
-    build_sparse_matrix_from_LO(ham, addresses::AbstractVector; kwargs...)
-
-Create a sparse matrix `sparse_matrix` of all reachable matrix elements of a linear operator `ham`
-starting from `address`. Instead of a single address, a vector of `addresses` can be passed.
-The vector `basis` contains the addresses of basis configurations.
-
-Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
-estimated number of nonzero off-diagonal matrix elements in each matrix column may improve
-performance.
-
-Providing an energy cutoff will skip the columns and rows with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead. These are
-not enabled by default. To generate the matrix truncated to the subspace spanned by the
-`addresses`, use `filter = Returns(false)`.
-
-Setting `sort` to `true` will sort the `basis` and order the matrix rows and columns
-accordingly. This is useful when the order of the columns matters, e.g. when comparing
-matrices. Any additional keyword arguments are passed on to `Base.sortperm`.
-
-See [`BasisSetRepresentation`](@ref).
-"""
-function build_sparse_matrix_from_LO(
-    ham, addr_or_vec=starting_address(ham);
-    cutoff=nothing,
-    filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    nnzs=0, col_hint=0, # sizehints are opt-in
-    sort=false, kwargs...
-)
-    # Set up `adds` as queue of addresses. Also returned as the basis.
-    adds = addr_or_vec isa Union{AbstractArray,Tuple} ? [addr_or_vec...] : [addr_or_vec]
-
-    T = eltype(ham)
-    dict = Dict(add => i for (i, add) in enumerate(adds)) # Map from addresses to indices
-    col = Dict{Int,T}()       # Temporary column storage
-    sizehint!(col, col_hint)
-
-    is = Int[] # row indices
-    js = Int[] # column indice
-    vs = T[]   # non-zero values
-
-    sizehint!(is, nnzs)
-    sizehint!(js, nnzs)
-    sizehint!(vs, nnzs)
-
-    i = 0
-    while i < length(adds)
-        i += 1
-        add = adds[i]
-        push!(is, i)
-        push!(js, i)
-        push!(vs, diagonal_element(ham, add))
-
-        empty!(col)
-        for (off, v) in offdiagonals(ham, add)
-            iszero(v) && continue
-            j = get(dict, off, nothing)
-            if isnothing(j)
-                # Energy cutoff: remember skipped addresses, but avoid adding them to `adds`
-                if !isnothing(filter) && !filter(off)
-                    dict[off] = 0
-                    j = 0
-                else
-                    push!(adds, off)
-                    j = length(adds)
-                    dict[off] = j
-                end
-            end
-            if !iszero(j)
-                col[j] = get(col, j, zero(T)) + v
-            end
-        end
-        # Copy the column into the sparse matrix vectors.
-        for (j, v) in col
-            iszero(v) && continue
-            push!(is, i)
-            push!(js, j)
-            push!(vs, v)
-        end
-    end
-
-    matrix = sparse(js, is, vs, length(adds), length(adds))
-    if sort
-        perm = sortperm(adds; kwargs...)
-        return permute!(matrix, perm, perm), permute!(adds, perm)
-    else
-        return matrix, adds
-    end
-end
-
-"""
-    build_basis(
-        ham, address=starting_address(ham);
-        cutoff, filter, sizelim, sort=false, kwargs...
-    ) -> basis
-    build_basis(ham, addresses::AbstractVector; kwargs...)
-
-Get all basis element of a linear operator `ham` that are reachable (via
-non-zero matrix elements) from the address `address`, returned as a vector.
-Instead of a single address, a vector of `addresses` can be passed.
-Does not return the matrix, for that purpose use [`BasisSetRepresentation`](@ref).
-
-Providing an energy cutoff will skip addresses with diagonal elements greater
-than `cutoff`. Alternatively, an arbitrary `filter` function can be used instead.
-Addresses passed as arguments are not filtered.
-A maximum basis size `sizelim` can be set which will throw an error if the expected
-dimension of `ham` is larger than `sizelim`. This may be useful when memory may be a
-concern. These options are disabled by default.
-
-Setting `sort` to `true` will sort the basis. Any additional keyword arguments
-are passed on to `Base.sort!`.
-"""
-function build_basis(
-    ham, addr_or_vec=starting_address(ham);
-    cutoff=nothing,
-    filter=isnothing(cutoff) ? nothing : (a -> diagonal_element(ham, a) ≤ cutoff),
-    sort=false,
-    max_size=Inf, # retained for backwards compatibility; use sizelim instead
-    sizelim=max_size,
-    kwargs...
-)
-    check_address_type(ham, addr_or_vec)
-    single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    if dimension(ham, single_addr) > sizelim
-        throw(ArgumentError("dimension larger than sizelim"))
-    end
-    # Set up `adds` as queue of addresses. Also returned as the basis.
-    adds = addr_or_vec isa Union{AbstractArray,Tuple} ? [addr_or_vec...] : [addr_or_vec]
-    known_basis = Set(adds)     # known addresses
-
-    i = 0
-    while i < length(adds)
-        i += 1
-        add = adds[i]
-
-        for (off, v) in offdiagonals(ham, add)
-            (iszero(v) || off in known_basis) && continue   # check if valid
-            push!(known_basis, off)
-            !isnothing(filter) && !filter(off) && continue  # check filter
-            push!(adds, off)
-        end
-    end
-
-    if sort
-        return sort!(adds, kwargs...)
-    else
-        return adds
-    end
-end
-
-"""
     BasisSetRepresentation(
         hamiltonian::AbstractHamiltonian, addr=starting_address(hamiltonian);
-        sizelim=10^6, nnzs, cutoff, filter, sort=false, kwargs...
+        sizelim=10^8, cutoff, filter, max_depth, stop_after, sort=false, kwargs...
     )
     BasisSetRepresentation(hamiltonian::AbstractHamiltonian, addresses::AbstractVector; kwargs...)
 
-Eagerly construct the basis set representation of the operator `hamiltonian` with all addresses
-reachable from `addr`. Instead of a single address, a vector of `addresses` can be passed.
+Eagerly construct the basis set representation of the operator `hamiltonian` with all
+addresses reachable from `addr`. Instead of a single address, a vector of `addresses` can be
+passed.
 
-An `ArgumentError` is thrown if `dimension(hamiltonian) > sizelim` in order to prevent memory
-overflow. Set `sizelim = Inf` in order to disable this behaviour.
+An `ArgumentError` is thrown if `dimension(hamiltonian) > sizelim` in order to prevent
+memory overflow. Set `sizelim = Inf` in order to disable this behaviour.
 
 Providing the number `nnzs` of expected calculated matrix elements and `col_hint` for the
 estimated number of nonzero off-diagonal matrix elements in each matrix column may improve
@@ -178,6 +25,10 @@ Setting `sort` to `true` will sort the matrix rows and columns. This is useful w
 order of the columns matters, e.g. when comparing matrices. Any additional keyword arguments
 are passed on to `Base.sortperm`.
 
+!!! warning
+        The order of the returned basis and matrix rows and columns is arbitrary and
+        non-deterministic. Use `sort=true` if the ordering matters.
+
 ## Fields
 * `sparse_matrix`: sparse matrix representing `hamiltonian` in the basis `basis`
 * `basis`: vector of addresses
@@ -188,15 +39,15 @@ are passed on to `Base.sortperm`.
 julia> hamiltonian = HubbardReal1D(BoseFS(1,0,0));
 
 julia> bsr = BasisSetRepresentation(hamiltonian)
-BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 3 and 9 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int64} with 9 stored entries:
-  0.0  -1.0  -1.0
- -1.0   0.0  -1.0
- -1.0  -1.0   0.0
+BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 3 and 6 stored entries:3×3 SparseArrays.SparseMatrixCSC{Float64, Int32} with 6 stored entries:
+   ⋅   -1.0  -1.0
+ -1.0    ⋅   -1.0
+ -1.0  -1.0    ⋅
 
 julia> BasisSetRepresentation(hamiltonian, bsr.basis[1:2]; filter = Returns(false)) # passing addresses and truncating
-BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 2 and 4 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int64} with 4 stored entries:
-  0.0  -1.0
- -1.0   0.0
+BasisSetRepresentation(HubbardReal1D(fs"|1 0 0⟩"; u=1.0, t=1.0)) with dimension 2 and 2 stored entries:2×2 SparseArrays.SparseMatrixCSC{Float64, Int32} with 2 stored entries:
+   ⋅   -1.0
+ -1.0    ⋅
 
 julia> using LinearAlgebra; round.(eigvals(Matrix(bsr)); digits = 4) # eigenvalues
 3-element Vector{Float64}:
@@ -258,13 +109,9 @@ end
 # default, does not enforce symmetries
 function _bsr_ensure_symmetry(
     ::LOStructure, hamiltonian::AbstractHamiltonian, addr_or_vec;
-    sizelim=10^6, test_approx_symmetry=true, kwargs...
+    test_approx_symmetry=true, kwargs...
 )
     single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    d = dimension(hamiltonian, single_addr)
-    if d > sizelim
-        throw(ArgumentError("Dimension = $d larger than sizelim = $sizelim. Set a larger `sizelim` if this is safe."))
-    end
     check_address_type(hamiltonian, addr_or_vec)
     sparse_matrix, basis = build_sparse_matrix_from_LO(hamiltonian, addr_or_vec; kwargs...)
     return BasisSetRepresentation(sparse_matrix, basis, hamiltonian)
@@ -273,12 +120,9 @@ end
 # build the BasisSetRepresentation while enforcing hermitian symmetry
 function _bsr_ensure_symmetry(
     ::IsHermitian, hamiltonian::AbstractHamiltonian, addr_or_vec;
-    sizelim=10^6, test_approx_symmetry=true, kwargs...
+    test_approx_symmetry=true, kwargs...
 )
     single_addr = addr_or_vec isa Union{AbstractArray,Tuple} ? addr_or_vec[1] : addr_or_vec
-    if dimension(hamiltonian, single_addr) > sizelim
-        throw(ArgumentError("dimension larger than sizelim"))
-    end
     check_address_type(hamiltonian, addr_or_vec)
     sparse_matrix, basis = build_sparse_matrix_from_LO(hamiltonian, addr_or_vec; kwargs...)
     fix_approx_hermitian!(sparse_matrix; test_approx_symmetry) # enforce hermitian symmetry after building
@@ -287,6 +131,7 @@ end
 
 """
     fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
+
 Replaces the matrix `A` by `½(A + A')` in place. This will be successful and the result
 is guaranteed to pass the `ishermitian` test only if the matrix is square and already
 approximately hermitian.
@@ -321,6 +166,7 @@ end
 
 """
     isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...) -> Bool
+
 Checks whether the matrix `A` is approximately hermitian by checking each pair of transposed
 matrix elements with `isapprox`. Keyword arguments are passed on to `isapprox`.
 Returns boolean `true` is the test is passed and `false` if not.

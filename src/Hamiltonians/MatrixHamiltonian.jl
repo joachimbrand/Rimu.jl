@@ -62,6 +62,7 @@ function offdiagonals(
     rows = rowvals(mh.m)[nzrange(mh.m, col)]
     vals = nonzeros(mh.m)[nzrange(mh.m, col)]
     drow = findprev(x->x==col, rows, min(col,length(rows))) # rows[drow]==col should be true
+    drow = isnothing(drow) ? 0 : drow
     return SparseMatrixOffdiagonals{Int,T,typeof(rows),typeof(vals)}(rows, vals, drow, col)
 end
 
@@ -72,10 +73,10 @@ struct SparseMatrixOffdiagonals{A,T,R,V} <: AbstractOffdiagonals{A,T}
     col::Int # colum of the matrix
 end
 function Base.getindex(smo::SparseMatrixOffdiagonals, chosen)
-    ind = ifelse(chosen < smo.drow, chosen, chosen + 1)
+    ind = ifelse(chosen < smo.drow, chosen, chosen + !iszero(smo.drow))
     return smo.rows[ind], smo.vals[ind]
 end
-Base.size(smo::SparseMatrixOffdiagonals) = (length(smo.rows) - 1,)
+Base.size(smo::SparseMatrixOffdiagonals) = (length(smo.rows) - !iszero(smo.drow),)
 
 function get_offdiagonal(
     mh::MatrixHamiltonian{<:Any, <:SparseArrays.AbstractSparseMatrixCSC},

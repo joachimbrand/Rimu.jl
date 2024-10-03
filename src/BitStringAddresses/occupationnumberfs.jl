@@ -66,7 +66,14 @@ end
 Base.reverse(ofs::OccupationNumberFS) = OccupationNumberFS(reverse(ofs.onr))
 
 onr(ofs::OccupationNumberFS) = ofs.onr
-Base.isless(a::OccupationNumberFS, b::OccupationNumberFS) = isless(b.onr, a.onr)
+function Base.isless(a::OccupationNumberFS{M}, b::OccupationNumberFS{M}) where {M}
+    # equivalent to `isless(reverse(a.onr), reverse(b.onr))`
+    i = length(a.onr)
+    while i > 1 && a.onr[i] == b.onr[i]
+        i -= 1
+    end
+    return isless(a.onr[i], b.onr[i])
+end
 # reversing the order here to make it consistent with BoseFS
 Base.:(==)(a::OccupationNumberFS, b::OccupationNumberFS) = a.onr == b.onr
 Base.hash(ofs::OccupationNumberFS, h::UInt) = hash(ofs.onr, h)
