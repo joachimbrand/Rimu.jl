@@ -1884,8 +1884,8 @@ end
 @testset "Comparison of ExtendedHubbardMom1D with ExtendedHubbardReal1D" begin
     addr = FermiFS{3,6}(0,1,1,1,0,0)
     for boundary_condition in ([i*π for i in 0.0:0.2:1.0])
-        HR = ExtendedHubbardMom1D(addr; boundary_condition)
-        HM = ExtendedHubbardReal1D(addr; boundary_conition= boundary_condition/6)
+        HR = ExtendedHubbardReal1D(addr; boundary_condition)
+        HM = ExtendedHubbardMom1D(addr; boundary_condition= boundary_condition/6)
         @test round.(eigvals(Matrix(HM)), digits=8) ⊆ round.(eigvals(Matrix(HR)), digits=8)
     end
 end
