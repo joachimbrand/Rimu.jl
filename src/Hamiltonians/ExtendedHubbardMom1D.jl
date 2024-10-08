@@ -112,6 +112,6 @@ end
     ham::ExtendedHubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
 ) where {M,A<:FermiFS}
     address, onproduct,_,_,q = momentum_transfer_excitation(address, chosen, map)
-    return address, -((ham.v * cos((q)*((2*π)/M)))/(M))*onproduct
+    return address, -ham.v * onproduct * cos(q * 2π / M) / M
 end
 momentum(ham::ExtendedHubbardMom1D) = MomentumMom1D(ham)
