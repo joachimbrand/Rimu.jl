@@ -105,7 +105,7 @@ end
     ham::ExtendedHubbardMom1D{<:Any,M,A}, address::A, chosen, map=OccupiedModeMap(address)
 ) where {M,A<:SingleComponentFockAddress}
     address, onproduct,_,_,q = momentum_transfer_excitation(address, chosen, map)
-    return address, ham.u/(2*M)*onproduct + ((ham.v * cos((q)*((2*π)/M)))/(M))*onproduct
+    return address, ham.u * onproduct / 2M + ham.v * cos(q * 2π / M) * onproduct / M
 end
 
 @inline function get_offdiagonal(
