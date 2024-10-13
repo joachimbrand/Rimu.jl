@@ -93,12 +93,12 @@ end
 @inline function diagonal_element(h::ExtendedHubbardMom1D{<:Any,M,A}, address::A) where {M,A<:SingleComponentFockAddress}
     map = OccupiedModeMap(address)
     return dot(h.kes, map) + (h.u/ 2M) * momentum_transfer_diagonal(map) 
-        + (h.v/ M) * extended_momentum_transfer_diagonal(map, (2*π)/M)
+        + (h.v/ M) * extended_momentum_transfer_diagonal(map, 2π / M)
 end
 
 @inline function diagonal_element(h::ExtendedHubbardMom1D{<:Any,M,A}, address::A) where {M,A<:FermiFS}
     map = OccupiedModeMap(address)
-    return dot(h.kes, map) + (h.v/ M) * extended_momentum_transfer_diagonal(map, M)
+    return dot(h.kes, map) + (h.v/ M) * extended_momentum_transfer_diagonal(map, 2π / M)
 end
 
 @inline function get_offdiagonal(
