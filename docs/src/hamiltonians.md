@@ -31,6 +31,7 @@ ExtendedHubbardReal1D
 HubbardMom1D
 BoseHubbardMom1D2C
 HubbardMom1DEP
+ExtendedHubbardMom1D
 ```
 
 ### Harmonic oscillator models
