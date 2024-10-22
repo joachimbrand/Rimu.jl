@@ -173,6 +173,11 @@ end
         ExtendedHubbardReal1D(BoseFS((1, 0, 0, 0, 1)); u=1.0, v=2.0, t=3.0),
         ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); u=1 + 0.5im),
         ExtendedHubbardReal1D(BoseFS(1, 0, 2, 1); t=1 + 0.5im),
+        ExtendedHubbardMom1D(BoseFS((1, 0, 0, 0, 1)); u=1.0, v=2.0, t=3.0),
+        ExtendedHubbardMom1D(BoseFS(1, 0, 2, 1); u=1 + 0.5im),
+        ExtendedHubbardMom1D(BoseFS(1, 0, 2, 1); t=1 + 0.5im),
+        ExtendedHubbardMom1D(OccupationNumberFS(1,2,0,0); u=1.0, v=2.0, t=3.0),
+        ExtendedHubbardMom1D(FermiFS(1,1,0,0); u=1.0, v=2.0, t=3.0),
         HubbardRealSpace(BoseFS((1, 2, 3)); u=[1], t=[3]),
         HubbardRealSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
         HubbardRealSpace(
@@ -672,6 +677,7 @@ end
             for H in (
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                ExtendedHubbardMom1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
             )
                 # GutzwillerSampling with parameter zero is exactly equal to the original H
@@ -702,6 +708,7 @@ end
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                ExtendedHubbardMom1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
                 # energy
@@ -785,6 +792,7 @@ end
                 HubbardReal1D(BoseFS((2,2,2)), u=6),
                 HubbardMom1D(BoseFS((2,2,2)), u=6),
                 ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+                ExtendedHubbardMom1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
                 # BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0), # multicomponent not implemented for G2RealCorrelator
             )
                 # energy
@@ -854,6 +862,7 @@ end
         for H in (
             HubbardMom1D(BoseFS((2,2,2)), u=6),
             ExtendedHubbardReal1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
+            ExtendedHubbardMom1D(BoseFS((1,1,1,1,1,1,1,1,1,1,1,1)), u=6, t=2.0),
             BoseHubbardMom1D2C(BoseFS2C((1,2,3), (1,0,0)), ub=2.0),
         )
             @test_throws ArgumentError Rimu.Hamiltonians.TransformUndoer(H)
@@ -1870,4 +1879,13 @@ end
     # diagonal and non-Hermitian
     @test LOStructure(h) isa IsDiagonal
     @test_throws ArgumentError adjoint(h2)
+end
+
+@testset "Comparison of ExtendedHubbardMom1D with ExtendedHubbardReal1D" begin
+    addr = FermiFS{3,6}(0,1,1,1,0,0)
+    for boundary_condition in ([i*π for i in 0.0:0.2:1.0]...,)
+        HR = ExtendedHubbardReal1D(addr; boundary_condition)
+        HM = ExtendedHubbardMom1D(addr; boundary_condition = (boundary_condition/6))
+        @test round.(eigvals(Matrix(HM)), digits=8) ⊆ round.(eigvals(Matrix(HR)), digits=8)
+    end
 end
