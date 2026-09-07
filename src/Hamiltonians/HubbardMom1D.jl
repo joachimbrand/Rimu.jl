@@ -81,7 +81,9 @@ function Base.show(io::IO, h::HubbardMom1D)
     compact_addr = repr(h.address, context=:compact => true) # compact print address
     print(io, "HubbardMom1D")
     eltype(h) === Float64 || print(io, "{$(eltype(h))}")
-    print(io, "($(compact_addr); u=$(h.u), t=$(h.t), dispersion=$(h.dispersion))")
+    print(io, "($(compact_addr); u=$(h.u), t=$(h.t)")
+    h.dispersion === hubbard_dispersion || print(io, ", dispersion=$(h.dispersion)")
+    print(io, ")")
 end
 
 function starting_address(h::HubbardMom1D)

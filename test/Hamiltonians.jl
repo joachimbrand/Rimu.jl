@@ -27,6 +27,7 @@ end
         HubbardReal1DEP(BoseFS(1, 2, 3, 4); t=1.0im),
         HubbardReal1DEP(BoseFS(1, 2, 3, 4); u=1.0im),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
+        HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5, dispersion=continuum_dispersion),
         HubbardMom1D{Float32}(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
         HubbardMom1D(BoseFS{missing}(6, 0, 0, 4); t=1.0, u=0.5),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
