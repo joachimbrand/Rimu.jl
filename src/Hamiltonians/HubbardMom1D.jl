@@ -40,33 +40,48 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 * [`HubbardReal1D`](@ref)
 * [`ExtendedHubbardReal1D`](@ref)
 """
-struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T} <: AbstractHamiltonian{TT}
+struct HubbardMom1D{TT,M,AD<:AbstractFockAddress,U,T,TTR,HD} <: AbstractHamiltonian{TT}
     address::AD # default starting address, should have N particles and M modes
-    ks::SVector{M,TT} # values for k
+    ks::SVector{M,TTR} # values for k
     kes::SVector{M,TT} # values for kinetic energy
+    dispersion::HD
 end
 
 function HubbardMom1D(
-    address::Union{SingleComponentFockAddress,FermiFS2C};
-    u=1.0, t=1.0, dispersion = hubbard_dispersion,
+    address;
+    u=1, t=1, dispersion=hubbard_dispersion,
 )
+    U, T = float.(promote(u, t))
+    TT = typeof(U)
+    return HubbardMom1D{TT}(address; u=U, t=T, dispersion=dispersion)
+end
+
+function HubbardMom1D{TT}(
+    address::Union{SingleComponentFockAddress,FermiFS2C};
+    u=1, t=1, dispersion=hubbard_dispersion,
+) where {TT}
     M = num_modes_check_equal(address)
-    U, T = promote(float(u), float(t))
-    step = 2π/M
+    U, T = TT.((u, t))
+    TTR = real(TT)
+    step = TTR(2π/M)
     if isodd(M)
-        start = -π*(1+1/M) + step
+        start = -π*(1+1/TTR(M)) + step
     else
         start = -π + step
     end
     kr = range(start; step = step, length = M)
-    ks = SVector{M}(kr)
-    kes = SVector{M}(dispersion.(T, kr))
-    return HubbardMom1D{typeof(U),M,typeof(address),U,T}(address, ks, kes)
+    ks = SVector{M,TTR}(kr)
+    kes = SVector{M,TT}(dispersion.(T, kr))
+    return HubbardMom1D{
+        TT, M, typeof(address), U, T, TTR, typeof(dispersion)
+    }(address, ks, kes, dispersion)
 end
 
 function Base.show(io::IO, h::HubbardMom1D)
     compact_addr = repr(h.address, context=:compact => true) # compact print address
-    print(io, "HubbardMom1D($(compact_addr); u=$(h.u), t=$(h.t))")
+    print(io, "HubbardMom1D")
+    eltype(h) === Float64 || print(io, "{$(eltype(h))}")
+    print(io, "($(compact_addr); u=$(h.u), t=$(h.t), dispersion=$(h.dispersion))")
 end
 
 function starting_address(h::HubbardMom1D)
@@ -81,6 +96,7 @@ Base.getproperty(h::HubbardMom1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::HubbardMom1D, ::Val{:ks}) = getfield(h, :ks)
 Base.getproperty(h::HubbardMom1D, ::Val{:kes}) = getfield(h, :kes)
 Base.getproperty(h::HubbardMom1D, ::Val{:address}) = getfield(h, :address)
+Base.getproperty(h::HubbardMom1D, ::Val{:dispersion}) = getfield(h, :dispersion)
 Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,U}, ::Val{:u}) where {U} = U
 Base.getproperty(h::HubbardMom1D{<:Any,<:Any,<:Any,<:Any,T}, ::Val{:t}) where {T} = T
 
@@ -189,19 +205,19 @@ end
 end
 
 @inline function get_offdiagonal(
-    ham::HubbardMom1D{<:Any,M,A}, address::A, chosen, map=occupied_mode_map(address)
-) where {M,A<:SingleComponentFockAddress}
-    address, onproduct = momentum_transfer_excitation(address, chosen, map)
+    ham::HubbardMom1D{TT,M,A}, address::A, chosen, map=occupied_mode_map(address)
+) where {TT,M,A<:SingleComponentFockAddress}
+    address, onproduct = momentum_transfer_excitation(real(TT), address, chosen, map)
     return address, ham.u/(2*M)*onproduct
 end
 @inline function get_offdiagonal(
-    ham::HubbardMom1D{<:Any,M,A}, address::A, chosen,
+    ham::HubbardMom1D{TT,M,A}, address::A, chosen,
     map_a=occupied_mode_map(address.components[1]),
     map_b=occupied_mode_map(address.components[2])
-) where {M,A<:FermiFS2C}
+) where {TT,M,A<:FermiFS2C}
     add_a, add_b = address.components
     new_add_a, new_add_b, onproduct = momentum_transfer_excitation(
-        add_a, add_b, chosen, map_a, map_b
+        real(TT), add_a, add_b, chosen, map_a, map_b
     )
     return CompositeFS(new_add_a, new_add_b), ham.u/M * onproduct
 end
@@ -275,13 +291,16 @@ end
 ###
 ### momentum
 ###
-struct MomentumMom1D{T,H<:AbstractHamiltonian{T}} <: AbstractHamiltonian{T}
+struct MomentumMom1D{T,H<:AbstractHamiltonian} <: AbstractHamiltonian{T}
     ham::H
 end
-LOStructure(::Type{MomentumMom1D{T,H}}) where {H,T <: Real} = IsDiagonal()
+LOStructure(::Type{MomentumMom1D}) = IsDiagonal()
 num_offdiagonals(ham::MomentumMom1D, _) = 0
 diagonal_element(mom::MomentumMom1D, address) = mod1(onr(address)⋅ks(mom.ham) + π, 2π) - π
 # fold into (-π, π]
 starting_address(mom::MomentumMom1D) = starting_address(mom.ham)
 
-momentum(ham::HubbardMom1D) = MomentumMom1D(ham)
+function momentum(ham::HubbardMom1D)
+    T = eltype(ks(ham))
+    MomentumMom1D{T, typeof(ham)}(ham)
+end

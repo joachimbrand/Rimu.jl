@@ -27,6 +27,7 @@ end
         HubbardReal1DEP(BoseFS(1, 2, 3, 4); t=1.0im),
         HubbardReal1DEP(BoseFS(1, 2, 3, 4); u=1.0im),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
+        HubbardMom1D{Float32}(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5),
         HubbardMom1D(BoseFS{missing}(6, 0, 0, 4); t=1.0, u=0.5),
         HubbardMom1D(BoseFS((6, 0, 0, 4)); t=1.0, u=0.5 + im),
         ExtendedHubbardReal1D(BoseFS((1, 0, 0, 0, 1)); u=1.0, v=2.0, t=3.0),
@@ -89,6 +90,7 @@ end
         FroehlichPolaron(BoseFS{missing}(1, 1, 1); momentum_cutoff=10.0),
         FroehlichPolaron{Float32}(BoseFS{missing}(1, 1, 1); momentum_cutoff=10.0),
         momentum(HubbardMom1D(BoseFS(0, 1, 5, 1, 0))),
+        momentum(HubbardMom1D(BoseFS(0, 1, 5, 1, 0); t=1.0+1.0im)),
         # HamiltonianProduct
         HubbardReal1D(BoseFS(2,0,0); u=1.0im) * ExtendedHubbardReal1D(BoseFS(2,0,0)),
         # HamiltonianSum
@@ -288,6 +290,7 @@ end
     @test HubbardMom1D(bs3; u=0, t) == HM3Hu0
     @test diagonal_element(HM3Cu0, bs3) == 0
     @test 2t*num_particles(bs3) + diagonal_element(HM3Hu0, bs3) == 0
+    @test eltype(HubbardMom1D(bs3; u=1.0f0, t=2)) == Float32
 
     HM2Cu0 =HubbardMom1D(bs2; u=0, t, dispersion=continuum_dispersion)
     HM2Hu0 =HubbardMom1D(bs2; u=0, t, dispersion=hubbard_dispersion)
@@ -775,7 +778,7 @@ end
                 w= [-1 0.5; 0.5 -2],
                 geometry=PeriodicBoundaries(3, 3),
             )
-            
+
             H5 = HubbardMomSpace(
                 addr;
                 t=[1,2],
@@ -783,7 +786,7 @@ end
                 w= [-1 0.5; 0.5 -2],
                 geometry=PeriodicBoundaries(3, 3),
             )
-            
+
             eig1 = eigsolve(BasisSetRepresentation(H4; sizelim=1e12).sparse_matrix, 1, :SR)[1][1]
             eig2 = eigsolve(BasisSetRepresentation(H5; sizelim=1e12).sparse_matrix, 1, :SR)[1][1]
             @test round(real(eig1); digits=10) == round(eig2; digits=10)
