@@ -18,7 +18,7 @@ continuum_dispersion(t::Real, k) = t .* k^2
 continuum_dispersion(t::Complex, k) = real(t) .* k^2 .- 2 * imag(t) .* k
 
 """
-    HubbardMom1D(address; u=1.0, t=1.0, dispersion=hubbard_dispersion)
+    HubbardMom1D{T}(address; u=1.0, t=1.0, dispersion=hubbard_dispersion)
 
 Implements a one-dimensional Bose Hubbard chain in momentum space.
 
@@ -34,6 +34,9 @@ Implements a one-dimensional Bose Hubbard chain in momentum space.
 * `dispersion`: defines ``ϵ_k =``` dispersion(t, k)`
     - [`hubbard_dispersion`](@ref): ``ϵ_k = -2(\\Re(t) \\cos(k) + \\Im(t) \\sin(k))``
     - [`continuum_dispersion`](@ref): ``ϵ_k = \\Re(t) k^2 - 2 \\Im(t) k``
+
+Setting the type parameter `T` is optional and `T` will be inferred from the keyword
+arguments if not provided. Set `T` to `Float32` for single precision, e.g. when using GPUs.
 
 # See also
 
