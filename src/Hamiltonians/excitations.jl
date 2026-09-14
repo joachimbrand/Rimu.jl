@@ -5,28 +5,31 @@ const BoseOccupiedModeMap{N} = ModeMap{N,BitStringAddresses.BoseFSIndex}
 const FermiOccupiedModeMap{N} = ModeMap{N,BitStringAddresses.FermiFSIndex}
 
 """
-    momentum_transfer_excitation(add, chosen, map; fold=true) -> nadd, α, p, q, -k
-    momentum_transfer_excitation(add_a, add_b, chosen, map_a, map_b; fold=true)
+    momentum_transfer_excitation([T=Float64], addr, chosen, map; fold=true) -> naddr, α, p, q, -k
+    momentum_transfer_excitation([T=Float64], addr_a, addr_b, chosen, map_a, map_b; fold=true)
 
-Apply the momentum transfer operator to Fock address (or pair of addresses) `add` (or
-`add_a`, `add_b`):
+Apply the momentum transfer operator to Fock address (or pair of addresses) `addr` (or
+`addr_a`, `addr_b`):
 
 ```math
-a^†_{p + k} a^†_{q - k} a_q a_p |\\mathtt{add}⟩
+â^†_{p + k} â^†_{q - k} â_q â_p |𝚊𝚍𝚍𝚛⟩
 ```
 
 The `fold` argument controls whether the terms `p + k` and `q - k` are done modulo M. If
 not, zero is returned when either of those terms is less than 1 or larger than M.
-It is expected that `map == occupied_mode_map(add)`.
+It is expected that `map == occupied_mode_map(addr)`.
 
 Return the new address(es), the value, modes `p` and `q`, and the momentum change `-k`.
 
 See [`excitation`](@ref), [`occupied_mode_map`](@ref).
 """
+@inline function momentum_transfer_excitation(addr::AbstractFockAddress, args...; kwargs...)
+    return momentum_transfer_excitation(Float64, addr, args...; kwargs...)
+end
 @inline function momentum_transfer_excitation(
-    add::SingleComponentFockAddress, chosen, map::ModeMap; fold=true
-)
-    M = num_modes(add)
+    ::Type{TT}, addr::SingleComponentFockAddress, chosen, map::ModeMap; fold=true
+) where {TT<:AbstractFloat}
+    M = num_modes(addr)
     singlies = length(map) # number of at least singly occupied modes
 
     double = chosen - singlies * (singlies - 1) * (M - 2)
@@ -72,18 +75,18 @@ See [`excitation`](@ref), [`occupied_mode_map`](@ref).
         mom_change = mom_change - M
         dst_modes = (src_modes[1] + mom_change, src_modes[2] - mom_change)
         if !(1 ≤ dst_modes[1] ≤ M && 1 ≤ dst_modes[2] ≤ M)
-            return add, 0.0, src_modes..., -mom_change
+            return addr, zero(TT), src_modes..., -mom_change
         end
     end
-    dst_indices = find_mode(add, dst_modes)
-    return excitation(add, dst_indices, src_indices)..., src_modes..., -mom_change
+    dst_indices = find_mode(addr, dst_modes)
+    return excitation(TT, addr, dst_indices, src_indices)..., src_modes..., -mom_change
 end
 
 @inline function momentum_transfer_excitation(
-    add_a::SingleComponentFockAddress, add_b::SingleComponentFockAddress,
+    ::Type{TT}, addr_a::SingleComponentFockAddress, addr_b::SingleComponentFockAddress,
     chosen, map_a, map_b; fold=true
-)
-    M = num_modes_check_equal(add_a, add_b)
+) where {TT<:AbstractFloat}
+    M = num_modes_check_equal(addr_a, addr_b)
 
     src_a, remainder = fldmod1(chosen, (M - 1) * length(map_b))
     dst_a, src_b = fldmod1(remainder, length(map_b))
@@ -96,7 +99,7 @@ end
         dst_a += 1 # to skip the src_a
     end
     mom_change = dst_a - src_a_mode # change in momentun
-    dst_a_index = find_mode(add_a, dst_a)
+    dst_a_index = find_mode(addr_a, dst_a)
     src_b_mode = src_b_index.mode
     dst_b = src_b_mode - mom_change
 
@@ -107,19 +110,19 @@ end
         dst_a = mod1(dst_a, M)
         dst_b = mod1(dst_b, M) # enforce periodic boundary condition
     elseif !(0 < dst_a ≤ M) || !(0 < dst_b ≤ M)
-        return add_a, add_b, 0.0, params...
+        return addr_a, addr_b, zero(TT), params...
     end
 
-    dst_b_index = find_mode(add_b, dst_b)
+    dst_b_index = find_mode(addr_b, dst_b)
 
-    new_add_a, val_a = excitation(add_a, (dst_a_index,), (src_a_index,))
-    new_add_b, val_b = excitation(add_b, (dst_b_index,), (src_b_index,))
+    new_addr_a, val_a = excitation(TT, addr_a, (dst_a_index,), (src_a_index,))
+    new_addr_b, val_b = excitation(TT, addr_b, (dst_b_index,), (src_b_index,))
 
-    return new_add_a, new_add_b, val_a * val_b, params...
+    return new_addr_a, new_addr_b, val_a * val_b, params...
 end
 
 """
-    momentum_transfer_diagonal(map)
+    momentum_transfer_diagonal(map)::Int
 
 The diagonal part of onsite [`momentum_transfer_excitation`](@ref).
 """
@@ -133,7 +136,7 @@ function momentum_transfer_diagonal(map::BoseOccupiedModeMap)
             onproduct += 4 * occ_i * occ_j
         end
     end
-    return float(onproduct)
+    return onproduct
 end
 
 """
@@ -143,7 +146,7 @@ The diagonal part of nearest neighbour term [`momentum_transfer_excitation`](@re
 Where `step` is the separation of single-particle momenta in the momentum grid.
 """
 function extended_momentum_transfer_diagonal(map::ModeMap, step)
-    onproduct = 0
+    onproduct = zero(step)
     for i in 1:length(map)
         occ_i = map[i].occnum
         onproduct += occ_i * (occ_i - 1)
@@ -156,7 +159,7 @@ function extended_momentum_transfer_diagonal(map::ModeMap, step)
 end
 
 function extended_momentum_transfer_diagonal(map::FermiOccupiedModeMap,step)
-    onproduct = 0
+    onproduct = zero(step)
     for i in 1:length(map)
         occ_i = map[i].occnum
         onproduct += occ_i * (occ_i - 1)
@@ -168,14 +171,18 @@ function extended_momentum_transfer_diagonal(map::FermiOccupiedModeMap,step)
     return float(onproduct)
 end
 
+"""
+    momentum_transfer_diagonal(map_a, map_b)::Int
+
+The diagonal part of onsite [`momentum_transfer_excitation`](@ref).
+"""
 function momentum_transfer_diagonal(
     map_a::FermiOccupiedModeMap, map_b::FermiOccupiedModeMap
 )
-    onproduct = 0
     n1 = length(map_a)
     n2 = length(map_b)
 
-    return float(2 * n1 * n2)
+    return 2 * n1 * n2
 end
 
 """
