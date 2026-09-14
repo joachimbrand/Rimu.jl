@@ -246,7 +246,7 @@ end
 """
     mom_transfer_diagonal(components, g)
     
-This function returns a diagonal element of the Hamiltonian coresponding to the given address 
+This function returns a diagonal element of the Hamiltonian corresponding to the given address 
 stored in `components`. Here, `components` is a tuple of [`HubbardMomSpaceComponentData`](@ref) 
 for each pair combination of component of the multi-component Fock state address.
 
