@@ -134,6 +134,22 @@ using SparseArrays
         @test even_sm ≈ even_m # still approximately the same!
     end
 
+    @testset "isapprox_enforce_hermitian!" begin
+        matrix = sprand(100, 100, 0.2)
+        matrix .+= matrix'
+        for _ in 1:1000
+            matrix[rand(1:100), rand(1:100)] += 1e-9
+        end
+    
+        matrix1 = copy(matrix)
+        @test !ishermitian(matrix1)
+        @test isapprox_enforce_hermitian!(matrix1)
+        @test ishermitian(matrix1)
+    
+        matrix2 = copy(matrix)
+        @test !isapprox_enforce_hermitian!(matrix2; atol=1e-12)
+    end
+
     @testset "basis-only" begin
         m = 5
         n = 5

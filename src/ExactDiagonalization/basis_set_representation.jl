@@ -94,6 +94,11 @@ function BasisSetRepresentation(hamiltonian::AbstractOperator, addr_or_vec; kwar
     return _bsr_ensure_symmetry(AdjointUnknown(), hamiltonian, addr_or_vec; kwargs...)
 end
 # special cases are needed for symmetry wrappers
+function BasisSetRepresentation(hamiltonian::Union{HubbardMomSpace,ExtendedHubbardMom1D}, addr_or_vec; kwargs...)
+    # These hamiltonians contain trigonometric operations which make the off-diagonal elements
+    # ``H[i,j] and H[j,i]`` unequal by about and below 1e-12 value when required to be Hermitian.
+    return _bsr_ensure_symmetry(LOStructure(hamiltonian), hamiltonian, addr_or_vec; kwargs...)
+end
 
 function BasisSetRepresentation(
     hamiltonian::ParitySymmetry, addr=starting_address(hamiltonian);
@@ -135,6 +140,7 @@ function _bsr_ensure_symmetry(
     fix_approx_hermitian!(sparse_matrix; test_approx_symmetry) # enforce hermitian symmetry after building
     return BasisSetRepresentation(sparse_matrix, basis, hamiltonian)
 end
+
 
 """
     fix_approx_hermitian!(A; test_approx_symmetry=true, kwargs...)
@@ -181,7 +187,9 @@ Returns boolean `true` is the test is passed and `false` if not.
 Furthermore, the matrix `A` is modified to become exactly equal to `½(A + A')` if the test
 is passed.
 """
-function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
+function isapprox_enforce_hermitian!(
+    A::AbstractSparseMatrixCSC{T}; atol=√eps(T), kwargs...
+) where {T}
     # based on `ishermsym()` from `SparseArrays`; relies on `SparseArrays` internals
     # https://github.com/JuliaSparse/SparseArrays.jl/blob/1bae96dc8f9a8ca8b7879eef4cf71e186598e982/src/sparsematrix.jl#L3793
     m, n = size(A)
@@ -202,7 +210,8 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
             row = rowval[p]
 
             # Ignore stored zeros
-            if iszero(val)
+            if isapprox(val, zero(T); atol, kwargs...)
+                nzval[p] = zero(T)
                 continue
             end
 
@@ -215,7 +224,7 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
 
             # Diagonal element
             if row == col
-                if isapprox(val, conj(val); kwargs...)
+                if isapprox(val, conj(val); atol, kwargs...)
                     nzval[p] = real(val)
                 else
                     return false
@@ -239,9 +248,11 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
                 # We therefore "catch up" here while making sure that
                 # the elements are actually zero.
                 while row2 < col
-                    if !iszero(nzval[offset])
+                    if !isapprox(nzval[offset], zero(T); atol, kwargs...)
                         return false
                     end
+                    nzval[offset] = zero(T)
+
                     offset += 1
                     row2 = rowval[offset]
                     tracker[row] += 1
@@ -254,16 +265,13 @@ function isapprox_enforce_hermitian!(A::AbstractSparseMatrixCSC; kwargs...)
 
                 # A[i,j] and A[j,i] exists
                 if row2 == col
-                    if isapprox(val, conj(nzval[offset]); kwargs...)
+                    if isapprox(val, conj(nzval[offset]); atol, kwargs...)
                         val = 1 / 2 * (val + conj(nzval[offset]))
                         nzval[p] = val
                         nzval[offset] = conj(val)
                     else
                         return false
                     end
-                    # if val != conj(nzval[offset])
-                    #     return false
-                    # end
                     tracker[row] += 1
                 end
             end

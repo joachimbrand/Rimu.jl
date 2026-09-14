@@ -70,9 +70,11 @@ function LOStructure(::Type{<:ExtendedHubbardReal1D{<:Real,<:Any,<:Any,<:Any,T}}
         return IsHermitian()
     end
 end
-function LOStructure(::Type{<:ExtendedHubbardReal1D{<:Complex,<:Any,U,V,T}}) where {U,V,T}
-    if iszero(imag(U)) && iszero(imag(V))
-        return IsHermitian() # still Hermitian with complex t
+function LOStructure(::Type{<:ExtendedHubbardReal1D{TT,<:Any,U,V,T}}) where {TT<:Complex,U,V,T}
+    if iszero(T)
+        return IsDiagonal()
+    elseif iszero(imag(U)) && iszero(imag(V))
+        return IsHermitian()
     else
         return AdjointKnown()
     end

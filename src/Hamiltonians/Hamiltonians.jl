@@ -83,7 +83,8 @@ export dimension, rayleigh_quotient, momentum
 
 export IdentityOperator
 export MatrixHamiltonian
-export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, ExtendedHubbardMom1D, HubbardRealSpace
+export HubbardReal1D, HubbardMom1D, ExtendedHubbardReal1D, ExtendedHubbardMom1D
+export HubbardMomSpace, HubbardRealSpace
 export HubbardReal1DEP, shift_lattice, shift_lattice_inv
 export HubbardMom1DEP
 export GutzwillerSampling, GuidingVectorSampling
@@ -133,6 +134,7 @@ include("ExtendedHubbardMom1D.jl")
 include("HubbardMom1D.jl")
 include("HubbardMom1DEP.jl")
 include("HubbardRealSpace.jl")
+include("HubbardMomSpace.jl")
 include("ExtendedHubbardReal1D.jl")
 
 include("FroehlichPolaron.jl")

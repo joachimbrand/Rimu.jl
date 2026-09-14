@@ -40,17 +40,18 @@ function ExtendedHubbardMom1D(
     u=1.0, v=1.0, t=1.0, dispersion = hubbard_dispersion, boundary_condition = 0.0
 )
     M = num_modes(address)
-    U, V, T= promote(float(u), float(v), float(t))
     step = 2π/M
+    U, V = promote(float(u), float(v))
+    TT = typeof(V)
     if isodd(M)
         start = -π*(1+1/M) + step
     else
         start = -π + step
     end
     kr = range(start; step = step, length = M)
-    ks = SVector{M}(kr)
-    kes = SVector{M}(dispersion.(T , kr .+ (boundary_condition/M)))
-    return ExtendedHubbardMom1D{typeof(U),M,typeof(address),U,V,T,boundary_condition}(address, ks, kes)
+    ks = SVector{M,TT}(kr)
+    kes = SVector{M,TT}(dispersion.(t, kr .+ (boundary_condition/M)))
+    return ExtendedHubbardMom1D{TT,M,typeof(address),U,V,t,boundary_condition}(address, ks, kes)
 end
 
 function Base.show(io::IO, h::ExtendedHubbardMom1D)
@@ -64,8 +65,23 @@ end
 
 dimension(::ExtendedHubbardMom1D, address) = number_conserving_dimension(address)
 
-LOStructure(::Type{<:ExtendedHubbardMom1D{<:Real}}) = IsHermitian()
-
+function LOStructure(::Type{<:ExtendedHubbardMom1D{<:Real,<:Any,<:Any,U,V}}) where {U,V}
+    if iszero(U) && iszero(V)
+        return IsDiagonal()
+    else
+        return IsHermitian()
+    end
+end
+function LOStructure(::Type{<:ExtendedHubbardMom1D{<:Complex,<:Any,<:Any,U,V}}) where {U,V}
+    if iszero(imag(U)) && iszero(imag(V))
+        return IsHermitian()
+    else 
+        return AdjointKnown()
+    end
+end
+function LinearAlgebra.adjoint(h::ExtendedHubbardMom1D{TT,M,A,U,V,T,B}) where {TT<:Complex,M,A,U,V,T,B}
+    return ExtendedHubbardMom1D{TT,M,A,conj(U)+0im,conj(V)+0im,T,B}(h.address,conj(h.ks),conj(h.kes))
+end
 Base.getproperty(h::ExtendedHubbardMom1D, s::Symbol) = getproperty(h, Val(s))
 Base.getproperty(h::ExtendedHubbardMom1D, ::Val{:ks}) = getfield(h, :ks)
 Base.getproperty(h::ExtendedHubbardMom1D, ::Val{:kes}) = getfield(h, :kes)
@@ -90,28 +106,28 @@ end
     return singlies * (singlies - 1) * (M - 2) + doublies * (M - 1)
 end
 
-@inline function diagonal_element(h::ExtendedHubbardMom1D{<:Any,M,A}, address::A) where {M,A<:SingleComponentFockAddress}
+@inline function diagonal_element(h::ExtendedHubbardMom1D{TT,M,A}, address::A) where {TT,M,A<:SingleComponentFockAddress}
     map = occupied_mode_map(address)
     return (dot(h.kes, map) + (h.u/ 2M) * momentum_transfer_diagonal(map) 
-        + (h.v/ M) * extended_momentum_transfer_diagonal(map, 2π / M))
+        + (h.v/ M) * extended_momentum_transfer_diagonal(map, 2π / M)) :: TT
 end
 
-@inline function diagonal_element(h::ExtendedHubbardMom1D{<:Any,M,A}, address::A) where {M,A<:FermiFS}
+@inline function diagonal_element(h::ExtendedHubbardMom1D{TT,M,A}, address::A) where {TT,M,A<:FermiFS}
     map = occupied_mode_map(address)
-    return dot(h.kes, map) + (h.v/ M) * extended_momentum_transfer_diagonal(map, 2π / M)
+    return (dot(h.kes, map) + (h.v/ M) * extended_momentum_transfer_diagonal(map, 2π / M)) :: TT
 end
 
 @inline function get_offdiagonal(
-    ham::ExtendedHubbardMom1D{<:Any,M,A}, address::A, chosen, map=occupied_mode_map(address)
-) where {M,A<:SingleComponentFockAddress}
+    ham::ExtendedHubbardMom1D{TT,M,A}, address::A, chosen, map=occupied_mode_map(address)
+) where {TT,M,A<:SingleComponentFockAddress}
     address, onproduct,_,_,q = momentum_transfer_excitation(address, chosen, map)
-    return address, ham.u * onproduct / 2M + ham.v * cos(q * 2π / M) * onproduct / M
+    return address, (ham.u * onproduct / 2M + ham.v * cos(q * 2π / M) * onproduct / M) :: TT
 end
 
 @inline function get_offdiagonal(
-    ham::ExtendedHubbardMom1D{<:Any,M,A}, address::A, chosen, map=occupied_mode_map(address)
-) where {M,A<:FermiFS}
+    ham::ExtendedHubbardMom1D{TT,M,A}, address::A, chosen, map=occupied_mode_map(address)
+) where {TT,M,A<:FermiFS}
     address, onproduct,_,_,q = momentum_transfer_excitation(address, chosen, map)
-    return address, -ham.v * onproduct * cos(q * 2π / M) / M
+    return address, (-ham.v * onproduct * cos(q * 2π / M) / M) :: TT
 end
 momentum(ham::ExtendedHubbardMom1D) = MomentumMom1D(ham)
