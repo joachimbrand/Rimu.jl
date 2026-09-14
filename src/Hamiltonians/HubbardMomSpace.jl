@@ -445,7 +445,7 @@ determines `p`, `q`, `σ`, `σ'` and `k` in the two particle operator given by
 multi-component Fock address where `address1` and `address2` are the single-component 
 Fock addresses representing  `σ` and `σ'` component respectively. The operation 
 creates a new address and the corresponding coefficient which is stored as a pair. 
-`u` and `w` represents the interaction coefficient coresponding to on-site and 
+`u` and `w` represents the interaction coefficient corresponding to on-site and 
 nearest-neighbour interactions, respectively, and are used to calculate the 
 coefficient of the respective new address.
 """
