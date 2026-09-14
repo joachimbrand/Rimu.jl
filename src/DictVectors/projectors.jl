@@ -41,10 +41,11 @@ VectorInterface.inner(::UniformProjector, y::DVecOrVec) = sum(values(y))
 Base.getindex(::UniformProjector, add) = 1
 
 function LinearAlgebra.dot(::UniformProjector, op::AbstractOperator, v::AbstractDVec)
-    return sum(pairs(v)) do (key, val)
+    T = promote_type(valtype(v), eltype(op))
+    return sum(pairs(v), init=zero(T)) do (key, val)
         column = operator_column(op, key)
         diag = diagonal_element(column) * val
-        offdiag = sum(offdiagonals(column)) do (add, elem)
+        offdiag = sum(offdiagonals(column); init=zero(T)) do (_, elem)
             elem * val
         end
         diag + offdiag

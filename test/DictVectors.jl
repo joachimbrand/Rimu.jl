@@ -266,6 +266,13 @@ function test_dvec_interface(type; kwargs...)
             fu = freeze(u)
             @test fu isa AbstractProjector
             @test inner(fu, u) ≈ inner(u, fu) ≈ sum(abs2, u)
+
+            hm = HubbardMom1D(BoseFS(1, 2, 0))
+            dvm = DVec(hm*starting_address(hm))
+            @test dot(UniformProjector(), hm, dvm) isa Float64
+            @test dot(UniformProjector(), hm, zero(dvm)) isa Float64
+            @test dot(UniformProjector(), momentum(hm), dvm) isa Float64 # no offdiagonals
+            @test dot(Norm2Projector(), momentum(hm), dvm) isa Float64 # fallback
         end
         @testset "StochasticStyle" begin
             @test StochasticStyle(type(:a => 1; kwargs...)) isa IsStochasticInteger{Int}

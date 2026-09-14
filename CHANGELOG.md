@@ -14,9 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Deprecated
 * Keyword `mass` in `FroehlichPolaron` renamed to `two_m` ([#405])
 
+### Fixed
+* Dot products with `UniformProjector` could error for empty vectors or operators without offdiagonals ([#403])
+
 ### Other changes
 * Documentation update ([#398, #407])
 * `excitation` accepts floating point type as argument to define the type for the returned value and internal calculations. This permits compiling the function on a GPU with reduced precision arithmetic. ([#405])
+* compat changed to `ElemCo` v"0.16"
 
 ## v0.18.0 - 2026-08-13
 

@@ -32,7 +32,7 @@ with a Hartree-Fock calculation, or parsing them from a file.
 * `fd`: Struct containing FCIDUMP information defined in [ElemCo.jl](https://elem.co.il).
 
 # Keyword Arguments
-* `starting_address::FermiFS2C=nothing`: The starting address (configuration) defines 
+* `starting_address::FermiFS2C=nothing`: The starting address (configuration) defines
     number of alpha and beta electrons and orbitals.
 * `specifier::String=""`: Arbitrary identifier. It may store the path to the FCIDUMP file or a user
     specified name.
@@ -61,7 +61,7 @@ function MolecularHamiltonian(
         error("MolecularHamiltonian requires that ElemCo is loaded, i.e. `using ElemCo`")
         return nothing
     end
-    fd = ext.read_fcidump(fcidump_path, Val(4))
+    fd = ext.read_fcidump(fcidump_path, Float64, Val(4))
     if specifier == ""
         specifier = fcidump_path
     end
@@ -177,8 +177,8 @@ end
 
 Calculate the two body operator diagonal term ``⟨U|Ĥ₂|U⟩`` for a two-component Fermi Fock address.
 ```math
-⟨U|Ĥ₂|U⟩ 
-    = ∑_{i < j,σ,τ}^{M} (V_{ij,ij} ⟨U| a^†_{i,σ} a^†_{j,τ} a_{j,τ} a_{i,σ} |U⟩ 
+⟨U|Ĥ₂|U⟩
+    = ∑_{i < j,σ,τ}^{M} (V_{ij,ij} ⟨U| a^†_{i,σ} a^†_{j,τ} a_{j,τ} a_{i,σ} |U⟩
     - V_{ij,ji} ⟨U| a^†_{i,σ} a^†_{j,τ} a_{i,τ} a_{j,σ}|U⟩ δ_{σ,τ} )
 ```
 where the mode map of the two-component Fock address ``|U⟩`` is passed as `occ_modes`.
@@ -730,10 +730,10 @@ end
 Return the 2-element combination (in lexicographical order) of the set ``\\{1, ..., n\\}``
 corresponding to the index ``i``.
 
-When generating excited states with two electrons excited within a single spin channel, 
-two indices are chosen from the array of (un)occupied mode maps. For example, selecting 
+When generating excited states with two electrons excited within a single spin channel,
+two indices are chosen from the array of (un)occupied mode maps. For example, selecting
 two non-repeating indices from the array of unoccupied modes determines the target modes
-for the electrons, stored as the `to_unoccupieds` tuple in 
+for the electrons, stored as the `to_unoccupieds` tuple in
 [`MolecularHamiltonianOffDiagonalsIteratorState`](@ref).
 
 For instance, if there are 4 unoccupied modes, the possible 2-element combinations
@@ -760,11 +760,11 @@ Example for ``i = 2, 4``:
     x = 3 → count = 1
     x = 4 → count = 0
 
-- For ``i = 2``: since ``i ∈ [1, 3]``, we set ``x = 1``.  
+- For ``i = 2``: since ``i ∈ [1, 3]``, we set ``x = 1``.
   Then ``y = x + i = 3``, so the combination is ``(1, 3)``.
 
-- For ``i = 4``: since ``i > 3``, subtract 3 → ``i = 1``.  
-  Now test with ``x = 2``. Since ``i ∈ [1, 2]``, we set ``x = 2``.  
+- For ``i = 4``: since ``i > 3``, subtract 3 → ``i = 1``.
+  Now test with ``x = 2``. Since ``i ∈ [1, 2]``, we set ``x = 2``.
   Then ``y = x + i = 3``, so the combination is ``(2, 3)``.
 
 """
