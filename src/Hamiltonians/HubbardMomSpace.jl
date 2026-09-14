@@ -61,8 +61,8 @@ end
 end
 
 """
-    mom_transfer_offdiagonal(add, chosen, map, g; fold=true)
-    mom_transfer_offdiagonal(add1, add2, chosen, map1, map2, g; fold=true)
+    mom_transfer_offdiagonal(add, chosen, map, geometry; fold=true)
+    mom_transfer_offdiagonal(add1, add2, chosen, map1, map2, geometry; fold=true)
 
 This function does the excitation operation on the given `add` or between `add1` and `add2` 
 in momentum space for the same or two different components of a multi-component Fock state 
@@ -70,7 +70,7 @@ address, respectively, which contributes to the off-diagonal part of the Hamilto
 The excitation is carried out to get a response similar to the nearest neighbour 
 interaction and the on-site interaction operation in real space. The excitation is 
 determined by the integer `chosen`. `map`, `map1`, and `map2` are the occupied 
-mode maps for the relevant components of the multi-component Fock state.`g` is 
+mode maps for the relevant components of the multi-component Fock state.`geometry` is 
 the geometry of the lattice. If `fold` is true, momentum transfer that goes
 outside the first Brillouin zone is folded back into it.
 
@@ -78,7 +78,7 @@ See also [`mom_transfer_diagonal`](@ref).
 """
 @inline function mom_transfer_offdiagonal(
     add::SingleComponentFockAddress{<:Any, M}, chosen::Int, map::ModeMap,
-    g::CubicGrid{D,S}) where {M, D, S}
+    geometry::CubicGrid{D,S}) where {M, D, S}
     # Get the momentum transfer for a given excitation.
     singlies = length(map) # number of at least singly occupied modes
     double = chosen - singlies * (singlies - 1) * (M - 2)
@@ -108,40 +108,40 @@ See also [`mom_transfer_diagonal`](@ref).
         src_indices = (map[f_hole], map[s_hole])
     end
     src_modes = (src_indices[1].mode, src_indices[2].mode)
-    src_loc = (g[src_modes[1]], g[src_modes[2]])
-    Q = g[mom_change+1] - g[1]
+    src_loc = (geometry[src_modes[1]], geometry[src_modes[2]])
+    Q = geometry[mom_change+1] - geometry[1]
     dst_loc = (src_loc[2]-Q, src_loc[1]+Q)
     dst_loc = (mod1.(dst_loc[1], S) , mod1.(dst_loc[2], S))
     if dst_loc == src_loc || reverse(dst_loc) == src_loc
         # If the momentum transfer is out of bounds, we return the original address.
-        Q = g[M] - g[1]
+        Q = geometry[M] - geometry[1]
         dst_loc = (src_loc[2]-Q, src_loc[1]+Q)
         dst_loc = (mod1.(dst_loc[1], S) , mod1.(dst_loc[2], S))
     end
-    dst_indices = find_mode(add, (g[dst_loc[1]], g[dst_loc[2]]))
+    dst_indices = find_mode(add, (geometry[dst_loc[1]], geometry[dst_loc[2]]))
     return excitation(add, dst_indices, src_indices)..., src_modes..., -Q
 end
 
 @inline function mom_transfer_offdiagonal(
     add1::SingleComponentFockAddress{<:Any, M}, add2::SingleComponentFockAddress{<:Any, M}, 
-    chosen::Int, map1::ModeMap, map2::ModeMap, g::CubicGrid{D,S}) where {M, D, S}
+    chosen::Int, map1::ModeMap, map2::ModeMap, geometry::CubicGrid{D,S}) where {M, D, S}
     # Get the momentum transfer for a given excitation.
     singlies = length(map2)
     pair, mom_change = fldmod1(chosen, M - 1)
     f_hole, s_hole = fldmod1(pair, singlies) # where the holes are to be made
     src_indices = (map1[f_hole], map2[s_hole])
     src_modes = (src_indices[1].mode, src_indices[2].mode)
-    src_loc = (g[src_modes[1]], g[src_modes[2]])
-    Q = g[mom_change+1] - g[1]
+    src_loc = (geometry[src_modes[1]], geometry[src_modes[2]])
+    Q = geometry[mom_change+1] - geometry[1]
     dst_loc = (src_loc[1]+Q, src_loc[2]-Q)
     dst_loc = (mod1.(dst_loc[1], S) , mod1.(dst_loc[2], S))
-    return excitation(add1, find_mode(add1, (g[dst_loc[1]],)), (src_indices[1],))..., 
-        excitation(add2, find_mode(add2, (g[dst_loc[2]],)), (src_indices[2],))..., src_modes..., -Q
+    return excitation(add1, find_mode(add1, (geometry[dst_loc[1]],)), (src_indices[1],))..., 
+        excitation(add2, find_mode(add2, (geometry[dst_loc[2]],)), (src_indices[2],))..., src_modes..., -Q
 end
 
 """
-    _mom_transfer_diagonal(map, g, u, w)
-    _mom_transfer_diagonal(map1, map2, g, u, w)
+    _mom_transfer_diagonal(map, geometry, u, w)
+    _mom_transfer_diagonal(map1, map2, geometry, u, w)
 
 This function does the excitation operation on the given `map` or between `map1` and `map2` 
 which are the occupied mode maps for the relevant components  of the multi-component
@@ -149,38 +149,42 @@ Fock state in momentum space. The operation is carried out for the same or two d
 components of a multi-component Fock state address, respectively, which contributes to 
 the diagonal part of the Hamiltonian. The excitation is carried out to get the 
 response similar to the nearest neighbour interaction and on-site interaction 
-operation in real space. `g` is the geometry of the lattice. `u` and `w` are 
+operation in real space. `geometry` is the geometry of the lattice. `u` and `w` are 
 the on-site and nearest neighbour interaction strengths, respectively. If 
 either `u` or `w` is `nothing`, the corresponding interaction term is ignored. 
 
 """
-@inline function _mom_transfer_diagonal(map::BoseOccupiedModeMap, g::CubicGrid{D,S}, u, w) where {D, S}
+@inline function _mom_transfer_diagonal(
+    map::BoseOccupiedModeMap, geometry::CubicGrid{D,S}, u, w
+) where {D, S}
     onproduct = 0.0
     u_scaled = u / 2.0 + w * D
     for i in 1:length(map)
         occ_i = Float64(map[i].occnum)
         onproduct += occ_i * (occ_i - 1.0) * u_scaled
-        g_i = g[map[i].mode]
+        g_i = geometry[map[i].mode]
         
         for j in 1:i-1
             occ_j = Float64(map[j].occnum)
-            q = g_i - g[map[j].mode]
+            q = g_i - geometry[map[j].mode]
             onproduct += 2.0 * occ_i * occ_j * (u + w * (D + _cosin_sum(q, S)))
         end
     end
     return onproduct
 end
 
-@inline function _mom_transfer_diagonal(map::BoseOccupiedModeMap, g::CubicGrid{D,S}, ::Nothing, w) where {D, S}
+@inline function _mom_transfer_diagonal(
+    map::BoseOccupiedModeMap, geometry::CubicGrid{D,S}, ::Nothing, w
+) where {D, S}
     onproduct = 0.0
     for i in 1:length(map)
         occ_i = Float64(map[i].occnum)
         onproduct += occ_i * (occ_i - 1.0) * D
-        g_i = g[map[i].mode]
+        g_i = geometry[map[i].mode]
         
         for j in 1:i-1
             occ_j = Float64(map[j].occnum)
-            q = g_i - g[map[j].mode]
+            q = g_i - geometry[map[j].mode]
             onproduct += 2.0 * occ_i * occ_j * (D + _cosin_sum(q, S))
         end
     end
@@ -200,16 +204,18 @@ end
     return onproduct * u
 end
 
-@inline function _mom_transfer_diagonal(map::FermiOccupiedModeMap, g::CubicGrid{D,S}, _, w) where {D, S}
+@inline function _mom_transfer_diagonal(
+    map::FermiOccupiedModeMap, geometry::CubicGrid{D,S}, _, w
+) where {D, S}
     onproduct = 0.0
     for i in 1:length(map)
         mode_i = map[i].mode
         occ_i  = Float64(map[i].occnum)
         onproduct += occ_i * (occ_i - 1.0)
-        g_i = g[mode_i] 
+        g_i = geometry[mode_i] 
         for j in 1:i-1
             occ_j = Float64(map[j].occnum)
-            q = g_i - g[map[j].mode] 
+            q = g_i - geometry[map[j].mode] 
             onproduct += 2.0 * occ_i * occ_j * (D - _cosin_sum(q, S))
         end
     end
@@ -258,23 +264,22 @@ where `V_{σσ}' is the interaction coefficient that depends on interaction para
 stored in `components` and `g` is the geometry of the lattice.
 
 """
-@inline _mom_transfer_diagonal(components::Tuple{}, g::CubicGrid) = 0.0
+@inline _mom_transfer_diagonal(components::Tuple{}, ::CubicGrid) = 0.0
 
-@inline function _mom_transfer_diagonal((data, rest...)::Tuple, g::CubicGrid)
+@inline function _mom_transfer_diagonal((data, rest...)::Tuple, geometry::CubicGrid)
     if isnothing(data.u) && isnothing(data.w)
         current_product = 0.0
     else
         idx1, idx2 = component_index(data)
         
         current_product = if idx1 == idx2
-            _mom_transfer_diagonal(data.occmap1, g, data.u, data.w)
+            _mom_transfer_diagonal(data.occmap1, geometry, data.u, data.w)
         else
-            _mom_transfer_diagonal(data.occmap1, data.occmap2, g, data.u, data.w)
+            _mom_transfer_diagonal(data.occmap1, data.occmap2, geometry, data.u, data.w)
         end
     end
 
-    # Sum up the current step with the rest of the unrolled tuple
-    return current_product + _mom_transfer_diagonal(rest, g)
+    return current_product + _mom_transfer_diagonal(rest, geometry)
 end
 
 @inline _interaction_parameter_diag(u::Float64, w::Float64, D::Int) = u + 2 * w * D
@@ -337,6 +342,7 @@ struct HubbardMomSpace{
     D, # dimension
     A<:AbstractFockAddress,
     G<:CubicGrid,
+    Dis<:Function, # dispersion function
     # The following need to be type params.
     KS<:SMatrix{D,<:Any, Float64}, # k values
     KES<:SMatrix{C,<:Any,Float64},
@@ -351,6 +357,7 @@ struct HubbardMomSpace{
     u::U # interactions
     w::W # nearest neighbour interactions
     geometry::G
+    dispersion::Dis
 end
 
 function HubbardMomSpace(
@@ -396,15 +403,17 @@ function HubbardMomSpace(
     end
     kes_mat, ks_mat = _mom_space_energies_and_ks(ks_vec_of_vecs, geometry, t_mat, dispersion)
 
-    return HubbardMomSpace{eltype(kes_mat),C,D,typeof(address),typeof(geometry),typeof(ks_mat),typeof(kes_mat),
+    return HubbardMomSpace{eltype(kes_mat),C,D,typeof(address),typeof(geometry),typeof(dispersion),typeof(ks_mat),typeof(kes_mat),
     typeof(t_mat),typeof(u_mat),typeof(w_mat)}(
-        address, ks_mat, kes_mat, t_mat, u_mat, w_mat, geometry,
+        address, ks_mat, kes_mat, t_mat, u_mat, w_mat, geometry, dispersion
     )
 end
 
 LOStructure(::Type{<:HubbardMomSpace}) = IsHermitian()
 
-function Base.show(io::IO, h::HubbardMomSpace{<:Any,C}) where {C}
+function Base.show(
+    io::IO, h::HubbardMomSpace{<:Any,C}
+) where {C}
     io = IOContext(io, :compact => true)
     println(io, "HubbardMomSpace(")
     println(io, "  ", starting_address(h), ",")
@@ -419,6 +428,9 @@ function Base.show(io::IO, h::HubbardMomSpace{<:Any,C}) where {C}
         println(io, "  w = ", zeros(C,C), ",")
     else
         println(io, "  w = ", Float64.(h.w), ",")
+    end
+    if h.dispersion != hubbard_dispersion
+        println(io, "  dispersion = ", h.dispersion, ",")
     end
     print(io, ")")
 end

@@ -645,6 +645,8 @@ end
         H2 = HubbardMomSpace(BoseFS((0, 0, 5, 0, 0, 0)); u=[2], t=[3])
 
         @test exact_energy(H1) ≈ exact_energy(H2)  rtol=0.0001
+
+        @test offdiagonals(H2 * H2.address) == collect(offdiagonals(H2 * H2.address))
     end
     @testset "1D Bosons (2-component)" begin
         add2 = CompositeFS(
