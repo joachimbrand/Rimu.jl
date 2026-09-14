@@ -440,7 +440,7 @@ dimension(::HubbardMomSpace, address) = number_conserving_dimension(address)
 This holds the off-diagonals for a single- and multi-component two-body on-site and 
 nearest-neighbour interaction terms. It is structured where the index of this vector
 determines `p`, `q`, `σ`, `σ'` and `k` in the two particle operator given by 
-```math a^†_{p+k,σ} a^†_{q-k,σ'} a_{q,σ'} a_{p,σ}```. The operator is operated on a 
+`` a^†_{p+k,σ} a^†_{q-k,σ'} a_{q,σ'} a_{p,σ}``. The operator is operated on a 
 `parent` which is a single-component (where `address1`=`address2`=`parents`) or 
 multi-component Fock address where `address1` and `address2` are the single-component 
 Fock addresses representing  `σ` and `σ'` component respectively. The operation 
