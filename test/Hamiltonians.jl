@@ -49,6 +49,7 @@ end
             ); t=[1, 2], u=[0 3; 3 0], w=[1 0.5; 0.5 1]
         ),
         HubbardMomSpace(BoseFS((1, 2, 3)); u=[1], t=[3], w=[1]),
+        HubbardMomSpace(BoseFS((1, 2, 3)); u=[1], t=[3], w=[1], dispersion=continuum_dispersion),
         HubbardMomSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3]),
         HubbardMomSpace(FermiFS((1, 1, 1, 1, 1, 0, 0, 0)); u=[0], t=[3*im]),
         HubbardMomSpace(
