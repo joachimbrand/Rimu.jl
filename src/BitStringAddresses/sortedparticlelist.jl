@@ -256,7 +256,7 @@ end
 
 @inline function fermi_excitation(
     ss::SortedParticleList, creations::NTuple{K}, destructions::NTuple{K}
-) where {T,K}
+) where {K}
     creations_rev = reverse(creations)
     destructions_rev = reverse(destructions)
     value = fermi_excitation_value_spl(creations_rev, destructions_rev)

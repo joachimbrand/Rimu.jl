@@ -146,7 +146,7 @@ julia> maximum_mode_occupation(BoseFS{missing}(3, 10, 0; type=UInt16)) |> Int
 julia> maximum_mode_occupation(CompositeFS(BoseFS(1,2,3), FermiFS(1,0,0)))
 (6, 1)
 
-julia> maximum_mode_occupation(FroehlichPolaron(BoseFS{missing,20}(); mode_cutoff=5))
+julia> maximum_mode_occupation(FroehlichPolaron1D(BoseFS{missing,20}(); mode_cutoff=5))
 5
 ```
 

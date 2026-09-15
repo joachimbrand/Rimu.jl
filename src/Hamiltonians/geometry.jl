@@ -40,7 +40,7 @@ julia> geo[(3,4)] # returns 0 if out of bounds
 
 See also [`PeriodicBoundaries`](@ref), [`HardwallBoundaries`](@ref) and
 [`LadderBoundaries`](@ref) for special-case constructors. See also
-[`HubbardRealSpace`](@ref) and [`G2RealSpace`](@ref).
+[`HubbardRealSpace`](@ref) and [`G2RealSpace`](@ref), [`dimension`](@ref).
 """
 struct CubicGrid{D,Dims,Fold}
     function CubicGrid(
@@ -53,6 +53,15 @@ struct CubicGrid{D,Dims,Fold}
     end
 end
 CubicGrid(args::Vararg{Int}) = CubicGrid(args)
+
+"""
+    dimension(::CubicGrid{D}) where {D}
+
+Return the number of dimensions of the lattice in this geometry.
+
+See also [`CubicGrid`](@ref).
+"""
+dimension(::CubicGrid{D}) where {D} = D
 
 """
     PeriodicBoundaries(dims...) -> CubicGrid

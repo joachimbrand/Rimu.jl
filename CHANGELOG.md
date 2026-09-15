@@ -6,9 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Unreleased
 
 ### Added
-* Change log ([#409])
-* Pass custom external potential to `HubbardRealSpace` ([#399, #400])
+* `FroehlichPolaron` is extended to multiple dimensions; the legacy code for the 1D model is still available (but experimental) as `FroehlichPolaron1D`([#355])
 * Allow restricting the number type in `FroehlichPolaron`; make it compatible with GPU. ([#405])
+* Started CHANGELOG.md ([#409])
+* Pass custom external potential to `HubbardRealSpace` ([#399, #400])
 
 ### Deprecated
 * Keyword `mass` in `FroehlichPolaron` renamed to `two_m` ([#405])
